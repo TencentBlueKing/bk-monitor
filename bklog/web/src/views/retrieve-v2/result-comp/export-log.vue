@@ -138,7 +138,7 @@
               v-for="option in totalFields"
               :id="option.field_name"
               :key="option.field_name"
-              :name="showFieldAlias ? option.query_alias || option.field_name : option.field_name"
+              :name="getFieldName(option)"
             >
             </bk-option>
           </bk-select>
@@ -187,7 +187,7 @@
 <script>
   import { blobDownload } from '@/common/util';
   import { mapGetters, mapState } from 'vuex';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
 
@@ -471,6 +471,10 @@
       handleCloseDialog() {
         this.showHistoryExport = false;
       },
+      getFieldName(field){
+        const { getQueryAlias } = useFieldNameHook({ store: this.$store });
+        return getQueryAlias(field);
+      }
     },
   };
 </script>

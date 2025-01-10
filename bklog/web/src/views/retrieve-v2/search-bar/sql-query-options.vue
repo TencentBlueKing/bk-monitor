@@ -1,6 +1,6 @@
 <script lang="ts" setup>
   import { computed, ref, watch, nextTick, Ref } from 'vue';
-  import getFieldNameHook from '@/hooks/use-field-name';
+  import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
@@ -62,7 +62,7 @@
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    const { getFieldNames } = getFieldNameHook({ store });
+    const { getFieldNames } = useFieldNameHook({ store });
     return  getFieldNames(totalFields.value.filter(filterFn));
    
   });
