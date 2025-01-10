@@ -32,6 +32,8 @@ import { random } from 'monitor-common/utils';
 import { throttle } from 'throttle-debounce';
 
 import { getEventPaths } from './utils';
+
+import './target-compare-select.scss';
 const INPUT_ITEM = {
   type: 'input',
   id: '___input___',

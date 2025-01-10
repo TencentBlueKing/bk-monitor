@@ -61,11 +61,17 @@ const COMPARE_LIST = [
 
 export default defineComponent({
   name: 'CompareSelect',
+  props: {
+    curTarget: { type: [String, Number], default: '' },
+  },
   setup() {
     const localType = ref(CompareId.none);
 
+    function handleTargetChange() {}
+
     return {
       localType,
+      handleTargetChange,
     };
   },
   render() {
@@ -79,9 +85,23 @@ export default defineComponent({
       }
       if (this.localType === CompareId.target) {
         return (
-          <div>
-            <TargetCompareSelect />
-          </div>
+          <span class='compare-target-wrap ml-12'>
+            {this.curTarget && (
+              <span
+                class='compare-target-ip'
+                v-bk-overflow-tips
+              >
+                {this.curTarget}
+              </span>
+            )}
+            <span class='target-compare-select'>
+              <TargetCompareSelect
+                list={[]}
+                value={[]}
+                onChange={this.handleTargetChange}
+              />
+            </span>
+          </span>
         );
       }
       return undefined;

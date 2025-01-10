@@ -1347,7 +1347,7 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        width={960}
+        width={1280}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
         v-model={[localShow.value, 'isShow']}
         v-slots={{
