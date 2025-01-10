@@ -1324,6 +1324,8 @@ class BaseIndexSetHandler(object):
         # 上下文、实时日志定位字段 排序字段
         self.target_fields = target_fields if target_fields else []
         self.sort_fields = sort_fields if sort_fields else []
+        self.target_fields_raw = target_fields
+        self.sort_fields_raw = sort_fields
 
     def create_index_set(self):
         """
@@ -1498,8 +1500,10 @@ class BaseIndexSetHandler(object):
         self.index_set_obj.time_field_unit = self.time_field_unit
 
         # 上下文、实时日志 定位字段 排序字段更新
-        self.index_set_obj.target_fields = self.target_fields
-        self.index_set_obj.sort_fields = self.sort_fields
+        if self.target_fields_raw is not None:
+            self.index_set_obj.target_fields = self.target_fields_raw
+        if self.sort_fields_raw is not None:
+            self.index_set_obj.sort_fields = self.sort_fields_raw
 
         self.index_set_obj.save()
 

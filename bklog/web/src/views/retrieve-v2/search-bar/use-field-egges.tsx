@@ -32,43 +32,64 @@ export default () => {
   const store = useStore();
   let requestTimer;
   const isRequesting = ref(false);
-  const requestFieldEgges = (() => {
-    return (field, value?, callback?) => {
-      const getConditionValue = () => {
-        if (['keyword'].includes(field.field_type)) {
-          return [`*${value}*`];
-        }
-
-        return [];
-      };
-
-      if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
-        return;
+  const taskPool = [];
+  const requestFieldEgges = (field, value?, callback?) => {
+    const getConditionValue = () => {
+      if (['keyword'].includes(field.field_type)) {
+        return [`*${value}*`];
       }
 
-      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 50 : 100;
-      isRequesting.value = true;
-
-      requestTimer && clearTimeout(requestTimer);
-      requestTimer = setTimeout(() => {
-        const addition = value
-          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.getRequestParam();
-            })
-          : [];
-
-        store
-          .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
-          .then(resp => {
-            callback?.(resp);
-          })
-          .finally(() => {
-            isRequesting.value = false;
-          });
-      }, 300);
+      return [];
     };
-  })();
+
+    if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
+      return;
+    }
+
+    const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 50 : 100;
+    isRequesting.value = true;
+
+    requestTimer && clearTimeout(requestTimer);
+    requestTimer = setTimeout(() => {
+      const addition = value
+        ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
+            const instance = new ConditionOperator(val);
+            return instance.getRequestParam();
+          })
+        : [];
+
+      const taskArgs = {
+        fields: [field],
+        addition,
+        force: true,
+        size,
+        pending: true,
+        index: taskPool.length,
+        commit: false,
+        cancelToken: true,
+      };
+      taskPool.forEach(task => {
+        task.pending = false;
+      });
+
+      taskPool.push(taskArgs);
+      store
+        .dispatch('requestIndexSetValueList', taskArgs)
+        .then(resp => {
+          if (taskArgs.pending) {
+            store.commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
+            callback?.(resp);
+          }
+        })
+        .finally(() => {
+          if (taskArgs.pending) {
+            isRequesting.value = false;
+          }
+          const index = taskPool.findIndex(t => t === taskArgs);
+          taskPool.splice(index, 1);
+        });
+    }, 300);
+  };
 
   const isValidateEgges = field => {
     return ['keyword', 'text'].includes(field.field_type);

@@ -1398,8 +1398,16 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 yield from self.get_bkci_metric(table)
             elif table.get("table_type") == "plugin":
                 yield from self.get_plugin_metric(table)
+            elif influx_db_name.startswith("bkprecal_"):
+                # 预聚合表
+                yield from self.get_pre_calculate_metric(table)
         except BaseException:  # noqa
             logger.exception("get metrics error, table({})".format(table.get("table_id", "")))
+
+    def get_pre_calculate_metric(self, table):
+        base_metric = self.get_base_dict(table)
+        base_metric.update({"related_name": "bk_pre_cal", "related_id": "bk_pre_cal", "category_display": _("预计算指标")})
+        return self.get_field_metric_msg(table, base_metric)
 
     def get_base_dict(self, table):
         result_table_id = table["table_id"]

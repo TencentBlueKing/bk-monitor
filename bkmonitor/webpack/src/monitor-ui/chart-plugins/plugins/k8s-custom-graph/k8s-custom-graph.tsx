@@ -255,8 +255,10 @@ class K8SCustomChart extends CommonSimpleChart {
                     series.push(
                       ...res.series.map(set => {
                         let name: string = this.handleSeriesName(item, set) || set.target;
+                        let timeShiftName = '';
                         if (this.timeOffset.length) {
-                          name = `${this.handleTransformTimeShift(timeShift || 'current')}-${name}`;
+                          timeShiftName = this.handleTransformTimeShift(timeShift || 'current');
+                          name = `${timeShiftName}-${name}`;
                         } else if (['limit', 'request'].includes(newParams.query_configs?.[0]?.alias)) {
                           name = newParams.query_configs?.[0]?.alias;
                         }
@@ -268,6 +270,10 @@ class K8SCustomChart extends CommonSimpleChart {
                         return {
                           ...set,
                           name,
+                          customData: {
+                            timeShiftName: timeShiftName,
+                            metricName: name.replace(`${timeShiftName}-`, ''),
+                          },
                         };
                       })
                     );
@@ -307,12 +313,15 @@ class K8SCustomChart extends CommonSimpleChart {
               // biome-ignore lint/style/noCommaOperator: <explanation>
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
-              unit: this.panel.options?.unit || item.unit,
+              unit: this.viewOptions.unit || this.panel.options?.unit || item.unit,
               z: 1,
               traceData: item.trace_data ?? '',
+              customData: item.customData,
               dimensions: item.dimensions ?? {},
             })) as any
           );
+          let limitFirstY = 0;
+          let requestFirstY = 0;
           seriesList = seriesList.map((item: any) => {
             const isSpecialSeries = this.isSpecialSeries(item.name);
             let color = item.lineStyle?.color;
@@ -323,6 +332,12 @@ class K8SCustomChart extends CommonSimpleChart {
               const labelColor = item.name === 'limit' ? '#E71818' : '#E38B02';
               const itemColor = item.name === 'limit' ? '#FFEBEB' : '#FDEED8';
               const firstValue = item.data?.find(item => item.value?.[1]);
+              const firstValueY = firstValue?.value?.[1] || 0;
+              if (isLimit) {
+                limitFirstY = firstValueY;
+              } else {
+                requestFirstY = firstValueY;
+              }
               markPoint = {
                 symbol: 'rect',
                 symbolSize: [isLimit ? 30 : 46, 16],
@@ -367,8 +382,37 @@ class K8SCustomChart extends CommonSimpleChart {
                 color,
                 width: 1.5,
               },
+              areaStyle: isSpecialSeries
+                ? undefined
+                : {
+                    opacity: 0.2,
+                    color,
+                  },
               markPoint,
             };
+          });
+          // 判断limit 与request是否重叠
+          let min = 0;
+          let max = 0;
+          for (const item of this.legendData) {
+            const minValue = Number(item.minSource);
+            const maxValue = Number(item.maxSource);
+            if (minValue < min) {
+              min = minValue;
+            }
+            if (maxValue > max) {
+              max = maxValue;
+            }
+          }
+          const limitEqualRequest = Math.abs(limitFirstY - requestFirstY) / (max - min) < 16 / (this.height - 26);
+          seriesList = seriesList.map(item => {
+            if (limitEqualRequest && item.name === 'request') {
+              return {
+                ...item,
+                markPoint: {},
+              };
+            }
+            return item;
           });
           this.seriesList = Object.freeze(seriesList) as any;
           // 1、echarts animation 配置会影响数量大时的图表性能 掉帧
@@ -572,8 +616,6 @@ class K8SCustomChart extends CommonSimpleChart {
           if (hasNoBrother) {
             showSymbol = true;
           }
-          // profiling 趋势图 其中 Trace 数据需包含span列表
-          const traceData = item.traceData ? item.traceData[seriesItem[0]] : undefined;
           return {
             symbolSize: hasNoBrother ? 10 : 6,
             value: [seriesItem[0], seriesItem[1]],
@@ -583,7 +625,7 @@ class K8SCustomChart extends CommonSimpleChart {
               shadowBlur: 0,
               opacity: 1,
             },
-            traceData,
+            customData: item.customData,
           } as any;
         }
         return seriesItem;
@@ -932,7 +974,56 @@ class K8SCustomChart extends CommonSimpleChart {
       }
     }
   }
+  customTooltips(params: any) {
+    const tableData = new Map<string, Record<string, string>>();
+    const columns = new Set<string>(['', this.$tc('当前')]);
+    const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
 
+    for (const item of params) {
+      const { customData } = item.data;
+      const curSeries: any = this.options.series[item.seriesIndex];
+      const unitFormat = curSeries.unitFormatter || (v => ({ text: v }));
+      const precision =
+        !['none', ''].some(val => val === curSeries.unit) && +curSeries.precision < 1 ? 2 : +curSeries.precision;
+      const valueObj = unitFormat(item.value[1], precision);
+      const value = `<span class="series-legend" style="--series-color: ${item.color}"></span> ${valueObj?.text}${valueObj?.suffix || ''}`;
+
+      if (customData) {
+        const { metricName, timeShiftName } = customData;
+        const name = timeShiftName || this.$t('当前');
+        columns.add(name);
+        if (!tableData.has(metricName)) {
+          tableData.set(metricName, { [name]: value });
+          continue;
+        }
+        tableData.set(metricName, {
+          ...tableData.get(metricName),
+          [name]: value,
+        });
+      }
+    }
+    let html = '<table class="monitor-chart-tooltips-table">\n';
+    html += '  <tr>\n';
+    for (const column of columns) {
+      html += `    <th>${column}</th>\n`;
+    }
+    html += '  </tr>\n';
+    for (const [name, metrics] of tableData) {
+      html += '  <tr>\n';
+      html += `    <td>${name}</td>\n`;
+      for (const column of Array.from(columns).slice(1)) {
+        html += `    <td>${metrics[column] || '--'}</td>\n`;
+      }
+      html += '  </tr>\n';
+    }
+    html += '</table>';
+    return `<div class="monitor-chart-tooltips">
+            <p class="tooltips-header">
+                ${pointTime}
+            </p>
+             ${html}
+            </div>`;
+  }
   render() {
     const showLegend = this.panel.options?.legend?.displayMode !== 'hidden';
     const groupByField = this.panel.externalData?.groupByField;
@@ -968,6 +1059,7 @@ class K8SCustomChart extends CommonSimpleChart {
                   ref='baseChart'
                   width={this.width}
                   height={this.height}
+                  customTooltips={this.timeOffset?.length > 0 ? this.customTooltips : undefined}
                   groupId={this.panel.dashboardId}
                   hoverAllTooltips={this.hoverAllTooltips}
                   needZrClick={this.panel.options?.need_zr_click_event}

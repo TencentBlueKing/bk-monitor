@@ -16,7 +16,7 @@ import arrow
 from arrow.parser import ParserError
 from django.utils.translation import gettext_lazy as _lazy
 
-from apm_web.constants import DataStatus
+from apm_web.constants import DataStatusColumnEnum
 from core.unit import load_unit
 
 
@@ -457,16 +457,10 @@ class DataStatusTableFormat(TableFormat):
     3. 灰色叉叉: 未开启功能
     """
 
-    value_map = {
-        DataStatus.NO_DATA: _lazy("无数据"),
-        DataStatus.NORMAL: _lazy("正常"),
-        DataStatus.DISABLED: _lazy("未开启"),
-    }
-
     column_type = "data_status"
 
     def get_filter_key(self, row):
-        text = self.value_map.get(row.get(self.id), _lazy("未开启"))
+        text = DataStatusColumnEnum.from_value(row.get(self.id)).label
         return {"text": text, "value": row.get(self.id)}
 
     def format(self, row):

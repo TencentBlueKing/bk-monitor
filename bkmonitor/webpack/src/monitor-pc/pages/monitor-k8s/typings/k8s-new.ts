@@ -106,7 +106,6 @@ export enum K8sTableColumnKeysEnum {
 export enum K8sConvergeTypeEnum {
   AVG = 'avg',
   COUNT = 'count',
-  LAST = 'last',
   MAX = 'max',
   MIN = 'min',
   SUM = 'sum',
