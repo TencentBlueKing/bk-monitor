@@ -1,4 +1,8 @@
 .span-details__dashboard-panel {
+  display: flex;
+  height: 100%;
+  overflow-x: hidden;
+
   .mr-24 {
     margin-right: 24px;
   }
@@ -11,17 +15,34 @@
     background: #F5F7FA;
   }
 
+
+  .dashboard-panel__charts {
+    flex: 1;
+    padding-right: 24px;
+    overflow: auto;
+  }
+
+  .dashboard-panel__content {
+    height: calc(100% - 96px);
+
+    .dashboard-panel {
+      height: 100%;
+    }
+  }
+
   .dashboard-tools {
     display: flex;
     align-items: center;
     height: 48px;
-    padding: 0 16px;
+    padding-left: 16px;
+    margin-right: 16px;
     background: #F5F7FA;
     border-radius: 2px;
   }
 
   .dashboard-panel__content {
     display: flex;
+    padding-top: 16px;
 
     .trace-common-detail {
       height: auto;
