@@ -74,7 +74,7 @@ export default class RecentAlarmTab extends tsc<IRecentAlarmTabProps, IRecentAla
   // 可以添加业务flag
   get canAddBusiness() {
     // 仅支持添加 10 个业务
-    return this.tabs.length <= 10;
+    return this.tabs.length < 10;
   }
 
   /** 业务列表 */
@@ -149,12 +149,13 @@ export default class RecentAlarmTab extends tsc<IRecentAlarmTabProps, IRecentAla
   render() {
     return (
       <div class='recent-alarm-tab'>
-        {!this.loading ? (
+        {
           <div class='tabs'>
             {this.tabs.map(({ bk_biz_name: name, bk_biz_id: id }, index) => (
               <div
                 key={id}
                 class='tab'
+                v-bkloading={{ isLoading: this.loading, zIndex: 10, size: 'mini' }}
                 draggable={true}
                 onDragleave={this.handleDragleave}
                 onDragover={e => this.handleDragover(index, e)}
@@ -208,9 +209,7 @@ export default class RecentAlarmTab extends tsc<IRecentAlarmTabProps, IRecentAla
               />
             )}
           </div>
-        ) : (
-          <div class='skeleton-element' />
-        )}
+        }
         {/* 时间选择器 */}
         <div class='alarm-time-filter'>
           <bk-select

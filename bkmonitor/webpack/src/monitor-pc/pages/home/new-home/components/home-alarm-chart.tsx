@@ -178,7 +178,7 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     },
   };
 
-  formatterFunc = null;
+  formatterFunc = null; // x轴格式化函数
 
   /** 更多操作 */
   @Emit('menuClick')
@@ -275,29 +275,34 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
     return (
       <div class='home-alarm-chart'>
         <div class='alarm-chart-header'>
-          <bk-popover
-            class='home-chart-tips-popover'
-            ext-cls='new-home-tips'
-            theme='light'
-          >
-            <span class='chart-tips'>
-              <i class='icon-monitor icon-mind-fill' />
-            </span>
-            <div
-              class='home-chart-tips-list'
-              slot='content'
+          {this.config.status.some(({ status }) => EStatusType[status]) && (
+            <bk-popover
+              class='home-chart-tips-popover'
+              ext-cls='new-home-tips'
+              theme='light'
             >
-              {(this.config.status || []).map((item, index) => (
-                <div
-                  key={item.name + index}
-                  class={`tips-item ${item.status}`}
-                >
-                  <span class='tips-item-tag'>{EStatusType[item.status]}</span>
-                  <span class='txt'>{item.name}</span>
-                </div>
-              ))}
-            </div>
-          </bk-popover>
+              <span class='chart-tips'>
+                <i class='icon-monitor icon-mind-fill' />
+              </span>
+              <div
+                class='home-chart-tips-list'
+                slot='content'
+              >
+                {(this.config.status || []).map(
+                  (item, index) =>
+                    EStatusType[item.status] && (
+                      <div
+                        key={item.name + index}
+                        class={`tips-item ${item.status}`}
+                      >
+                        <span class='tips-item-tag'>{EStatusType[item.status]}</span>
+                        <span class='txt'>{item.name}</span>
+                      </div>
+                    )
+                )}
+              </div>
+            </bk-popover>
+          )}
           <span
             class='header-title'
             v-bk-overflow-tips
