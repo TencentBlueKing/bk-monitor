@@ -1307,9 +1307,19 @@ const store = new Vuex.Store({
       return dispatch('requestIndexSetFieldInfo');
     },
 
+    /**
+     * 请求提示词列表
+     * @param {*} param0
+     * @param {*} payload: { force: boolean; fields: []; addition: []; size: number; commit: boolean; cancelToken: boolean }
+     * @returns
+     */
     requestIndexSetValueList({ commit, state }, payload) {
       const { start_time, end_time } = state.indexItem;
       const lastQueryTimerange = `${start_time}_${end_time}`;
+
+      const cancelTokenKey = 'requestIndexSetValueListCancelToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = payload.cancelToken ? RequestPool.getCancelToken(cancelTokenKey) : null;
 
       // 本次请求与上次请求时间范围不一致，重置缓存数据
       if (state.indexFieldInfo.last_eggs_request_token !== lastQueryTimerange) {
@@ -1364,10 +1374,17 @@ const store = new Vuex.Store({
         data: queryData,
       };
 
-      return http.request(urlStr, body).then(resp => {
-        commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
-        return resp;
-      });
+      return http
+        .request(urlStr, body, {
+          cancelToken: requestCancelToken,
+        })
+        .then(resp => {
+          if (payload?.commit !== false) {
+            commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
+          }
+
+          return resp;
+        });
     },
 
     requestFavoriteList({ commit, state }, payload) {
