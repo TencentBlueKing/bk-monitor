@@ -3,22 +3,21 @@
 
   .common-detail-container {
     height: 100%;
-    padding: 10px 24px;
     overflow-y: auto;
-    background: #FAFBFD;
+    background: #fafbfd;
     box-shadow: -1px 0 0 0 #0000001a;
 
-    
+    .container-padding {
+      padding: 10px 24px;
+    }
 
+    .common-detail-header {
+      margin-bottom: 10px;
+      font-size: 14px;
+      line-height: 22px;
+      color: #313238;
+    }
 
-  .common-detail-header {
-    margin-bottom: 10px;
-    font-size: 14px;
-    line-height: 22px;
-    color: #313238;
-  }
-
-    
     .host-detail-view {
       height: calc(100% - 32px);
 
@@ -33,7 +32,7 @@
       &:not(.is-show) {
         .line-trigger {
           color: #fff;
-          background-color: #699DF4;
+          background-color: #699df4;
         }
       }
     }
@@ -43,10 +42,9 @@
     .skeleton-element {
       height: 20px;
 
-      &+.skeleton-element {
+      & + .skeleton-element {
         margin-top: 10px;
       }
-
 
       &.status {
         height: 32px;

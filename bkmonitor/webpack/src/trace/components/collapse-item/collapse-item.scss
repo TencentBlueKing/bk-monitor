@@ -23,6 +23,11 @@
       }
     }
   }
+
+  .item-content {
+    margin-top: 10px;
+    transition: height 0.2s ease-in-out
+  }
 }
 
 .collapse-enter-active,

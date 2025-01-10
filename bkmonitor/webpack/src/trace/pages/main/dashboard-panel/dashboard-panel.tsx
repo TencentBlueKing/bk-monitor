@@ -42,6 +42,9 @@ export default defineComponent({
   name: 'DashboardPanel',
   props: {
     sceneViewParams: { type: Object, default: () => ({}) },
+    // 是否为单图模式
+    isSingleChart: { default: false, type: Boolean },
+    sceneData: { type: Object, required: true },
   },
 
   setup() {
@@ -55,33 +58,38 @@ export default defineComponent({
   render() {
     return (
       <div class='span-details__dashboard-panel'>
-        <div class='groups-header'>
-          <GroupsSelector />
+        <div class='dashboard-panel__charts'>
+          <div class='groups-header'>
+            <GroupsSelector />
+          </div>
+          <div class='dashboard-tools'>
+            <FilterVarSelectSimple
+              class='mr-24'
+              label={this.t('汇聚周期') as string}
+              options={PANEL_INTERVAL_LIST}
+            />
+            <FilterVarSelectSimple
+              class='mr-24'
+              label={this.t('汇聚方法') as string}
+            />
+            <CompareSelect />
+            <LayoutSelect />
+          </div>
+          <div class='dashboard-panel__content'>
+            <FlexDashboardPanel
+              id={random(10)}
+              column={3}
+              dashboardId={random(10)}
+              isSingleChart={this.isSingleChart}
+              needOverviewBtn={!!this.sceneData.value?.list?.length}
+              panels={this.sceneData.value.overview_panels}
+            />
+          </div>
         </div>
-        <div class='dashboard-tools'>
-          <FilterVarSelectSimple
-            class='mr-24'
-            label={this.t('汇聚周期') as string}
-            options={PANEL_INTERVAL_LIST}
-          />
-          <FilterVarSelectSimple
-            class='mr-24'
-            label={this.t('汇聚方法') as string}
-          />
-          <CompareSelect />
-          <LayoutSelect />
-        </div>
-        <div class='dashboard-panel__content'>
-          <FlexDashboardPanel
-            id={random(10)}
-            column={3}
-            dashboardId={random(10)}
-            isSingleChart={false}
-            needOverviewBtn={true}
-            panels={[]}
-          />
-          <CommonDetail />
-        </div>
+
+        {this.sceneData.value?.overviewDetailPanel && (
+          <CommonDetail panel={this.sceneData.value?.overviewDetailPanel} />
+        )}
       </div>
     );
   },
