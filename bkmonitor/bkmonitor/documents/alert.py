@@ -99,15 +99,16 @@ class AlertDocument(BaseDocument):
 
     dedupe_md5 = field.Keyword()
 
-    # dimensions = field.Nested(
-    #     properties={
-    #         "key": field.Keyword(),
-    #         "value": field.Text(required=True, fields={"raw": field.Keyword(ignore_above=256)}),
-    #         "display_key": field.Keyword(),
-    #         "display_value": field.Text(required=True, fields={"raw": field.Keyword(ignore_above=256)}),
-    #     },
-    # )
-    dimensions = field.Object(enabled=False, multi=True)
+    class Dimension(InnerDoc):
+        key = field.Keyword()
+        value = field.Keyword()
+        display_key = field.Keyword()
+        display_value = field.Keyword()
+
+        def to_dict(self):
+            return super().to_dict(skip_empty=False)
+
+    dimensions = field.Object(enabled=False, multi=True, doc_class=Dimension)
     # 告警的更多信息，例如：当时的策略快照
     extra_info = field.Object(enabled=False)
 
