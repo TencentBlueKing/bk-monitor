@@ -110,7 +110,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
 
     def generate_depend_time_range(self, item: Item) -> Tuple[int, int]:
         """根据配置生成历史依赖的开始时间和结束时间."""
-        ts_depend = item.algorithms[0].get("ts_depend", "2d")
+        ts_depend = item.algorithms[0].get("ts_depend", "50h")
         ts_depend_offset = parse_time_compare_abbreviation(ts_depend)
         end_time = int(time.time())
         start_time = end_time + ts_depend_offset

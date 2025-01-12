@@ -100,6 +100,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
       timezone: window.timezone,
     },
   ];
+  typeMap = { 'event-center': 'event', 'incident-detail': 'incident' };
   /* 管理历史分享 */
   historyData = {
     show: false,
@@ -157,7 +158,7 @@ export default class TemporaryShareNew extends tsc<ITemporaryShareProps> {
     const { canChange, timeRange, timezone } = this.querySettings[0];
     // const isDefaultTimeRange = timeRange.every(item => CUSTOM_TIME_RANGE_REG.test(item));
     return {
-      type: this.$route.name === 'event-center' ? 'event' : this.$route.query.sceneId,
+      type: this.typeMap[this.$route.name] ?? this.$route.query.sceneId,
       expire_time: dayjs
         .tz()
         .add(period, (this.validityPeriod.split(period.toString())?.[1] || 'h') as any)

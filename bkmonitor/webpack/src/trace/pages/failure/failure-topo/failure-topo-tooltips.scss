@@ -51,7 +51,7 @@
       margin-bottom: 8px;
       line-height: 16px;
 
-      &>div {
+      & > div {
         display: flex;
         width: 100%;
 
@@ -85,8 +85,6 @@
       width: 260px;
     }
   }
-
-
 
   .mr0 {
     margin-right: 0px !important;
@@ -258,7 +256,7 @@
     &.flex-start {
       align-items: start;
 
-      &>.node-link {
+      & > .node-link {
         left: 136px;
       }
 
@@ -270,7 +268,7 @@
     &.flex-end {
       align-items: end;
 
-      &>.node-link {
+      & > .node-link {
         right: 136px;
         left: auto;
       }
@@ -307,7 +305,7 @@
         height: 40px;
         margin-right: 8px;
         margin-left: 2px;
-        background-color: rgba(197, 197, 197, .2);
+        background-color: rgba(197, 197, 197, 0.2);
         border: 1px solid rgba(151, 155, 165, 1);
         border-radius: 50%;
       }
@@ -329,7 +327,7 @@
       border: 1px solid #f55555;
 
       .node-item {
-        background-color: rgba(255, 102, 102, .4);
+        background-color: rgba(255, 102, 102, 0.4);
         border: 1px solid #f55555;
       }
     }
@@ -342,7 +340,7 @@
       width: 16px;
       height: 16px;
       text-align: center;
-      background: #6C6F78;;
+      background: #6c6f78;
       border-radius: 100%;
     }
 
@@ -352,13 +350,13 @@
       }
     }
 
-    .node-source-alert  {
+    .node-source-alert {
       .node-item {
         position: relative;
       }
 
       .alert-wrap {
-        background: #F55555;
+        background: #f55555;
       }
       // border: 1px solid #f55555;
 
@@ -389,7 +387,6 @@
         background-color: #454547 !important;
         transform: translate(0, 0);
       }
-
     }
 
     .left-link {
@@ -408,20 +405,7 @@
       }
 
       .edge-chart-wrap {
-        top: 8px;
         margin-right: 10px;
-
-        &::after {
-          position: absolute;
-          right: 20px;
-          bottom: -6px;
-          width: 0;
-          height: 0;
-          content: '';
-          border-top: 6px solid #59595c;
-          border-right: 6px solid transparent;
-          border-left: 6px solid transparent;
-        }
       }
     }
 
@@ -438,25 +422,12 @@
       }
 
       .edge-chart-wrap {
-        top: -8px;
         margin-left: 10px;
-
-        &::after {
-          position: absolute;
-          top: -6px;
-          left: 20px;
-          width: 0;
-          height: 0;
-          content: '';
-          border-right: 6px solid transparent;
-          border-bottom: 6px solid #59595c;
-          border-left: 6px solid transparent;
-        }
       }
     }
-    
+
     .flowing-dash {
-      animation: dash .35s linear infinite;
+      animation: dash 0.35s linear infinite;
     }
 
     .edpf-node-link {
@@ -566,7 +537,7 @@
   .react-flow__edge.animated path {
     fill: none;
     stroke-dasharray: 5;
-    animation: dashdraw .5s linear infinite;
+    animation: dashdraw 0.5s linear infinite;
   }
 
   .item-edge {
@@ -716,7 +687,7 @@
     color: #699df4;
     white-space: nowrap;
     cursor: pointer;
-    
+
     .btn-icon {
       display: flex;
       align-items: center;
@@ -745,5 +716,3 @@
     box-shadow: 0px 0px;
   }
 }
-
-

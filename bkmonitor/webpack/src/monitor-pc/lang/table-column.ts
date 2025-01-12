@@ -155,7 +155,7 @@ export default {
   缩略图: 'Thumbnail',
 
   // 新容器场景(k8s)
-  Pod: 'Pod',
+  pod: 'pod',
   workload: 'workload',
   namespace: 'namespace',
   cluster: 'cluster',

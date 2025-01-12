@@ -32,6 +32,7 @@ import { metricRecommendationFeedback } from 'monitor-api/modules/alert';
 import { random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
+import { colorList } from '../../../monitor-echarts/options/constant';
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
 import ListLegend from '../../components/chart-legend/common-legend';
 import TableLegend from '../../components/chart-legend/table-legend';
@@ -108,6 +109,13 @@ export default class AiopsDimensionLine extends LineChart {
     const startTimeRange = JSON.stringify(this.needLegendTimeRange);
     const cacheTimeRang = JSON.stringify(this.cacheTimeRang);
     return startTimeRange !== cacheTimeRang;
+  }
+  handleTimeOffset(val: string) {
+    const timeMatch = val.match(/(-?\d+)(\w+)/);
+    const hasMatch = timeMatch && timeMatch.length > 2;
+    return hasMatch
+      ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+      : val.replace('current', window.i18n.tc('当前'));
   }
   /** 获取数据 */
   async getPanelData(start_time?: string, end_time?: string) {
@@ -214,10 +222,14 @@ export default class AiopsDimensionLine extends LineChart {
           ];
         }
         const seriesList = this.handleTransformSeries(
-          series.map(item => ({
+          series.map((item, index) => ({
             name: item.name,
+            color: colorList[index],
             cursor: 'auto',
-            data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
+            data: item.datapoints.reduce((pre: any, cur: any) => {
+              pre.push(cur.reverse());
+              return pre;
+            }, []),
             stack: item.stack || random(10),
             unit: item.unit,
             markArea: this.createMarkArea(),
@@ -271,7 +283,6 @@ export default class AiopsDimensionLine extends LineChart {
             series: seriesList,
           })
         ) as MonitorEchartOptions;
-
         this.metrics = metrics || [];
         this.inited = true;
         this.empty = false;
@@ -437,7 +448,7 @@ export default class AiopsDimensionLine extends LineChart {
       recommendation_metric_class: this.panel.recommend_info.class,
     })
       .then(res => {
-        this.panel.feedback = res?.feedback || {};
+        Object.assign(this.panel.feedback, res?.feedback ?? {});
       })
       .catch(() => {});
   }
@@ -456,6 +467,7 @@ export default class AiopsDimensionLine extends LineChart {
       <span class='aiops-correlation-reason'>
         {this.reasons.map(reasons => (
           <span
+            key={reasons}
             class={[reasons.indexOf('异常') > -1 ? 'err-reason' : '']}
             v-bk-overflow-tips
           >

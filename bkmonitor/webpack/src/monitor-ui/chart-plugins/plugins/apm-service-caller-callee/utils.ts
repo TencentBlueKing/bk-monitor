@@ -299,7 +299,7 @@ export const createDrillDownList = (
 
   removeEl();
   const el = document.createElement('div');
-  el.className = id + ' pop-drill-down-list';
+  el.className = `${id} pop-drill-down-list`;
   el.id = id;
   el.style.left = `${(() => {
     const { clientWidth } = document.body;
@@ -318,7 +318,7 @@ export const createDrillDownList = (
   })()}px`;
   el.addEventListener('click', (e: any | Event) => {
     const { dataset } = e.target;
-    if (e.target.classList.contains('contextmenu-list-item')) {
+    if (e.target.classList.contains('contextmenu-list-item') && !e.target.classList.contains('active')) {
       clickHandler?.(dataset.id);
       document.removeEventListener('click', removeWrap);
       removeEl();
@@ -330,7 +330,12 @@ export const createDrillDownList = (
         `<div class="${item.disabled ? 'contextmenu-list-item-disabled' : 'contextmenu-list-item'} ${item.selected ? 'active' : ''}" data-id="${item.id}" data-disabled="${item.disabled}" title="${item.disabled ? window.i18n.tc('当前维度外层已选中') : ''}">${item.name}</div>`
     )
     .join('');
-  el.innerHTML = `<div class="contextmenu-list-item-title">${window.i18n.tc('下钻至')}</div>` + listEl;
+  el.innerHTML = `
+  <div class="contextmenu-list-item-title">
+    ${window.i18n.tc('下钻至')}
+  </div>
+  ${listEl}
+`;
   document.body.appendChild(el);
   const eventHasId = (event: any | Event, id: string) => {
     let target = event.target;

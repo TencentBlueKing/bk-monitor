@@ -146,6 +146,7 @@ class RenderImageTask(Model):
 
     task_id = models.UUIDField(verbose_name="任务ID", default=uuid.uuid4, editable=False, db_index=True)
     create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True)
+    start_time = models.DateTimeField(verbose_name="开始时间", null=True)
     finish_time = models.DateTimeField(verbose_name="完成时间", null=True)
     image = models.ImageField(verbose_name="图片", null=True, upload_to="render/image/")
     options = models.JSONField(verbose_name="图片渲染参数", default=dict)
