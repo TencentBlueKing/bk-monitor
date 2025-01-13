@@ -8,22 +8,23 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import asyncio
 import base64
 import datetime
 import logging
-import os
-import time
 from collections import defaultdict
 from typing import Dict, Tuple
 
 from django.conf import settings
 from django.utils.translation import gettext as _
-from pyppeteer import launch
-from pyppeteer.errors import TimeoutError
 
 from alarm_backends.core.cache.mail_report import MailReportCacheManager
+from alarm_backends.service.report.render.dashboard import (
+    RenderDashboardConfig,
+    generate_dashboard_url,
+    render_dashboard_panel,
+)
 from alarm_backends.service.report.tasks import render_mails
+from bkmonitor.browser import get_or_create_eventloop
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import ReportContents, ReportItems
 from bkmonitor.utils.grafana import fetch_panel_title_ids
@@ -33,25 +34,6 @@ from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
 
 logger = logging.getLogger("bkmonitor.cron_report")
-
-if settings.IS_CONTAINER_MODE:
-    bind = "bk-monitor-api"
-else:
-    bind = f"{os.environ.get('LAN_IP', '0.0.0.0')}:{os.environ.get('BK_MONITOR_KERNELAPI_PORT', '10204')}"
-
-
-def get_or_create_eventloop():
-    """
-    获取或创建事件循环
-    :return: 事件循环
-    """
-    try:
-        return asyncio.get_event_loop()
-    except RuntimeError as ex:
-        if "There is no current event loop in thread" in str(ex) or "Event loop is closed" in str(ex):
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            return asyncio.get_event_loop()
 
 
 def split_graph_id(graph_id: str) -> Tuple[str, str, str]:
@@ -89,188 +71,51 @@ def chunk_list(list_need_to_chunk: list, per_list_max_length: int):
     return groups
 
 
-def generate_url(bk_biz_id, dashboard_uid, panel_id, var_bk_biz_ids, begin_time="", end_time=""):
-    """
-    生成图片url
-    :param bk_biz_id: 业务ID
-    :param dashboard_uid: 仪表盘ID
-    :param panel_id: Panel ID
-    :param begin_time: 起始时间
-    :param end_time: 终止时间
-    :return: 图表url
-    """
-    if settings.BK_MONITOR_HOST.endswith("/o/bk_monitorv3/"):
-        path_prefix = "/o/bk_monitorv3/"
-    else:
-        path_prefix = "/"
-
-    if panel_id == "*":
-        url = (
-            f"http://{bind}{path_prefix}grafana/d/{dashboard_uid}/"
-            f"?orgName={bk_biz_id}&from={begin_time}&to={end_time}&kiosk"
-        )
-    else:
-        url = (
-            f"http://{bind}{path_prefix}grafana/d-solo/{dashboard_uid}/"
-            f"?orgName={bk_biz_id}&from={begin_time}&to={end_time}{var_bk_biz_ids}&panelId={panel_id}"
-        )
-    return url
-
-
-async def wait_for_panel_render(page):
-    """
-    等待仪表盘加载完成
-    """
-    start_time = time.time()
-    while True:
-        rendered_panel_count = await page.evaluate("() => { return window.panelsRendered }")
-        panel_count = await page.evaluate(
-            "() => { return document.querySelectorAll('.panel').length "
-            "|| document.querySelectorAll('.panel-container').length }"
-        )
-        if rendered_panel_count is not None and rendered_panel_count >= panel_count:
-            # 等待图表渲染动画完成
-            time.sleep(3)
-            break
-
-        if time.time() - start_time > 60:
-            break
-
-
-async def fetch_images_by_puppeteer(element, browser):
-    """
-    使用puppeteer进行截图
-    """
-    logger.info(f"fetch_images_by_puppeteer: render dashboard {element['url']}")
-    err_msg = []
-    try:
-        # 启动标签页
-        page = await browser.newPage()
-        try:
-            await page.goto(
-                element["url"],
-                {"waitUntil": "networkidle0", "timeout": settings.MAIL_REPORT_FULL_PAGE_WAIT_TIME * 1000},
-            )
-        except TimeoutError:
-            pass
-
-        if element["full_page"]:
-            # 整屏截图，参考https://github.com/grafana/grafana-image-renderer/blob/087ae6e9b25cc1175791448866a3c740c10ce31f/src/browser/browser.ts#L177
-            # 获取仪表盘大小
-            content_selector = "div.react-grid-layout"
-            scroll_div_selector = '[class="scrollbar-view"]'
-            await page.waitForSelector(scroll_div_selector)
-            heights = await page.evaluate(
-                """
-            (scrollDivSelector) => {
-                const dashboardDiv = document.querySelector(scrollDivSelector);
-                return { scroll: dashboardDiv.scrollHeight, client: dashboardDiv.clientHeight }
-            }
-            """,
-                scroll_div_selector,
-            )
-
-            # 滚动页面以加载全部视图
-            scrolls = heights["scroll"] // heights["client"]
-            for i in range(scrolls):
-                await page.evaluate(
-                    """
-                (scrollByHeight, scrollDivSelector) => {
-                    document.querySelector(scrollDivSelector)?.scrollBy(0, scrollByHeight);
-                }
-                """,
-                    heights["client"],
-                    scroll_div_selector,
-                )
-                await page.waitFor(500)
-
-            # 等待图表加载结束
-            await wait_for_panel_render(page)
-            await asyncio.sleep(settings.MAIL_REPORT_FULL_PAGE_WAIT_TIME)
-            await page.evaluate(
-                "(scrollDivSelector) => { document.querySelector(scrollDivSelector)?.scrollTo(0, 0) }",
-                scroll_div_selector,
-            )
-            # 放大页面可视区域
-            await page.setViewport({"width": 1600, "height": heights["scroll"], "deviceScaleFactor": 2})
-        else:
-            pannel_type = "div.panel-solo" if element.get("need_title") else "div.css-kuoxoh-panel-content"
-            content_selector = pannel_type
-            await page.setViewport(element["image_size"])
-            await wait_for_panel_render(page)
-
-        # 截图
-        target = await page.querySelector(content_selector)
-        if not target:
-            err_detail = f"[mail_report] error url: {element['url']}: target: {content_selector} not found"
-            err_msg.append({"tag": element["tag"], "exception_msg": err_detail})
-            raise CustomException(err_detail)
-        img = await target.screenshot(type="jpeg", quality=80)
-        element["base64"] = base64.b64encode(img).decode("utf-8")
-        logger.info(f"fetch_images_by_puppeteer: render img length({len(img)})")
-        await page.close()
-    except CustomException:
-        pass
-    except Exception as e:
-        err_msg.append({"tag": element["tag"], "exception_msg": str(e)})
-        logger.exception(f"[mail_report] error url: {element['url']} fetch_images_by_puppeteer: {e}")
-
-    return element, err_msg
-
-
 async def start_tasks(elements):
     """
     启动浏览器并执行截图任务
     :param elements: panel信息
+    {
+        "bk_biz_id": 2,
+        "uid": uid,
+        "panel_id": panel_id,
+        "image_size":{
+            "width": width,
+            "height": height
+        },
+        "variables": {"bk_biz_id": ["1", "2", "3"]},
+        "start_time": 1612766359450,
+        "end_time": 1612766359450,
+        "need_title": need_title,
+    }
     :return: [(element, err_msg)]
     """
-    launcher = None
-    browser = None
-    try_times = 0
-    while not browser and try_times <= 5:
-        try:
-            chrome_path = (
-                os.popen("command -v chromium").readlines() or os.popen("command -v google-chrome").readlines()
-            )
-            if len(chrome_path) > 0:
-                chrome_path = chrome_path[0].strip()
-            else:
-                raise CustomException("[mail_report] Without Chrome, Could not start mail report.")
-
-            browser = await launch(
-                headless=True,
-                executablePath=chrome_path,
-                options={
-                    "args": [
-                        "--disable-dev-shm-usage",
-                        "--disable-infobars",
-                        "--disable-extensions",
-                        "--disable-gpu",
-                        "--mute-audio",
-                        "--disable-bundled-ppapi-flash",
-                        "--hide-scrollbars",
-                    ]
-                },
-            )
-        except Exception as e:
-            if launcher:
-                launcher.proc.kill()
-            logger.exception(f"[mail_report] chrome start fail, will try again, Number: {try_times}, error: {e}")
-            try_times += 1
-
     result = []
     for element in elements:
-        element, err_msg = await fetch_images_by_puppeteer(element, browser)
-        if "base64" not in element:
-            await asyncio.sleep(5)
-            element, err_msg = await fetch_images_by_puppeteer(element, browser)
-        result.append((element, err_msg))
+        err_msg = None
+        config = RenderDashboardConfig(
+            bk_biz_id=element["bk_biz_id"],
+            dashboard_uid=element["uid"],
+            panel_id=element["panel_id"],
+            need_title=element["need_title"],
+            width=element["width"],
+            height=element["height"],
+            scale=element["scale"],
+            variables=element["variables"],
+            start_time=element["start_time"] // 1000,
+            end_time=element["end_time"] // 1000,
+        )
+        try:
+            img = await render_dashboard_panel(config)
+        except Exception as e:
+            err_msg = {"tag": element["tag"], "exception_msg": str(e)}
+            continue
 
-    try:
-        await browser.close()
-    except Exception as e:
-        logger.exception(f"[mail_report] close browser failed, will try again, msg: {e}")
-        await browser.close()
+        element["base64"] = base64.b64encode(img).decode("utf-8")
+        element["url"] = generate_dashboard_url(config, external=True)
+        logger.info(f"fetch_images_by_puppeteer: render img length({len(img)})")
+
+        result.append((element, err_msg))
 
     return result
 
@@ -287,7 +132,7 @@ def screenshot_by_uid_panel_id(graph_info, need_title=False):
             "width": width,
             "height": height
         },
-        "var_bk_biz_ids": "2,3,4"
+        "var_bk_biz_ids": ["2", "3", "4"],
         "from_time": 1612766359450,
         "to_time": 1612766359450,
         "is_superuser": False
@@ -297,21 +142,22 @@ def screenshot_by_uid_panel_id(graph_info, need_title=False):
 
     elements = []
     for graph in graph_info:
-        # 加载页面
-        url = generate_url(
-            bk_biz_id=graph["bk_biz_id"],
-            dashboard_uid=graph["uid"],
-            panel_id=graph["panel_id"],
-            var_bk_biz_ids=graph["var_bk_biz_ids"],
-            begin_time=graph.get("from_time", ""),
-            end_time=graph.get("to_time", ""),
-        )
+        variables = {}
+        if graph["var_bk_biz_ids"]:
+            variables["bk_biz_id"] = graph["var_bk_biz_ids"]
+
         element = {
-            "url": url,
-            "full_page": graph["panel_id"] == "*",
+            "bk_biz_id": graph["bk_biz_id"],
+            "dashboard_uid": graph["uid"],
+            "panel_id": graph["panel_id"] if graph["panel_id"] != "*" else None,
+            "start_time": graph.get("from_time", ""),
+            "end_time": graph.get("to_time", ""),
+            "variables": variables,
+            "with_panel_title": need_title,
+            "width": graph["image_size"]["width"],
+            "height": graph["image_size"]["height"],
+            "scale": graph.get("image_size", {}).get("deviceScaleFactor", 2),
             "tag": graph["tag"],
-            "image_size": graph["image_size"],
-            "need_title": need_title,
         }
         elements.append(element)
 
@@ -520,7 +366,7 @@ class ReportHandler:
                         "uid": graph_info[1],
                         "panel_id": graph_info[2],
                         "image_size": self.image_size_mapper.get(content["row_pictures_num"]),
-                        "var_bk_biz_ids": "".join([f"&var-bk_biz_id={i}" for i in var_bk_biz_ids]),
+                        "variables": {"bk_biz_id": var_bk_biz_ids},
                         "tag": graph,
                         "from_time": from_time_stamp,
                         "to_time": to_time_stamp,
@@ -610,7 +456,7 @@ class ReportHandler:
 
                 graph_url = ""
                 if is_link_enabled and settings.REPORT_DASHBOARD_UID not in image_url:
-                    graph_url = image_url.replace(f"http://{bind}", settings.BK_MONITOR_HOST.rstrip("/"))
+                    graph_url = image_url
                 graphs.append(
                     {
                         "graph_tag": graph,
