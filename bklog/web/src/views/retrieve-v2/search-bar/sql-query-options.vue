@@ -13,6 +13,8 @@
   import { excludesFields } from './const.common';
   import jsCookie from 'js-cookie';
 
+  import useFieldEgges from './use-field-egges';
+
   const props = defineProps({
     value: {
       type: String,
@@ -52,6 +54,7 @@
 
   const retrieveDropdownData = computed(() => store.state.retrieveDropdownData);
   const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
+  const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
 
   /** 获取数字类型的字段name */
   const getNumTypeFieldList = computed(() => {
@@ -140,6 +143,23 @@
     return [...new Set(valueMapList)]; // 清除重复的字段
   };
 
+  const setValueList = (fieldName: string, value: string) => {
+    const fieldInfo = store.state.indexFieldInfo.fields.find(item => item.field_name === fieldName);
+    if (fieldInfo && isValidateEgges(fieldInfo)) {
+      requestFieldEgges(fieldInfo, value, resp => {
+        if (typeof resp === 'boolean') {
+          valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
+          return;
+        }
+
+        valueList.value = store.state.indexFieldInfo.aggs_items[fieldName] ?? [];
+      });
+      return;
+    }
+
+    valueList.value = getValueList(retrieveDropdownData.value[fieldName] ?? {});
+  };
+
   /**
    * @desc: 当前是否是数字类型字段
    * @param {string} fieldStr 字段名
@@ -211,7 +231,8 @@
       const valueMap = retrieveDropdownData.value[confirmField];
       if (valueMap) {
         showWhichDropdown(OptionItemType.Value);
-        valueList.value = getValueList(valueMap);
+        setValueList(confirmField, '');
+        // valueList.value = getValueList(valueMap);
       } else {
         showWhichDropdown();
         valueList.value.splice(0);
@@ -225,7 +246,8 @@
       const valueMap = retrieveDropdownData.value[confirmField];
       if (valueMap) {
         const inputValue = valueResult.groups?.value ?? '';
-        valueList.value = getValueList(valueMap).filter(item => item.includes(inputValue));
+        setValueList(confirmField, inputValue);
+        // valueList.value = getValueList(valueMap).filter(item => item.includes(inputValue));
         showWhichDropdown(valueList.value.length ? OptionItemType.Value : undefined);
       } else {
         showWhichDropdown();
@@ -247,9 +269,9 @@
    * 选择某个可选字段
    * @param {string} field
    */
-  const handleClickField = (field: number | string) => {
-    valueList.value = getValueList(retrieveDropdownData.value[field]);
-
+  const handleClickField = (field: string) => {
+    // valueList.value = getValueList(retrieveDropdownData.value[field]);
+    // setValueList(field, '');
     const currentValue = props.value;
 
     const trimValue = currentValue.trim();
@@ -432,7 +454,7 @@
   const handleSQLReadmeClick = () => {
     const lang = /^en/.test(jsCookie.get('blueking_language')) ? 'EN' : 'ZH';
     window.open(
-      `${window.BK_DOC_URL}/markdown/${lang}/LogSearch/4.6/UserGuide/ProductFeatures/data-visualization/query_string.md`,
+      `${(window as any).BK_DOC_URL}/markdown/${lang}/LogSearch/4.6/UserGuide/ProductFeatures/data-visualization/query_string.md`,
       '_blank',
     );
   };
@@ -464,6 +486,7 @@
       <ul
         ref="refDropdownEl"
         class="sql-query-options"
+        v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
       >
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">

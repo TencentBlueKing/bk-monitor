@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Dict, Optional
 
+from django.db.models import F, Max, Value
+from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
@@ -29,7 +31,7 @@ class FilterCollection(object):
     def __init__(self, meta):
         self.filters = dict()
         self.meta = meta
-        self.query_set = meta.resource_class.objects.all()
+        self.query_set = meta.resource_class.objects.all().order_by("id")
         if meta.only_fields:
             self.query_set = self.query_set.only(*self.meta.only_fields)
 
@@ -163,6 +165,11 @@ class K8sResourceMeta(object):
         从 meta 获取数据
         """
         return self.filter.filter_queryset
+
+    @classmethod
+    def distinct(cls, queryset):
+        # pod不需要去重，因为不会重名，workload，container 在不同ns下会重名，因此需要去重
+        return queryset
 
     def get_from_promql(self, start_time, end_time, order_by="", page_size=20, method="sum"):
         """
@@ -648,6 +655,19 @@ class K8sWorkloadMeta(K8sResourceMeta):
         )
         return promql
 
+    @classmethod
+    def distinct(cls, queryset):
+        query_set = (
+            queryset.values('type', "name")
+            .order_by()
+            .annotate(
+                distinct_name=Max("id"),
+                workload=Concat(F("type"), Value(":"), F("name")),
+            )
+            .values("workload")
+        )
+        return query_set
+
 
 class K8sContainerMeta(K8sResourceMeta):
     resource_field = "container_name"
@@ -658,6 +678,17 @@ class K8sContainerMeta(K8sResourceMeta):
     @property
     def resource_field_list(self):
         return ["pod_name", self.resource_field]
+
+    @classmethod
+    def distinct(cls, queryset):
+        query_set = (
+            queryset.values('name')
+            .order_by()
+            .annotate(distinct_name=Max("id"))
+            .annotate(container=F("name"))
+            .values("container")
+        )
+        return query_set
 
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         if self.agg_interval:

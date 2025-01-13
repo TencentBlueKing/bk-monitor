@@ -259,12 +259,12 @@ class ServiceLogHandler:
                     else:
                         data_id_query_mapping[data_id]["serverIp"].add(pod)
 
-        def log_list_collectors():
+        def log_list_collectors(_bk_biz_id):
             return api.log_search.list_collectors(
-                space_uid=SpaceApi.get_space_detail(bk_biz_id=bk_biz_id).space_uid,
+                space_uid=SpaceApi.get_space_detail(bk_biz_id=_bk_biz_id).space_uid,
             )
 
-        full_collectors = using_cache(CacheType.APM(10 * 60))(log_list_collectors)()
+        full_collectors = using_cache(CacheType.APM(10 * 60))(log_list_collectors)(bk_biz_id)
 
         res = []
         for i in list(data_ids)[: cls.LOG_RELATION_BY_UNIFY_QUERY]:

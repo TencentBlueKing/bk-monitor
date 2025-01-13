@@ -51,6 +51,7 @@ from alarm_backends.service.access.data.records import DataRecord
 from alarm_backends.service.access.priority import PriorityChecker
 from bkmonitor.utils.common_utils import count_md5, get_local_ip
 from bkmonitor.utils.consul import BKConsul
+from bkmonitor.utils.local import local
 from bkmonitor.utils.thread_backend import InheritParentThread
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import MULTI_METRIC_DATA_SOURCES
@@ -307,7 +308,15 @@ class AccessDataProcess(BaseAccessDataProcess):
             return
 
         # 数据查询
-        points = self.query_data(now_timestamp)
+        local.strategy_id = ",".join([str(item.strategy.id) for item in self.items])
+        try:
+            points = self.query_data(now_timestamp)
+            if getattr(local, "strategy_id", None):
+                delattr(local, "strategy_id")
+        except Exception as e:
+            if getattr(local, "strategy_id", None):
+                delattr(local, "strategy_id")
+            raise e
 
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)

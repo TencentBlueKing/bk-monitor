@@ -334,7 +334,7 @@ MONITOR_API_MODELS = (
 ###############################################################################
 
 # 水印字体素材路径
-SIGNATURE_FONT_PATH = os.path.join(PROJECT_ROOT, "static", "font", "arial.ttf")
+SIGNATURE_FONT_PATH = os.getenv("BKAPP_SIGNATURE_FONT_PATH", "/usr/share/fonts/truetype/SourceHanSerifSC-VF.ttf")
 
 # 重启服务器时清除缓存
 CLEAR_CACHE_ON_RESTART = False
