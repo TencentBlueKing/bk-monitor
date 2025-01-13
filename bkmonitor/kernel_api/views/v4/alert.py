@@ -38,3 +38,13 @@ class AlertViewSet(FTAAlertViewSet):
     """
     兼容全量事件中心告警接口
     """
+
+
+class QosViewSet(ResourceViewSet):
+    """
+    流控管理模块
+    """
+
+    resource_routes = [
+        ResourceRoute("POST", resource.alert.qos, endpoint="qos"),
+    ]
