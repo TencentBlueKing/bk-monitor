@@ -902,6 +902,10 @@ export default defineComponent({
         label: t('主机'),
         name: 'Host',
       },
+      {
+        label: t('容器'),
+        name: 'Container',
+      },
       // 20230525 这期暂时不需要
       // {
       //   label: t('进程'),
@@ -965,18 +969,32 @@ export default defineComponent({
         sceneData.value = new BookMarkModel(result);
       }
       if (activeTab.value === 'Host') {
-        isTabPanelLoading.value = true;
         const result = await getSceneView({
           scene_id: 'apm_trace',
-          id: activeTab.value.toLowerCase(),
+          id: 'host',
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
           apm_service_name: props.spanDetails.service_name,
           apm_span_id: props.spanDetails.span_id,
-        })
-          .catch(console.log)
-          .finally(() => (isTabPanelLoading.value = false));
+        }).catch(() => null);
         sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
+      }
+      if (activeTab.value === 'Container') {
+        const startTime = dayjs(startTimeProvider.value).unix();
+        const endTime = dayjs(endTimeProvider.value).unix();
+        const result = await getSceneView({
+          scene_id: 'apm_trace',
+          id: 'container',
+          bk_biz_id: window.bk_biz_id,
+          apm_app_name: props.spanDetails.app_name,
+          apm_service_name: props.spanDetails.service_name,
+          apm_span_id: props.spanDetails.span_id,
+          start_time: startTime - 30 * 60,
+          end_time: endTime + 30 * 60,
+        }).catch(() => null);
+        sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
       }
     };
 
@@ -1296,8 +1314,31 @@ export default defineComponent({
                           {!isTabPanelLoading.value && (
                             <div class='host-tab-container'>
                               <DashboardPanel
+                                groupTitle={t('主机列表')}
                                 isSingleChart={isSingleChart.value}
-                                sceneData={sceneData}
+                                sceneData={sceneData.value}
+                                sceneId={'host'}
+                              />
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // 容器 部分
+                      activeTab.value === 'Container' && (
+                        <Loading
+                          style='height: 100%;'
+                          loading={isTabPanelLoading.value}
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div class='host-tab-container'>
+                              <DashboardPanel
+                                groupTitle={'Groups'}
+                                isSingleChart={isSingleChart.value}
+                                sceneData={sceneData.value}
+                                sceneId={'container'}
                               />
                             </div>
                           )}
@@ -1421,6 +1462,7 @@ export default defineComponent({
       detailsMain,
       renderDom,
       sceneData,
+      isTabPanelLoading,
       // countOfInfo,
     };
   },

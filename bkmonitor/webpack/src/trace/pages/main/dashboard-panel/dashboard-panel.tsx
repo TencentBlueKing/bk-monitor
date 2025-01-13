@@ -23,35 +23,139 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { computed, defineComponent, getCurrentInstance, inject, type PropType, type Ref, ref } from 'vue';
+import { watch } from 'vue';
+import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils';
 
 import CommonDetail from '../../../components/common-detail/common-detail';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
+import { useViewOptionsProvider } from '../../../plugins/hooks';
+import { VariablesService } from '../../../utils/index';
 import CompareSelect from './compare-select';
+import FilterVarGroup from './filter-var-group';
 import FilterVarSelectSimple from './filter-var-select-simple';
 import GroupsSelector from './groups-selector';
 import LayoutSelect from './layout-select';
-import { PANEL_INTERVAL_LIST } from './utils';
+import { CP_METHOD_LIST, DEFAULT_METHOD, METHOD_LIST, PANEL_INTERVAL_LIST } from './utils';
+
+import type { IViewOptions, PanelModel } from '../../../plugins/typings';
 
 import './dashboard-panel.scss';
 
 export default defineComponent({
   name: 'DashboardPanel',
   props: {
+    sceneId: { type: String, default: '' },
     sceneViewParams: { type: Object, default: () => ({}) },
     // 是否为单图模式
     isSingleChart: { default: false, type: Boolean },
-    sceneData: { type: Object, required: true },
+    sceneData: { type: Object as PropType<PanelModel>, required: true },
+    groupTitle: { type: String, default: 'Groups' },
   },
 
-  setup() {
+  setup(props) {
     const { t } = useI18n();
+    const currentInstance = getCurrentInstance();
+    const startTime = inject<Ref>('startTime') || ref('');
+    const endTime = inject<Ref>('endTime') || ref('');
+    const startTimeMinusOneHour = dayjs
+      .tz(startTime.value || undefined)
+      .subtract(1, 'hour')
+      .format('YYYY-MM-DD HH:mm:ss');
+    const endTimeMinusOneHour = dayjs
+      .tz(endTime.value || undefined)
+      .add(1, 'hour')
+      .format('YYYY-MM-DD HH:mm:ss');
+    const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
+
+    const targetList = shallowRef([]);
+    const viewOptions = shallowRef<IViewOptions>({
+      interval: 'auto',
+      method: DEFAULT_METHOD,
+    });
+    const panelsColumn = ref(1);
+
+    useViewOptionsProvider(viewOptions);
+
+    const selectorPanel = computed(() => {
+      return props.sceneData?.selectorPanel;
+    });
+    const variablesPanel = computed(() => {
+      return props.sceneData?.variables;
+    });
+
+    watch(
+      () => props.sceneData,
+      sceneData => {
+        if (sceneData) {
+          handleGetTargetsData();
+        }
+      }
+    );
+
+    async function handleGetTargetsData() {
+      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      const variablesService = new VariablesService({
+        start_time: startTime,
+        end_time: endTime,
+      });
+      console.log(selectorPanel.value.targets);
+      const promiseList = selectorPanel.value?.targets.map(item =>
+        currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
+          [item.apiFunc]({
+            ...variablesService.transformVariables(item.data),
+            start_time: startTime,
+            end_time: endTime,
+          })
+          .then(data => {
+            const list = Object.prototype.toString.call(data) === '[object Object]' ? data.data : data;
+            return list;
+          })
+          .catch(err => {
+            console.error(err);
+            return [];
+          })
+      );
+      const res = await Promise.all(promiseList).catch(err => {
+        console.error(err);
+        return [];
+      });
+      const hostListData = res.reduce((total, cur) => total.concat(cur), []);
+      targetList.value = hostListData;
+    }
+
+    function handleIntervalChange(val) {
+      viewOptions.value = {
+        ...viewOptions.value,
+        interval: val,
+      };
+    }
+    function handleMethodChange(val) {
+      viewOptions.value = {
+        ...viewOptions.value,
+        method: val,
+      };
+    }
+
+    function handleChangeLayout(val) {
+      panelsColumn.value = val;
+    }
 
     return {
+      selectorPanel,
+      targetList,
+      viewOptions,
+      panelsColumn,
+      variablesPanel,
       t,
+      handleIntervalChange,
+      handleMethodChange,
+      handleChangeLayout,
     };
   },
 
@@ -60,36 +164,49 @@ export default defineComponent({
       <div class='span-details__dashboard-panel'>
         <div class='dashboard-panel__charts'>
           <div class='groups-header'>
-            <GroupsSelector />
+            <FilterVarGroup panels={this.variablesPanel} />
+            {this.sceneId === 'container' && (
+              <GroupsSelector
+                list={this.targetList}
+                name={this.groupTitle}
+              />
+            )}
           </div>
           <div class='dashboard-tools'>
             <FilterVarSelectSimple
               class='mr-24'
               label={this.t('汇聚周期') as string}
               options={PANEL_INTERVAL_LIST}
+              value={this.viewOptions.interval}
+              onChange={this.handleIntervalChange}
             />
             <FilterVarSelectSimple
               class='mr-24'
               label={this.t('汇聚方法') as string}
+              options={METHOD_LIST.concat(...CP_METHOD_LIST)}
+              value={this.viewOptions.method}
+              onChange={this.handleMethodChange}
             />
             <CompareSelect />
-            <LayoutSelect class='ml-auto' />
+            <LayoutSelect
+              class='ml-auto'
+              layoutActive={this.panelsColumn}
+              onLayoutChange={this.handleChangeLayout}
+            />
           </div>
           <div class='dashboard-panel__content'>
             <FlexDashboardPanel
               id={random(10)}
-              column={3}
+              column={this.panelsColumn}
               dashboardId={random(10)}
               isSingleChart={this.isSingleChart}
-              needOverviewBtn={!!this.sceneData.value?.list?.length}
-              panels={this.sceneData.value.overview_panels}
+              needOverviewBtn={!!this.sceneData?.list?.length}
+              panels={this.sceneData?.overview_panels}
             />
           </div>
         </div>
 
-        {this.sceneData.value?.overviewDetailPanel && (
-          <CommonDetail panel={this.sceneData.value?.overviewDetailPanel} />
-        )}
+        {this.sceneData?.overviewDetailPanel && <CommonDetail panel={this.sceneData?.overviewDetailPanel} />}
       </div>
     );
   },

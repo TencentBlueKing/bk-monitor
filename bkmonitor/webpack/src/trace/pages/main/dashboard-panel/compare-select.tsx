@@ -63,6 +63,7 @@ export default defineComponent({
   name: 'CompareSelect',
   props: {
     curTarget: { type: [String, Number], default: '' },
+    targetList: { type: Array, default: () => [] },
   },
   setup() {
     const localType = ref(CompareId.none);
