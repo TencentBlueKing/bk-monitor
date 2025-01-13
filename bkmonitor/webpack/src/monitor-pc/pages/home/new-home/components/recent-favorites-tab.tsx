@@ -46,12 +46,16 @@ import './recent-favorites-tab.scss';
 // 模块名称映射
 const modeNameMap = {
   [window.i18n.tc('仪表盘')]: 'dashboard',
-  [window.i18n.tc('检索')]: 'retrieval',
   [window.i18n.tc('服务')]: 'apm_service',
+  [window.i18n.tc('日志检索')]: 'log_retrieve',
   [window.i18n.tc('服务拨测')]: '-',
   [window.i18n.tc('主机监控')]: '-',
   [window.i18n.tc('容器服务')]: '-',
 };
+
+interface Category {
+  name: string;
+}
 
 @Component({
   name: 'RecentFavoritesTab',
@@ -64,19 +68,17 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   userStoreRoutes = []; // 用户存储的路由
   selectedCategories = ['dashboard']; // 用户选择的类别
   showModal = false; // 控制模态框显示
-  categoriesConfig = [
+  categoriesConfig: Category[] = [
     { name: '仪表盘' },
     { name: '服务' },
-    // { name: '检索' },
+    { name: '日志检索' },
     // { name: '服务拨测' },
     // { name: '主机监控' },
     // { name: '容器服务' },
   ];
 
-  loadingRecentList = true;
-  loadingQuickList = true;
-
-  // categoriesHasTwoRows = false;
+  loadingRecentList = true; // 最近列表loading
+  loadingQuickList = true; // 快捷入口loading
 
   recentItems: IRecentList[] = []; // 最近使用列表
   favoriteItems: IRecentList[] = []; // 收藏列表
@@ -133,7 +135,12 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
           reject403: true,
         })) || [];
       this.selectedCategories = selected || this.selectedCategories;
-      this.categoriesConfig = selectList || this.categoriesConfig;
+      this.categoriesConfig = this.categoriesConfig.reduce((accumulator: Category[], category: Category) => {
+        if (!accumulator.some(item => item.name === category.name)) {
+          accumulator.push(category);
+        }
+        return accumulator;
+      }, selectList);
       await this.updateFunctionShortcut();
     } catch (error) {
       console.log('error', error);
