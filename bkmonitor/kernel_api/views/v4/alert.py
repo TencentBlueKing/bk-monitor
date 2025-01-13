@@ -45,6 +45,4 @@ class QosViewSet(ResourceViewSet):
     流控管理模块
     """
 
-    resource_routes = [
-        ResourceRoute("POST", resource.alert.qos, endpoint="qos"),
-    ]
+    resource_routes = []
