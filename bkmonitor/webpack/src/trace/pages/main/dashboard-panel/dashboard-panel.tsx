@@ -74,6 +74,7 @@ export default defineComponent({
     const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
 
     const targetList = shallowRef([]);
+    const groups = shallowRef([]);
     const viewOptions = shallowRef<IViewOptions>({
       interval: 'auto',
       method: DEFAULT_METHOD,
@@ -88,14 +89,19 @@ export default defineComponent({
     const variablesPanel = computed(() => {
       return props.sceneData?.variables;
     });
+    const groupPanel = computed(() => {
+      return props.sceneData?.groupPanel;
+    });
 
     watch(
       () => props.sceneData,
       sceneData => {
         if (sceneData) {
           handleGetTargetsData();
+          handleGetGroupsData();
         }
-      }
+      },
+      { immediate: true }
     );
 
     async function handleGetTargetsData() {
@@ -104,8 +110,7 @@ export default defineComponent({
         start_time: startTime,
         end_time: endTime,
       });
-      console.log(selectorPanel.value.targets);
-      const promiseList = selectorPanel.value?.targets.map(item =>
+      const promiseList = selectorPanel.value?.targets?.map(item =>
         currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
           [item.apiFunc]({
             ...variablesService.transformVariables(item.data),
@@ -127,6 +132,28 @@ export default defineComponent({
       });
       const hostListData = res.reduce((total, cur) => total.concat(cur), []);
       targetList.value = hostListData;
+    }
+
+    async function handleGetGroupsData() {
+      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+      const variablesService = new VariablesService({
+        start_time: startTime,
+        end_time: endTime,
+      });
+      const target = groupPanel.value?.targets[0];
+      currentInstance?.appContext.config.globalProperties?.$api[target.apiModule]
+        [target.apiFunc]({
+          ...variablesService.transformVariables(target.data),
+          start_time: startTime,
+          end_time: endTime,
+        })
+        .then(data => {
+          groups.value = data;
+        })
+        .catch(err => {
+          console.error(err);
+          return [];
+        });
     }
 
     function handleIntervalChange(val) {
@@ -152,6 +179,7 @@ export default defineComponent({
       viewOptions,
       panelsColumn,
       variablesPanel,
+      groups,
       t,
       handleIntervalChange,
       handleMethodChange,
@@ -167,7 +195,7 @@ export default defineComponent({
             <FilterVarGroup panels={this.variablesPanel} />
             {this.sceneId === 'container' && (
               <GroupsSelector
-                list={this.targetList}
+                list={this.groups}
                 name={this.groupTitle}
               />
             )}
