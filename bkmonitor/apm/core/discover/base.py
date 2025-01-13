@@ -146,7 +146,6 @@ class DiscoverBase(ABC):
         other_rules = []
 
         for rule in rule_instances:
-
             # [!!!] predicate_key 可能为单个也可能为多个
             # 注意这里类型可能是 string 或者 list
             # 目前只有 k8s 规则存在多个
@@ -352,6 +351,8 @@ class TopoHandler:
 
     def _get_trace_task_splits(self):
         """根据此索引最大的结果返回数量判断每个子任务需要传递多少个traceId"""
+        if not self.datasource.index_name:
+            return 0, 0, ''
         lastly_index_name = self.datasource.index_name.split(",")[0]
         index_settings = self.datasource.es_client.indices.get_settings(index=lastly_index_name)
         max_size_count = None
@@ -394,6 +395,8 @@ class TopoHandler:
         span_count = 0
         filter_span_count = 0
         max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        if not index_name:
+            return
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:

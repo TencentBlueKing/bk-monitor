@@ -842,6 +842,8 @@ class TraceDataSource(ApmDataSourceConfigBase):
     @cached_property
     def index_name(self) -> str:
         try:
+            if not self.es_client:
+                return ''
             # 获取索引名称列表
             es_index_name = self.result_table_id.replace(".", "_")
             routes_str = self.es_client.transport.perform_request(
@@ -885,11 +887,19 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @cached_property
     def retention(self):
-        return metadata_models.ESStorage.objects.filter(table_id=self.result_table_id).first().retention
+        return self.storage.retention if self.storage else 0
 
     @cached_property
     def es_client(self):
-        return metadata_models.ESStorage.objects.filter(table_id=self.result_table_id).first().get_client()
+        try:
+            # 处理执行 get_client() 发生的异常
+            return self.storage.get_client() if self.storage else None
+        except Exception as e:
+            logger.error(
+                f"[EsClient] Failed to obtain storage client for the object with id: {self.storage.table_id} "
+                f"error: {e}"
+            )
+            return None
 
     @cached_property
     def storage(self):
