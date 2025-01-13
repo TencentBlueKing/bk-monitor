@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 from .api_cron import *  # noqa
 from .cron import *  # noqa
 from .report_cron import *  # noqa
-from .image_exporter import *  # noqa
+from .image_exporter import * # noqa
 
 
 def perform_sharding_task(targets, sharding_task, num_per_task=10):

@@ -7,7 +7,7 @@ from urllib.parse import quote
 from pyppeteer.browser import Browser, Page
 from pyppeteer.errors import TimeoutError
 
-from alarm_backends.service.report.utils import get_browser
+from bkmonitor.browser import get_browser
 from core.errors.common import CustomError
 
 logger = logging.getLogger("alarm_backends")
@@ -110,13 +110,7 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
     try:
         await page.close()
     except Exception as e:
-        logger.exception(f"close page error: {e}")
-
-    # 关闭浏览器
-    try:
-        await browser.close()
-    except Exception as e:
-        logger.exception(f"close browser error: {e}")
+        logger.exception(f"[render_dashboard_panel] close page error: {e}")
 
     return image
 
@@ -135,7 +129,7 @@ async def wait_for_panel_render(page: Page, timeout: int = 60):
             break
 
         if time.time() - start_time > timeout:
-            raise TimeoutError("wait for dashboard panel render timeout")
+            raise TimeoutError("[render_dashboard_panel] wait for dashboard panel render timeout")
 
         # 等待图表渲染动画完成
         time.sleep(1)

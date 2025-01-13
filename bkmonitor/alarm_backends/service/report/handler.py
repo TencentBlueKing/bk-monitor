@@ -278,7 +278,6 @@ async def start_tasks(elements):
 def screenshot_by_uid_panel_id(graph_info, need_title=False):
     """
     根据所需图表信息进行截图
-    :param graph_exporter: 浏览器
     :param graph_info: 图表信息
     [{
         "bk_biz_id": 2,
