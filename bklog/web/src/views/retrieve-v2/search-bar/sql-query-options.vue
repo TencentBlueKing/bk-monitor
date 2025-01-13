@@ -1,6 +1,6 @@
 <script lang="ts" setup>
   import { computed, ref, watch, nextTick, Ref } from 'vue';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
@@ -52,7 +52,6 @@
 
   const retrieveDropdownData = computed(() => store.state.retrieveDropdownData);
   const totalFields = computed(() => store.state.indexFieldInfo.fields ?? []);
-
   /** 获取数字类型的字段name */
   const getNumTypeFieldList = computed(() => {
     return totalFields.value
@@ -63,7 +62,9 @@
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    return totalFields.value.filter(filterFn).map((item: { field_name: any }) => item.field_name);
+    const { getFieldNames } = useFieldNameHook({ store });
+    return  getFieldNames(totalFields.value.filter(filterFn));
+   
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key

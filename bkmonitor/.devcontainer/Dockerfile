@@ -13,10 +13,6 @@ ENV SHELL /bin/bash
 # 安装工具包及npm
 RUN apt-get update && apt-get install -y curl wget git vim supervisor && git config --global core.trustctime false
 
-#starship
-RUN curl -sS https://starship.rs/install.sh | sh -s -- -y && echo 'eval "$(starship init bash)"' > ~/.bashrc
-RUN echo 'eval "$(starship init bash)"' >> ~/.bashrc && mkdir ~/.config && echo "command_timeout = 3000" > ~/.config/starship.toml
-
 # replace pip source
 RUN mkdir -p ~/.pip && echo "[global]\nindex-url = $PIP_MIRROR/\n" > ~/.pip/pip.conf && pip install --upgrade pip
 ENV PIP_ROOT_USER_ACTION=ignore

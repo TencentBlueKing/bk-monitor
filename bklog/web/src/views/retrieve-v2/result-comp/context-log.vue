@@ -132,7 +132,7 @@
   import logView from '@/components/log-view';
   import logViewControl from '@/components/log-view/log-view-control';
   import { getFlatObjValues } from '@/common/util';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   import DataFilter from '../condition-comp/data-filter.vue';
 
   export default {
@@ -251,12 +251,13 @@
           this.$emit('close-dialog');
         }
       },
-      deepClone(obj) {
+      deepClone(obj, prefix = '') {
         for (const key in obj) {
+          const prefixKey = prefix ? `${prefix}.${key}` : key;
           if (typeof obj[key] === 'object') {
-            this.deepClone(obj[key]);
+            this.deepClone(obj[key], prefixKey);
           } else {
-            this.params[key] = String(obj[key])
+            this.params[prefixKey] = String(obj[key])
               .replace(/<mark>/g, '')
               .replace(/<\/mark>/g, '');
           }
@@ -283,7 +284,8 @@
           this.currentConfigID = res.data.config_id;
           this.totalFields = res.data.fields;
           this.displayFieldNames = res.data.display_fields;
-          this.totalFieldNames = res.data.fields.map(fieldInfo => fieldInfo.field_name);
+          const { getFieldNames } = useFieldNameHook({ store: this.$store });
+          this.totalFieldNames = getFieldNames(res.data.fields);
           this.displayFields = res.data.display_fields.map(fieldName => {
             return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
           });

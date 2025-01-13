@@ -404,7 +404,7 @@
 
   const indexfieldTable = ref(null);
   const addNewField = () => {
-    const fields = deepClone(tableField.value);
+    const fields = deepClone(indexfieldTable.value.getData());
     const newBaseFieldObj = {
       ...baseFieldObj.value,
       field_index: tableField.value.length + 1,
@@ -451,7 +451,7 @@
           } 
         })
         alias_settings.value = arr
-
+        concatenationQueryAlias( res.data.fields)
         const collectData = res?.data || {};
         formData.value = collectData;
         cleanType.value = collectData?.etl_config;
@@ -478,7 +478,16 @@
       });
     sliderLoading.value = false;
   };
-
+        // 拼接query_alias
+  const concatenationQueryAlias = (fields) => {
+    fields.forEach(item => {
+      alias_settings.value.forEach(item2 => {
+        if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
+          item.query_alias = item2.query_alias
+        }
+      })
+    })
+  }
   const storageList = ref([]);
   const getStorage = async () => {
     try {

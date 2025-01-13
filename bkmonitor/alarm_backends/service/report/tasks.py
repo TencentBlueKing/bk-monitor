@@ -299,7 +299,9 @@ def render_image_task(task: RenderImageTask):
     :param task: 渲染图片任务
     """
     # 更新任务状态为渲染中
+    task.start_time = datetime.datetime.now()
     task.status = RenderImageTask.Status.RENDERING
+    task.error = ""
     task.save()
 
     event_loop = get_or_create_eventloop()

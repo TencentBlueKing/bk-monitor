@@ -97,6 +97,25 @@ class ScenarioMetricList(Resource):
         return get_metrics(validated_request_data["scenario"])
 
 
+class GetScenarioMetric(Resource):
+    """
+    获取场景下指标详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance"])
+        metric_id = serializers.CharField(required=True, label="指标id")
+
+    def perform_request(self, validated_request_data):
+        metric_list = get_metrics(validated_request_data["scenario"])
+        metric_id = validated_request_data["metric_id"]
+        for category in metric_list:
+            for metric in category["children"]:
+                if metric["id"] == metric_id:
+                    return metric
+        return {}
+
+
 class MetricGraphQueryConfig(Resource):
     """
     获取指标图表查询配置
@@ -229,7 +248,25 @@ class ListK8SResources(Resource):
             label="分页标识",
         )
         order_by = serializers.ChoiceField(
-            required=False, default="-cpu", label="排序", choices=["cpu", "-cpu", "mem", "-mem"]
+            required=False,
+            choices=["desc", "asc"],
+            default="desc",
+        )
+        method = serializers.ChoiceField(required=False, choices=["max", "avg", "min", "sum", "count"], default="sum")
+        column = serializers.ChoiceField(
+            required=False,
+            choices=[
+                'container_cpu_usage_seconds_total',
+                'kube_pod_cpu_requests_ratio',
+                'kube_pod_cpu_limits_ratio',
+                'container_memory_rss',
+                'kube_pod_memory_requests_ratio',
+                'kube_pod_memory_limits_ratio',
+                'container_cpu_cfs_throttled_ratio',
+                'container_network_transmit_bytes_total',
+                'container_network_receive_bytes_total',
+            ],
+            default="container_cpu_usage_seconds_total",
         )
 
     def perform_request(self, validated_request_data):
@@ -257,24 +294,26 @@ class ListK8SResources(Resource):
         # 当 with_history = False 对应左侧列表查询
         if not with_history:
             try:
-                total_count: int = resource_meta.get_from_meta().count()
-                resource_meta = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
+                resource_meta, total_count = self.get_resource_meta_by_pagination(resource_meta, validated_request_data)
                 resource_list = [k8s_resource.to_meta_dict() for k8s_resource in resource_meta.filter.query_set]
             except FieldError:
                 pass
             return {"count": total_count, "items": resource_list}
 
-        page_count = 0
         # 右侧列表查询, 优先历史数据。 如果有排序，基于分页参数得到展示总量，并根据历史数据补齐
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
-        if validated_request_data["order_by"]:
-            page_count = validated_request_data["page"] * validated_request_data["page_size"]
+        order_by = validated_request_data["order_by"]
+        column = validated_request_data["column"]
+        page_count = validated_request_data["page"] * validated_request_data["page_size"]
+
+        order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
             validated_request_data["start_time"],
             validated_request_data["end_time"],
-            validated_request_data["order_by"],
+            order_by,
             page_count,
+            validated_request_data["method"],
         )
         resource_id_set = set()
         for rs in history_resource_list:
@@ -288,8 +327,6 @@ class ListK8SResources(Resource):
             meta_resource_list = []
         all_resource_id_set = {tuple(sorted(rs.items())) for rs in meta_resource_list} | resource_id_set
         total_count = len(all_resource_id_set)
-        # 不需要分页，全量返回
-        page_count = total_count if page_count == 0 else page_count
 
         if len(resource_list) < page_count:
             # 基于需要返回的数量，进行分页
@@ -305,7 +342,7 @@ class ListK8SResources(Resource):
 
     def get_resource_meta_by_pagination(
         self, resource_meta: K8sResourceMeta, validated_request_data: Dict
-    ) -> K8sResourceMeta:
+    ) -> (K8sResourceMeta, int):
         """
         获取分页后的 K8sResourceMeta
         """
@@ -323,7 +360,7 @@ class ListK8SResources(Resource):
 
         paginator = Paginator(resource_meta.filter.query_set, page_size)
         resource_meta.filter.query_set = paginator.get_page(page).object_list
-        return resource_meta
+        return resource_meta, paginator.count
 
     def add_filter(self, meta: K8sResourceMeta, filter_dict: Dict):
         """
@@ -339,22 +376,31 @@ class ListK8SResources(Resource):
 
 
 class ResourceTrendResource(Resource):
-    """资源趋势缩略图"""
-
-    unit_choice = {
-        "cpu": "short",
-        "mem": "bytes",
-    }
+    """资源数据视图"""
 
     class RequestSerializer(FilterDictSerializer):
         bcs_cluster_id = serializers.CharField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
-        column = serializers.ChoiceField(required=True, choices=["cpu", "mem"])
+        column = serializers.ChoiceField(
+            required=True,
+            choices=[
+                'container_cpu_usage_seconds_total',
+                'kube_pod_cpu_requests_ratio',
+                'kube_pod_cpu_limits_ratio',
+                'container_memory_rss',
+                'kube_pod_memory_requests_ratio',
+                'kube_pod_memory_limits_ratio',
+                'container_cpu_cfs_throttled_ratio',
+                'container_network_transmit_bytes_total',
+                'container_network_receive_bytes_total',
+            ],
+        )
         resource_type = serializers.ChoiceField(
             required=True,
             choices=["pod", "workload", "namespace", "container"],
             label="资源类型",
         )
+        method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "count"])
         resource_list = serializers.ListField(required=True, label="资源列表")
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
@@ -371,10 +417,14 @@ class ResourceTrendResource(Resource):
 
         # 1. 基于resource_type 加载对应资源元信息
         resource_meta: K8sResourceMeta = load_resource_meta(resource_type, bk_biz_id, bcs_cluster_id)
+        agg_method = validated_request_data["method"]
+        resource_meta.set_agg_method(agg_method)
+        resource_meta.set_agg_interval(start_time, end_time)
         ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
         column = validated_request_data["column"]
         series_map = {}
-        unit = self.unit_choice.get(column, "short")
+        metric = resource.k8s.get_scenario_metric(metric_id=column, scenario="performance")
+        unit = metric["unit"]
         if resource_type == "workload":
             # workload 单独处理
             promql_list = []
@@ -392,17 +442,9 @@ class ResourceTrendResource(Resource):
             # 不用topk 因为有resource_list
             promql = getattr(resource_meta, f"meta_prom_with_{column}")
             # 初始化series_map
-            for resource_id in resource_list:
-                series_map[resource_id] = {"datapoints": [], "unit": unit}
-        series = self.query_data_by_promql(promql, bk_biz_id, start_time, end_time)
-
-        for line in series:
-            resource_name = resource_meta.get_resource_name(line)
-            series_map[resource_name] = {"datapoints": line["datapoints"], "unit": unit}
-
-        return [{"resource_name": name, column: info} for name, info in series_map.items()]
-
-    def query_data_by_promql(self, promql, bk_biz_id, start_time, end_time):
+            # for resource_id in resource_list:
+            #     series_map[resource_id] = {"datapoints": [], "unit": unit}
+        interval = get_interval_number(start_time, end_time, interval=60)
         query_params = {
             "bk_biz_id": bk_biz_id,
             "query_configs": [
@@ -410,7 +452,7 @@ class ResourceTrendResource(Resource):
                     "data_source_label": "prometheus",
                     "data_type_label": "time_series",
                     "promql": promql,
-                    "interval": get_interval_number(start_time, end_time, interval=60),
+                    "interval": interval,
                     "alias": "result",
                 }
             ],
@@ -422,4 +464,20 @@ class ResourceTrendResource(Resource):
             "slimit": 10001,
             "down_sample_range": "",
         }
-        return resource.grafana.graph_unify_query(query_params)["series"]
+        series = resource.grafana.graph_unify_query(query_params)["series"]
+        max_data_point = 0
+        for line in series:
+            if line["datapoints"]:
+                for point in reversed(line["datapoints"]):
+                    if point[0]:
+                        max_data_point = max(max_data_point, point[1])
+
+        for line in series:
+            resource_name = resource_meta.get_resource_name(line)
+            if line["datapoints"][-1][1] == max_data_point:
+                datapoints = line["datapoints"][-1:]
+            else:
+                datapoints = []
+            series_map[resource_name] = {"datapoints": datapoints, "unit": unit, "value_title": metric["name"]}
+
+        return [{"resource_name": name, column: info} for name, info in series_map.items()]

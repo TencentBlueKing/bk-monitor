@@ -146,7 +146,6 @@
                   v-if="isPreviewMode || props.row.is_objectKey"
                   class="overflow-tips-field-name"
                   v-bk-tooltips.top="props.row.field_name"
-                  v-bk-overflow-tips
                 > 
                   <span v-if="props.row.is_objectKey" class="ext-btn bklog-icon bklog-subnode"></span>
                   <span>{{ props.row.field_name }}</span>
@@ -158,8 +157,17 @@
                 >
                   <span v-if="props.row.field_type === 'object' && props.row.children?.length && !props.row.expand" @click="expandObject(props.row,true)" class="ext-btn rotate bklog-icon bklog-arrow-down-filled"></span>
                   <span v-if="props.row.field_type === 'object' && props.row.children?.length && props.row.expand " @click="expandObject(props.row,false)" class="ext-btn  bklog-icon bklog-arrow-down-filled"></span>
-                  
+                  <!-- 如果为内置字段且有alias_name则优先展示alias_name -->
                   <bk-input
+                    v-if="props.row.is_built_in && props.row.alias_name"
+                    v-model.trim="props.row.alias_name"
+                    class="participle-field-name-input-pl5"
+                    :disabled="getFieldEditDisabled(props.row)"
+                    v-bk-tooltips.top="props.row.field_name"
+                    @blur="checkFieldNameItem(props.row)"
+                  ></bk-input>
+                  <bk-input
+                    v-else
                     :class="props.row.alias_name || props.row.alias_name_show?'participle-field-name-input':''"
                     v-model.trim="props.row.field_name"
                     class="participle-field-name-input-pl5"
@@ -167,7 +175,7 @@
                     v-bk-tooltips.top="props.row.field_name"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
-                  <template v-if="props.row.alias_name || props.row.alias_name_show">
+                  <template v-if="(props.row.alias_name || props.row.alias_name_show) && !props.row.is_built_in">
                     <div 
                       class="participle-icon"
                       :class="getFieldEditDisabled(props.row)?'participle-icon-color':''"
@@ -231,6 +239,7 @@
                   class="participle-form-item"
                 >
                   <bk-input
+                    class="participle-field-name-input-pl5"
                     v-model.trim="props.row.query_alias"
                     :disabled="props.row.is_delete || isSetDisabled || props.row.field_type === 'object'"
                     @blur="checkQueryAliasItem(props.row)"
@@ -939,9 +948,9 @@
         });
         return data;
       },
-      getBuiltData() {
+      getAlltData() {
         const data= deepClone(this.formData.tableList)
-
+        
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
             delete item.fieldErr;
@@ -1032,7 +1041,7 @@
         } else {
           result = '';
         }
-        if(!row.query_alias){
+        if(!row.alias_name){
           this.$set(row, 'btnShow', btnShow);
         }
         row.fieldErr = result;
@@ -1357,7 +1366,7 @@
             }
           }
           .tooltips-icon {
-            top: 16px;
+            top: 24px;
           }
           .red-icon{
             color: #EA3636;

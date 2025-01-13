@@ -138,7 +138,7 @@ if (process.env.NODE_ENV === 'development') {
 const _ResizeObserver = window.ResizeObserver;
 window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
   constructor(callback) {
-    callback = debounce(callback, 61);
+    callback = debounce(callback);
     super(callback);
   }
 };

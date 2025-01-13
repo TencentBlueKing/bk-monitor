@@ -349,7 +349,7 @@
             this.$router.push({
               params: {
                 ...(this.$route.params ?? {}),
-                indexId: undefined
+                indexId: undefined,
               },
               query: {
                 ...(this.$route.query ?? {}),
@@ -467,7 +467,7 @@
         position: fixed;
         top: 100px;
         left: 0;
-        z-index: 2000;
+        z-index: 3000;
         display: flex;
         flex-direction: column;
         overflow: auto;

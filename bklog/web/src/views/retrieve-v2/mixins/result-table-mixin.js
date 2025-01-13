@@ -40,7 +40,7 @@ import ExpandView from '../search-result-panel/original-log/expand-view.vue';
 import OperatorTools from '../search-result-panel/original-log/operator-tools';
 import TimeFormatterSwitcher from '../search-result-panel/original-log/time-formatter-switcher';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
-
+import useFieldNameHook from '@/hooks/use-field-name';
 export default {
   components: {
     TextHighlight,
@@ -297,7 +297,8 @@ export default {
       const field = this.getShowTableVisibleFields[fieldIndex];
       const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
-        const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
+        const { getQueryAlias } = useFieldNameHook({ store: this.$store });
+        const fieldName = getQueryAlias(field);
         const fieldType = field.field_type;
         const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);

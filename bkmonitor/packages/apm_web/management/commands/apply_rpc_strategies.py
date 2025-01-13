@@ -13,7 +13,7 @@ import logging
 from typing import Any, Dict, List
 
 from django.core.management import BaseCommand
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.strategy_group import (

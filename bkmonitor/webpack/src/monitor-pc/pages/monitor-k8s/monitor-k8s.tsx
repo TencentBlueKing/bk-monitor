@@ -74,7 +74,7 @@ export default class MonitorK8s extends tsc<object> {
       vm.routeList = [
         {
           id: 'k8s',
-          name: 'Kubernetes',
+          name: '容器监控',
           subName: '',
         },
       ];

@@ -84,6 +84,7 @@
     align-items: center;
     justify-content: center;
     height: 100%;
+    margin-top: 100px;
 
     .text-wrap {
       display: flex;
@@ -100,6 +101,12 @@
 
     .bk-button {
       width: 88px;
+
+      &.bk-button-primary {
+        .bk-button-text {
+          color: #fff;
+        }
+      }
     }
   }
 
@@ -111,7 +118,6 @@
       overflow: visible;
       white-space: nowrap;
     }
-    
 
     .sub-head {
       background: #fff;
@@ -164,13 +170,11 @@
                   }
                 }
               }
-              
             }
           }
         }
       }
     }
-    
   }
 }
 

@@ -72,7 +72,7 @@ const SPACE_FEATURE_LIST = [
   },
   {
     id: 'K8S',
-    name: window.i18n.tc('Kubernetes'),
+    name: window.i18n.tc('容器监控'),
   },
   // {
   //   id: 'CI_BUILDER',

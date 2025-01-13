@@ -15,7 +15,7 @@ from django.utils.module_loading import import_string
 
 Category = namedtuple("Category", ["id", "name", "children"])
 
-Metric = namedtuple("Metric", ["id", "name", "unit"])
+Metric = namedtuple("Metric", ["id", "name", "unit", "unsupported_resource"])
 
 
 def get_metrics(scenario) -> List:

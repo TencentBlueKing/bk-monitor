@@ -1,6 +1,5 @@
 <script setup>
   import { computed, nextTick, ref, onMounted } from 'vue';
-  import { Storage } from '@/common/util';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
@@ -11,7 +10,6 @@
     value: { type: Boolean, default: true },
   });
   const fieldShowName = ref('field_name');
-  const storage = new Storage();
   const emit = defineEmits(['input', 'field-status-change']);
   /** 时间选择器绑定的值 */
   const datePickerValue = computed(() => {
@@ -76,10 +74,11 @@
     emit('input', !props.value);
   };
   const handlerChange = (value) => {
-    storage.set('fieldShowName', value);
+    localStorage.setItem('showFieldAlias', value);
+    store.commit('updateShowFieldAlias', value);
   }
   onMounted(()=>{
-    fieldShowName.value = storage.get('fieldShowName') || 'field_name'
+    fieldShowName.value = localStorage.getItem('showFieldAlias') === 'true'
   })
 </script>
 
@@ -101,10 +100,10 @@
         >
           <div slot="content">
             <bk-radio-group v-model="fieldShowName" style="margin-bottom: 10px;" @change="handlerChange">
-              <bk-radio-button value="field_name">
+              <bk-radio-button :value="false">
                 {{ $t('展示字段名') }}
               </bk-radio-button>
-              <bk-radio-button value="alias_name">
+              <bk-radio-button :value="true">
                 {{ $t('展示别名') }}
               </bk-radio-button>
             </bk-radio-group>
@@ -132,7 +131,7 @@
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
       :retrieve-params="retrieveParams"
-      :show-field-alias="fieldShowName === 'field_name'"
+      :show-field-alias="!fieldShowName"
       :sort-list="sortList"
       :total-fields="totalFields"
       :visible-fields="visibleFields"

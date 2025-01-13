@@ -140,46 +140,45 @@ export default class AiopsTabtitle extends tsc<IProps> {
           </span>
           <span class='aiops-tab-title-text'>
             <span class='aiops-tab-title-name'>{this.$t('关联指标')}</span>
-            {this.showDimensionDrill &&
-              (!this.showMetricRecommendation ? (
-                <span class='aiops-tab-title-message aiops-tab-title-index-message'>
-                  <i class='icon-monitor icon-tips tips-icon' />
-                  {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-                </span>
-              ) : (
-                <span
-                  class={['aiops-tab-title-message aiops-tab-title-index-message']}
-                  v-bkloading={{
-                    isLoading: this.metricRecommendationLoading,
-                    theme: 'primary',
-                    size: 'mini',
-                    extCls: 'metric_loading',
-                  }}
-                >
-                  {this.metricRecommendationErr && (
-                    <span class='err-text'>
-                      <span>
-                        <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
-                        {this.$t('模型输出异常')}
-                      </span>
+            {this.showMetricRecommendation || this.metricRecommendationLoading ? (
+              <span
+                class={['aiops-tab-title-message aiops-tab-title-index-message']}
+                v-bkloading={{
+                  isLoading: this.metricRecommendationLoading,
+                  theme: 'primary',
+                  size: 'mini',
+                  extCls: 'metric_loading',
+                }}
+              >
+                {this.metricRecommendationErr && (
+                  <span class='err-text'>
+                    <span>
+                      <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
+                      {this.$t('模型输出异常')}
                     </span>
-                  )}
-                  <span class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}>
-                    <i18n path='{0} 个指标'>
-                      <font>{this.indexInfo.recommended_metric || 0} </font>
-                    </i18n>
-                    {isExitIndexInfo ? ',' : ''}
                   </span>
-                  <span
-                    style='marginLeft: 6px'
-                    class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
-                  >
-                    <i18n path='{0} 个维度'>
-                      <font>{this.indexInfo.recommended_metric_count || 0} </font>
-                    </i18n>
-                  </span>
+                )}
+                <span class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}>
+                  <i18n path='{0} 个指标'>
+                    <font>{this.indexInfo.recommended_metric || 0} </font>
+                  </i18n>
+                  {isExitIndexInfo ? ',' : ''}
                 </span>
-              ))}
+                <span
+                  style='marginLeft: 6px'
+                  class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
+                >
+                  <i18n path='{0} 个维度'>
+                    <font>{this.indexInfo.recommended_metric_count || 0} </font>
+                  </i18n>
+                </span>
+              </span>
+            ) : (
+              <span class='aiops-tab-title-message aiops-tab-title-index-message'>
+                <i class='icon-monitor icon-tips tips-icon' />
+                {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
+              </span>
+            )}
           </span>
         </div>
       </div>
