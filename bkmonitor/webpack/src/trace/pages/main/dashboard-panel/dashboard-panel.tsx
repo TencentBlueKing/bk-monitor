@@ -36,7 +36,7 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
 import { useViewOptionsProvider } from '../../../plugins/hooks';
 import { VariablesService } from '../../../utils/index';
-import CompareSelect from './compare-select';
+import CompareSelect, { CompareId } from './compare-select';
 import FilterVarGroup from './filter-var-group';
 import FilterVarSelectSimple from './filter-var-select-simple';
 import GroupsSelector from './groups-selector';
@@ -78,6 +78,7 @@ export default defineComponent({
     const viewOptions = shallowRef<IViewOptions>({
       interval: 'auto',
       method: DEFAULT_METHOD,
+      groups: [],
     });
     const panelsColumn = ref(1);
 
@@ -91,6 +92,15 @@ export default defineComponent({
     });
     const groupPanel = computed(() => {
       return props.sceneData?.groupPanel;
+    });
+    const compareListEnable = computed(() => {
+      if (props.sceneId === 'host') {
+        return [CompareId.none, CompareId.time, CompareId.target];
+      }
+      if (props.sceneId === 'container') {
+        return [CompareId.none, CompareId.time];
+      }
+      return [];
     });
 
     watch(
@@ -173,6 +183,13 @@ export default defineComponent({
       panelsColumn.value = val;
     }
 
+    function handleGroupChange(val) {
+      viewOptions.value = {
+        ...viewOptions.value,
+        groups: val,
+      };
+    }
+
     return {
       selectorPanel,
       targetList,
@@ -180,10 +197,12 @@ export default defineComponent({
       panelsColumn,
       variablesPanel,
       groups,
+      compareListEnable,
       t,
       handleIntervalChange,
       handleMethodChange,
       handleChangeLayout,
+      handleGroupChange,
     };
   },
 
@@ -197,6 +216,8 @@ export default defineComponent({
               <GroupsSelector
                 list={this.groups}
                 name={this.groupTitle}
+                value={this.viewOptions.groups}
+                onChange={this.handleGroupChange}
               />
             )}
           </div>
@@ -215,7 +236,7 @@ export default defineComponent({
               value={this.viewOptions.method}
               onChange={this.handleMethodChange}
             />
-            <CompareSelect />
+            <CompareSelect compareListEnable={this.compareListEnable} />
             <LayoutSelect
               class='ml-auto'
               layoutActive={this.panelsColumn}

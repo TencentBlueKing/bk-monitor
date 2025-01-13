@@ -35,8 +35,15 @@ export default defineComponent({
   props: {
     panels: { type: Array, default: () => [] },
   },
-  setup() {
-    return {};
+  emits: ['change'],
+  setup(_props, { emit }) {
+    function handleChange(val) {
+      emit('change', val);
+    }
+
+    return {
+      handleChange,
+    };
   },
   render() {
     return (
@@ -45,9 +52,9 @@ export default defineComponent({
         {this.panels?.map((item, index) => (
           <FilterVarTagInput
             key={index}
-            label={item.title}
             multiple={false}
             panel={item}
+            onChange={this.handleChange}
           />
         ))}
       </div>

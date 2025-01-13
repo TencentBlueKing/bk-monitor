@@ -41,8 +41,10 @@ export default defineComponent({
   props: {
     name: { type: String, default: 'Groups' },
     list: { type: Array, default: () => [] },
+    value: { type: Array, default: () => [] },
   },
-  setup(props) {
+  emits: ['change'],
+  setup(props, { emit }) {
     const selectList = ref<IItem[]>([]);
     const selected = ref<string[]>([]);
     const tagList = ref<IItem[]>([]);
@@ -64,6 +66,7 @@ export default defineComponent({
         }
       }
       tagList.value = tags;
+      emit('change', value);
     }
 
     function handleDelete(item: IItem) {
