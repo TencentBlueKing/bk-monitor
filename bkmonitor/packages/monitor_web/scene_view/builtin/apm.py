@@ -233,6 +233,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     view,
                     view_config,
                     builtin_view,
+                    display_with_sidebar=False,
                 )
             return view_config
 
@@ -452,7 +453,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def get_container_view(cls, params, bk_biz_id, app_name, service_name, view, view_config, builtin_view):
+    def get_container_view(
+        cls,
+        params,
+        bk_biz_id,
+        app_name,
+        service_name,
+        view,
+        view_config,
+        builtin_view,
+        display_with_sidebar=True,
+    ):
+        # display_with_sidebar: 是否页面配置展示为侧边栏(在观测场景处显示为侧边栏，在主机场景处显示为顶部栏下拉框)
         # 获取观测场景或 span 检索处关联容器的图表配置
         # 时间范围必传
         start_time = params.get("start_time")
@@ -473,7 +485,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             if response:
                 # 实际有 Pod 数据才返回
-                return cls._add_config_from_container(app_name, service_name, view, view_config)
+                return cls._add_config_from_container(app_name, service_name, view, view_config, display_with_sidebar)
 
         return cls._get_non_container_view_config(builtin_view, params)
 
@@ -538,7 +550,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
-    def _add_config_from_container(cls, app_name, service_name, view, view_config):
+    def _add_config_from_container(cls, app_name, service_name, view, view_config, display_with_sidebar):
         """获取容器 Pod 图表配置"""
         from monitor_web.scene_view.builtin.kubernetes import KubernetesBuiltinProcessor
 
@@ -564,14 +576,25 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 调整配置
         pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]
         pod_view["options"] = view_config["options"]
+        pod_view["variables"] = view_config["variables"]
         if "panels" in pod_view:
             pod_view["overview_panels"] = pod_view["panels"]
             del pod_view["panels"]
 
-        pod_view["options"]["selector_panel"]["targets"][0]["data"] = {
-            "app_name": app_name,
-            "service_name": service_name,
-        }
+        if display_with_sidebar:
+            pod_view["options"]["selector_panel"]["targets"][0]["data"].update(
+                {
+                    "app_name": app_name,
+                    "service_name": service_name,
+                }
+            )
+        else:
+            pod_view["variables"][0]["targets"][0]["data"].update(
+                {
+                    "app_name": app_name,
+                    "service_name": service_name,
+                }
+            )
 
         # 不展示事件页面 时间页面单独页面进行展示
         pod_view["overview_panels"] = [
