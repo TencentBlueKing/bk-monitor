@@ -26,6 +26,7 @@
 
 import { defineComponent, getCurrentInstance, inject, type Ref, ref } from 'vue';
 import { shallowRef } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Select } from 'bkui-vue';
@@ -40,7 +41,6 @@ export default defineComponent({
   name: 'FilterVarTagInput',
   props: {
     panel: { type: Object, default: () => null },
-    label: { type: String, default: '' },
     multiple: { type: Boolean, default: false },
   },
   emits: ['change'],
@@ -61,6 +61,34 @@ export default defineComponent({
 
     const localOptions = shallowRef([]);
     const localValue = ref([]);
+
+    const localValueCheckedOptions = computed(() => {
+      if (props.multiple) {
+        const arr = [];
+        for (const value of localValue.value) {
+          const item = localOptions.value.find(item => item.id === value);
+          if (item) {
+            arr.push(item);
+          } else {
+            arr.push({ id: value, name: value });
+          }
+        }
+        return arr;
+      }
+      return localOptions.value.filter(item => localValue.value === item.id);
+    });
+    const localCheckedFilterDict = computed(() => {
+      const filterDict = {};
+      props.panel.fieldsSort.reduce((total, item) => {
+        const [itemKey, filterKey] = item;
+        const value = props.multiple
+          ? localValueCheckedOptions.value.map(opt => opt[itemKey])
+          : (localValueCheckedOptions.value[0]?.[itemKey] ?? localValue.value);
+        total[filterKey] = value;
+        return total;
+      }, filterDict);
+      return filterDict;
+    });
 
     init();
 
@@ -103,48 +131,53 @@ export default defineComponent({
         });
     }
 
-    function handlePaste(v) {
-      if (props.multiple) {
-        const SYMBOL = ';';
-        /** 支持 空格 | 换行 | 逗号 | 分号 分割的字符串 */
-        const valList = `${v}`.replace(/(\s+)|([,;])/g, SYMBOL)?.split(SYMBOL);
-        const ret = [];
-        for (const val of valList) {
-          !localValue.value.some(v => v === val) && val !== '' && localValue.value.push(val);
-          if (!props.list?.some(item => item.id === val)) {
-            ret.push({
-              id: val,
-              name: val,
-            });
-          }
-        }
-        setTimeout(() => handleChange(localValue.value), 50);
-        return ret;
-      }
-      localValue.value = [v];
-      setTimeout(() => handleChange(localValue.value), 50);
-      return [{ id: v, name: v }];
-    }
+    // function handlePaste(v) {
+    //   if (props.multiple) {
+    //     const SYMBOL = ';';
+    //     /** 支持 空格 | 换行 | 逗号 | 分号 分割的字符串 */
+    //     const valList = `${v}`.replace(/(\s+)|([,;])/g, SYMBOL)?.split(SYMBOL);
+    //     const ret = [];
+    //     for (const val of valList) {
+    //       !localValue.value.some(v => v === val) && val !== '' && localValue.value.push(val);
+    //       if (!props.list?.some(item => item.id === val)) {
+    //         ret.push({
+    //           id: val,
+    //           name: val,
+    //         });
+    //       }
+    //     }
+    //     setTimeout(() => handleChange(localValue.value), 50);
+    //     return ret;
+    //   }
+    //   localValue.value = [v];
+    //   setTimeout(() => handleChange(localValue.value), 50);
+    //   return [{ id: v, name: v }];
+    // }
 
-    function handleChange(v) {
+    function handleSelectChange(v) {
       if (props.multiple) {
         emit('change', v);
       } else {
         emit('change', v?.[0] || '');
       }
+      handleChange();
+    }
+    function handleChange() {
+      emit('change', localCheckedFilterDict.value);
     }
 
     return {
       localOptions,
       localValue,
       t,
-      handlePaste,
+      // handlePaste,
+      handleSelectChange,
     };
   },
   render() {
     return (
       <span class='dashboard-panel__filter-var-tag-input'>
-        {this.label && (
+        {this.panel?.title && (
           <span
             class='filter-var-label'
             v-bk-tooltips={{
@@ -154,7 +187,7 @@ export default defineComponent({
               allowHTML: false,
             }}
           >
-            {this.label}
+            {this.panel.title}
           </span>
         )}
         <Select
@@ -164,6 +197,7 @@ export default defineComponent({
           clearable={true}
           filterable={true}
           multiple={this.multiple}
+          onChange={this.handleSelectChange}
         >
           {{
             default: () => {

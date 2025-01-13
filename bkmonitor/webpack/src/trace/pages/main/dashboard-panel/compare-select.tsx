@@ -34,7 +34,7 @@ import TimeCompareSelect from './time-compare-select';
 import './compare-select.scss';
 
 /** 不对比 | 时间对比 | 目标对比 | 指标对比 */
-enum CompareId {
+export enum CompareId {
   metric = 'metric',
   none = 'none',
   target = 'target',
@@ -66,20 +66,43 @@ export default defineComponent({
     curTarget: { type: [String, Number], default: '' },
     targetList: { type: Array, default: () => [] },
     compareListEnable: { type: Array, default: () => [] },
+    panel: { type: Object, default: () => null },
+    targetOptions: { type: Array, default: () => [] },
   },
-  setup(props) {
+  emits: ['timeChange', 'targetChange', 'typeChange'],
+  setup(props, { emit }) {
     const localType = ref(CompareId.none);
+
+    const localTargetValue = ref<string[]>([]);
 
     const compareList = computed(() => {
       return COMPARE_LIST.filter(item => props.compareListEnable.includes(item.id));
     });
 
-    function handleTargetChange() {}
+    function handleTargetChange(list) {
+      const targetCheckedList = list.reduce((total, id) => {
+        const item = props.targetOptions.find(item => item.id === id);
+        const value = props.panel.targets?.[0]?.handleCreateCompares(item);
+        total.push({ ...value });
+        return total;
+      }, []);
+      const viewOptions = {
+        compares: {
+          targets: targetCheckedList,
+        },
+      };
+      emit('targetChange', viewOptions);
+    }
+    function handleTimeChange(val) {
+      emit('timeChange', val);
+    }
 
     return {
       localType,
       compareList,
+      localTargetValue,
       handleTargetChange,
+      handleTimeChange,
     };
   },
   render() {
@@ -87,7 +110,10 @@ export default defineComponent({
       if (this.localType === CompareId.time) {
         return (
           <div>
-            <TimeCompareSelect class='ml-12' />
+            <TimeCompareSelect
+              class='ml-12'
+              onTimeChange={this.handleTimeChange}
+            />
           </div>
         );
       }
@@ -104,8 +130,8 @@ export default defineComponent({
             )}
             <span class='target-compare-select'>
               <TargetCompareSelect
-                list={[]}
-                value={[]}
+                list={this.targetList}
+                value={this.localTargetValue}
                 onChange={this.handleTargetChange}
               />
             </span>
