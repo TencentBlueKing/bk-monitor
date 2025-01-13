@@ -38,6 +38,8 @@ interface IChartTitleProps {
   list: ChartTitleMenuType[];
   // 是否显示添加指标到策略选项
   showAddMetric?: boolean;
+  // 菜单是否展示
+  showMenu?: boolean;
   drillDownOption?: IMenuChildItem[];
 }
 export interface IChartTitleMenuEvents {
@@ -52,8 +54,10 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
   @Prop({ default: () => [] }) drillDownOption: IMenuChildItem[];
   @Prop({ default: () => [] }) metrics: IExtendMetricData[];
   @Prop({ type: Boolean, default: true }) showAddMetric: boolean;
+  @Prop({ type: Boolean, default: true }) showMenu: boolean;
   menuList: IMenuItem[] = [];
   showMenuItem = false;
+  currShowItemRef = '';
   created() {
     this.menuList = [
       {
@@ -162,6 +166,14 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
       }));
     }
   }
+
+  @Watch('showMenu')
+  handleShowMenuChange(val) {
+    if (!val) {
+      (this.$refs[this.currShowItemRef] as any)?.hideHandler?.();
+    }
+  }
+
   @Emit('select')
   handleMenuClick(item: IMenuItem) {
     return item;
@@ -213,6 +225,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
     if (popoverRef) {
       if (this.showMenuItem && popoverRef.showHandler) {
         popoverRef.showHandler();
+        this.currShowItemRef = `${key}-popover`;
       } else if (!this.showMenuItem && popoverRef.hideHandler) {
         popoverRef.hideHandler();
       }
@@ -269,8 +282,10 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                   class='menu-item-trigger-popover'
                   tippy-options={{
                     trigger: 'click',
+                    appendTo: 'parent',
                     onHide: () => {
                       this.showMenuItem = false;
+                      this.currShowItemRef = '';
                       return true;
                     },
                   }}
