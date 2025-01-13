@@ -11,13 +11,11 @@ specific language governing permissions and limitations under the License.
 import datetime
 
 from django.db import models
-from django.utils.translation import gettext_lazy as _
 
 from apm.constants import DiscoverRuleType
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.db import JsonField
 from constants.apm import SpanKind
-from core.drf_resource.exceptions import CustomException
 
 
 class TopoBase(models.Model):
@@ -39,9 +37,7 @@ class TopoBase(models.Model):
     def clear_expired(cls, bk_biz_id, app_name):
         from apm.models import ApmApplication
 
-        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not application:
-            raise CustomException(_("[TopoBase] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+        application = ApmApplication.get_application(bk_biz_id, app_name)
         last = datetime.datetime.now() - datetime.timedelta(application.trace_datasource.retention)
         filter_params = {
             "bk_biz_id": bk_biz_id,
