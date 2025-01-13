@@ -46,7 +46,7 @@ FEATURE_TOGGLE_ES_CLUSTER_TYPE = "es_cluster_type_setup"
 
 DEFAULT_RETENTION = 14
 
-# 节点管理支持的cmdb变量
+# 节点管理支持的cmdb 主机信息
 CC_HOST_FIELDS = [
     "bk_host_id",
     "bk_agent_id",
@@ -72,6 +72,17 @@ CC_HOST_FIELDS = [
     "bk_supplier_account",
     "bk_cpu_architecture",
 ]
+
+# 节点管理支持的cmdb 集群信息
+CC_SCOPE_FIELDS = ["bk_obj_id", "bk_inst_id"]
+
+
+class CmdbFieldType(ChoicesEnum):
+    HOST = "host"
+    SCOPE = "scope"
+
+    _choices_labels = ((HOST, _("主机")), (SCOPE, _("集群")))
+
 
 class VisibleEnum(ChoicesEnum):
     # 当前业务可见

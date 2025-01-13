@@ -84,6 +84,8 @@ from apps.log_databus.constants import (
     TopoType,
     WorkLoadType,
     CC_HOST_FIELDS,
+    CC_SCOPE_FIELDS,
+    CmdbFieldType,
 )
 from apps.log_databus.exceptions import (
     AllNamespaceNotAllowedException,
@@ -855,8 +857,10 @@ class CollectorHandler(object):
         extra_labels = params["params"].get("extra_labels")
         if extra_labels:
             for item in extra_labels:
-                if item["key"] in CC_HOST_FIELDS:
-                    item["value"] = "{{cmdb_instance.host." + item["key"] + "}}"
+                if item["value"] == CmdbFieldType.HOST.value and item["key"] in CC_HOST_FIELDS:
+                    item["value"] = "{{cmdb_instance." + item["value"] + "." + item["key"] + "}}"
+                if item["value"] == CmdbFieldType.SCOPE.value and item["key"] in CC_SCOPE_FIELDS:
+                    item["value"] = "{{cmdb_instance." + item["value"] + "[0]." + item["key"] + "}}"
 
         # 1. 创建CollectorConfig记录
         model_fields = {
@@ -4856,15 +4860,25 @@ class CollectorHandler(object):
     @staticmethod
     def search_object_attribute():
         return_data = defaultdict(list)
-        response = CCApi.search_object_attribute()
+        response = CCApi.search_object_attribute({"bk_obj_id": "host"})
         for data in response:
             if data["bk_obj_id"] == "host" and data["bk_property_id"] in CC_HOST_FIELDS:
-                cmdb_data = {
+                host_data = {
                     "field": data["bk_property_id"],
                     "name": data["bk_property_name"],
                     "group_name": data["bk_property_group_name"]
                 }
-                return_data["host"].append(cmdb_data)
+                return_data["host"].append(host_data)
+        return_data["host"].extend([
+            {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
+            {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
+            {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"}
+        ])
+        scope_data = [
+            {"field": "bk_obj_id", "name": "模型ID", "group_name": "基础信息"},
+            {"field": "bk_inst_id", "name": "集群ID", "group_name": "基础信息"}
+        ]
+        return_data["scope"] = scope_data
         return return_data
 
 
