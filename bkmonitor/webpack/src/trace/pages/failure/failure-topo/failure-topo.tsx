@@ -36,7 +36,7 @@ import {
   watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
-
+import { useRouter } from 'vue-router';
 import {
   Arrow,
   Graph,
@@ -113,6 +113,7 @@ export default defineComponent({
   },
   emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh'],
   setup(props, { emit }) {
+    const router = useRouter();
     /** 缓存resize render后执行的回调函数，主要用于点击播放之前收起右侧资源图时的回调 */
     const resizeCacheCallback = ref(null);
     const detailInfo = ref({});
@@ -1890,6 +1891,26 @@ export default defineComponent({
       data.id = node.alert_ids[0];
       window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
     };
+    const goToTracePage = (data, type) => {
+      const incident_query = {
+        trace_id: data?.abnormal_traces[0].trace_id || '',
+        span_id: data?.abnormal_traces[0].span_id || '',
+        type,
+      };
+      const newPage = router.resolve({
+        path: '/trace/home',
+        query: {
+          app_name: data?.abnormal_traces_query.app_name,
+          search_type: 'scope',
+          search_id: 'traceID',
+          refleshInterval: '-1',
+          query: data.abnormal_traces_query.query,
+          listType: 'trace',
+          incident_query: encodeURIComponent(JSON.stringify(incident_query)),
+        },
+      });
+      window.open(newPage.href, '_blank');
+    };
     const handleToDetailTab = node => {
       const { alert_display, alert_ids } = node;
       const name = alert_display?.alert_name || '';
@@ -1943,6 +1964,7 @@ export default defineComponent({
       handleToDetailTab,
       detailInfo,
       refresh,
+      goToTracePage,
     };
   },
   render() {
@@ -2136,6 +2158,7 @@ export default defineComponent({
             onToDetailSlider={this.handleToDetailSlider}
             onToDetailTab={this.handleToDetailTab}
             onViewResource={this.handleViewResource}
+            onToTracePage={this.goToTracePage}
           />
         </div>
       </div>
