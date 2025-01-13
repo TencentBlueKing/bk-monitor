@@ -29,7 +29,6 @@ from alarm_backends.core.cache.key import (
     COMPOSITE_QOS_COUNTER,
 )
 from alarm_backends.core.cluster import get_cluster
-from alarm_backends.service.converge.shield.shielder.saas_config import IncidentShielder
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance
 from bkmonitor.strategy.expression import AlertExpressionValue
@@ -833,6 +832,10 @@ class Alert:
         return AlertKey(alert_id=self.id, strategy_id=self.strategy_id)
 
     def pre_qos_check(self):
+        from alarm_backends.service.converge.shield.shielder.saas_config import (
+            IncidentShielder,
+        )
+
         message = _("当前告警处理正常")
         is_blocked = False
         try:
