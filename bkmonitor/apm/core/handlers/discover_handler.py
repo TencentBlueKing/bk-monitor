@@ -11,8 +11,10 @@ specific language governing permissions and limitations under the License.
 import datetime
 
 import pytz
+from django.utils.translation import gettext_lazy as _
 
 from apm.models import ApmApplication, HostInstance
+from core.drf_resource.exceptions import CustomException
 
 
 class DiscoverHandler:
@@ -33,8 +35,9 @@ class DiscoverHandler:
 
     @classmethod
     def get_app_retention(cls, bk_biz_id, app_name):
-
-        app = ApmApplication.get_application(bk_biz_id, app_name)
+        app = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            raise CustomException(_("[DiscoverHandler] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
         return app.trace_datasource.retention
 
     @classmethod
