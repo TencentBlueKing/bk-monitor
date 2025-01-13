@@ -104,6 +104,70 @@ export const PANEL_LAYOUT_LIST = [
   },
 ];
 
+export const METHOD_LIST = [
+  {
+    id: 'SUM',
+    name: 'SUM',
+  },
+  {
+    id: 'AVG',
+    name: 'AVG',
+  },
+  {
+    id: 'MAX',
+    name: 'MAX',
+  },
+  {
+    id: 'MIN',
+    name: 'MIN',
+  },
+  {
+    id: 'COUNT',
+    name: 'COUNT',
+  },
+];
+
+export const CP_METHOD_LIST = [
+  {
+    id: 'CP50',
+    name: 'P50',
+  },
+  {
+    id: 'CP90',
+    name: 'P90',
+  },
+  {
+    id: 'CP95',
+    name: 'P95',
+  },
+  {
+    id: 'CP99',
+    name: 'P99',
+  },
+  {
+    id: 'sum_without_time',
+    name: 'SUM(PromQL)',
+  },
+  {
+    id: 'max_without_time',
+    name: 'MAX(PromQL)',
+  },
+  {
+    id: 'min_without_time',
+    name: 'MIN(PromQL)',
+  },
+  {
+    id: 'count_without_time',
+    name: 'COUNT(PromQL)',
+  },
+  {
+    id: 'avg_without_time',
+    name: 'AVG(PromQL)',
+  },
+];
+
+export const DEFAULT_METHOD = 'AVG';
+
 /**
  * @description 查找targetNode是否含有指定名称为targetStr className | id | tagName
  * @param targetNode DOM节点

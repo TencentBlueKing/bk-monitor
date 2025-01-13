@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref } from 'vue';
+import { computed } from 'vue';
 
 import { Select } from 'bkui-vue';
 
@@ -63,14 +64,21 @@ export default defineComponent({
   name: 'CompareSelect',
   props: {
     curTarget: { type: [String, Number], default: '' },
+    targetList: { type: Array, default: () => [] },
+    compareListEnable: { type: Array, default: () => [] },
   },
-  setup() {
+  setup(props) {
     const localType = ref(CompareId.none);
+
+    const compareList = computed(() => {
+      return COMPARE_LIST.filter(item => props.compareListEnable.includes(item.id));
+    });
 
     function handleTargetChange() {}
 
     return {
       localType,
+      compareList,
       handleTargetChange,
     };
   },
@@ -119,7 +127,7 @@ export default defineComponent({
         >
           {{
             default: () =>
-              COMPARE_LIST.map(item => (
+              this.compareList.map(item => (
                 <Select.Option
                   id={item.id}
                   key={item.id}

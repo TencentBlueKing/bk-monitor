@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, watch } from 'vue';
 
 import { Select } from 'bkui-vue';
 
@@ -47,8 +47,16 @@ export default defineComponent({
     value: { default: '', type: [String, Array, Number] },
   },
   emits: ['change'],
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const localValue = ref('');
+
+    watch(
+      () => props.value,
+      val => {
+        localValue.value = val;
+      },
+      { immediate: true }
+    );
 
     function handleSelectChange() {
       emit('change', localValue.value);

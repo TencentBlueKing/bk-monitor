@@ -45,7 +45,7 @@ export default defineComponent({
     const panelLayoutList = PANEL_LAYOUT_LIST;
 
     const currentLayout = computed(() => {
-      return panelLayoutList[props.layoutActive];
+      return panelLayoutList[props.layoutActive - 1];
     });
 
     function handleChangeLayout(id: number) {

@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, ref } from 'vue';
+import { watch } from 'vue';
 
 import { Select } from 'bkui-vue';
 
@@ -37,39 +38,27 @@ interface IItem {
 
 export default defineComponent({
   name: 'GroupsSelector',
-  setup() {
-    const data = [
-      {
-        id: '1',
-        name: '组名称1',
-      },
-      {
-        id: '2',
-        name: '组名称2',
-      },
-      {
-        id: '3',
-        name: '组名称3',
-      },
-      {
-        id: '4',
-        name: '组名称4',
-      },
-    ];
+  props: {
+    name: { type: String, default: 'Groups' },
+    list: { type: Array, default: () => [] },
+  },
+  setup(props) {
     const selectList = ref<IItem[]>([]);
     const selected = ref<string[]>([]);
     const tagList = ref<IItem[]>([]);
 
-    init();
-
-    function init() {
-      selectList.value = data;
-    }
+    watch(
+      () => props.list,
+      () => {
+        selectList.value = props.list;
+      },
+      { immediate: true }
+    );
 
     function handleChange(value: string[]) {
       const vSet = new Set(value);
       const tags = [];
-      for (const v of data) {
+      for (const v of selectList.value) {
         if (vSet.has(v.id)) {
           tags.push(v);
         }
@@ -95,7 +84,7 @@ export default defineComponent({
   render() {
     return (
       <div class='dashboard-panel__groups-selector'>
-        <div class='left-title'>Group: </div>
+        <div class='left-title'>{this.name}: </div>
         <div class='right-content'>
           {this.tagList.map(item => (
             <div

@@ -1,0 +1,11 @@
+/* stylelint-disable declaration-no-important */
+.dashboard-panel__filter-var-tag-input {
+  display: inline-flex;
+  align-items: center;
+  min-width: 141px;
+  min-height: 48px;
+
+  .bk-input--text {
+    background: #fff !important;
+  }
+}
