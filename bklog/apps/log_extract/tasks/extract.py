@@ -258,6 +258,22 @@ class LogExtractUtils(object):
     def _get_transit_server(extract_link: ExtractLink, task_id):
         packed_dir_name = get_packed_dir_name("", task_id=task_id)
         hosts = extract_link.extractlinkhost_set.all()
+        if extract_link.link_type == ExtractLinkType.BK_REPO.value:
+            if hosts:
+                repo_ip = hosts[0].ip
+            else:
+                repo_ip = settings.BKLOG_NODE_IP
+            return (
+                [
+                    TransitServer(
+                        ip=repo_ip,
+                        target_dir=settings.BKLOG_STORAGE_ROOT_PATH,
+                        bk_cloud_id=settings.BKLOG_CLOUD_ID,
+                    )
+                ],
+                constants.TRANSIT_SERVER_PACKING_PATH,
+                os.path.join(settings.BKLOG_STORAGE_ROOT_PATH, BKREPO_CHILD_PACKING_PATH, packed_dir_name),
+            )
         if not hosts:
             raise Exception(_("请配置链路中转服务器"))
         return (
