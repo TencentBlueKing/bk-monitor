@@ -46,20 +46,7 @@ import store from './store';
 
 import './static/style.css';
 
-// const provider = new WebTracerProvider();
-// provider.register({
-//   contextManager: new ZoneContextManager(),
-// });
-// registerInstrumentations({
-//   instrumentations: [
-//     new XMLHttpRequestInstrumentation({
-//       // propagateTraceHeaderCorsUrls: new RegExp('.*'),
-//     }),
-//   ],
-// });
-// const tracer = provider.getTracer('bk-log');
 Vue.prototype.$renderHeader = renderHeader;
-// Vue.prototype.tracer = tracer;
 
 try {
   const id = window.TAM_AEGIS_KEY;

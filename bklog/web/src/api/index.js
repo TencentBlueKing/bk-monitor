@@ -207,7 +207,6 @@ function handleReject(error, config) {
   // const service = getHttpService(url, serviceList);
   // const ajaxUrl = service ? service.url : '';
   // console.error('Request error UrlPath：', ajaxUrl);
-  // const traceparent = config.span._spanContext.traceId;
 
   const traceparent = config?.headers?.traceparent;
   http.queue.delete(config.requestId);
@@ -310,7 +309,6 @@ function initConfig(method, url, userConfig) {
     cancelPrevious: true,
     // 接口报错是否弹bkMessage弹窗
     catchIsShowMessage: true,
-    // span: trace.getTracer('bk-log').startSpan('api'),
   };
   return Object.assign(defaultConfig, copyUserConfig);
 }
