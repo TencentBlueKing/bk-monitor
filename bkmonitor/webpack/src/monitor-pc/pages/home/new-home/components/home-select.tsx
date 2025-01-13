@@ -442,7 +442,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 键盘向下切换选中 */
   handleHighlightDown() {
-    console.log(this.currentListKey, 'this.currentListKey');
     this.setHighlightIndexDown(this.currentListKey);
     this.getSearchHightItem(this.currentListKey);
   }
