@@ -833,6 +833,9 @@ class Alert:
         return AlertKey(alert_id=self.id, strategy_id=self.strategy_id)
 
     def pre_qos_check(self):
+        from alarm_backends.service.converge.shield.shielder.saas_config import (
+            IncidentShielder,
+        )
         message = _("当前告警处理正常")
         is_blocked = False
         try:
