@@ -678,6 +678,24 @@
           background-color: #4f4f52;
         }
       }
+
+      .except-info {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        .except-text {
+          overflow: hidden;
+          color: #ff6161;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          padding-right: 6px;
+        }
+        .except-icon {
+          color: #699df4;
+          padding-right: 8px;
+        }
+      }
     }
   }
 

@@ -55,6 +55,7 @@ class UserConfig(models.Model):
 
     class Keys:
         FUNCTION_ACCESS_RECORD = "function_access_record"
+        DEFAULT_BIZ_ID = "default_biz_id"
 
     username = models.CharField("用户名", max_length=30)
     key = models.CharField("key", max_length=255)

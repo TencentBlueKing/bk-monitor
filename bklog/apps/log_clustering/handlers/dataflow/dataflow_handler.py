@@ -1837,6 +1837,7 @@ class DataFlowHandler(BaseAiopsHandler):
                 "table_name": f"bklog_{index_set_id}_pattern",
                 "result_table_id": f"{bk_biz_id}_bklog_{index_set_id}_pattern",
                 "expires": self.conf.get("log_pattern_expires", 30),
+                "storage": self.conf.get("pattern_storage_cluster", self.conf.get("tspider_cluster")),
             },
             tspider_storage=TspiderStorageCls(
                 cluster=self.conf.get("tspider_cluster"), expires=self.conf.get("log_count_tspider_expires", 3)
