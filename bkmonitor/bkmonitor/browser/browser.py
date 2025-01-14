@@ -6,6 +6,8 @@ from functools import lru_cache
 from threading import Lock
 from typing import Optional
 
+from celery import platforms
+from celery.signals import worker_process_init, worker_process_shutdown
 from pyppeteer import launch
 from pyppeteer.browser import Browser
 
@@ -120,3 +122,31 @@ def get_or_create_eventloop() -> asyncio.AbstractEventLoop:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         return loop
+
+
+def _cleanup_browser():
+    """
+    进程退出时清理浏览器资源
+    """
+    global _browser
+    if _browser:
+        loop = get_or_create_eventloop()
+        try:
+            loop.run_until_complete(_browser.close())
+        except Exception as e:
+            logger.exception(f"close browser failed, error: {e}")
+        finally:
+            _browser = None
+
+
+@worker_process_shutdown.connect
+def pool_process_shutdown_handler(signal=None, sender=None, **kwargs):
+    logger.info("Worker is shutting downing")
+    _cleanup_browser()
+
+
+@worker_process_init.connect
+def install_pool_process_sighandlers(signal=None, sender=None, **kwargs):
+    logger.info("Worker is starting")
+    platforms.signals["TERM"] = _cleanup_browser
+    platforms.signals["INT"] = _cleanup_browser
