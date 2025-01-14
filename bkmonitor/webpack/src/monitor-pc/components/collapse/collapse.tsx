@@ -177,7 +177,6 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
 
   @Emit('overflow')
   checkOverflow() {
-    console.log(this.collapseContentRef?.scrollHeight, this.defaultHeight);
     const isOverflow = this.collapseContentRef?.scrollHeight > this.defaultHeight;
     this.isOverflow = isOverflow;
     return isOverflow;

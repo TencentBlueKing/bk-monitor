@@ -43,7 +43,7 @@ import GroupsSelector from './groups-selector';
 import LayoutSelect from './layout-select';
 import { CP_METHOD_LIST, DEFAULT_METHOD, METHOD_LIST, PANEL_INTERVAL_LIST } from './utils';
 
-import type { IViewOptions, PanelModel } from '../../../plugins/typings';
+import type { BookMarkModel, IViewOptions } from '../../../plugins/typings';
 
 import './dashboard-panel.scss';
 
@@ -57,7 +57,7 @@ export default defineComponent({
     sceneViewParams: { type: Object, default: () => ({}) },
     // 是否为单图模式
     isSingleChart: { default: false, type: Boolean },
-    sceneData: { type: Object as PropType<PanelModel>, required: true },
+    sceneData: { type: Object as PropType<BookMarkModel>, required: true },
     groupTitle: { type: String, default: 'Groups' },
   },
 
@@ -90,6 +90,8 @@ export default defineComponent({
       group_by: [],
       compare_targets: [],
       current_target: null,
+      filters: {},
+      variables: {},
     });
     const panelsColumn = ref(1);
 
