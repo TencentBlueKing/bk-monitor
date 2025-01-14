@@ -396,6 +396,11 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_DELETE_CONFIG = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="delete_config"
     )
+    SEARCH_VIEWSET_USER_CUSTOM_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="SearchViewSet",
+        view_action="update_or_create_config",
+    )
     # ======================================= 聚合-AggsViewSet =======================================
     AGGS_VIEWSET_TERMS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="terms"
@@ -436,7 +441,7 @@ class ViewSetActionEnum(ChoicesEnum):
     PATTERN_VIEWSET_SEARCH = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="search"
     )
-    # ======================================= 收藏-IndexSetViewSet =======================================
+    # ======================================= 索引-IndexSetViewSet =======================================
     INDEX_SET_VIEWSET_MARK_FAVORITE = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IndexSetViewSet", view_action="mark_favorite"
     )
@@ -565,6 +570,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_RETRIEVE_CONFIG,
         SEARCH_VIEWSET_LIST_CONFIG,
         SEARCH_VIEWSET_DELETE_CONFIG,
+        SEARCH_VIEWSET_USER_CUSTOM_CONFIG,
         # ======================================= 聚合-AggsViewSet =======================================
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,
@@ -577,7 +583,7 @@ class ViewSetActionEnum(ChoicesEnum):
         CLUSTERING_CONFIG_VIEWSET_STATUS,
         CLUSTERING_CONFIG_VIEWSET_CONFIG,
         PATTERN_VIEWSET_SEARCH,
-        # ======================================= 收藏-IndexSetViewSet =======================================
+        # ======================================= 索引-IndexSetViewSet =======================================
         INDEX_SET_VIEWSET_MARK_FAVORITE,
         INDEX_SET_VIEWSET_CANCEL_FAVORITE,
         # ======================================= 收藏-FavoriteViewSet =======================================

@@ -15,7 +15,11 @@ import pytest
 
 from alarm_backends.service.detect.strategy.simple_ring_ratio import SimpleRingRatio
 from alarm_backends.tests.service.detect import DataPoint
-from core.errors.alarm_backends.detect import InvalidAlgorithmsConfig, InvalidDataPoint, InvalidSimpleRingRatioConfig
+from core.errors.alarm_backends.detect import (
+    InvalidAlgorithmsConfig,
+    InvalidDataPoint,
+    InvalidSimpleRingRatioConfig,
+)
 
 datapoint200 = DataPoint(200, 100000000, "%", "item")
 datapoint100 = DataPoint(100, 100000000, "%", "item")
@@ -89,7 +93,7 @@ class TestSimpleRingRatio(object):
             "alarm_backends.service.detect.strategy." "simple_ring_ratio.SimpleRingRatio.history_point_fetcher",
             return_value=datapoint99,
         ):
-            from .test_threshold import mock_datapoint_with_value
+            from .mocked_data import mock_datapoint_with_value
 
             _datapoint200 = mock_datapoint_with_value(200)
             _datapoint0 = mock_datapoint_with_value(0)

@@ -19,7 +19,6 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
-from rest_framework_condition import condition
 
 from core.drf_resource.base import Resource
 
@@ -180,10 +179,6 @@ class ResourceViewSet(viewsets.GenericViewSet):
                     methods=[resource_route.method],
                     url_path=resource_route.endpoint,
                     url_name=resource_route.endpoint.replace("_", "-"),
-                )(function)
-                function = condition(
-                    etag_func=resource_route.resource_class.etag,
-                    last_modified_func=resource_route.resource_class.last_modified,
                 )(function)
 
                 function = decorator_function(function)

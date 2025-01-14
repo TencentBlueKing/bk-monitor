@@ -938,6 +938,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "double": "double",
             "object": "object",
             "nested": "nested",
+            "boolean": "boolean",
         }.get(es_field_type, "string")
 
 
@@ -1452,11 +1453,11 @@ class ExportFileType(ChoicesEnum):
     日志下载文件类型枚举
     """
 
-    TXT = "txt"
+    LOG = "log"
     CSV = "csv"
 
     _choices_labels = (
-        (TXT, _("txt类型")),
+        (LOG, _("log类型")),
         (CSV, _("csv类型")),
     )
 

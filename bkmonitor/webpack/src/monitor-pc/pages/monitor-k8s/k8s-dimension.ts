@@ -66,7 +66,7 @@ export abstract class K8sDimensionBase {
   abstract dimensionKey: string[];
 
   constructor(params: K8sDimensionParams) {
-    this.pageSize = params.pageSize;
+    this.pageSize = params.page_size;
     this.pageType = params.page_type;
   }
 
