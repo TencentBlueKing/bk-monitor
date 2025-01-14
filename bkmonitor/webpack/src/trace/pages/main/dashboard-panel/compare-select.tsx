@@ -78,7 +78,8 @@ export default defineComponent({
       return COMPARE_LIST.filter(item => props.compareListEnable.includes(item.id));
     });
     const targetOptionsFilter = computed(() => {
-      return props.targetOptions.filter(item => item.name !== props.curTarget);
+      // return props.targetOptions.filter(item => item.name !== props.curTarget);
+      return props.targetOptions;
     });
 
     function handleTargetChange(list) {
