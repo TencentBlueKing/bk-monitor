@@ -28,6 +28,7 @@ export default {
   // 规范： 动词-主体-结果  如 新建应用成功 New application successful
   // 规范： 仅首字母大写
   容器服务: 'Container service',
+  日志检索: 'Log retrieval',
   关联的告警: 'Related Alarms',
   关联的屏蔽策略: 'Associated blocking policy',
   '有问题就问 AI 小鲸': 'If you have any questions, ask Xiaojing',

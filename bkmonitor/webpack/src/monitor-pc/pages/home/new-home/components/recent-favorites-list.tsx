@@ -46,7 +46,7 @@ interface IRecentFavoritesListProps {
 
 const categoryIcons = {
   dashboard: dashboardSrc,
-  retrieval: retrievalSrc,
+  log_retrieve: retrievalSrc,
   apm_service: serviceSrc,
 };
 
@@ -87,6 +87,11 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
       /** APM */
       apm_service: () => {
         const url = `${baseUrl}#/apm/service?filter-app_name=${item.app_name}&filter-service_name=${item.service_name}`;
+        window.open(url, '_blank');
+      },
+      /** 日志检索 */
+      log_retrieve: () => {
+        const url = `${baseUrl}#/log-retrieval?indexId=${item.index_set_id}&spaceUid=${item.space_uid}`;
         window.open(url, '_blank');
       },
     };
@@ -138,11 +143,11 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
         id: item.application_id,
         title: `${item.app_name}/${item.service_name}`,
       },
-      /** 检索 */
-      retrieval: {
+      /** 日志检索 */
+      log_retrieve: {
         type,
         item,
-        title: item.dashboard_title,
+        title: item.index_set_name,
       },
     };
 

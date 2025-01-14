@@ -59,7 +59,7 @@ export enum EAlertLevel {
 export const EFunctionNameType = {
   dashboard: '仪表盘',
   apm_service: '服务',
-  log_retrieve: '日志索引集',
+  log_retrieve: '日志检索',
   metric_retrieve: '指标集',
   // TODO
 };
