@@ -2446,4 +2446,6 @@ class CollectorViewSet(ModelViewSet):
     @list_route(methods=["POST"], url_path="bulk_operation")
     def collector_batch_operation(self, request):
         params = self.params_valid(CollectorBatchOperationSerializer)
-        return Response(CollectorBatchHandler(params["collector_config_ids"]).batch_operation(params))
+        collector_config_ids = params["collector_config_ids"]
+        operation_type = params["operation_type"]
+        return Response(CollectorBatchHandler(collector_config_ids, operation_type).batch_operation(params))

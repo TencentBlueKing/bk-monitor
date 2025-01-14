@@ -1633,14 +1633,7 @@ class GetCollectorCheckResultSerializer(serializers.Serializer):
     check_record_id = serializers.CharField(label=_("采集项检查唯一标识"))
 
 
-class CollectorStorageConfig(serializers.Serializer):
-    retention = serializers.IntegerField(required=False, default=-1)
-    allocation_min_days = serializers.IntegerField(required=False, default=-1)
-    storage_replies = serializers.IntegerField(required=False, default=-1)
-    es_shards = serializers.IntegerField(required=False, default=-1)
-
-
 class CollectorBatchOperationSerializer(serializers.Serializer):
     collector_config_ids = serializers.ListField(label=_("采集项ID列表"), allow_empty=False)
     operation_type = serializers.ChoiceField(label=_("操作类型"), choices=CollectorBatchOperationType.get_choices())
-    operation_params = CollectorStorageConfig(label=_("额外的元数据"), required=False)
+    operation_params = serializers.DictField(label=_("额外的元数据"), required=False)
