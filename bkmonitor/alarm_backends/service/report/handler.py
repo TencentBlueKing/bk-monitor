@@ -142,17 +142,13 @@ def screenshot_by_uid_panel_id(graph_info, need_title=False):
 
     elements = []
     for graph in graph_info:
-        variables = {}
-        if graph["var_bk_biz_ids"]:
-            variables["bk_biz_id"] = graph["var_bk_biz_ids"]
-
         element = {
             "bk_biz_id": graph["bk_biz_id"],
             "dashboard_uid": graph["uid"],
             "panel_id": graph["panel_id"] if graph["panel_id"] != "*" else None,
             "start_time": graph.get("from_time", ""),
             "end_time": graph.get("to_time", ""),
-            "variables": variables,
+            "variables": graph.get("variables", {}),
             "with_panel_title": need_title,
             "width": graph["image_size"]["width"],
             "height": graph["image_size"]["height"],
