@@ -82,6 +82,26 @@ export default defineComponent({
       }
     );
 
+    watch(
+      () => props.defaultShow,
+      val => {
+        isShow.value = val;
+      },
+      {
+        immediate: true,
+      }
+    );
+
+    watch(
+      () => viewOptions.value,
+      () => {
+        getPanelData();
+      },
+      {
+        immediate: true,
+      }
+    );
+
     const activeCollapseName = reactive([]);
 
     async function getPanelData() {

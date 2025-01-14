@@ -36,7 +36,7 @@ export default defineComponent({
   props: {
     panels: { type: Array, default: () => [] },
   },
-  emits: ['change'],
+  emits: ['change', 'targetListChange', 'curTargetTitleChange'],
   setup(_props, { emit }) {
     const localValue = shallowRef({});
 
@@ -48,8 +48,17 @@ export default defineComponent({
       emit('change', val);
     }
 
+    function handleTargetListChange(val) {
+      emit('targetListChange', val);
+    }
+    function handleCurTargetTitleChange(val) {
+      emit('curTargetTitleChange', val);
+    }
+
     return {
       handleChange,
+      handleTargetListChange,
+      handleCurTargetTitleChange,
     };
   },
   render() {
@@ -62,6 +71,8 @@ export default defineComponent({
             multiple={false}
             panel={item}
             onChange={this.handleChange}
+            onCurTargetTitleChange={this.handleCurTargetTitleChange}
+            onTargetListChange={this.handleTargetListChange}
           />
         ))}
       </div>

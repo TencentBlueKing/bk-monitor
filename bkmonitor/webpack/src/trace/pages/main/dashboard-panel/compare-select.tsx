@@ -64,7 +64,6 @@ export default defineComponent({
   name: 'CompareSelect',
   props: {
     curTarget: { type: [String, Number], default: '' },
-    targetList: { type: Array, default: () => [] },
     compareListEnable: { type: Array, default: () => [] },
     panel: { type: Object, default: () => null },
     targetOptions: { type: Array, default: () => [] },
@@ -78,20 +77,19 @@ export default defineComponent({
     const compareList = computed(() => {
       return COMPARE_LIST.filter(item => props.compareListEnable.includes(item.id));
     });
+    const targetOptionsFilter = computed(() => {
+      return props.targetOptions.filter(item => item.name !== props.curTarget);
+    });
 
     function handleTargetChange(list) {
       const targetCheckedList = list.reduce((total, id) => {
         const item = props.targetOptions.find(item => item.id === id);
-        const value = props.panel.targets?.[0]?.handleCreateCompares(item);
+        const panel = props.panel?.find(item => item.type === 'target_list');
+        const value = panel?.targets?.[0]?.handleCreateComparesSinge(item);
         total.push({ ...value });
         return total;
       }, []);
-      const viewOptions = {
-        compares: {
-          targets: targetCheckedList,
-        },
-      };
-      emit('targetChange', viewOptions);
+      emit('targetChange', targetCheckedList);
     }
     function handleTimeChange(val) {
       emit('timeChange', val);
@@ -104,6 +102,7 @@ export default defineComponent({
       localType,
       compareList,
       localTargetValue,
+      targetOptionsFilter,
       handleTargetChange,
       handleTimeChange,
       handleTypeChange,
@@ -134,7 +133,7 @@ export default defineComponent({
             )}
             <span class='target-compare-select'>
               <TargetCompareSelect
-                list={this.targetList}
+                targetOptions={this.targetOptionsFilter}
                 value={this.localTargetValue}
                 onChange={this.handleTargetChange}
               />
