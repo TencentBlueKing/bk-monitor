@@ -19,6 +19,7 @@ class Command(BaseCommand):
         parser.add_argument("--add_cloud_id", action="store_true", help="是否将bk_target_cloud_id维度添加到策略中")
 
     def handle(self, *args, **options):
+        print(add_cloud_id_to_strategy.__doc__)
         add_cloud_id_to_strategy(add_cloud_id=options["add_cloud_id"])
 
 
