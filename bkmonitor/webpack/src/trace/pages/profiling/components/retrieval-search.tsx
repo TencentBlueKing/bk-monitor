@@ -103,8 +103,8 @@ export default defineComponent({
      */
     function handleTypeChange(type: SearchType) {
       if (localFormData.type === type) return;
-      getLabelList();
       emit('typeChange', type);
+      getLabelList();
     }
 
     /**
@@ -115,8 +115,8 @@ export default defineComponent({
       if (!val.length) return;
       const [appName, serviceName] = val;
       if (localFormData.server.app_name === appName && localFormData.server.service_name === serviceName) return;
-      getLabelList();
       emit('appServiceChange', appName, serviceName);
+      getLabelList();
     }
 
     /** 查看详情 */
