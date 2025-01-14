@@ -203,7 +203,7 @@ export default defineComponent({
           v-model={this.localValue}
           allowCreate={true}
           behavior={'simplicity'}
-          clearable={true}
+          clearable={false}
           filterable={true}
           multiple={this.multiple}
           onChange={this.handleSelectChange}
