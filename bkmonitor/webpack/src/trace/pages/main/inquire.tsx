@@ -723,7 +723,12 @@ export default defineComponent({
         end_time: timeRange.value[1],
         refleshInterval: refleshInterval.value,
       };
-
+      // 来自故障根因跳转到span中需要额外使用的参数
+      if (route.query?.incident_query) {
+        try {
+          query.incident_query = route.query?.incident_query;
+        } catch {}
+      }
       Object.keys(scopeSelects.value).forEach(key => {
         if (key === 'service') {
           if (scopeSelects.value[key].value.length) {
