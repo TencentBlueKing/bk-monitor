@@ -26,6 +26,7 @@ import operator
 import typing
 from collections import defaultdict
 
+from django.conf import settings
 from elasticsearch_dsl import A, Search
 
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
@@ -172,7 +173,7 @@ class AggsHandlers(AggsBase):
         interval = query_data.get("interval")
 
         # 生成起止时间
-        time_zone = get_local_param("time_zone")
+        time_zone = get_local_param("time_zone", settings.TIME_ZONE)
         start_time, end_time = generate_time_range(
             query_data.get("time_range"), query_data.get("start_time"), query_data.get("end_time"), time_zone
         )
