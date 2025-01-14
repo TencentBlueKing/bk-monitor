@@ -715,13 +715,21 @@ export default defineComponent({
                 ]}
               />
             </span>
-            <OverflowTitle
+            <div
               key={node?.entity?.entity_id}
               class={['header-name', this.canJumpByType(node) && 'header-pod-name']}
-              type='tips'
+              v-bk-tooltips={{
+                content: (
+                  <div>
+                    <div>{node?.entity?.entity_name}</div>
+                    <br />
+                    {this.$t('点击前往：主机详情页/服务详情页')}
+                  </div>
+                ),
+              }}
             >
               <span onClick={this.handleToLink.bind(this, node)}>{node?.entity?.entity_name}</span>
-            </OverflowTitle>
+            </div>
             <span
               class='icon-btn'
               onClick={this.handleCopy.bind(this, node?.entity?.entity_name)}
@@ -823,7 +831,7 @@ export default defineComponent({
             ))}
             {createCommonForm(`${this.$t('所属业务')}：`, () => (
               <>
-                [{node.bk_biz_id}] {node.bk_biz_name}
+                {node.bk_biz_name} (#{node.bk_biz_id})
               </>
             ))}
             {node.entity?.tags?.BcsService &&

@@ -34,6 +34,9 @@ export default defineComponent({
       type: Array,
       required: true,
     },
+    tipsName: {
+      type: String,
+    },
   },
   setup(props) {
     const tags = ref(props.tagsList);
@@ -108,12 +111,42 @@ export default defineComponent({
         class='display-tag-container'
       >
         {this.displayedTags.slice(0, this.visibleTagCount).map(item => (
-          <span class='tag-item'>
+          <span
+            class='tag-item'
+            v-bk-tooltips={{
+              content: (
+                <div>
+                  {this.tipsName}
+                  <br />
+                  <div style={{ marginTop: '5px' }}>
+                    {item.display_key} = {item.display_value}
+                  </div>
+                </div>
+              ),
+            }}
+          >
             {item.display_key} = {item.display_value}
           </span>
         ))}
         {this.showMoreIndicator && (
-          <span class='more-indicator'>{this.remainingCount > 0 ? `+${this.remainingCount}` : ''}</span>
+          <span
+            class='more-indicator'
+            v-bk-tooltips={{
+              content: (
+                <div>
+                  {this.tipsName}
+                  <br />
+                  {this.displayedTags.slice(this.visibleTagCount).map(item => (
+                    <div style={{ marginTop: '5px' }}>
+                      {item.display_key} = {item.display_value}
+                    </div>
+                  ))}
+                </div>
+              ),
+            }}
+          >
+            {this.remainingCount > 0 ? `+${this.remainingCount}` : ''}
+          </span>
         )}
       </div>
     );
