@@ -2888,13 +2888,16 @@
         display: flex;
         align-items: center;
         margin: 10px 0 0;
+
         .bk-button{
           font-size: 12px;
         }
       }
+
       .bklog-icon{
         font-size: 16px;
       }
+
       .documentation {
         margin-left: 15px;
       }
