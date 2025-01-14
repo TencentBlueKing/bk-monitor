@@ -96,6 +96,9 @@ export default defineComponent({
     function handleTimeChange(val) {
       emit('timeChange', val);
     }
+    function handleTypeChange(val) {
+      emit('typeChange', val);
+    }
 
     return {
       localType,
@@ -103,6 +106,7 @@ export default defineComponent({
       localTargetValue,
       handleTargetChange,
       handleTimeChange,
+      handleTypeChange,
     };
   },
   render() {
@@ -150,6 +154,7 @@ export default defineComponent({
           clearable={false}
           filterable={false}
           size={'small'}
+          onChange={this.handleTypeChange}
         >
           {{
             default: () =>

@@ -129,6 +129,7 @@ export default defineComponent({
             name: item.name || item.ip || item.id,
           };
         });
+      defaultValueChange();
     }
 
     // function handlePaste(v) {
@@ -154,16 +155,18 @@ export default defineComponent({
     //   return [{ id: v, name: v }];
     // }
 
-    function handleSelectChange(v) {
-      if (props.multiple) {
-        emit('change', v);
-      } else {
-        emit('change', v?.[0] || '');
-      }
+    function handleSelectChange() {
       handleChange();
     }
     function handleChange() {
       emit('change', localCheckedFilterDict.value);
+    }
+
+    function defaultValueChange() {
+      if (localOptions.value.length) {
+        localValue.value = localOptions.value[0].id;
+        handleChange();
+      }
     }
 
     return {
