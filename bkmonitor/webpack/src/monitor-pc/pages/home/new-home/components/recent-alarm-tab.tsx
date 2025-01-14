@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 import Component from 'vue-class-component';
-import { Emit, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Emit, Mixins, Prop } from 'vue-property-decorator';
 
 import { saveAlarmGraphBizIndex } from 'monitor-api/modules/overview';
 
 import { shortcuts } from '../../../../components/time-range/utils';
+import UserConfigMixin from '../../../../mixins/userStoreConfig';
+import { RECENT_ALARM_TIME_RANGE_KEY } from '../utils';
 import HomeBizSelect from './home-biz-list';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
@@ -37,29 +38,21 @@ import type { IRecentAlarmTab } from '../type';
 
 import './recent-alarm-tab.scss';
 
-type IRecentAlarmTabProps = {
+interface IRecentAlarmTabProps {
   tabs: IRecentAlarmTab[];
   activeTabId: number;
   loading: boolean;
-};
-interface IRecentAlarmTabEvent {
-  onChangeTab: (id: number) => void;
-  onHandleSelectBiz: (id: number) => void;
-  onHandleDelTask: (id: number) => void;
-  onHandleDropTab: (tabs: Array<string>) => void;
-  onChangeTime: (timeRange: TimeRangeType) => void;
 }
-
 @Component({
   name: 'RecentAlarmTab',
 })
-export default class RecentAlarmTab extends tsc<IRecentAlarmTabProps, IRecentAlarmTabEvent> {
+export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
   /** 业务列表 */
-  @Prop({ default: () => [], type: Array<IRecentAlarmTab> }) tabs: IRecentAlarmTab[];
+  @Prop({ default: () => [], type: Array }) tabs: IRecentAlarmTabProps['tabs'];
   /** 当前业务ID */
-  @Prop({ default: 0, type: Number }) activeTabId: number;
+  @Prop({ default: 0, type: Number }) activeTabId: IRecentAlarmTabProps['activeTabId'];
   /** loading */
-  @Prop({ default: false, type: Boolean }) loading: boolean;
+  @Prop({ default: false, type: Boolean }) loading: IRecentAlarmTabProps['loading'];
 
   /** 当前拖拽id */
   dragId = '';
@@ -82,6 +75,18 @@ export default class RecentAlarmTab extends tsc<IRecentAlarmTabProps, IRecentAla
     return this.$store.getters.bizList.filter(
       ({ bk_biz_id }) => !this.tabs.map(item => item.bk_biz_id).includes(bk_biz_id)
     );
+  }
+
+  async created() {
+    const timeRange = await this.handleGetUserConfig<string>(RECENT_ALARM_TIME_RANGE_KEY, {
+      reject403: true,
+    });
+    this.timeRange = JSON.stringify(timeRange || (shortcuts[5].value as TimeRangeType));
+  }
+
+  // 设置存储的首页时间选择器并同步到用户配置
+  setStoreSelectedTimeRange() {
+    this.handleSetUserConfig(RECENT_ALARM_TIME_RANGE_KEY, this.timeRange);
   }
 
   // 拖拽 start
@@ -213,11 +218,11 @@ export default class RecentAlarmTab extends tsc<IRecentAlarmTabProps, IRecentAla
         {/* 时间选择器 */}
         <div class='alarm-time-filter'>
           <bk-select
-            ext-cls='alarm-time-select'
             v-model={this.timeRange}
             clearable={false}
             popover-width={70}
             onChange={this.handleChangeTime}
+            onSelected={this.setStoreSelectedTimeRange}
           >
             {shortcuts.map(option => (
               <bk-option

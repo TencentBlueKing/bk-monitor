@@ -77,7 +77,11 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
   /** 处理点击最近使用列表，实现跳转 */
   handleRecentList(type: string, item: any) {
     const currentUrl = window.location.href;
-    const baseUrl = currentUrl.split('#')[0];
+    // 找到 '?' 的位置
+    const questionMarkIndex = currentUrl.indexOf('?');
+    // 如果有 '?'，则截取字符串；否则返回完整的 URL
+    let baseUrl = questionMarkIndex !== -1 ? currentUrl.substring(0, questionMarkIndex) : currentUrl;
+    baseUrl += `?bizId=${item.bk_biz_id}`;
     const callbacks: Record<string, () => void> = {
       /** 仪表盘 */
       dashboard: () => {
