@@ -53,7 +53,7 @@ export const setGlobalBizId = () => {
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
 
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
-  const defaultBizId = window.default_biz_id || '';
+  const defaultBizId = Number(window.default_biz_id) || '';
 
   const bizList = window.space_list || [];
   const authList = bizList.filter(item => !item.is_demo);
