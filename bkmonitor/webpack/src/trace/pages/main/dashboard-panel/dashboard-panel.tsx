@@ -37,8 +37,9 @@ import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel
 import { useTimeOffsetProvider, useViewOptionsProvider } from '../../../plugins/hooks';
 import { VariablesService } from '../../../utils/index';
 import CompareSelect, { CompareId } from './compare-select';
-import FilterVarGroup from './filter-var-group';
+// import FilterVarGroup from './filter-var-group';
 import FilterVarSelectSimple from './filter-var-select-simple';
+import FilterVarTagInput from './filter-var-tag-input';
 import GroupsSelector from './groups-selector';
 import LayoutSelect from './layout-select';
 import { CP_METHOD_LIST, DEFAULT_METHOD, METHOD_LIST, PANEL_INTERVAL_LIST } from './utils';
@@ -260,12 +261,20 @@ export default defineComponent({
       <div class='span-details__dashboard-panel'>
         <div class='dashboard-panel__charts'>
           <div class='groups-header'>
-            <FilterVarGroup
+            {!!this.variablesPanel.length && (
+              <FilterVarTagInput
+                panel={this.variablesPanel[0]}
+                onChange={this.handleFiltersChange}
+                onCurTargetTitleChange={this.handleCurTargetTitleChange}
+                onTargetListChange={this.handleTargetListChange}
+              />
+            )}
+            {/* <FilterVarGroup
               panels={this.variablesPanel}
               onChange={this.handleFiltersChange}
               onCurTargetTitleChange={this.handleCurTargetTitleChange}
               onTargetListChange={this.handleTargetListChange}
-            />
+            /> */}
             {this.sceneId === 'container' && (
               <GroupsSelector
                 list={this.groups}

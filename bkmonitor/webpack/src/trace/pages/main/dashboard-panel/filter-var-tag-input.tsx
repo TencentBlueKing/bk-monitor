@@ -186,21 +186,12 @@ export default defineComponent({
   render() {
     return (
       <span class='dashboard-panel__filter-var-tag-input'>
-        {this.panel?.title && (
-          <span
-            class='filter-var-label'
-            // v-bk-tooltips={{
-            //   content: '',
-            //   zIndex: 9999,
-            //   boundary: document.body,
-            //   allowHTML: false,
-            // }}
-          >
-            {this.panel.title}
-          </span>
-        )}
+        {this.panel?.title && <span class='filter-var-label'>{this.panel.title}:</span>}
         <Select
           v-model={this.localValue}
+          popoverOptions={{
+            extCls: 'dashboard-panel__filter-var-tag-input-popover',
+          }}
           allowCreate={true}
           behavior={'simplicity'}
           clearable={false}
@@ -215,7 +206,16 @@ export default defineComponent({
                   id={item.id}
                   key={item.id}
                   name={item.name}
-                />
+                >
+                  {{
+                    default: () => (
+                      <span>
+                        <span>{item.name}</span>
+                        <span class='subtitle'>({item.source})</span>
+                      </span>
+                    ),
+                  }}
+                </Select.Option>
               ));
             },
           }}

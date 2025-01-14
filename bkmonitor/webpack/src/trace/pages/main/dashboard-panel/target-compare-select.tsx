@@ -59,6 +59,8 @@ export default defineComponent({
         clearable={true}
         filterable={false}
         multiple={true}
+        multipleMode='tag'
+        popoverMinWidth={250}
         size={'small'}
         onChange={this.handleChange}
       >
