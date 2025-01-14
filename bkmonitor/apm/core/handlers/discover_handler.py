@@ -37,7 +37,7 @@ class DiscoverHandler:
     def get_app_retention(cls, bk_biz_id, app_name):
         app = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not app:
-            raise CustomException(_("[DiscoverHandler] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return app.trace_datasource.retention
 
     @classmethod

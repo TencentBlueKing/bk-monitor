@@ -131,7 +131,7 @@ class DiscoverBase(ABC):
     def application(self):
         app = ApmApplication.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
         if not app:
-            raise CustomException(_("[DiscoverBase] 业务id: {} 或应用: {} 不存在").format(self.app_name, self.app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(self.app_name))
         return app
 
     def _get_key_pair(self, key: str):

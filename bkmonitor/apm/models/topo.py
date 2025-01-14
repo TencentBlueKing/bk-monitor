@@ -41,7 +41,7 @@ class TopoBase(models.Model):
 
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
-            raise CustomException(_("[TopoBase] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         last = datetime.datetime.now() - datetime.timedelta(application.trace_datasource.retention)
         filter_params = {
             "bk_biz_id": bk_biz_id,

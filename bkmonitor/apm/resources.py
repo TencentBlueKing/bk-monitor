@@ -386,7 +386,7 @@ class ReleaseAppConfigResource(Resource):
 
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
-            raise CustomException(_("[ReleaseAppConfigResource] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
@@ -510,7 +510,7 @@ class DeleteAppConfigResource(Resource):
 
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
-            raise CustomException(_("[DeleteAppConfigResource] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
@@ -833,7 +833,7 @@ class QuerySpanResource(Resource):
         app_name = validated_request_data["app_name"]
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
-            raise CustomException(_("[QuerySpanResource] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         param = {
             "start_time": validated_request_data["start_time"],
@@ -909,7 +909,7 @@ class QueryEventResource(Resource):
         app_name = validated_request_data["app_name"]
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
-            raise CustomException(_("[QueryEventResource] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         return application.trace_datasource.query_event(
             start_time=validated_request_data["start_time"],
@@ -1083,7 +1083,7 @@ class QueryFieldsResource(Resource):
         app_name = validated_request_data["app_name"]
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
-            raise CustomException(_("[QueryFieldsResource] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.trace_datasource.fields()
 
 
@@ -1098,7 +1098,7 @@ class UpdateMetricFieldsResource(Resource):
         app_name = validated_request_data["app_name"]
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
-            raise CustomException(_("[UpdateMetricFieldsResource] 业务id: {} 或应用: {} 不存在").format(bk_biz_id, app_name))
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.metric_datasource.update_fields(validated_request_data["field_list"])
 
 
