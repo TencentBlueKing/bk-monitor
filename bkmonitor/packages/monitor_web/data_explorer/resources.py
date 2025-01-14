@@ -98,7 +98,7 @@ class GetGraphQueryConfig(Resource):
             def validate_where(self, where: List[Dict]):
                 validated_where = []
                 for condition in where:
-                    if condition.get("value"):
+                    if condition.get("value") is not None:
                         validated_where.append(condition)
                 return validated_where
 
