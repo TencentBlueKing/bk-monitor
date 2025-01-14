@@ -25,6 +25,7 @@
  */
 
 import { defineComponent } from 'vue';
+import { shallowRef } from 'vue';
 
 import FilterVarTagInput from './filter-var-tag-input';
 
@@ -37,7 +38,13 @@ export default defineComponent({
   },
   emits: ['change'],
   setup(_props, { emit }) {
+    const localValue = shallowRef({});
+
     function handleChange(val) {
+      localValue.value = {
+        ...localValue.value,
+        ...val,
+      };
       emit('change', val);
     }
 

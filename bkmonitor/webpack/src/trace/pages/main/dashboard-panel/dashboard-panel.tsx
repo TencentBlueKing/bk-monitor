@@ -34,7 +34,7 @@ import { random } from 'monitor-common/utils';
 import CommonDetail from '../../../components/common-detail/common-detail';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
-import { useViewOptionsProvider } from '../../../plugins/hooks';
+import { useTimeOffsetProvider, useViewOptionsProvider } from '../../../plugins/hooks';
 import { VariablesService } from '../../../utils/index';
 import CompareSelect, { CompareId } from './compare-select';
 import FilterVarGroup from './filter-var-group';
@@ -46,6 +46,9 @@ import { CP_METHOD_LIST, DEFAULT_METHOD, METHOD_LIST, PANEL_INTERVAL_LIST } from
 import type { IViewOptions, PanelModel } from '../../../plugins/typings';
 
 import './dashboard-panel.scss';
+
+const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
+const ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
 
 export default defineComponent({
   name: 'DashboardPanel',
@@ -72,17 +75,25 @@ export default defineComponent({
       .add(1, 'hour')
       .format('YYYY-MM-DD HH:mm:ss');
     const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
+    const compareType = ref(CompareId.none);
+    const currentTarget = ref(null);
+    const compareTargets = ref([]);
+    const timeOffset = shallowRef([]);
 
+    const filtersVal = shallowRef({});
     const targetList = shallowRef([]);
     const groups = shallowRef([]);
     const viewOptions = shallowRef<IViewOptions>({
       interval: 'auto',
       method: DEFAULT_METHOD,
-      groups: [],
+      group_by: [],
+      compare_targets: [],
+      current_target: null,
     });
     const panelsColumn = ref(1);
 
     useViewOptionsProvider(viewOptions);
+    useTimeOffsetProvider(timeOffset);
 
     const selectorPanel = computed(() => {
       return props.sceneData?.selectorPanel;
@@ -120,22 +131,23 @@ export default defineComponent({
         start_time: startTime,
         end_time: endTime,
       });
-      const promiseList = selectorPanel.value?.targets?.map(item =>
-        currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
-          [item.apiFunc]({
-            ...variablesService.transformVariables(item.data),
-            start_time: startTime,
-            end_time: endTime,
-          })
-          .then(data => {
-            const list = Object.prototype.toString.call(data) === '[object Object]' ? data.data : data;
-            return list;
-          })
-          .catch(err => {
-            console.error(err);
-            return [];
-          })
-      );
+      const promiseList =
+        selectorPanel.value?.targets?.map(item =>
+          currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
+            [item.apiFunc]({
+              ...variablesService.transformVariables(item.data),
+              start_time: startTime,
+              end_time: endTime,
+            })
+            .then(data => {
+              const list = Object.prototype.toString.call(data) === '[object Object]' ? data.data : data;
+              return list;
+            })
+            .catch(err => {
+              console.error(err);
+              return [];
+            })
+        ) || [];
       const res = await Promise.all(promiseList).catch(err => {
         console.error(err);
         return [];
@@ -186,7 +198,49 @@ export default defineComponent({
     function handleGroupChange(val) {
       viewOptions.value = {
         ...viewOptions.value,
-        groups: val,
+        group_by: val,
+      };
+    }
+
+    function handleFiltersChange(val) {
+      console.log(val);
+      filtersVal.value = {
+        ...filtersVal.value,
+        ...val,
+      };
+      const currentTargetTemp = {};
+      for (const key in val) {
+        if (cloudIdMap.includes(key) || ipMap.includes(key)) {
+          currentTarget[key] = val[key];
+        }
+      }
+      if (Object.keys(currentTarget).length) {
+        currentTarget.value = currentTargetTemp;
+      }
+      viewOptions.value = {
+        ...viewOptions.value,
+        variables: val,
+        current_target: currentTarget.value || undefined,
+      };
+    }
+
+    function handleCompareTypeChange(val) {
+      compareType.value = val;
+      compareTargets.value = [];
+      timeOffset.value = [];
+      viewOptions.value = {
+        ...viewOptions.value,
+        compare_targets: [],
+      };
+    }
+    function handleCompareTimeChange(val) {
+      timeOffset.value = val;
+    }
+    function handleCompareTargetChange(val) {
+      compareTargets.value = val;
+      viewOptions.value = {
+        ...viewOptions.value,
+        compare_targets: compareTargets.value,
       };
     }
 
@@ -203,6 +257,10 @@ export default defineComponent({
       handleMethodChange,
       handleChangeLayout,
       handleGroupChange,
+      handleFiltersChange,
+      handleCompareTypeChange,
+      handleCompareTimeChange,
+      handleCompareTargetChange,
     };
   },
 
@@ -211,12 +269,15 @@ export default defineComponent({
       <div class='span-details__dashboard-panel'>
         <div class='dashboard-panel__charts'>
           <div class='groups-header'>
-            <FilterVarGroup panels={this.variablesPanel} />
+            <FilterVarGroup
+              panels={this.variablesPanel}
+              onChange={this.handleFiltersChange}
+            />
             {this.sceneId === 'container' && (
               <GroupsSelector
                 list={this.groups}
                 name={this.groupTitle}
-                value={this.viewOptions.groups}
+                value={this.viewOptions.group_by}
                 onChange={this.handleGroupChange}
               />
             )}
@@ -236,7 +297,12 @@ export default defineComponent({
               value={this.viewOptions.method}
               onChange={this.handleMethodChange}
             />
-            <CompareSelect compareListEnable={this.compareListEnable} />
+            <CompareSelect
+              compareListEnable={this.compareListEnable}
+              onTargetChange={this.handleCompareTargetChange}
+              onTimeChange={this.handleCompareTimeChange}
+              onTypeChange={this.handleCompareTypeChange}
+            />
             <LayoutSelect
               class='ml-auto'
               layoutActive={this.panelsColumn}
