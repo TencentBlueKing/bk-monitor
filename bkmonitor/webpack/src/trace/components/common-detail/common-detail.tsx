@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, getCurrentInstance, inject, reactive, type PropType, ref } from 'vue';
+import { defineComponent, getCurrentInstance, inject, reactive, type PropType, ref, watch, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { CancelToken } from 'monitor-api/index';
@@ -33,7 +33,7 @@ import EmptyStatus from '../empty-status/empty-status';
 import MonitorDrag from '../monitor-grag/monitor-drag';
 import HostDetailView from './host-detail-view';
 
-import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './common-detail.scss';
 
@@ -48,17 +48,37 @@ export default defineComponent({
     maxWidth: { type: Number, default: 360 },
     minWidth: { type: Number, default: 180 },
     defaultWidth: { type: Number, default: DEFAULT_WIDTH },
+    defaultShow: { type: Boolean, default: false },
   },
   setup(props) {
     const { t } = useI18n();
-    const isShow = ref(true);
+    const isShow = ref(false);
     const width = ref(props.defaultWidth);
     const data = ref([]);
     const loading = ref(false);
-    const viewOptions = inject('viewOptions');
-    console.log(viewOptions);
+    const viewOptions = inject<Ref<IViewOptions>>('viewOptions', ref({ filters: {}, variables: {} }));
     const currentInstance = getCurrentInstance();
     let cancelToken = null;
+
+    watch(
+      () => props.defaultShow,
+      val => {
+        isShow.value = val;
+      },
+      {
+        immediate: true,
+      }
+    );
+
+    watch(
+      () => viewOptions.value,
+      () => {
+        getPanelData();
+      },
+      {
+        immediate: true,
+      }
+    );
 
     const activeCollapseName = reactive([]);
 
@@ -67,17 +87,19 @@ export default defineComponent({
         loading.value = true;
         const [item] = props.panel.targets;
         const variablesService = new VariablesService({
-          // ...viewOptions,
-          // ...viewOptions.filters,
-          // ...viewOptions.variables,
-          source_type: 'relation',
-          bk_host_id: '464',
+          ...viewOptions.value,
+          ...viewOptions.value.filters,
+          ...viewOptions.value.variables,
         });
         if (cancelToken) {
           cancelToken?.();
           cancelToken = null;
         }
         const params: any = variablesService.transformVariables(item.data);
+        if (Object.values(params || {}).some(v => typeof v === 'undefined')) {
+          loading.value = false;
+          return;
+        }
         const res = await currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
           [item.apiFunc](params, {
             cancelToken: new CancelToken(cb => (cancelToken = cb)),
@@ -94,8 +116,6 @@ export default defineComponent({
         loading.value = false;
       }
     }
-
-    getPanelData();
 
     function handleDragChange(widthVal: number) {
       if (widthVal < props.minWidth) {

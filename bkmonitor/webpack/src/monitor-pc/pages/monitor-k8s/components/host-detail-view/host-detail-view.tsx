@@ -121,7 +121,6 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
             item.isExpand = val;
           }}
           onOverflow={val => {
-            console.log(val);
             item.isOverflow = val;
           }}
         >
