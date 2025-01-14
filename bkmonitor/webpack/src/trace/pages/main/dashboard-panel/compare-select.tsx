@@ -64,7 +64,6 @@ export default defineComponent({
   name: 'CompareSelect',
   props: {
     curTarget: { type: [String, Number], default: '' },
-    targetList: { type: Array, default: () => [] },
     compareListEnable: { type: Array, default: () => [] },
     panel: { type: Object, default: () => null },
     targetOptions: { type: Array, default: () => [] },
@@ -134,7 +133,7 @@ export default defineComponent({
             )}
             <span class='target-compare-select'>
               <TargetCompareSelect
-                list={this.targetList}
+                list={this.targetOptions}
                 value={this.localTargetValue}
                 onChange={this.handleTargetChange}
               />

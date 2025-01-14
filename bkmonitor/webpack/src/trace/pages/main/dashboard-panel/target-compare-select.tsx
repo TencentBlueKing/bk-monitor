@@ -26,6 +26,7 @@
 
 import { nextTick, onMounted, onUnmounted, shallowReactive, watch } from 'vue';
 import { defineComponent, ref, type PropType } from 'vue';
+import { shallowRef } from 'vue';
 
 import { $bkPopover } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
@@ -67,7 +68,7 @@ export default defineComponent({
     const listRef = ref(null);
 
     const localValue = ref<ILocalListItem[]>([]);
-    let localList: ILocalListItem[] = [];
+    const localList = shallowRef<ILocalListItem[]>([]);
     const inputValue = ref('');
     const refreshKey = ref('');
     const isExpand = ref(false);
@@ -83,12 +84,12 @@ export default defineComponent({
     let controller = null;
     let observer = null;
     let inputIndex = 0;
-    let popoverInstance = null;
+    const popoverInstance = shallowRef(null);
 
     watch(
       () => props.list,
       () => {
-        if (!localList.length) {
+        if (!localList.value.length) {
           getFilterLocalList();
           handleWatchValueChange(props.value);
         }
@@ -136,7 +137,7 @@ export default defineComponent({
 
     function getFilterLocalList() {
       const values = localValue.value.filter(item => item?.type !== 'input').map(item => item.id);
-      localList = props.list.map(item => {
+      localList.value = props.list.map(item => {
         const isSearch = item.name.indexOf(inputValue.value) >= 0;
         const isHas = values.indexOf(item.id) >= 0;
         return {
@@ -292,7 +293,7 @@ export default defineComponent({
         const selects = localValue.value.map(item => item.name);
         for (const str of list) {
           if (selects.indexOf(str) < 0) {
-            const item = localList.find(l => l.name === str);
+            const item = localList.value.find(l => l.name === str);
             item && handleSelectItem(item);
           }
         }
@@ -321,28 +322,48 @@ export default defineComponent({
 
     /* 展开可选项 */
     function handleShowPop() {
-      if (!localList.length) {
+      if (!localList.value.length) {
         removePopoverInstance();
         return;
       }
       removePopoverInstance();
-      popoverInstance = $bkPopover({
+      popoverInstance.value = $bkPopover({
         target: inputRef.value,
         content: optionsRef.value,
         trigger: 'manual',
-        interactive: true,
         theme: 'light common-monitor',
         arrow: false,
         placement: 'bottom-start',
-        boundary: 'window',
-        hideOnClick: false,
+        zIndex: 9999,
+        isShow: false,
+        always: false,
+        disabled: false,
+        width: '',
+        height: '',
+        maxWidth: '',
+        maxHeight: '',
+        allowHtml: false,
+        renderType: 'auto',
+        padding: 0,
+        offset: 0,
+        disableTeleport: false,
+        autoPlacement: false,
+        autoVisibility: false,
+        disableOutsideClick: false,
+        disableTransform: false,
+        modifiers: [],
+        popoverDelay: 0,
+        extCls: '',
+        componentEventDelay: 0,
+        forceClickoutside: false,
+        immediate: false,
       });
-      popoverInstance?.show?.();
+      console.log(popoverInstance);
+      popoverInstance.value?.show?.(inputRef.value);
     }
     function removePopoverInstance() {
-      popoverInstance?.hide?.();
-      popoverInstance?.destroy?.();
-      popoverInstance = null;
+      popoverInstance.value?.hide?.();
+      popoverInstance.value = null;
       inputValue.value = '';
     }
     function handleDelete(event: Event, index: number) {
@@ -417,7 +438,7 @@ export default defineComponent({
       }
     }
     function setPaginationData(isInit = true) {
-      const showData = localList.filter(item => item.show);
+      const showData = localList.value.filter(item => item.show);
       pagination.count = showData.length;
       if (isInit) {
         pagination.current = 1;
@@ -459,6 +480,7 @@ export default defineComponent({
       classId,
       pagination,
       activeIndex,
+      localList,
       handleClickWrap,
       handBlur,
       handleInput,
@@ -480,7 +502,7 @@ export default defineComponent({
         onClick={this.handleClickWrap}
       >
         <ul
-          ref='list'
+          ref='listRef'
           class='more-list'
           onClick={this.handleClickWrap}
         >
@@ -491,8 +513,9 @@ export default defineComponent({
                 class='input-wrap'
               >
                 <span class='input-value'>{this.inputValue}</span>
+
                 <input
-                  ref='input'
+                  ref='inputRef'
                   class='input'
                   v-model={this.inputValue}
                   onBlur={this.handBlur}
@@ -529,7 +552,7 @@ export default defineComponent({
         {!this.localValue.length && <span class='placeholder-wrap'>{this.$t('选择目标')}</span>}
         <div style='display: none'>
           <div
-            ref='options'
+            ref='optionsRef'
             class={[
               'target-compare-select-component-list-wrap',
               { 'no-data': !this.pagination.data.filter(item => !!item.show).length },

@@ -43,7 +43,7 @@ export default defineComponent({
     panel: { type: Object, default: () => null },
     multiple: { type: Boolean, default: false },
   },
-  emits: ['change'],
+  emits: ['change', 'targetListChange', 'curTargetTitleChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const currentInstance = getCurrentInstance();
@@ -129,6 +129,10 @@ export default defineComponent({
             name: item.name || item.ip || item.id,
           };
         });
+      if (props.panel.type === 'target_list') {
+        emit('targetListChange', localOptions.value);
+        emit('curTargetTitleChange', localOptions.value?.[0]?.name || '');
+      }
       defaultValueChange();
     }
 
@@ -156,6 +160,8 @@ export default defineComponent({
     // }
 
     function handleSelectChange() {
+      const name = localOptions.value.find(item => item.id === localValue.value)?.name;
+      emit('curTargetTitleChange', name || '');
       handleChange();
     }
     function handleChange() {
@@ -183,12 +189,12 @@ export default defineComponent({
         {this.panel?.title && (
           <span
             class='filter-var-label'
-            v-bk-tooltips={{
-              content: '',
-              zIndex: 9999,
-              boundary: document.body,
-              allowHTML: false,
-            }}
+            // v-bk-tooltips={{
+            //   content: '',
+            //   zIndex: 9999,
+            //   boundary: document.body,
+            //   allowHTML: false,
+            // }}
           >
             {this.panel.title}
           </span>
