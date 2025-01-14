@@ -26,7 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import MonitorDialog from 'monitor-ui/monitor-dialog';
+import { partialUpdateUserConfig } from 'monitor-api/modules/model';
 
 import store from '../../store/store';
 
@@ -86,7 +86,7 @@ export default class List extends tsc<IProps, IEvents> {
   })
   theme: ThemeType;
 
-  // defaultBizId: number = undefined;
+  stickyId = -1;
 
   dialogShow = false;
 
@@ -107,12 +107,36 @@ export default class List extends tsc<IProps, IEvents> {
     return id;
   }
 
+  created() {
+    this.getUserConfig();
+  }
+
+  // 获取当前用户的置顶配置id
+  async getUserConfig() {
+    const stickyList = await PerformanceModule.getUserConfigList({
+      key: 'DEFAULT_BIZ_ID',
+    });
+    if (!stickyList.length) {
+      // 如果用户配置不存在就创建配置
+      PerformanceModule.createUserConfig({
+        key: 'DEFAULT_BIZ_ID',
+        value: JSON.stringify({}),
+      })
+        .then(data => {
+          this.stickyId = data[0].id || -1;
+        })
+        .catch(e => console.log(e));
+    } else {
+      this.stickyId = stickyList[0].id;
+    }
+  }
+
   // 默认id处理
   async handleDefaultId() {
     this.btnLoading = true;
-    const result = await PerformanceModule.updateUserConfig({
-      id: Number(this.dialogData.id),
-      value: JSON.stringify('default_bk_biz_id'),
+    const result = await partialUpdateUserConfig(this.stickyId, {
+      key: 'default_biz_id',
+      value: this.dialogData.type ? Number(this.dialogData.id) : 'undefined',
     }).finally(() => {
       this.btnLoading = false;
       this.dialogShow = false;
@@ -160,7 +184,7 @@ export default class List extends tsc<IProps, IEvents> {
                     >
                       ({child.space_type_id === ETagsType.BKCC ? `#${child.id}` : child.space_id || child.space_code})
                     </span>
-                    {this.defaultBizId && this.defaultBizId === child.id && (
+                    {this.defaultBizId && Number(this.defaultBizId) === child.id && (
                       <span class='item-default-icon'>
                         <span class='item-default-text'>{this.$tc('默认')}</span>
                       </span>
@@ -180,7 +204,7 @@ export default class List extends tsc<IProps, IEvents> {
                     </span>
                   )}
                   <div class='set-default-button'>
-                    {this.defaultBizId && this.defaultBizId === child.id ? (
+                    {this.defaultBizId && Number(this.defaultBizId) === child.id ? (
                       <div
                         class={`btn-style-${this.theme} remove`}
                         onClick={e => this.handleOpenDialog({ id: child.id, type: false, targetName: child.name }, e)}
@@ -210,13 +234,9 @@ export default class List extends tsc<IProps, IEvents> {
         <bk-dialog
           width={480}
           ext-cls='confirm-dialog__set-default'
-          confirm-fn={this.handleDefaultId}
           footer-position='center'
           value={this.dialogShow}
           transfer
-          onCancel={() => {
-            this.dialogShow = false;
-          }}
         >
           <div class='confirm-dialog__hd'>
             {this.dialogData.type ? this.$tc('是否将该业务设为默认业务？') : this.$tc('是否取消默认业务？')}
