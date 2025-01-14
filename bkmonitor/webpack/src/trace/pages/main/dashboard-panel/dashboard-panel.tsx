@@ -77,6 +77,7 @@ export default defineComponent({
     const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
     const compareType = ref(CompareId.none);
     const currentTarget = ref(null);
+    const curTargetTitle = ref('');
     const compareTargets = ref([]);
     const timeOffset = shallowRef([]);
 
@@ -120,43 +121,11 @@ export default defineComponent({
       () => props.sceneData,
       sceneData => {
         if (sceneData) {
-          handleGetTargetsData();
           handleGetGroupsData();
         }
       },
       { immediate: true }
     );
-
-    async function handleGetTargetsData() {
-      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
-      const variablesService = new VariablesService({
-        start_time: startTime,
-        end_time: endTime,
-      });
-      const promiseList =
-        selectorPanel.value?.targets?.map(item =>
-          currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
-            [item.apiFunc]({
-              ...variablesService.transformVariables(item.data),
-              start_time: startTime,
-              end_time: endTime,
-            })
-            .then(data => {
-              const list = Object.prototype.toString.call(data) === '[object Object]' ? data.data : data;
-              return list;
-            })
-            .catch(err => {
-              console.error(err);
-              return [];
-            })
-        ) || [];
-      const res = await Promise.all(promiseList).catch(err => {
-        console.error(err);
-        return [];
-      });
-      const hostListData = res.reduce((total, cur) => total.concat(cur), []);
-      targetList.value = hostListData;
-    }
 
     async function handleGetGroupsData() {
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
@@ -164,8 +133,10 @@ export default defineComponent({
         start_time: startTime,
         end_time: endTime,
       });
-      if (!groupPanel.value) return;
-      const target = groupPanel.value?.targets[0];
+      const target = groupPanel.value?.targets?.[0];
+      if (!target) {
+        return;
+      }
       currentInstance?.appContext.config.globalProperties?.$api[target.apiModule]
         [target.apiFunc]({
           ...variablesService.transformVariables(target.data),
@@ -206,7 +177,6 @@ export default defineComponent({
     }
 
     function handleFiltersChange(val) {
-      console.log(val);
       filtersVal.value = {
         ...filtersVal.value,
         ...val,
@@ -214,12 +184,10 @@ export default defineComponent({
       const currentTargetTemp = {};
       for (const key in val) {
         if (cloudIdMap.includes(key) || ipMap.includes(key)) {
-          currentTarget[key] = val[key];
+          currentTargetTemp[key] = val[key];
         }
       }
-      if (Object.keys(currentTarget).length) {
-        currentTarget.value = currentTargetTemp;
-      }
+      currentTarget.value = Object.keys(currentTargetTemp).length ? currentTargetTemp : null;
       viewOptions.value = {
         ...viewOptions.value,
         variables: val,
@@ -240,11 +208,28 @@ export default defineComponent({
       timeOffset.value = val;
     }
     function handleCompareTargetChange(val) {
-      compareTargets.value = val;
+      const compareTargetsTemp = [];
+      for (const target of val) {
+        const targetTemp = {};
+        for (const key in target) {
+          if (cloudIdMap.includes(key) || ipMap.includes(key)) {
+            targetTemp[key] = target[key];
+          }
+        }
+        compareTargetsTemp.push(targetTemp);
+      }
+      compareTargets.value = compareTargetsTemp;
       viewOptions.value = {
         ...viewOptions.value,
         compare_targets: compareTargets.value,
       };
+    }
+
+    function handleTargetListChange(val) {
+      targetList.value = val;
+    }
+    function handleCurTargetTitleChange(val) {
+      curTargetTitle.value = val;
     }
 
     return {
@@ -255,6 +240,7 @@ export default defineComponent({
       variablesPanel,
       groups,
       compareListEnable,
+      curTargetTitle,
       t,
       handleIntervalChange,
       handleMethodChange,
@@ -264,6 +250,8 @@ export default defineComponent({
       handleCompareTypeChange,
       handleCompareTimeChange,
       handleCompareTargetChange,
+      handleTargetListChange,
+      handleCurTargetTitleChange,
     };
   },
 
@@ -275,6 +263,8 @@ export default defineComponent({
             <FilterVarGroup
               panels={this.variablesPanel}
               onChange={this.handleFiltersChange}
+              onCurTargetTitleChange={this.handleCurTargetTitleChange}
+              onTargetListChange={this.handleTargetListChange}
             />
             {this.sceneId === 'container' && (
               <GroupsSelector
@@ -302,6 +292,9 @@ export default defineComponent({
             />
             <CompareSelect
               compareListEnable={this.compareListEnable}
+              curTarget={this.curTargetTitle}
+              panel={this.variablesPanel}
+              targetOptions={this.targetList}
               onTargetChange={this.handleCompareTargetChange}
               onTimeChange={this.handleCompareTimeChange}
               onTypeChange={this.handleCompareTypeChange}
