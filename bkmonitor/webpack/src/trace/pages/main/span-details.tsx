@@ -921,7 +921,7 @@ export default defineComponent({
       // }
     ];
 
-    const sceneData = ref<Record<string, any>>({});
+    const sceneData = ref<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
       return (
         sceneData.value?.panelCount < 2 &&
@@ -1181,6 +1181,7 @@ export default defineComponent({
                       // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
                       'is-log-tab': activeTab.value === 'Log',
                       'is-host-tab': activeTab.value === 'Host',
+                      'is-container-tab': activeTab.value === 'Container',
                     }}
                   >
                     {info.list.map((item, index) => {

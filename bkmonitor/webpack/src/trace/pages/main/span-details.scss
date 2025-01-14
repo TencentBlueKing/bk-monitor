@@ -312,7 +312,8 @@
       }
     }
 
-    &.is-host-tab {
+    &.is-host-tab,
+    &.is-container-tab {
       padding: 0 0  0 40px;
 
       .host-tab-container {
@@ -856,7 +857,8 @@
       height: calc(100% - 150px);
       padding: 0 16px 14px;
 
-      &.is-host-tab {
+      &.is-host-tab,
+      &.is-container-tab {
         padding-right: 0;
         padding-bottom: 0;
       }
