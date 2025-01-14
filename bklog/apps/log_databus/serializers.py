@@ -34,6 +34,7 @@ from apps.log_databus.constants import (
     CLUSTER_NAME_EN_REGEX,
     COLLECTOR_CONFIG_NAME_EN_REGEX,
     ArchiveInstanceType,
+    CollectorBatchOperationType,
     ContainerCollectorType,
     Environment,
     EsSourceType,
@@ -454,9 +455,7 @@ class CollectorUpdateSerializer(serializers.Serializer):
     """
 
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
-    collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX
-    )
+    collector_config_name_en = serializers.RegexField(label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX)
     collector_scenario_id = serializers.ChoiceField(
         label=_("日志类型"), choices=CollectorScenarioEnum.get_choices(), required=False
     )
@@ -476,9 +475,7 @@ class CollectorUpdateSerializer(serializers.Serializer):
 class UpdateContainerCollectorSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
-    collector_config_name_en = serializers.RegexField(
-        label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX
-    )
+    collector_config_name_en = serializers.RegexField(label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX)
     description = serializers.CharField(
         label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
     )
@@ -1634,3 +1631,16 @@ class CheckCollectorSerializer(serializers.Serializer):
 
 class GetCollectorCheckResultSerializer(serializers.Serializer):
     check_record_id = serializers.CharField(label=_("采集项检查唯一标识"))
+
+
+class CollectorStorageConfig(serializers.Serializer):
+    retention = serializers.IntegerField(required=False, default=-1)
+    allocation_min_days = serializers.IntegerField(required=False, default=-1)
+    storage_replies = serializers.IntegerField(required=False, default=-1)
+    es_shards = serializers.IntegerField(required=False, default=-1)
+
+
+class CollectorBatchOperationSerializer(serializers.Serializer):
+    collector_config_ids = serializers.ListField(label=_("采集项ID列表"), allow_empty=False)
+    operation_type = serializers.ChoiceField(label=_("操作类型"), choices=CollectorBatchOperationType.get_choices())
+    operation_params = CollectorStorageConfig(label=_("额外的元数据"), required=False)
