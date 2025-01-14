@@ -90,7 +90,6 @@ class CheckCMSIResource(CMSIBaseResource):
         try:
             super(CMSIBaseResource, self).perform_request(validated_request_data)
 
-            response_data["message_detail"] = self.message_detail
             return response_data
 
         except BKAPIError as e:
@@ -109,8 +108,6 @@ class CheckCMSIResource(CMSIBaseResource):
             response_data["username_check"]["invalid"] = invalid
             # 失败原因
             response_data["message"] = str(e)
-            # 记录失败的具体原因 {username: reason}， 仅失败才有
-            response_data["message_detail"] = self.message_detail
 
             return response_data
 
@@ -417,6 +414,13 @@ class SendMail(CheckCMSIResource):
                     response["username_check"]["invalid"] += external_send_response["username_check"]["invalid"]
                 else:
                     response = external_send_response
+
+        # 更新 message_detail
+        if self.message_detail:
+            if response:
+                response["message_detail"].update(self.message_detail)
+            else:
+                default_response_data["message_detail"].update(self.message_detail)
 
         return response or default_response_data
 
