@@ -310,13 +310,13 @@ export default class K8SCharts extends tsc<
       case 'kube_pod_cpu_limits_ratio': // CPU limit使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
           return `$method by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(true)}`;
-        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / sum(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
+        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
       case 'container_cpu_cfs_throttled_ratio': // CPU 限流占比
         return `${this.createCommonPromqlMethod()}((increase(container_cpu_cfs_throttled_periods_total{${this.createCommonPromqlContent()}}[$interval] $time_shift) / increase(container_cpu_cfs_periods_total{${this.createCommonPromqlContent()}}[$interval] $time_shift)))`;
       case 'kube_pod_cpu_requests_ratio': // CPU request使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
           return `$method by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(false)}`;
-        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / sum(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
+        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
       case 'container_memory_rss': // 内存使用量(rss)
         return `${this.createCommonPromqlMethod()}(${metric}{${this.createCommonPromqlContent()}} $time_shift)`;
       case 'kube_pod_memory_limits_ratio': // 内存limit使用率
