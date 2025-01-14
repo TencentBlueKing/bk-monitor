@@ -12,7 +12,7 @@ import base64
 import datetime
 import logging
 from collections import defaultdict
-from typing import Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -54,17 +54,17 @@ def split_graph_id(graph_id: str) -> Tuple[str, str, str]:
     return result.group(1, 4, 5)
 
 
-def chunk_list(list_need_to_chunk: list, per_list_max_length: int):
+def chunk_list(items: List, chunk_size: int):
     """
     对数组进行指定长度的分页
-    :param list_need_to_chunk: 带分页数组
-    :param per_list_max_length: 指定每组长度
+    :param items: 带分页数组
+    :param chunk_size: 指定每组长度
     :return: 分页后的数组
     """
     groups = [[]]
     j_index = 0
-    for index, value in enumerate(list_need_to_chunk):
-        if index != 0 and index % per_list_max_length == 0:
+    for index, value in enumerate(items):
+        if index != 0 and index % chunk_size == 0:
             groups.append([])
             j_index += 1
         groups[j_index].append(value)
@@ -77,8 +77,8 @@ async def start_tasks(elements):
     :param elements: panel信息
     {
         "bk_biz_id": 2,
-        "uid": uid,
-        "panel_id": panel_id,
+        "dashboard_uid": "xxx",
+        "panel_id": "xxx",
         "image_size":{
             "width": width,
             "height": height
@@ -86,7 +86,7 @@ async def start_tasks(elements):
         "variables": {"bk_biz_id": ["1", "2", "3"]},
         "start_time": 1612766359450,
         "end_time": 1612766359450,
-        "need_title": need_title,
+        "with_panel_title": False,
     }
     :return: [(element, err_msg)]
     """
@@ -95,10 +95,10 @@ async def start_tasks(elements):
         err_msg = None
         config = RenderDashboardConfig(
             bk_biz_id=element["bk_biz_id"],
-            dashboard_uid=element["uid"],
+            dashboard_uid=element["dashboard_uid"],
             panel_id=element["panel_id"],
-            need_title=element["need_title"],
-            width=element["width"],
+            with_panel_title=element["with_panel_title"],
+            width=element["width"] if element["panel_id"] else 1600,
             height=element["height"],
             scale=element["scale"],
             variables=element["variables"],
@@ -191,7 +191,7 @@ class ReportHandler:
         }
         self.item_id = item_id
 
-    def fetch_receivers(self, item_receivers=None):
+    def fetch_receivers(self, item_receivers: Optional[List[Dict]] = None) -> List[str]:
         """
         获取所有需要接收邮件的人
         :return: 接收邮件的名单

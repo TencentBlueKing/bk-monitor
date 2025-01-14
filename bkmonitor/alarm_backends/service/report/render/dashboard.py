@@ -71,7 +71,7 @@ def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False
     # 生成仪表盘链接
     if config.panel_id:
         url = (
-            f"http://{bind}{path_prefix}grafana/d-solo/{config.dashboard_uid}/?orgName={config.bk_biz_id}"
+            f"{prefix}d-solo/{config.dashboard_uid}/?orgName={config.bk_biz_id}"
             f"{variables_str}&panelId={config.panel_id}{time_str}"
         )
     else:
