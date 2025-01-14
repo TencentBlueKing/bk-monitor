@@ -84,6 +84,8 @@ async def get_browser():
                     "--disable-infobars",
                     "--disable-extensions",
                     "--disable-gpu",
+                    "--disable-software-rasterizer",
+                    "--renderer-process-limit=2",
                     "--mute-audio",
                     "--disable-bundled-ppapi-flash",
                     "--hide-scrollbars",
