@@ -121,43 +121,11 @@ export default defineComponent({
       () => props.sceneData,
       sceneData => {
         if (sceneData) {
-          // handleGetTargetsData();
           handleGetGroupsData();
         }
       },
       { immediate: true }
     );
-
-    // async function handleGetTargetsData() {
-    //   const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
-    //   const variablesService = new VariablesService({
-    //     start_time: startTime,
-    //     end_time: endTime,
-    //   });
-    //   const promiseList =
-    //     selectorPanel.value?.targets?.map(item =>
-    //       currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
-    //         [item.apiFunc]({
-    //           ...variablesService.transformVariables(item.data),
-    //           start_time: startTime,
-    //           end_time: endTime,
-    //         })
-    //         .then(data => {
-    //           const list = Object.prototype.toString.call(data) === '[object Object]' ? data.data : data;
-    //           return list;
-    //         })
-    //         .catch(err => {
-    //           console.error(err);
-    //           return [];
-    //         })
-    //     ) || [];
-    //   const res = await Promise.all(promiseList).catch(err => {
-    //     console.error(err);
-    //     return [];
-    //   });
-    //   const hostListData = res.reduce((total, cur) => total.concat(cur), []);
-    //   targetList.value = hostListData;
-    // }
 
     async function handleGetGroupsData() {
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
@@ -216,7 +184,7 @@ export default defineComponent({
       const currentTargetTemp = {};
       for (const key in val) {
         if (cloudIdMap.includes(key) || ipMap.includes(key)) {
-          currentTarget[key] = val[key];
+          currentTargetTemp[key] = val[key];
         }
       }
       currentTarget.value = Object.keys(currentTargetTemp).length ? currentTargetTemp : null;
@@ -240,7 +208,17 @@ export default defineComponent({
       timeOffset.value = val;
     }
     function handleCompareTargetChange(val) {
-      compareTargets.value = val;
+      const compareTargetsTemp = [];
+      for (const target of val) {
+        const targetTemp = {};
+        for (const key in target) {
+          if (cloudIdMap.includes(key) || ipMap.includes(key)) {
+            targetTemp[key] = target[key];
+          }
+        }
+        compareTargetsTemp.push(targetTemp);
+      }
+      compareTargets.value = compareTargetsTemp;
       viewOptions.value = {
         ...viewOptions.value,
         compare_targets: compareTargets.value,
@@ -315,6 +293,7 @@ export default defineComponent({
             <CompareSelect
               compareListEnable={this.compareListEnable}
               curTarget={this.curTargetTitle}
+              panel={this.variablesPanel}
               targetOptions={this.targetList}
               onTargetChange={this.handleCompareTargetChange}
               onTimeChange={this.handleCompareTimeChange}
