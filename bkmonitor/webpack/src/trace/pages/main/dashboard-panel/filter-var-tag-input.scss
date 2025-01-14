@@ -19,6 +19,9 @@
 }
 
 .dashboard-panel__filter-var-tag-input-popover {
+  width: auto !important;
+  min-width: 141px;
+
   .subtitle {
     margin-left: 4px;
     color: #C4C6CC;

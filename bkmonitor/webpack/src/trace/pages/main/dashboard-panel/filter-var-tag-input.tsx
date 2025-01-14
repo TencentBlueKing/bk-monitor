@@ -211,7 +211,7 @@ export default defineComponent({
                     default: () => (
                       <span>
                         <span>{item.name}</span>
-                        <span class='subtitle'>({item.source})</span>
+                        {!!item.source && <span class='subtitle'>({item.source})</span>}
                       </span>
                     ),
                   }}
