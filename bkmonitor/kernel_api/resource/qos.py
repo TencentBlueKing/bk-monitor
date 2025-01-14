@@ -22,7 +22,7 @@ class FailurePublishResource(Resource):
     # 此接口接受自监控告警事件，基于内置模块规则，将目标影响范围进行故障发布
     class RequestSerializer(serializers.Serializer):
         target = serializers.CharField(required=True, label="目标")
-        module = serializers.CharField(required=True, label="模块", default="vm")
+        module = serializers.CharField(required=True, label="模块")
 
     def perform_request(self, validated_request_data):
         duration = publish_failure(validated_request_data["module"], validated_request_data["target"])
@@ -33,7 +33,7 @@ class FailureRecoveryResource(Resource):
     # 自监控，故障恢复
     class RequestSerializer(serializers.Serializer):
         target = serializers.CharField(required=True, label="目标")
-        module = serializers.CharField(required=True, label="模块", default="vm")
+        module = serializers.CharField(required=True, label="模块")
 
     def perform_request(self, validated_request_data):
         clear_failure(validated_request_data["module"], validated_request_data["target"])
