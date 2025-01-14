@@ -191,7 +191,8 @@ else:
         skip_check = getattr(req, "skip_check", False)
         if settings.BKAPP_IS_BKLOG_API and not skip_check:
             # 外部版请求转发已通过日志鉴权逻辑，默认使用超级权限
-            if getattr(req, "external_user", None):
+            if getattr(req, "external_user", None) or\
+                    req.headers.get("X-SOURCE-APP-CODE", "") in settings.ESQUERY_WHITE_LIST:
                 params = update_bkdata_auth_info(params)
             else:
                 auth_info = EsquerySearchPermissions.get_auth_info(req)
