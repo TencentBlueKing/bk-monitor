@@ -88,7 +88,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   })
   theme: ThemeType;
   @Ref() menuSearchInput: any;
-  @Ref() popoverRef: any;
+  @Ref() homePopoverRef: any;
   @Ref('typeList') typeListRef: HTMLDivElement;
 
   localValue: number = null;
@@ -140,20 +140,12 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
       styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
     }));
-    this.getFirstCodeBgColor();
   }
 
   mounted() {
     this.storage = new Storage();
     this.commonListIds = this.storage.get(BIZ_SELECTOR_COMMON_IDS) || [];
   }
-
-  // @Watch('value')
-  // valueChange(val: number) {
-  //   this.localValue = val;
-  //   this.bizBgColor = this.getRandomColor();
-  //   this.getFirstCodeBgColor();
-  // }
 
   @Debounce(300)
   handleBizSearch(keyword?: string) {
@@ -163,9 +155,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   @Emit('change')
   handleBizChange(id: number) {
-    this.popoverRef.instance.hide();
-    // this.localValue = id;
-    this.getFirstCodeBgColor();
+    this.homePopoverRef.instance.hide();
     this.handleCacheBizId(id);
     return id;
   }
@@ -337,9 +327,9 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     setTimeout(() => {
       this.menuSearchInput.focus();
     }, 100);
-    this.popoverRef.instance.popper.querySelector('.tippy-tooltip').style.width = `${this.listWidth}px`;
+    this.homePopoverRef.instance.popper.querySelector('.tippy-tooltip').style.width = `${this.listWidth}px`;
     this.zIndex &&
-      this.popoverRef.instance.set({
+      this.homePopoverRef.instance.set({
         zIndex: this.zIndex,
       });
     this.typeListWrapNextPreShowChange();
@@ -351,7 +341,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   handleSearchBlur() {
     setTimeout(() => {
-      const popover = this.popoverRef;
+      const popover = this.homePopoverRef;
       const isVisible = popover?.instance?.state?.isVisible;
       if (isVisible) popover?.hideHandler();
     }, 200);
@@ -423,25 +413,11 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     });
   }
 
-  getFirstCodeBgColor() {
-    // let tags = [];
-    // for (const item of this.bizList) {
-    //   // if (item.id === this.localValue) {
-    //   //   tags = [item.space_type_id];
-    //   //   if (item.space_type_id === 'bkci' && item.space_code) {
-    //   //     tags.push('bcs');
-    //   //   }
-    //   // }
-    // }
-    // this.firstCodeBgColor =
-    //   SPACE_FIRST_CODE_COLOR_MAP[tags?.[0] || 'default']?.[this.theme]?.backgroundColor || '#63656E';
-  }
-
   render() {
     return (
-      <div class={['biz-select-wrap', this.theme]}>
+      <div class={['new-biz-select-wrap', this.theme]}>
         <bk-popover
-          ref='popoverRef'
+          ref='homePopoverRef'
           width={this.listWidth}
           ext-cls={`biz-select-list-${this.theme}`}
           tippy-options={{
@@ -493,11 +469,13 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
                     {this.spaceTypeIdList.map(item => (
                       <li
                         key={item.id}
-                        style={{
-                          ...item.styles,
-                          borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent',
-                        }}
-                        class='space-type-item'
+                        class={[
+                          'space-type-item',
+                          item.id,
+                          { 'hover-active': item.id !== this.searchTypeId },
+                          { selected: item.id === this.searchTypeId },
+                          item.id,
+                        ]}
                         onClick={() => this.handleSearchType(item.id)}
                       >
                         {item.name}
