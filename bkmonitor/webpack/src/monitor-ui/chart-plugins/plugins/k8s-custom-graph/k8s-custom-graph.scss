@@ -55,7 +55,7 @@
 
         .table-legend {
           display: grid;
-          grid-template-rows: auto 1fr; /* 表头自动高度，表体占满剩余空间 */
+          grid-template-rows: repeat(auto-fill, 26px); /* 表头自动高度，表体占满剩余空间 */
           grid-template-columns: minmax(0, 1fr) minmax(80px, auto) minmax(80px, auto); /* 第一列沾满宽度，其他列自适应 */
           width: 100%;
           height: 100%;
@@ -65,18 +65,20 @@
             width: 4px;
             height: 4px;
           }
-        
+
           &::-webkit-scrollbar-thumb {
             background: #ddd;
             border-radius: 20px;
-            box-shadow: inset 0 0 6px rgba(204, 204, 204, .3);
+            box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
           }
 
           colgroup {
             display: none;
           }
 
-          thead, tbody,tr {
+          thead,
+          tbody,
+          tr {
             display: contents; /* 避免额外的容器影响布局 */
           }
 

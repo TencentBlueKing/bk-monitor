@@ -10,36 +10,31 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
-from alarm_backends.service.alert.qos.influence import get_influence
+from alarm_backends.service.alert.qos.influence import clear_failure, publish_failure
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
 
 logger = logging.getLogger(__name__)
 
 
-class IncidentPublishResource(Resource):
+class FailurePublishResource(Resource):
     # 自监控：故障发布
     # 此接口接受自监控告警事件，基于内置模块规则，将目标影响范围进行故障发布
     class RequestSerializer(serializers.Serializer):
         target = serializers.CharField(required=True, label="目标")
-        module = serializers.CharField(required=True, label="模块", default="vm")
+        module = serializers.CharField(required=True, label="模块")
 
     def perform_request(self, validated_request_data):
-        config = {}
-
-        target = validated_request_data["target"]
-        if not target:
-            return config
-
-        module = validated_request_data["module"]
-
-        if module == "vm":
-            target = target.split("-")[1]
-
-        # 发布影响
-        return get_influence(module, target)
+        duration = publish_failure(validated_request_data["module"], validated_request_data["target"])
+        return duration
 
 
-class IncidentRecoveryResource(Resource):
+class FailureRecoveryResource(Resource):
     # 自监控，故障恢复
-    pass
+    class RequestSerializer(serializers.Serializer):
+        target = serializers.CharField(required=True, label="目标")
+        module = serializers.CharField(required=True, label="模块")
+
+    def perform_request(self, validated_request_data):
+        clear_failure(validated_request_data["module"], validated_request_data["target"])
+        return 0
