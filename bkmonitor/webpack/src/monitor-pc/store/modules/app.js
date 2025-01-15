@@ -83,7 +83,6 @@ const state = {
   bizIdMap: new Map(),
   paddingRoute: null,
   k8sV2EnableList: [],
-  defaultBizId: '',
 };
 
 const mutations = {
