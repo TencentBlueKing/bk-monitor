@@ -123,6 +123,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     const { signal } = this.currentAbortController;
 
     this.searchList = [];
+    this.highlightedIndex = [-1, -1];
+    this.highlightedItem = null;
     this.isLoading = true;
     try {
       const response = await fetch(url, { signal });
