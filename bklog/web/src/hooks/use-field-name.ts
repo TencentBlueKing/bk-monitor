@@ -28,21 +28,21 @@ export default ({ store }) => {
     const getFieldName = (name: string) => {
         if (store.state.showFieldAlias) {
             const field = store.state.indexFieldInfo.fields.filter(item => item.field_name === name)
-            return field[0].query_alias || name
+            return field[0]?.query_alias || name
         }
         return name
     }
     // 用于只返回字段名数组的情况
-    const getFieldNames = (fildes: any) => {
+    const getFieldNames = (fields: any) => {
         if (store.state.showFieldAlias) {
-            return fildes.map(fieldInfo => fieldInfo.query_alias || fieldInfo.field_name);
+            return fields.map(fieldInfo => fieldInfo.query_alias || fieldInfo.field_name);
         } else {
-            return fildes.map(fieldInfo => fieldInfo.field_name);
+            return fields.map(fieldInfo => fieldInfo.field_name);
         }
     }
     // 用于返回拼接字段名的情况
-    const getConcatenatedFieldName = (fildes: any) => {
-        const { field_name: id, field_alias: alias, query_alias: query } = fildes;
+    const getConcatenatedFieldName = (fields: any) => {
+        const { field_name: id, field_alias: alias, query_alias: query } = fields;
         if (store.state.showFieldAlias && query) {
             return { id, name: `${query}(${alias || id})` };
         }
@@ -52,10 +52,18 @@ export default ({ store }) => {
     const getQueryAlias = (field: any) => {
       return store.state.showFieldAlias ? field.query_alias || field.field_name : field.field_name;
     }
+    // 用于返回query_alias对应的field_name的情况
+    const changeFieldName = (fields: any) => {
+        return fields.map(name => {
+            const field = store.state.indexFieldInfo.fields.filter(item => item.query_alias === name)
+            return field[0]?.field_name || name
+        });
+      }
     return {
         getFieldName,
         getFieldNames,
         getConcatenatedFieldName,
-        getQueryAlias
+        getQueryAlias,
+        changeFieldName
     }
 }

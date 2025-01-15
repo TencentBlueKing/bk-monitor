@@ -283,8 +283,8 @@
           });
           this.currentConfigID = res.data.config_id;
           this.totalFields = res.data.fields;
-          this.displayFieldNames = res.data.display_fields;
-          const { getFieldNames } = useFieldNameHook({ store: this.$store });
+          const { getFieldNames, getFieldName } = useFieldNameHook({ store: this.$store });
+          this.displayFieldNames = res.data.display_fields.map(item => getFieldName(item))
           this.totalFieldNames = getFieldNames(res.data.fields);
           this.displayFields = res.data.display_fields.map(fieldName => {
             return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
@@ -384,7 +384,9 @@
       // 确定设置显示字段
       async confirmConfig(list) {
         this.isConfigLoading = true;
-        const data = { display_fields: list };
+        const { changeFieldName } = useFieldNameHook({ store: this.$store });
+        const copyList = changeFieldName(list)
+        const data = { display_fields: copyList };
         try {
           const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
             params: {
