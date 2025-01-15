@@ -430,7 +430,6 @@ class BCSClusterSearchItem(SearchItem):
                         "name": cluster.name,
                         "cluster_name": cluster.name,
                         "bcs_cluster_id": cluster.bcs_cluster_id,
-                        "url": f"/?bizId={cluster.bk_biz_id}#/k8s?cluster={cluster.bcs_cluster_id}",
                     }
                 )
 
