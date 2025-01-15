@@ -288,7 +288,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.searchValue && this.getSearchList();
   }
   /** 跳转到具体的功能 */
-  handleGoRoute(item) {
+  handleGoRoute(item: IRouteItem) {
     this.showPopover = false;
     this.searchValue && this.setLocalHistory(this.searchValue);
     window.open(location.href.replace(location.hash, item.href));
@@ -371,7 +371,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
 
   /** 清空输入 */
-  clearInput(e: MouseEvent) {
+  clearInput(e: Event) {
     e.stopPropagation();
     this.searchList = [];
     this.handleResetData();
