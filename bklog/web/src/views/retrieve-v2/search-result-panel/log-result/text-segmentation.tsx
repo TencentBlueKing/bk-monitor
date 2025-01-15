@@ -364,13 +364,13 @@ export default defineComponent({
     };
 
     const getSegmentRenderType = () => {
-      if (wordList.length < 100) {
-        return 'text';
-      }
+      // if (wordList.length < 100) {
+      //   return 'text';
+      // }
 
-      if (wordList.length < 3000) {
-        return 'fabric';
-      }
+      // if (wordList.length < 3000) {
+      //   return 'fabric';
+      // }
 
       return 'text';
     };
