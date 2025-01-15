@@ -119,7 +119,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     const dimension = new K8sPerformanceDimension({
       ...this.localCommonParams,
       query_string: this.searchValue,
-      pageSize: 5,
+      page_size: 5,
       page_type: 'scrolling',
     });
     (this as any).dimension = dimension;
@@ -142,7 +142,6 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   /** 搜索 */
   async handleSearch(val: string) {
-    console.log(val);
     this.searchValue = val;
     this.loading = true;
     await (this as any).dimension.search(val);
@@ -287,7 +286,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   render() {
     return (
       <div class='k8s-dimension-list'>
-        <div class='panel-title'>{this.$t('K8s对象')}</div>
+        <div class='panel-title'>{this.$t('K8S对象')}</div>
         <bk-input
           class='left-panel-search'
           placeholder={this.$tc('请输入关键字')}

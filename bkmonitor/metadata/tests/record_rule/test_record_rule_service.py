@@ -51,6 +51,7 @@ def test_create_record_rule(create_or_delete_records, mocker):
     expected_bksql_config = [
         {
             'name': 'unify_query_tsdb_request_seconds_bucket_sum_2m',
+            'count_freq': 60,
             'sql': 'sum by (workload, tsdb_type, space_uid, le, pod) (label_replace(rate('
             'unify_query_tsdb_request_seconds_bucket[2m]), "workload", "$1", "pod", "bk-datalink-(.*)-([0-9a-z]+)-(['
             '0-9a-z]+)"))',

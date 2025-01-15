@@ -24,7 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, type Ref, computed, defineComponent, inject, onMounted, reactive, ref, watch } from 'vue';
+import {
+  type PropType,
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onMounted,
+  shallowReadonly,
+  ref,
+  toRef,
+  unref,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Button, Switcher } from 'bkui-vue';
@@ -37,6 +49,7 @@ import {
   ConditionType,
   type IConditionItem,
   type RetrievalFormData,
+  type SearchState,
   SearchType,
   type ToolsFormData,
 } from '../typings';
@@ -74,28 +87,8 @@ export default defineComponent({
       no_data: [],
     });
     const applicationListLoading = ref(false);
+    const localFormData = shallowReadonly(unref(toRef(props, 'formData')));
 
-    const localFormData = reactive<RetrievalFormData>({
-      type: SearchType.Profiling,
-      server: {
-        app_name: '',
-        service_name: '',
-      },
-      dateComparisonEnable: false,
-      isComparison: false,
-      where: [],
-      comparisonWhere: [],
-    });
-
-    watch(
-      () => props.formData,
-      newVal => {
-        if (newVal) Object.assign(localFormData, newVal);
-      },
-      {
-        immediate: true,
-      }
-    );
     watch(
       () => toolsFormData.value.timeRange,
       () => {
@@ -110,9 +103,8 @@ export default defineComponent({
      */
     function handleTypeChange(type: SearchType) {
       if (localFormData.type === type) return;
-      localFormData.type = type;
-      getLabelList();
       emit('typeChange', type);
+      getLabelList();
     }
 
     /**
@@ -123,10 +115,8 @@ export default defineComponent({
       if (!val.length) return;
       const [appName, serviceName] = val;
       if (localFormData.server.app_name === appName && localFormData.server.service_name === serviceName) return;
-      localFormData.server.app_name = appName;
-      localFormData.server.service_name = serviceName;
-      getLabelList();
       emit('appServiceChange', appName, serviceName);
+      getLabelList();
     }
 
     /** 查看详情 */
@@ -140,11 +130,12 @@ export default defineComponent({
      * @param val 开关状态
      */
     function handleComparisonChange(val: boolean) {
-      localFormData.isComparison = val;
+      const updateItem: Partial<SearchState['formData']> = {};
+      updateItem.isComparison = val;
       if (!val) {
-        localFormData.dateComparisonEnable = false;
+        updateItem.dateComparisonEnable = false;
       }
-      handleEmitChange(true);
+      handleEmitChange(updateItem, true);
     }
 
     /**
@@ -152,8 +143,9 @@ export default defineComponent({
      * @param val 开关状态
      */
     function handleDataComparisonChange(val: boolean) {
-      localFormData.dateComparisonEnable = val;
-      handleEmitChange(false);
+      const updateItem: Partial<SearchState['formData']> = {};
+      updateItem.dateComparisonEnable = val;
+      handleEmitChange(updateItem, false);
     }
 
     const labelList = ref<string[]>([]);
@@ -162,20 +154,19 @@ export default defineComponent({
      * @param type 条件类型
      */
     function addCondition(type: ConditionType) {
-      if (type === ConditionType.Where) {
-        localFormData.where.push({
-          key: '',
-          method: 'eq',
-          value: '',
-        });
-      } else {
-        localFormData.comparisonWhere.push({
-          key: '',
-          method: 'eq',
-          value: '',
-        });
-      }
-      handleEmitChange(false);
+      const conditionKey: 'comparisonWhere' | 'where' = type === ConditionType.Where ? 'where' : 'comparisonWhere';
+      const updateItem: Partial<SearchState['formData']> = {
+        [conditionKey]: [
+          ...(localFormData?.[conditionKey] || []),
+          {
+            key: '',
+            method: 'eq',
+            value: '',
+          },
+        ],
+      };
+
+      handleEmitChange(updateItem, false);
     }
 
     /**
@@ -184,13 +175,15 @@ export default defineComponent({
      * @param type 条件类型
      */
     function deleteCondition(index: number, type: ConditionType) {
-      let deleteItem: IConditionItem[];
-      if (type === ConditionType.Where) {
-        deleteItem = localFormData.where.splice(index, 1);
-      } else {
-        deleteItem = localFormData.comparisonWhere.splice(index, 1);
-      }
-      handleEmitChange(deleteItem[0].value !== '');
+      const conditionKey: 'comparisonWhere' | 'where' = type === ConditionType.Where ? 'where' : 'comparisonWhere';
+      const conditionItem: IConditionItem[] = [...(localFormData?.[conditionKey] || [])];
+      const deleteItem = conditionItem.splice(index, 1);
+      handleEmitChange(
+        {
+          [conditionKey]: [...(conditionItem || [])],
+        },
+        deleteItem[0].value !== ''
+      );
     }
 
     /**
@@ -200,16 +193,16 @@ export default defineComponent({
      * @param type 条件类型
      */
     function handleConditionChange(val: IConditionItem, index: number, type: ConditionType) {
-      let oldVal: IConditionItem;
-      if (type === ConditionType.Where) {
-        oldVal = localFormData.where[index];
-        localFormData.where[index] = val;
-      } else {
-        oldVal = localFormData.comparisonWhere[index];
-        localFormData.comparisonWhere[index] = val;
-      }
+      const conditionKey: 'comparisonWhere' | 'where' = type === ConditionType.Where ? 'where' : 'comparisonWhere';
+      const oldVal: IConditionItem = localFormData[conditionKey][index];
+      localFormData[conditionKey][index] = val;
       // 如果旧数据有值或者新数据有值，需要根据新条件查询
-      handleEmitChange(Boolean(oldVal.value || val.value));
+      handleEmitChange(
+        {
+          [conditionKey]: [...localFormData[conditionKey]],
+        },
+        Boolean(oldVal.value || val.value)
+      );
     }
 
     onMounted(() => {
@@ -248,9 +241,13 @@ export default defineComponent({
     /** 获取过滤项列表 */
     async function getLabelList() {
       labelList.value = [];
+      const updateItem: Partial<SearchState['formData']> = {
+        where: [],
+        comparisonWhere: [],
+      };
+
       if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) {
-        localFormData.where = [];
-        localFormData.comparisonWhere = [];
+        handleEmitChange(updateItem, true);
         return;
       }
       const labels = await queryLabels(
@@ -260,18 +257,17 @@ export default defineComponent({
         { needMessage: false }
       ).catch(() => ({ label_keys: [] }));
       // 获取label列表后，移除不在列表中的选项
-      localFormData.where = localFormData.where.filter(item => labels.label_keys.includes(item.key));
-      localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item =>
-        labels.label_keys.includes(item.key)
-      );
+      updateItem.where = localFormData.where.filter(item => labels.label_keys.includes(item.key));
+      updateItem.comparisonWhere = localFormData.comparisonWhere.filter(item => labels.label_keys.includes(item.key));
+      handleEmitChange(updateItem, true);
       labelList.value = labels.label_keys;
     }
 
     /**
      * @param hasQuery 是否查询
      */
-    function handleEmitChange(hasQuery: boolean) {
-      emit('change', localFormData, hasQuery);
+    function handleEmitChange(updateItem: Partial<SearchState['formData']>, hasQuery: boolean) {
+      emit('change', updateItem, hasQuery);
     }
 
     return {

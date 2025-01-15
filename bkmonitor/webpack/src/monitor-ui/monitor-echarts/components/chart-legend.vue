@@ -210,6 +210,11 @@ export default class ChartLegend extends Vue {
     height: 26px;
   }
 
+  thead tr {
+    position: sticky;
+    top: 0;
+  }
+
   thead tr,
   tr:nth-child(even) {
     background: #f5f6fa;

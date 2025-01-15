@@ -84,6 +84,7 @@ export default defineComponent({
     spanDetails: { type: Object as PropType<Span>, default: () => null },
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
     isPageLoading: { type: Boolean, default: false },
+    activeTab: { type: String, default: 'BasicInfo' },
   },
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
@@ -885,6 +886,14 @@ export default defineComponent({
 
     const activeTab = ref<TabName>('BasicInfo');
     provide('SpanDetailActiveTab', activeTab);
+
+    watch(
+      () => props.activeTab,
+      val => {
+        activeTab.value = val as TabName;
+      }
+    );
+
     const tabList = [
       {
         label: t('基础信息'),

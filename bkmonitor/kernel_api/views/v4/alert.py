@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.alert.views import AlertViewSet as FTAAlertViewSet
+from kernel_api.resource.qos import FailurePublishResource, FailureRecoveryResource
 
 
 class AlertInfoViewSet(ResourceViewSet):
@@ -38,3 +39,14 @@ class AlertViewSet(FTAAlertViewSet):
     """
     兼容全量事件中心告警接口
     """
+
+
+class QosViewSet(ResourceViewSet):
+    """
+    流控管理模块
+    """
+
+    resource_routes = [
+        ResourceRoute("POST", FailurePublishResource(), endpoint="failure/publish"),
+        ResourceRoute("POST", FailureRecoveryResource(), endpoint="failure/recovery"),
+    ]

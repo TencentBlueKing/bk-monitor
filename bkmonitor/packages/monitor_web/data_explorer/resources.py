@@ -67,7 +67,10 @@ class GetGraphQueryConfig(Resource):
                 condition = serializers.ChoiceField(required=False, choices=("and", "or"))
                 key = serializers.CharField()
                 method = serializers.CharField()
-                value = serializers.ListField(child=serializers.CharField(allow_blank=True))
+                value = serializers.ListField(child=serializers.CharField(allow_blank=True, allow_null=True))
+
+                def validate_value(self, values):
+                    return [value for value in values if value is not None]
 
             data_source_label = serializers.CharField(label="数据源标签")
             data_type_label = serializers.CharField(label="数据类型标签")
@@ -91,6 +94,13 @@ class GetGraphQueryConfig(Resource):
 
             # 是否展示单指标
             display = serializers.BooleanField(label="是否单独展示", default=True)
+
+            def validate_where(self, where: List[Dict]):
+                validated_where = []
+                for condition in where:
+                    if condition.get("value") is not None:
+                        validated_where.append(condition)
+                return validated_where
 
             def validate(self, attrs):
                 # 图表查询周期检查

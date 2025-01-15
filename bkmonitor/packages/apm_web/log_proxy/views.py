@@ -36,6 +36,8 @@ class BkLogForwardingView(APIView):
             params = {key: request.GET.get(key) for key in request.GET}
             body = request.body if request.body else None
             headers = {k: v for k, v in dict(request.headers).items() if k.lower() not in self.ignore_headers}
+            # 添加监控平台标识 在日志平台中走特殊权限
+            headers.update({"X-SOURCE-APP-CODE": settings.APP_CODE})
             with tracer.start_as_current_span(
                 "log_forward",
                 attributes={

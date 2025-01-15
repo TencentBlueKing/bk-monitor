@@ -8,16 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from enum import Enum
 from functools import lru_cache
 
 from django.utils.functional import cached_property
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from constants.alert import EventSeverity
-from constants.apm import OtlpKey, SpanKindKey, TelemetryDataType
+from constants.apm import CachedEnum, OtlpKey, SpanKindKey, TelemetryDataType
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
@@ -960,35 +960,6 @@ METRIC_COMMON_DIMENSION = [
 ]
 
 
-# 枚举类状态
-class CachedEnum(Enum):
-    @classmethod
-    @lru_cache(maxsize=None)
-    def from_value(cls, value):
-        try:
-            return cls(value)
-        except Exception:  # pylint: disable=broad-except
-            return cls.get_default(value)  # 处理未找到的情况
-
-    @classmethod
-    def get_default(cls, value):
-        class _DefaultEnum:
-            def __init__(self):
-                self._value = value
-
-            @property
-            def value(self):
-                return self._value
-
-            def __getattr__(self, item):
-                return getattr(self, item, None)
-
-            def __setattr__(self, item, default_value):
-                object.__setattr__(self, item, default_value)
-
-        return _DefaultEnum()
-
-
 class ServiceStatusCachedEnum(CachedEnum):
     FATAL = 1
     WARNING = 2
@@ -997,12 +968,14 @@ class ServiceStatusCachedEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return {
-            self.NORMAL: _("无告警"),
-            self.FATAL: _("致命"),
-            self.REMIND: _("提醒"),
-            self.WARNING: _("预警"),
-        }.get(self, self.value)
+        return str(
+            {
+                self.NORMAL: _("无告警"),
+                self.FATAL: _("致命"),
+                self.REMIND: _("提醒"),
+                self.WARNING: _("预警"),
+            }.get(self, self.value)
+        )
 
     @cached_property
     def status(self):
@@ -1030,7 +1003,9 @@ class ApdexCachedEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(self, self.value)
+        return str(
+            {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(self, self.value)
+        )
 
     @cached_property
     def status(self):
@@ -1062,19 +1037,21 @@ class CategoryCachedEnum(CachedEnum):
 
     @cached_property
     def label(self):
-        return {
-            self.HTTP: _("网页"),
-            self.RPC: _("远程调用"),
-            self.DB: _("数据库"),
-            self.MESSAGING: _("消息队列"),
-            self.ASYNC_BACKEND: _("后台任务"),
-            self.ALL: _("全部"),
-            self.OTHER: _("其他"),
-        }.get(self, self.value)
+        return str(
+            {
+                self.HTTP: _("网页"),
+                self.RPC: _("远程调用"),
+                self.DB: _("数据库"),
+                self.MESSAGING: _("消息队列"),
+                self.ASYNC_BACKEND: _("后台任务"),
+                self.ALL: _("全部"),
+                self.OTHER: _("其他"),
+            }.get(self, self.value)
+        )
 
     @cached_property
     def remote_service_label(self):
-        return {self.HTTP: _("网页(自定义服务)")}.get(self, self.value)
+        return str({self.HTTP: _("网页(自定义服务)")}.get(self, self.value))
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -1082,37 +1059,37 @@ class CategoryCachedEnum(CachedEnum):
         return [
             {
                 "id": cls.ALL.value,
-                "name": _("全部"),
+                "name": gettext("全部"),
                 "icon": "icon-gailan",
             },
             {
                 "id": cls.HTTP.value,
-                "name": _("网页"),
+                "name": gettext("网页"),
                 "icon": "icon-wangye",
             },
             {
                 "id": cls.RPC.value,
-                "name": _("远程调用"),
+                "name": gettext("远程调用"),
                 "icon": "icon-yuanchengfuwu",
             },
             {
                 "id": cls.DB.value,
-                "name": _("数据库"),
+                "name": gettext("数据库"),
                 "icon": "icon-shujuku",
             },
             {
                 "id": cls.MESSAGING.value,
-                "name": _("消息队列"),
+                "name": gettext("消息队列"),
                 "icon": "icon-xiaoxizhongjianjian",
             },
             {
                 "id": cls.ASYNC_BACKEND.value,
-                "name": _("后台任务"),
+                "name": gettext("后台任务"),
                 "icon": "icon-renwu",
             },
             {
                 "id": cls.OTHER.value,
-                "name": _("其他"),
+                "name": gettext("其他"),
                 "icon": "icon-mc-service-unknown",
             },
         ]
@@ -1152,6 +1129,39 @@ class CategoryCachedEnum(CachedEnum):
     @classmethod
     def get_default(cls, value):
         default = super().get_default(value)
-        default.get_label_by_key = value
-        default.get_remote_service_label_by_key = value
+        default.label = value
+        default.remote_service_label = value
+        return default
+
+
+class DataStatusColumnEnum(CachedEnum):
+    NORMAL = "normal"
+    NO_DATA = "no_data"
+    DISABLED = "disabled"
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def list(cls):
+        return {
+            cls.NORMAL: _("正常"),
+            cls.NO_DATA: _("无数据"),
+            cls.DISABLED: _("未开启"),
+        }
+
+    @cached_property
+    def label(self):
+        return str(self.list().get(self, self.value))
+
+    @cached_property
+    def status(self):
+        return {
+            self.NORMAL: {"type": Status.SUCCESS, "text": gettext("正常")},
+            self.NO_DATA: {"type": Status.FAILED, "text": gettext("无数据")},
+        }.get(self, {"type": Status.FAILED, "text": self.value})
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = gettext("未开启")
+        default.status = {"type": Status.FAILED, "text": gettext("未开启")}
         return default

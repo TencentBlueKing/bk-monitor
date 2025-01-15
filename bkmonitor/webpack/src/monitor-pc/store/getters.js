@@ -65,6 +65,7 @@ const getters = {
   paddingRoute: state => state.app.paddingRoute,
   k8sV2EnableList: state => state.app.k8sV2EnableList,
   isEnableK8sV2: state => state.app.k8sV2EnableList.some(id => (id === 0 ? true : +id === +state.app.bizId)),
+  defaultBizId: state => state.app.defaultBizId,
 };
 
 export default getters;

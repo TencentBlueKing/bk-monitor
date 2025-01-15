@@ -1,13 +1,15 @@
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
+from django.conf import settings
 from pyppeteer.browser import Browser, Page
 from pyppeteer.errors import TimeoutError
 
-from alarm_backends.service.report.utils import get_browser
+from bkmonitor.browser import get_browser
 from core.errors.common import CustomError
 
 logger = logging.getLogger("alarm_backends")
@@ -33,6 +35,51 @@ class RenderDashboardConfig:
     scale: int = 2
 
 
+def generate_dashboard_url(config: RenderDashboardConfig, external: bool = False):
+    """
+    生成仪表盘链接
+    """
+    # 获取路径前缀
+    if external:
+        prefix = f"http://{settings.BK_MONITOR_HOST.rstrip('/')}grafana/"
+    else:
+        if settings.BK_MONITOR_HOST.endswith("/o/bk_monitorv3/"):
+            path_prefix = "/o/bk_monitorv3/"
+        else:
+            path_prefix = "/"
+
+        # 判断是否是容器模式
+        if settings.IS_CONTAINER_MODE:
+            bind = "bk-monitor-api"
+        else:
+            bind = f"{os.environ.get('LAN_IP', '0.0.0.0')}:{os.environ.get('BK_MONITOR_KERNELAPI_PORT', '10204')}"
+
+        prefix = f"http://{bind}{path_prefix}grafana/"
+
+    # 生成变量url参数
+    variables = []
+    for key, values in config.variables.items():
+        for value in values:
+            variables.append(f"var-{key}={quote(value)}")
+    variables_str = "&".join(variables)
+    if variables_str:
+        variables_str = f"&{variables_str}"
+
+    # 生成时间url参数
+    time_str = f"&from={config.start_time*1000}&to={config.end_time*1000}"
+
+    # 生成仪表盘链接
+    if config.panel_id:
+        url = (
+            f"{prefix}d-solo/{config.dashboard_uid}/?orgName={config.bk_biz_id}"
+            f"{variables_str}&panelId={config.panel_id}{time_str}"
+        )
+    else:
+        url = f"{prefix}d/{config.dashboard_uid}/?orgName={config.bk_biz_id}{variables_str}{time_str}&kiosk"
+
+    return url
+
+
 async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 60) -> bytes:
     """
     渲染仪表盘面板
@@ -42,26 +89,8 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
     if config.scale > 4:
         config.scale = 4
 
-    # 生成变量url参数
-    variables = []
-    for key, value in config.variables.items():
-        variables.append(f"var-{key}={quote(value)}")
-    variables_str = "&".join(variables)
-    if variables_str:
-        variables_str = f"&{variables_str}"
-
-    # 生成时间url参数
-    time_str = f"&from={config.start_time*1000}&to={config.end_time*1000}"
-
     # 生成仪表盘链接
-    prefix = "http://bk-monitor-api/grafana/"
-    if config.panel_id:
-        url = (
-            f"{prefix}d-solo/{config.dashboard_uid}/?orgName={config.bk_biz_id}"
-            f"{variables_str}&panelId={config.panel_id}{time_str}"
-        )
-    else:
-        url = f"{prefix}d/{config.dashboard_uid}/?orgName={config.bk_biz_id}{variables_str}{time_str}&kiosk"
+    url = generate_dashboard_url(config)
 
     # 获取浏览器
     browser: Browser = await get_browser()
@@ -109,13 +138,7 @@ async def render_dashboard_panel(config: RenderDashboardConfig, timeout: int = 6
     try:
         await page.close()
     except Exception as e:
-        logger.exception(f"close page error: {e}")
-
-    # 关闭浏览器
-    try:
-        await browser.close()
-    except Exception as e:
-        logger.exception(f"close browser error: {e}")
+        logger.exception(f"[render_dashboard_panel] close page error: {e}")
 
     return image
 
@@ -134,7 +157,7 @@ async def wait_for_panel_render(page: Page, timeout: int = 60):
             break
 
         if time.time() - start_time > timeout:
-            raise TimeoutError("wait for dashboard panel render timeout")
+            raise TimeoutError("[render_dashboard_panel] wait for dashboard panel render timeout")
 
         # 等待图表渲染动画完成
         time.sleep(1)

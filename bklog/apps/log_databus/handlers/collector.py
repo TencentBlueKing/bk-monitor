@@ -445,6 +445,14 @@ class CollectorHandler(object):
             collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
             logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
 
+        # 添加索引集相关信息
+        log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
+        if log_index_set_obj:
+            collector_config.update({
+                "sort_fields": log_index_set_obj.sort_fields,
+                "target_fields": log_index_set_obj.target_fields
+            })
+
         return collector_config
 
     @staticmethod
@@ -1120,7 +1128,6 @@ class CollectorHandler(object):
             container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
             for container_config in container_configs:
                 self.create_container_release(container_config)
-            return True
 
         # 启动节点管理订阅功能
         if self.data.subscription_id:
@@ -1171,7 +1178,6 @@ class CollectorHandler(object):
             container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id)
             for container_config in container_configs:
                 self.delete_container_release(container_config)
-            return True
 
         if self.data.subscription_id:
             # 停止节点管理订阅功能
@@ -2375,6 +2381,8 @@ class CollectorHandler(object):
         collector.log_group_id = resp["log_group_id"]
         collector.save(update_fields=["log_group_id"])
 
+        return resp
+
     def custom_create(
         self,
         bk_biz_id=None,
@@ -2496,15 +2504,19 @@ class CollectorHandler(object):
 
         custom_config.after_hook(self.data)
 
-        # create custom Log Group
-        if custom_type == CustomTypeEnum.OTLP_LOG.value:
-            self.create_custom_log_group(self.data)
-        self.send_create_notify(self.data)
-        return {
+        ret = {
             "collector_config_id": self.data.collector_config_id,
             "index_set_id": self.data.index_set_id,
             "bk_data_id": self.data.bk_data_id,
         }
+
+        # create custom Log Group
+        if custom_type == CustomTypeEnum.OTLP_LOG.value:
+            log_group_info = self.create_custom_log_group(self.data)
+            ret.update({"bk_data_token": log_group_info.get("bk_data_token")})
+        self.send_create_notify(self.data)
+
+        return ret
 
     def custom_update(
         self,
@@ -2520,6 +2532,8 @@ class CollectorHandler(object):
         storage_replies=1,
         es_shards=settings.ES_SHARDS,
         is_display=True,
+        sort_fields=None,
+        target_fields=None,
     ):
         collector_config_update = {
             "collector_config_name": collector_config_name,
@@ -2589,6 +2603,8 @@ class CollectorHandler(object):
                 "etl_params": etl_params,
                 "etl_config": etl_config,
                 "fields": fields,
+                "sort_fields": sort_fields,
+                "target_fields": target_fields,
             }
             etl_handler.update_or_create(**etl_params)
 

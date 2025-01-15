@@ -17,6 +17,7 @@ from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import Permission
 from bkmonitor.iam.action import ActionEnum, ActionMeta
 from bkmonitor.models import StrategyModel
+from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from core.drf_resource import api
@@ -152,7 +153,7 @@ class StrategySearchItem(SearchItem):
         """
         排除trace_id和alert_id
         """
-        return not AlertSearchItem.RE_ALERT_ID.match(query) and not TraceSearchItem.RE_TRACE_ID.match(query)
+        return not AlertSearchItem.match(query) and not TraceSearchItem.match(query)
 
     @classmethod
     def search(cls, username: str, query: str, limit: int = 5) -> Generator:
@@ -390,6 +391,62 @@ class HostSearchItem(SearchItem):
         yield {"type": "host", "name": _("主机监控"), "items": items}
 
 
+class BCSClusterSearchItem(SearchItem):
+    """
+    Search item for bcs cluster.
+    """
+
+    @classmethod
+    def match(cls, query: str) -> bool:
+        return not TraceSearchItem.match(query) and not AlertSearchItem.match(query) and not HostSearchItem.match(query)
+
+    @classmethod
+    def search(cls, username: str, query: str, limit: int = 5) -> Generator:
+        """
+        Search the bcs cluster by cluster name
+        """
+        bk_biz_ids = cls._get_allowed_bk_biz_ids(username, ActionEnum.VIEW_BUSINESS)
+        if not bk_biz_ids:
+            return
+
+        # 构建基础查询
+        query_filter = Q(name__icontains=query) | Q(bcs_cluster_id__icontains=query)
+        if len(bk_biz_ids) <= 20:
+            query_filter &= Q(bk_biz_id__in=bk_biz_ids)
+
+        # 使用迭代器分页查询
+        items = []
+        offset = 0
+        while True:
+            clusters = BCSCluster.objects.filter(query_filter)[offset : offset + limit]
+            if not clusters:
+                break
+
+            for cluster in clusters:
+                items.append(
+                    {
+                        "bk_biz_id": cluster.bk_biz_id,
+                        "bk_biz_name": cls._get_biz_name(cluster.bk_biz_id),
+                        "name": cluster.name,
+                        "cluster_name": cluster.name,
+                        "bcs_cluster_id": cluster.bcs_cluster_id,
+                    }
+                )
+
+                if len(items) >= limit:
+                    break
+
+            if len(items) >= limit:
+                break
+
+            offset += limit
+
+        if not items:
+            return
+
+        yield {"type": "bcs_cluster", "name": _("BCS集群"), "items": items}
+
+
 class Searcher:
     """
     Searcher class to search the query in the search items.
@@ -402,6 +459,7 @@ class Searcher:
         TraceSearchItem,
         ApmApplicationSearchItem,
         HostSearchItem,
+        BCSClusterSearchItem,
     ]
 
     def __init__(self, username: str):

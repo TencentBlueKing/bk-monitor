@@ -30,6 +30,7 @@ import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
@@ -217,8 +218,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /** 图表异步请求数据缓存 */
   asyncDataCache = new Map();
   resourceDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
-  /** 浏览器空闲时期填充图表异步请求数据执行函数ID，重新请求时及时终止结束回调 */
-  requestIdleCallbackId = null;
   /** 指标异步请求中止控制器 */
   abortControllerQueue: Set<AbortController> = new Set();
   /** 各指标汇聚类型map（默认为 sum） */
@@ -378,10 +377,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.initSortContainer(sort);
     this.getK8sList();
   }
-  beforeUnmount() {
-    cancelIdleCallback(this.requestIdleCallbackId);
-    this.requestIdleCallbackId = null;
-  }
 
   getKeyToTableResourceColumnsMap(): Record<K8sTableColumnResourceKey, K8sTableColumn<K8sTableColumnResourceKey>> {
     const { CLUSTER, POD, WORKLOAD_TYPE, WORKLOAD, NAMESPACE, CONTAINER } = K8sTableColumnKeysEnum;
@@ -398,7 +393,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       [POD]: {
         id: POD,
-        name: this.$t('Pod'),
+        name: this.$t('pod'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
@@ -579,7 +574,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           } else {
             indexForId[id] = [index];
           }
-
           // 获取需要请求指标数据的行id，
           if (!ids.has(id)) {
             ids.add(id);
@@ -600,11 +594,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         controller.abort();
       }
       this.abortControllerQueue.clear();
-    }
-    // 如请求资源列表时候，发现异步渲染未全部完成，则中断
-    if (this.requestIdleCallbackId) {
-      cancelIdleCallback(this.requestIdleCallbackId);
-      this.requestIdleCallbackId = null;
     }
   }
 
@@ -644,21 +633,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         { signal: controller.signal, needMessage: false }
       )
         .then(tableAsyncData => {
-          this.renderTableBatchByBatch(field as K8sTableColumnResourceKey, tableAsyncData, indexForId);
+          this.renderTableBatchByBatch(field, tableAsyncData, indexForId);
         })
         .catch(() => {
           // 接口请求失败，渲染空数据
-          const arr = Object.values(indexForId);
-          for (const indexs of arr) {
-            for (const index of indexs) {
-              this.tableData[index][field] = {
-                datapoints: [],
-                unit: '',
-                unitDecimal: null,
-                valueTitle: this.$tc('用量'),
-              };
-            }
-          }
+          this.renderTableBatchByBatch(field, [], indexForId);
         })
         .finally(() => {
           this.abortControllerQueue.delete(controller);
@@ -668,77 +647,70 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /**
    * @description 批量按需渲染表格数据（cpu、内存使用率）
-   * @param field column 列id
+   * @param columnKey column 列id
    * @param tableAsyncData 异步数据
    * @param tableDataMap tableDataMap 异步数据id 对应 tableData 索引 映射数组
    */
-  renderTableBatchByBatch(field: K8sTableColumnResourceKey, tableAsyncData, tableDataMap) {
-    let chartDataForResourceIdMap = this.asyncDataCache.get(field);
+  renderTableBatchByBatch(columnKey: K8sTableColumnChartKey, tableAsyncData, tableDataMap: Record<string, number[]>) {
+    let chartDataForResourceIdMap = this.asyncDataCache.get(columnKey);
     if (!chartDataForResourceIdMap) {
       chartDataForResourceIdMap = {};
-      this.asyncDataCache.set(field, chartDataForResourceIdMap);
+      this.asyncDataCache.set(columnKey, chartDataForResourceIdMap);
     }
-    const setData = (currentIndex = 0, enableIdle = true, step = 5) => {
-      const len = tableAsyncData.length;
-      if (!tableAsyncData?.length) return;
-      let endIndex = currentIndex + step;
-      let shouldBreak = false;
-      if (endIndex > len) {
-        endIndex = len;
-        shouldBreak = true;
-      }
-      for (let i = currentIndex; i < endIndex; i++) {
-        const data = tableAsyncData[i];
-        const resourceId = data.resource_name;
-        const chartData = data[field];
-        chartDataForResourceIdMap[resourceId] = chartData;
-        const rowIndexArr = tableDataMap[resourceId];
-        if (rowIndexArr?.length) {
-          for (const rowIndex of rowIndexArr) {
-            const rowData = this.tableData[rowIndex];
-            rowData[field] = chartData || [];
-          }
-        }
-      }
-      if (shouldBreak) {
-        return { shouldBreak, endIndex: -1 };
-      }
-      if (enableIdle) {
-        this.requestIdleCallbackId = requestIdleCallback(
-          deadline => {
-            /** 控制浏览器一帧内空闲时间足够的情况下最多应可渲染多少条数据
-             * （step > canRenderMaxCount 时以step为准，但是一帧内只会执行 1 次）
-             **/
-            let canRenderMaxCount = 4;
-            canRenderMaxCount -= step;
-            while (deadline.timeRemaining() > 0 && !shouldBreak && canRenderMaxCount > 0 && !deadline.didTimeout) {
-              const res = setData(endIndex, false, step);
-              endIndex = res.endIndex;
-              shouldBreak = res.shouldBreak;
-              canRenderMaxCount -= step;
-            }
-            if (!shouldBreak) {
-              requestAnimationFrame(() => {
-                setData(endIndex, true, step);
-              });
-            }
-          },
-          { timeout: 360 }
-        );
-      } else {
-        return { shouldBreak, endIndex };
-      }
-    };
 
-    // 递归渲染入口
-    this.requestIdleCallbackId = requestIdleCallback(
-      () => {
-        requestAnimationFrame(() => {
-          setData(0, true, 2);
-        });
-      },
-      { timeout: 360 }
-    );
+    for (const data of tableAsyncData) {
+      const resourceId = data.resource_name;
+      const chartData = data[columnKey];
+      // 动态转化单位(自动转化为合适的单位)
+      this.chartDataFormatterByUnit(chartData, columnKey);
+
+      chartDataForResourceIdMap[resourceId] = chartData;
+      const rowIndexArr = tableDataMap[resourceId];
+      if (rowIndexArr?.length) {
+        for (const rowIndex of rowIndexArr) {
+          const rowData = this.tableData[rowIndex];
+          rowData[columnKey] = chartData || [];
+        }
+        delete tableDataMap[resourceId];
+      }
+    }
+    // 查看是否有剩余后端未返回的数据，如果有则赋值空数组消除loading状态
+    const indexArr = Object.values(tableDataMap);
+    for (const rowIndexArr of indexArr) {
+      for (const rowIndex of rowIndexArr) {
+        this.tableData[rowIndex][columnKey] = {
+          datapoints: [],
+          unit: '',
+          unitDecimal: null,
+          valueTitle: this.$tc('用量'),
+        };
+      }
+    }
+  }
+
+  /**
+   * @description 自动格式化指标数据
+   * @param chartData
+   * @param columnKey
+   */
+  chartDataFormatterByUnit(chartData, columnKey: K8sTableColumnChartKey) {
+    if (this.metricsForConvergeMap?.[columnKey] === K8sConvergeTypeEnum.COUNT) {
+      chartData.unit = '';
+      return;
+    }
+    // 动态转化单位
+    const chartVal = chartData?.datapoints?.[0]?.[0];
+    if (!chartData?.datapoints) {
+      chartData.datapoints = [];
+    } else if (![undefined, null].includes(chartVal)) {
+      const unitFormatter = !['', 'none', undefined, null].includes(chartData.unit)
+        ? getValueFormat(chartData.unit || '')
+        : (v: any) => ({ text: v });
+      const set = unitFormatter(chartVal, chartData.unitDecimal || 4);
+      chartData.datapoints[0][0] = set.text;
+      // @ts-ignore
+      chartData.unit = set.suffix;
+    }
   }
 
   /**
@@ -766,7 +738,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /**
    * @description 表格排序
-   * @param {TableSort} { prop, order }
+   * @param {TableSort} sortItem { prop, order }
    */
   handleSortChange(sortItem: TableSort) {
     if (!this.sortContainer.initDone) {
@@ -813,10 +785,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /**
    * @description 表格指标列 汇聚类型改变后回调
-   * @param {K8sTableColumnChartKey} field 需要改变的指标列
+   * @param {K8sTableColumnChartKey} columnKey 需要改变的指标列
    * @param {K8sConvergeTypeEnum} val 汇聚类型改变后的值
    */
   handleConvergeChange(columnKey: K8sTableColumnChartKey, val: K8sConvergeTypeEnum) {
+    if (this.metricsForConvergeMap?.[columnKey] === val) {
+      return;
+    }
     this.$set(this.metricsForConvergeMap, columnKey, val);
     this.asyncDataCache.set(columnKey, {});
     if (this.sortContainer.prop === columnKey) {
@@ -955,12 +930,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           />
         );
       }
-      if (chartData?.datapoints?.[0]?.[0] == null) {
+      if ([undefined, null].includes(chartData?.datapoints?.[0]?.[0])) {
         return '--';
       }
+      const { datapoints, unit = '', valueTitle = this.$t('用量') } = chartData;
+      const value = `${datapoints?.[0]?.[0]} ${unit}`;
       return (
-        <div class='k8s-metric-column'>
-          <span class='value'>{chartData?.datapoints?.[0]?.[0]}</span>
+        <div
+          class='k8s-metric-column'
+          v-bk-overflow-tips={{ interactive: false, content: `${valueTitle}：${value}` }}
+        >
+          <span class='value'>{value}</span>
         </div>
       );
     };

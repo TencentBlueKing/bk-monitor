@@ -489,7 +489,7 @@ class SearchExportSerializer(serializers.Serializer):
     export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
     file_type = serializers.ChoiceField(
-        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.TXT.value
+        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
     )
 
 
@@ -979,3 +979,23 @@ class UserCustomConfigSerializer(serializers.Serializer):
     用户自定义配置
     """
     custom_config = serializers.JSONField(label=_("自定义配置"), required=True)
+
+
+class UserSearchSerializer(serializers.Serializer):
+    """
+    用户最近查询的索引集
+    """
+    username = serializers.CharField(label=_("用户名"), required=True)
+    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+    limit = serializers.IntegerField(label=_("限制条数"), required=True)
+
+
+class UserFavoriteSerializer(serializers.Serializer):
+    """
+    用户收藏的索引集
+    """
+    username = serializers.CharField(label=_("用户名"), required=True)
+    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
+    limit = serializers.IntegerField(label=_("限制条数"), required=False)

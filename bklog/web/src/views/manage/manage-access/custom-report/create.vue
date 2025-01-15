@@ -365,8 +365,12 @@
           </span>
         </bk-form-item>
       </div>
+      <FieldSetting
+        v-if="isEdit"
+        ref="fieldSettingRef"
+        v-model="fieldSettingData"
+      ></FieldSetting>
     </bk-form>
-
     <div
       :style="`width: ${introWidth}px`"
       :class="['intro-container', isDraging && 'draging-move']"
@@ -413,12 +417,14 @@
   import { mapGetters } from 'vuex';
 
   import IntroPanel from './components/intro-panel';
+  import FieldSetting from './components/field-setting';
 
   export default {
     name: 'CustomReportCreate',
     components: {
       IntroPanel,
       clusterTable,
+      FieldSetting,
     },
     mixins: [storageMixin, dragMixin],
     data() {
@@ -533,6 +539,11 @@
         exclusiveList: [], // 独享集群
         editStorageClusterID: null,
         isTextValid: true,
+        fieldSettingData: {
+          indexSetId: 0,
+          targetFields: [],
+          sortFields: [],
+        },
       };
     },
     computed: {
@@ -582,8 +593,8 @@
     mounted() {
       this.containerLoading = true;
       Promise.all([this.getLinkData(), this.getStorage()])
-        .then(() => {
-          this.initFormData();
+        .then(async () => {
+          await this.initFormData();
         })
         .finally(() => {
           this.containerLoading = false;
@@ -619,6 +630,8 @@
                   allocation_min_days: Number(this.formData.allocation_min_days),
                   es_shards: Number(this.formData.es_shards),
                   bk_biz_id: Number(this.bkBizId),
+                  sort_fields: this.fieldSettingData.sortFields || [],
+                  target_fields: this.fieldSettingData.targetFields || [],
                 },
               })
               .then(res => {
@@ -657,6 +670,7 @@
             },
           });
           const {
+            index_set_id,
             collector_config_name,
             collector_config_name_en,
             custom_type,
@@ -668,8 +682,10 @@
             category_id,
             description,
             bk_data_id,
+            target_fields,
+            sort_fields,
             storage_shards_nums: storageShardsNums,
-          } = res.data;
+          } = res?.data;
           Object.assign(this.formData, {
             collector_config_name,
             collector_config_name_en,
@@ -687,6 +703,11 @@
           // 缓存编辑时的集群ID
 
           this.editStorageClusterID = storage_cluster_id;
+          this.fieldSettingData = {
+            indexSetId: index_set_id || 0,
+            targetFields: target_fields || [],
+            sortFields: sort_fields || [],
+          };
         } else {
           const { retention } = this.formData;
           Object.assign(this.formData, {

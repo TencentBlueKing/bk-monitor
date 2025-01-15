@@ -60,8 +60,6 @@ export default class K8sConvergeSelect extends tsc<K8sConvergeSelectProps, K8sCo
         return 'icon-max';
       case K8sConvergeTypeEnum.MIN:
         return 'icon-min';
-      case K8sConvergeTypeEnum.LAST:
-        return 'icon-last';
       default:
         return 'icon-sum';
     }
@@ -102,7 +100,7 @@ export default class K8sConvergeSelect extends tsc<K8sConvergeSelectProps, K8sCo
       <div class='k8s-converge-select'>
         <div v-bk-tooltips={{ content: this.$t('汇聚方法'), disabled: !this.enableTip }}>
           <div
-            class='popover-trigger'
+            class={{ 'popover-trigger': true, active: !!this.popoverInstance }}
             onClick={e => this.handleConvergeListShow(e)}
           >
             {this.$slots?.trigger || <i class={['icon-monitor', this.IconNameByConverge]} />}

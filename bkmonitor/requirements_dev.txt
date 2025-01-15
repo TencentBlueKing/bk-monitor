@@ -9,4 +9,3 @@ GitPython==3.1.2
 isort==5.11.5
 pyproject-flake8==5.0.4.post1
 googletrans==4.0.0rc1
-importlib-metadata==2.1.3

@@ -61,7 +61,7 @@ import './monitor-k8s-new.scss';
 const HIDE_METRICS_KEY = 'monitor_hide_metrics';
 const tabList = [
   {
-    label: window.i18n.t('K8s对象列表'),
+    label: window.i18n.t('K8S对象列表'),
     id: K8sNewTabEnum.LIST,
     icon: 'icon-mc-list',
   },
@@ -71,7 +71,7 @@ const tabList = [
     icon: 'icon-mc-two-column',
   },
   {
-    label: window.i18n.t('K8s集群数据详情'),
+    label: window.i18n.t('K8S集群数据详情'),
     id: K8sNewTabEnum.DETAIL,
     icon: 'icon-mingxi',
   },
@@ -315,7 +315,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.clusterLoading = true;
     this.clusterList = await listBcsCluster().catch(() => []);
     this.clusterLoading = false;
-    if (this.clusterList.length) {
+    if (this.clusterList.length && !this.cluster) {
       this.cluster = this.clusterList[0].id;
     }
     this.setRouteParams();
@@ -465,6 +465,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       }
       return pre;
     }, {});
+    this.showCancelDrill = false;
   }
 
   getRouteParams() {
@@ -518,6 +519,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         query,
       });
     }
+  }
+  handleGotoOld() {
+    this.$router.push({
+      name: 'k8s',
+      query: {},
+    });
   }
 
   tabContentRender() {
@@ -581,6 +588,22 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 <span class='text'>{this.$t('取消下钻')}</span>
               </div>
             )}
+            <div
+              style={{
+                'margin-left': this.showCancelDrill ? '0px' : 'auto',
+              }}
+              class='goto-old'
+            >
+              <i class='icon-monitor icon-remind' />
+              {this.$t('新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看')}
+              <bk-button
+                style='margin-left: 6px'
+                onClick={this.handleGotoOld}
+              >
+                <i class='icon-monitor icon-mc-change-version change-version' />
+                {this.$t('回到旧版')}
+              </bk-button>
+            </div>
           </K8sNavBar>
         </div>
         <div class='monitor-k8s-new-header ____monitor-k8s-new-header'>
@@ -591,6 +614,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               class='cluster-select'
               clearable={false}
               value={this.cluster}
+              searchable
               onChange={this.handleClusterChange}
             >
               {this.clusterList.map(cluster => (
