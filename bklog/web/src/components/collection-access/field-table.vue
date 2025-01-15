@@ -42,7 +42,7 @@
           </label> -->
           <div class="bk-form-content">
             <bk-checkbox
-              v-if="!isPreviewMode && selectEtlConfig === 'bk_log_json' && retainExtraJsonIsOpen"
+              v-if="!isPreviewMode && selectEtlConfig === 'bk_log_json' && retainExtraJsonIsOpen && !isTempField"
               v-model="builtFieldVisible"
               :checked="false"
               :false-value="false"

@@ -1894,6 +1894,7 @@
           etl_config,
           etl_params: etlParams,
           fields,
+          index_set_id
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
         const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
@@ -1952,6 +1953,7 @@
         if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
           this.formatResult = true;
         }
+        this.requestFields(index_set_id)
       },
       clickFile() {
         this.defaultSettings.isShow = true;
