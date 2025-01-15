@@ -2321,13 +2321,14 @@ class SearchHandler(object):
         if sort_fields:
             for index, item in enumerate(log_list):
                 for field in sort_fields + target_fields:
+                    tmp_item = copy.deepcopy(item)
                     sub_field = field
                     while "." in sub_field:
                         prefix, sub_field = sub_field.split(".", 1)
-                        item = item.get(prefix, {})
-                        if sub_field in item:
+                        tmp_item = tmp_item.get(prefix, {})
+                        if sub_field in tmp_item:
                             break
-                    item_field = item.get(sub_field)
+                    item_field = tmp_item.get(sub_field)
                     if str(item_field) != str(self.search_dict.get(field)):
                         break
                 else:
