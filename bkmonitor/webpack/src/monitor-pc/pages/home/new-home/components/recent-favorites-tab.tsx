@@ -140,7 +140,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
           accumulator.push(category);
         }
         return accumulator;
-      }, selectList);
+      }, selectList || []);
       await this.updateFunctionShortcut();
     } catch (error) {
       console.log('error', error);

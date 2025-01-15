@@ -41,7 +41,7 @@ import './recent-alarm-tab.scss';
 interface IRecentAlarmTabProps {
   tabs: IRecentAlarmTab[];
   activeTabId: number;
-  loading: boolean;
+  showTabLoading: boolean;
 }
 @Component({
   name: 'RecentAlarmTab',
@@ -52,7 +52,7 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
   /** 当前业务ID */
   @Prop({ default: 0, type: Number }) activeTabId: IRecentAlarmTabProps['activeTabId'];
   /** loading */
-  @Prop({ default: false, type: Boolean }) loading: IRecentAlarmTabProps['loading'];
+  @Prop({ default: false, type: Boolean }) showTabLoading: IRecentAlarmTabProps['showTabLoading'];
 
   /** 当前拖拽id */
   dragId = '';
@@ -160,7 +160,7 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
               <div
                 key={id}
                 class='tab'
-                v-bkloading={{ isLoading: this.loading, zIndex: 10, size: 'mini' }}
+                v-bkloading={{ isLoading: this.showTabLoading, zIndex: 10, size: 'mini' }}
                 draggable={true}
                 onDragleave={this.handleDragleave}
                 onDragover={e => this.handleDragover(index, e)}
