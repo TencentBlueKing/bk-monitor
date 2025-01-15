@@ -141,7 +141,7 @@ export default () => {
   const hanldeTextBoxMousemove = evt => {
     const pointer = konvaInstance.stage.getPointerPosition();
     const word = wordList.find(item => {
-      return item.le;
+      return item.left >= pointer.x && item.top <= pointer.y;
     });
     // const
     // const charIndex = textBox.getSelectionStartFromPointer(pointer);
