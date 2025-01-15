@@ -44,6 +44,7 @@ BkMonitorQuerySchema = Schema(
             DataSourceLabel.BK_LOG_SEARCH,
             DataSourceLabel.BK_APM,
             DataSourceLabel.PROMETHEUS,
+            DataSourceLabel.DASHBOARD,
         ),
         "data_type": Or(
             DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG, DataTypeLabel.EVENT, DataTypeLabel.ALERT, DataTypeLabel.TRACE
@@ -52,7 +53,7 @@ BkMonitorQuerySchema = Schema(
         Optional("functions", default=lambda: []): [str],
         "query_configs": [
             {
-                "metric": str,
+                Optional("metric", default=""): str,
                 Optional("query_string", default="*"): str,
                 Optional("method", default=""): str,
                 Optional("interval", default=60): int,
@@ -62,6 +63,10 @@ BkMonitorQuerySchema = Schema(
                 Optional("alias", default="a"): str,
                 Optional("time_field"): str,
                 Optional("unit", default=""): str,
+                Optional("dashboard_uid", default=""): str,
+                Optional("panel_id", default=""): int,
+                Optional("ref_id", default=""): str,
+                Optional("variables", default=lambda: {}): dict,
             }
         ],
         Optional("target"): {"type": Or("host", "topo", "set_template", "service_template"), "nodes": [str]},
@@ -178,7 +183,7 @@ StrategySchema = Schema(
                 },
             },
         },
-        Optional("actions", default=[]): [
+        Optional("actions", default=lambda: []): [
             {
                 "signal": [str],
                 "action": str,
@@ -269,7 +274,7 @@ UserGroupSchema = Schema(
                 "effective_time": Regex(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"),
             }
         ],
-        Optional("duty_rules", default=[]): [str],
+        Optional("duty_rules", default=lambda: []): [str],
     },
     ignore_extra_keys=True,
 )
@@ -306,7 +311,7 @@ AssignGroupRuleSchema = Schema(
                     {
                         "field": str,
                         "value": [str],
-                        "method": Or("eq", "neq", "include", "exclude", "reg", "nreg"),
+                        "method": Or("eq", "neq", "include", "exclude", "reg", "nreg", "issuperset"),
                         Optional("condition", default="and"): Or("and"),
                     }
                 ],
@@ -316,7 +321,7 @@ AssignGroupRuleSchema = Schema(
                     "user_groups": [str],
                     "interval": int,
                 },
-                Optional("actions", default=[]): [
+                Optional("actions", default=lambda: []): [
                     {
                         Optional("enabled", default=False): bool,
                         "type": str,
@@ -324,7 +329,7 @@ AssignGroupRuleSchema = Schema(
                     }
                 ],
                 Optional("alert_severity", default=0): int,
-                Optional("additional_tags", default=[]): [{"key": str, "value": str}],
+                Optional("additional_tags", default=lambda: []): [{"key": str, "value": str}],
             }
         ],
     },

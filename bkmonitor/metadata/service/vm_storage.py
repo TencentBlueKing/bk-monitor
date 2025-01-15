@@ -150,8 +150,11 @@ def query_vm_datalink(bk_data_id: int) -> Dict:
 def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
     """查询 bcs 集群接入 vm 的结果表"""
     # 获取集群信息，如果已经废弃，则忽略
-    cluster_infos = models.BCSClusterInfo.objects.filter(
-        cluster_id=bcs_cluster_id, status=models.BCSClusterInfo.CLUSTER_STATUS_RUNNING
+    cluster_infos = models.BCSClusterInfo.objects.filter(cluster_id=bcs_cluster_id).exclude(
+        status__in=[
+            models.BCSClusterInfo.CLUSTER_STATUS_DELETED,
+            models.BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
+        ]
     )
     # 集群不可用时，返回异常
     if not cluster_infos.exists():
@@ -171,9 +174,9 @@ def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
     }
     # 通过结果表获取 vm rt
     tid_vm_rt = {
-        obj["result_table_id"]: obj["vm_result_table_id"]
+        obj["result_table_id"]: {"vm_rt": obj["vm_result_table_id"], "bk_base_data_id": obj["bk_base_data_id"]}
         for obj in models.AccessVMRecord.objects.filter(result_table_id__in=data_id_table_id.values()).values(
-            "result_table_id", "vm_result_table_id"
+            "result_table_id", "vm_result_table_id", "bk_base_data_id"
         )
     }
     # 组装数据，返回集群对应的数据
@@ -182,14 +185,21 @@ def query_bcs_cluster_vm_rts(bcs_cluster_id: str) -> Dict:
         tid = data_id_table_id.get(data_id)
         if not tid:
             continue
-        vm_rt = tid_vm_rt.get(tid)
-        if not vm_rt:
+        vm_rt_data_id = tid_vm_rt.get(tid)
+        if not vm_rt_data_id:
             continue
-        # 固定类型，标识自定义还是内置
+        # 固定类型，标识自定义还是内置，并返回对应的数据源 ID
+        vm_rt, bk_base_data_id = vm_rt_data_id["vm_rt"], vm_rt_data_id["bk_base_data_id"]
+        rt_data_ids = {
+            "bk_monitor_data_id": data_id,
+            "bk_base_data_id": bk_base_data_id,
+        }
         if metric_type == "k8s_metric_data_id":
             data["k8s_metric_rt"] = vm_rt
+            data["k8s_metric_data_id"] = rt_data_ids
         else:
             data["custom_metric_rt"] = vm_rt
+            data["custom_metric_data_id"] = rt_data_ids
     return data
 
 

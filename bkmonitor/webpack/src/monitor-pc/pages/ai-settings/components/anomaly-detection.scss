@@ -1,11 +1,11 @@
 .anomaly-detection {
+  position: relative;
+  width: 100%;
   margin-bottom: 24px;
   background: #fff;
-  width: 100%;
+  border: 1px solid transparent;
   border-radius: 2px;
   box-shadow: 0px 1px 2px 0px rgba(0,0,0,.1);
-  position: relative;
-  border: 1px solid transparent;
 
   &-header {
     padding: 16px 30px;
@@ -17,15 +17,15 @@
     }
 
     .collapse-expand {
+      position: relative;
+      top: -1px;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 24px;
       width: 24px;
-      position: relative;
-      top: -1px;
-      font-size: 10px;
+      height: 24px;
       margin-left: -24px;
+      font-size: 10px;
       color: #63656e;
 
       i {
@@ -38,9 +38,9 @@
     }
 
     .title {
-      color: #313238;
-      font-weight: 500;
       font-size: 14px;
+      font-weight: 700;
+      color: #313238;
     }
 
     .subtitle {
@@ -48,22 +48,22 @@
     }
 
     .header-tool {
-      margin-left: auto;
       display: flex;
       align-items: center;
+      margin-left: auto;
     }
   }
 
   &-content {
-    padding: 0 30px 30px 30px;
     position: relative;
+    padding: 0 40px 8px 40px;
 
     .content-readonly {
       position: absolute;
-      left: 0;
-      right: 0;
       top: 0;
+      right: 0;
       bottom: 0;
+      left: 0;
       z-index: 1;
       background: transparent;
       opacity: 0;

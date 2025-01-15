@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Dict
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.dataflow.constant import VisualType
@@ -219,12 +219,23 @@ class MultivariateAnomalyDetectionSerializer(serializers.Serializer):
     metrics = MetricListSerializer(allow_empty=True, label="指标数据")
 
 
+class HostAnomalyDetectionSerializer(MultivariateAnomalyDetectionSerializer):
+    """
+    智能AI主机异常检测算法
+    目前只有host场景，无需传入指标值，由数据平台算法的智能指标组成
+    """
+
+    levels = serializers.ListField(required=True, label="告警级别列表")
+    sensitivity = serializers.IntegerField(required=True, label="告警敏感度")
+
+
 class QueryConfigSerializer(serializers.Serializer):
     """
     查询配置序列化器基类
     """
 
     functions = serializers.ListField(label="计算函数", default=[])
+    intelligent_detect = serializers.DictField(label="智能监控配置", required=False)
 
     _config_field_names = None
 
@@ -251,7 +262,6 @@ class TimeSeriesQueryConfigSerializer(QueryConfigSerializer):
 
 class BkMonitorTimeSeriesSerializer(TimeSeriesQueryConfigSerializer):
     origin_config = serializers.DictField(label="原始配置", required=False)
-    intelligent_detect = serializers.DictField(required=False)
     values = serializers.ListField(required=False)
 
 
@@ -306,7 +316,8 @@ class CustomEventSerializer(QueryConfigSerializer):
     agg_interval = serializers.IntegerField(label="聚合周期", min_value=0)
     agg_dimension = serializers.ListField(allow_empty=True)
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
-    custom_event_name = serializers.CharField(label="事件名")
+    custom_event_name = serializers.CharField(label="事件名", required=False, allow_blank=True)
+    query_string = serializers.CharField(label="查询语句", required=False)
 
 
 class CustomTimeSeriesSerializer(BkMonitorTimeSeriesSerializer):
@@ -321,7 +332,6 @@ class BkDataTimeSeriesSerializer(QueryConfigSerializer):
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
     metric_field = serializers.CharField(label="指标")
     unit = serializers.CharField(label="单位", allow_blank=True, default="")
-    intelligent_detect = serializers.DictField(required=False)
     values = serializers.ListField(required=False)
     time_field = serializers.CharField(label="时间字段", default="dtEventTimeStamp", allow_blank=True, allow_null=True)
     extend_fields = serializers.DictField(label="拓展字段", required=False)
@@ -372,6 +382,14 @@ class BkApmTraceSerializer(QueryConfigSerializer):
 class PrometheusTimeSeriesSerializer(QueryConfigSerializer):
     promql = serializers.CharField(label="查询表达式")
     agg_interval = serializers.IntegerField(label="聚合周期", min_value=0)
+
+
+class GrafanaTimeSeriesSerializer(QueryConfigSerializer):
+    dashboard_uid = serializers.CharField(label="dashboard uid")
+    panel_id = serializers.IntegerField(label="panel id")
+    ref_id = serializers.CharField(label="ref id")
+    variables = serializers.DictField(label="变量", default={})
+    snapshot_config = serializers.JSONField(label="快照配置", default={})
 
 
 class NoticeGroupSerializer(serializers.Serializer):

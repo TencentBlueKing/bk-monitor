@@ -23,11 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
+import type { VNode } from 'vue';
 
 export type CommomParams = Record<string, any>;
 export type IObjectType = 'HOST' | 'SERVICE';
-export type INodeType = 'TOPO' | 'INSTANCE' | 'SERVICE_TEMPLATE' | 'SET_TEMPLATE' | 'SERVICE_INSTANCE';
+export type INodeType =
+  | 'DYNAMIC_GROUP'
+  | 'INSTANCE'
+  | 'SERVICE_INSTANCE'
+  | 'SERVICE_TEMPLATE'
+  | 'SET_TEMPLATE'
+  | 'TOPO';
 export type CoutIntanceName = 'host' | 'service_instance';
 export interface IScopeItme {
   scope_type: string;
@@ -43,7 +49,7 @@ export interface IMeta {
 export interface INode {
   id?: number;
   instance_id: number;
-  object_id: 'module' | 'set' | 'biz';
+  object_id: 'biz' | 'module' | 'set';
   service_instance_id?: string;
   meta: IMeta;
 }
@@ -57,10 +63,11 @@ export interface IHost {
 export interface ITarget {
   // node_type = 'INSTANCE' => bk_host_id  ||  'TOPO' => bk_obj_id && bk_inst_id
   bk_biz_id: number;
-  bk_obj_id?: 'set' | 'module';
+  bk_obj_id?: 'module' | 'set';
   bk_inst_id?: number;
   bk_host_id?: number;
   biz_inst_id?: string;
+  dynamic_group_id?: string;
   path?: string;
   children?: ITarget[];
   meta?: IMeta;
@@ -231,4 +238,4 @@ export interface IIpV6Value {
   set_template_list?: any[];
   service_instance_list?: any[];
 }
-export type TargetObjectType = 'SERVICE' | 'HOST';
+export type TargetObjectType = 'HOST' | 'SERVICE';

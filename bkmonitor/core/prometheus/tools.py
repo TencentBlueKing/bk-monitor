@@ -21,12 +21,29 @@ from django.conf import settings
 from prometheus_client.exposition import push_to_gateway
 from prometheus_client.metrics import MetricWrapperBase
 
+from alarm_backends.core.cluster import get_cluster
+
 logger = logging.getLogger(__name__)
 
-udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+def get_udp_socket(address, port) -> socket.socket:
+    """兼容客户场景可能是 ipv6 的地址"""
+    try:
+        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        udp_socket.connect((address, port))
+        udp_socket.close()
+        return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    except socket.error:
+        return socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
 
 
 def get_metric_agg_gateway_url(udp: bool = False):
+    if settings.IS_CONTAINER_MODE and get_cluster().name != "default":
+        url = f"bk-monitor-{get_cluster().name}-prom-agg-gateway"
+        if udp:
+            url = f"{url}:81"
+        return url
+
     if udp:
         return settings.METRIC_AGG_GATEWAY_UDP_URL
     return settings.METRIC_AGG_GATEWAY_URL
@@ -49,17 +66,18 @@ def udp_handler(url, method, timeout, headers, data):
             port = 10206
         else:
             port = int(split_result[1])
+        udp_socket = get_udp_socket(address, port)
 
         for sliced_data in slice_metrics_udp_data(data, find_udp_data_sliced_indexes(data)):
             try:
                 # 发送消息
                 udp_socket.sendto(sliced_data, (address, port))
-                logger.debug("[push_to_gateway] send metrics success, len: %s", len(data))
             except Exception as e:
                 logger.exception(
-                    "[push_to_gateway] send metrics to (%s:%s) error: %s, len: %s", address, port, e, len(data)
+                    "[push_to_gateway] send metrics to (%s:%s) error: %s, len: %s", address, port, e, len(sliced_data)
                 )
                 raise
+        logger.info("[push_to_gateway] send metrics success, len: %s", len(data))
 
     return handle
 

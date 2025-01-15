@@ -35,21 +35,23 @@
         </div>
         <van-datetime-picker
           ref="datetimePicker"
+          :max-date="maxDate"
+          :min-date="minDate"
           :value="value"
           type="datetime"
-          :min-date="minDate"
-          :max-date="maxDate"
         />
         <div class="contral-btn">
           <span
             class="cancel"
             @click="handleCancel"
-          >{{ $t('取消') }}</span>
+            >{{ $t('取消') }}</span
+          >
           <span class="line" />
           <span
             class="confirm"
             @click="handleConfirm"
-          >{{ $t('确定') }}</span>
+            >{{ $t('确定') }}</span
+          >
         </div>
       </div>
     </div>
@@ -57,6 +59,7 @@
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
+
 import { DatetimePicker } from 'vant';
 
 export interface ITimeObj {
@@ -68,8 +71,8 @@ export interface ITimeObj {
 @Component({
   name: 'bk-datetime-picker',
   components: {
-    [DatetimePicker.name]: DatetimePicker
-  }
+    [DatetimePicker.name]: DatetimePicker,
+  },
 })
 export default class TendencyChart extends Vue {
   @Ref() readonly datetimePicker!: DatetimePicker;
@@ -99,7 +102,7 @@ export default class TendencyChart extends Vue {
     const timeObj = {
       timestamp,
       datetime,
-      dateObj: new Date(...timeTuple)
+      dateObj: new Date(...timeTuple),
     };
     this.handleCancel();
     return timeObj;
@@ -124,7 +127,7 @@ export default class TendencyChart extends Vue {
   left: 0;
   z-index: 9999;
   padding: 1rem;
-  background-color: rgba(0, 0, 0, .1);
+  background-color: rgba(0, 0, 0, 0.1);
 
   :deep(.van-datetime-picker) {
     .van-picker__toolbar {

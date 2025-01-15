@@ -1,62 +1,65 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-/* eslint-disable max-len */
-/* eslint-disable id-blacklist, no-restricted-imports, @typescript-eslint/ban-types */
+/* eslint-disable @typescript-eslint/ban-types */
 import dayjs from 'dayjs';
 export interface DateTimeBuiltinFormat {
   __momentBuiltinFormatBrand: any;
 }
-export type DateTimeInput = Date | string | number | Array<string | number> | DateTime; // null | undefined
-export type FormatInput = string | DateTimeBuiltinFormat | undefined;
-export type DurationInput = string | number | DateTimeDuration;
+export type DateTimeInput = Array<number | string> | Date | DateTime | number | string; // null | undefined
+export type FormatInput = DateTimeBuiltinFormat | string | undefined;
+export type DurationInput = DateTimeDuration | number | string;
 export type DurationUnit =
-  | 'year'
-  | 'years'
-  | 'y'
-  | 'month'
-  | 'months'
   | 'M'
-  | 'week'
-  | 'weeks'
-  | 'w'
+  | 'Q'
+  | 'd'
   | 'day'
   | 'days'
-  | 'd'
+  | 'h'
   | 'hour'
   | 'hours'
-  | 'h'
-  | 'minute'
-  | 'minutes'
   | 'm'
-  | 'second'
-  | 'seconds'
-  | 's'
   | 'millisecond'
   | 'milliseconds'
+  | 'minute'
+  | 'minutes'
+  | 'month'
+  | 'months'
   | 'ms'
   | 'quarter'
   | 'quarters'
-  | 'Q';
+  | 's'
+  | 'second'
+  | 'seconds'
+  | 'w'
+  | 'week'
+  | 'weeks'
+  | 'y'
+  | 'year'
+  | 'years';
 
 export interface DateTimeLocale {
   firstDayOfWeek: () => number;
@@ -95,7 +98,7 @@ export interface DateTime extends Object {
   minute?: () => number;
 }
 
-export const setLocale = (language: string) => {
+export const setLocale = (_language: string) => {
   dayjs.locale();
 };
 

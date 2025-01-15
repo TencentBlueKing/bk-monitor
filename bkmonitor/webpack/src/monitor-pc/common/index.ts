@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig, RouteConfigMultipleViews, RouteConfigSingleView } from 'vue-router/types/router';
-
 import { beforeEnter } from '../router/utils';
 
+import type { RouteConfig, RouteConfigMultipleViews, RouteConfigSingleView } from 'vue-router/types/router';
+
 export const applyGuidePage = (
-  routes: RouteConfigSingleView[] | RouteConfigMultipleViews[],
+  routes: RouteConfigMultipleViews[] | RouteConfigSingleView[],
   excludes: string[] = []
 ): RouteConfig[] =>
   routes.map(route => {
@@ -37,22 +37,21 @@ export const applyGuidePage = (
     if (noSpaceCheck) return route;
     return {
       ...route,
-      beforeEnter: (to: RouteConfig, from: RouteConfig, next: Function) => beforeEnter(navId, next),
+      beforeEnter: (to: RouteConfig, from: RouteConfig, next: () => void) => beforeEnter(navId, next),
       meta: {
         ...route.meta,
-        noChangeLoading: true
-      }
+        noChangeLoading: true,
+      },
     };
   });
-
-export const applyNoAuthPage = (routes: RouteConfigSingleView[] | RouteConfigMultipleViews[], noAuthPage: any) =>
+export const applyNoAuthPage = (routes: RouteConfigMultipleViews[] | RouteConfigSingleView[], noAuthPage: any) =>
   routes.map((route: RouteConfig) => {
     if (route.path.length < 2) return route;
     return {
       ...route,
       meta: {
         ...(route.meta || {}),
-        noAuthComponent: noAuthPage
-      }
+        noAuthComponent: noAuthPage,
+      },
     };
   });

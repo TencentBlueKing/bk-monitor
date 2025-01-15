@@ -8,16 +8,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-"""
-结果表信息缓存
-"""
-
-
 import json
 
 from alarm_backends.core.cache.base import CacheManager
 from constants.data_source import DataSourceLabel
 from core.drf_resource import api
+
+MAX_FIELD_SUPPORTED = 200
+
+
+"""
+结果表信息缓存
+"""
 
 
 class ResultTableCacheManager(CacheManager):
@@ -48,7 +50,7 @@ class ResultTableCacheManager(CacheManager):
                         "field_alias": field["description"],
                         "is_dimension": field["tag"] in ["dimension", "group"],
                     }
-                    for field in result_table["field_list"]
+                    for field in result_table["field_list"][:MAX_FIELD_SUPPORTED]
                 ],
             }
 
@@ -83,7 +85,7 @@ class ResultTableCacheManager(CacheManager):
                                 "field_alias": field["field_alias"],
                                 "is_dimension": field["is_dimension"],
                             }
-                            for field in result_table["fields"]
+                            for field in result_table["fields"][:MAX_FIELD_SUPPORTED]
                         ],
                     }
 
@@ -131,7 +133,7 @@ class ResultTableCacheManager(CacheManager):
                                 "field_alias": field["description"],
                                 "is_dimension": field["tag"] == "dimension",
                             }
-                            for field in fields["fields"]
+                            for field in fields["fields"][:MAX_FIELD_SUPPORTED]
                         ],
                     }
 

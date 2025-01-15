@@ -86,14 +86,14 @@
       @drop="handleDrop({}, group, $event)"
     >
       <i class="icon-monitor icon-mind-fill" />
-      {{ $t('暂无任何视图') }}
+      {{ $t('将已有视图拖拽至此') }}
     </div>
   </div>
 </template>
 <script lang="ts">
 import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
-import { IGroupItem, IHostGroup } from '../performance-type';
+import type { IGroupItem, IHostGroup } from '../performance-type';
 
 @Component({ name: 'SortDragList' })
 export default class SortDragList extends Vue {
@@ -105,7 +105,7 @@ export default class SortDragList extends Vue {
 
   checked = {
     id: '',
-    panels: []
+    panels: [],
   };
 
   @Emit('check-change')

@@ -279,12 +279,15 @@ class FavoriteViewSet(APIViewSet):
             addition=data["addition"],
             keyword=data["keyword"],
             visible_type=data["visible_type"],
+            search_mode=data["search_mode"],
             search_fields=data["search_fields"],
             is_enable_display_fields=data["is_enable_display_fields"],
             display_fields=data["display_fields"],
+            chart_params=data["chart_params"],
             group_id=data["group_id"],
             index_set_ids=data["index_set_ids"],
             index_set_type=data["index_set_type"],
+            favorite_type=data["favorite_type"],
         )
         return Response(favorite_search)
 
@@ -361,6 +364,7 @@ class FavoriteViewSet(APIViewSet):
             addition=data["addition"],
             keyword=data["keyword"],
             visible_type=data["visible_type"],
+            search_mode=data["search_mode"],
             search_fields=data["search_fields"],
             is_enable_display_fields=data["is_enable_display_fields"],
             display_fields=data["display_fields"],

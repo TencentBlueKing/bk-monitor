@@ -25,8 +25,10 @@
  */
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { IEvent, IntervalType, IOption, IProps, unitType } from 'monitor-pc/components/cycle-input/typings';
+
 import { defaultCycleOptionMin, defaultCycleOptionSec } from 'monitor-pc/components/cycle-input/utils';
+
+import type { IEvent, IOption, IProps, IntervalType, unitType } from 'monitor-pc/components/cycle-input/typings';
 
 import 'monitor-pc/components/cycle-input/cycle-input.scss';
 
@@ -39,8 +41,8 @@ export default class CycleInput extends tsc<IProps, IEvent> {
     type: Array,
     default: () => [
       { id: 's', name: i18n.t('秒'), children: defaultCycleOptionSec },
-      { id: 'm', name: i18n.t('分'), children: defaultCycleOptionMin }
-    ]
+      { id: 'm', name: i18n.t('分'), children: defaultCycleOptionMin },
+    ],
   })
   options: IOption[];
   @Prop({ default: 10, type: Number }) minSec: number; // 最小值 单位：秒
@@ -149,29 +151,29 @@ export default class CycleInput extends tsc<IProps, IEvent> {
         <bk-popover
           ref='cyclePopover'
           class='input-popover'
-          trigger='click'
-          placement='bottom-start'
-          theme='light cycle-list-wrapper'
           animation='slide-toggle'
           arrow={false}
-          offset={-1}
           distance={12}
+          offset={-1}
+          placement='bottom-start'
+          theme='light cycle-list-wrapper'
           tippyOptions={{ appendTo: this.appendTo === 'parent' ? 'parent' : document.body }}
+          trigger='click'
         >
           <slot name='trigger'>
             <bk-input
               class='input-text'
-              vModel_number={this.localValue}
-              type={this.localValue === 'auto' ? 'text' : 'number'}
               // precision={0}
               showControls={false}
-              onInput={this.handleInput}
+              type={this.localValue === 'auto' ? 'text' : 'number'}
+              vModel_number={this.localValue}
               onBlur={this.handleBlur}
+              onInput={this.handleInput}
             />
           </slot>
           <ul
-            slot='content'
             class='cycle-list'
+            slot='content'
           >
             {this.curCycleList.map((item, index) => (
               <li
@@ -179,7 +181,7 @@ export default class CycleInput extends tsc<IProps, IEvent> {
                 class={[
                   'cycle-item',
                   { 'cycle-item-active': this.localValue === item.id },
-                  { 'item-disabled': this.checkDisable(item.id) }
+                  { 'item-disabled': this.checkDisable(item.id) },
                 ]}
                 onClick={() => this.handleSelectCycle(item.id as number)}
               >
@@ -189,29 +191,29 @@ export default class CycleInput extends tsc<IProps, IEvent> {
           </ul>
         </bk-popover>
         <bk-popover
-          disabled={this.localValue === 'auto'}
           ref='unitPopover'
-          trigger='click'
-          placement='bottom-end'
-          theme='light cycle-list-wrapper'
           animation='slide-toggle'
           arrow={false}
-          offset={-1}
+          disabled={this.localValue === 'auto'}
           distance={12}
+          offset={-1}
+          placement='bottom-end'
+          theme='light cycle-list-wrapper'
           tippyOptions={{ appendTo: this.appendTo === 'parent' ? 'parent' : document.body }}
+          trigger='click'
           onHide={() => (this.unitActive = false)}
         >
           <span
-            class={['cycle-unit', { 'line-active': this.unitActive, 'unit-active': this.unitActive }]}
             v-en-style='min-width: 60px'
+            class={['cycle-unit', { 'line-active': this.unitActive, 'unit-active': this.unitActive }]}
             onClick={() => (this.unitActive = true)}
           >
             {this.unitName}
           </span>
           <ul
-            slot='content'
-            class='unit-list'
             ref='unitList'
+            class='unit-list'
+            slot='content'
           >
             {this.options.map((item, index) => (
               <li

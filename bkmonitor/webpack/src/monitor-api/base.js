@@ -23,25 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
-/* eslint-disable import/prefer-default-export */
-import { CancelToken } from 'axios';
+
+import CancelToken from 'axios/lib/cancel/CancelToken';
 import { random } from 'monitor-common/utils/utils';
 
 import axios from './axios/axios';
 import { bkMessage, makeMessage } from './utils/index';
-
+const NO_NEED_ERROR_MESSAGE = 'bk_monitor_api_no_message';
 const defaultConfig = {
   needBiz: true,
   needRes: false,
   isAsync: false,
-  needMessage: true,
+  needMessage: localStorage.getItem(NO_NEED_ERROR_MESSAGE) !== 'true',
   reject403: false,
   cancelToken: null,
   needCancel: false,
   needTraceId: true,
   cancelFn() {},
-  onUploadProgress() {}
+  onUploadProgress() {},
 };
 const noMessageCode = [3308005, 3314003, 3314004]; // 无数据状态下 不弹窗
 const pendingRequest = new Map(); // 请求取消映射表
@@ -64,30 +63,31 @@ const removePendingRequest = (method, url) => {
     pendingRequest.delete(requestKey);
   }
 };
-
-export const request = function (method, url) {
-  return function (id, params, config = {}) {
+export const request = (method, url) => {
+  return (id, params, config = {}) => {
     let newUrl = url;
     let data = {};
     const hasBizId = !(window.cc_biz_id === -1 || !window.cc_biz_id);
     if (typeof id === 'number' || typeof id === 'string') {
       newUrl = url.replace('{pk}', id);
       data = params || {};
+      // biome-ignore lint/style/noParameterAssign:0
       config = Object.assign({}, defaultConfig, config || {});
     } else {
       data = id || {};
+      // biome-ignore lint/style/noParameterAssign:0
       config = Object.assign({}, defaultConfig, params || {});
     }
     const methodType = method.toLocaleLowerCase() || 'get';
     if (config.isAsync) {
       config.headers = {
-        'X-Async-Task': true
+        'X-Async-Task': true,
       };
     }
     const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
     config.headers = {
       ...config.headers,
-      traceparent
+      traceparent,
     };
     // needCancel用于配置是否需要设置取消请求
     if (config.needCancel) {
@@ -107,7 +107,7 @@ export const request = function (method, url) {
         url: newUrl,
         params: data,
         needMessage: false,
-        ...config
+        ...config,
       })
         .then(res => {
           if (config.needRes) {
@@ -116,29 +116,29 @@ export const request = function (method, url) {
           return Promise.resolve(res.data);
         })
         .catch(err => {
-          const message = makeMessage(err.message, traceparent, config.needTraceId);
-          if (config.needMessage && err.message) {
+          const message = makeMessage(err.error_details || err.message, traceparent, config.needTraceId);
+          if (message && config.needMessage) {
             bkMessage(message);
           }
-          err.message && (err.message = message);
+          // !err.error_details && err.message && (err.message = message);
           return Promise.reject(err);
         });
     }
-    Object.keys(data).forEach(key => {
-      const type = String(data[key]);
+    for (const value of Object.values(data)) {
+      const type = String(value);
       if (type === '[object FileList]' || type === '[object File]') {
         const formData = new FormData();
-        Object.keys(data).forEach(key => {
-          formData.append(key, data[key]);
-        });
+        for (const [key, val] of Object.entries(data)) {
+          formData.append(key, val);
+        }
         data = formData;
         config.headers = {
           ...config.headers,
           'content-type': 'multipart/form-data',
-          productionTip: true
+          productionTip: true,
         };
       }
-    });
+    }
     if (config.needBiz && !Object.prototype.hasOwnProperty.call(data, 'bk_biz_id')) {
       if (data instanceof FormData) {
         if (hasBizId) {
@@ -158,7 +158,7 @@ export const request = function (method, url) {
       method,
       url: newUrl,
       data,
-      ...config
+      ...config,
     })
       .then(res => {
         if (config.needRes) {
@@ -167,11 +167,11 @@ export const request = function (method, url) {
         return Promise.resolve(res.data);
       })
       .catch(err => {
-        const message = makeMessage(err.message || '', traceparent, config.needTraceId);
-        if (config.needMessage && !noMessageCode.includes(err.code) && err.message) {
+        const message = makeMessage(err.error_details || err.message || '', traceparent, config.needTraceId);
+        if (message && config.needMessage && !noMessageCode.includes(err.code)) {
           bkMessage(message);
         }
-        err.message && (err.message = message);
+        // !err.error_details && err.message && (err.message = message);
         return Promise.reject(err);
       });
   };

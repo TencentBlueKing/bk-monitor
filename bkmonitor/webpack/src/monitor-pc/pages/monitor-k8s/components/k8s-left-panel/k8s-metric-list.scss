@@ -1,0 +1,43 @@
+.k8s-metric-list {
+  width: 100%;
+  padding: 12px 24px;
+  background: #fafbfd;
+  box-shadow: 0 -1px 0 0 #dcdee5;
+
+  .panel-title {
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #313238;
+  }
+
+  .skeleton-element-group {
+    & + .skeleton-element-group {
+      margin-top: 20px;
+    }
+
+    .group-title {
+      width: 100%;
+      height: 32px;
+      margin-bottom: 8px;
+    }
+
+    .group-content {
+      width: calc(100% - 31px);
+      height: 20px;
+      margin: 0 7px 12px 24px;
+    }
+  }
+
+  .group-content-item {
+    cursor: pointer;
+
+    &:hover {
+      background-color: #f1f7ff;
+    }
+
+    .view-icon {
+      margin-right: 13px;
+    }
+  }
+}

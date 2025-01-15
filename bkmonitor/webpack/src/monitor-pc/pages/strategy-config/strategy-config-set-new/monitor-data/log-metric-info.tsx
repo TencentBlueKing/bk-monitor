@@ -26,14 +26,16 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { concatBKOtherDocsUrl, DOCS_LINK_MAP } from 'monitor-common/utils/docs';
+
 import './log-metric-info.scss';
 
 @Component
-export default class MyComponent extends tsc<{}> {
+export default class MyComponent extends tsc<object> {
   @Prop() a: number;
   @Ref('helpContent') helpContentRef: HTMLDivElement;
   helpPopoverInstance: any = null;
-  docCenterUrl = `${window.bk_docs_site_url}markdown/日志平台/产品白皮书/data-visualization/query_string.md`;
+  docCenterUrl = concatBKOtherDocsUrl(DOCS_LINK_MAP.BKOther.bkLogQueryString);
   beforeDestroy() {
     this.handleMouseLeave();
   }
@@ -46,7 +48,7 @@ export default class MyComponent extends tsc<{}> {
         theme: 'light',
         arrow: true,
         interactive: true,
-        hideOnClick: true
+        hideOnClick: true,
       });
     }
     if (!this.helpPopoverInstance?.state?.isShown) {
@@ -64,22 +66,23 @@ export default class MyComponent extends tsc<{}> {
         <span
           class='icon-monitor icon-tips'
           onMouseenter={this.handleMouseEnter}
-        ></span>
+        />
         <div style='display: none;'>
           <div
-            class='help-content'
             ref='helpContent'
+            class='help-content'
           >
             <div>
               {this.$t('可输入SQL语句进行快速查询')}
               {this.docCenterUrl && (
                 <a
-                  href={this.docCenterUrl}
-                  target='_blank'
                   class='tips-link'
+                  href={this.docCenterUrl}
+                  rel='noreferrer'
+                  target='_blank'
                 >
                   {this.$t('查看语法')}
-                  <span class='icon-monitor icon-fenxiang'></span>
+                  <span class='icon-monitor icon-fenxiang' />
                 </a>
               )}
             </div>

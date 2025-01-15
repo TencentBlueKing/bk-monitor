@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
 
 from bkmonitor.dataflow.node.processor import (
     FlinkStreamCodeDefine,
@@ -46,7 +45,7 @@ class EmptyRealTimeNode(RealTimeNode):
 
     @property
     def name(self):
-        return _("[临时]空计算节点")
+        return "[临时]空计算节点"
 
     @property
     def table_name(self):

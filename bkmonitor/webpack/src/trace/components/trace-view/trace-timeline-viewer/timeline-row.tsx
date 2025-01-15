@@ -44,7 +44,7 @@ const TimelineRow = (props: TTimelineRowProps, { slots }) => {
 };
 
 TimelineRow.defaultProps = {
-  className: ''
+  className: '',
 };
 
 export default TimelineRow;

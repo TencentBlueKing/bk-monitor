@@ -1,69 +1,97 @@
-@import "../../../theme";
+@import '../../../theme';
 
 .strategy-config-set {
   @include strategy-config-nav;
+
   &.is-detail {
     .set-content-right .right-wrapper {
       min-height: calc(100% - 30px);
     }
   }
+
   .config-header {
     display: flex;
     align-items: center;
     margin-bottom: 10px;
     color: #dcdee5;
   }
+
   .set-content {
-    height: calc(100vh - 104px);
-    overflow: auto;
     display: flex;
+    height: calc(100vh - 104px - var(--notice-alert-height));
+    overflow: auto;
+
     &-left {
       flex: 1;
       padding: 16px;
+      padding-bottom: 0;
       overflow-x: auto;
     }
+
     &-right {
       .right-wrapper {
         position: fixed;
-        background: #fff;
-        top: 104px;
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
-        height: calc(100% - 104px);
+        top: calc(104px + var(--notice-alert-height));
+        height: calc(100% - 104px - var(--notice-alert-height));
         overflow-y: auto;
+        background: #fff;
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+
         &::-webkit-scrollbar {
           display: none;
         }
       }
+
       .drag {
         position: absolute;
         top: 0;
-        width: 8px;
-        height: 100%;
+        z-index: 9;
         display: flex;
         align-items: center;
         justify-items: center;
+        width: 8px;
+        height: 100%;
         outline: 0;
-        z-index: 9;
+
         &:hover,
         &.active {
           cursor: col-resize;
           border-left: 1px solid #3a84ff;
         }
+
         &::after {
-          content: " ";
-          height: 18px;
-          width: 0;
-          border-left: 2px dotted #c4c6cc;
           position: absolute;
           left: 2px;
+          width: 0;
+          height: 18px;
+          content: ' ';
+          border-left: 2px dotted #c4c6cc;
         }
       }
     }
   }
+
   .set-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 99;
     display: flex;
+    align-items: center;
+    height: 48px;
+    padding-left: 16px;
+    margin: 0 -16px;
+
+    &.is-sticky {
+      background: #fafbfd;
+      box-shadow: 0 -2px 4px 0 #0000000f;
+    }
+
+    .bk-button {
+      width: 88px;
+    }
+
     .save-btn {
-      margin-right: 10px;
+      margin-right: 8px;
     }
   }
 }

@@ -28,10 +28,10 @@
     v-model="dialog.show"
     :show-footer="false"
     :mask-close="false"
-    @after-leave="handleHideDialog"
     ext-cls="plugin-manager-dialog"
     header-position="left"
     width="480"
+    @after-leave="handleHideDialog"
   >
     <template slot="header">
       <div class="dialog-title">
@@ -44,12 +44,14 @@
         <div class="dialog-content-desc">
           <div class="desc-name">
             <span
-              class="desc-name-set"
               v-bk-overflow-tips
-            >{{ dialog.name }}</span><span
-              class="desc-name-size"
+              class="desc-name-set"
+              >{{ dialog.name }}</span
+            ><span
               v-if="dialog.status > 1"
-            >{{ dialog.size }}</span>
+              class="desc-name-size"
+              >{{ dialog.size }}</span
+            >
           </div>
           <bk-progress
             v-if="dialog.status === 1"
@@ -62,31 +64,33 @@
         </div>
       </div>
       <div
-        class="dialog-loading"
         v-if="dialog.percent === 1"
+        class="dialog-loading"
       >
         <span
           class="icon-monitor loading-icon"
           :style="{
             'animation-iteration-count': dialog.status === 1 ? 'infinite' : 0,
-            color: dialog.status === 2 || dialog.status === 4 ? '#EA3636' : '#3A84FF'
+            color: dialog.status === 2 || dialog.status === 4 ? '#EA3636' : '#3A84FF',
           }"
           :class="[[2, 4, 5].includes(dialog.status) ? 'icon-tixing' : 'icon-loading']"
         />
         <span
           v-if="dialog.status === 1"
           class="loading-text"
-        > {{ $t('上传中...') }} </span>
+        >
+          {{ $t('上传中...') }}
+        </span>
         <span
           v-else-if="dialog.status === 2"
           class="loading-text"
-        >{{
-          dialog.status === 2 ? $t('上传失败，请重试') : $t('上传完成')
-        }}</span>
+          >{{ dialog.status === 2 ? $t('上传失败，请重试') : $t('上传完成') }}</span
+        >
         <div v-else-if="dialog.status === 4">
           <span style="color: #ea3636">
             {{ $t('注意: 插件ID冲突') }}
-            {{ dialog.data.conflict_title ? ',' + dialog.data.conflict_title : '' }}：</span>
+            {{ dialog.data.conflict_title ? ',' + dialog.data.conflict_title : '' }}：</span
+          >
           {{ dialog.data.conflict_detail }}
         </div>
         <div v-else-if="dialog.status === 5">
@@ -94,15 +98,15 @@
         </div>
       </div>
       <div
-        class="dialog-footer"
         v-if="dialog.data.conflict_detail"
+        class="dialog-footer"
       >
         <!-- 非官方插件更新操作 -->
         <bk-button
+          v-if="!dialog.data.is_official && dialog.data.is_safety && canIUpdatePlubin"
           class="dialog-footer-btn"
           theme="primary"
           @click="handleToEdit"
-          v-if="!dialog.data.is_official && dialog.data.is_safety && canIUpdatePlubin"
         >
           {{ $t('更新插件') }}
         </bk-button>
@@ -115,17 +119,19 @@
         </bk-button>
         <bk-button
           v-if="dialog.update && dialog.data.is_official && isSuperUser"
-          @click="handleUpdatePlugin"
           :loading="dialog.loading"
           class="dialog-footer-btn"
           theme="primary"
+          @click="handleUpdatePlugin"
         >
           {{ $t('更新至现有插件') }}
         </bk-button>
         <bk-button
           class="dialog-footer-btn"
           @click="handleHideDialog"
-        > {{ $t('取消') }} </bk-button>
+        >
+          {{ $t('取消') }}
+        </bk-button>
       </div>
     </div>
   </bk-dialog>
@@ -137,8 +143,8 @@ export default {
   props: {
     dialog: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   computed: {
     isSuperUser() {
@@ -155,7 +161,7 @@ export default {
       // 2 3 5 为不需强制更新插件
       const flag = [2, 3, 5].some(item => arr.toString().indexOf(`${item}`) > -1);
       return !flag;
-    }
+    },
   },
   methods: {
     handleCreateNewPlugin() {
@@ -186,11 +192,11 @@ export default {
       this.$router.push({
         name: 'plugin-update',
         params: {
-          pluginData: data
-        }
+          pluginData: data,
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
 

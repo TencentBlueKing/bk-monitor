@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from django.conf import settings
 from django.utils.translation import get_language
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
@@ -83,6 +83,15 @@ def field_formatter(context: Dict[str, Any]):
     context.update(standard_context)
 
 
+def k8s_v2_enabled(bk_biz_id):
+    try:
+        if 0 in settings.K8S_V2_BIZ_LIST:
+            return True
+        return bk_biz_id in settings.K8S_V2_BIZ_LIST
+    except AttributeError:
+        return True
+
+
 def json_formatter(context: Dict[str, Any]):
     # JSON 返回预处理
     context["PLATFORM"] = Platform.to_dict()
@@ -136,11 +145,15 @@ def get_core_context(request):
         "LANGUAGE_CODE": request.LANGUAGE_CODE,
         "LANGUAGES": settings.LANGUAGES,
         # 页面title
+        # todo 后续弃用(使用：全局配置资源链接）
         "PAGE_TITLE": (
             settings.HEADER_FOOTER_CONFIG["header"][0]["en"]
             if get_language() == "en"
             else settings.HEADER_FOOTER_CONFIG["header"][0]["zh-cn"]
         ),
+        # 全局配置资源链接
+        "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
+        "FOOTER_VERSION": settings.VERSION,
     }
 
 
@@ -166,6 +179,12 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
             "SHOW_REALTIME_STRATEGY": settings.SHOW_REALTIME_STRATEGY,
             # APM 是否开启 EBPF 功能
             "APM_EBPF_ENABLED": "true" if settings.APM_EBPF_ENABLED else "false",
+            # K8s v2 是否开启
+            "K8S_V2_BIZ_LIST": settings.K8S_V2_BIZ_LIST,
+            # 是否开启AI助手
+            "ENABLE_AI_ASSISTANT": "true" if settings.AIDEV_API_BASE_URL else "false",
+            # APM 日志转发接口 Url
+            "APM_LOG_FORWARD_URL_PREFIX": "/apm_log_forward/bklog/",
         }
     )
 
@@ -181,10 +200,7 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
                 context["BK_BIZ_ID"] = space_list[0]["bk_biz_id"]
             except IndexError:
                 # 什么权限都没有
-                if settings.DEMO_BIZ_ID:
-                    context["BK_BIZ_ID"] = int(settings.DEMO_BIZ_ID)
-                else:
-                    context["BK_BIZ_ID"] = -1
+                context["BK_BIZ_ID"] = -1
 
     # 用于主机详情渲染
     context["HOST_DATA_FIELDS"] = (
@@ -203,6 +219,18 @@ def get_basic_context(request, space_list: List[Dict[str, Any]], bk_biz_id: int)
     except Exception as e:
         logger.error(f"Get AIOPS_BIZ_WHITE_LIST Failed: {e}")
 
+    # 根因故障定位页面渲染
+    context["ENABLE_AIOPS_INCIDENT"] = "false"
+    try:
+        # 判断是否在白名单中
+        if settings.IS_ACCESS_BK_DATA and (
+            not settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
+            or {-1, safe_int(context["BK_BIZ_ID"])} & set(settings.AIOPS_INCIDENT_BIZ_WHITE_LIST)
+        ):
+            context["ENABLE_AIOPS_INCIDENT"] = "true"
+    except Exception as e:
+        logger.error(f"Get AIOPS_INCIDENT_BIZ_WHITE_LIST Failed: {e}")
+
     return context
 
 
@@ -219,6 +247,7 @@ def get_extra_context(request, space: Optional[Space]) -> Dict[str, Any]:
         # 用于新增空间是否展示其他
         "MONITOR_MANAGERS": settings.MONITOR_MANAGERS,
         "CLUSTER_SETUP_URL": f"{settings.BK_BCS_HOST.rstrip('/')}/bcs/",
+        "BK_DOC_VERSION": settings.BK_DOC_VERSION,
     }
 
     # 用于新增容器空间地址

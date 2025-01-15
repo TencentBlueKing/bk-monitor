@@ -64,14 +64,14 @@ export default {
       watchKeword: null,
       defaultExpanded: [],
       checkedIp: '',
-      checkedNodeData: null
+      checkedNodeData: null,
     };
   },
   watch: {
     treeData: {
       handler(v) {
         this.$refs.tree?.setData(v || []);
-      }
+      },
     },
     checkedData: {
       handler(v) {
@@ -81,26 +81,26 @@ export default {
         } else {
           this.checkedIp = v[0] ? `${v[0].ip}|${v[0].bkCloudId}` : '';
         }
-      }
+      },
     },
     disabledData: {
       handler(v, old) {
         const { difference } = this.handlerGetInterOrDiff(v, old);
         this.$refs.tree?.setDisabled(v, {
-          disabled: true
+          disabled: true,
         });
         this.$refs.tree?.setDisabled(difference, {
-          disabled: old.length === 0
+          disabled: old.length === 0,
         });
-      }
+      },
     },
     checkedIp: {
       handler(v) {
         if (v) {
           this.handleTreeCheck(Boolean(v), this.checkedNodeData);
         }
-      }
-    }
+      },
+    },
   },
   created() {
     this.watchKeword = this.$watch('keyword', debounce(300, this.handleFilter));
@@ -126,13 +126,11 @@ export default {
     },
     handlerGetInterOrDiff(v, old) {
       const intersection = v.filter(item => old.indexOf(item) > -1);
-      let difference = v
-        .filter(i => old.indexOf(i) === -1)
-        .concat(old.filter(i => !v.includes(i)));
+      let difference = v.filter(i => old.indexOf(i) === -1).concat(old.filter(i => !v.includes(i)));
       difference = difference.filter(set => !~v.indexOf(set));
       return {
         difference,
-        intersection
+        intersection,
       };
     },
     handleDefaultExpanded() {
@@ -150,8 +148,8 @@ export default {
     },
     selectChange(data) {
       this.checkedNodeData = data;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

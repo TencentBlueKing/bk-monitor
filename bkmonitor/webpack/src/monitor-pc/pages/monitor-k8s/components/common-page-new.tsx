@@ -1,6 +1,3 @@
-/* eslint-disable max-len */
-/* eslint-disable no-nested-ternary */
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -29,64 +26,78 @@
  */
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
-import { deepClone, random } from 'monitor-common/utils/utils';
+import { deepClone, isObject, random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
-import { BookMarkModel, DashboardMode, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { APM_LOG_ROUTER_QUERY_KEYS } from 'monitor-ui/chart-plugins/plugins/monitor-retrieve/monitor-retrieve';
+import {
+  BookMarkModel,
+  type DashboardMode,
+  type IPanelModel,
+  type IViewOptions,
+} from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import introduce from '../../../common/introduce';
 import Collapse from '../../../components/collapse/collapse';
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { ASIDE_COLLAPSE_HEIGHT } from '../../../components/resize-layout/resize-layout';
-import type { TimeRangeType } from '../../../components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { CP_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../constant/constant';
-import { getDefautTimezone, updateTimezone } from '../../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import { Storage } from '../../../utils';
-import { IIndexListItem } from '../../data-retrieval/index-list/index-list';
+
 // import { CHART_INTERVAL } from '../../../constant/constant';
 import HostList from '../../performance/performance-detail/host-list/host-list';
-import HostTree, { FilterDictType, TreeNodeItem } from '../../performance/performance-detail/host-tree/host-tree';
+import HostTree, {
+  type FilterDictType,
+  type TreeNodeItem,
+} from '../../performance/performance-detail/host-tree/host-tree';
 import SettingModal from '../../setting-modal';
-import SettingsWrapper from '../settings/settings';
 import {
   DASHBOARD_PANEL_COLUMN_KEY,
-  IBookMark,
-  IMenuId,
-  IMenuItem,
-  IOption,
-  IQueryData,
-  IQueryDataSearch,
-  ISearchItem,
-  ITabItem,
-  ITableItem,
+  type IBookMark,
+  type IMenuId,
+  type IMenuItem,
+  type IOption,
+  type IQueryData,
+  type IQueryDataSearch,
+  type ISearchItem,
+  type ITabItem,
+  type ITableItem,
   METHOD_LIST,
-  PanelToolsType,
-  SearchType,
+  type PanelToolsType,
   SPLIT_MAX_WIDTH,
-  SPLIT_MIN_WIDTH
+  SPLIT_MIN_WIDTH,
+  type SearchType,
 } from '../typings';
 import { SETTINGS_POP_ZINDEX } from '../utils';
-
+import AlarmTools from './alarm-tools';
+import CommonDetail, { INDEX_LIST_DEFAULT_CONFIG_KEY } from './common-detail';
 import CommonList from './common-list/common-list';
 import CommonListK8s from './common-list-k8s/common-list-k8s';
 import CommonSelectTable from './common-select-table/common-select-table';
 import CommonTree from './common-tree/common-tree';
+import DashboardTools from './dashboard-tools';
 import FilterVarSelectGroup from './filter-var-select/filter-var-select-group';
 import FilterVarSelectSimple from './filter-var-select/filter-var-select-simple';
+import GroupCompareSelect from './group-compare-select/group-compare-select';
+import { ETypeSelect as EGroupCompareType, type IGroupByVariables } from './group-compare-select/utils';
 import GroupSelect from './group-select/group-select';
+import PageTitle from './page-title';
 import CompareSelect from './panel-tools/compare-select';
 import PanelTools from './panel-tools/panel-tools';
 import ApmApiPanel from './select-panel/apm-api-panel';
-import AlarmTools from './alarm-tools';
-import CommonDetail, { INDEX_LIST_DEFAULT_CONFIG_KEY } from './common-detail';
-import DashboardTools from './dashboard-tools';
-import PageTitle from './page-title';
 import SplitPanel from './split-panel';
 import { getPanelData } from './utils';
+
+import type { TimeRangeType } from '../../../components/time-range/time-range';
+import type { IIndexListItem } from '../../data-retrieval/index-list/index-list';
+import type SettingsWrapper from '../settings/settings';
 
 import './common-page.scss';
 
@@ -101,7 +112,7 @@ const DEFAULT_QUERY_DATA = {
   checkboxs: [], // 复选框过滤
   filter: '',
   sort: '',
-  filterDict: {}
+  filterDict: {},
 };
 
 interface ICommonPageProps {
@@ -123,6 +134,7 @@ interface ICommonPageProps {
   toggleTabSearchFilterKeys?: string[];
   // 默认汇聚方法
   defalutMethod?: string;
+  defaultDashboardId?: string;
 }
 interface ICommonPageEvent {
   onTitleChange: string;
@@ -132,16 +144,25 @@ interface ICommonPageEvent {
   onSceneTypeChange: SceneType;
 }
 export const MIN_DASHBOARD_PANEL_WIDTH = '640';
-export type ShowModeType = 'list' | 'dashboard' | 'default';
+export type ShowModeType = 'dashboard' | 'default' | 'list';
+const customRouterQueryKeys = [
+  'sliceStartTime',
+  'sliceEndTime',
+  'callOptions',
+  // log-retrieve图所需的路由参数
+  ...APM_LOG_ROUTER_QUERY_KEYS,
+];
 @Component({
   components: {
     /** 视图设置异步组件 */
-    SettingsWrapper: () => import(/* webpackChunkName: "k8s-settings-wrapper" */ '../settings/settings')
-  }
+    SettingsWrapper: () => import(/* webpackChunkName: "k8s-settings-wrapper" */ '../settings/settings'),
+  },
 })
 export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEvent> {
   // 场景id
   @Prop({ default: 'host', type: String }) readonly sceneId: string;
+  // dashboard Id
+  @Prop({ type: String }) readonly defaultDashboardId: string;
   // 场景类型
   @Prop({ default: 'detail', type: String }) readonly sceneType: SceneType;
   // 默认viewoptions 视图变量等
@@ -170,8 +191,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
   /** 场景类型 */
   localSceneType: SceneType = 'overview';
-  // 视图面板id
-  dashboardId = '';
+
   // 视图tab 列表
   tabList: ITabItem[] = [];
   // 是否展示loading
@@ -201,13 +221,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /** 设置弹窗显示状态 */
   showSetting = false;
   /** 当前设置弹窗 */
-  activeSettingId: string | number = '';
+  activeSettingId: number | string = '';
   /** 设置弹窗关闭时判断当前页签内容是否发生变更需要重新请求 */
   isPanelChange = false;
   // 搜索的值
   searchValue: ISearchItem[] | string[] = [];
   // 图表布局
-  columns = 0;
+  columns = 2;
   // 选中添加目标对比的主机
   compareHostList: IOption[] = [];
   /** 变量伸缩层 */
@@ -219,7 +239,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 汇聚方法
   method = DEFAULT_METHOD;
   // 汇聚周期
-  interval: string | number = 'auto';
+  interval: number | string = 'auto';
   // 对比数据
   compares: Record<string, any> = {};
   // 默认对比数据
@@ -260,6 +280,20 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   collapseInfo = false;
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
+  // getSceneViewList 是否报错了
+  isSceneDataError = false;
+
+  /* groupBy/对比变量 */
+  /* 当前是否选择了group by 选项 */
+  isGroupByLimit = false;
+  /* 以下四个皆为group by 相关变量 */
+  groupByVariables: IGroupByVariables = {
+    metric_cal_type: '',
+    limit_sort_method: '',
+    limit: 1,
+    group_by_limit_enabled: false,
+  };
+
   // 特殊的目标字段配置
   get targetFields(): { [propName: string]: string } {
     const panel = this.sceneData?.selectorPanel;
@@ -270,7 +304,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
   // 是否选中的是主机或者是服务实例
   get isCheckedHost() {
-    // eslint-disable-next-line max-len
     return !!this.localViewOptions.filters?.bk_target_ip || this.isCheckInstance;
   }
   /** 对比工具的可选项 */
@@ -300,7 +333,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
   /* 是否选中了服务实例 */
   get isCheckInstance() {
-    // eslint-disable-next-line max-len
     return (
       !!this.localViewOptions.filters?.[this.targetFields?.id] ||
       !!this.localViewOptions.filters?.bk_target_service_instance_id
@@ -332,7 +364,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       variables: this.variables,
       method: this.method,
       interval: this.interval,
-      compares: this.compares
+      compares: this.compares,
     };
   }
 
@@ -373,8 +405,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             name: row.title,
             children: row.panels?.map?.(panel => ({
               id: panel.id,
-              name: panel.title
-            }))
+              name: panel.title,
+            })),
           };
           total.push(item);
         } else if (mode === 'custom') {
@@ -384,14 +416,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             const item = {
               id: row.id,
               name: row.title,
-              children: []
+              children: [],
             };
             total.push(item);
-          } else if (!!row.title) {
+          } else if (row.title) {
             const curGroup = total.find(group => group.id === curTagChartId);
             const child = {
               id: row.id,
-              name: row.title
+              name: row.title,
             };
             if (curGroup?.children) {
               curGroup.children.push(child);
@@ -429,7 +461,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         const { type, dimensions } = item;
         if (type === 'row') {
           /** 分组 */
-          // eslint-disable-next-line no-param-reassign
+
           item.panels = fn(item.panels);
           total.push(item);
         } else {
@@ -464,6 +496,17 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       (this.localPanels?.[0].type === 'row' ? this.localPanels[0]?.panels?.some(item => item.type !== 'graph') : true)
     );
   }
+  /* 当前单图模式下dashboard-panel是否需要padding */
+  /* 当前单图模式下dashboard-panel是否需要padding */
+  get isSingleChartNoPadding() {
+    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee', 'log-retrieve'];
+    return this.isSingleChart && noPaddingTypeList.includes(this.localPanels?.[0]?.type);
+    // return (
+    //   this.isSingleChart &&
+    //   (this.localPanels?.[0]?.type ===  ||
+    //     this.localPanels?.[0]?.type === 'apm-service-caller-callee')
+    // );
+  }
   /** 是否含overviewPanels */
   get hasOverviewPanels() {
     return !!this.sceneData?.overview_panels;
@@ -472,11 +515,24 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   get curPanelCount() {
     return this.sceneData?.updatePanels(this.localSceneType) || 0;
   }
+
+  /* 将group选择替换为group by与compare混合的选择器   */
+  get isGroupCompareType() {
+    return !!this.sceneData?.isGroupCompareType;
+  }
+
+  get limitSortMethods() {
+    return this.sceneData?.limitSortMethods || [];
+  }
+  get metricCalTypes() {
+    return this.sceneData?.metricCalTypes || [];
+  }
+
   // 派发到子孙组件内的一些视图配置变量
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
-  @ProvideReactive('timezone') timezone: string = getDefautTimezone();
+  @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
   // 刷新间隔
   @ProvideReactive('refleshInterval') refleshInterval = -1;
   // 视图变量
@@ -492,13 +548,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 表格图表搜索条件数据
   @ProvideReactive('queryData') queryData: IQueryData = DEFAULT_QUERY_DATA;
   // 粒度
-  @ProvideReactive('downSampleRange') downSampleRange: string | number = 'auto';
+  @ProvideReactive('downSampleRange') downSampleRange: number | string = 'auto';
   /** 图表的告警状态接口是否需要加入$current_target作为请求参数 */
   @ProvideReactive('alertFilterable') alertFilterable = false;
+  /* 自定义router query */
+  @ProvideReactive('customRouteQuery') customRouteQuery = {};
   // 是否展示复位
   @ProvideReactive('showRestore') showRestore = false;
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  // dashboardId
+  @ProvideReactive('dashboardId') dashboardId = '';
+
   // 侧栏搜索
   @Provide('handleUpdateQueryData')
   handleUpdateQueryData(queryData: IQueryData) {
@@ -519,8 +580,32 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
     this.showRestore = false;
   }
+  /**
+   * @description 切换视图面板模式 (底层图表事件)
+   * @param id
+   * @param customRouterQuery
+   */
+  @Provide('handlePageTabChange')
+  handleChartToTabChange(id: string, customRouteQuery: Record<string, number | string>) {
+    const item = this.tabList.find(item => item.id === id);
+    if (item) {
+      this.customRouteQuery = {
+        ...this.customRouteQuery,
+        ...customRouteQuery,
+      };
+      this.handleMenuTabChange(item);
+    }
+  }
+  @Provide('handleCustomRouteQueryChange')
+  handleCustomRouteQueryChange(customRouteQuery: Record<string, number | string>) {
+    this.customRouteQuery = {
+      ...this.customRouteQuery,
+      ...customRouteQuery,
+    };
+    this.handleResetRouteQuery();
+  }
   mounted() {
-    this.timezone = getDefautTimezone();
+    this.timezone = getDefaultTimezone();
     this.initData();
     bus.$on('dashboardModeChange', this.handleDashboardModeChange);
     bus.$on('switch_scenes_type', this.handleLinkToDetail);
@@ -546,7 +631,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   async initData() {
     this.localSceneType = this.sceneType;
     this.loading = true;
-    this.columns = +localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY) || 0;
+    this.columns = +localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY) || 2;
     this.filtersReady = false;
     this.selectorReady = false;
     await this.$nextTick();
@@ -562,16 +647,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleSetDefaultParams() {
     const filters: Record<string, any> = {};
     const variables = {};
-    this.defaultViewOptions?.filters &&
-      Object.keys(this.defaultViewOptions.filters).forEach(key => {
+    if (this.defaultViewOptions?.filters) {
+      for (const key in this.defaultViewOptions.filters) {
         filters[key] = this.defaultViewOptions.filters[key];
-      });
-    this.defaultViewOptions?.variables &&
-      Object.keys(this.defaultViewOptions.variables).forEach(key => {
+      }
+    }
+    if (this.defaultViewOptions?.variables) {
+      for (const key in this.defaultViewOptions.variables) {
         variables[key] = this.defaultViewOptions.variables[key];
-      });
+      }
+    }
     this.groups = this.defaultViewOptions?.groups || [];
-    Object.keys(this.$route.query || {}).forEach(key => {
+    for (const key in this.$route.query || {}) {
       const val = this.$route.query[key];
       if (key.match(/^filter-/)) {
         let v = null;
@@ -589,18 +676,30 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         filters[key.replace('filter-', '')] = v;
         /** 处理主机详情 (主机、节点、服务实例) 互为冲突的字段 */
         if (['bk_inst_id', 'bk_target_service_instance_id'].some(item => key.includes(item))) {
-          delete filters.bk_target_cloud_id;
-          delete filters.bk_target_ip;
+          filters.bk_target_cloud_id = undefined;
+          filters.bk_target_ip = undefined;
         }
       } else if (key.match(/^var-/)) {
-        variables[key.replace('var-', '')] = typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val) ? +val : val;
+        const varName = key.replace('var-', '');
+        if (typeof val === 'string') {
+          if (/^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
+            variables[varName] = +val;
+          } else {
+            try {
+              variables[varName] = JSON.parse(val);
+            } catch {
+              variables[varName] = val;
+            }
+          }
+        } else {
+          variables[varName] = val;
+        }
       } else if (key.match(/^groups/)) {
         this.groups = Array.isArray(val) ? val : [val];
       } else if (!['key'].includes(key)) {
         if (typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
           this[key] = +val;
         } else if (['from', 'to'].includes(key)) {
-          // eslint-disable-next-line no-nested-ternary
           // this[key] = Array.isArray(val) ? val : isNaN(+val) ? val : +val;
           key === 'from' && (this.timeRange[0] = val as string);
           key === 'to' && (this.timeRange[1] = val as string);
@@ -615,7 +714,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               sort = '',
               checkboxs = [],
               selectorSearch = [],
-              filterDict = {}
+              filterDict = {},
             } = JSON.parse(decodeURIComponent(val as string));
             this.queryData = {
               page,
@@ -626,7 +725,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               keyword,
               checkboxs,
               sort,
-              filterDict
+              filterDict,
             };
           } catch (error) {
             console.log(error);
@@ -649,17 +748,32 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             this.timezone = val as string;
             updateTimezone(val as string);
           }
+        } else if (customRouterQueryKeys.includes(key)) {
+          this.customRouteQuery[key] = val;
+        } else if (key === 'groupByVariables') {
+          try {
+            this.groupByVariables = JSON.parse(decodeURIComponent(val as string));
+          } catch (err) {
+            console.log(err);
+            this.groupByVariables = {
+              metric_cal_type: '',
+              limit_sort_method: '',
+              limit: 1,
+              group_by_limit_enabled: false,
+            };
+          }
         } else {
           this[key] = val;
         }
       }
-    });
+    }
     this.localSceneType = (this.$route.query.sceneType as any) ?? this.sceneType;
     this.method =
       this.defaultViewOptions.method || (this.$route.query.method as string) || this.defalutMethod || DEFAULT_METHOD;
     this.interval = this.defaultViewOptions.interval || (this.$route.query.interval as string) || DEFAULT_INTERVAL;
     this.filters = filters;
     this.variables = variables;
+    this.isGroupByLimit = this.$route.query.isGroupByLimit === 'true';
   }
   // 初始化默认分屏宽度
   handleSetDefaultSplitPanelWidth() {
@@ -668,33 +782,64 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   }
   // 获取页签列表
   async getTabList(isInit?: boolean) {
+    const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
     const params = {
       scene_id: this.sceneId,
-      type: this.localSceneType
+      type: this.localSceneType,
+      start_time,
+      end_time,
     };
     if (this.sceneId === 'apm_service') {
       // APM 服务视图需要增加参数区分类型 参数为 【filter-变量】
       const apmServiceParams = Object.keys(this.filters).reduce((pre, key) => {
-        // eslint-disable-next-line no-param-reassign
         pre[`apm_${key}`] = this.filters[key];
         return pre;
       }, {});
       Object.assign(params, apmServiceParams);
     }
-    const data = await getSceneViewList(params, { reject403: true }).catch(() => []);
+    this.isSceneDataError = false;
+    const data = await getSceneViewList(params, { reject403: true }).catch(() => {
+      this.isSceneDataError = true;
+      return [];
+    });
     if (this.sceneId === 'kubernetes') {
       this.showK8sGuidePage = !data?.length;
       if (this.showK8sGuidePage) return;
     }
     /** 标题栏 */
     this.tabList = data;
+    this.setDefaultDashboardId();
     if (isInit) {
-      let [{ id } = { id: '' }] = data;
-      if (this.dashboardId) {
-        id = this.dashboardId;
-      }
-      await this.handleTabChange(id);
+      await this.handleTabChange(this.dashboardId);
     }
+  }
+  setDefaultDashboardId() {
+    let item = this.tabList.find(item => item.id === this.defaultDashboardId);
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id.toString().endsWith(`-${this.defaultDashboardId}`));
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => `${this.defaultDashboardId}`.endsWith(`-${item.id.toString()}`));
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id === this.$route.query.dashboardId);
+    if (item?.id) {
+      this.dashboardId = item.id.toString();
+      return item.id;
+    }
+    item = this.tabList.find(item => item.id === this.dashboardId);
+    if (item?.id) {
+      return item.id;
+    }
+    this.dashboardId = (this.tabList?.[0]?.id || '').toString();
+    return this.dashboardId;
   }
   // 全屏设置
   async handleFullscreen() {
@@ -717,6 +862,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
    */
   async handleTabChange(id: string, needLoading = true) {
     needLoading && (this.loading = true);
+    // variables 内的变量是当前tab页的筛选变量所以在tab切换后应该清空
+    if (this.dashboardId !== id) {
+      this.variables = {};
+    }
     this.dashboardId = id;
     this.handleGetPanelData(id, needLoading);
   }
@@ -728,18 +877,20 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     if (!this.isEnableMethodSelect) {
       this.method = this.defaultViewOptions.method || this.defalutMethod || DEFAULT_METHOD;
     }
+    const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
     let params = {
       scene_id: this.sceneId,
       type: this.localSceneType,
-      id: this.dashboardId
+      id: this.dashboardId,
+      start_time,
+      end_time,
     };
-
     /** 注入侧栏的变量 或 apm自定义服务变量 */
     if (this.hasOtherParams || this.isApmServiceOverview) {
       const variablesService = new VariablesService(this.filters);
       params = {
         ...params,
-        ...variablesService.transformVariables(this.currentTabData?.params || {})
+        ...variablesService.transformVariables(this.currentTabData?.params || {}),
       };
     }
     const data: IBookMark = await getSceneView(params).catch(() => ({ id: '', panels: [], name: '' }));
@@ -768,13 +919,15 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     //  切换tab时初始化 showMode
     if (!this.sceneData.selectorPanel && this.showMode === 'list') {
       this.showMode = 'dashboard';
+    } else if (this.sceneData.options?.panel_tool?.full_table) {
+      this.showMode = 'list';
     }
     // 判断左侧栏是否需要缓存
-    this.selectorPanelKey = oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
+    this.selectorPanelKey = newSelectPanel && oldSelectPanel === newSelectPanel ? this.selectorPanelKey : random(10);
     const variables = {};
-    this.sceneData.variables.forEach(item => {
-      variables[item.fieldsKey] = this.variables[item.fieldsKey];
-    });
+    for (const item of this.sceneData.variables) {
+      variables[item.fieldsKey] = this.variables[item.fieldsKey] || this.filters[item.fieldsKey];
+    }
     /* 少量图表的索引默认收起来 */
     if (this.sceneData?.panelCount <= 6) {
       const indexStorage = new Storage();
@@ -783,7 +936,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         indexStorage.set(INDEX_LIST_DEFAULT_CONFIG_KEY, {
           height: ASIDE_COLLAPSE_HEIGHT,
           placement: defaultIndexData?.placement || 'bottom',
-          expand: false
+          expand: false,
         });
       }
     }
@@ -801,6 +954,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     // if (this.selectorPanelPriority) this.refleshVariablesKey = random(8);
     needLoading && (this.loading = false);
     this.handleResizeCollapse();
+    console.log(v);
     this.emitTabChange(v);
     this.emitLocalSceneTypeChange();
   }
@@ -810,13 +964,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     const rowPanels = panels.filter(item => item.type === 'row');
     if (rowPanels.length === 1 && rowPanels[0]?.id === unGroupKey) {
       const resultPanels = [];
-      panels.forEach(item => {
+      for (const item of panels) {
         if (item.type === 'row') {
           resultPanels.push(...item.panels);
         } else {
           resultPanels.push(item);
         }
-      });
+      }
       return resultPanels;
     }
     /* 当有多个分组且未分组为空的情况则不显示未分组 */
@@ -880,7 +1034,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         /** 切换为demo业务 */
         this.$store.commit('app/handleChangeBizId', {
           bizId: demo.id,
-          ctx: this
+          ctx: this,
         });
       }
     }
@@ -895,9 +1049,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.showSetting = isShow;
     if (this.isPanelChange) {
       await this.getTabList();
-      if (!this.tabList.some(item => item.id === this.dashboardId)) {
-        this.dashboardId = this.tabList[0].id.toString();
-      }
       await this.handleTabChange(this.dashboardId);
       this.handleResizeCollapse();
       this.isPanelChange = false;
@@ -916,7 +1067,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           zIndex: SETTINGS_POP_ZINDEX,
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => resolve(true),
-          cancelFn: () => reject(false)
+          cancelFn: () => reject(false),
         });
       });
       return !!res;
@@ -940,7 +1091,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     } else {
       const { panels } = this.sceneData;
       const list = [];
-      panels.forEach(panel => {
+      for (const panel of panels) {
         if (v.some(id => panel.id.toString() === id.toString())) {
           list.push({ ...panel });
         } else if (panel.panels?.length) {
@@ -948,10 +1099,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           panels.length &&
             list.push({
               ...panel,
-              panels
+              panels,
             });
         }
-      });
+      }
       this.localPanels = list;
     }
     this.searchValue = v;
@@ -965,7 +1116,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     const mergeSearch = v.reduce((pre, cur) => {
       const item = pre[cur.id];
       if (!item) {
-        // eslint-disable-next-line no-param-reassign
         pre[cur.id] = deepClone(cur);
       } else {
         item.values = [...item.values, ...cur.values.filter(set => !item.values.some(child => child.id === set.id))];
@@ -973,7 +1123,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       return pre;
     }, {});
     const searchList: ISearchItem[] = Object.values(mergeSearch);
-    currentPanels.forEach(panel => {
+    for (const panel of currentPanels) {
       const listPanel = list.find(item => item.id === panel.id);
       searchList.some(item => {
         if (!item.values?.length) {
@@ -992,7 +1142,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             panels.length &&
               list.push({
                 ...panel,
-                panels: [...listPanels, ...panels.filter(item => !listPanels.some(set => set.id === item.id))]
+                panels: [...listPanels, ...panels.filter(item => !listPanels.some(set => set.id === item.id))],
               });
           }
           return false;
@@ -1014,13 +1164,13 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   set.subTitle?.includes?.(val.id) ||
                   set.id.toString().includes(val.id)
               )
-            )
+            ),
           });
           return true;
         }
         return false;
       });
-    });
+    }
     const rowPanel: IPanelModel = list.find(item => item.type === 'row');
     if (rowPanel) rowPanel.collapsed = true;
     this.localPanels = list;
@@ -1073,12 +1223,42 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.timeOffset = timeList;
     this.handleUpdateViewOptions();
   }
+  handleGroupCompareTimeChange(timeList: string[]) {
+    this.compareType = 'time';
+    this.timeOffset = timeList;
+    this.handleUpdateViewOptions();
+  }
   /** 对比类型变更 */
   handleCompareTypeChange(type: PanelToolsType.CompareId) {
     this.compareType = type;
     this.timeOffset = type === 'time' ? ['1d'] : [];
     this.handleCompareTargetChange();
   }
+  /* group by / 时间对比 */
+  handleGroupCompareTypeChange(type: EGroupCompareType) {
+    this.isGroupByLimit = type !== EGroupCompareType.compare;
+    if (this.isGroupByLimit) {
+      this.compareType = 'none';
+      this.timeOffset = [];
+    } else {
+      this.groups = [];
+      this.compareType = 'time';
+    }
+    this.groupByVariables = {
+      metric_cal_type: '',
+      limit_sort_method: '',
+      limit: 1,
+      group_by_limit_enabled: false,
+    };
+    this.handleUpdateViewOptions();
+  }
+
+  /* group by 变量 */
+  handleGroupByVariablesChange(params: IGroupByVariables) {
+    this.groupByVariables = params;
+    this.handleUpdateViewOptions();
+  }
+
   /** 目标对比值更新 */
   handleCompareTargetChange(viewOptions?: IViewOptions) {
     this.compares = viewOptions?.compares || { targets: [] };
@@ -1097,15 +1277,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   // 获取变量
   handleGetVariables(list: FilterDictType): Record<string, any> {
     return list.reduce((pre, cur) => {
-      const temp = Object.entries(cur).reduce((total, curItem) => {
-        const value = curItem[1];
-        // eslint-disable-next-line max-len
-        return {
-          ...total,
-          [curItem[0]]: (Array.isArray(value) ? !!value.length : !!String(value)) ? curItem[1] : undefined
-        };
-      }, {});
-      return { ...pre, ...temp };
+      for (const [key, value] of Object.entries(cur)) {
+        // 检查值是否有效，并根据结果进行赋值
+        pre[key] = (Array.isArray(value) ? !!value.length : !!String(value)) ? value : undefined;
+      }
+      return pre;
     }, {});
   }
   /** 变量值更新 */
@@ -1117,10 +1293,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /** 变量数据请求完毕 */
   handleFilterVarDataReady(list: FilterDictType[]) {
     /** 统计filter参与过滤的数量 */
-    this.filterCount = list.reduce((len, cur) => {
-      // eslint-disable-next-line no-param-reassign
-      Object.entries(cur).every(item => (Array.isArray(item[1]) ? !!item[1].length : item[1] !== '')) && (len += 1);
-      return len;
+    this.filterCount = list.reduce((accumulator, cur) => {
+      const keysToValueMap = Object.entries(cur);
+      const allPropertiesValid =
+        keysToValueMap.length &&
+        keysToValueMap.every(([, value]) => {
+          return Array.isArray(value) ? value.length > 0 && !value.some(isObject) : value !== '';
+        });
+      return allPropertiesValid ? accumulator + 1 : accumulator;
     }, 0);
     this.variables = this.handleGetVariables(list);
     this.handleUpdateViewOptions();
@@ -1133,7 +1313,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     const hasTarget = this.localViewOptions.compares?.targets?.length;
     /** 开启了groups筛选 | 含有目标对比 需要groug_by参数  目标对比时候 需要将group_by进行合集去重操作 */
     if (this.sceneData?.enableGroup || hasTarget) {
-      // eslint-disable-next-line max-len
       const targetGroupBy = hasTarget
         ? Object.keys(this.localViewOptions.compares?.targets?.[0] || {}).map(key => key)
         : [];
@@ -1148,44 +1327,62 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     let currentTarget = { ...this.filters, ...this.variables };
     let compareTargets = this.compareType === 'target' ? targets : [];
     const selectortTarget = this.sceneData?.selectorPanel?.targets?.[0];
-    if (!!selectortTarget?.compareFieldsSort?.length) {
-      // eslint-disable-next-line max-len
+    if (selectortTarget?.compareFieldsSort?.length) {
       currentTarget = selectortTarget?.handleCreateFilterDictValue(
         this.filters,
         true,
         selectortTarget.compareFieldsSort
       );
-      // eslint-disable-next-line max-len
-      compareTargets = targets?.map(
-        item => selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
+
+      compareTargets = targets?.map(item =>
+        selectortTarget?.handleCreateFilterDictValue(item, true, selectortTarget.compareFieldsSort)
       );
     }
     const variables: Record<string, any> = {
-      ...this.filters,
       ...this.variables,
       compare_targets: compareTargets?.map(item => this.resetHostFields(item)),
-      current_target: this.resetHostFields(currentTarget)
+      current_target: this.resetHostFields(currentTarget),
     };
+    const filters = {};
+    if (this.sceneData?.allVariables?.size) {
+      for (const key of this.sceneData.allVariables) {
+        filters[key] =
+          this.filters?.[key] ||
+          this.viewOptions?.filters?.[key] ||
+          this.$route.query[`filter-${key}`] ||
+          this.defaultViewOptions?.filters?.[key];
+      }
+      this.filters = filters;
+    }
     this.viewOptions = {
       // filter_dict: filterDict,
+      ...filters,
       ...variables,
       method: this.isEnableMethodSelect ? this.method : 'AVG',
-      // eslint-disable-next-line no-nested-ternary
+
       interval: this.interval || 'auto',
       group_by: this.group_by ? [...this.group_by] : [],
-      filters: this.filters
+      groupByVariables: this.groupByVariables,
+      filters: this.filters,
+      variables: this.variables,
     };
     this.handleResetRouteQuery();
   }
   resetHostFields(target: Record<string, any>) {
     if (!target || !window.host_data_fields?.length) return target;
-    return window.host_data_fields.reduce((pre, cur) => ({ ...pre, [cur]: target[cur] }), {});
+    return window.host_data_fields.reduce((pre, cur) => {
+      pre[cur] = target[cur];
+      return pre;
+    }, {});
   }
   handleResetRouteQuery() {
     const filters = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.variables).forEach(key => {
-      filters[`var-${key}`] = this.variables[key];
+      const value = this.variables[key];
+      filters[`var-${key}`] = typeof value === 'object' ? JSON.stringify(value) : value;
     });
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.filters).forEach(key => {
       const value = this.filters[key];
       filters[`filter-${key}`] = typeof value === 'object' ? JSON.stringify(value) : value;
@@ -1193,6 +1390,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
 
     /** queryData无变更的字段则不同步到路由参数 */
     const queryData = {};
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(this.queryData).forEach(key => {
       const isArrayVal = Array.isArray(this.queryData[key]);
       const targetVal = this.queryData[key];
@@ -1203,11 +1401,18 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       }
     });
     const queryDataStr = Object.keys(queryData).length ? encodeURIComponent(JSON.stringify(queryData)) : undefined;
-
+    let groupByVariables = {};
+    if (this.isGroupCompareType) {
+      groupByVariables = {
+        groupByVariables: JSON.stringify(this.groupByVariables),
+      };
+    }
     this.$router.replace({
       name: this.$route.name,
       query: {
         ...filters,
+        ...this.customRouteQuery,
+        ...groupByVariables,
         method: this.method,
         interval: this.interval.toString(),
         groups: this.groups,
@@ -1233,8 +1438,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         timeOffset:
           this.compareType === 'time' && !!this.timeOffset.length
             ? encodeURIComponent(JSON.stringify(this.timeOffset))
-            : undefined /** 时间对比 */
-      }
+            : undefined /** 时间对比 */,
+        isGroupByLimit: this.isGroupByLimit ? 'true' : 'false',
+      },
     });
   }
   /** 更新viewOptions的值 */
@@ -1339,7 +1545,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /** 处理跳转视图详情 */
   handleLinkToDetail(data: ITableItem<'link'>) {
     this.$router.replace({
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${data.url}`.replace(/\/\//g, '/')
+      path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${data.url}`.replace(/\/\//g, '/'),
     });
     this.handleSetDefaultParams();
     this.handleTabChange(this.dashboardId);
@@ -1366,7 +1572,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       const [key, value] = item;
       if (this.toggleTabSearchFilterKeys.includes(key)) {
         total.push({
-          [key]: value
+          [key]: value,
         });
       }
       return total;
@@ -1387,6 +1593,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.queryString = '';
     this.currentTitle = '';
     this.localSceneType = item.type as SceneType;
+    // 清除 log-retrieve 图所需的路由参数
+    for (const key of APM_LOG_ROUTER_QUERY_KEYS) {
+      this.customRouteQuery[key] = undefined;
+    }
     if (this.tab2SceneType && item.type === 'detail') {
       this.localSceneType = 'overview';
     }
@@ -1398,7 +1608,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       keyword: '', // 清空搜索输入框
       filter: '', // 清空状态过滤
       sort: '', // 清空置顶排序
-      filterDict: {} // 清空表格表头过滤
+      filterDict: {}, // 清空表格表头过滤
     };
     if (this.localSceneType === 'overview') {
       if (item.id === 'cluster') {
@@ -1406,20 +1616,25 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         this.queryData.search = [];
       }
     }
-    this.dashboardId = item.id as string;
     this.handleTabChange(item.id as any);
     if (item.show_panel_count) {
+      this.isSceneDataError = false;
+      const [start_time, end_time] = handleTransformToTimestamp(this.timeRange);
       const data = await getSceneViewList({
         scene_id: this.sceneId,
-        type: this.localSceneType
-      }).catch(() => []);
-      this.tabList.forEach(tab => {
-        if (!!tab.panel_count) {
+        type: this.localSceneType,
+        start_time,
+        end_time,
+      }).catch(() => {
+        this.isSceneDataError = true;
+        return [];
+      });
+      for (const tab of this.tabList) {
+        if (tab.panel_count) {
           const count = data.find(d => d.id === tab.id)?.panel_count || 0;
-          // eslint-disable-next-line no-param-reassign
           tab.panel_count = count;
         }
-      });
+      }
     }
   }
 
@@ -1456,19 +1671,19 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       case 'topo_tree': // topo类型展示
         return (
           <HostTree
-            viewOptions={this.localViewOptions}
-            panel={this.sceneData.selectorPanel}
+            width={width}
+            height={contentHeight}
             checkedNode={this.localViewOptions.filters}
             isTargetCompare={this.compareType === 'target'}
-            height={contentHeight}
-            width={width}
-            tabActive={this.sceneData.id}
+            panel={this.sceneData.selectorPanel}
             statusMapping={this.sceneData.statusMapping}
+            tabActive={this.sceneData.id}
+            viewOptions={this.localViewOptions}
+            onChange={this.handleViewOptionsChange}
             onCheckedChange={this.handleCheckedNode}
             onListChange={this.compareHostchange}
-            onTitleChange={this.headerTitleChange}
-            onChange={this.handleViewOptionsChange}
             onOverviewChange={this.handleOverviewChange}
+            onTitleChange={this.headerTitleChange}
           />
         );
       case 'apm_topo': // 接口
@@ -1476,84 +1691,84 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         return (
           <ApmApiPanel
             height={contentHeight}
-            viewOptions={this.localViewOptions}
             panel={this.sceneData.selectorPanel}
+            viewOptions={this.localViewOptions}
+            onChange={this.handleSelectorPanelChange}
             onListChange={this.compareHostchange}
             onTitleChange={this.headerTitleChange}
-            onChange={this.handleSelectorPanelChange}
           />
         );
       case 'apm_service_topo': // 接口
         return (
           <CommonTree
-            viewOptions={this.localViewOptions}
-            panel={this.sceneData.selectorPanel}
             height={contentHeight}
             checkedNode={this.localViewOptions.filters}
             condition={this.selectorSearchCondition}
-            onListChange={this.compareHostchange}
-            onTitleChange={this.headerTitleChange}
+            panel={this.sceneData.selectorPanel}
+            viewOptions={this.localViewOptions}
             onChange={this.handleSelectorPanelChange}
+            onListChange={this.compareHostchange}
             onSearchChange={this.handleSelectorPanelSearch}
+            onTitleChange={this.headerTitleChange}
           />
         );
       case 'list-cluster': // list类型展示 k8s集群侧栏
         return (
           <CommonListK8s
-            viewOptions={this.localViewOptions}
             height={contentHeight}
-            panel={this.sceneData.selectorPanel}
-            isTargetCompare={this.compareType === 'target'}
             isOverview={this.localSceneType === 'overview'}
-            onListChange={this.compareHostchange}
-            onTitleChange={this.headerTitleChange}
+            isTargetCompare={this.compareType === 'target'}
+            panel={this.sceneData.selectorPanel}
+            viewOptions={this.localViewOptions}
             onChange={this.handleToClusterDetail}
+            onListChange={this.compareHostchange}
             onOverviewChange={this.handleClusterOverviewChange}
+            onTitleChange={this.headerTitleChange}
           />
         );
       case 'list': // list类型展示
         return (
           <CommonList
             ref='commonListRef'
-            sceneId={this.sceneId}
             height={contentHeight}
-            viewOptions={this.localViewOptions}
-            panel={this.sceneData.selectorPanel}
-            onCheckedChange={this.handleCheckedNode}
             isTargetCompare={this.compareType === 'target'}
+            panel={this.sceneData.selectorPanel}
+            sceneId={this.sceneId}
+            viewOptions={this.localViewOptions}
+            onChange={this.handleSelectorPanelChange}
+            onCheckedChange={this.handleCheckedNode}
             onListChange={this.compareHostchange}
             onTitleChange={this.headerTitleChange}
-            onChange={this.handleSelectorPanelChange}
           />
         );
       case 'target_list': // 含有对比功能的列表 如主机列表
         return (
           <HostList
+            width={width}
+            height={contentHeight}
+            isTargetCompare={this.compareType === 'target'}
             panel={this.sceneData.selectorPanel}
             viewOptions={this.localViewOptions}
-            height={contentHeight}
-            width={width}
+            onChange={this.handleViewOptionsChange}
             onCheckedChange={this.handleCheckedNode}
-            onTitleChange={this.headerTitleChange}
-            isTargetCompare={this.compareType === 'target'}
             onListChange={this.compareHostchange}
             onOverviewChange={this.handleOverviewChange}
-            onChange={this.handleViewOptionsChange}
-          ></HostList>
+            onTitleChange={this.headerTitleChange}
+          />
         );
       case 'table': // 宽窄表
         // case 'apm_topo': // 测试 TODO
         return (
           <CommonSelectTable
-            panel={this.sceneData.selectorPanel}
-            showMode={this.showMode}
             width={width}
-            viewOptions={this.localViewOptions}
             hasOverviewPanels={this.hasOverviewPanels}
             isOverview={this.localSceneType === 'overview'}
-            onTitleChange={this.headerTitleChange}
+            panel={this.sceneData.selectorPanel}
+            showMode={this.showMode}
+            viewOptions={this.localViewOptions}
             onChange={this.handleViewOptionsChange}
             onOverviewChange={this.handleSelectorTableOverviewChange}
+            onTitleChange={this.headerTitleChange}
           />
         );
       default:
@@ -1574,26 +1789,27 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         )}
         {this.sceneData && [
           <PageTitle
+            key='common-page-title'
             class='common-page-title'
             activeTab={this.dashboardId}
+            bookMarkMode={this.sceneData.mode}
+            filterActive={this.filterActive}
+            filterCount={this.filterCount}
             needAddViewBtn={this.sceneData.viewEditable}
-            tabList={this.tabList}
             searchData={this.sceneData.searchData}
             searchValue={this.searchValue}
-            showSearch={this.sceneData.panelCount > 1 && this.sceneData.searchData.length > 0}
-            bookMarkMode={this.sceneData.mode}
-            showFilter={!!this.sceneData.variables.length || this.sceneData.enableGroup}
-            showSelectPanel={false}
-            filterActive={this.filterActive}
-            showInfo={false}
             selectPanelActive={this.isSelectPanelActive}
-            filterCount={this.filterCount}
-            onFilterChange={val => (this.filterActive = val)}
-            onSelectPanelChange={this.handleSelectPanelActive}
-            onSearchChange={this.handleSearchChange}
-            onTabChange={this.handleMenuTabChange}
-            onListPanelChange={this.handleDashboardModeChange}
+            showFilter={!!this.sceneData.variables.length || this.sceneData.enableGroup}
+            showInfo={false}
+            showSearch={this.sceneData.panelCount > 1 && this.sceneData.searchData.length > 0}
+            showSelectPanel={false}
+            tabList={this.tabList}
             onAddTab={() => this.handleAddTab('edit-tab')}
+            onFilterChange={val => (this.filterActive = val)}
+            onListPanelChange={this.handleDashboardModeChange}
+            onSearchChange={this.handleSearchChange}
+            onSelectPanelChange={this.handleSelectPanelActive}
+            onTabChange={this.handleMenuTabChange}
           >
             <div
               class='title-content'
@@ -1605,34 +1821,35 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             {!this.readonly && !!this.sceneData.alarmPanel && (
               <AlarmTools
                 key={this.alarmToolsKey}
-                filters={this.filters}
-                variables={this.variables}
-                panel={this.sceneData.alarmPanel}
-                slot='tools'
                 style={{ marginRight: '4px' }}
+                slot='tools'
+                filters={this.filters}
+                panel={this.sceneData.alarmPanel}
+                variables={this.variables}
               />
             )}
             <div
-              slot='tools'
               class='tools-wrap'
+              slot='tools'
             >
+              {this.$slots.prependTools}
               <DashboardTools
+                downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
+                menuList={this.$slots.buttonGroups ? [] : this.sceneData.dashboardToolMenuList}
                 refleshInterval={this.refleshInterval}
+                showDownSampleRange={false}
+                showListMenu={!this.readonly && this.localSceneType !== 'overview'}
+                showSplitPanel={this.isShowSplitPanel}
                 timeRange={this.timeRange}
                 timezone={this.timezone}
-                showSplitPanel={this.isShowSplitPanel}
-                showListMenu={!this.readonly && this.localSceneType !== 'overview'}
-                menuList={this.sceneData.dasbordToolMenuList}
-                downSampleRange={this.downSampleRange}
-                showDownSampleRange={false}
+                onDownSampleRangeChange={this.handleDownSampleRangeChange}
+                onFullscreenChange={this.handleFullscreen}
                 onImmediateReflesh={this.handleImmediateReflesh}
                 onRefleshChange={this.handleRefleshChange}
-                onTimeRangeChange={this.handleTimeRangeChange}
-                onFullscreenChange={this.handleFullscreen}
-                onSplitPanelChange={this.handleSplitPanel}
                 onSelectedMenu={this.handleShowSettingModel}
-                onDownSampleRangeChange={this.handleDownSampleRangeChange}
+                onSplitPanelChange={this.handleSplitPanel}
+                onTimeRangeChange={this.handleTimeRangeChange}
                 onTimezoneChange={this.handleTimezoneChange}
               >
                 {this.$slots.dashboardTools}
@@ -1641,43 +1858,49 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             </div>
           </PageTitle>,
           <div
-            class='common-page-container'
             key={this.selectorPanelKey}
+            class='common-page-container'
           >
             <keep-alive>
-              {this.sceneData.showSelectPanel && this.showSelectPanel && (
+              {((this.sceneData.showSelectPanel && this.showSelectPanel) ||
+                this.sceneData.options?.only_index_list) && (
                 <CommonDetail
                   style={{ display: this.readonly ? 'none' : 'block' }}
-                  lineText={''}
-                  title={this.$t('列表').toString()}
-                  enableResizeListener={true}
-                  onShrink={() => (this.isSelectPanelActive = !this.isSelectPanelActive)}
-                  onShowChange={show => !show && (this.isSelectPanelActive = false)}
-                  toggleSet={this.toggleSet}
-                  resetDragPosKey={this.resetDragPosKey}
-                  indexList={this.indexList}
-                  needOverflow={false}
-                  onWidthChange={this.handleLeftPanelWidthChange}
-                  showMode={this.showMode}
-                  specialDrag={true}
-                  scencId={this.sceneId}
-                  defaultWidth={this.sceneData.defaultSelectorPanelWidth}
                   scopedSlots={{
                     default: ({ contentHeight, width }) => (
                       <div class={['host-tree-container', 'no-padding']}>
                         {/* 主机树形组件 */}
-                        {this.handleGetSelectPanel(contentHeight, width)}
+                        {!this.sceneData.options?.only_index_list &&
+                          this.sceneData.showSelectPanel &&
+                          this.showSelectPanel &&
+                          this.handleGetSelectPanel(contentHeight, width)}
                       </div>
-                    )
+                    ),
                   }}
-                ></CommonDetail>
+                  defaultWidth={this.sceneData.defaultSelectorPanelWidth}
+                  enableResizeListener={true}
+                  indexList={this.indexList}
+                  isOnlyShowIndex={this.sceneData.options?.only_index_list}
+                  lineText={''}
+                  needOverflow={false}
+                  resetDragPosKey={this.resetDragPosKey}
+                  scencId={this.sceneId}
+                  showMode={this.showMode}
+                  specialDrag={!this.sceneData.options?.only_index_list}
+                  title={this.$t('列表').toString()}
+                  toggleSet={this.toggleSet}
+                  onShowChange={show => !show && (this.isSelectPanelActive = false)}
+                  onShrink={() => (this.isSelectPanelActive = !this.isSelectPanelActive)}
+                  onWidthChange={this.handleLeftPanelWidthChange}
+                />
               )}
             </keep-alive>
             {this.showMode !== 'list' &&
               this.selectorReady && [
                 <div
-                  class='dashboard-panel-wrap'
+                  key='dashboardPanelWrap'
                   ref='dashboardPanelWrap'
+                  class='dashboard-panel-wrap'
                 >
                   <div class='dashboard-panel-tools'>
                     {
@@ -1690,32 +1913,58 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                             renderAnimation={false}
                             onExpandChange={val => (this.filterActive = val)}
                           >
-                            <div class='dashboard-panel-filter-content'>
+                            <div
+                              class={[
+                                'dashboard-panel-filter-content',
+                                { 'is-group-compare-type': this.isGroupCompareType },
+                              ]}
+                            >
                               {!!this.sceneData.variables.length && (
                                 <FilterVarSelectGroup
-                                  ref='filterVarSelectGroupRef'
                                   key={this.sceneData.id + this.refleshVariablesKey}
-                                  scencId={this.sceneId}
-                                  sceneType={this.localSceneType}
+                                  ref='filterVarSelectGroupRef'
+                                  needAddBtn={this.sceneData.variableEditable}
                                   pageId={this.dashboardId}
                                   panelList={this.sceneData.variables}
+                                  scencId={this.sceneId}
+                                  sceneType={this.localSceneType}
                                   variables={this.variables}
-                                  needAddBtn={this.sceneData.variableEditable}
+                                  onAddFilter={() => this.handleAddTab('edit-variate')}
                                   onChange={this.handleFilterVarChange}
                                   onDataReady={this.handleFilterVarDataReady}
-                                  onAddFilter={() => this.handleAddTab('edit-variate')}
                                 />
                               )}
                               {this.sceneData.enableGroup ? (
-                                <GroupSelect
-                                  class='k8s-group-select'
-                                  value={Array.isArray(this.groups) ? this.groups : [this.groups]}
-                                  scencId={this.sceneId}
-                                  pageId={this.dashboardId}
-                                  sceneType={this.localSceneType}
-                                  panel={this.sceneData.groupPanel}
-                                  onChange={this.handleGroupsChange}
-                                />
+                                this.isGroupCompareType ? (
+                                  <GroupCompareSelect
+                                    active={this.isGroupByLimit ? EGroupCompareType.group : EGroupCompareType.compare}
+                                    groups={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                    limit={this.groupByVariables.limit}
+                                    limitSortMethod={this.groupByVariables.limit_sort_method}
+                                    limitSortMethods={this.limitSortMethods}
+                                    metricCalType={this.groupByVariables.metric_cal_type}
+                                    metricCalTypes={this.metricCalTypes}
+                                    pageId={this.dashboardId}
+                                    panel={this.sceneData.groupPanel}
+                                    sceneId={this.sceneId}
+                                    sceneType={this.localSceneType}
+                                    timeValue={this.timeOffset}
+                                    onGroupChange={this.handleGroupsChange}
+                                    onTimeCompareChange={this.handleGroupCompareTimeChange}
+                                    onTypeChange={this.handleGroupCompareTypeChange}
+                                    onVariablesChange={this.handleGroupByVariablesChange}
+                                  />
+                                ) : (
+                                  <GroupSelect
+                                    class='k8s-group-select'
+                                    pageId={this.dashboardId}
+                                    panel={this.sceneData.groupPanel}
+                                    scencId={this.sceneId}
+                                    sceneType={this.localSceneType}
+                                    value={Array.isArray(this.groups) ? this.groups : [this.groups]}
+                                    onChange={this.handleGroupsChange}
+                                  />
+                                )
                               ) : undefined}
                             </div>
                           </Collapse>
@@ -1731,46 +1980,46 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                         onLayoutChange={this.handleChartChange}
                       >
                         <span
-                          slot='prepend'
                           class='panel-tools-prepend'
+                          slot='prepend'
                         >
                           {this.isEnableIntervalSelect && (
                             <FilterVarSelectSimple
-                              value={this.interval}
-                              options={PANEL_INTERVAL_LIST}
                               field={'interval'}
                               label={this.$t('汇聚周期')}
+                              options={PANEL_INTERVAL_LIST}
+                              value={this.interval}
                               onChange={this.handleIntervalChange}
                             />
                           )}
                           {this.isEnableMethodSelect && (
                             <FilterVarSelectSimple
-                              value={this.method}
-                              options={METHOD_LIST.concat(...CP_METHOD_LIST)}
                               field={'method'}
                               label={this.$t('汇聚方法')}
+                              options={METHOD_LIST.concat(...CP_METHOD_LIST)}
+                              value={this.method}
                               onChange={this.handleMethodChange}
                             />
                           )}
-                          {this.isShowCompareTool && (
+                          {this.isShowCompareTool && !this.isGroupCompareType && (
                             <CompareSelect
-                              needTargetSelect
-                              targetOptions={this.compareHostList}
-                              type={this.compareType}
                               compareListEnable={this.compareTypeMap}
-                              panel={this.sceneData.selectorPanel}
                               curTarget={this.currentTitle}
-                              timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
+                              panel={this.sceneData.selectorPanel}
+                              targetOptions={this.compareHostList}
                               targetValue={this.compareType === 'target' ? this.localViewOptions : undefined}
+                              timeValue={this.compareType === 'time' ? (this.timeOffset as string[]) : undefined}
+                              type={this.compareType}
+                              needTargetSelect
+                              onTargetChange={this.handleCompareTargetChange}
                               onTimeChange={this.handleCompareTimeChange}
                               onTypeChange={this.handleCompareTypeChange}
-                              onTargetChange={this.handleCompareTargetChange}
                             />
                           )}
                           {this.sceneData.isShowPreciseFilter && (
                             <bk-checkbox
-                              v-model={this.isPreciseFilter}
                               class='precise-filtering'
+                              v-model={this.isPreciseFilter}
                               onChange={this.handlePreciseFilteringChange}
                             >
                               {this.$t('精准过滤')}
@@ -1781,16 +2030,19 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                     )}
                   </div>
                   {/* 所有视图无数据提示 如apm视图无数据指引 */}
-                  {!!this.$slots.noData && <div class='view-has-no-data-main'>{this.$slots.noData}</div>}
+                  {this.$slots.noData && !this.isSingleChartNoPadding && (
+                    <div class='view-has-no-data-main'>{this.$slots.noData}</div>
+                  )}
                   {this.filtersReady ? (
                     <DashboardPanel
+                      id={this.dashboardPanelId}
+                      key={this.sceneData.id}
+                      column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
+                      dashboardId={this.dashboardId}
                       isSingleChart={this.isSingleChart}
                       needOverviewBtn={!!this.sceneData?.list?.length}
-                      key={this.sceneData.id}
-                      id={this.dashboardPanelId}
-                      dashboardId={this.dashboardId}
-                      column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
                       panels={this.dashbordMode === 'chart' ? this.preciseFilteringPanels : this.sceneData.list}
+                      singleChartNoPadding={this.isSingleChartNoPadding}
                       // onLinkTo={this.handleUpdateCurrentData}
                       onBackToOverview={this.handleBackToOverview}
                       onLintToDetail={this.handleLinkToDetail}
@@ -1800,70 +2052,80 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   )}
                 </div>,
                 <div
-                  class='split-panel-wrapper'
+                  key='split-panel-wrapper'
                   style={{
                     width: `${this.splitPanelWidth}px`,
-                    display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none'
+                    display: this.splitPanelWidth > SPLIT_MIN_WIDTH && this.isSplitPanel ? 'flex' : 'none',
                   }}
+                  class='split-panel-wrapper'
                 >
                   {this.isSplitPanel ? (
                     <SplitPanel
                       columns={this.columns}
                       dashboardId={this.dashboardPanelId}
+                      defaultViewOptions={this.viewOptions}
                       splitMaxWidth={Math.max(this.splitPanelWidth + 300, SPLIT_MAX_WIDTH)}
                       splitWidth={this.splitPanelWidth}
                       toggleSet={this.toggleSet}
-                      defaultViewOptions={this.viewOptions}
                       onDragMove={this.handleDragMove}
                     />
                   ) : undefined}
-                </div>
+                </div>,
               ]}
             <keep-alive>
               {this.enableDetail && (
                 <CommonDetail
+                  collapse={this.collapseInfo}
+                  maxWidth={500}
+                  needShrinkBtn={false}
                   panel={this.isOverview ? this.sceneData.overviewDetailPanel : this.sceneData.detailPanel}
+                  placement={'right'}
+                  selectorPanelType={this.sceneData?.selectorPanel?.type || ''}
+                  startPlacement={'left'}
                   title={this.$tc('详情')}
                   toggleSet={this.toggleSet}
-                  startPlacement={'left'}
-                  needShrinkBtn={false}
-                  placement={'right'}
-                  maxWidth={500}
-                  collapse={this.collapseInfo}
-                  selectorPanelType={this.sceneData?.selectorPanel?.type || ''}
-                  onTitleChange={this.headerTitleChange}
                   onLinkToDetail={this.handleLinkToDetail}
                   onShowChange={this.handleDetailShowChange}
+                  onTitleChange={this.headerTitleChange}
                 />
               )}
             </keep-alive>
+            {this.isSceneDataError ? (
+              <div class='scene-error-no-data'>
+                <EmptyStatus
+                  showOperation={false}
+                  type={'500'}
+                />
+              </div>
+            ) : undefined}
           </div>,
           !this.readonly ? (
             <SettingModal
-              show={this.showSetting}
-              menuList={this.sceneData.settingMenuList as any}
+              key='setting-modal'
               activeMenu={this.activeSettingId as string}
               beforeClose={this.handleBeforeCloseSettings}
+              menuList={this.sceneData.settingMenuList as any}
+              show={this.showSetting}
+              zIndex={1999}
               onChange={this.toggleSettingModel}
               onMenuChange={this.handleMenuChange}
-              zIndex={1999}
             >
               {this.showSetting && (
                 <settings-wrapper
                   ref='settingsWrapRef'
-                  initAddSetting={this.initAddSetting}
                   active={this.activeSettingId}
                   activeTab={this.dashboardId}
-                  viewType={this.localSceneType}
-                  sceneId={this.sceneId}
                   bookMarkData={this.tabList}
+                  initAddSetting={this.initAddSetting}
+                  sceneId={this.sceneId}
                   title={this.title}
+                  viewType={this.localSceneType}
                   onActiveChange={val => (this.activeSettingId = val)}
                   onPanelChange={val => (this.isPanelChange = val)}
                 />
               )}
             </SettingModal>
-          ) : undefined
+          ) : undefined,
         ]}
       </div>
     );

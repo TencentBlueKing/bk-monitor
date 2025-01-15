@@ -25,11 +25,12 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import './monitor-drag.scss';
 
-type ThemeType = 'normal' | 'line' | 'line-round';
+type ThemeType = 'line' | 'line-round' | 'normal';
 interface IMonitorDragProps {
   minWidth?: number;
   maxWidth?: number;
@@ -39,9 +40,11 @@ interface IMonitorDragProps {
   theme?: ThemeType;
   lineText?: string;
   isShow?: boolean;
+  top?: number;
+  isOnlyShowIndex?: boolean;
 }
 interface IMonitorDragEvent {
-  onMove: (left: number, swipeRight: boolean, cancelFn: Function) => void;
+  onMove: (left: number, swipeRight: boolean, cancelFn: () => void) => void;
   onTrigger: boolean;
 }
 @Component
@@ -58,6 +61,8 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
   /** 是否展开装填 */
   @Prop({ type: Boolean, default: false }) isShow: boolean;
   @Prop({ type: Boolean, default: false }) isInPanelView: boolean;
+  @Prop({ type: Number, default: 0 }) top: number;
+  @Prop({ type: Boolean, default: false }) isOnlyShowIndex: boolean;
   left = 0;
   defaultLeft = 0;
   show = true;
@@ -114,12 +119,8 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
     const vm = this;
     if (this.isInPanelView && this.left) {
     }
-    document.onselectstart = function () {
-      return false;
-    };
-    document.ondragstart = function () {
-      return false;
-    };
+    document.onselectstart = () => false;
+    document.ondragstart = () => false;
     function handleMouseMove(event) {
       vm.isMoving = true;
       const swipeRight = event.clientX - mouseX >= 0;
@@ -170,34 +171,37 @@ export default class MonitorDrag extends tsc<IMonitorDragProps, IMonitorDragEven
   render() {
     return (
       <div
-        onMousedown={this.handleMouseDown}
-        class={['monitor-drag', this.theme, this.startPlacement]}
         style={{ left: this.theme !== 'normal' ? '' : `${this.left}px`, display: this.show ? 'flex' : 'none' }}
+        class={['monitor-drag', this.theme, this.startPlacement]}
+        onMousedown={this.handleMouseDown}
       >
         <div>
           {['line', 'line-round'].includes(this.theme) && (
             <div class={['theme-line', this.startPlacement, { 'is-show': this.isShow }]}>
               <span class='line-wrap'>
-                <span class={['line', { 'is-moving': this.isMoving }]}>
+                <span
+                  style={{ top: `${this.top}px` }}
+                  class={['line', { 'is-moving': this.isMoving }]}
+                >
                   {this.theme === 'line-round' && (
                     <div class='line-round-wrap'>
                       {[1, 2, 3, 4, 5].map(i => (
                         <span
                           key={i}
                           class={`line-round ${i === 3 ? `line-square line-round-${i}` : `line-round-${i}`}`}
-                        ></span>
+                        />
                       ))}
                     </div>
                   )}
                 </span>
               </span>
-              {this.lineText && (
+              {(this.lineText || this.isOnlyShowIndex) && (
                 <span
                   class='line-trigger'
                   onClick={this.handleTrigger}
                 >
                   {!this.isShow && <span class='trigger-text'>{this.lineText}</span>}
-                  <i class='icon-monitor icon-arrow-left'></i>
+                  <i class='icon-monitor icon-arrow-left' />
                 </span>
               )}
             </div>

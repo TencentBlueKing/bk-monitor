@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onUnmounted, PropType, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onUnmounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Tag, TimePicker } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { getEventPaths } from 'monitor-pc/utils';
@@ -47,7 +48,7 @@ export default defineComponent({
     /** 名称宽度 */
     labelWidth: { type: Number, default: 52 },
     /** 已选择时间 */
-    modelValue: { type: Array as PropType<string[][]>, default: () => [] }
+    modelValue: { type: Array as PropType<string[][]>, default: () => [] },
   },
   emits: ['update:modelValue', 'change'],
   setup(props, { emit }) {
@@ -61,7 +62,7 @@ export default defineComponent({
         localValue.splice(0, localValue.length, ...val);
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
     const isChange = computed(() => {
@@ -79,7 +80,7 @@ export default defineComponent({
       /** 时间选择器是否展示 */
       show: false,
       showInput: false,
-      inputValue: ''
+      inputValue: '',
     });
 
     watch(
@@ -222,7 +223,7 @@ export default defineComponent({
       handleShowTime,
       handleTimeChange,
       handleTagClose,
-      handleConfirm
+      handleConfirm,
     };
   },
   render() {
@@ -230,8 +231,8 @@ export default defineComponent({
       <div class='time-tag-picker-wrapper-component'>
         {this.label && (
           <div
-            class='label'
             style={{ width: `${this.labelWidth}px` }}
+            class='label'
           >
             {this.label}
           </div>
@@ -239,13 +240,13 @@ export default defineComponent({
         <TimePicker
           class='time-picker'
           v-model={this.currentTime.value}
-          type='timerange'
+          ext-popover-cls='time-picker-popover'
           format='HH:mm'
           open={this.currentTime.show}
-          appendToBody
+          type='timerange'
           allowCrossDay
+          appendToBody
           onChange={this.handleTimeChange}
-          ext-popover-cls='time-picker-popover'
         >
           {{
             trigger: () => (
@@ -253,7 +254,7 @@ export default defineComponent({
                 class='content'
                 onClick={e => this.handleShowTime(e, ['00:00', '23:59'])}
               >
-                <i class='icon-monitor icon-mc-time icon'></i>
+                <i class='icon-monitor icon-mc-time icon' />
                 <div class='time-tag-list'>
                   {this.localValue.map((item, ind) => (
                     <Tag
@@ -264,12 +265,12 @@ export default defineComponent({
                     >
                       {this.currentTime.index === ind ? (
                         <input
-                          class='edit-custom-input'
                           ref='inputRef'
                           style={{ width: `${this.inputWidth}px` }}
+                          class='edit-custom-input'
                           v-model={this.currentTime.inputValue}
-                          onInput={this.resetInputWidth}
                           onClick={e => e.stopPropagation()}
+                          onInput={this.resetInputWidth}
                         />
                       ) : (
                         <span>{this.tagNameFormat(item)}</span>
@@ -279,28 +280,28 @@ export default defineComponent({
                   {this.currentTime.showInput && (
                     <input
                       ref='inputRef'
-                      class='custom-input'
                       style={{ width: `${this.inputWidth}px` }}
+                      class='custom-input'
                       v-model={this.currentTime.inputValue}
-                      onInput={this.resetInputWidth}
                       onClick={e => e.stopPropagation()}
-                    ></input>
+                      onInput={this.resetInputWidth}
+                    />
                   )}
                   <span class={['placeholder', !this.localValue.length && !this.currentTime.showInput && 'show']}>
                     {this.t('如')}：01:00 - 02:00
                   </span>
                 </div>
               </div>
-            )
+            ),
           }}
         </TimePicker>
         <span
-          class='text-width-test'
           ref='textTestRef'
+          class='text-width-test'
         >
           {this.currentTime.inputValue}
         </span>
       </div>
     );
-  }
+  },
 });

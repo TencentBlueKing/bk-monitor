@@ -39,41 +39,41 @@ const data = {
       introduce: [
         '采集的指标丰富多达100个指标和8种系统事件',
         '可以按集群和模块拓扑进行数据的汇总',
-        '提供默认的主机和事件策略'
+        '提供默认的主机和事件策略',
       ],
       buttons: [
         {
           name: '接入主机',
-          url: ''
+          url: '',
         },
         {
           name: 'DEMO',
-          url: ''
-        }
+          url: '',
+        },
       ],
       links: [
         {
           name: '快速接入',
-          url: '产品白皮书/scene-host/host_monitor.md'
+          url: '产品白皮书/scene-host/host_monitor.md',
         },
         {
           name: '进程配置',
-          url: '产品白皮书/scene-process/process_monitor_overview.md'
+          url: '产品白皮书/scene-process/process_monitor_overview.md',
         },
         {
           name: '操作系统指标',
-          url: '产品白皮书/scene-host/host_metrics.md'
+          url: '产品白皮书/scene-host/host_metrics.md',
         },
         {
           name: '进程指标',
-          url: '产品白皮书/scene-process/process_metrics.md'
+          url: '产品白皮书/scene-process/process_metrics.md',
         },
         {
           name: '操作系统事件',
-          url: '产品白皮书/scene-host/host_events.md'
-        }
-      ]
-    }
+          url: '产品白皮书/scene-host/host_events.md',
+        },
+      ],
+    },
   },
   // 服务拨测
   'uptime-check': {
@@ -86,33 +86,33 @@ const data = {
       introduce: [
         '支持HTTP(s)、TCP、UDP、ICMP协议',
         '提供单点可用率、响应时长、期望响应码等指标',
-        '提供节点TOP和地图等图表'
+        '提供节点TOP和地图等图表',
       ],
       buttons: [
         {
           name: '新建拨测',
-          url: '#/uptime-check/task-add'
+          url: '#/uptime-check/task-add',
         },
         {
           name: 'DEMO',
-          url: ''
-        }
+          url: '',
+        },
       ],
       links: [
         {
           name: '开启综合拨测',
-          url: '产品白皮书/scene-synthetic/synthetic_monitor.md'
+          url: '产品白皮书/scene-synthetic/synthetic_monitor.md',
         },
         {
           name: '拨测指标说明',
-          url: '产品白皮书/scene-synthetic/synthetic_metrics.md'
+          url: '产品白皮书/scene-synthetic/synthetic_metrics.md',
         },
         {
           name: '拨测策略说明',
-          url: '产品白皮书/scene-synthetic/synthetic_default_rules.md'
-        }
-      ]
-    }
+          url: '产品白皮书/scene-synthetic/synthetic_default_rules.md',
+        },
+      ],
+    },
   },
   // 应用监控
   'apm-home': {
@@ -125,33 +125,33 @@ const data = {
       introduce: [
         '通过应用拓扑图，可以了解服务之间调用的关系和出现问题的节点',
         '通过调用次数、耗时、错误率等指标可以了解服务本身的运行状况',
-        '可以添加告警即时的发现问题'
+        '可以添加告警即时的发现问题',
       ],
       buttons: [
         {
           name: '新建应用',
-          url: '#/apm/application/add'
+          url: '#/apm/application/add',
         },
         {
           name: 'DEMO',
-          url: ''
-        }
+          url: '',
+        },
       ],
       links: [
         {
           name: 'button-开启APM',
-          url: '产品白皮书/scene-apm/apm_monitor_overview.md'
+          url: '产品白皮书/scene-apm/apm_monitor_overview.md',
         },
         {
           name: 'APM指标说明',
-          url: '产品白皮书/scene-apm/apm_metrics.md'
+          url: '产品白皮书/scene-apm/apm_metrics.md',
         },
         {
           name: 'APM策略说明',
-          url: '产品白皮书/scene-apm/apm_default_rules.md'
-        }
-      ]
-    }
+          url: '产品白皮书/scene-apm/apm_default_rules.md',
+        },
+      ],
+    },
   },
   // 容器监控
   k8s: {
@@ -166,33 +166,33 @@ const data = {
         '兼容serviceMonitor、podMonitor的使用',
         '提供了Events、Log、Metrics的采集方案',
         '提供远程服务注册的方式',
-        '提供本地拉取和均衡拉取的能力'
+        '提供本地拉取和均衡拉取的能力',
       ],
       buttons: [
         {
           name: '接入Kubernetes',
-          url: ''
+          url: '',
         },
         {
           name: 'DEMO',
-          url: ''
-        }
+          url: '',
+        },
       ],
       links: [
         {
           name: '开启容器监控',
-          url: '产品白皮书/scene-k8s/k8s_monitor_overview.md'
+          url: '产品白皮书/scene-k8s/k8s_monitor_overview.md',
         },
         {
           name: '容器指标说明',
-          url: '产品白皮书/scene-k8s/k8s_metrics.md'
+          url: '产品白皮书/scene-k8s/k8s_metrics.md',
         },
         {
           name: 'K8s策略说明',
-          url: '产品白皮书/scene-k8s/k8s_default_rules.md'
-        }
-      ]
-    }
+          url: '产品白皮书/scene-k8s/k8s_default_rules.md',
+        },
+      ],
+    },
   },
   // 自定义场景
   'custom-scenes': {
@@ -206,19 +206,19 @@ const data = {
         '基于数据源提供默认的数据可视化',
         '支持快速进行数据查看和检验',
         '支持指标分组和标签配置',
-        '支持变量过滤和数据分组'
+        '支持变量过滤和数据分组',
       ],
       buttons: [
         {
           name: '开始自定义',
-          url: ''
+          url: '',
         },
         {
           name: 'DEMO',
-          url: ''
-        }
-      ]
-    }
+          url: '',
+        },
+      ],
+    },
   },
   // 数据采集
   'collect-config': {
@@ -232,28 +232,28 @@ const data = {
       buttons: [
         {
           name: '新建数据采集',
-          url: '#/collect-config/add'
+          url: '#/collect-config/add',
         },
         {
           name: 'DEMO',
-          url: ''
-        }
+          url: '',
+        },
       ],
       links: [
         {
           name: '什么是指标和维度',
-          url: '产品白皮书/integrations-metrics/what_metrics.md'
+          url: '产品白皮书/integrations-metrics/what_metrics.md',
         },
         {
           name: '开始指标数据采集',
-          url: '产品白皮书/integrations-metrics/collect_tasks.md'
+          url: '产品白皮书/integrations-metrics/collect_tasks.md',
         },
         {
           name: '插件制作快速入门',
-          url: '产品白皮书/integrations-metric-plugins/plugins.md'
-        }
-      ]
-    }
-  }
+          url: '产品白皮书/integrations-metric-plugins/plugins.md',
+        },
+      ],
+    },
+  },
 };
 export default data;

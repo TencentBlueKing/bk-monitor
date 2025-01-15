@@ -18,12 +18,28 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+from datetime import datetime, timedelta
+
 from celery.schedules import crontab  # noqa
 from celery.task import periodic_task  # noqa
 
+from apps.log_search.models import LogIndexSet, Space, UserIndexSetSearchHistory
+from apps.utils.core.cache.cmdb_host import CmdbHostCache
 
-@periodic_task(run_every=crontab(minute="0", hour="*/12"))
+
+@periodic_task(run_every=crontab(minute="0", hour="*"))
 def refresh_cmdb():
-    from apps.utils.core.cache.cmdb_host import CmdbHostCache
-
-    CmdbHostCache.refresh()
+    index_set_ids = list(
+        UserIndexSetSearchHistory.objects.filter(created_at__gte=datetime.now() - timedelta(days=1)).values_list(
+            "index_set_id", flat=True
+        )
+    )
+    space_uids = set(
+        LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values_list("space_uid", flat=True)
+    )
+    bk_biz_ids = set(Space.objects.filter(space_uid__in=space_uids).values_list("bk_biz_id", flat=True))
+    current_hour = datetime.now().hour
+    if current_hour % 12 != 0:
+        CmdbHostCache.refresh(bk_biz_ids)
+    else:
+        CmdbHostCache.refresh()

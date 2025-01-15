@@ -23,18 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Mixins } from 'vue-property-decorator';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
 import AlarmDispatch from './alarm-dispatch';
 import * as authorityMap from './authority-map';
 
 @Component
 export default class AlarmDispatchPage extends Mixins(authorityMixinCreate(authorityMap)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   render() {
-    return <AlarmDispatch></AlarmDispatch>;
+    return <AlarmDispatch />;
   }
 }

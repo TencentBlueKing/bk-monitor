@@ -34,7 +34,7 @@ interface ITipMsg {
 }
 
 @Component({
-  name: 'TipMsg'
+  name: 'TipMsg',
 })
 export default class TipMsg extends tsc<ITipMsg> {
   @Prop({ type: String, default: 'icon-tips' }) iconName: string;
@@ -42,7 +42,7 @@ export default class TipMsg extends tsc<ITipMsg> {
   render() {
     return (
       <div class='tip-msg-component'>
-        <span class={['icon-monitor tip-icon', this.iconName]}></span>
+        <span class={['icon-monitor tip-icon', this.iconName]} />
         <span class='msg-text'>{this.msg}</span>
       </div>
     );

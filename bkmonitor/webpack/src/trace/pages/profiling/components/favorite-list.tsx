@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Input, Popover, Radio } from 'bkui-vue';
 import { EnlargeLine, Transfer } from 'bkui-vue/lib/icon';
 
-import { IFavList } from '../typings/favorite-list';
+import type { IFavList } from '../typings/favorite-list';
 
 import './favorite-list.scss';
 
@@ -37,8 +38,8 @@ export default defineComponent({
   props: {
     favoriteList: {
       type: Array as PropType<IFavList.favGroupList[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   emits: [],
   setup(props) {
@@ -51,16 +52,16 @@ export default defineComponent({
       // 排序展示列表
       {
         name: t('按名称 A - Z 排序'),
-        id: 'asc'
+        id: 'asc',
       },
       {
         name: t('按名称 Z - A 排序'),
-        id: 'desc'
+        id: 'desc',
       },
       {
         name: t('按更新时间排序'),
-        id: 'update'
-      }
+        id: 'update',
+      },
     ];
 
     const searchVal = ref('');
@@ -93,7 +94,7 @@ export default defineComponent({
       sortType,
       groupSortList,
       handleSearchFavorite,
-      isShowManageDialog
+      isShowManageDialog,
     };
   },
   render() {
@@ -108,39 +109,39 @@ export default defineComponent({
             <span
               class='icon-monitor icon-mc-wholesale-editor'
               onClick={() => (this.isShowManageDialog = true)}
-            ></span>
+            />
           </div>
           <div class='search-tools jsac'>
             <Input
-              type='search'
               v-model={this.searchVal}
-              onEnter={this.handleSearchFavorite}
               placeholder={this.$t('搜索收藏名')}
-            ></Input>
+              type='search'
+              onEnter={this.handleSearchFavorite}
+            />
             <div class='tools jsac'>
               <Popover
                 ref='popoverGroupRef'
-                trigger='click'
-                theme='light'
-                placement='bottom-start'
                 ext-cls='new-group-popover'
+                placement='bottom-start'
+                theme='light'
+                trigger='click'
               >
                 {{
-                  default: () => <span class='icon-monitor icon-jia'></span>,
+                  default: () => <span class='icon-monitor icon-jia' />,
                   content: () => (
                     <div class='operate-button'>
                       <Button text>{this.$t('确定')}</Button>
                       <span>{this.$t('取消')}</span>
                     </div>
-                  )
+                  ),
                 }}
               </Popover>
               <Popover
                 ref='popoverSortRef'
-                trigger='click'
-                theme='light'
-                placement='bottom-start'
                 ext-cls='sort-group-popover'
+                placement='bottom-start'
+                theme='light'
+                trigger='click'
               >
                 {{
                   default: () => (
@@ -152,8 +153,8 @@ export default defineComponent({
                     <div>
                       <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
                       <Radio.Group
-                        v-model={this.sortType}
                         class='sort-group-container'
+                        v-model={this.sortType}
                       >
                         {this.groupSortList.map(item => (
                           <Radio label={item.id}>{item.name}</Radio>
@@ -164,7 +165,7 @@ export default defineComponent({
                         <Button>{this.$t('取消')}</Button>
                       </div>
                     </div>
-                  )
+                  ),
                 }}
               </Popover>
             </div>
@@ -174,8 +175,8 @@ export default defineComponent({
           <EnlargeLine class='icon' />
           <span>{this.$t('新检索')}</span>
         </div>
-        <div class='group-container'></div>
+        <div class='group-container' />
       </div>
     );
-  }
+  },
 });

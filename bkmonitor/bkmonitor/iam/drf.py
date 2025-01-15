@@ -8,20 +8,28 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
+
+from typing_extensions import Literal
+
+from bkmonitor.utils.thread_backend import ThreadPool
+
 """
 DRF 插件
 """
 from functools import wraps
 from typing import Callable, List, Optional
 
+from iam import Resource
 from rest_framework import permissions
 
 from core.errors.iam import PermissionDeniedError
-from iam import Resource
 
 from . import Permission
 from .action import ActionEnum, ActionMeta
 from .resource import ResourceEnum, ResourceMeta
+
+logger = logging.getLogger("apm")
 
 
 class IAMPermission(permissions.BasePermission):
@@ -154,6 +162,7 @@ def insert_permission_field(
     always_allowed: Callable = lambda item: False,
     many: bool = True,
     instance_create_func: Optional[Callable[[dict], Resource]] = None,
+    batch_create: bool = False,
 ):
     """
     数据返回后，插入权限相关字段
@@ -164,6 +173,7 @@ def insert_permission_field(
     :param instance_create_func: 自定义创建资源实例的函数
     :param always_allowed: 满足一定条件进行权限豁免
     :param many: 是否为列表数据
+    :param batch_create: 是否批量创建资源实例
     """
 
     def wrapper(view_func):
@@ -175,22 +185,21 @@ def insert_permission_field(
             if not many:
                 result_list = [result_list]
 
-            resources = []
-            for item in result_list:
-                if not id_field(item):
-                    continue
-                attribute = {}
-                if "bk_biz_id" in item:
-                    attribute["bk_biz_id"] = item["bk_biz_id"]
-                if "space_uid" in item:
-                    attribute["space_uid"] = item["space_uid"]
+            if batch_create:
+                resources = batch_create_instance(result_list, resource_meta, id_field, instance_create_func)
+            else:
+                resources = []
+                for item in result_list:
+                    if not id_field(item):
+                        continue
+                    attribute = extract_attribute(item)
 
-                if instance_create_func:
-                    resources.append([instance_create_func(item)])
-                else:
-                    resources.append(
-                        [resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)]
-                    )
+                    if instance_create_func:
+                        resources.append([instance_create_func(item)])
+                    else:
+                        resources.append(
+                            [resource_meta.create_simple_instance(instance_id=id_field(item), attribute=attribute)]
+                        )
 
             if not resources:
                 return response
@@ -216,3 +225,97 @@ def insert_permission_field(
         return wrapped_view
 
     return wrapper
+
+
+def batch_create_instance(
+    result_list: list,
+    resource_meta: ResourceMeta,
+    id_field: Callable = lambda item: item["id"],
+    instance_create_func: Optional[Callable[[dict], Resource]] = None,
+):
+    """
+    批量创建实例
+    :param result_list: 结果列表
+    :param resource_meta: 资源类型
+    :param id_field: 从结果集获取ID字段的方式
+    :param instance_create_func: 自定义创建资源实例的函数
+    """
+    resources = []
+    futures = []
+    pool = ThreadPool()
+    for item in result_list:
+        if not id_field(item):
+            continue
+        attribute = extract_attribute(item)
+        if instance_create_func:
+            future = futures.append(pool.apply_async(instance_create_func, kwds=item))
+        else:
+            kwargs = {"instance_id": id_field(item), "attribute": attribute}
+            future = futures.append(pool.apply_async(resource_meta.create_simple_instance, kwds=kwargs))
+        futures.append(future)
+
+    for future in futures:
+        try:
+            resources.append([future.get()])
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(f"[APM] batch_create_instance error: {e}")
+
+    return resources
+
+
+def extract_attribute(item):
+    attribute = {}
+    if "bk_biz_id" in item:
+        attribute["bk_biz_id"] = item["bk_biz_id"]
+    if "space_uid" in item:
+        attribute["space_uid"] = item["space_uid"]
+    return attribute
+
+
+def filter_data_by_permission(
+    data: List[dict],
+    actions: List[ActionMeta],
+    resource_meta: ResourceMeta,
+    id_field: Callable[[dict], str] = lambda item: item["id"],
+    always_allowed: Callable[[dict], bool] = lambda item: False,
+    instance_create_func: Optional[Callable[[dict], Resource]] = None,
+    mode: Literal["any", "all", "insert"] = "any",
+) -> List[dict]:
+    """
+    根据权限过滤数据
+    :param mode: 过滤模式，"any" 表示只要有一个权限通过就返回，"all" 表示所有权限通过才返回, "insert" 表示插入权限信息，但不过滤数据
+    """
+    resources = batch_create_instance(data, resource_meta, id_field, instance_create_func)
+    if not resources:
+        return []
+
+    # 批量鉴权
+    permission_result = Permission().batch_is_allowed(actions, resources)
+
+    allowed_data = []
+    for item in data:
+        # 获取实例ID
+        origin_instance_id = id_field(item)
+        if not origin_instance_id:
+            continue
+        instance_id = str(origin_instance_id)
+
+        # 插入权限信息
+        if mode == "insert":
+            item["permission"] = permission_result[instance_id]
+            if always_allowed(item):
+                for action_id in item["permission"]:
+                    item["permission"][action_id] = True
+            allowed_data.append(item)
+            continue
+
+        # 过滤数据
+        if mode == "any":
+            filter_func = any
+        else:
+            filter_func = all
+
+        if always_allowed(item) or filter_func(permission_result[instance_id].values()):
+            allowed_data.append(item)
+
+    return allowed_data

@@ -25,18 +25,18 @@
 -->
 <template>
   <div
-    class="config-set"
     ref="configSet"
+    class="config-set"
     v-bkloading="{ isLoading: loading }"
   >
     <div class="set-edit">
       <div
-        class="edit-item"
         v-if="config.mode === 'edit'"
+        class="edit-item"
       >
         <div
-          class="item-label"
           v-en-style="'min-width: 100px'"
+          class="item-label"
         >
           ID
         </div>
@@ -46,8 +46,8 @@
       </div>
       <div class="edit-item">
         <div
-          class="item-label label-required"
           v-en-style="'min-width: 100px'"
+          class="item-label label-required"
         >
           {{ $t('所属') }}
         </div>
@@ -58,15 +58,15 @@
           >
             <bk-select
               class="reset-big-width"
-              :placeholder="$t('选择业务')"
               v-model="info.bizId"
               :disabled="!canSelectBusiness"
+              :placeholder="$t('选择业务')"
               @change="handleSelectToggle(arguments, info.bizId, rules.bizId)"
             >
               <bk-option
                 v-for="item in businessList"
-                :key="item.id"
                 :id="item.id"
+                :key="item.id"
                 :name="item.text"
               />
             </bk-select>
@@ -75,8 +75,8 @@
       </div>
       <div class="edit-item">
         <div
-          class="item-label label-required"
           v-en-style="'min-width: 100px'"
+          class="item-label label-required"
         >
           {{ $t('名称') }}
         </div>
@@ -87,8 +87,8 @@
           >
             <bk-input
               class="reset-big-width"
-              :placeholder="$t('输入采集任务名')"
               v-model.trim="info.name"
+              :placeholder="$t('输入采集任务名')"
               @change="validateField(info.name, rules.name)"
             />
           </verify-input>
@@ -96,25 +96,26 @@
       </div>
       <div class="edit-item">
         <div
-          class="item-label label-required"
           v-en-style="'min-width: 100px'"
+          class="item-label label-required"
         >
           {{ $t('插件') }}
         </div>
         <div class="item-container">
           <plugin-selector
-            :list="pluginSelectorObj.list"
+            :disabled="disabled"
             :id="pluginSelectorObj.id"
             :key="pluginSelectorObj.key"
-            :disabled="disabled"
+            :list="pluginSelectorObj.list"
+            :loading="pluginListLoading"
             @change="handlePluginChange"
           />
         </div>
       </div>
       <div class="edit-item">
         <div
-          class="item-label label-required"
           v-en-style="'min-width: 100px'"
+          class="item-label label-required"
         >
           {{ $t('采集对象') }}
         </div>
@@ -122,19 +123,20 @@
           <bk-select
             class="reset-big-width"
             v-model="info.objectId"
-            @selected="handleObjectIdChange"
             :clearable="false"
             :disabled="disabled || pluginSelectorObj.objectIdDisable"
+            :loading="pluginListLoading"
+            @selected="handleObjectIdChange"
           >
             <bk-option-group
               v-for="(group, index) in objectTypeOptions"
-              :name="group.name"
               :key="index"
+              :name="group.name"
             >
               <bk-option
                 v-for="option in group.children"
-                :key="option.id"
                 :id="option.id"
+                :key="option.id"
                 :name="option.name"
               />
             </bk-option-group>
@@ -143,8 +145,8 @@
       </div>
       <div class="edit-item">
         <div
-          class="item-label"
           v-en-style="'min-width: 100px'"
+          class="item-label"
         >
           {{ $t('采集周期') }}
         </div>
@@ -153,28 +155,19 @@
             :show-validate.sync="rules.period.validate"
             :validator="{ content: rules.period.message }"
           >
-            <!-- <bk-select class="reset-width"
-                       v-model="info.period"
-                       :clearable="false">
-              <bk-option v-for="item in periodList"
-                         :key="item.id"
-                         :id="item.id"
-                         :name="item.name">
-              </bk-option>
-            </bk-select> -->
             <cycle-input
-              :need-auto="false"
-              default-unit="m"
               class="reset-width custom-cycle"
               v-model="info.period"
+              :need-auto="false"
+              default-unit="m"
             />
           </verify-input>
         </div>
       </div>
       <div class="edit-item">
         <div
-          class="item-label label-required"
           v-en-style="'min-width: 100px'"
+          class="item-label label-required"
         >
           {{ $t('采集超时') }}
         </div>
@@ -186,14 +179,14 @@
             <bk-input
               class="reset-width"
               v-model.number="info.timeout"
-              type="number"
               :show-controls="false"
+              type="number"
               @blur="validateField(info.timeout, rules.timeout)"
             >
               <template slot="append">
                 <span
-                  class="timeout-unit"
                   v-en-style="'min-width: 58px'"
+                  class="timeout-unit"
                   >{{ $t('秒') }}</span
                 >
               </template>
@@ -201,150 +194,28 @@
           </verify-input>
         </div>
       </div>
-      <!-- <div class="edit-item">
-        <div class="item-label label-required">{{ $t('采集方式') }}</div>
-        <div class="item-container">
-          <verify-input
-            :show-validate.sync="rules.collectType.validate"
-            :validator="{ content: rules.collectType.message }"
-          >
-            <bk-select
-              class="reset-width"
-              :placeholder="$t('选择采集方式')"
-              v-model="info.collectType"
-              :clearable="false"
-              :disabled="disabled"
-              @change="handleCollectTypeChange"
-            >
-              // process类型只支持进程类的采集对象
-              <bk-option
-                v-for="item in collectTypeList"
-                :key="item.name"
-                :id="item.name"
-                :name="item.alias"
-                v-show="item.name !== 'Process' || (info.objectId === 'host_process' && item.name === 'Process')"
-              >
-              </bk-option>
-            </bk-select>
-          </verify-input>
-        </div>
-      </div> -->
-      <!-- <div
-        class="edit-item"
-        style="margin-bottom: 10px"
-        v-if="!['Log', 'SNMP_Trap', 'Process'].includes(info.collectType)"
-      >
-        <div class="item-label label-required">{{ $t('插件') }}</div>
-        <div class="item-container">
-          <verify-input :show-validate.sync="rules.plugin.validate" :validator="{ content: rules.plugin.message }">
-            <bk-select
-              class="reset-big-width"
-              ref="selectPluin"
-              :placeholder="$t('插件')"
-              v-model="info.plugin.id"
-              searchable
-              :clearable="false"
-              :disabled="!canSelectPlugin"
-              @change="handleSelectToggle(arguments, info.plugin.id, rules.plugin)"
-              :remote-method="handleFilterPlugin"
-            >
-              <bk-option
-                v-for="item in filterPluginList"
-                :key="item.pluginId"
-                :id="item.pluginId"
-                :name="item.pluginId"
-              >
-                <div @click="handlePluginClick(item.pluginId, false, true, item.pluginType)">
-                  {{
-                    `${item.pluginDisplayName ? item.pluginId + '（' + item.pluginDisplayName + '）' : item.pluginId}`
-                  }}
-                </div>
-              </bk-option>
-              <div slot="extension" @click="handleToAddPlugin" style="cursor: pointer">
-                <i class="bk-icon icon-plus-circle" style="margin-right: 6px"></i> {{ $t('新建插件') }}
-              </div>
-            </bk-select>
-          </verify-input>
-        </div>
-      </div> -->
-      <!-- 选择snmpTrap插件类型 -->
-      <!-- <div class="edit-item" style="margin-bottom: 10px" v-if="isSnmpSelected && info.collectType === 'SNMP_Trap'">
-        <div class="item-label label-required">{{ $t('插件') }}</div>
-        <div class="item-container">
-          <verify-input :show-validate.sync="rules.plugin.validate" :validator="{ content: rules.plugin.message }">
-            <bk-select
-              class="reset-big-width"
-              ref="selectPluin"
-              :placeholder="$t('插件')"
-              v-model="info.plugin.snmpv"
-              :clearable="false"
-              :disabled="!canSelectPlugin"
-            >
-              <bk-option v-for="item in SnmpVersion" :key="item.id" :id="item.id" :name="item.name">
-                <div @click="handleSnmpVersion(item.id)">
-                  {{ item.name }}
-                </div>
-              </bk-option>
-            </bk-select>
-          </verify-input>
-        </div>
-      </div> -->
       <!-- 日志类型 -->
       <collector-log
         v-if="info.collectType === 'Log'"
+        ref="collectorLog"
         :log-data="logData"
         @log-can-save="handleLogSave"
-        ref="collectorLog"
       />
       <!-- process 类型 -->
       <process-params
         v-else-if="info.collectType === 'Process'"
-        :process-params="processParams"
         ref="process"
+        :process-params="processParams"
         @change="handleProcessParamsChange"
       />
-      <!-- <div class="edit-item" style="margin-bottom: 10px;" v-else>
-        <div class="item-label label-required"> {{ $t('插件') }} </div>
-        <div class="item-container">
-          <verify-input :show-validate.sync="rules.plugin.validate"
-                        :validator="{ content: rules.plugin.message }">
-            <bk-select class="reset-big-width"
-                       ref="selectPluin" :placeholder="$t('插件')"
-                       v-model="info.plugin.id"
-                       searchable
-                       :clearable="false"
-                       :disabled="!canSelectPlugin"
-                       @change="handleSelectToggle(arguments, info.plugin.id, rules.plugin)"
-                       :remote-method="handleFilterPlugin">
-              <bk-option v-for="item in filterPluginList"
-                         :key="item.pluginId"
-                         :id="item.pluginId"
-                         :name="item.pluginId">
-                <div @click="handlePluginClick(item.pluginId, false)">
-                  {{ `${ item.pluginDisplayName ? item.pluginId + '（' + item.pluginDisplayName + '）' : item.pluginId }` }}
-                </div>
-              </bk-option>
-              <div
-                slot="extension"
-                v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
-                @click="authority.PLUGIN_MANAGE_AUTH ? handleToAddPlugin() : handleShowAuthorityDetail(collectAuth.PLUGIN_MANAGE_AUTH)"
-                style="cursor: pointer">
-                <i class="bk-icon icon-plus-circle"
-                   style="margin-right: 6px"></i>
-                {{ $t('新建插件') }}
-              </div>
-            </bk-select>
-          </verify-input>
-        </div>
-      </div> -->
       <template v-if="info.plugin.type === 'Exporter'">
         <div
           class="edit-item edit-item-host"
-          v-show="Object.keys(info.host).length"
+          v-show="Object.keys(info.host || {}).length"
         >
           <div
-            class="item-label label-required label-param"
             v-en-style="'min-width: 100px'"
+            class="item-label label-required label-param"
           >
             {{ $t('绑定主机') }}
           </div>
@@ -362,10 +233,7 @@
                   @blur="validateHost"
                 >
                   <template slot="prepend">
-                    <bk-popover
-                      placement="top"
-                      :tippy-options="tippyOptions"
-                    >
+                    <bk-popover placement="top">
                       <div class="prepend-text">${host}=</div>
                       <div slot="content">
                         <div>{{ $t('参数名称') }} : {{ info.host.name }}</div>
@@ -384,8 +252,8 @@
           v-show="Object.keys(info.port).length"
         >
           <div
-            class="item-label label-param"
             v-en-style="'min-width: 100px'"
+            class="item-label label-param"
           >
             {{ $t('绑定端口') }}
           </div>
@@ -404,8 +272,8 @@
                 >
                   <template slot="prepend">
                     <bk-popover
-                      placement="top"
                       :tippy-options="tippyOptions"
+                      placement="top"
                     >
                       <div class="prepend-text">${port}=</div>
                       <div slot="content">
@@ -426,15 +294,16 @@
         v-show="info.plugin.id && !['Log', 'Process'].includes(info.collectType)"
       >
         <div
-          class="item-label label-param"
           v-en-style="'min-width: 100px'"
+          class="item-label label-param"
         >
           {{ $t('运行参数') }}
         </div>
         <div
-          class="item-container"
           v-if="info.plugin.configJson.length"
+          class="item-container"
         >
+          <!-- {{ info.plugin.id ===  }} -->
           <div class="container-tips">
             {{ $t('参数的填写也可以使用CMDB变量') }}&nbsp;&nbsp;<span @click="handleVariableTable">
               {{ $t('点击查看推荐变量') }}
@@ -445,20 +314,20 @@
               <template v-if="item.auth_json !== undefined">
                 <!-- snmp多用户 -->
                 <auto-multi
-                  :key="index"
-                  :template-data="SnmpAuthTemplate"
-                  :souce-data="item.auth_json"
-                  :tips-data="tipsData"
-                  :param-type="paramType"
                   :allow-add="!(info.collectType === 'SNMP')"
+                  :key="index"
+                  :param-type="paramType"
+                  :souce-data="item.auth_json"
+                  :template-data="SnmpAuthTemplate"
+                  :tips-data="tipsData"
                   @canSave="snmpAuthCanSave"
                   @triggerData="triggerAuthData"
                 />
               </template>
               <template v-else-if="item.auth_priv">
                 <verify-input
-                  class="param-item"
                   v-if="item.auth_priv[curAuthPriv] && item.auth_priv[curAuthPriv].need"
+                  class="param-item"
                   :key="index"
                   :show-validate.sync="item.validate.isValidate"
                   :validator="item.validate"
@@ -467,19 +336,19 @@
                   <!-- 自动补全 -->
                   <auto-complete-input
                     class="reset-big-width"
+                    v-model.trim="item.default"
+                    :config="item"
+                    :cur-auth-priv="curAuthPriv"
                     :tips-data="tipsData"
                     :type="item.type"
-                    :config="item"
                     @autoHandle="autoHandle"
-                    v-model.trim="item.default"
-                    :cur-auth-priv="curAuthPriv"
-                    @curAuthPriv="handleAuthPriv"
                     @blur="handleParamValidate(item)"
+                    @curAuthPriv="handleAuthPriv"
                   >
                     <template slot="prepend">
                       <bk-popover
-                        placement="top"
                         :tippy-options="tippyOptions"
+                        placement="top"
                       >
                         <div class="prepend-text">
                           {{ item.name || item.description }}
@@ -506,24 +375,24 @@
                   <!-- 自动补全 -->
                   <auto-complete-input
                     class="reset-big-width"
+                    v-model.trim="item.default"
+                    :config="item"
+                    :cur-auth-priv="curAuthPriv"
                     :tips-data="tipsData"
                     :type="item.type"
-                    :config="item"
                     @autoHandle="autoHandle"
-                    v-model.trim="item.default"
-                    :cur-auth-priv="curAuthPriv"
-                    @passwordInputName="handlePasswordInputName"
+                    @curAuthPriv="handleAuthPriv"
                     @error-message="msg => handleErrorMessage(msg, item)"
                     @file-change="file => configJsonFileChange(file, item)"
-                    @curAuthPriv="handleAuthPriv"
-                    @blur="handleParamValidate(item)"
+                    @input="handleInput(item)"
+                    @passwordInputName="handlePasswordInputName"
                   >
                     <template slot="prepend">
                       <bk-popover
-                        placement="top"
                         :tippy-options="tippyOptions"
+                        placement="top"
                       >
-                        <div class="prepend-text">
+                        <div :class="{ 'prepend-text': true, required: item.required }">
                           {{ item.name || item.description }}
                         </div>
                         <div slot="content">
@@ -540,8 +409,8 @@
           </div>
         </div>
         <div
-          class="item-container"
           v-else
+          class="item-container"
         >
           <div class="no-param">
             <i class="icon-monitor icon-hint param-icon" />
@@ -554,8 +423,8 @@
         v-show="info.plugin.id && !['Log', 'Process'].includes(info.collectType) && showDmsInsert"
       >
         <div
-          class="item-label label-param"
           v-en-style="'min-width: 100px'"
+          class="item-label label-param"
         >
           {{ $t('维度注入') }}
         </div>
@@ -563,50 +432,50 @@
           <template v-for="(item, index) in info.plugin.configJson">
             <template v-if="item.type === 'service'">
               <div
-                :key="index"
                 class="dms-insert-category"
+                :key="index"
               >
-                <div class="container-tips">
+                <div :class="{ 'container-tips': true, required: item.required }">
                   {{ $t('服务实例标签') }}
                 </div>
                 <div class="param-container">
                   <tag-switch
                     v-for="(value, key) in item.default"
-                    :value="item.default[key]"
                     :key="key"
-                    :tag-label="key"
                     :show-validate="item.validate.isValidate"
+                    :tag-label="key"
+                    :value="item.default[key]"
                     @input="val => handleTagInput(item, key, val)"
                   />
                 </div>
                 <span
-                  v-show="item.validate.isValidate"
                   style="color: #ff5656"
+                  v-show="item.validate.isValidate"
                   >{{ item.validate.content }}</span
                 >
               </div>
             </template>
             <template v-else-if="item.type === 'host'">
               <div
-                :key="index"
                 class="dms-insert-category"
+                :key="index"
               >
-                <div class="container-tips">
+                <div :class="{ 'container-tips': true, required: item.required }">
                   {{ $t('主机字段') }}
                 </div>
                 <div class="param-container">
                   <tag-switch
                     v-for="(value, key) in item.default"
-                    :value="item.default[key]"
                     :key="key"
-                    :tag-label="key"
                     :show-validate="item.validate.isValidate"
+                    :tag-label="key"
+                    :value="item.default[key]"
                     @input="val => handleTagInput(item, key, val)"
                   />
                 </div>
                 <span
-                  v-show="item.validate.isValidate"
                   style="color: #ff5656"
+                  v-show="item.validate.isValidate"
                   >{{ item.validate.content }}</span
                 >
               </div>
@@ -616,28 +485,38 @@
       </div>
       <div class="edit-item">
         <div
-          class="item-label"
           v-en-style="'min-width: 100px'"
+          class="item-label"
         />
         <div class="item-container">
           <div class="btn-container">
             <bk-button
-              class="btn-preview"
               v-if="!['Log', 'Process'].includes(info.collectType) && info.collectType !== 'SNMP_Trap'"
-              theme="default"
+              class="btn-preview"
               v-show="isShowPreview"
+              theme="default"
               @click="handlePreview"
             >
               {{ $t('button-预览') }}
             </bk-button>
-            <bk-button
-              :class="['btn-next', { disabled: !canNext }]"
-              theme="primary"
-              :disabled="!canNext"
-              @click="handleNext"
+            <bk-popconfirm
+              width="200"
+              :content="$tc('确认采集下发?')"
+              :disabled="!canNext || info?.plugin?.type !== 'K8S'"
+              :tippy-options="tippyOptions"
+              placement="top"
+              trigger="click"
+              @confirm="handleTencentCloudNext"
             >
-              {{ $t('下一步') }}
-            </bk-button>
+              <bk-button
+                :class="['btn-next', { disabled: !canNext }]"
+                :disabled="!canNext"
+                theme="primary"
+                @click="handleNext"
+              >
+                {{ $t('下一步') }}
+              </bk-button>
+            </bk-popconfirm>
             <bk-button @click="handleCancel">
               {{ $t('取消') }}
             </bk-button>
@@ -646,13 +525,13 @@
       </div>
     </div>
     <div
-      class="set-desc"
       :style="{ right: !btn.show ? -(descWidth + 1) + 'px' : '0px' }"
+      class="set-desc"
     >
       <div
+        :style="{ left: btn.show ? '-23px' : '-24px' }"
         class="set-desc-btn"
         @click="handleIntroductionShow"
-        :style="{ left: btn.show ? '-23px' : '-24px' }"
       >
         <div
           class="icon"
@@ -663,31 +542,38 @@
         <!-- <div class="text"> {{ $t('插件说明') }} </div> -->
       </div>
       <div
-        class="set-desc-box"
         :style="{ 'flex-basis': descWidth + 'px', width: descWidth + 'px' }"
+        class="set-desc-box"
         data-tag="resizeTarget"
         @mousedown="handleMouseDown"
         @mousemove="handleMouseMove"
         @mouseout="handleMouseOut"
       >
-        <collector-introduction :introduction="introduction" />
+        <collector-introduction
+          :introduction="introduction"
+          :key="introduction.content"
+        />
         <div
+          :style="{ left: descWidth - resizeState.left + 'px' }"
           class="resize-line"
           v-show="resizeState.show"
-          :style="{ left: descWidth - resizeState.left + 'px' }"
         />
       </div>
     </div>
     <indicator-preview :options="options" />
-    <variable-table :is-show-variable-table.sync="isShowVariableTable" />
+    <variable-table
+      v-if="tipsData && tipsData.length"
+      :is-show-variable-table.sync="isShowVariableTable"
+      :variable-data="tipsData"
+    />
   </div>
 </template>
 
 <script>
-import { createNamespacedHelpers } from 'vuex';
 import { collectConfigDetail, getCollectVariables } from 'monitor-api/modules/collecting';
 import { listCollectorPlugin, retrieveCollectorPlugin } from 'monitor-api/modules/model';
 import { deepClone, random } from 'monitor-common/utils/utils';
+import { createNamespacedHelpers } from 'vuex';
 
 import CycleInput from '../../../../components/cycle-input/cycle-input.tsx';
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
@@ -695,7 +581,6 @@ import formLabelMixin from '../../../../mixins/formLabelMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../../store/modules/app';
 import { SET_INFO_DATA, SET_OBJECT_TYPE } from '../../../../store/modules/collector-config';
 import TagSwitch from '../../../plugin-manager/plugin-instance/set-steps/tag-switch.vue';
-
 import AutoCompleteInput from './auto-complete-input';
 import AutoMulti from './auto-multi';
 import CollectorIntroduction from './collector-introduction';
@@ -722,20 +607,20 @@ export default {
     ProcessParams,
     CycleInput,
     PluginSelector,
-    TagSwitch
+    TagSwitch,
   },
   mixins: [formLabelMixin],
   inject: ['authority', 'handleShowAuthorityDetail', 'collectAuth'],
   props: {
     config: {
       type: Object,
-      default: () => {}
+      default: () => {},
     },
     /** 是否为克隆采集 */
     isClone: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
@@ -766,80 +651,80 @@ export default {
           metricJson: [],
           configJson: [],
           osTypeList: [],
-          snmpv: ''
-        }
+          snmpv: '',
+        },
       },
       objectTypeOptions: [],
       rules: {
         bizId: {
           validate: false,
           message: '',
-          rule: [{ required: true, message: this.$t('必选项') }]
+          rule: [{ required: true, message: this.$t('必选项') }],
         },
         name: {
           validate: false,
           message: '',
           rule: [
             { required: true, message: this.$t('必填项') },
-            { required: true, message: this.$t('注意：最大值为50个字符'), validator: this.validateName }
-          ]
+            { required: true, message: this.$t('注意：最大值为50个字符'), validator: this.validateName },
+          ],
         },
         objectType: {
           validate: false,
           message: '',
-          rule: [{ required: true, message: this.$t('必填项') }]
+          rule: [{ required: true, message: this.$t('必填项') }],
         },
         period: {
           validate: false,
           message: '',
-          rule: [{ required: false, message: this.$t('必选项') }]
+          rule: [{ required: false, message: this.$t('必选项') }],
         },
         timeout: {
           validate: false,
           message: '',
           rule: [
             { required: true, message: this.$t('必选项') },
-            { required: true, message: this.$t('超时时间配置不能大于周期'), validator: this.validateTimeout }
-          ]
+            { required: true, message: this.$t('超时时间配置不能大于周期'), validator: this.validateTimeout },
+          ],
         },
         collectType: {
           validate: false,
           message: '',
-          rule: [{ required: true, message: this.$t('必选项') }]
+          rule: [{ required: true, message: this.$t('必选项') }],
         },
         plugin: {
           validate: false,
           message: '',
-          rule: [{ required: true, message: this.$t('必选项') }]
+          rule: [{ required: true, message: this.$t('必选项') }],
         },
         host: {
           validate: false,
           message: '',
           rule: [
             { required: true, message: this.$t('必填项') },
-            { required: true, message: this.$t('注意: 必填字段不能为空'), validator: this.validateIp }
-          ]
+            { required: true, message: this.$t('注意: 必填字段不能为空'), validator: this.validateIp },
+          ],
         },
         ip: {
           validate: false,
           message: '',
-          rule: [{ required: true, message: this.$t('注意: 必填字段不能为空'), validator: this.validateIp }]
+          rule: [{ required: true, message: this.$t('注意: 必填字段不能为空'), validator: this.validateIp }],
         },
         port: {
           validate: false,
           message: '',
-          rule: [{ required: true, message: this.$t('输入合法的端口'), validator: this.validatePort }]
+          rule: [{ required: true, message: this.$t('输入合法的端口'), validator: this.validatePort }],
         },
         user: {
           validate: false,
           message: '',
-          rule: [{ required: false, message: this.$t('必填项') }]
+          rule: [{ required: false, message: this.$t('必填项') }],
         },
         password: {
           validate: false,
           message: '',
-          rule: [{ required: false, message: this.$t('必填项') }]
-        }
+          rule: [{ required: false, message: this.$t('必填项') }],
+        },
       },
       collectTypeList: [],
       filterPluginList: [],
@@ -848,7 +733,7 @@ export default {
       options: {
         isShow: false,
         data: [],
-        isOfficial: false
+        isOfficial: false,
       },
       pluginTypeMap: {
         Exporter: 'Exporter',
@@ -860,7 +745,7 @@ export default {
         Log: 'Log',
         Process: 'Process',
         SNMP_Trap: 'SNMP Trap',
-        SNMP: 'SNMP'
+        SNMP: 'SNMP',
       },
       paramType: {
         collector: this.$t('采集器参数'),
@@ -868,24 +753,24 @@ export default {
         pos_cmd: this.$t('位置参数'),
         env: this.$t('环境变量参数'),
         listen_cmd: this.$t('监听参数'),
-        dms_insert: this.$t('维度注入')
+        dms_insert: this.$t('维度注入'),
       },
       tippyOptions: {
-        distance: 0
+        distance: 10,
       },
       others: {},
       introduce: {
         [this.$t('主机')]: this.$t('采集的数据为主机操作系统相关的，如CPU NET。'),
-        [this.$t('服务')]: this.$t('采集的数据为CMDB中服务模块下的服务实例数据，可以支持多实例的采集，如mysql redis。')
+        [this.$t('服务')]: this.$t('采集的数据为CMDB中服务模块下的服务实例数据，可以支持多实例的采集，如mysql redis。'),
       },
       btn: {
         show: true,
-        introduction: true
+        introduction: true,
       },
       methodMd:
+        // biome-ignore lint/style/useTemplate: <explanation>
         `${this.$t('插件类型是蓝鲸监控丰富支持采集能力的一种表现，插件的类型将越来越丰富。 往下具体介绍当前每种类型特点')}。\n\n` +
         '### Exporter\n\n' +
-        // eslint-disable-next-line vue/max-len
         `${this.$t('Exporter是用于暴露第三方服务的metrics给Prometheus。是Prometheus中重要的一个组件。按蓝鲸监控插件的规范就可以将开源的Exporter插件变成蓝鲸监控的采集能力。 运行的Exporter是go的二进制程序，需要启动进程和占用端口')}。\n\n` +
         '### Script\n\n' +
         `${this.$t('Script就是由用户自定义脚本进行Metrics采集。只要符合监控的标准格式就可以把数据采集上来。 支持的脚本有：')}\n\n` +
@@ -893,10 +778,8 @@ export default {
         `* Windows Shell，Python，VBS，PowerShell,${this.$t('自定义')}\n\n` +
         `${this.$t('自定义是直接执行，不用解释器进行执行。 如 ./脚本')}\n\n` +
         '### DataDog\n\n' +
-        // eslint-disable-next-line vue/max-len
         `${this.$t('Datadog是一个一站式云端性能监控平台，拥有丰富的采集能力。蓝鲸监控兼容了Datadog的采集能力，当前用户不能自定义插件。因为Datadog是由python编写，需要有python可运行环境，不需要占用端口')}。\n\n` +
         '### JMX\n\n' +
-        // eslint-disable-next-line vue/max-len
         `${this.$t('JMX可以采集任何开启了JMX服务端口的java进程的服务状态，通过jmx采集java进程的jvm信息，包括gc耗时、gc次数、gc吞吐、老年代使用率、新生代晋升大小、活跃线程数等信息')}。\n\n` +
         '### BK-pull\n\n' +
         `${this.$t('BK-pull主要是解决那些只暴露了端口服务的数据源。 通过pull拉取目标的数据')}。\n\n` +
@@ -908,7 +791,7 @@ export default {
         left: 0,
         draging: false,
         minWidth: 400,
-        maxWidth: 800
+        maxWidth: 800,
       },
       descWidth: 400,
       tipsData: [], //  插件参数提示数据
@@ -932,13 +815,17 @@ export default {
         list: [],
         id: '',
         key: random(8),
-        objectIdDisable: false
-      }
+        objectIdDisable: false,
+      },
+      pluginListLoading: false, // 新增情况下判断是否正在获取插件列表
     };
   },
   computed: {
     ...mapGetters(['infoData']),
     businessList() {
+      if (!this.canSelectBusiness) {
+        return this.$store.getters.bizList.filter(biz => +biz.id === +this.info.bizId);
+      }
       return this.$store.getters.bizList;
     },
     // 是否显示指标预览
@@ -957,14 +844,15 @@ export default {
         return this.SnmpOther() && this.SnmpCanSave;
       }
       if (this.info.collectType === 'SNMP') {
-        const snmpAuthIsOk = +this.info.plugin?.collectorJson?.snmp_version === 3 ? this.SnmpAuthCanSave : true; // eslint-disable-line
+        const snmpAuthIsOk = +this.info.plugin?.collectorJson?.snmp_version === 3 ? this.SnmpAuthCanSave : true;
         return this.info.name !== '' && this.info.plugin.id !== '' && snmpAuthIsOk && this.snmpIsOk;
       }
+      if (this.info.plugin?.configJson?.some(item => item.validate?.isValidate)) return false;
       return this.info.plugin.id !== '' && this.validateHost();
     },
     // 编辑模式下，采集方式和采集配置不可变
     disabled() {
-      return this.config.mode === 'edit' && !this.isClone;
+      return this.pluginListLoading || (this.config.mode === 'edit' && !this.isClone);
     },
     canSelectBusiness() {
       return !this.disabled && this.$store.getters.bizId === 0; // window.bizId === 0 全业务
@@ -989,14 +877,14 @@ export default {
         introduction = this.getSnmpIntroduction();
         return introduction;
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { configJson, metricJson, id, descMd, ...others } = this.info.plugin;
+
       if (id) {
         introduction = {
           ...others,
-          content: descMd,
+          content: descMd || this.methodMd,
           pluginId: id,
-          type: 'bkmonitor.models.fta.plugin'
+          type: 'bkmonitor.models.fta.plugin',
         };
       } else {
         introduction = { type: 'method', content: this.methodMd };
@@ -1005,14 +893,14 @@ export default {
     },
     showDmsInsert() {
       return this.info.plugin.configJson.some(item => item.mode === 'dms_insert');
-    }
+    },
   },
   watch: {
     'info.objectGroupType': {
       // 更新采集对象组的类型
       handler: 'handleUpdateObjectType',
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   async created() {
     this.infoData && (this.info = deepClone(this.infoData));
@@ -1030,6 +918,7 @@ export default {
     if (!this.info.objectId && !this.$route.params.pluginId) {
       this.info.objectId = 'component';
     }
+    this.getVariableData();
   },
   mounted() {
     this.updateNav(this.config.mode === 'edit' ? this.$t('编辑') : this.$t('新建采集'));
@@ -1037,7 +926,7 @@ export default {
     if (this.config.mode === 'edit') {
       this.bizId = this.config.data.bizId;
     } else {
-      if (parseInt(this.$store.getters.bizId, 10) === 0) {
+      if (Number.parseInt(this.$store.getters.bizId, 10) === 0) {
         this.info.bizId = '';
       }
     }
@@ -1097,7 +986,6 @@ export default {
       let result = false;
       if (plugin.configJson.length !== 0) {
         if (plugin.snmpv === 'snmp_v1' || plugin.snmpv === 'snmp_v2c') {
-          // eslint-disable-next-line arrow-body-style
           result = plugin.configJson.every(item => {
             if (item.key !== snmp.community) {
               return item.type === 'file' ? item.default.value !== '' : item.default !== '';
@@ -1133,7 +1021,7 @@ export default {
     handleSnmpParamValidate() {
       const { plugin } = this.info;
       const version = plugin.collectorJson.snmp_version;
-      // eslint-disable-next-line no-restricted-syntax
+
       for (const item of plugin.configJson) {
         if ([1, 2].includes(+version)) {
           if (item.default === '') {
@@ -1157,6 +1045,7 @@ export default {
         isSafety: true,
         osTypeList: ['linux', 'windows'],
         content:
+          // biome-ignore lint/style/useTemplate: <explanation>
           `## ${this.$t('功能介绍')}\n\n` +
           `${this.$t('日志关键字插件，通过对于日志文件的关键匹配进行计数，并且存储最近一条原始日志内容。')}\n\n` +
           `${this.$t('采集后的日志关键字数据可以在视图中查看变化趋势，也可以在策略里面配置告警规则。')}\n\n` +
@@ -1166,59 +1055,54 @@ export default {
           '```\nm=de4x5 init_module: Input/output error\n```\n\n' +
           `### ${this.$t('关键字规则:')}\n\n` +
           '```\nm=(?P<moudle>.*) init_module: Input/output error\n```\n\n' +
-          `${this.$t('就会得到关键字并和 moudle=de4x5 匹配的次数。')}\n\n`
+          `${this.$t('就会得到关键字并和 moudle=de4x5 匹配的次数。')}\n\n`,
       };
     },
     getSnmpIntroduction() {
       const snmpIntroduction = {
         snmp_v1:
+          // biome-ignore lint/style/useTemplate: <explanation>
           '## SNMP Trap V1\n\n' +
           `### ${this.$t('功能介绍')}\n\n` +
-          // eslint-disable-next-line vue/max-len
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本,本版本为 V1。')}\n\n` +
           `### ${this.$t('参数说明')}\n\n` +
           `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n\n` +
-          // eslint-disable-next-line vue/max-len
           `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}` +
           '```{{ target.host.bk_host_innerip }}```\n\n' +
           `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n\n` +
           `* ${this.$t('团体名')}： Community\n\n` +
           `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
         snmp_v2c:
+          // biome-ignore lint/style/useTemplate: <explanation>
           '## SNMP Trap V2c\n\n' +
           `### ${this.$t('功能介绍')}\n\n` +
-          // eslint-disable-next-line vue/max-len
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V2c。')}\n\n` +
           `### ${this.$t('参数说明')}\n\n` +
           `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n\n` +
-          // eslint-disable-next-line vue/max-len
           `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}` +
           '```{{ target.host.bk_host_innerip }}```\n\n' +
           `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n` +
           `* ${this.$t('团体名')}： Community \n` +
           `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n\n`,
         snmp_v3:
+          // biome-ignore lint/style/useTemplate: <explanation>
           `## ${this.$t('SNMP Trap V3')}\n\n` +
           `### ${this.$t('功能介绍')}\n\n` +
-          // eslint-disable-next-line vue/max-len
           `${this.$t('snmp trap 将默认搭建 snmp trap server 接收不同设备的发送的事件数据。默认端口为 162。注意选择对应的 snmp 版本, 本版本为 V3。')}\n\n` +
           `### ${this.$t('参数说明')}\n\n` +
           `* ${this.$t('Trap服务端口： 是trap接收的端口，默认为 162')}\n` +
-          // eslint-disable-next-line vue/max-len
           `* ${this.$t('绑定地址')}： ${this.$t('trap服务启动时绑定的地址，默认为0.0.0.0，如果要指定网卡，需要使用CMDB变量来使用如：')}` +
           '```{{ target.host.bk_host_innerip }}```\n' +
           `* ${this.$t('Yaml配置文件：是通过命令行工具将mib文件转换的yaml配置文件。')}\n` +
           `* ${this.$t('上下文名称')} Context name\n` +
           `* ${this.$t('安全名')} Security name\n` +
-          // eslint-disable-next-line vue/max-len
           `* ${this.$t('安全级别')} Security level ， ${this.$t('选项有')} noAuthNoPriv， authNoPriv ， authPriv\n` +
-          // eslint-disable-next-line vue/max-len
           `* ${this.$t('验证协议')} Authentication protocol， ${this.$t('选项有')} MD5，SHA，DES，AES\n` +
           `* ${this.$t('验证口令')} Authentication passphrase\n` +
           `* ${this.$t('隐私协议')} Privacy protocol ,${this.$t('选项有')} DES ， AES\n` +
           `* ${this.$t('私钥')} Privacy paasphrase\n` +
           `* ${this.$t('设备ID')} Engine ID}\n` +
-          `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n`
+          `* ${this.$t('是否汇聚')}：${this.$t('默认是开启的，采集周期内默认相同的内容会汇聚到成一条并且计数。')}\n\n`,
       };
       return {
         pluginId: this.$t('snmp trap'),
@@ -1226,7 +1110,7 @@ export default {
         isOfficial: true,
         isSafety: true,
         osTypeList: ['linux', 'windows'],
-        content: snmpIntroduction[this.info.plugin.snmpv]
+        content: snmpIntroduction[this.info.plugin.snmpv],
       };
     },
     handleLogSave(v) {
@@ -1243,10 +1127,10 @@ export default {
         }
         this.resizeState.show = true;
         const rect = e.target.getBoundingClientRect();
-        document.onselectstart = function () {
+        document.onselectstart = () => {
           return false;
         };
-        document.ondragstart = function () {
+        document.ondragstart = () => {
           return false;
         };
         const handleMouseMove = event => {
@@ -1295,9 +1179,9 @@ export default {
       const { rule } = ruleMap;
       const res = {
         validate: false,
-        message: ''
+        message: '',
       };
-      // eslint-disable-next-line
+
       for (let i = 0; i < rule.length; i++) {
         const item = rule[i];
         if (item.required && value === '') {
@@ -1346,26 +1230,23 @@ export default {
       const { rules } = this;
       const includeFields = ['bizId', 'name', 'objectType', 'period', 'collectType', 'timeout'];
       const keys = Object.keys(rules);
-      keys.forEach(item => {
+      for (const item of keys) {
         // validate=false 时需要重新触发校验，不校验运行参数部分
         !rules[item].validate && includeFields.includes(item) && this.validateField(info[item], rules[item]);
-      });
+      }
       let configValidate = false;
       if (this.info?.plugin?.configJson) {
-        // const configValidateList = this.info.plugin.configJson.map(item => {
-        //   if(!item.auth_json === undefined){
-        //     return this.handleParamValidate(item)
-        //   }
-        // })
         const configValidateList = [];
-        this.info.plugin.configJson.forEach(item => {
+        for (const item of this.info.plugin.configJson) {
           if (!(item.auth_json === undefined)) {
             configValidateList.push(this.handleParamValidate(item));
           }
           if (item.type === 'file') {
             configValidateList.push(this.handleParamValidate(item));
+          } else {
+            configValidateList.push(this.handleInput(item));
           }
-        });
+        }
         configValidate = configValidateList.some(item => item.validate);
       }
       return keys.every(item => rules[item].validate === false) && !configValidate;
@@ -1390,7 +1271,7 @@ export default {
     validateParam(value) {
       const { rules } = this;
       let res = {
-        validate: false
+        validate: false,
       };
       if (value.default !== '') {
         // 不为空才交给是否符合规则
@@ -1408,7 +1289,7 @@ export default {
     handleParamValidate(item) {
       const { rules } = this;
       let res = {
-        validate: false
+        validate: false,
       };
       if (item.type === 'file') {
         res.validate = item.validate.isValidate;
@@ -1502,6 +1383,7 @@ export default {
       this.SnmpVersionValidate();
     },
     // 选择插件时触发
+    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
     async handlePluginClick(val, loading = true, needSetConfig = true, curPluginType) {
       const { mode } = this.config;
       if (curPluginType === 'SNMP_Trap') {
@@ -1520,12 +1402,15 @@ export default {
       }
       // this.initFormLabelWidth()
     },
+    async getVariableData() {
+      if (!this.tipsData?.length) {
+        const data = await getCollectVariables().catch(() => []);
+        this.tipsData = data;
+      }
+    },
     async pluginTypeInfo(val, loading, needSetConfig) {
       // 获取提示输入数据
       this.loading = true;
-      await getCollectVariables().then(data => {
-        this.tipsData = data;
-      });
       // 先去获取有关的所有插件，并处理数据
       await this.getPluginInfo(val)
         .then(data => {
@@ -1549,7 +1434,7 @@ export default {
                     this.SnmpAuthTemplate = deepClone(
                       item.template_auth_json[0].map(item => ({
                         ...item,
-                        validate: { isValidate: false, content: '' }
+                        validate: { isValidate: false, content: '' },
                       }))
                     );
                   } else {
@@ -1564,18 +1449,18 @@ export default {
                         ...item,
                         validate: {
                           isValidate: false,
-                          content: ''
-                        }
+                          content: '',
+                        },
                       }))
-                    )
+                    ),
                   };
                 }
                 return {
                   ...item,
                   validate: {
                     isValidate: false,
-                    content: ''
-                  }
+                    content: '',
+                  },
                 };
               });
             } else if (data.plugin_type === 'SNMP') {
@@ -1585,13 +1470,13 @@ export default {
                 if (item.auth_json !== undefined) {
                   if (this.config.mode === 'edit' || this.isClone) {
                     const authJson = item.auth_json;
-                    authJson.forEach(set => {
-                      set.forEach(p => {
+                    for (const item of authJson) {
+                      for (const p of set) {
                         const mode = p.mode === 'collector' ? 'collector' : 'plugin';
                         const paramDefault = this.info.params[mode][p.key];
                         p.default = paramDefault;
-                      });
-                    });
+                      }
+                    }
                     return item;
                   }
                   return {
@@ -1600,10 +1485,10 @@ export default {
                         ...item,
                         validate: {
                           isValidate: false,
-                          content: ''
-                        }
+                          content: '',
+                        },
                       }))
-                    )
+                    ),
                   };
                 }
                 if (this.config.mode === 'edit' || this.isClone) {
@@ -1616,8 +1501,8 @@ export default {
                   ...item,
                   validate: {
                     isValidate: false,
-                    content: ''
-                  }
+                    content: '',
+                  },
                 };
               });
             } else {
@@ -1641,8 +1526,8 @@ export default {
                   ...item,
                   validate: {
                     isValidate: false,
-                    content: ''
-                  }
+                    content: '',
+                  },
                 };
                 return result;
               });
@@ -1673,7 +1558,7 @@ export default {
     },
     handleCancel() {
       this.$router.push({
-        name: 'collect-config'
+        name: 'collect-config',
       });
     },
     validateProcessParams() {
@@ -1683,6 +1568,7 @@ export default {
       return true;
     },
     handleNext() {
+      if (this.info.plugin.type === 'K8S') return;
       // 清空缓存的info
       this[SET_INFO_DATA](null);
       if (this.validate() && this.validateProcessParams()) {
@@ -1694,23 +1580,90 @@ export default {
         }
         this.$emit('update:config', {
           ...this.config,
-          set: { data: this.info, others: this.others, mode: 'edit', supportRemote: this.info.plugin.supportRemote }
+          set: { data: this.info, others: this.others, mode: 'edit', supportRemote: this.info.plugin.supportRemote },
         });
         this.$emit('next');
+      }
+    },
+    handleTencentCloudNext() {
+      this[SET_INFO_DATA](null);
+      if (this.validate()) {
+        this.$emit('update:config', {
+          ...this.config,
+          set: { data: this.info, others: this.others, mode: 'edit', supportRemote: this.info.plugin.supportRemote },
+        });
+        this.$emit('tencentCloudNext');
+      }
+    },
+    async setEditOrCloneConfig(v, collectDetail) {
+      // 编辑
+      const {
+        updateParams: { pluginId },
+      } = v.data;
+      if (collectDetail) {
+        this.setPluginSelector(collectDetail);
+        await this.handlePluginClick(pluginId, true, true);
+      }
+      if (collectDetail.collect_type === 'SNMP') {
+        this.snmpIsOk = this.handleSnmpParamValidate();
+        this.SnmpAuthCanSave = true;
       }
     },
     //
     async handleConfig(v) {
       this.loading = true;
-      await this.getPluginList()
-        .then(() => {
-          this.info.collectType && this.handleCollectTypeChange(this.info.collectType);
-        })
-        .catch(() => {});
       const { set } = v;
+      const { id } = v.data;
+      let collectDetail;
+      const promiseList = [];
       this.others = set.others || {};
+      if (id) {
+        promiseList.push(this.getConfigInfo(id).then(data => (collectDetail = data)));
+      }
+      const handlePluginPageParams = () => {
+        // 插件详情跳转过来
+        if (!this.isClone && v.mode === 'add' && v.data?.updateParams?.pluginId) {
+          const res = this.pluginSelectorObj.list.find(item => item.plugin_id === v.data.updateParams.pluginId);
+          res && this.handlePluginChange(res);
+        }
+      };
+      // 编辑的时候只获取单个插件
+      if (this.config.mode === 'edit') {
+        const pluginId = this.config.data?.updateParams?.pluginId;
+        promiseList.push(
+          retrieveCollectorPlugin(pluginId)
+            .then(v => {
+              this.pluginSelectorObj.list = [v];
+              this.pluginSelectorObj.key = random(8);
+              this.allPluginList = this.handlePluginList([v]);
+            })
+            .catch(() => {
+              this.pluginSelectorObj.list = [];
+              this.pluginSelectorObj.key = random(8);
+              this.allPluginList = this.handlePluginList([]);
+            })
+        );
+      } else {
+        // 异步获取所有的插件列表 加速渲染
+        if (!this.pluginSelectorObj.list?.length) {
+          this.pluginListLoading = true;
+          this.getPluginList()
+            .then(() => {
+              this.info.collectType && this.handleCollectTypeChange(this.info.collectType);
+            })
+            .catch(() => {})
+            .finally(() => {
+              if (this.isClone) {
+                this.setEditOrCloneConfig(v, collectDetail);
+              }
+              handlePluginPageParams();
+              this.pluginListLoading = false;
+            });
+        }
+      }
+      await Promise.allSettled(promiseList);
+      // 从下一个页面跳转过来（上一步）
       if (set.mode === 'edit') {
-        // 从下一个页面跳转过来（上一步）
         this.stepSetpluginSelector(set);
         this.info = set.data;
         if (set.data.log) {
@@ -1737,42 +1690,28 @@ export default {
           this.snmpIsOk = this.handleSnmpParamValidate();
           this.SnmpAuthCanSave = true;
         }
-      } else if (v.mode === 'edit' || this.isClone) {
+      } else if (v.mode === 'edit') {
         // 编辑
-        const {
-          id,
-          updateParams: { pluginId }
-        } = v.data;
-        const data = await this.getConfigInfo(id);
-        if (data) {
-          this.setPluginSelector(data);
-          await this.handlePluginClick(pluginId, true, true);
-        }
-        if (data.collect_type === 'SNMP') {
-          this.snmpIsOk = this.handleSnmpParamValidate();
-          this.SnmpAuthCanSave = true;
-        }
-        // await Promise.all([this.handlePluginClick(pluginId), this.getConfigInfo(id)]).catch(() => {})
-      } else if (v.mode === 'add' && v.data?.updateParams?.pluginId) {
-        // 插件详情跳转过来
-        const res = this.pluginSelectorObj.list.find(item => item.plugin_id === v.data.updateParams.pluginId);
-        res && this.handlePluginChange(res);
+        this.setEditOrCloneConfig(v, collectDetail);
+      } else {
+        handlePluginPageParams();
       }
       this.loading = false;
     },
+
     // 处理配置信息
     handleConfigInfo(data) {
       const pluginInfo = data.plugin_info;
       const { collector, plugin } = data.params;
       const tmpConfigJson = pluginInfo.config_json;
       // 将插件信息中 configJson 的值，改为 data.params 中对应的值
-      tmpConfigJson.forEach(item => {
+      for (const item of tmpConfigJson) {
         if (item.mode === 'collector') {
           item.default = collector[item.name];
         } else {
           item.default = plugin[item.name];
         }
-      });
+      }
       const { configJson, host, port, isShowHost, isShowPort } = this.handlePluginConfigJson(
         pluginInfo.plugin_type,
         tmpConfigJson
@@ -1813,19 +1752,19 @@ export default {
               ...item,
               validate: {
                 isValidate: false,
-                content: ''
-              }
+                content: '',
+              },
             })),
             osTypeList: pluginInfo.os_type_list,
-            supportRemote: pluginInfo.is_support_remote
-          }
+            supportRemote: pluginInfo.is_support_remote,
+          },
         },
         others: {
           targetNodeType: data.target_node_type,
           // targetNodes: data.target_nodes,
           targetNodes: data.target,
-          remoteCollectingHost: data.remote_collecting_host
-        }
+          remoteCollectingHost: data.remote_collecting_host,
+        },
       };
     },
     // 获取插件列表
@@ -1837,7 +1776,8 @@ export default {
         page: 1,
         page_size: 1000,
         order: '-update_time',
-        status: 'release'
+        status: 'release',
+        with_virtual: true,
       };
       return new Promise((resolve, reject) => {
         listCollectorPlugin(params)
@@ -1847,15 +1787,15 @@ export default {
             const { list } = data;
             if (count) {
               const collectTypeList = [];
-              Object.keys(count).forEach(item => {
+              for (const item of Object.keys(count)) {
                 const set = this.pluginTypeMap[item];
                 if (set) {
                   collectTypeList.push({
                     name: item,
-                    alias: set
+                    alias: set,
                   });
                 }
-              });
+              }
               this.collectTypeList = collectTypeList;
             }
             this.pluginSelectorObj.list = list;
@@ -1872,7 +1812,7 @@ export default {
     handlePluginList(data) {
       const res = [];
       if (data.length) {
-        data.forEach(item => {
+        for (const item of data) {
           res.push({
             pluginId: item.plugin_id,
             pluginDisplayName: item.plugin_display_name,
@@ -1881,25 +1821,28 @@ export default {
             createUser: item.create_user,
             updateUser: item.update_user,
             updateTime: item.update_time,
-            labelInfo: item.label_info
+            labelInfo: item.label_info,
           });
-        });
+        }
       }
       return res;
     },
     // 获取插件信息
-    getPluginInfo(id) {
+    async getPluginInfo(id) {
+      // 编辑模式下的插件详细数据可以省略请求
+      if (this.config.mode === 'edit' && this.pluginSelectorObj.list.length) {
+        const pluginInfo = this.pluginSelectorObj.list.find(item => item.plugin_id === id);
+        if (pluginInfo?.metric_json) return pluginInfo;
+      }
       this.loading = true;
-      return new Promise((resolve, reject) => {
-        retrieveCollectorPlugin(id)
-          .then(data => {
-            resolve(data);
-          })
-          .catch(err => {
-            this.loading = false;
-            reject(err);
-          });
-      });
+      return retrieveCollectorPlugin(id)
+        .then(data => {
+          this.pluginSelectorObj.list.push(data);
+          return data;
+        })
+        .finally(() => {
+          this.loading = false;
+        });
     },
     setNavTitle(data) {
       this.$store.commit(
@@ -1911,7 +1854,7 @@ export default {
       const routeList = [];
       routeList.push({
         name,
-        id: ''
+        id: '',
       });
       this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
     },
@@ -1940,14 +1883,14 @@ export default {
           });
       });
     },
-    handlePluginConfigJson(type, data = []) {
+    handlePluginConfigJson(type, configs = []) {
       let configJson = [];
       // snmp 多用户
       const snmpAuthJson = [];
       let host = null;
       let port = null;
       // 如果是插件类型为 'Exporter'，则显示绑定主机和绑定端口
-      data = data.map(item => {
+      const data = configs.map(item => {
         if (item.type === 'file' && typeof item.default === 'object' && item.key !== 'yaml') {
           const temp = deepClone(item.default);
           item.default = temp.filename;
@@ -1956,7 +1899,7 @@ export default {
         return item;
       });
       if (type === 'Exporter') {
-        data.forEach(item => {
+        for (const item of data) {
           if (item.mode === 'collector' && item.name === 'host') {
             host = item;
           } else if (item.mode === 'collector' && item.name === 'port') {
@@ -1964,7 +1907,7 @@ export default {
           } else {
             configJson.push(item);
           }
-        });
+        }
       } else if (type === 'SNMP_Trap') {
         configJson.push(...data);
         // data.forEach((item) => {
@@ -1977,12 +1920,7 @@ export default {
       } else if (type === 'SNMP' && this.config.mode === 'edit') {
         configJson = data.map(item => {
           if (item.auth_json)
-            item.auth_json = [
-              item.auth_json.map(set =>
-                // eslint-disable-line
-                ({ ...set, validate: { isValidate: false, content: '' } })
-              )
-            ];
+            item.auth_json = [item.auth_json.map(set => ({ ...set, validate: { isValidate: false, content: '' } }))];
           return item;
         });
         // configJson.push(...data)
@@ -1995,7 +1933,7 @@ export default {
         port,
         isShowHost: host !== null,
         isShowPort: port !== null,
-        snmpAuthJson
+        snmpAuthJson,
       };
     },
     handleFilterPlugin(v) {
@@ -2010,7 +1948,7 @@ export default {
       this[SET_INFO_DATA](this.info);
       this.$router.push({
         name: 'plugin-add',
-        params: { objectId: this.info.objectId }
+        params: { objectId: this.info.objectId },
       });
     },
     async handleSetPlugin() {
@@ -2172,8 +2110,28 @@ export default {
       } else {
         item.validate.isValidate = false;
       }
-    }
-  }
+    },
+    handleInput(item) {
+      const valid = {
+        content: '',
+        validate: false,
+      };
+      if (item.required) {
+        if (typeof item.default === 'object') {
+          valid.validate = Array.isArray(item.default) ? !item.default.length : !Object.keys(item.default).length;
+        } else {
+          valid.validate = !item.default;
+        }
+
+        valid.validate && (valid.content = this.$t('必填项'));
+      }
+      item.validate = {
+        content: valid.content,
+        isValidate: valid.validate,
+      };
+      return valid;
+    },
+  },
 };
 </script>
 
@@ -2231,6 +2189,19 @@ export default {
         .container-tips {
           padding: 7px 0 9px 0;
           color: #63656e;
+
+          &.required {
+            position: relative;
+            width: max-content;
+
+            &::after {
+              position: absolute;
+              top: 7px;
+              right: -9px;
+              color: red;
+              content: '*';
+            }
+          }
 
           span {
             color: #3a84ff;
@@ -2361,6 +2332,18 @@ export default {
             line-height: 30px;
             text-overflow: ellipsis;
             white-space: nowrap;
+
+            &.required {
+              position: relative;
+
+              &::after {
+                position: absolute;
+                top: -1px;
+                right: 7px;
+                color: red;
+                content: '*';
+              }
+            }
           }
         }
 

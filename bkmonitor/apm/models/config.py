@@ -15,7 +15,7 @@ import operator
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -23,10 +23,10 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
     PLATFORM_METRIC_DIMENSION_FILED,
     ConfigTypes,
-    SpanKind,
+    DiscoverRuleType,
 )
 from bkmonitor.utils.db import JsonField
-from constants.apm import OtlpKey, TrpcAttributes
+from constants.apm import OtlpKey, SpanKindKey, TrpcAttributes
 
 logger = logging.getLogger("apm")
 
@@ -48,12 +48,24 @@ class ApmTopoDiscoverRule(models.Model):
 
     DEFAULT_ENDPOINT_KEY = OtlpKey.SPAN_NAME
 
+    # rule = category 枚举值 ↓
     APM_TOPO_CATEGORY_HTTP = "http"
     APM_TOPO_CATEGORY_RPC = "rpc"
     APM_TOPO_CATEGORY_DB = "db"
     APM_TOPO_CATEGORY_MESSAGING = "messaging"
     APM_TOPO_CATEGORY_ASYNC_BACKEND = "async_backend"
     APM_TOPO_CATEGORY_OTHER = "other"
+
+    # rule = system 枚举值 ↓
+    APM_TOPO_FRAMEWORK_TRPC = "trpc"
+    APM_TOPO_FRAMEWORK_GRPC = "grpc"
+
+    # rule = platform 枚举值 ↓
+    APM_TOPO_PLATFORM_K8S = "k8s"
+    APM_TOPO_PLATFORM_NODE = "node"
+
+    # rule = sdk 枚举值 ↓
+    APM_TOPO_SDK_SDK = "sdk"
 
     APM_TOPO_CATEGORY_CHOICES = (
         (APM_TOPO_CATEGORY_HTTP, "http"),
@@ -69,23 +81,42 @@ class ApmTopoDiscoverRule(models.Model):
     DB_PREDICATE_KEY = OtlpKey.get_attributes_key(SpanAttributes.DB_SYSTEM)
     MESSAGING_PREDICATE_KEY = OtlpKey.get_attributes_key(SpanAttributes.MESSAGING_SYSTEM)
     ASYNC_BACKEND_PREDICATE_KEY = OtlpKey.get_attributes_key(SpanAttributes.MESSAGING_DESTINATION)
-    # for trpc
+
+    # key for framework = trpc
     TRPC_PREDICATE_KEY = OtlpKey.get_attributes_key(TrpcAttributes.TRPC_NAMESPACE)
+    # key for platform = k8s (k8部署 判断 k8s 部署有多个字段)
+    PLATFORM_K8S_PREDICATE_KEY = ",".join(
+        [
+            OtlpKey.get_resource_key("k8s.bcs.cluster.id"),
+            OtlpKey.get_resource_key("k8s.pod.name"),
+            OtlpKey.get_resource_key("k8s.namespace.name"),
+        ]
+    )
+    # key for platform = system (物理机部署)
+    PLATFORM_NODE_PREDICATE_KEY = OtlpKey.get_resource_key("net.host.ip")
+    # key for SDK
+    SDK_PREDICATE_KEY = OtlpKey.get_resource_key(ResourceAttributes.TELEMETRY_SDK_NAME)
 
     COMMON_RULE = [
         {
-            "category_id": APM_TOPO_CATEGORY_HTTP,
+            "category_id": APM_TOPO_CATEGORY_DB,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
-            "topo_kind": TOPO_SERVICE,
-            "predicate_key": HTTP_PREDICATE_KEY,
+            "instance_key": f"{DB_PREDICATE_KEY},{DEFAULT_COMPONENT_INSTANCE_KEY}",
+            "topo_kind": TOPO_COMPONENT,
+            "predicate_key": DB_PREDICATE_KEY,
+            "sort": 0,
+            "type": DiscoverRuleType.CATEGORY.value,
         },
         {
-            "category_id": APM_TOPO_CATEGORY_RPC,
+            # messaging 优先级比 异步任务高
+            # 因为 messaging.destination 字段会存在于消息队列和异步任务中
+            "category_id": APM_TOPO_CATEGORY_MESSAGING,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
-            "topo_kind": TOPO_SERVICE,
-            "predicate_key": RPC_PREDICATE_KEY,
+            "instance_key": f"{MESSAGING_PREDICATE_KEY},{DEFAULT_COMPONENT_INSTANCE_KEY}",
+            "topo_kind": TOPO_COMPONENT,
+            "predicate_key": MESSAGING_PREDICATE_KEY,
+            "sort": 1,
+            "type": DiscoverRuleType.CATEGORY.value,
         },
         {
             "category_id": APM_TOPO_CATEGORY_ASYNC_BACKEND,
@@ -93,20 +124,35 @@ class ApmTopoDiscoverRule(models.Model):
             "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
             "topo_kind": TOPO_SERVICE,
             "predicate_key": ASYNC_BACKEND_PREDICATE_KEY,
+            "sort": 2,
+            "type": DiscoverRuleType.CATEGORY.value,
         },
         {
-            "category_id": APM_TOPO_CATEGORY_DB,
+            "category_id": APM_TOPO_CATEGORY_RPC,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": f"{DB_PREDICATE_KEY},{DEFAULT_COMPONENT_INSTANCE_KEY}",
-            "topo_kind": TOPO_COMPONENT,
-            "predicate_key": DB_PREDICATE_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": TRPC_PREDICATE_KEY,
+            "sort": 3,
+            "type": DiscoverRuleType.CATEGORY.value,
         },
         {
-            "category_id": APM_TOPO_CATEGORY_MESSAGING,
+            "category_id": APM_TOPO_CATEGORY_RPC,
             "endpoint_key": DEFAULT_ENDPOINT_KEY,
-            "instance_key": f"{MESSAGING_PREDICATE_KEY},{DEFAULT_COMPONENT_INSTANCE_KEY}",
-            "topo_kind": TOPO_COMPONENT,
-            "predicate_key": MESSAGING_PREDICATE_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": RPC_PREDICATE_KEY,
+            "sort": 4,
+            "type": DiscoverRuleType.CATEGORY.value,
+        },
+        {
+            "category_id": APM_TOPO_CATEGORY_HTTP,
+            "endpoint_key": DEFAULT_ENDPOINT_KEY,
+            "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": HTTP_PREDICATE_KEY,
+            "sort": 5,
+            "type": DiscoverRuleType.CATEGORY.value,
         },
         {
             "category_id": APM_TOPO_CATEGORY_OTHER,
@@ -114,6 +160,53 @@ class ApmTopoDiscoverRule(models.Model):
             "instance_key": DEFAULT_SERVICE_INSTANCE_KEY,
             "topo_kind": TOPO_SERVICE,
             "predicate_key": "",
+            "sort": 6,
+            "type": DiscoverRuleType.CATEGORY.value,
+        },
+        {
+            "category_id": APM_TOPO_FRAMEWORK_TRPC,
+            "endpoint_key": "",
+            "instance_key": TRPC_PREDICATE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": TRPC_PREDICATE_KEY,
+            "sort": 0,
+            "type": DiscoverRuleType.SYSTEM.value,
+        },
+        {
+            "category_id": APM_TOPO_FRAMEWORK_GRPC,
+            "endpoint_key": "",
+            "instance_key": RPC_PREDICATE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": RPC_PREDICATE_KEY,
+            "sort": 1,
+            "type": DiscoverRuleType.SYSTEM.value,
+        },
+        {
+            "category_id": APM_TOPO_PLATFORM_K8S,
+            "endpoint_key": "",
+            "instance_key": PLATFORM_K8S_PREDICATE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": PLATFORM_K8S_PREDICATE_KEY,
+            "sort": 0,
+            "type": DiscoverRuleType.PLATFORM.value,
+        },
+        {
+            "category_id": APM_TOPO_PLATFORM_NODE,
+            "endpoint_key": "",
+            "instance_key": PLATFORM_NODE_PREDICATE_KEY,
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": PLATFORM_NODE_PREDICATE_KEY,
+            "sort": 1,
+            "type": DiscoverRuleType.PLATFORM.value,
+        },
+        {
+            "category_id": "",
+            "endpoint_key": "",
+            "instance_key": OtlpKey.get_resource_key("target"),
+            "topo_kind": TOPO_SERVICE,
+            "predicate_key": SDK_PREDICATE_KEY,
+            "sort": 0,
+            "type": DiscoverRuleType.SDK.value,
         },
     ]
     PREDICATE_OP_EXISTS = "exists"
@@ -125,30 +218,51 @@ class ApmTopoDiscoverRule(models.Model):
     bk_biz_id = models.IntegerField("业务id")
     app_name = models.CharField("应用名称", max_length=128)
     # http,rpc,db.messaging
-    category_id = models.CharField("分类名称", max_length=128)
+    category_id = models.CharField("分类名称", max_length=128, null=True)
     # 接口字段，如果没有特殊要求统一为span_name
-    endpoint_key = models.CharField("接口字段", max_length=255)
-    instance_key = models.CharField("实例字段", max_length=255)
-    topo_kind = models.CharField("topo发现类型", max_length=50)
-    predicate_key = models.CharField("判断字段", max_length=128)
+    endpoint_key = models.CharField("接口字段", max_length=255, null=True)
+    instance_key = models.CharField("实例字段", max_length=255, null=True)
+    topo_kind = models.CharField("topo发现类型", max_length=50, null=True)
+    predicate_key = models.CharField("判断字段", max_length=128, null=True)
+    sort = models.IntegerField("排序", default=0)
+    type = models.CharField(
+        "规则类型", max_length=32, choices=DiscoverRuleType.choices, default=DiscoverRuleType.CATEGORY.value
+    )
 
     @classmethod
-    def get_application_rule(cls, bk_biz_id, app_name, topo_kind=None):
+    def get_application_rule(cls, bk_biz_id, app_name, _type=DiscoverRuleType.CATEGORY.value):
         filter_args = {}
-        if topo_kind:
-            filter_args["topo_kind"] = topo_kind
+        if _type != "all":
+            filter_args["type"] = _type
         return cls.objects.filter(
             (Q(bk_biz_id=bk_biz_id) & Q(app_name=app_name)) | (Q(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID)), **filter_args
-        )
+        ).order_by("sort")
 
     @classmethod
     def init_builtin_config(cls):
-        objs = []
+        create_instances = []
+        update_instances = []
+
+        exists_instances = {
+            (i.category_id, i.predicate_key, i.type): i.id
+            for i in cls.objects.filter(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID)
+        }
+
         for common_rule in cls.COMMON_RULE:
-            if cls.objects.filter(**common_rule, bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID).exists():
-                continue
-            objs.append(cls(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name="", **common_rule))
-        cls.objects.bulk_create(objs)
+            key = (common_rule["category_id"], common_rule["predicate_key"], common_rule["type"])
+            if key in exists_instances:
+                update_instances.append(
+                    cls(id=exists_instances[key], bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name="", **common_rule)
+                )
+                exists_instances.pop(key)
+            else:
+                create_instances.append(cls(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID, app_name="", **common_rule))
+
+        cls.objects.bulk_create(create_instances)
+        cls.objects.bulk_update(
+            update_instances, fields=["endpoint_key", "instance_key", "topo_kind", "predicate_key", "sort", "type"]
+        )
+        cls.objects.filter(id__in=[v for _, v in exists_instances.items()]).delete()
 
 
 class ApmInstanceDiscover(models.Model):
@@ -626,7 +740,7 @@ class CustomServiceConfig(AppConfigBase):
         "http": {
             # http类型的远程服务发现规则
             "predicate_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_METHOD),
-            "span_kind": SpanKind.SPAN_KIND_CLIENT,
+            "span_kind": SpanKindKey.CLIENT,
             "match_key": OtlpKey.get_attributes_key(SpanAttributes.HTTP_URL),
         }
     }

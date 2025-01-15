@@ -7,13 +7,13 @@
     @include flex-align();
 
     .tag {
+      flex-shrink: 0;
       height: 16px;
       padding: 0 4px;
       margin-left: 4px;
       font-size: 12px;
       line-height: 16px;
       border-radius: 2px;
-      flex-shrink: 0;
     }
 
     .global {

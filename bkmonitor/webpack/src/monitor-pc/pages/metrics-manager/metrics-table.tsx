@@ -25,25 +25,26 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { secToString } from '../../components/cycle-input/utils';
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import CommonTable from '../monitor-k8s/components/common-table';
-import { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings/table';
-import { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
-
 import MetricDetailSide from './metric-detail-side';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { ITableColumn, ITablePagination, TableRow } from '../monitor-k8s/typings/table';
+import type { IMetricDetail } from '../strategy-config/strategy-config-set-new/typings';
 
 import './metrics-table.scss';
 
-export const dataSouceLabes = [
+export const dataSourceLabels = [
   { id: 'bk_monitor', name: window.i18n.tc('监控采集指标') },
   { id: 'bk_data', name: window.i18n.tc('计算平台指标') },
   { id: 'custom', name: window.i18n.tc('自定义指标') },
   { id: 'bk_log_search', name: window.i18n.tc('日志平台指标') },
-  { id: 'bk_apm', name: window.i18n.tc('应用监控Trace指标') }
+  { id: 'bk_apm', name: window.i18n.tc('应用监控Trace指标') },
 ];
 
 interface IProps {
@@ -58,8 +59,8 @@ interface IEvents {
   onDataRetrieval?: string;
   onDataSourceChange?: string[][];
   onEnableChange?: (value: string) => void;
-  onClearFilter?: void;
-  onRefresh?: void;
+  onClearFilter?: () => void;
+  onRefresh?: () => void;
 }
 
 const tableSettingsKey = 'METRICS_MANAGER_TABLE_SETTINGS';
@@ -73,8 +74,8 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
     default: () => ({
       current: 1,
       count: 0,
-      limit: 10
-    })
+      limit: 10,
+    }),
   })
   pagination: ITablePagination;
   // 表格查询结果所对应的状态
@@ -85,7 +86,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
   /* 指标id搜索及关键字搜索 */
   filter = {
     metric_id: '',
-    query: ''
+    query: '',
   };
   /* 表头筛选弹出层 */
   filterPopover: {
@@ -97,7 +98,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
     instance: null,
     list: [], // 弹出的选项
     checkedList: [], // 已选中的选项
-    column: '' // 当前弹出的字段
+    column: '', // 当前弹出的字段
   };
   /* 详情 */
   details: {
@@ -105,7 +106,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
     data: IMetricDetail;
   } = {
     data: null,
-    show: false
+    show: false,
   };
   /* 是否显示搜索栏 */
   showSearch = true;
@@ -117,7 +118,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
         name: window.i18n.t('指标名') as string,
         type: 'scoped_slots',
         checked: true,
-        disabled: true
+        disabled: true,
       },
       { id: 'alias', name: window.i18n.t('指标别名') as string, type: 'scoped_slots', checked: true },
       {
@@ -125,13 +126,13 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
         name: window.i18n.t('数据来源') as string,
         type: 'scoped_slots',
         checked: true,
-        renderHeader: () => this.renderHeader('data_source_label')
+        renderHeader: () => this.renderHeader('data_source_label'),
       },
       {
         id: 'unit',
         name: window.i18n.t('单位') as string,
         type: 'string',
-        checked: true /* renderHeader: () => this.renderHeader('unit') */
+        checked: true /* renderHeader: () => this.renderHeader('unit') */,
       },
       { id: 'resultTableName', name: window.i18n.t('指标分组') as string, type: 'scoped_slots', checked: false },
       { id: 'interval', name: window.i18n.t('数据步长') as string, type: 'scoped_slots', checked: false },
@@ -143,9 +144,9 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
         type: 'scoped_slots',
         renderHeader: () => this.renderHeader('enable'),
         checked: true,
-        disabled: true
+        disabled: true,
       },
-      { id: 'operate', name: window.i18n.t('操作') as string, type: 'scoped_slots', checked: true, disabled: true }
+      { id: 'operate', name: window.i18n.t('操作') as string, type: 'scoped_slots', checked: true, disabled: true },
     ];
     const tableSettingsStr = localStorage.getItem(tableSettingsKey);
     if (tableSettingsKey && Array.isArray(JSON.parse(tableSettingsStr))) {
@@ -191,7 +192,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
       this.filterPopover.checkedList.push({
         column: this.filterPopover.column,
         list: [],
-        tempList: [id]
+        tempList: [id],
       });
       setData([id]);
     }
@@ -234,15 +235,15 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
           <ul class='label-menu-list'>
             {this.filterPopover.list.map(item => (
               <li
-                class='item'
                 key={item.checked}
+                class='item'
               >
                 <bk-checkbox
-                  value={item.value}
-                  trueValue={item.checked}
                   falseValue={item.cancel}
+                  trueValue={item.checked}
+                  value={item.value}
                   on-change={() => this.handleCheckTabelHeader(item.checked)}
-                ></bk-checkbox>
+                />
                 <span class='name'>{item.name}</span>
               </li>
             ))}
@@ -275,15 +276,15 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
       if (id === 'enable') {
         this.filterPopover.list = [
           { name: window.i18n.tc('启用'), value: '', checked: 'enable', cancel: '' },
-          { name: window.i18n.tc('停用'), value: '', checked: 'un_enable', cancel: '' }
+          { name: window.i18n.tc('停用'), value: '', checked: 'un_enable', cancel: '' },
         ];
       }
       if (id === 'data_source_label') {
-        this.filterPopover.list = dataSouceLabes.map(item => ({
+        this.filterPopover.list = dataSourceLabels.map(item => ({
           name: item.name,
           value: '',
           checked: item.id,
-          cancel: ''
+          cancel: '',
         }));
       }
       const checkedItem = this.filterPopover.checkedList.find(item => item.column === this.filterPopover.column);
@@ -308,23 +309,23 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
             this.filterPopover.checkedList.forEach(item => {
               item.tempList = [];
             });
-          }
+          },
         });
       }
       this.filterPopover.instance?.show?.(100);
     };
     const names = {
       data_source_label: window.i18n.t('数据来源'),
-      enable: window.i18n.t('启/停')
+      enable: window.i18n.t('启/停'),
     };
     const active = !!this.filterPopover.checkedList.find(item => item.column === id)?.list?.length;
     return (
       <span
-        onClick={e => handleShow(e)}
         class={['custom-label', { active }]}
+        onClick={e => handleShow(e)}
       >
         {names[id]}
-        <i class='icon-monitor icon-filter-fill'></i>
+        <i class='icon-monitor icon-filter-fill' />
       </span>
     );
   }
@@ -349,13 +350,13 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
     if (this.filter.query) {
       condition.push({
         key: 'query',
-        value: this.filter.query
+        value: this.filter.query,
       });
     }
     if (this.filter.metric_id) {
       condition.push({
         key: 'metric_id',
-        value: this.filter.metric_id
+        value: this.filter.metric_id,
       });
     }
     return condition;
@@ -437,33 +438,29 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
             <bk-input
               class='metric-input'
               v-model={this.filter.metric_id}
-              clearable
               placeholder={window.i18n.t('输入指标id搜索')}
               rightIcon={'bk-icon icon-search'}
+              clearable
               on-change={this.handleConditionChange}
             >
               <div
-                slot='prepend'
                 class='group-text'
+                slot='prepend'
               >
                 {window.i18n.t('指标')}
               </div>
             </bk-input>
             <bk-input
               v-model={this.filter.query}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('输入')}
+              right-icon='bk-icon icon-search'
               clearable
               on-change={this.handleConditionChange}
-            ></bk-input>
+            />
           </div>
         )}
         <div class={['content', { 'show-search': this.showSearch }]}>
           <CommonTable
-            columns={this.columns}
-            data={this.tableData}
-            pagination={this.pagination}
-            checkable={false}
             scopedSlots={{
               metricName: row => {
                 const name = (() => {
@@ -489,7 +486,7 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
                   !row.metric_field_name || row.metric_field_name === row.metric_field ? '' : row.metric_field_name;
                 return <span>{alias || '--'}</span>;
               },
-              dataSourceLabel: row => dataSouceLabes.find(item => item.id === row.data_source_label)?.name || '--',
+              dataSourceLabel: row => dataSourceLabels.find(item => item.id === row.data_source_label)?.name || '--',
               resultTableName: row => row.result_table_name || '--',
               interval: row => {
                 const collectInterval = row.collect_interval < 5 ? 60 : row.collect_interval;
@@ -502,30 +499,35 @@ export default class MetricsTable extends tsc<IProps, IEvents> {
               enable: () => this.$t('启用'),
               operate: row => [
                 <bk-button
+                  key='1'
                   text
                   onClick={() => this.handleToDataRetrieval(row.metric_id)}
                 >
                   {this.$t('检索')}
-                </bk-button>
-              ]
+                </bk-button>,
+              ],
             }}
-            onPageChange={this.handlePageChange}
-            onLimitChange={this.handleLimitChange}
+            checkable={false}
+            columns={this.columns}
+            data={this.tableData}
+            pagination={this.pagination}
             onColumnSettingChange={this.handleColumnSettingChange}
+            onLimitChange={this.handleLimitChange}
+            onPageChange={this.handlePageChange}
           >
             <EmptyStatus
-              type={this.emptyStatusType}
               slot='empty'
+              type={this.emptyStatusType}
               onOperation={this.handleOperation}
             />
           </CommonTable>
         </div>
         {this.getLabelMenu()}
         <MetricDetailSide
-          show={this.details.show}
           detail={this.details.data}
+          show={this.details.show}
           onShowChange={(v: boolean) => (this.details.show = v)}
-        ></MetricDetailSide>
+        />
       </div>
     );
   }

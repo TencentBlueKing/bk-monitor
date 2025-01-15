@@ -146,10 +146,10 @@ class RowCollectorScenario(CollectorScenario):
 
             try:
                 separator_filters = []
-                # 如果是逻辑或，会拆成多个配置下发
-                logic_op = "and" if len(config["local"][0]["filters"]) <= 1 else "or"
-                for filter_item in config["local"][0]["filters"]:
-                    for condition_item in filter_item["conditions"]:
+                for parent_index, filter_item in enumerate(config["local"][0]["filters"]):
+                    for child_index, condition_item in enumerate(filter_item["conditions"]):
+                        # 如果是逻辑或，在前端会拆成多个配置下发
+                        logic_op = "or" if parent_index != 0 and child_index == 0 else "and"
                         separator_filters.append(
                             {
                                 "fieldindex": condition_item["index"],
@@ -170,7 +170,7 @@ class RowCollectorScenario(CollectorScenario):
                 # 兼容历史数据（历史数据match_type固定为 '=' ）
                 if match_type == "=":
                     match_type = "include"
-                separator_filters = []
+
             elif not separator_filters:
                 _type = "none"
             else:
@@ -190,6 +190,7 @@ class RowCollectorScenario(CollectorScenario):
 
             params = {
                 "paths": config["local"][0]["paths"],
+                "exclude_files": config["local"][0].get("exclude_files", []),
                 "conditions": conditions,
                 "encoding": config["local"][0]["encoding"],
             }
@@ -197,6 +198,7 @@ class RowCollectorScenario(CollectorScenario):
             logger.exception(f"解析订阅步骤失败，参数:{steps}，错误:{e}")
             params = {
                 "paths": [],
+                "exclude_files": [],
                 "conditions": {
                     "type": "none",
                     "match_type": "include",

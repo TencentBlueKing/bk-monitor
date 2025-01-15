@@ -36,11 +36,11 @@
         <template>
           <ul class="channel-list">
             <li
-              class="channel-list-item"
-              @click="item.check = !item.check"
-              :class="{ 'is-checked': item.check }"
               v-for="item in staticForm.ENABLED_NOTICE_WAYS"
+              class="channel-list-item"
+              :class="{ 'is-checked': item.check }"
               :key="item.id"
+              @click="item.check = !item.check"
             >
               <bk-checkbox
                 class="item-check"
@@ -50,7 +50,7 @@
                 class="item-img"
                 :src="item.icon"
                 alt=""
-              >
+              />
               <span class="item-name">{{ item.name }}</span>
             </li>
           </ul>
@@ -59,11 +59,13 @@
             <span
               class="channel-desc-btn"
               @click="handleGotoLink('globalConfiguration')"
-            > {{ $t('配置指引') }} </span>
+            >
+              {{ $t('配置指引') }}
+            </span>
             <div
-              v-show="validate.channel && isValidateChannel"
-              class="error-message"
               style="bottom: -18px"
+              class="error-message"
+              v-show="validate.channel && isValidateChannel"
             >
               {{ $t('选择消息通知渠道') }}
             </div>
@@ -73,8 +75,8 @@
       <bk-form-item :label="$t('通知方式')">
         <ul class="notice-list">
           <li
-            class="notice-list-item"
             v-for="item in staticForm.MESSAGE_QUEUE_DSN"
+            class="notice-list-item"
             :key="item.id"
           >
             <bk-checkbox v-model="item.check">
@@ -86,16 +88,16 @@
                 v-show="item.check"
               >
                 <bk-select
-                  class="message-set-select"
-                  @change="handleSelectChange"
                   :style="{ marginBottom: item.check ? '5px' : '0px' }"
+                  class="message-set-select"
                   :clearable="false"
                   :value="item.way"
+                  @change="handleSelectChange"
                 >
                   <bk-option
                     v-for="set in item.list"
-                    :key="set.id"
                     :id="set.id"
+                    :key="set.id"
                     :name="set.name"
                   />
                 </bk-select>
@@ -105,8 +107,8 @@
                   :placeholder="item.placeholder"
                 />
                 <div
-                  v-show="validate.notice && isValidateNotice"
                   class="error-message"
+                  v-show="validate.notice && isValidateNotice"
                 >
                   {{ $t('输入正确的格式') }}
                 </div>
@@ -117,17 +119,17 @@
       </bk-form-item>
       <bk-form-item :label="$t('标签')">
         <multi-label-select
-          mode="create"
           :tree-data="labelTreeData"
+          mode="create"
         />
       </bk-form-item>
     </bk-form>
     <create-form
       v-if="list.length"
       :form-list="list"
+      :form-props="formProps"
       :model="data"
       :rules="rules"
-      :form-props="formProps"
       @reset="handleReset"
       @save="saveGlobalConfig"
     />
@@ -144,14 +146,13 @@ import { transformDataKey } from 'monitor-common/utils/utils';
 import MultiLabelSelect from '../../components/multi-label-select/multi-label-select.tsx';
 import { labelListToTreeData } from '../../components/multi-label-select/utils';
 import documentLinkMixin from '../../mixins/documentLinkMixin';
-
 import CreateForm from './create-form';
 
 export default {
   name: 'GlobalConfig',
   components: {
     CreateForm,
-    MultiLabelSelect
+    MultiLabelSelect,
   },
   mixins: [documentLinkMixin],
   // mixins: [documentLinkMixin, authorityMixinCreate(globalAuth, 'created')],
@@ -177,19 +178,19 @@ export default {
               {
                 id: 'redis',
                 name: 'Redis',
-                placeholder: 'redis://:${password}@${host}:${port}/${db}/${key}'
+                placeholder: 'redis://:${password}@${host}:${port}/${db}/${key}',
               },
               {
                 id: 'kafka',
                 name: 'Kafka',
-                placeholder: 'kafka://${username}:${password}@${host}:${port}/${topic}'
-              }
+                placeholder: 'kafka://${username}:${password}@${host}:${port}/${topic}',
+              },
             ],
             way: '',
             value: '',
             placeholder: '',
-            check: false
-          }
+            check: false,
+          },
           // {
           //     id: 'worker-order',
           //     name: '工单'
@@ -198,16 +199,16 @@ export default {
           //     id: 'fault-healing',
           //     name: '故障自愈'
           // }
-        ]
+        ],
       },
       formProps: {
-        'label-width': 186
+        'label-width': 186,
       },
       validate: {
         channel: false,
-        notice: false
+        notice: false,
       },
-      labelTreeData: []
+      labelTreeData: [],
     };
   },
   computed: {
@@ -221,7 +222,7 @@ export default {
         return !(val.length > 0 && val.indexOf(`${item.way}://`) === 0);
       }
       return false;
-    }
+    },
   },
   created() {
     this.getListConfig();
@@ -234,13 +235,13 @@ export default {
     getLabelList() {
       const params = {
         bk_biz_id: 0,
-        strategy_id: 0
+        strategy_id: 0,
       };
-      strategyLabelList(params).then((res) => {
+      strategyLabelList(params).then(res => {
         const data = transformDataKey(res);
         const globalData = [
           ...data.global,
-          ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName }))
+          ...data.globalParentNodes.map(item => ({ id: item.labelId, labelName: item.labelName })),
         ];
         this.labelTreeData = labelListToTreeData(globalData);
       });
@@ -254,14 +255,14 @@ export default {
         const formModel = {};
         const formRules = {};
         const formList = [];
-        data.forEach((item) => {
+        data.forEach(item => {
           const { key } = item;
           if (key === 'ENABLED_NOTICE_WAYS') {
             this.staticForm[key] = noticeWay.map(way => ({
               id: way.type,
               name: way.label,
               icon: `data:image/png;base64,${way.icon}`,
-              check: item.value.includes(way.type)
+              check: item.value.includes(way.type),
             }));
           } else if (key === 'MESSAGE_QUEUE_DSN') {
             const [dsn] = this.staticForm[key];
@@ -314,19 +315,19 @@ export default {
         // this.$store.commit('app/SET_MAIN_LOADING', true);
         this.loading = true;
         const configs = Object.keys(this.data).map(key => ({ key, value: this.data[key] }));
-        Object.keys(this.staticForm).forEach((key) => {
+        Object.keys(this.staticForm).forEach(key => {
           const item = this.staticForm[key];
           if (key === 'ENABLED_NOTICE_WAYS') {
             const value = [];
             item.forEach(set => set.check && value.push(set.id));
             configs.push({
               key,
-              value
+              value,
             });
           } else if (key === 'MESSAGE_QUEUE_DSN') {
             configs.push({
               key,
-              value: !item[0].check ? '' : item[0].value
+              value: !item[0].check ? '' : item[0].value,
             });
           }
         });
@@ -334,7 +335,7 @@ export default {
           .then(() => {
             this.$bkMessage({
               theme: 'success',
-              message: this.$t('保存成功！')
+              message: this.$t('保存成功！'),
             });
             // const [queueItem] = this.staticForm.MESSAGE_QUEUE_DSN;
             // this.$store.commit('app/SET_MESSAGE_QUEUE', {
@@ -343,6 +344,9 @@ export default {
             // });
             // this.$store.commit('app/SET_MAIN_LOADING', false);
             this.loading = false;
+            setTimeout(() => {
+              location.reload();
+            }, 100);
           })
           .catch(() => {
             // this.$store.commit('app/SET_MAIN_LOADING', false);
@@ -361,8 +365,8 @@ export default {
       }
       const [messageQueue] = MESSAGE_QUEUE_DSN;
       if (
-        messageQueue.check
-        && !(messageQueue.value.trim().length > 1 && messageQueue.value.trim().indexOf(`${messageQueue.way}://`) === 0)
+        messageQueue.check &&
+        !(messageQueue.value.trim().length > 1 && messageQueue.value.trim().indexOf(`${messageQueue.way}://`) === 0)
       ) {
         mark = false;
         this.validate.notice = true;
@@ -381,8 +385,8 @@ export default {
       this.validate.notice = false;
       this.validate.channel = false;
       this.getListConfig();
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

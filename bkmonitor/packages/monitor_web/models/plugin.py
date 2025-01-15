@@ -20,9 +20,10 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
+from bkmonitor.commons.storage import get_default_image_storage
 from bkmonitor.utils.db.fields import JsonField, YamlField
 from bkmonitor.utils.user import get_global_user
 from core.drf_resource import api
@@ -53,9 +54,10 @@ class CollectorPluginMeta(OperateRecordModelBase):
         (PluginType.PROCESS, "Process"),
         (PluginType.SNMP_TRAP, PluginType.SNMP_TRAP),
         (PluginType.SNMP, PluginType.SNMP),
+        (PluginType.K8S, PluginType.K8S),
     )
 
-    VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP]
+    VIRTUAL_PLUGIN_TYPE = [PluginType.LOG, PluginType.PROCESS, PluginType.SNMP_TRAP, PluginType.K8S]
 
     plugin_id = models.CharField("插件ID", max_length=64, primary_key=True)
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
@@ -92,7 +94,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
         return True
 
     @cached_property
-    def release_version(self):
+    def release_version(self) -> Optional["PluginVersionHistory"]:
         """
         最新的发布版本
         """
@@ -138,6 +140,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
         version_infos: List[Dict[str, Union[int, str]]] = PluginVersionHistory.objects.filter(plugin_id__in=ids).values(
             "plugin_id", "id", "stage"
         )
+
         # 排序规则：Release > DEBUG/UNREGISTER
 
         def _version_comparator(_left: Dict[str, Union[int, str]], _right: Dict[str, Union[int, str]]) -> int:
@@ -209,7 +212,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
             if config is None:
                 config = CollectorPluginConfig.objects.create()
             if info is None:
-                info = CollectorPluginInfo.objects.create()
+                info: CollectorPluginInfo = CollectorPluginInfo.objects.create()
             version = self.versions.create(
                 config_version=config_version,
                 info_version=info_version,
@@ -256,16 +259,20 @@ class CollectorPluginMeta(OperateRecordModelBase):
             plugin_detail["config_json"] = self.get_config_json(params["snmp_trap"])
         return plugin_detail
 
-    def convert_metric_to_field_dict(self, metrics):
+    def convert_metric_to_field_dict(self, metrics, table_fields):
         """
         将 metric 转换为 metric_json 所需要的字典格式
         :param metrics: TimeSeriesMetric 的指标格式：形如{"field_name": "", "metric_display_name": "",
                         "unit": "", "type": "", "tag_list": []}
+        :param table_fields: 表字段信息
         :return:result: [field]
         """
         result = []
         # tag的缓存，避免重复，初始值为保留维度字段
-        tag_cache = set(self.reserved_dimension_list)
+        tag_cache = set(
+            self.reserved_dimension_list
+            + [field["name"] for field in table_fields.get("fields", []) if field["monitor_type"] == "dimension"]
+        )
         for metric in metrics:
             result.append(
                 {
@@ -305,7 +312,36 @@ class CollectorPluginMeta(OperateRecordModelBase):
 
     def filter_metric_by_table_rule(self, group_list):
         """
-        通过 table rule 对指标进行自动匹配分组
+        通过table rule对新增的指标进行自动匹配分组。
+        group_list["metric_info_list"]数据格式：
+        metric_info_list = [
+            {
+                "field_name": "m1",     # 指标名称
+                "tag_list": [           # 维度信息
+                    {
+                        "field_name": "w2",
+                        "unit": "none",
+                        "type": "string",
+                        "description": "w2"
+                    },
+                    {
+                        "field_name": "w1",
+                        "unit": "none",
+                        "type": "string",
+                        "description": "w1"
+                    },
+                    {
+                        "field_name": "disk_w1",
+                        "unit": "none",
+                        "type": "string",
+                        "description": "disk_w1"
+                    }
+                ],
+                "label": null,
+                "is_active": "true" //是否启用
+            }]
+
+
         :param group_list: QueryTimeSeriesGroup 返回数据
         :return: match_result: 命中规则的指标，包括其 table 信息，格式如：{table_name: [metric, metric]}
                 not_match_result: 未能命中规则的指标，格式如：[metric]
@@ -326,6 +362,7 @@ class CollectorPluginMeta(OperateRecordModelBase):
             # 需要考虑未上报数据的情况
             if not metric_info_list:
                 continue
+            # 单指标单表中的，一个group中只有一个指标，所以只需要取第一个即可
             metric = metric_info_list[0]
             map_of_metric_and_tag[metric["field_name"]] = metric["tag_list"]
             # 如果该指标已存在 metric_json，则略过
@@ -358,18 +395,33 @@ class CollectorPluginMeta(OperateRecordModelBase):
         )
         # 是否存在默认组
         has_default_group_flag = False
-        # 将指标存回 metric_json
+        # 对已经存在的table(指标分组)进行扩展
         for table_fields in self.current_version.info.metric_json:
-            # 判断是不是默认分组
+            # 如果是默认分组，将未匹配到的指标添加到默认分组中
             if table_fields["table_name"] == "group_default" and table_fields["table_desc"] == "默认分组":
                 has_default_group_flag = True
-                # 将TSMetric 的指标格式转换为 field 的字典格式
-                table_fields["fields"].extend(self.convert_metric_to_field_dict(not_match_rule_metric))
+                # 将新增的指标添加到匹配到的table中。
+                table_fields["fields"].extend(self.convert_metric_to_field_dict(not_match_rule_metric, table_fields))
+
+            current_field_names = {
+                field["name"] for field in table_fields["fields"] if field["monitor_type"] == "metric"
+            }
+            fields_to_remove = current_field_names - set(map_of_metric_and_tag.keys())
+            # 删除当前table中不需要的指标
+            table_fields["fields"] = [
+                field
+                for field in table_fields["fields"]
+                if field["monitor_type"] == "dimension" or field["name"] not in fields_to_remove
+            ]
+
+            # 如果当前table不存在match_rule_metric_under_table中，证明这个table不需要进行扩展，跳过
             if table_fields["table_name"] not in match_rule_metric_under_table:
                 continue
+
             match_rule_metrics = match_rule_metric_under_table[table_fields["table_name"]]
-            # 将TSMetric 的指标格式转换为 field 的字典格式
-            table_fields["fields"].extend(self.convert_metric_to_field_dict(match_rule_metrics))
+            # 将新增的指标添加到匹配到的table中。
+            table_fields["fields"].extend(self.convert_metric_to_field_dict(match_rule_metrics, table_fields))
+
         # 如果没有默认分组，则初始化一个
         if not has_default_group_flag:
             self.current_version.info.metric_json.append(
@@ -377,22 +429,21 @@ class CollectorPluginMeta(OperateRecordModelBase):
                     "table_name": "group_default",
                     "table_desc": "默认分组",
                     "rule_list": [],
-                    "fields": self.convert_metric_to_field_dict(not_match_rule_metric),
+                    "fields": self.convert_metric_to_field_dict(not_match_rule_metric, {}),
                 }
             )
 
+        # 检查每个table，添加新增的维度以及删除多余的维度
         for table_fields in self.current_version.info.metric_json:
-            # table 下的指标
-            metric_under_table = set()
-            # table 下的集合
-            dimension_under_table = set()
-            # tag name 的集合
-            tag_list_set = set()
-            # tag 数据抽出来
-            tag_data_list = []
+            # step1: 首先收集到当前table下原有的维度字段集合，以及TimeSeriesGroup中获取到维度字段集合
+            raw_dimension_under_table = set()  # 当前table下的原有的维度字段名称集合
+            tag_list_set = set()  # 当前指标下的维度字段名称集合
+            tag_data_list = []  # 当前指标下的维度信息列表
+
+            # 更新每个指标的维度信息,并收集原有的维度字段名称
             for field in table_fields["fields"]:
                 if field["monitor_type"] == "metric":
-                    metric_under_table.add(field["name"])
+                    # 从TimeSeriesGroup中获取到当前指标的维度信息，并更新到当前指标中
                     field_tag_list = map_of_metric_and_tag.get(field["name"], [])
                     # 自动发现模式下，更新 metric_json 中指标的 tag_list 值
                     field["tag_list"] = field_tag_list
@@ -400,18 +451,29 @@ class CollectorPluginMeta(OperateRecordModelBase):
                         tag_data_list.append(tag)
                         tag_list_set.add(tag["field_name"])
                 else:
-                    dimension_under_table.add(field["name"])
-            # 如果未有新增的 tag，则跳过
-            if not (tag_list_set - dimension_under_table - set(self.reserved_dimension_list)):
+                    raw_dimension_under_table.add(field["name"])
+
+            # step2:删除多余的维度
+            removed_tag = raw_dimension_under_table - (tag_list_set - set(self.reserved_dimension_list))
+            if removed_tag:
+                table_fields["fields"] = [
+                    field
+                    for field in table_fields["fields"]
+                    if field["monitor_type"] == "metric" or field["name"] not in removed_tag
+                ]
+
+            # step3:添加新增的维度
+            additional_tag = tag_list_set - raw_dimension_under_table - set(self.reserved_dimension_list)
+            if not additional_tag:
                 continue
-            additional_tag = tag_list_set - dimension_under_table - set(self.reserved_dimension_list)
-            # 避免维度重复，加一层过滤
             add_tag_cache = []
             for tag_data in tag_data_list:
+                # 处理新增维度
                 if tag_data["field_name"] in additional_tag:
                     if tag_data["field_name"] in add_tag_cache:
                         continue
                     add_tag_cache.append(tag_data["field_name"])
+                    # 向当前tabel中添加维度
                     table_fields["fields"].append(
                         {
                             "description": tag_data.get("description", ""),
@@ -688,7 +750,7 @@ class CollectorPluginInfo(OperateRecordModelBase):
     plugin_display_name = models.CharField("插件别名", max_length=64, default="")
     metric_json = JsonField("指标配置", default=[])
     description_md = models.TextField("插件描述，markdown文本", default="")
-    logo = models.ImageField("logo文件", null=True)
+    logo = models.ImageField("logo文件", null=True, storage=get_default_image_storage())
     enable_field_blacklist = models.BooleanField("是否开启黑名单", default=False)
 
     def __str__(self):
@@ -825,7 +887,8 @@ class PluginVersionHistory(OperateRecordModelBase):
 
     @property
     def is_official(self):
-        return Signature(self.signature).verificate("official", self)
+        # 官方插件ID都是以bkplugin_作为前缀
+        return self.plugin.plugin_id.startswith("bkplugin_")
 
     @property
     def is_safety(self):
@@ -885,7 +948,7 @@ class PluginVersionHistory(OperateRecordModelBase):
             return ""
 
     @classmethod
-    def get_result_table_id(cls, plugin: CollectorPluginMeta, table_name: str):
+    def get_result_table_id(cls, plugin: CollectorPluginMeta, table_name: str) -> str:
         """
         根据插件生成结果表名
         """

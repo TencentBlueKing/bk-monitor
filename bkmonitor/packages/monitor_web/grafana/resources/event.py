@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.models import MetricListCache
@@ -67,6 +67,7 @@ class GetDataSourceConfigResource(Resource):
                         "metrics": [],
                         "dimensions": metric.dimensions,
                         "time_field": "time",
+                        "is_platform": metric.bk_biz_id == 0,
                     }
                 else:
                     # 补全所有字段
@@ -110,7 +111,7 @@ class GetAlarmEventField(Resource):
             {"id": "status", "name": _("告警状态"), "is_dimension": True},
             {"id": "alert_name", "name": _("告警名称"), "is_dimension": True},
             {"id": "strategy_id", "name": _("策略ID"), "is_dimension": True},
-            {"id": "event.ip", "name": _("IP"), "is_dimension": True},
+            {"id": "event.ip", "name": "IP", "is_dimension": True},
             {"id": "event.bk_cloud_id", "name": _("云区域ID"), "is_dimension": True},
             *tags,
         ]

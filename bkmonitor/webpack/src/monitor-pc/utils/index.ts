@@ -1,5 +1,3 @@
-/* eslint-disable prefer-destructuring */
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,11 +24,10 @@
  * IN THE SOFTWARE.
  */
 import dayjs from 'dayjs';
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
 
-import { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
-
-import { IOption } from '../pages/monitor-k8s/typings';
+import type { IOption } from '../pages/monitor-k8s/typings';
+import type { IMetricDetail } from '@/pages/strategy-config/strategy-config-set-new/typings';
 /**
  * 生成一个随机字符串ID
  * @param len 随机ID的长度 默认8位字符
@@ -90,7 +87,7 @@ export const handleTimeRange = (timeRange: number | string | string[]): { startT
   }
   return {
     startTime,
-    endTime
+    endTime,
   };
 };
 /**
@@ -150,10 +147,10 @@ export const transformJobUrl = (str: string): string => {
  * @return {*}
  */
 export const formatTime = (time: number) => {
-  time = +time;
-  if (Number.isNaN(time)) return time;
-  time = `${time}`.length === 10 ? time * 10 ** 3 : time;
-  const timeRes = dayjs.tz(time).format('YYYY-MM-DD HH:mm:ss');
+  let time2 = +time;
+  if (Number.isNaN(time2)) return time2;
+  time2 = `${time2}`.length === 10 ? time2 * 10 ** 3 : time2;
+  const timeRes = dayjs.tz(time2).format('YYYY-MM-DD HH:mm:ss');
   return timeRes;
 };
 
@@ -162,8 +159,8 @@ export interface ILogUrlParams {
   time_range?: 'customized'; // 带了时间start_time end_time必填
   keyword: string; // 搜索关键字
   addition: IAddition[]; // 搜索条件 即监控的汇聚条件
-  start_time?: number; // 起始时间
-  end_time?: number; // 终止时间
+  start_time?: string; // 起始时间
+  end_time?: string; // 终止时间
 }
 export interface IAddition {
   key: string;
@@ -186,19 +183,17 @@ export const transformLogUrlQuery = (data: ILogUrlParams): string => {
       addition?.map(set => ({
         field: set.key,
         operator: set.method,
-        value: (set.value || []).join(',')
+        value: (set.value || []).join(','),
       })) || [],
-    // eslint-disable-next-line camelcase
-    start_time: start_time ? dayjs.tz(start_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    // eslint-disable-next-line camelcase
-    end_time: end_time ? dayjs.tz(end_time).format('YYYY-MM-DD HH:mm:ss') : undefined,
-    time_range
+    start_time: start_time || undefined,
+    end_time: end_time || undefined,
+    time_range,
   };
   queryStr = Object.keys(queryObj).reduce((str, key, i) => {
     const itemVal = queryObj[key];
     if (itemVal !== undefined) {
       const itemValStr = typeof itemVal === 'object' ? JSON.stringify(itemVal) : `${itemVal}`;
-      str = `${str}${!!i ? '&' : ''}${key}=${encodeURIComponent(itemValStr)}`;
+      return `${str}${i ? '&' : ''}${key}=${encodeURIComponent(itemValStr)}`;
     }
     return str;
   }, '?');
@@ -225,15 +220,6 @@ export class Storage implements IStorage {
   constructor(express?: number) {
     this.express = express;
   }
-  /** 设置缓存 */
-  set(key: string, value: any, express: number = this.express) {
-    const data: ILocalStroageItem = {
-      value,
-      updateTime: Date.now(),
-      express
-    };
-    localStorage.setItem(key, JSON.stringify(data));
-  }
   /** 获取缓存 */
   get(key: string) {
     const dataStr = localStorage.getItem(key);
@@ -249,6 +235,15 @@ export class Storage implements IStorage {
   /** 移除缓存 */
   remove(key: string) {
     localStorage.removeItem(key);
+  }
+  /** 设置缓存 */
+  set(key: string, value: any, express: number = this.express) {
+    const data: ILocalStroageItem = {
+      value,
+      updateTime: Date.now(),
+      express,
+    };
+    localStorage.setItem(key, JSON.stringify(data));
   }
 }
 
@@ -280,6 +275,7 @@ export const findRight = (arr: any[], cb: (item: any, i: number) => boolean) => 
 export const getStrLengOfPx = (str: string, lengPx = 6, lengPxDouble = 13) => {
   const leng = str.toString().length;
   /** 双字节字符数量 */
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: <explanation>
   const count = str.toString().match(/[^\x00-\xff]/g)?.length || 0;
   return lengPx * (leng - count) + count * lengPxDouble;
 };
@@ -290,7 +286,7 @@ export const getStrLengOfPx = (str: string, lengPx = 6, lengPxDouble = 13) => {
  * @param min 最小值 单位: px
  * @return number 宽度值 单位: px
  */
-export const getPopoverWidth = (options: IOption[] | IMetricDetail[], padding = 32, min?: number) => {
+export const getPopoverWidth = (options: IMetricDetail[] | IOption[], padding = 32, min?: number) => {
   const width = options.reduce((width, item) => {
     const curWidth = getStrLengOfPx(item.name as string, 6, 13) + padding;
     return Math.max(curWidth, width);
@@ -306,13 +302,13 @@ export const getPopoverWidth = (options: IOption[] | IMetricDetail[], padding = 
  * @param targetStr 目标节点
  * @returns event事件的父集列表 或者 targetStr
  */
-export const getEventPaths = (event: Event | any, targetStr = ''): (Event | any)[] => {
+export const getEventPaths = (event: any | Event, targetStr = ''): (any | Event)[] => {
   if (event.path) {
     return targetStr ? event.path : event.path.filter(dom => hasTargetCondition(dom, targetStr));
   }
   const path = [];
   let target = event.target;
-  while (!!target) {
+  while (target) {
     if (targetStr) {
       if (hasTargetCondition(target, targetStr)) {
         path.push(target);
@@ -377,3 +373,41 @@ export const createOnlyId = (len = 6, keywords = 'abcdefghijklmnopqrstuvwxyz1234
 };
 
 export const isEnFn = () => docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
+
+/**
+ * @description 是否包含emoji
+ * @param value
+ * @returns
+ */
+export function emojiRegex(value: string) {
+  return /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value);
+}
+
+/**
+ * @description 是否为连续空格
+ * @param value
+ * @returns
+ */
+export function allSpaceRegex(value: string) {
+  return /^\s*$/.test(value);
+}
+
+/**
+ * 验证表达式是否符合规范并返回验证结果
+ * @param expression 表达式
+ * @returns
+ */
+export function validateExpression(expression: string) {
+  // 使用正则表达式验证表达式结构是否合法
+  const structureCheck =
+    /^(\s*[A-Za-z0-9]+|\s*\([\sA-Za-z0-9+\-*/%^]*\))(\s*[\+\-*/%^]\s*(\s*[A-Za-z0-9]+|\s*\([\sA-Za-z0-9+\-*/%^]*\)))*\s*$/.test(
+      expression
+    );
+  if (!structureCheck) {
+    return { isValid: false, variables: [] };
+  }
+
+  // 提取所有英文变量
+  const variables = [...new Set(expression.match(/[A-Za-z]+/g) || [])];
+  return { isValid: true, variables };
+}

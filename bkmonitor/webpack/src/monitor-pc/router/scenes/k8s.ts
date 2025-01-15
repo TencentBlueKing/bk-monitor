@@ -23,23 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import { applyGuidePage } from '../../common';
 import { VIEW_AUTH } from '../../pages/monitor-k8s/authority-map';
 
+import type { RouteConfig } from 'vue-router';
+
+const MonitorK8sNew = () => import(/* webpackChunkName: 'monitorK8s' */ '../../pages/monitor-k8s/monitor-k8s-new');
 const MonitorK8s = () => import(/* webpackChunkName: 'monitorK8s' */ '../../pages/monitor-k8s/monitor-k8s');
-const monitorK8sDetail = () =>
-  import(/* webpackChunkName: 'monitorK8sDetail' */ '../../pages/monitor-k8s/monitor-k8s-detail');
+// const monitorK8sDetail = () =>
+//   import(/* webpackChunkName: 'monitorK8sDetail' */ '../../pages/monitor-k8s/monitor-k8s-detail');
 export default applyGuidePage([
   {
     path: '/k8s',
     name: 'k8s',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: MonitorK8s
+      noCache: MonitorK8s,
     },
     meta: {
       title: '容器监控',
@@ -48,33 +49,56 @@ export default applyGuidePage([
       noNavBar: true,
       needClearQuery: true,
       route: {
-        parent: 'scenes'
+        parent: 'scenes',
       },
       authority: {
-        page: VIEW_AUTH
-      }
-    }
+        page: VIEW_AUTH,
+      },
+    },
   },
   {
-    path: '/k8s/detail',
-    name: 'k8s-detail',
+    path: '/k8s-new',
+    name: 'k8s-new',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: monitorK8sDetail
+      noCache: MonitorK8sNew,
     },
     meta: {
-      title: '容器监控详情',
-      navId: 'k8s',
+      title: '容器监控',
+      navId: 'k8s-new',
       customTitle: true,
       noNavBar: true,
+      needClearQuery: true,
       route: {
-        parent: 'k8s'
+        parent: 'scenes',
       },
       authority: {
-        page: VIEW_AUTH
-      }
-    }
-  }
+        page: VIEW_AUTH,
+      },
+    },
+  },
+  // {
+  //   path: '/k8s/detail',
+  //   name: 'k8s-detail',
+  //   props: {
+  //     noCache: true,
+  //   },
+  //   components: {
+  //     noCache: monitorK8sDetail,
+  //   },
+  //   meta: {
+  //     title: '容器监控详情',
+  //     navId: 'k8s',
+  //     customTitle: true,
+  //     noNavBar: true,
+  //     route: {
+  //       parent: 'k8s',
+  //     },
+  //     authority: {
+  //       page: VIEW_AUTH,
+  //     },
+  //   },
+  // },
 ] as RouteConfig[]);

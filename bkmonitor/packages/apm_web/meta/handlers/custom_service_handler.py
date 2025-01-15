@@ -21,19 +21,6 @@ class Matcher:
         return bool(re.match(regex, value))
 
     @classmethod
-    def opeartor_match(cls, value, operator, rule_value):
-        if operator == "eq":
-            return rule_value in value
-
-        elif operator == "nq":
-            return rule_value not in value
-
-        elif operator == "reg":
-            return bool(re.match(rule_value, value))
-
-        return False
-
-    @classmethod
     def manual_match_host(cls, host_rule, value):
         if not host_rule or not value:
             return False
@@ -41,7 +28,17 @@ class Matcher:
         operator = host_rule["operator"]
         rule_value = host_rule["value"]
 
-        return cls.opeartor_match(value, operator, rule_value)
+        return cls.operator_match(rule_value, value, operator)
+
+    @classmethod
+    def operator_match(cls, value, except_value, operator):
+        if operator == "eq":
+            return value == except_value
+        if operator == "nq":
+            return value != except_value
+        if operator == "reg":
+            return bool(re.match(value, except_value))
+        return False
 
     @classmethod
     def manual_match_uri(cls, rules, value):
@@ -51,27 +48,4 @@ class Matcher:
         operator = rules["operator"]
         rule_value = rules["value"]
 
-        return cls.opeartor_match(value, operator, rule_value)
-
-    @classmethod
-    def manual_match_params(cls, params_rule, value):
-        if not params_rule or not value:
-            return False
-
-        def find_param_rule(_param):
-            for p in params_rule:
-                if p["name"] == _param:
-                    return p
-            return None
-
-        predicates = set()
-        params = value.split("&")
-        for param in params:
-            param_name, param_value = param.split("=")
-            item = find_param_rule(param_name)
-            if not item:
-                continue
-
-            predicates.add(cls.opeartor_match(param_value, item["operator"], item["value"]))
-
-        return all(predicates)
+        return cls.operator_match(rule_value, value, operator)

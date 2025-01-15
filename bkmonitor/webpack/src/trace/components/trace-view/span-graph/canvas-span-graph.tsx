@@ -24,10 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, PropType, ref, watch } from 'vue';
+import { type PropType, defineComponent, onMounted, ref, watch } from 'vue';
 
 import colorGenerator from '../utils/color-generator';
-
 import renderIntoCanvas from './render-into-canvas';
 
 import './canvas-span-graph.scss';
@@ -43,12 +42,12 @@ interface ComplexMessage {
 const getColor = (hex: string) => colorGenerator.getRgbColorByKey(hex);
 const CanvasSpanGraphProps = {
   valueWidth: {
-    type: Number
+    type: Number,
   },
   items: {
     type: Array as PropType<ComplexMessage[]>,
-    default: []
-  }
+    default: [],
+  },
 };
 
 export default defineComponent({
@@ -76,7 +75,7 @@ export default defineComponent({
     });
 
     return {
-      spanGraphRef
+      spanGraphRef,
     };
   },
   render() {
@@ -86,5 +85,5 @@ export default defineComponent({
         class='canvas-span-graph'
       />
     );
-  }
+  },
 });

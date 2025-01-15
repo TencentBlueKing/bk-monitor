@@ -37,31 +37,35 @@
     @hidden="handleDetailClose"
   >
     <div
-      class="alarm-detail-header"
       slot="header"
+      class="alarm-detail-header"
     >
       <span
         v-if="loading"
         class="header-name"
-      >{{ $t('加载中...') }}</span>
+        >{{ $t('加载中...') }}</span
+      >
       <span
         v-else
         class="header-name"
-      >{{ `${$t('告警组详情')} - #${detail.id} ${detail.title}` }}</span>
+        >{{ `${$t('告警组详情')} - #${detail.id} ${detail.title}` }}</span
+      >
       <span
-        class="header-edit"
         v-authority="{ active: !authority.MANAGE_AUTH }"
+        class="header-edit"
         @click="authority.MANAGE_AUTH ? handleEditAlarmGroup() : handleShowAuthorityDetail(alarmGroupAuth.MANAGE_AUTH)"
-      >{{ $t('编辑告警组') }}</span>
+        >{{ $t('编辑告警组') }}</span
+      >
       <span
         class="header-record"
         @click="handleShowChangeRecord"
-      >{{ $t('查看变更记录') }}</span>
+        >{{ $t('查看变更记录') }}</span
+      >
     </div>
     <div
       slot="content"
-      class="alarm-details"
       v-bkloading="{ isLoading: loading }"
+      class="alarm-details"
     >
       <div class="alarm-details-col">
         <div class="alarm-details-label">
@@ -89,16 +93,16 @@
         <div class="alarm-details-item alarm-details-person">
           <template v-if="detailData.noticeReceiver && detailData.noticeReceiver.length">
             <div
-              class="person-box"
               v-for="(item, index) in detailData.noticeReceiver"
               :key="index"
+              class="person-box"
             >
               <div class="person-image">
                 <img
                   v-if="item.logo"
                   :src="item.logo"
                   alt=""
-                >
+                />
                 <i
                   v-else-if="!item.logo && item.type === 'group'"
                   class="icon-monitor icon-mc-user-group no-img"
@@ -112,9 +116,10 @@
             </div>
           </template>
           <span
-            class="notice-empty"
             v-else
-          >--</span>
+            class="notice-empty"
+            >--</span
+          >
         </div>
       </div>
       <div class="alarm-details-col text-top">
@@ -123,9 +128,9 @@
         </div>
         <div class="alarm-details-notice-way alarm-details-item">
           <table
+            v-if="noticeWay"
             class="notice-table"
             cellspacing="0"
-            v-if="noticeWay"
           >
             <thead>
               <th>{{ $t('告警级别') }}</th>
@@ -139,7 +144,7 @@
                     class="item-img"
                     :src="item.icon"
                     alt=""
-                  >
+                  />
                   {{ item.label }}
                 </div>
               </th>
@@ -160,9 +165,9 @@
                     class="bk-icon icon-check-1 checklist"
                   />
                   <div
+                    v-if="notice.type === 'wxwork-bot' && notice.checked && notice.workGroupId"
                     :title="notice.workGroupId"
                     class="wechat-group-id"
-                    v-if="notice.type === 'wxwork-bot' && notice.checked && notice.workGroupId"
                   >
                     {{ notice.workGroupId }}
                   </div>
@@ -185,15 +190,16 @@
           {{ $t('说明') }}
         </div>
         <div class="alarm-details-item">
-          <pre style="margin: 0; white-space: pre-wrap">
-{{ detailData.message || '--' }}
-</pre>
+          <pre style="margin: 0; white-space: pre-wrap"
+            >{{ detailData.message || '--' }}
+</pre
+          >
         </div>
       </div>
       <change-record
         :record-data="detailData"
         :show="recordShow"
-        @updateShow="(v) => (recordShow = v)"
+        @updateShow="v => (recordShow = v)"
       />
     </div>
   </bk-sideslider>
@@ -207,23 +213,23 @@ import ChangeRecord from '../../../components/change-record/change-record';
 export default {
   name: 'AlarmGroupDetail',
   components: {
-    ChangeRecord
+    ChangeRecord,
   },
   inject: ['authority', 'handleShowAuthorityDetail', 'alarmGroupAuth'],
   props: {
     id: {
       type: [String, Number], // 告警组详情ID
-      default: 0
+      default: 0,
     },
     detail: {
       type: Object,
       default() {
         return {
           show: false,
-          title: ''
+          title: '',
         };
-      }
-    }
+      },
+    },
   },
   data() {
     return {
@@ -238,14 +244,14 @@ export default {
         mail: 'icon-mc-youjian',
         sms: 'icon-mc-duanxin',
         voice: 'icon-mc-dianhua',
-        'wxwork-bot': 'icon-qiye-weixin'
+        'wxwork-bot': 'icon-qiye-weixin',
       },
       levelMap: {
         1: this.$t('致命'),
         2: this.$t('预警'),
-        3: this.$t('提醒')
+        3: this.$t('提醒'),
       },
-      loading: false
+      loading: false,
     };
   },
   watch: {
@@ -254,7 +260,7 @@ export default {
         this.handleDetailData(newV);
       }
     },
-    immediate: true
+    immediate: true,
   },
   created() {
     this.id && this.handleDetailData(this.id);
@@ -275,7 +281,7 @@ export default {
       // 通知方式接口
       this.noticeWay = await this.getNoticeWay();
       // 替换数据中对应的icon的展示样式
-      this.noticeWay.forEach((way) => {
+      this.noticeWay.forEach(way => {
         way.icon = `data:image/png;base64,${way.icon}`;
       });
       // 告警详情数据
@@ -284,14 +290,14 @@ export default {
       Object.keys(this.detailData.noticeWay).forEach((key, index) => {
         const noticeWay = this.detailData.noticeWay[key];
         // 渲染初始表格
-        const list = this.noticeWay.map((set) => {
+        const list = this.noticeWay.map(set => {
           if (set.type === 'wxwork-bot') {
             return { type: set.type, checked: false, workGroupId: '' };
           }
           return { type: set.type, checked: false };
         });
         // 对应勾选
-        noticeWay.forEach((notice) => {
+        noticeWay.forEach(notice => {
           const listItem = list.find(set => set.type === notice);
           listItem && (listItem.checked = true);
         });
@@ -306,7 +312,7 @@ export default {
         tableData.push({
           list,
           level: key,
-          title: this.levelMap[index + 1]
+          title: this.levelMap[index + 1],
         });
       });
       this.noticeData = tableData.reverse();
@@ -318,8 +324,8 @@ export default {
         this.bizName = bizItem[0].text;
       }
       this.loading = false;
-    }
-  }
+    },
+  },
 };
 </script>
 

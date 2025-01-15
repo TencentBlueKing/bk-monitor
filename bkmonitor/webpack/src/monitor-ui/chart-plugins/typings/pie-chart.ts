@@ -27,7 +27,7 @@ export interface ISeriesData {
   // 字段名称
   name: string;
   // 字段值
-  value: string | number;
+  value: number | string;
   // 字体颜色
   color: string;
   // 边框颜色 ratio-ring-chart才有

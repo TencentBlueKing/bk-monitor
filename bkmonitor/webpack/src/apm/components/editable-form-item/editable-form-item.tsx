@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { copyText } from 'monitor-common/utils/utils';
 
 import ExpiredSelect from '../../components/expired-select/expired-select';
-import { IUnitItme } from '../../pages/application/app-configuration/type';
 import VerifyItem from '../verify-item/verify-item';
+
+import type { IUnitItme } from '../../pages/application/app-configuration/type';
+import type { TranslateResult } from 'vue-i18n';
 
 import './editable-form-item.scss';
 
@@ -39,15 +41,15 @@ interface IEditableFormItemProps {
   value: any;
   label?: string | TranslateResult;
   selectEditValue?: any; // 下拉编辑选值
-  selectEditOption?: Array<{}>; // 下拉编辑options
+  selectEditOption?: Array<object>; // 下拉编辑options
   formType?: IFormType; // 表单类型
   unit?: string; // 单位
   showEditable?: boolean; // 是否显示编辑icon
   showLabel?: boolean; // 是否显示label
   validator?: any; // 检验规则
   tooltips?: string | TranslateResult; // tooltip提示内容
-  maxExpired?: Number; // 过期时间最大限制
-  selectList?: Array<{}>; // select类型下拉 options
+  maxExpired?: number; // 过期时间最大限制
+  selectList?: Array<object>; // select类型下拉 options
   unitList?: IUnitItme[]; // 单位列表
   authority?: boolean; // 编辑权限
   authorityName?: string; // 权限名称
@@ -61,7 +63,7 @@ interface IEditableFormItemEvent {
   onUpdateValue: string;
 }
 
-type IFormType = 'input' | 'select' | 'unit' | 'switch' | 'tag' | 'password' | 'expired' | 'selectEdit';
+type IFormType = 'custom' | 'expired' | 'input' | 'password' | 'select' | 'selectEdit' | 'switch' | 'tag' | 'unit';
 
 @Component
 export default class EditableFormItem extends tsc<IEditableFormItemProps, IEditableFormItemEvent> {
@@ -81,7 +83,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   @Prop({ default: '', type: String }) tagTheme: string;
   @Prop({ type: Array, default: () => [] }) unitList: IUnitItme[];
   @Prop() validator: (val) => void;
-  @Prop() updateValue: (val) => {};
+  @Prop() updateValue: (val) => object;
   @Prop() onEditChange: (val) => any;
   @Prop() preCheckSwitcher?: (val) => Promise<any>;
 
@@ -97,7 +99,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
   secureKeyLoading = false;
   /** 校验的错误信息 */
   errorMsg = {
-    value: ''
+    value: '',
   };
   editCloneVal = '';
   editSubmitVal = '';
@@ -137,13 +139,13 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
   /**
@@ -177,13 +179,20 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         return (
           <bk-switcher
             v-authority={{ active: !this.authority }}
+            pre-check={() => this.preCheckSwitcher(this.value)}
             theme='primary'
             value={this.value}
-            pre-check={() => this.preCheckSwitcher(this.value)}
           />
         );
       case 'tag': // 标签
-        return this.value.map(tag => <bk-tag theme={this.tagTheme}>{tag}</bk-tag>);
+        return this.value.map(tag => (
+          <bk-tag
+            key={tag}
+            theme={this.tagTheme}
+          >
+            {tag}
+          </bk-tag>
+        ));
       case 'expired': // 过期时间
         return <span>{`${this.value}${this.$t('天')}`}</span>;
       case 'password': // 密码
@@ -194,21 +203,20 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
               <i
                 class='icon-monitor icon-mc-copy copy-icon'
                 onClick={() => this.handleCopy(this.value)}
-              ></i>
+              />
             )}
             <span
               class={`bk-icon toggle-icon ${this.showPassword ? 'icon-eye-slash' : 'icon-eye'}`}
               onClick={() => (this.showPassword = !this.showPassword)}
-            ></span>
+            />
           </span>
         ) : (
           <span class={['mask-content', { 'btn-loading': this.secureKeyLoading }]}>
             <span class='placeholder'>●●●●●●●●●●</span>
-            {this.secureKeyLoading && <span class='loading'></span>}
+            {this.secureKeyLoading && <span class='loading' />}
             <span
-              v-authority={{ active: !this.authority }}
               class='view-btn'
-              // eslint-disable-next-line @typescript-eslint/no-misused-promises
+              v-authority={{ active: !this.authority }}
               onClick={this.handleGetSecureKey}
             >
               {this.$t('点击查看')}
@@ -221,9 +229,14 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
         ) : (
           <span>{this.lcoalValue}</span>
         );
+      case 'custom':
+        return this.$slots.custom;
       default:
         return (
-          <span>
+          <span
+            class='text-content'
+            v-bk-overflow-tips
+          >
             {this.displayValue}
             {this.unit && <span class='unit'>{this.unit}</span>}
           </span>
@@ -243,6 +256,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
             class='edit-item expired-select'
             v-model={this.lcoalValue}
             max={this.maxExpired}
+            placeholder={this.$t('最大为{n}天', { n: this.maxExpired }) as string}
           />
         );
       case 'select':
@@ -255,10 +269,10 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           >
             {this.selectList.map(option => (
               <bk-option
-                key={option.id}
                 id={option.id}
+                key={option.id}
                 name={option.name}
-              ></bk-option>
+              />
             ))}
           </bk-select>
         );
@@ -272,15 +286,15 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           >
             {this.unitList.map((group, index) => (
               <bk-option-group
+                key={`${group.name}_${index}`}
                 name={group.name}
-                key={index}
               >
                 {group.formats.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
+                    key={option.id}
                     name={option.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-option-group>
             ))}
@@ -291,8 +305,8 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
           <bk-input
             ref='input'
             class='edit-item input-item'
-            disabled={this.isSubmiting}
             v-model={this.lcoalValue}
+            disabled={this.isSubmiting}
             onChange={v => v && (this.errorMsg.value = '')}
           />
         );
@@ -324,17 +338,19 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
 
     if (this.handleValidator()) {
       this.isSubmiting = true;
+      // biome-ignore lint/suspicious/noImplicitAnyLet: <explanation>
       let res;
       if (this.formType === 'selectEdit') {
         res = await this.updateValue({
           selectValue: this.editSubmitVal,
           type: 'submit',
-          activeItem: this.lcoalValue
+          activeItem: this.lcoalValue,
         });
       } else {
         res = await this.updateValue(this.lcoalValue);
       }
       setTimeout(() => {
+        // biome-ignore lint/complexity/noExtraBooleanCast: <explanation>
         this.isEditing = !Boolean(res);
         this.isSubmiting = false;
       }, 500);
@@ -354,18 +370,18 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     return (
       <div>
         <bk-select
-          class='edit-item select-item'
           style='margin-right: 8px;'
+          class='edit-item select-item'
           v-model={this.editSubmitVal}
           clearable={false}
           onChange={() => this.handleEditObjChange('select')}
         >
           {this.selectEditOption?.map(option => (
             <bk-option
-              key={option.id}
               id={option.id}
+              key={option.id}
               name={option.name}
-            ></bk-option>
+            />
           ))}
         </bk-select>
       </div>
@@ -379,7 +395,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     return {
       selectValue: type === 'cancel' ? this.editCloneVal : this.editSubmitVal,
       type,
-      activeItem: this.lcoalValue
+      activeItem: this.lcoalValue,
     };
   }
 
@@ -387,14 +403,14 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
     return (
       <div class='editable-form-item'>
         {this.showLabel && (
-          <label class='form-item-label'>
+          <span class='form-item-label'>
             <span
               class={{ 'tooltip-text': this.tooltips.length }}
               v-bk-tooltips={{ content: this.tooltips, disabled: !this.tooltips.length, allowHTML: false }}
             >
               {this.label}
             </span>
-          </label>
+          </span>
         )}
         <div class='form-item-value'>
           <div class='value-content'>
@@ -420,18 +436,17 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
               {this.isEditing ? (
                 <div>
                   {this.isSubmiting ? (
-                    <div class='loading'></div>
+                    <div class='loading' />
                   ) : (
                     <span>
                       <span
                         class='bk-icon icon-check-line'
-                        // eslint-disable-next-line @typescript-eslint/no-misused-promises
                         onClick={this.handleSubmit}
-                      ></span>
+                      />
                       <span
                         class='bk-icon icon-close-line-2'
                         onClick={this.handleCancel}
-                      ></span>
+                      />
                     </span>
                   )}
                 </div>
@@ -442,7 +457,7 @@ export default class EditableFormItem extends tsc<IEditableFormItemProps, IEdita
                   onClick={() =>
                     this.authority ? this.handleEditClick() : this.handleShowAuthorityDetail(this.authorityName)
                   }
-                ></span>
+                />
               )}
             </div>
           )}

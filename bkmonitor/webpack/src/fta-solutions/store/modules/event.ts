@@ -23,10 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
-/* eslint-disable no-param-reassign */
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
-import store from '@store/store';
+
 import {
   actionDateHistogram,
   alertDateHistogram,
@@ -37,35 +34,76 @@ import {
   listAllowedBiz,
   listSearchHistory,
   searchAction,
-  searchAlert
+  searchAlert,
 } from 'monitor-api/modules/alert';
+import { exportIncident } from 'monitor-api/modules/incident';
 import {
   createSearchFavorite,
   destroySearchFavorite,
   listSearchFavorite,
-  partialUpdateSearchFavorite
+  partialUpdateSearchFavorite,
 } from 'monitor-api/modules/model';
+import { Action, Module, VuexModule, getModule } from 'vuex-module-decorators';
+
+import store from '@store/store';
+
+// import type { IDimensionItem } from '@/pages/event/typings/event';
 // const sleep = async (timer = 1000) => await new Promise(resolve => setTimeout(resolve, timer))
 @Module({ name: 'event', dynamic: true, namespaced: true, store })
 class Event extends VuexModule {
   @Action
-  // 查询有权限的业务列表
-  async getAllowedBizList(action_id = 'view_business_v2') {
-    return await listAllowedBiz({ action_id }).catch(() => []);
+  // 新建告警搜索条件收藏
+  async createSearchFavorite(params) {
+    return await createSearchFavorite(params).catch(() => false);
+  }
+
+  @Action
+  // 删除告警搜索条件收藏
+  async destroySearchFavorite(params) {
+    return await destroySearchFavorite(params)
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  @Action
+  async exportActionData(params) {
+    return await exportAction(params, { needCancel: true }).catch(() => ({ download_path: '', download_name: '' }));
+  }
+
+  @Action
+  // 导出告警数据
+  async exportAlertData(params) {
+    return await exportAlert(params, { needCancel: true }).catch(() => ({ download_path: '', download_name: '' }));
   }
   @Action
-  async getSearchAlertList(params) {
-    return await searchAlert(params, { needRes: true, needMessage: false, needCancel: true });
+  // 导出故障数据
+  async exportIncidentData(params) {
+    return await exportIncident(params, { needCancel: true }).catch(() => ({ download_path: '', download_name: '' }));
   }
   @Action
-  // 查询处理记录列表
-  async getSearchActionList(params) {
-    return await searchAction(params, { needRes: true, needMessage: false, needCancel: true });
+  // 获取执行趋势图数据
+  async getActionDateHistogram(params) {
+    return await actionDateHistogram(params, { needRes: true, needMessage: false, needCancel: true });
   }
   @Action
   // 获取告警趋势图表
   async getAlertDateHistogram(params) {
     return await alertDateHistogram(params, { needRes: true, needMessage: false, needCancel: true });
+  }
+  @Action
+  // 告警关联事件数量
+  async getAlertEventCount(params) {
+    return await alertEventCount(params, { needCancel: true }).catch(() => false);
+  }
+  @Action
+  // 告警关联信息查询
+  async getAlertRelatedInfo(params) {
+    return await alertRelatedInfo(params, { needCancel: true }).catch(() => ({}));
+  }
+  @Action
+  // 查询有权限的业务列表
+  async getAllowedBizList(action_id = 'view_business_v2') {
+    return await listAllowedBiz({ action_id }).catch(() => []);
   }
   @Action
   // 获取告警搜索条件收藏列表
@@ -80,45 +118,18 @@ class Event extends VuexModule {
     // return data?.fliter(item => item?.params?.query_string) || []
   }
   @Action
-  // 新建告警搜索条件收藏
-  async createSearchFavorite(params) {
-    return await createSearchFavorite(params).catch(() => false);
+  // 查询处理记录列表
+  async getSearchActionList(params) {
+    return await searchAction(params, { needRes: true, needMessage: false, needCancel: true });
+  }
+  @Action
+  async getSearchAlertList(params) {
+    return await searchAlert(params, { needRes: true, needMessage: false, needCancel: true });
   }
   @Action
   // 修改告警搜索条件收藏
   async updateSearchFavorite(params) {
     return await partialUpdateSearchFavorite(params.id, { name: params.params.name }).catch(() => false);
-  }
-  @Action
-  // 删除告警搜索条件收藏
-  async destroySearchFavorite(params) {
-    return await destroySearchFavorite(params)
-      .then(() => true)
-      .catch(() => false);
-  }
-  @Action
-  // 导出告警数据
-  async exportAlertData(params) {
-    return await exportAlert(params, { needCancel: true }).catch(() => ({ download_path: '', download_name: '' }));
-  }
-  @Action
-  async exportActionData(params) {
-    return await exportAction(params, { needCancel: true }).catch(() => ({ download_path: '', download_name: '' }));
-  }
-  @Action
-  // 告警关联信息查询
-  async getAlertRelatedInfo(params) {
-    return await alertRelatedInfo(params, { needCancel: true }).catch(() => ({}));
-  }
-  @Action
-  // 告警关联事件数量
-  async getAlertEventCount(params) {
-    return await alertEventCount(params, { needCancel: true }).catch(() => false);
-  }
-  @Action
-  // 获取执行趋势图数据
-  async getActionDateHistogram(params) {
-    return await actionDateHistogram(params, { needRes: true, needMessage: false, needCancel: true });
   }
 }
 export default getModule(Event);

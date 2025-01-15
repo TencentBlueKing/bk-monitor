@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getDemoActionDetail } from 'monitor-api/modules/action';
 
 import './manual-debug-status.scss';
@@ -46,7 +47,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
   // 手动处理状态轮询
   isQueryStatus = false;
   debugStatusData: {
-    status?: '' | 'success' | 'failure' | 'received' | 'running';
+    status?: '' | 'failure' | 'received' | 'running' | 'success';
     is_finished?: boolean;
     content?: { text: string; url: string; action_plugin_type: string };
   } = {};
@@ -67,7 +68,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
   // 轮询调试状态
   getDebugStatus(actionIds) {
     let timer = null;
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     return new Promise(async resolve => {
       if (!this.isQueryStatus) {
         resolve({});
@@ -75,7 +76,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
       }
       this.debugStatusData = await getDemoActionDetail({
         bk_biz_id: this.bizIds[0] || this.$store.getters.bizId,
-        action_id: actionIds[0]
+        action_id: actionIds[0],
       })
         .then(res => (this.isQueryStatus ? res : {}))
         .catch(() => false);
@@ -131,14 +132,14 @@ export default class ManualDebugStatus extends tsc<IProps> {
       running: loading,
       success: (
         <div class='success'>
-          <span class='icon-monitor icon-mc-check-small'></span>
+          <span class='icon-monitor icon-mc-check-small' />
         </div>
       ),
       failure: (
         <div class='failure'>
-          <span class='icon-monitor icon-mc-close'></span>
+          <span class='icon-monitor icon-mc-close' />
         </div>
-      )
+      ),
     };
     return statusMap[this.debugStatusData?.status];
   }
@@ -147,7 +148,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
       received: `${this.$t('处理中...')}...`,
       running: `${this.$t('处理中...')}...`,
       success: this.$t('处理成功'),
-      failure: this.$t('处理失败')
+      failure: this.$t('处理失败'),
     };
     return statusMap[this.debugStatusData?.status];
   }
@@ -166,7 +167,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
             class='info-jtnr-link'
             onClick={() => content?.url && window.open(content.url)}
           >
-            <span class='icon-monitor icon-copy-link'></span>
+            <span class='icon-monitor icon-copy-link' />
             {contentText.link}
           </span>
         ) : undefined}
@@ -190,19 +191,19 @@ export default class ManualDebugStatus extends tsc<IProps> {
             {this.$t('再次处理')}
           </bk-button>
         </div>
-      )
+      ),
     };
     return statusMap[this.debugStatusData?.status];
   }
   render() {
     return (
       <bk-dialog
-        extCls={'manual-debug-running-dialog'}
-        value={!!this.debugStatusData?.status}
         width={400}
-        renderDirective={'if'}
+        extCls={'manual-debug-running-dialog'}
         maskClose={false}
+        renderDirective={'if'}
         showFooter={false}
+        value={!!this.debugStatusData?.status}
         on-cancel={() => this.handleStopDebug()}
       >
         <div class='status-content'>
@@ -211,7 +212,7 @@ export default class ManualDebugStatus extends tsc<IProps> {
           <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
           {!['success', 'failure'].includes(this.debugStatusData?.status) && [
             <div class='status-tip'>
-              <span class='icon-monitor icon-hint'></span>
+              <span class='icon-monitor icon-hint' />
               <i18n
                 class='text'
                 path='退出当前窗口可前往{0}查看结果'
@@ -219,13 +220,14 @@ export default class ManualDebugStatus extends tsc<IProps> {
                 <a
                   class='link'
                   href={this.actionUrl}
+                  rel='noreferrer'
                   target='_blank'
                 >
                   {this.$t('处理记录')}
                 </a>
               </i18n>
             </div>,
-            this.debugStatusOperate()
+            this.debugStatusOperate(),
           ]}
         </div>
       </bk-dialog>

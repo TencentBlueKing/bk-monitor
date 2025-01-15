@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
+import type { RouteConfig } from 'vue-router';
 
 const AlarmDispatch = () =>
   import(/* webpackChunkName: 'AlarmDispatch' */ '../../../pages/alarm-dispatch/alarm-dispatch');
@@ -35,31 +35,31 @@ export default [
     path: '/alarm-dispatch',
     name: 'alarm-dispatch',
     components: {
-      noCache: AlarmDispatch
+      noCache: AlarmDispatch,
     },
     meta: {
       title: '告警分派',
       navId: 'alarm-dispatch',
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
-      noNavBar: false
-    }
+      noNavBar: false,
+    },
   },
   {
     path: '/alarm-dispatch-config/:id',
     name: 'alarm-dispatch-config',
     components: {
-      noCache: AlarmDispatchConfig
+      noCache: AlarmDispatchConfig,
     },
     meta: {
       title: '配置规则',
       navId: 'alarm-dispatch',
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
       needBack: true,
-      noNavBar: false
-    }
-  }
+      noNavBar: false,
+    },
+  },
 ] as RouteConfig[];

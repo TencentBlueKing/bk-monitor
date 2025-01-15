@@ -11,12 +11,13 @@ specific language governing permissions and limitations under the License.
 import abc
 import datetime
 import logging
-from typing import Type
 
 from django.utils import timezone
 
+from apm.core.discover.base import DiscoverContainer
 from apm.core.handlers.profile.query import ProfileQueryBuilder
 from apm.models import ProfileDataSource
+from constants.apm import TelemetryDataType
 
 logger = logging.getLogger("apm")
 
@@ -24,16 +25,15 @@ logger = logging.getLogger("apm")
 class Discover(abc.ABC):
     MAX_COUNT = 100000
 
-    @classmethod
-    def get_name(cls):
-        raise NotImplementedError
-
     def __init__(self, datasource):
         self.datasource = datasource
         self.bk_biz_id = datasource.bk_biz_id
         self.app_name = datasource.app_name
         self.retention = datasource.retention
         self.result_table_id = datasource.result_table_id
+        logger.info(
+            f"InitDiscover: bk_biz_id: {self.bk_biz_id} app_name: {self.app_name} table_id: {self.result_table_id}"
+        )
 
     def discover(self, start_time, end_time):
         raise NotImplementedError
@@ -56,20 +56,6 @@ class Discover(abc.ABC):
         model.objects.filter(**filter_params).delete()
 
 
-class DiscoverContainers:
-    _DISCOVERS = {}
-
-    @classmethod
-    def register(cls, discover: Type[Discover]):
-        if cls._DISCOVERS.get(discover.get_name()):
-            raise ValueError
-        cls._DISCOVERS[discover.get_name()] = discover
-
-    @classmethod
-    def all_discovers(cls):
-        return cls._DISCOVERS
-
-
 class DiscoverHandler:
     # 根据最近10分钟数据进行分析
     TIME_DELTA = 10
@@ -85,6 +71,6 @@ class DiscoverHandler:
         end_time = timezone.now()
         start_time = end_time - datetime.timedelta(minutes=self.TIME_DELTA)
 
-        for name, i in DiscoverContainers.all_discovers().items():
+        for i in DiscoverContainer.list_discovers(TelemetryDataType.PROFILING.value):
             i(self.datasource).discover(int(start_time.timestamp() * 1000), int(end_time.timestamp() * 1000))
-            logger.info(f"[DiscoverHandler] {name} finished")
+            logger.info(f"[DiscoverHandler] profile discover finished {self.bk_biz_id}-{self.app_name}")

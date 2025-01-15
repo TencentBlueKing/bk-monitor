@@ -38,6 +38,9 @@
     @page-change="handlePageChange"
     @page-limit-change="handlePageLimitChange"
   >
+    <div slot='empty' v-if="!!tableKeyword">
+      <EmptyStatus type="search-empty" @operation="handleOperation"></EmptyStatus>
+    </div>
     <bk-table-column
       :render-header="renderHeader"
       width="50"
@@ -79,14 +82,19 @@
   </bk-table>
 </template>
 <script lang="ts">
-import { CreateElement } from 'vue';
-import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 import { random } from 'monitor-common/utils/utils';
+import type { CreateElement } from 'vue';
+import { Component, Emit, Prop, Vue, Watch } from 'vue-property-decorator';
 
+import EmptyStatus from '../../empty-status/empty-status';
+import type { EmptyStatusOperationType } from '../../empty-status/types';
 import SelectionColumn from '../components/selection-column.vue';
-import { CheckType, CheckValue, IPagination, ITableConfig } from '../types/selector-type';
+import type { CheckType, CheckValue, IPagination, ITableConfig } from '../types/selector-type';
 
-@Component({ name: 'ip-selector-table' })
+@Component({
+  name: 'ip-selector-table',
+  components: { EmptyStatus },
+})
 export default class IpSelectorTable extends Vue {
   @Prop({ default: () => [], type: Array }) private readonly data!: any[];
   @Prop({ default: () => [], type: Array }) private readonly config!: ITableConfig[];
@@ -95,6 +103,7 @@ export default class IpSelectorTable extends Vue {
   @Prop({ default: () => [], type: Array }) private readonly defaultSelections!: any[];
   @Prop({ default: true, type: Boolean }) private readonly showSelectionColumn!: boolean;
   @Prop({ default: '', type: String }) private readonly emptyText!: string;
+  @Prop({ default: '', type: String }) private readonly tableKeyword!: string;
 
   private selections: any[] = this.defaultSelections;
   private excludeData: any[] = [];
@@ -125,14 +134,14 @@ export default class IpSelectorTable extends Vue {
       props: {
         value: this.checkValue,
         disabled: !this.data.length,
-        defaultActive: this.checkType
+        defaultActive: this.checkType,
       },
       on: {
         'update-value': (v: CheckValue) => {
           this.checkValue = v;
         },
-        change: this.handleSelectionChange
-      }
+        change: this.handleSelectionChange,
+      },
     });
   }
   // 全选和取消全选操作
@@ -156,7 +165,7 @@ export default class IpSelectorTable extends Vue {
       excludeData: this.excludeData,
       selections: this.selections,
       checkType: this.checkType,
-      checkValue: this.checkValue
+      checkValue: this.checkValue,
     };
   }
 
@@ -239,6 +248,13 @@ export default class IpSelectorTable extends Vue {
   @Emit('page-limit-change')
   private handlePageLimitChange(limit: number) {
     return limit;
+  }
+
+  handleOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.$emit('clear-filter');
+      return;
+    }
   }
 }
 </script>

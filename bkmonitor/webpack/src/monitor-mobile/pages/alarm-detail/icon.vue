@@ -29,20 +29,20 @@
 <script lang="ts">
 import { Vue, Component, Prop } from 'vue-property-decorator';
 
-type TypeValue = 'level' | 'status' | 'notice';
-type AlarmStatus = 'RECOVERED' | 'ABNORMAL' | 'CLOSED';
+type TypeValue = 'level' | 'notice' | 'status';
+type AlarmStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED';
 type StatusMap = {
   [k in AlarmStatus]: string;
 };
 
 @Component({
-  name: 'icon'
+  name: 'icon',
 })
 export default class Icon extends Vue {
   // icon类别（级别、状态、通知状态）
   @Prop({ default: '' }) private readonly type: TypeValue;
   // icon类型
-  @Prop({ default: '' }) private readonly status: string | number;
+  @Prop({ default: '' }) private readonly status: number | string;
 
   // 事件级别对应icon
   private levelTuple = ['danger', 'mind-fill', 'tips'];
@@ -50,7 +50,7 @@ export default class Icon extends Vue {
   private statusMap: StatusMap = {
     RECOVERED: 'icon-checked',
     ABNORMAL: 'icon-monitor icon-mc-close',
-    CLOSED: 'icon-monitor icon-mc-close'
+    CLOSED: 'icon-monitor icon-mc-close',
   };
 
   get iconClass() {
@@ -73,31 +73,34 @@ $colorList: #ea3636 #ff9c01 #ffd000;
 $statusList: 'danger' 'mind-fill' 'tips';
 @for $i from 1 through 3 {
   .icon-#{nth($statusList, $i)} {
-    color: nth($colorList, $i);
-    font-size: 14px;
-    margin-right: 6px;
     position: relative;
     top: 1px;
+    margin-right: 6px;
+    font-size: 14px;
+    color: nth($colorList, $i);
   }
 }
+
 .icon-danger {
   position: relative;
   top: 0px;
 }
+
 .icon-mc-close {
   font-size: 22px;
   font-weight: bold;
   color: $deadlyColor;
 }
+
 .icon-checked {
+  position: relative;
+  top: -1px;
   width: 6px;
   height: 10px;
+  margin-right: 6px;
   border-color: #10c178;
   border-style: solid;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
-  margin-right: 6px;
-  position: relative;
-  top: -1px;
 }
 </style>

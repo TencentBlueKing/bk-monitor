@@ -9,11 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import pytest
-from monitor_web.constants import OVERVIEW_ICON
 
 from api.metadata.default import GetClustersBySpaceUidResource
 from bkmonitor.utils.kubernetes import translate_timestamp_since
 from core.drf_resource import resource
+from monitor_web.constants import OVERVIEW_ICON
 
 COLUMNS = [
     {
@@ -145,8 +145,8 @@ DATA = [
 ]
 
 
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 class TestGetKubernetesClusterList:
-    @pytest.mark.django_db
     def test_perform_request(
         self,
         add_bcs_cluster_item_for_update_and_delete,
@@ -170,7 +170,16 @@ class TestGetKubernetesClusterList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
+    def test_overview_ratio(self, add_bcs_cluster_item_for_update_and_delete):
+        """测试概览的使用率数据为平均值。"""
+        params = {
+            "page": 1,
+            "page_size": 10,
+            "bk_biz_id": 2,
+        }
+        actual = resource.scene_view.get_kubernetes_cluster_list(params)
+        assert actual["overview_data"]["cpu_usage_ratio"]["value"] == 36.48
+
     def test_perform_request_with_condition_by_space_id(
         self,
         monkeypatch_get_space_detail,
@@ -241,7 +250,6 @@ class TestGetKubernetesClusterList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request_by_space_id(
         self,
         monkeypatch_get_space_detail,
@@ -338,7 +346,6 @@ class TestGetKubernetesClusterList:
         }
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_no_cluster(
         self,
         monkeypatch,

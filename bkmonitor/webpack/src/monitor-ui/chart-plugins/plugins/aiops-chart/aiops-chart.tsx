@@ -25,11 +25,13 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { connect } from 'echarts/core';
 
 import loadingIcon from '../../icons/spinner.svg';
-import { PanelModel } from '../../typings';
 import LineChart from '../time-series/time-series';
+
+import type { PanelModel } from '../../typings';
 
 import './aiops-chart.scss';
 
@@ -51,7 +53,7 @@ export default class AiopsChart extends tsc<IProps> {
   @Prop({ default: () => {}, type: Function }) errorMsgFn: (mgs: string) => void;
 
   loadingList: [boolean, boolean] = [false, false];
-  insideList: [boolean, boolean] = [false, false];
+  insideList: [boolean, boolean] = [true, true];
 
   customTimeRange = null;
 
@@ -95,28 +97,27 @@ export default class AiopsChart extends tsc<IProps> {
       <div class='aiops-chart-wrap'>
         {this.panels.map((panel, index) => (
           <div
+            key={index}
             class='aiops-chart-item'
-            onMouseenter={() => this.handleInside(true, index)}
-            onMouseleave={() => this.handleInside(false, index)}
           >
             {this.loadingList[index] && (
               <img
                 class='loading-icon'
-                src={loadingIcon}
                 alt=''
-              ></img>
+                src={loadingIcon}
+              />
             )}
             <LineChart
-              panel={panel}
-              customTimeRange={this.customTimeRange}
-              customMenuList={['screenshot', 'explore', 'set', 'area']}
-              onLoading={val => this.handleChangeLoading(val, index)}
-              onErrorMsg={this.errorMsgFn}
               clearErrorMsg={this.clearErrorMsg}
+              customMenuList={['screenshot', 'explore', 'set', 'area']}
+              customTimeRange={this.customTimeRange}
+              panel={panel}
               showHeaderMoreTool={this.insideList[index]}
               onDataZoom={this.handleDataZoom}
               onDblClick={this.handleDblClick}
               onDimensionsOfSeries={this.handleDimensionsOfSeries}
+              onErrorMsg={this.errorMsgFn}
+              onLoading={val => this.handleChangeLoading(val, index)}
             />
           </div>
         ))}

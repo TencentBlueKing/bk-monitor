@@ -7,6 +7,7 @@
   font-size: 0;
 
   .tab-item {
+    box-sizing: border-box;
     display: inline-block;
     margin-right: -1px;
     overflow: hidden;
@@ -14,7 +15,6 @@
     text-align: center;
     vertical-align: middle;
     border-radius: 0;
-    box-sizing: border-box;
 
     &:first-child {
       border-radius: 2px 0 0 2px;
@@ -68,7 +68,7 @@
       padding-left: 20px;
 
       li {
-        list-style-type: disc
+        list-style-type: disc;
       }
     }
   }
@@ -79,24 +79,24 @@
     /* stylelint-disable-next-line declaration-no-important */
     background-color: #313238 !important;
 
-    >div:nth-child(1) {
+    > div:nth-child(1) {
       height: 50px;
 
-      >div:nth-child(1) {
+      > div:nth-child(1) {
         height: 50px;
         line-height: 50px;
       }
 
-      >div:nth-child(2) {
+      > div:nth-child(2) {
         height: 50px;
         font-size: 14px;
         line-height: 50px;
         color: #737987;
 
-        >div {
+        > div {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
 
           span {
             display: inline-block;
@@ -122,8 +122,8 @@
 
   &.no-authority {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     color: #c4c6cc;
     cursor: not-allowed;
 
@@ -132,8 +132,8 @@
     }
 
     .apply-text {
-      flex-shrink: 0;
       display: none;
+      flex-shrink: 0;
       color: #3a84ff;
       cursor: pointer;
     }

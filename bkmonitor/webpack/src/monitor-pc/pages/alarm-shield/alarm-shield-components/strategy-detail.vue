@@ -27,21 +27,17 @@
   <div class="stratrgy-detail">
     <!-- 事件 -->
     <div
-      class="item-content"
       v-if="strategyData.dataTypeLabel === 'event'"
+      class="item-content"
     >
       <div class="column-item">
-        <div class="column-label">
-          {{ $t('事件名称') }} :
-        </div>
+        <div class="column-label">{{ $t('事件名称') }} :</div>
         <div class="column-content item-font">
           {{ strategyData.name }}
         </div>
       </div>
       <div class="column-item">
-        <div class="column-label">
-          {{ $t('告警级别') }} :
-        </div>
+        <div class="column-label">{{ $t('告警级别') }} :</div>
         <div class="column-content item-font">
           {{ levelMap[strategyData.level[0]] }}
         </div>
@@ -49,14 +45,12 @@
       <!-- 自定义事件 -->
       <template v-if="strategyData.dataTypeLabel === 'event' && strategyData.dataSourceLabel === 'custom'">
         <div class="column-item column-item-agg-condition">
-          <div class="column-label column-target">
-            {{ $t('监控条件') }} :
-          </div>
+          <div class="column-label column-target">{{ $t('监控条件') }} :</div>
           <div class="column-agg-condition">
             <div
-              class="column-agg-dimension mb-2"
               v-for="(item, index) in aggCondition"
               :key="index"
+              class="column-agg-dimension mb-2"
               :style="{ color: aggConditionColorMap[item], 'font-weight': aggConditionFontMap[item] }"
             >
               {{ item }}
@@ -67,23 +61,19 @@
     </div>
     <!-- 监控采集 -->
     <div
-      class="item-content"
       v-else
+      class="item-content"
     >
       <!-- 日志 -->
       <template v-if="strategyData.dataTypeLabel === 'log'">
         <div class="column-item">
-          <div class="column-label">
-            {{ $t('索引集') }} :
-          </div>
+          <div class="column-label">{{ $t('索引集') }} :</div>
           <div class="column-center">
             {{ strategyData.metricField }}
           </div>
         </div>
         <div class="column-item">
-          <div class="column-label">
-            {{ $t('检索语句') }} :
-          </div>
+          <div class="column-label">{{ $t('检索语句') }} :</div>
           <div class="column-center">
             {{ strategyData.keywordsQueryString }}
           </div>
@@ -103,47 +93,43 @@
         </div>
       </div>
       <div class="column-item">
-        <div class="column-label">
-          {{ $t('计算公式') }} :
-        </div>
+        <div class="column-label">{{ $t('计算公式') }} :</div>
         <div class="column-content item-font">
           <div
             v-if="strategyData.aggMethod === 'REAL_TIME'"
             class="item-font"
-          >{{ $t('实时') }}</div>
+          >
+            {{ $t('实时') }}
+          </div>
           <div
             v-else
             class="item-font"
-          >{{ strategyData.aggMethod }}</div>
+          >
+            {{ strategyData.aggMethod }}
+          </div>
         </div>
       </div>
       <!-- 实时不显示 -->
       <div
+        v-if="strategyData.aggMethod !== 'REAL_TIME'"
         class="column-item"
         style="margin-bottom: 14px"
-        v-if="strategyData.aggMethod !== 'REAL_TIME'"
       >
-        <div class="column-label">
-          {{ $t('汇聚周期') }} :
-        </div>
-        <div class="column-content">
-          {{ strategyData.aggInterval / 60 }} {{ $t('分钟') }}
-        </div>
+        <div class="column-label">{{ $t('汇聚周期') }} :</div>
+        <div class="column-content">{{ strategyData.aggInterval / 60 }} {{ $t('分钟') }}</div>
       </div>
       <!-- 实时不显示 -->
       <div
+        v-if="strategyData.aggMethod !== 'REAL_TIME'"
         class="column-item column-item-agg-condition"
         style="margin-bottom: 21px"
-        v-if="strategyData.aggMethod !== 'REAL_TIME'"
       >
-        <div class="column-label column-target">
-          {{ $t('维度') }} :
-        </div>
+        <div class="column-label column-target">{{ $t('维度') }} :</div>
         <div class="column-agg-condition">
           <div
-            class="column-agg-dimension mb-2"
             v-for="(item, index) in strategyData.aggDimension"
             :key="index"
+            class="column-agg-dimension mb-2"
           >
             {{ item }}
           </div>
@@ -155,9 +141,9 @@
         </div>
         <div class="column-agg-condition">
           <div
-            class="column-agg-dimension mb-2"
             v-for="(item, index) in aggCondition"
             :key="index"
+            class="column-agg-dimension mb-2"
             :style="{ color: aggConditionColorMap[item], 'font-weight': aggConditionFontMap[item] }"
           >
             {{ item }}
@@ -177,13 +163,13 @@ export default {
   props: {
     strategyData: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
       levelMap: ['', this.$t('致命'), this.$t('提醒'), this.$t('预警')],
-      aggCondition: []
+      aggCondition: [],
     };
   },
   watch: {
@@ -191,8 +177,8 @@ export default {
       handler(newV) {
         const arr = [];
         this.aggCondition = [];
-        Array.isArray(newV.aggCondition)
-          && newV.aggCondition.forEach((item) => {
+        Array.isArray(newV.aggCondition) &&
+          newV.aggCondition.forEach(item => {
             if (item.condition) {
               arr.push(item.condition);
             }
@@ -201,9 +187,9 @@ export default {
             arr.push(item.value);
           });
       },
-      immediate: true
-    }
-  }
+      immediate: true,
+    },
+  },
 };
 </script>
 

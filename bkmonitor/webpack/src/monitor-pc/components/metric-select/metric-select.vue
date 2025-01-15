@@ -30,30 +30,31 @@
         v-model="metric.value"
         :clearable="false"
         :popover-min-width="250"
-        @change="handleChange"
         :class="{ 'right-border-highlight': showLeftBorder }"
+        @change="handleChange"
       >
         <bk-option
-          style="font-size: 12px"
           v-for="(option, index) in data"
-          :key="index"
           :id="option.name"
+          :key="index"
+          style="font-size: 12px"
           :name="option.name"
         >
           <span class="name">{{ option.name }}</span>
           <span
-            style=" margin-right: 5px;color: #c4c6cc"
+            style="margin-right: 5px; color: #c4c6cc"
             class="alias"
-          >{{ option.description }}</span>
+            >{{ option.description }}</span
+          >
         </bk-option>
       </bk-select>
     </div>
     <div class="search-wrapper">
       <bk-input
+        v-model="metric.keyword"
+        :placeholder="$t('指标')"
         @focus="showLeftBorder = true"
         @blur="showLeftBorder = false"
-        :placeholder="$t('指标')"
-        v-model="metric.keyword"
         @change="handleSearch"
       />
     </div>
@@ -67,18 +68,18 @@ export default {
   props: {
     data: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   data() {
     return {
       metric: {
         value: 'all metric',
         keyword: '',
-        selectedData: []
+        selectedData: [],
       },
       showLeftBorder: false,
-      handleSearch() {}
+      handleSearch() {},
     };
   },
   watch: {
@@ -88,8 +89,8 @@ export default {
           this.metric.selectedData = v[0].children;
         }
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   created() {
     this.handleSearch = debounce(300, this.handleFilter);
@@ -103,15 +104,16 @@ export default {
         const data = this.data.find(item => item.name === v);
         children = data ? data.children : [];
       }
-      const result = children.filter(item => item.description.includes(this.metric.keyword)
-      || item.name.includes(this.metric.keyword));
+      const result = children.filter(
+        item => item.description.includes(this.metric.keyword) || item.name.includes(this.metric.keyword)
+      );
       this.$emit('change', result, v);
     },
     handleFilter(v) {
       const result = this.metric.selectedData.filter(item => item.description.includes(v) || item.name.includes(v));
       this.$emit('change', result, v);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

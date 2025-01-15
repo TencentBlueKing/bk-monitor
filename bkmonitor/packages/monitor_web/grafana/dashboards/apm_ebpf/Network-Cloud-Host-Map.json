@@ -26,6 +26,7 @@
   "panels": [
     {
       "collapsed": false,
+      "datasource": "$datasource",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -35,8 +36,7 @@
       "id": 18,
       "panels": [],
       "title": "Show Client",
-      "type": "row",
-      "datasource": "$datasource"
+      "type": "row"
     },
     {
       "datasource": "$datasource",
@@ -48,12 +48,12 @@
       },
       "id": 41,
       "options": {
+        "metricsUnits": {
+          "bps": "bps"
+        },
         "topoSettings": {
           "nodeTags": [],
           "type": "simpleTopo"
-        },
-        "metricsUnits": {
-          "bps": "bps"
         }
       },
       "targets": [
@@ -81,6 +81,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -94,6 +95,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -174,6 +176,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -187,6 +190,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -261,6 +265,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -274,6 +279,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -350,6 +356,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -363,6 +370,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -438,7 +446,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false
           },
           "mappings": [],
@@ -482,8 +492,10 @@
                 "value": "percent"
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -530,8 +542,10 @@
                 }
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               }
             ]
           },
@@ -554,8 +568,10 @@
             },
             "properties": [
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "unit",
@@ -586,8 +602,10 @@
             },
             "properties": [
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "unit",
@@ -633,7 +651,9 @@
       },
       "id": 25,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -644,7 +664,7 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.2.5",
+      "pluginVersion": "10.2.3",
       "targets": [
         {
           "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"3e183ac3-ce82-ff44-954b-c0f03f4e168b\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"chost_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"99d7e3ff-9af3-142e-259a-534fd396061a\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\"},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"22d987cf-743c-25c3-a2bd-39ddb16789d0\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8a77b03e-93b1-3e51-9caf-1baa7a9b41ce\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"server_port\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c6efc361-f0d8-21b2-7450-219f78e3b2da\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"byte\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"0e82dee4-a154-4301-d086-11346db4c0ef\",\"subFuncs\":[{\"func\":\"Math\",\"op\":\"MULTIPLY\",\"params\":8},{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"packet\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5b56e311-8fb4-cb24-6bd1-341e978f7842\",\"subFuncs\":[{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"retrans_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"20e2c1f9-e871-c1c7-3b8f-13f61ee09ab6\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"tcp_establish_fail_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"a44ac7aa-016d-0e7b-b99f-6c25a74e1f15\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ab1c3afe-0cb4-a2b1-828a-b1c9b41c7314\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"art\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"579b5692-3b1d-a6b8-f7be-db77b8a1d75f\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_1\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"8a0b9ecc-c7fe-577d-2930-ab40d1920aac\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"resource_gl0_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"95489d1c-32b1-6b1e-70af-d1066b5edc20\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"chost_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"e5c2e4ac-63d0-adab-70b5-914e0ab6cdf5\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"to\"},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"server_port\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"210c9c0f-e59d-b8f4-6a8b-07d5d11572a7\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"24f3d9e6-15f0-84d7-d851-2c3860c2f506\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":0,\"tracingId\":null}",
@@ -685,6 +705,7 @@
               "tap_id": true,
               "tap_side": true
             },
+            "includeByName": {},
             "indexByName": {
               "Avg(art)": 20,
               "Avg(retrans_ratio)": 17,
@@ -715,6 +736,10 @@
               "tap_side": 3
             },
             "renameByName": {
+              "Avg(Avg Data Delay)": "TCP/UDP data delay",
+              "Avg(Avg TCP Est. Delay)": "TCP conn. establishment delay",
+              "Avg(Error %)": "TCP conn. establishment fail rate",
+              "Avg(TCP Retrans. %)": "TCP retrans rate ",
               "Avg(TCP重传比例)": "TCP retrans rate (%)",
               "Avg(art)": "TCP/UDP data delay",
               "Avg(retrans_ratio)": "TCP retrans rate ",
@@ -726,8 +751,10 @@
               "Enum(protocol)": "Protocol",
               "Enum(server_port)": "Server port",
               "Enum(tap_side)": "Tap side",
+              "PerSecond(Avg(Packet))": "Throughput (pps)",
               "PerSecond(Avg(packet))": "Throughput (pps)",
               "PerSecond(Avg(包数))": "Throughput (pps)",
+              "PerSecond(Math(Avg(Byte)*8))": "Throughput (bps)",
               "PerSecond(Math(Avg(byte)*8))": "Throughput (bps)",
               "PerSecond(Math(Avg(字节)*8))": "Throughput (bps)",
               "chost_1": "Server",
@@ -739,6 +766,7 @@
               "resource_gl2_0": "客户端",
               "resource_gl2_1": "服务端",
               "server_port": "",
+              "server_resource": "",
               "tap_side": "",
               "流量大小": "Throughput (bps)"
             }
@@ -748,7 +776,8 @@
       "type": "table"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
+      "datasource": "$datasource",
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -756,736 +785,761 @@
         "y": 31
       },
       "id": 20,
-      "panels": [
-        {
-          "datasource": "$datasource",
-          "gridPos": {
-            "h": 20,
-            "w": 13,
-            "x": 0,
-            "y": 5
-          },
-          "id": 42,
-          "options": {
-            "topoSettings": {
-              "nodeTags": [],
-              "type": "simpleTopo"
-            },
-            "metricsUnits": {
-              "bps": "bps"
-            }
-          },
-          "targets": [
-            {
-              "queryText": "{\"appType\":\"accessRelationship\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"metric\",\"key\":\"byte\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"bps\",\"params\":[],\"uuid\":\"a0f1d533-dff1-5f56-9e08-7e4e4dc6f5e3\",\"subFuncs\":[{\"func\":\"Math\",\"op\":\"MULTIPLY\",\"params\":8},{\"func\":\"PerSecond\"}],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"retrans_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"93b6c2a3-0fe8-f395-b93f-4bbd34907c69\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"tcp_establish_fail_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"e4ff95e7-ccc2-a39b-e40a-33b909affb1e\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"798012c7-8ac1-2c95-7951-1437ff0fc5b8\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"art\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c2d10e25-15f5-8a98-9f10-20af3a947237\",\"subFuncs\":[],\"whereOnly\":false}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"b053c8a1-f918-34ad-04de-d0301eb0539d\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1f4673b2-d389-0cb5-6d2e-c286dc1ed557\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"4c53a8c4-c05d-8d45-6b6c-37d7152b3187\",\"sideType\":\"from\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9165abc4-e3df-c596-c782-46f44aaa5e90\",\"sideType\":\"to\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7f1d6f0c-7b12-2f7c-d600-354f7bd2b80d\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b0d1325b-4cfa-f690-c821-e42caae24525\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"100\",\"offset\":\"\",\"formatAs\":\"\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
-              "refId": "A",
-              "returnMetrics": [
-                {
-                  "displayName": "bps",
-                  "name": "bps",
-                  "type": 1,
-                  "unit": "Byte/s"
-                }
-              ]
-            }
-          ],
-          "title": "Cloud Host Map",
-          "type": "deepflowio-topo-panel"
+      "panels": [],
+      "title": "Show Server",
+      "type": "row"
+    },
+    {
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 20,
+        "w": 13,
+        "x": 0,
+        "y": 32
+      },
+      "id": 42,
+      "options": {
+        "metricsUnits": {
+          "bps": "bps"
         },
+        "topoSettings": {
+          "nodeTags": [],
+          "type": "simpleTopo"
+        }
+      },
+      "targets": [
         {
-          "datasource": "$datasource",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 20,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "bps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 11,
-            "x": 13,
-            "y": 5
-          },
-          "id": 33,
-          "options": {
-            "legend": {
-              "calcs": [
-                "min",
-                "mean",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
+          "queryText": "{\"appType\":\"accessRelationship\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"metric\",\"key\":\"byte\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"bps\",\"params\":[],\"uuid\":\"a0f1d533-dff1-5f56-9e08-7e4e4dc6f5e3\",\"subFuncs\":[{\"func\":\"Math\",\"op\":\"MULTIPLY\",\"params\":8},{\"func\":\"PerSecond\"}],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"retrans_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"93b6c2a3-0fe8-f395-b93f-4bbd34907c69\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"tcp_establish_fail_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"e4ff95e7-ccc2-a39b-e40a-33b909affb1e\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"798012c7-8ac1-2c95-7951-1437ff0fc5b8\",\"subFuncs\":[],\"whereOnly\":false},{\"type\":\"metric\",\"key\":\"art\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c2d10e25-15f5-8a98-9f10-20af3a947237\",\"subFuncs\":[],\"whereOnly\":false}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"b053c8a1-f918-34ad-04de-d0301eb0539d\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1f4673b2-d389-0cb5-6d2e-c286dc1ed557\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"4c53a8c4-c05d-8d45-6b6c-37d7152b3187\",\"sideType\":\"from\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9165abc4-e3df-c596-c782-46f44aaa5e90\",\"sideType\":\"to\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":true},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7f1d6f0c-7b12-2f7c-d600-354f7bd2b80d\",\"subFuncs\":[],\"whereOnly\":false,\"isResourceType\":false}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b0d1325b-4cfa-f690-c821-e42caae24525\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"100\",\"offset\":\"\",\"formatAs\":\"\",\"alias\":\"\",\"showMetrics\":-1,\"tracingId\":null}",
+          "refId": "A",
+          "returnMetrics": [
             {
-              "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"dcc80540-41f6-32f5-a323-993b3bd7cffb\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"540bd0ec-870f-9dee-8fa4-99e198d5cdb0\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"byte\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"afcea565-1faa-2565-c5e1-33c90c471e29\",\"subFuncs\":[{\"func\":\"Math\",\"op\":\"MULTIPLY\",\"params\":8},{\"func\":\"PerSecond\"}]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"8b6b85e4-4e58-9ccd-a6bf-c6f9c72d5202\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7dc9cde6-a733-7475-8e5c-70968f346283\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8e0a3d47-a336-3de0-927d-b00b097764f8\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${chost_0} -> ${server_resource} (${Enum(tap_side)})\",\"showMetrics\":0,\"tracingId\":null}",
-              "refId": "A"
+              "displayName": "bps",
+              "name": "bps",
+              "type": 1,
+              "unit": "Byte/s"
             }
-          ],
-          "title": "Throughput (bps)",
-          "transformations": [
-            {
-              "id": "organize",
-              "options": {}
-            }
-          ],
-          "type": "timeseries"
-        },
-        {
-          "datasource": "$datasource",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 20,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 11,
-            "x": 13,
-            "y": 10
-          },
-          "id": 34,
-          "options": {
-            "legend": {
-              "calcs": [
-                "min",
-                "mean",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6bbeb5f0-4e8e-6b33-4828-6fb738ad40ef\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"591dedee-305b-b30b-a55e-2f7184a021c0\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"retrans_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"fb0d4aeb-fa30-fb0d-5dcf-d8ddd90402fb\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"4bf2207d-c589-05cc-1ca7-933115b9c5be\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"929e8463-eaec-4eae-c9d8-2b34a5d0e9ba\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"726537b3-e514-d87e-1efe-1e83440c723f\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${chost_0} -> ${server_resource} (${Enum(tap_side)})\",\"showMetrics\":0,\"tracingId\":null}",
-              "refId": "A"
-            }
-          ],
-          "title": "TCP retrans rate (%)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": "$datasource",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 20,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 11,
-            "x": 13,
-            "y": 15
-          },
-          "id": 35,
-          "options": {
-            "legend": {
-              "calcs": [
-                "min",
-                "mean",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Max",
-              "sortDesc": false
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"2e4c7559-abdf-bdbb-9ef1-42615206dd19\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ac74ba32-37e3-e927-36fb-689f55b7e93b\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"tcp_establish_fail_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"71757951-4456-e9cf-448c-064f252e6c13\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"f8de6c73-df97-d132-f850-657790da0164\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"deff36c1-c4f1-ce1e-53f4-b49b860d3c38\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"a7d19892-06da-dc62-610a-220a302fb2dd\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${chost_0} -> ${server_resource} (${Enum(tap_side)})\",\"showMetrics\":0,\"tracingId\":null}",
-              "refId": "A"
-            }
-          ],
-          "title": "TCP conn. establishment fail (%)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": "$datasource",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 20,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "µs"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 5,
-            "w": 11,
-            "x": 13,
-            "y": 20
-          },
-          "id": 36,
-          "options": {
-            "legend": {
-              "calcs": [
-                "min",
-                "mean",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5763636b-c6c0-00e6-6e15-dda1c82a3933\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d0c9233a-fa34-ab5b-a301-f73a2209594d\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ab1c3afe-0cb4-a2b1-828a-b1c9b41c7314\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"0e02210d-fe67-1a96-e596-19d681d9abad\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c2b047dd-9cc6-7550-bb1e-2f50eeefa990\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"16bc95d8-41d5-ea7a-c775-18367a4f3d2e\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${chost_0} -> ${server_resource} (${Enum(tap_side)})\",\"showMetrics\":0,\"tracingId\":null}",
-              "refId": "A"
-            }
-          ],
-          "title": "TCP conn. establishment delay (ms)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": "$datasource",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "custom": {
-                "align": "auto",
-                "displayMode": "auto",
-                "inspect": false
-              },
-              "mappings": [],
-              "noValue": "--",
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "none"
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Throughput (bps)"
-                },
-                "properties": [
-                  {
-                    "id": "unit",
-                    "value": "bps"
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "TCP retrans rate "
-                },
-                "properties": [
-                  {
-                    "id": "unit",
-                    "value": "percent"
-                  },
-                  {
-                    "id": "custom.displayMode",
-                    "value": "color-text"
-                  },
-                  {
-                    "id": "thresholds",
-                    "value": {
-                      "mode": "absolute",
-                      "steps": [
-                        {
-                          "color": "green",
-                          "value": null
-                        },
-                        {
-                          "color": "red",
-                          "value": 5
-                        }
-                      ]
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "TCP conn. establishment fail rate"
-                },
-                "properties": [
-                  {
-                    "id": "unit",
-                    "value": "percent"
-                  },
-                  {
-                    "id": "thresholds",
-                    "value": {
-                      "mode": "absolute",
-                      "steps": [
-                        {
-                          "color": "green",
-                          "value": null
-                        },
-                        {
-                          "color": "red",
-                          "value": 1
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "id": "custom.displayMode",
-                    "value": "color-text"
-                  },
-                  {
-                    "id": "custom.width",
-                    "value": 136
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Client"
-                },
-                "properties": [
-                  {
-                    "id": "custom.width",
-                    "value": 274
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "TCP conn. establishment delay"
-                },
-                "properties": [
-                  {
-                    "id": "custom.displayMode",
-                    "value": "color-text"
-                  },
-                  {
-                    "id": "unit",
-                    "value": "µs"
-                  },
-                  {
-                    "id": "thresholds",
-                    "value": {
-                      "mode": "absolute",
-                      "steps": [
-                        {
-                          "color": "green",
-                          "value": null
-                        },
-                        {
-                          "color": "red",
-                          "value": 10000
-                        }
-                      ]
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "TCP/UDP data delay"
-                },
-                "properties": [
-                  {
-                    "id": "custom.displayMode",
-                    "value": "color-text"
-                  },
-                  {
-                    "id": "unit",
-                    "value": "µs"
-                  },
-                  {
-                    "id": "thresholds",
-                    "value": {
-                      "mode": "absolute",
-                      "steps": [
-                        {
-                          "color": "green",
-                          "value": null
-                        },
-                        {
-                          "color": "red",
-                          "value": 1000000
-                        }
-                      ]
-                    }
-                  }
-                ]
-              },
-              {
-                "matcher": {
-                  "id": "byName",
-                  "options": "Throughput (pps)"
-                },
-                "properties": [
-                  {
-                    "id": "unit",
-                    "value": "p/s"
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 7,
-            "w": 24,
-            "x": 0,
-            "y": 25
-          },
-          "id": 37,
-          "options": {
-            "footer": {
-              "fields": "",
-              "reducer": [
-                "sum"
-              ],
-              "show": false
-            },
-            "frameIndex": 1,
-            "showHeader": true,
-            "sortBy": [
-              {
-                "desc": false,
-                "displayName": "TCP retrans rate "
-              }
-            ]
-          },
-          "pluginVersion": "9.2.5",
-          "targets": [
-            {
-              "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b50b87e5-82a6-86dd-bcef-fef827be0e03\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5aa78377-a36f-37f6-1a70-71b2bbef8a25\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"11a4feaa-8024-e1c6-093a-51af6aacb194\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8a77b03e-93b1-3e51-9caf-1baa7a9b41ce\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"server_port\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c6efc361-f0d8-21b2-7450-219f78e3b2da\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"byte\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"0e82dee4-a154-4301-d086-11346db4c0ef\",\"subFuncs\":[{\"func\":\"Math\",\"op\":\"MULTIPLY\",\"params\":8},{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"packet\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5b56e311-8fb4-cb24-6bd1-341e978f7842\",\"subFuncs\":[{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"retrans_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"20e2c1f9-e871-c1c7-3b8f-13f61ee09ab6\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"tcp_establish_fail_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"a44ac7aa-016d-0e7b-b99f-6c25a74e1f15\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ab1c3afe-0cb4-a2b1-828a-b1c9b41c7314\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"art\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"579b5692-3b1d-a6b8-f7be-db77b8a1d75f\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"1b4d9ecc-e1c3-6635-764f-e998399a9369\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"305640b2-db40-8425-a05e-9076373862e0\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"843e9723-7faa-c75a-6f80-ff8fe8f3c638\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"server_port\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"210c9c0f-e59d-b8f4-6a8b-07d5d11572a7\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"24f3d9e6-15f0-84d7-d851-2c3860c2f506\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":0,\"tracingId\":null}",
-              "refId": "A"
-            }
-          ],
-          "title": "Cloud Host Path",
-          "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "excludeByName": {
-                  "client_icon_id": true,
-                  "client_node_type": true,
-                  "client_resource": true,
-                  "client_resource_id": true,
-                  "client_resource_type": true,
-                  "ip_0": true,
-                  "ip_1": true,
-                  "pod_id_0": true,
-                  "pod_id_1": true,
-                  "protocol": true,
-                  "resource_gl0_1": true,
-                  "resource_gl0_id_0": true,
-                  "resource_gl0_id_1": true,
-                  "resource_gl0_type_0": true,
-                  "resource_gl0_type_1": true,
-                  "resource_gl2_id_0": true,
-                  "resource_gl2_id_1": true,
-                  "resource_gl2_type_0": true,
-                  "resource_gl2_type_1": true,
-                  "server_icon_id": true,
-                  "server_node_type": true,
-                  "server_port": true,
-                  "server_resource_id": true,
-                  "server_resource_type": true,
-                  "subnet_id_0": true,
-                  "subnet_id_1": true,
-                  "tap_id": true,
-                  "tap_side": true
-                },
-                "indexByName": {
-                  "Avg(art)": 21,
-                  "Avg(retrans_ratio)": 18,
-                  "Avg(rtt)": 20,
-                  "Avg(tcp_establish_fail_ratio)": 19,
-                  "Enum(protocol)": 5,
-                  "Enum(server_port)": 7,
-                  "Enum(tap_side)": 3,
-                  "PerSecond(Avg(packet))": 17,
-                  "chost_0": 1,
-                  "chost_id_0": 15,
-                  "client_icon_id": 10,
-                  "client_node_type": 9,
-                  "client_resource": 24,
-                  "client_resource_id": 23,
-                  "client_resource_type": 22,
-                  "protocol": 6,
-                  "resource_gl0_1": 0,
-                  "resource_gl0_id_1": 13,
-                  "resource_gl0_type_1": 14,
-                  "server_icon_id": 12,
-                  "server_node_type": 11,
-                  "server_port": 8,
-                  "server_resource": 2,
-                  "server_resource_id": 26,
-                  "server_resource_type": 25,
-                  "tap_side": 4,
-                  "流量大小": 16
-                },
-                "renameByName": {
-                  "Avg(TCP重传比例)": "TCP retrans rate (%)",
-                  "Avg(art)": "TCP/UDP data delay",
-                  "Avg(retrans_ratio)": "TCP retrans rate ",
-                  "Avg(rtt)": "TCP conn. establishment delay",
-                  "Avg(tcp_establish_fail_ratio)": "TCP conn. establishment fail rate",
-                  "Avg(平均TCP建连时延)": "TCP conn. establishment delay (ms)",
-                  "Avg(平均数据时延)": "TCP/UDP data delay (ms)",
-                  "Avg(建连-失败比例)": "TCP conn. establishment fail rate (%)",
-                  "Enum(protocol)": "Protocol",
-                  "Enum(server_port)": "Server port",
-                  "Enum(tap_side)": "Tap side",
-                  "PerSecond(Avg(packet))": "Throughput (pps)",
-                  "PerSecond(Avg(包数))": "Throughput (pps)",
-                  "PerSecond(Math(Avg(byte)*8))": "Throughput (bps)",
-                  "PerSecond(Math(Avg(字节)*8))": "Throughput (bps)",
-                  "chost_0": "Client",
-                  "pod_0": "Client",
-                  "pod_1": "Server",
-                  "protocol": "",
-                  "resource_gl0_0": "Client",
-                  "resource_gl0_1": "",
-                  "resource_gl2_0": "客户端",
-                  "resource_gl2_1": "服务端",
-                  "server_port": "",
-                  "server_resource": "Server",
-                  "tap_side": "",
-                  "流量大小": "Throughput (bps)"
-                }
-              }
-            }
-          ],
-          "type": "table"
+          ]
         }
       ],
-      "title": "Show Server",
-      "type": "row",
-      "datasource": "$datasource"
+      "title": "Cloud Host Map",
+      "type": "deepflowio-topo-panel"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 11,
+        "x": 13,
+        "y": 32
+      },
+      "id": 33,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"dcc80540-41f6-32f5-a323-993b3bd7cffb\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"540bd0ec-870f-9dee-8fa4-99e198d5cdb0\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"byte\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"afcea565-1faa-2565-c5e1-33c90c471e29\",\"subFuncs\":[{\"func\":\"Math\",\"op\":\"MULTIPLY\",\"params\":8},{\"func\":\"PerSecond\"}]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"8b6b85e4-4e58-9ccd-a6bf-c6f9c72d5202\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"7dc9cde6-a733-7475-8e5c-70968f346283\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8e0a3d47-a336-3de0-927d-b00b097764f8\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${chost_0} -> ${server_resource} (${Enum(tap_side)})\",\"showMetrics\":0,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": "Throughput (bps)",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {}
+        }
+      ],
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 11,
+        "x": 13,
+        "y": 37
+      },
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6bbeb5f0-4e8e-6b33-4828-6fb738ad40ef\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"591dedee-305b-b30b-a55e-2f7184a021c0\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"retrans_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"fb0d4aeb-fa30-fb0d-5dcf-d8ddd90402fb\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"4bf2207d-c589-05cc-1ca7-933115b9c5be\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"929e8463-eaec-4eae-c9d8-2b34a5d0e9ba\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"726537b3-e514-d87e-1efe-1e83440c723f\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${chost_0} -> ${server_resource} (${Enum(tap_side)})\",\"showMetrics\":0,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": "TCP retrans rate (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 11,
+        "x": 13,
+        "y": 42
+      },
+      "id": 35,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": false
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"2e4c7559-abdf-bdbb-9ef1-42615206dd19\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ac74ba32-37e3-e927-36fb-689f55b7e93b\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"tcp_establish_fail_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"71757951-4456-e9cf-448c-064f252e6c13\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"f8de6c73-df97-d132-f850-657790da0164\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"deff36c1-c4f1-ce1e-53f4-b49b860d3c38\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"a7d19892-06da-dc62-610a-220a302fb2dd\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${chost_0} -> ${server_resource} (${Enum(tap_side)})\",\"showMetrics\":0,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": "TCP conn. establishment fail (%)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "µs"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 11,
+        "x": 13,
+        "y": 47
+      },
+      "id": 36,
+      "options": {
+        "legend": {
+          "calcs": [
+            "min",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5763636b-c6c0-00e6-6e15-dda1c82a3933\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d0c9233a-fa34-ab5b-a301-f73a2209594d\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ab1c3afe-0cb4-a2b1-828a-b1c9b41c7314\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"0e02210d-fe67-1a96-e596-19d681d9abad\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c2b047dd-9cc6-7550-bb1e-2f50eeefa990\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"16bc95d8-41d5-ea7a-c775-18367a4f3d2e\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"60\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"${chost_0} -> ${server_resource} (${Enum(tap_side)})\",\"showMetrics\":0,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": "TCP conn. establishment delay (ms)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "$datasource",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Throughput (bps)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bps"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TCP retrans rate "
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TCP conn. establishment fail rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 136
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Client"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 274
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TCP conn. establishment delay"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 10000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TCP/UDP data delay"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "unit",
+                "value": "µs"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1000000
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Throughput (pps)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "p/s"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      },
+      "id": 37,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 1,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "TCP retrans rate "
+          }
+        ]
+      },
+      "pluginVersion": "10.2.3",
+      "targets": [
+        {
+          "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_metrics\",\"sources\":\"1m\",\"from\":\"vtap_flow_edge_port\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"b50b87e5-82a6-86dd-bcef-fef827be0e03\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5aa78377-a36f-37f6-1a70-71b2bbef8a25\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"11a4feaa-8024-e1c6-093a-51af6aacb194\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8a77b03e-93b1-3e51-9caf-1baa7a9b41ce\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"server_port\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"c6efc361-f0d8-21b2-7450-219f78e3b2da\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"byte\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"0e82dee4-a154-4301-d086-11346db4c0ef\",\"subFuncs\":[{\"func\":\"Math\",\"op\":\"MULTIPLY\",\"params\":8},{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"packet\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5b56e311-8fb4-cb24-6bd1-341e978f7842\",\"subFuncs\":[{\"func\":\"PerSecond\"}]},{\"type\":\"metric\",\"key\":\"retrans_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"20e2c1f9-e871-c1c7-3b8f-13f61ee09ab6\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"tcp_establish_fail_ratio\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"a44ac7aa-016d-0e7b-b99f-6c25a74e1f15\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ab1c3afe-0cb4-a2b1-828a-b1c9b41c7314\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"art\",\"func\":\"Avg\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"579b5692-3b1d-a6b8-f7be-db77b8a1d75f\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$vm\",\"value\":\"vm\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"1b4d9ecc-e1c3-6635-764f-e998399a9369\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"1dbcaa5c-acaf-7763-d969-a3e3d1416e9a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"chost_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"305640b2-db40-8425-a05e-9076373862e0\",\"subFuncs\":[],\"whereOnly\":false,\"sideType\":\"from\"},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"843e9723-7faa-c75a-6f80-ff8fe8f3c638\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"af062817-e509-6662-a220-83fd40c5ea72\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"server_port\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"210c9c0f-e59d-b8f4-6a8b-07d5d11572a7\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"protocol\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"24f3d9e6-15f0-84d7-d851-2c3860c2f506\",\"subFuncs\":[]}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"57157d39-c3dc-592f-6599-93bad130bb4c\",\"sort\":\"desc\",\"subFuncs\":[]}],\"interval\":\"\",\"limit\":\"1000\",\"offset\":\"\",\"formatAs\":\"table\",\"alias\":\"\",\"showMetrics\":0,\"tracingId\":null}",
+          "refId": "A"
+        }
+      ],
+      "title": "Cloud Host Path",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "client_icon_id": true,
+              "client_node_type": true,
+              "client_resource": true,
+              "client_resource_id": true,
+              "client_resource_type": true,
+              "ip_0": true,
+              "ip_1": true,
+              "pod_id_0": true,
+              "pod_id_1": true,
+              "protocol": true,
+              "resource_gl0_1": true,
+              "resource_gl0_id_0": true,
+              "resource_gl0_id_1": true,
+              "resource_gl0_type_0": true,
+              "resource_gl0_type_1": true,
+              "resource_gl2_id_0": true,
+              "resource_gl2_id_1": true,
+              "resource_gl2_type_0": true,
+              "resource_gl2_type_1": true,
+              "server_icon_id": true,
+              "server_node_type": true,
+              "server_port": true,
+              "server_resource_id": true,
+              "server_resource_type": true,
+              "subnet_id_0": true,
+              "subnet_id_1": true,
+              "tap_id": true,
+              "tap_side": true
+            },
+            "includeByName": {},
+            "indexByName": {
+              "Avg(art)": 21,
+              "Avg(retrans_ratio)": 18,
+              "Avg(rtt)": 20,
+              "Avg(tcp_establish_fail_ratio)": 19,
+              "Enum(protocol)": 5,
+              "Enum(server_port)": 7,
+              "Enum(tap_side)": 3,
+              "PerSecond(Avg(packet))": 17,
+              "chost_0": 1,
+              "chost_id_0": 15,
+              "client_icon_id": 10,
+              "client_node_type": 9,
+              "client_resource": 24,
+              "client_resource_id": 23,
+              "client_resource_type": 22,
+              "protocol": 6,
+              "resource_gl0_1": 0,
+              "resource_gl0_id_1": 13,
+              "resource_gl0_type_1": 14,
+              "server_icon_id": 12,
+              "server_node_type": 11,
+              "server_port": 8,
+              "server_resource": 2,
+              "server_resource_id": 26,
+              "server_resource_type": 25,
+              "tap_side": 4,
+              "流量大小": 16
+            },
+            "renameByName": {
+              "Avg(Avg Data Delay)": "TCP/UDP data delay",
+              "Avg(Avg TCP Est. Delay)": "TCP conn. establishment delay",
+              "Avg(Error %)": "TCP conn. establishment fail rate",
+              "Avg(TCP Retrans. %)": "TCP retrans rate ",
+              "Avg(TCP重传比例)": "TCP retrans rate (%)",
+              "Avg(art)": "TCP/UDP data delay",
+              "Avg(retrans_ratio)": "TCP retrans rate ",
+              "Avg(rtt)": "TCP conn. establishment delay",
+              "Avg(tcp_establish_fail_ratio)": "TCP conn. establishment fail rate",
+              "Avg(平均TCP建连时延)": "TCP conn. establishment delay (ms)",
+              "Avg(平均数据时延)": "TCP/UDP data delay (ms)",
+              "Avg(建连-失败比例)": "TCP conn. establishment fail rate (%)",
+              "Enum(protocol)": "Protocol",
+              "Enum(server_port)": "Server port",
+              "Enum(tap_side)": "Tap side",
+              "PerSecond(Avg(Packet))": "Throughput (pps)",
+              "PerSecond(Avg(packet))": "Throughput (pps)",
+              "PerSecond(Avg(包数))": "Throughput (pps)",
+              "PerSecond(Math(Avg(Byte)*8))": "Throughput (bps)",
+              "PerSecond(Math(Avg(byte)*8))": "Throughput (bps)",
+              "PerSecond(Math(Avg(字节)*8))": "Throughput (bps)",
+              "chost_0": "Client",
+              "pod_0": "Client",
+              "pod_1": "Server",
+              "protocol": "",
+              "resource_gl0_0": "Client",
+              "resource_gl0_1": "",
+              "resource_gl2_0": "客户端",
+              "resource_gl2_1": "服务端",
+              "server_port": "",
+              "server_resource": "Server",
+              "server_resource_id": "",
+              "tap_side": "",
+              "流量大小": "Throughput (bps)"
+            }
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "refresh": "",
-  "schemaVersion": 37,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
@@ -1545,7 +1599,7 @@
   "timezone": "",
   "title": "Network - Cloud Host Map",
   "uid": "Network_Cloud_Host_Map",
-  "version": 8,
+  "version": 25,
   "weekStart": "",
   "__inputs": [
     {
@@ -1563,6 +1617,5 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ],
-  "__path": "dashboards/DeepFlow-Templates/Network-Cloud-Host-Map.json"
+  ]
 }

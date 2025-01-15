@@ -26,13 +26,15 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ILegendItem, LegendActionType } from '../../typings';
+import type { ILegendItem, LegendActionType } from '../../typings';
 
 import './common-legend.scss';
 
 interface ILegendProps {
   // 图例数据
   legendData: ILegendItem[];
+  alignCenter?: boolean;
+  preventEvent?: boolean;
 }
 interface ILegendEvent {
   // 点击图例事件
@@ -43,10 +45,14 @@ interface ILegendEvent {
 export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
   // 图例数据
   @Prop({ required: true }) readonly legendData: ILegendItem[];
+  /* 图例数据居中显示 */
+  @Prop({ type: Boolean, default: false }) alignCenter: boolean;
+  // 阻止事件冒泡
+  @Prop({ type: Boolean, default: false }) preventEvent: boolean;
 
   mouseEvent = {
     isMouseDown: false,
-    isMouseMove: false
+    isMouseMove: false,
   };
 
   @Emit('selectLegend')
@@ -73,24 +79,24 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
 
   render() {
     return (
-      <div class='common-legend'>
+      <div class={['common-legend', { 'align-center': this.alignCenter }]}>
         {this.legendData.map((legend, index) => {
           if (legend.hidden) return undefined;
           return (
             <div
-              class='common-legend-item'
               key={index}
-              onClick={e => this.handleLegendEvent(e, 'click', legend)}
-              onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
-              onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
+              class='common-legend-item'
+              onClick={e => !this.preventEvent && this.handleLegendEvent(e, 'click', legend)}
+              onMouseenter={e => !this.preventEvent && this.handleLegendEvent(e, 'highlight', legend)}
+              onMouseleave={e => !this.preventEvent && this.handleLegendEvent(e, 'downplay', legend)}
             >
               <span
-                class='legend-icon'
                 style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
-              ></span>
+                class='legend-icon'
+              />
               <div
-                class='legend-name'
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
+                class='legend-name'
               >
                 {legend.alias || legend.name}
               </div>
@@ -99,8 +105,8 @@ export default class CommonLegend extends tsc<ILegendProps, ILegendEvent> {
         })}
         {this.$slots.expand && (
           <div
-            class='common-legend-item'
             style='position: relative'
+            class='common-legend-item'
           >
             {this.$slots.expand}
           </div>

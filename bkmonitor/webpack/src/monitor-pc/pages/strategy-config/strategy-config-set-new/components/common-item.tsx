@@ -23,17 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './common-item.scss';
 
 interface ICommonProps {
-  title: string | TranslateResult;
+  title: TranslateResult | string;
   isRequired?: boolean;
   showSemicolon?: boolean;
-  tips?: string | TranslateResult;
+  tips?: TranslateResult | string;
   isWrap?: boolean;
   isSwitch?: boolean;
   desc?: string;
@@ -50,7 +51,7 @@ export default class MyComponent extends tsc<ICommonProps> {
   get tooltips() {
     return {
       content: this.tips,
-      placements: ['top']
+      placements: ['top'],
     };
   }
   render() {
@@ -67,9 +68,9 @@ export default class MyComponent extends tsc<ICommonProps> {
                 content: this.tips,
                 width: 200,
                 placement: 'top-start',
-                allowHTML: false
+                allowHTML: false,
               }}
-            ></i>
+            />
           )}
           {this.desc && <span class='common-item-label-desc'>{this.desc}</span>}
         </label>

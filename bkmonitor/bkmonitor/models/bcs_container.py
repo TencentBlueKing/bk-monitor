@@ -8,14 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import itertools
 import logging
 from typing import Dict
 
 from django.db import models
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSBaseResources, BCSLabel
@@ -68,6 +67,14 @@ class BCSContainer(BCSBase, BCSBaseResources):
         self.unique_hash = self.get_unique_hash()
         super().save(*args, **kwargs)
 
+    def to_meta_dict(self):
+        return {
+            "pod": self.pod_name,
+            "container": self.name,
+            "namespace": self.namespace,
+            "workload": f"{self.workload_type}:{self.workload_name}",
+        }
+
     @classmethod
     def get_columns(cls, columns_type="list"):
         columns = [
@@ -97,7 +104,7 @@ class BCSContainer(BCSBase, BCSBaseResources):
             [
                 {
                     "id": "namespace",
-                    "name": _("名字空间"),
+                    "name": "NameSpace",
                     "type": "string",
                     "disabled": False,
                     "checked": True,
@@ -194,13 +201,11 @@ class BCSContainer(BCSBase, BCSBaseResources):
 
     @staticmethod
     def load_list_from_api(params):
-        bulk_request_params = [{"bcs_cluster_id": bcs_cluster_id} for bcs_cluster_id in params.keys()]
-        api_containers = api.kubernetes.fetch_k8s_container_list_by_cluster.bulk_request(bulk_request_params)
+        bcs_cluster_id = params["bcs_cluster_id"]
+        bk_biz_id = params["bk_biz_id"]
 
-        containers = []
-        for c in itertools.chain.from_iterable(api_containers):
+        for c in api.kubernetes.fetch_k8s_container_list_by_cluster(bcs_cluster_id=bcs_cluster_id):
             bcs_cluster_id = c.get("bcs_cluster_id")
-            bk_biz_id = params[bcs_cluster_id]
             bcs_container = BCSContainer()
             bcs_container.bk_biz_id = bk_biz_id
             bcs_container.bcs_cluster_id = bcs_cluster_id
@@ -225,8 +230,7 @@ class BCSContainer(BCSBase, BCSBaseResources):
             bcs_container.unique_hash = bcs_container.get_unique_hash()
 
             bcs_container.api_labels = c.get("labels", {})
-            containers.append(bcs_container)
-        return containers
+            yield bcs_container
 
     def render_name(self, bk_biz_id, render_type="list"):
         if render_type == "list":

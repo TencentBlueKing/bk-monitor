@@ -39,7 +39,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
-import { ITableCheckData, ITableConfig, ITemplateDataOptions, SearchDataFuncType } from '../types/selector-type';
+import type { ITableCheckData, ITableConfig, ITemplateDataOptions, SearchDataFuncType } from '../types/selector-type';
 
 import ServiceTemplate from './service-template.vue';
 
@@ -47,8 +47,8 @@ import ServiceTemplate from './service-template.vue';
 @Component({
   name: 'cluster',
   components: {
-    ServiceTemplate
-  }
+    ServiceTemplate,
+  },
 })
 export default class Cluster extends Vue {
   // 获取组件初始化数据
@@ -60,9 +60,9 @@ export default class Cluster extends Vue {
     default: () => ({
       idKey: 'bk_inst_id',
       childrenKey: 'instances_count',
-      labelKey: 'bk_inst_name'
+      labelKey: 'bk_inst_name',
     }),
-    type: Object
+    type: Object,
   })
   private readonly clusterOptions!: ITemplateDataOptions;
   // 表格字段配置
@@ -83,4 +83,3 @@ export default class Cluster extends Vue {
   }
 }
 </script>
-<style lang="scss" scoped></style>

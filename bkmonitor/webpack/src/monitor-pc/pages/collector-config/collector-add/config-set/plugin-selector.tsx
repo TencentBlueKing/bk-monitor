@@ -30,6 +30,7 @@ import './plugin-selector.scss';
 
 export const LOG_PLUGIN_ID = 'LOG_PLUGIN_ID'; // 只做为前端标识使用
 export const PROCESS_PLUGIN_ID = 'default_process';
+
 /* 插件类型名 */
 const pluginTypeMap = {
   Exporter: 'Exporter',
@@ -40,7 +41,8 @@ const pluginTypeMap = {
   Log: 'Log',
   Process: 'Process',
   SNMP_Trap: 'SNMP Trap',
-  SNMP: 'SNMP'
+  SNMP: 'SNMP',
+  K8S: 'K8S',
 };
 
 const colorMap = {
@@ -53,7 +55,8 @@ const colorMap = {
   SNMP: '#B6CAEC',
   SNMP_Trap: '#B6CAEC',
   Log: '#B6CAEC',
-  Process: '#B6CAEC'
+  Process: '#B6CAEC',
+  K8S: '#B6CAEC',
 };
 /* snmptrap类型插件(固定) */
 const snmpTrapPluginList = [
@@ -61,20 +64,20 @@ const snmpTrapPluginList = [
     plugin_id: 'snmp_v1',
     plugin_display_name: 'SNMP Trap V1',
     plugin_type: 'SNMP_Trap',
-    logo: ''
+    logo: '',
   },
   {
     plugin_id: 'snmp_v2c',
     plugin_display_name: 'SNMP Trap V2c',
     plugin_type: 'SNMP_Trap',
-    logo: ''
+    logo: '',
   },
   {
     plugin_id: 'snmp_v3',
     plugin_display_name: 'SNMP Trap V3',
     plugin_type: 'SNMP_Trap',
-    logo: ''
-  }
+    logo: '',
+  },
 ];
 /* log类型插件(实际无此插件仅供展示) */
 const logPluginList = [
@@ -82,8 +85,8 @@ const logPluginList = [
     plugin_id: LOG_PLUGIN_ID,
     plugin_display_name: window.i18n.tc('日志关键字采集'),
     plugin_type: 'Log',
-    logo: ''
-  }
+    logo: '',
+  },
 ];
 /* 进程类型插件 */
 const processPluginList = [
@@ -91,9 +94,18 @@ const processPluginList = [
     plugin_id: PROCESS_PLUGIN_ID,
     plugin_display_name: window.i18n.tc('进程采集插件'),
     plugin_type: 'Process',
-    logo: ''
-  }
+    logo: '',
+  },
 ];
+// /** 云监控  */
+// const cloudMetricCollectPluginList = [
+//   {
+//     plugin_id: CLOUD_METRIC_PLUGIN_ID,
+//     plugin_display_name: window.i18n.tc('腾讯云指标采集插件'),
+//     plugin_type: 'K8S',
+//     logo: '',
+//   },
+// ];
 
 export interface IPluginItem {
   logo: string;
@@ -113,6 +125,7 @@ interface IProps {
   list?: IPluginItem[];
   id?: string;
   disabled?: boolean;
+  loading?: boolean;
 }
 interface IEvents {
   onChange?: IPluginItem;
@@ -123,6 +136,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) list: IPluginItem[];
   @Prop({ type: String, default: '' }) id: string;
   @Prop({ type: Boolean, default: false }) disabled: boolean;
+  @Prop({ type: Boolean, default: false }) loading: boolean;
 
   pluginId = '';
   realList: IPluginItem[] = [];
@@ -148,7 +162,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
 
   handleAddPlugin() {
     this.$router.push({
-      name: 'plugin-add'
+      name: 'plugin-add',
     });
   }
 
@@ -157,28 +171,29 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
       <div class='collector-plugin-selector-component'>
         <bk-select
           class='select-big'
-          value={this.pluginId}
-          ext-popover-cls='collector-plugin-selector-component-options'
-          searchable
           clearable={false}
           disabled={this.disabled}
+          ext-popover-cls='collector-plugin-selector-component-options'
+          loading={this.loading}
+          value={this.pluginId}
+          searchable
           on-selected={value => this.handleSelector(value)}
         >
           {this.realList.map(item => (
             <bk-option
-              key={item.plugin_id}
               id={item.plugin_id}
+              key={item.plugin_id}
               name={`${item.plugin_display_name || item.plugin_id}${
                 ![LOG_PLUGIN_ID, PROCESS_PLUGIN_ID].includes(item.plugin_id) ? ` (${item.plugin_id})` : ''
               } - ${pluginTypeMap[item.plugin_type]}`}
             >
               <span class='plugin-option'>
                 <div
-                  class='plugin-logo'
                   style={{
                     'background-image': item.logo ? `url(data:image/gif;base64,${item.logo})` : 'none',
-                    'background-color': item.logo ? '' : colorMap[item.plugin_type]
+                    'background-color': item.logo ? '' : colorMap[item.plugin_type],
                   }}
+                  class='plugin-logo'
                 >
                   {item.logo ? '' : item.plugin_display_name.slice(0, 1).toLocaleUpperCase()}
                 </div>
@@ -196,9 +211,9 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
           >
             <div class='bottom-add'>
               <i
-                class='bk-icon icon-plus-circle'
                 style={{ marginRight: '5px' }}
-              ></i>
+                class='bk-icon icon-plus-circle'
+              />
               {window.i18n.tc('新建插件')}
             </div>
           </div>

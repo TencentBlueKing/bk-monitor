@@ -9,10 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.utils.functional import cached_property
-from monitor_web.statistics.v2.base import BaseCollector
 
 from bkmonitor.models import ActionConfig, ActionPlugin
 from core.statistics.metric import Metric, register
+from monitor_web.statistics.v2.base import BaseCollector
 
 
 class ActionConfigCollector(BaseCollector):
@@ -37,6 +37,6 @@ class ActionConfigCollector(BaseCollector):
             metric.labels(
                 bk_biz_id=action_config.bk_biz_id,
                 bk_biz_name=self.get_biz_name(action_config.bk_biz_id),
-                plugin_type_name=action_plugin_mapping[str(action_config.plugin_id)],
+                plugin_type_name=action_plugin_mapping.get(str(action_config.plugin_id), "Deleted"),
                 status=status,
             ).inc()

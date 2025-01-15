@@ -31,7 +31,6 @@ from rest_framework.reverse import reverse
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
-    MAX_ASYNC_COUNT,
     MAX_GET_ATTENTION_SIZE,
     ExportStatus,
     ExportType,
@@ -67,6 +66,7 @@ class AsyncExportHandlers(object):
         search_dict: dict = None,
         export_fields=None,
         index_set_ids: list = None,
+        export_file_type: str = "txt",
     ):
         self.index_set_id = index_set_id
         self.bk_biz_id = bk_biz_id
@@ -81,20 +81,19 @@ class AsyncExportHandlers(object):
             )
         self.request_user = get_request_external_username() or get_request_username()
         self.is_external = bool(get_request_external_username())
+        self.export_file_type = export_file_type
 
-    def async_export(self):
+    def async_export(self, is_quick_export: bool = False):
         # 判断fields是否支持
         fields = self._pre_check_fields()
+        # 获取排序字段
+        sorted_list = self.search_handler._get_user_sorted_list(fields["async_export_fields"])
         # 判断result是否符合要求
-        result = self.search_handler.pre_get_result(sorted_fields=fields["async_export_fields"], size=ASYNC_COUNT_SIZE)
+        result = self.search_handler.pre_get_result(sorted_fields=sorted_list, size=ASYNC_COUNT_SIZE)
         # 判断是否成功
         if result["_shards"]["total"] != result["_shards"]["successful"]:
             logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
             raise PreCheckAsyncExportException()
-
-        # 判断是否超过支持异步的最大次数
-        if result["hits"]["total"] > MAX_ASYNC_COUNT:
-            self.search_handler.size = MAX_ASYNC_COUNT
 
         async_task = AsyncTask.objects.create(
             **{
@@ -115,12 +114,14 @@ class AsyncExportHandlers(object):
 
         async_export.delay(
             search_handler=self.search_handler,
-            sorted_fields=fields["async_export_fields"],
+            sorted_fields=sorted_list,
             async_task_id=async_task.id,
             url_path=url,
             search_url_path=search_url,
             language=get_request_language_code(),
             is_external=self.is_external,
+            is_quick_export=is_quick_export,
+            export_file_type=self.export_file_type,
             external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_handler.size

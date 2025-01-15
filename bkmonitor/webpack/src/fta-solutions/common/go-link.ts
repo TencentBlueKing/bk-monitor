@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+type LogSearchFunction = (indexSetId: number, bizId: number, params: any) => void;
+
 const { bklogsearch_host: bklogsearchHost } = window;
 const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : location.origin;
-
 /**
  * 跳转到日志检索
  * @param indexSetId 索引集id
@@ -33,7 +34,7 @@ const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl : l
  * @param params
  * @returns
  */
-const tologSearch: Function = (indexSetId: number, bizId: number, params) => {
+const tologSearch: LogSearchFunction = (indexSetId, bizId, params) => {
   if (params) {
     window.open(`${bklogsearchHost}#/retrieve/${indexSetId}?bizId=${bizId}`);
     return;
@@ -43,12 +44,13 @@ const tologSearch: Function = (indexSetId: number, bizId: number, params) => {
   );
 };
 
+type PerformanceDetailFunction = (bizId: number, id: string) => void;
 /**
  * 跳转到主机详情
  * @param bizId
  * @param id
  */
-const toPerformanceDetail: Function = (bizId: number, id: string) => {
+const toPerformanceDetail: PerformanceDetailFunction = (bizId, id) => {
   window.open(`${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${id}`);
 };
 
@@ -57,7 +59,7 @@ const toPerformanceDetail: Function = (bizId: number, id: string) => {
  * @param bizId
  * @param id
  */
-const toStrategyConfigDetail: Function = (bizId: number, id: string) => {
+const toStrategyConfigDetail: PerformanceDetailFunction = (bizId, id) => {
   window.open(
     `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/strategy-config/detail/${id}`
   );

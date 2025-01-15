@@ -84,9 +84,9 @@ export default {
   default: 'uptime-check-empty',
   inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
-    isNode: Boolean
+    isNode: Boolean,
   },
-  funtianal: true
+  funtianal: true,
 };
 </script>
 

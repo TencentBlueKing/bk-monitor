@@ -421,11 +421,12 @@ class LogCountAggregationFlowCls(object):
     log_count_signatures: List[str]
     table_name_no_id: str
     result_table_id: str
-    log_count_aggregation: RealTimeCls
+    agg: RealTimeCls
     tspider_storage: TspiderStorageCls
     storage_type: str
+    signature: dict
+    pattern: dict
     bk_biz_id: int
-    cluster: str = ""
 
 
 @dataclass

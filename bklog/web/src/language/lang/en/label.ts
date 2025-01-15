@@ -1,3 +1,29 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
 export default {
   从: 'From',
   至: 'To',
@@ -25,6 +51,8 @@ export default {
   展开: 'Expand',
   收起: 'Collapse',
   业务: 'Business',
+  中文: 'Chinese',
+  English: 'English',
   搜索: 'Search',
   清空: 'Clear',
   详情: 'Details',
@@ -70,6 +98,7 @@ export default {
   全选: 'Select all',
   支持: 'Support',
   存在: 'Exists',
+  不存在: 'Not Exists',
   收藏: 'Favorite',
   刷新: 'Refresh',
   类型: 'Type',
@@ -142,7 +171,7 @@ export default {
   第几列: 'Column',
   '增/删': 'Add/delete',
   显示前: 'Before',
-  显示后: 'After',
+  ', 后': 'After',
   不包含: 'Exclude',
   个成功: 'Successes',
   个失败: 'Failures',
@@ -252,8 +281,8 @@ export default {
   存储集群: 'Storage Cluster',
   问题反馈: 'Feedback',
   产品文档: 'Documentation',
-  版本日志: 'Release note',
-  日志平台: 'Log platform',
+  版本日志: 'Release Notes',
+  日志平台: 'BK Log',
   有权限的: 'Has permission',
   暂无内容: 'No content available',
   接入指引: 'access guide',
@@ -487,7 +516,7 @@ export default {
   环境选择: 'Environment',
   检索记录: 'Query records',
   '耗时(s)': 'Cost (s)',
-  退出登录: 'Sign out',
+  退出登录: 'Sign Out',
   源日志信息: 'Source log',
   索引集名称: 'Indices Name',
   链路中转机: 'Link transit',
@@ -589,7 +618,6 @@ export default {
   收藏名称: 'Collection name',
   历史记录: 'History record',
   字段来源: 'Field Source',
-  索引字段: 'Index Set Fields',
   'label-内置字段': 'Built-in Fields',
   大小写敏感: 'Case sensitive',
   原始日志配置: 'Original log configuration',
@@ -615,5 +643,88 @@ export default {
   任务有效期: 'Task validity period',
   '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。':
     'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.',
-  '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm'
+  '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm',
+  'label-正常': 'SUCCESS',
+  'label-失败': 'FAILED',
+  'label-部署中': 'RUNNING',
+  'label-已停用': 'TERMINATED',
+  'label-未知': 'UNKNOWN',
+  'label-准备中': 'PREPARE',
+  展开长字段: 'Expand long field',
+  过滤参数: 'Filter parameter',
+  日志过滤: 'Log Filtration',
+  'label-高亮': 'Highlight',
+  代码: 'Code',
+  新建策略: 'New Strategy',
+  编辑策略: 'Edit Strategy',
+  查看策略: 'View Strategy',
+  新类告警策略: 'New type of alarm',
+  数量突增告警: 'Alarm for sudden increase',
+  新类告警间隔: 'New alarm interval',
+  新类告警阈值: 'New alarm threshold',
+  '新类告警间隔（天）': 'New alarm interval (days)',
+  告警级别: 'Alarm level',
+  告警组: 'Alarm group',
+  条件: 'Condition',
+  组间关系: 'Relation',
+  全文: 'Full Text',
+  索引配置导入: 'Index configuration import',
+  同步源日志信息: 'Source Log Information',
+  同步字段清洗配置: 'Field Cleaning Configuration',
+  同步存储配置: 'Storage Configuration',
+  同步采集目标: 'Acquisition Target',
+  请选择目标索引集: 'Please select a target index set',
+  告警屏蔽时间: 'Alert Suppression Time',
+  日志聚类接入: 'Log Clustering Access',
+  告警配置: 'Alert Configuration',
+  开启新类告警: 'Enable New Class Alert',
+  开启数量突增告警: 'Enable Surge Alert',
+  添加正则: 'Add Regex',
+  全部包含: 'All Inclusive',
+  全部不包含: 'All Not Included',
+  新建检索: 'New Search',
+  所属分组: 'Group',
+  仅支持输入数值类型: 'Only supports numeric input types',
+  索引字段: 'Index Field',
+  指定日志时间: 'Specify log time',
+  自然语言分词: 'Natural language segmentation',
+  清洗设置: 'Cleaning settings',
+  高级设置: 'Advanced settings',
+  日志上报时间: 'Log reporting time',
+  丢弃: 'Throw away',
+  保留: 'Reserve',
+  指定字段为日志时间: 'Specify the field as log time',
+  保留失败日志: 'Keep failure log',
+  元数据: 'Metadata',
+  路径元数据: 'Path Metadata',
+  自定义元数据: 'Custom MetaData',
+  设备元数据: 'Device Metadata',
+  采集路径分割正则: 'Collection path segmentation rules',
+  路径样例: 'Path Example',
+  无需设置: 'No setup required',
+  默认分词符: 'Default word breaker',
+  可见范围设置: 'Visible range settings',
+  无: 'None',
+  不分词: 'No word separation',
+  JSON解析: 'JSON format',
+  秒: 'Second',
+  '已耗时{0}秒': '{0} seconds have passed',
+  '正在下发...': 'Issuing...',
+  回到旧版: 'Old Version',
+  切换新版: 'New Version',
+  存储配置: 'Storage Configuration',
+  索引配置: 'Index Configuration',
+  日志保存天数: 'Number of days to keep logs',
+  显示内置字段: 'Show built-in fields',
+  执行失败: 'Execution failure',
+  执行成功: 'Execution success',
+  行号: 'Index',
+  '请输入字段名/别名': 'Please enter a field name/alias',
+  前往清洗: 'Go to wash',
+  索引字段配置: 'Index field configuration',
+  字段类型不支持快速修改: 'Field type does not support quick modification',
+  时间维度: 'Time dimension',
+  关联Trace检索: 'Associated Trace Search',
+  检索结果为空: 'Search Results Are Empty',
+  查询设置: 'Query settings',
 };

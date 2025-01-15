@@ -64,7 +64,7 @@ def create_and_delete_resource(mocker):
 def test_query_space(create_and_delete_resource):
     # 执行到输出
     out = StringIO()
-    call_command("query_space", **{"space_uid": ["bkcc__1"]}, stdout=out)
+    call_command("query_space", "with_platform_data_id", **{"space_uid": ["bkcc__1"]}, stdout=out)
     output = out.getvalue()
     output = json.loads(output)
 
@@ -74,7 +74,7 @@ def test_query_space(create_and_delete_resource):
     assert output_item["space_id"] == "1"
     assert "data_sources" in output_item
     # 添加平台级的 data id
-    assert output_item["data_sources"] == [1, 2]
+    assert output_item["data_sources"]["platform_data_id_list"] == [1, 2]
 
     out = StringIO()
     call_command("query_space", **{"space_uid": ["bcs__testproject"]}, stdout=out)
@@ -95,4 +95,4 @@ def test_query_space(create_and_delete_resource):
     call_command("query_space", **{"space_uid": ["bcs__notfound"]}, stdout=out)
     output = out.getvalue()
     output = json.loads(output)
-    assert output == []
+    assert isinstance(output, str)

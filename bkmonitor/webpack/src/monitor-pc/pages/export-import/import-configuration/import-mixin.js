@@ -34,23 +34,23 @@ export default {
         list: [
           {
             name: 'collect',
-            title: this.$t('采集配置')
+            title: this.$t('采集配置'),
           },
           {
             name: 'strategy',
-            title: this.$t('策略配置')
+            title: this.$t('策略配置'),
           },
           {
             name: 'view',
-            title: this.$t('视图配置')
+            title: this.$t('视图配置'),
           },
           {
             name: 'bkmonitor.models.fta.plugin',
             title: this.$t('被关联插件'),
-            markName: this.$t('被关联')
-          }
+            markName: this.$t('被关联'),
+          },
         ],
-        activeName: []
+        activeName: [],
       },
       // 表格相关属性
       table: {
@@ -62,12 +62,12 @@ export default {
         interval: 300,
         selection: [],
         filterStatusName: this.$t('任务状态'),
-        taskId: 0
+        taskId: 0,
       },
       listenResize() {},
       // 当前可视区域是否出现滚动（用于按钮悬浮）
       isScroll: false,
-      loading: false
+      loading: false,
     };
   },
   computed: {},
@@ -103,7 +103,7 @@ export default {
         plugin: data.pluginCount || {},
         strategy: data.strategyCount || {},
         view: data.viewCount || {},
-        allCount: data.allCount || {}
+        allCount: data.allCount || {},
       };
     },
     /**
@@ -112,6 +112,6 @@ export default {
     handleResize() {
       if (!this.$el.parentElement) return;
       this.isScroll = this.$el.scrollHeight > this.$el.parentElement.clientHeight;
-    }
-  }
+    },
+  },
 };

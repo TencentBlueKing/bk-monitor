@@ -37,7 +37,7 @@ export const APP_NAV_COLORS = {
   'item-active-icon-color': '#FFFFFE',
   'item-hover-icon-color': '#FFFFFF',
   'item-child-icon-active-color': '#FFFFFF',
-  'sub-menu-open-bg-color': '#151D2C'
+  'sub-menu-open-bg-color': '#151D2C',
 };
 // bizid localstorage key
 export const LOCAL_BIZ_STORE_KEY = '__biz_id__';
@@ -45,3 +45,6 @@ export const LOCAL_BIZ_STORE_KEY = '__biz_id__';
 export const LANGUAGE_COOKIE_KEY = 'blueking_language';
 
 export const TIMEZONE_STORE_KEY = 'blueking_timezone';
+
+// localstorage key 存储表格每页多少条数据
+export const COMMON_PAGE_SIZE_KEY = 'bk_monitor_common_page_size';

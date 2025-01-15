@@ -6,19 +6,15 @@ from urllib.parse import urljoin
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
-from requests.exceptions import HTTPError, ReadTimeout
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
 from core.drf_resource.contrib.api import APIResource
-from core.errors.api import BKAPIError
 
 logger = logging.getLogger("bcs_storage")
 
 
 class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    cache_type = CacheType.BCS
     module_name = "bcs-storage"
 
     # BCS目前是非蓝鲸标准的返回格式，所以需要兼容
@@ -38,35 +34,39 @@ class BcsStorageBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         if field:
             request_url = f"{request_url}&field={field}"
 
-        return request_url.format(**validated_request_data)
+        url = request_url.format(**validated_request_data)
+        validated_request_data.clear()
+        return url
 
-    def perform_request(self, validated_request_data):
-        request_url = self.get_request_url(validated_request_data)
-        headers = {"Authorization": f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"}
-        try:
-            result = self.session.get(
-                url=request_url,
-                headers=headers,
-                verify=False,
-                timeout=self.TIMEOUT,
-            )
-        except ReadTimeout:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=_("接口返回结果超时"))
+    def get_headers(self):
+        headers = super(BcsStorageBaseResource, self).get_headers()
+        headers["Authorization"] = f"Bearer {settings.BCS_API_GATEWAY_TOKEN}"
+        return headers
 
-        try:
-            result.raise_for_status()
-        except HTTPError as err:
-            logger.exception("【模块：{}】请求APIGW错误：{}，请求url: {} ".format(self.module_name, err, request_url))
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=str(err.response.content))
-
-        result_json = result.json()
+    def render_response_data(self, validated_request_data, response_data):
         data = []
-        for item in result_json.get("data", []):
+        for item in response_data.get("data", []):
             try:
                 data.append(item.get("data", {}))
             except Exception as e:
                 logger.error(e)
         return data
+
+
+class FetchPageResource(BcsStorageBaseResource):
+    base_url = urljoin(
+        f"{settings.BCS_API_GATEWAY_SCHEMA}://{settings.BCS_API_GATEWAY_HOST}:{settings.BCS_API_GATEWAY_PORT}",
+        "/bcsapi/v4/storage/k8s/dynamic/all_resources/clusters",
+    )
+    action = "{cluster_id}/{type}?offset={offset}&limit={limit}"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        cluster_id = serializers.CharField(label="集群ID")
+        type = serializers.CharField(label="资源类型")
+        field = serializers.CharField(label="字段选择器", required=False, allow_null=True)
+        offset = serializers.IntegerField(label="偏移量")
+        limit = serializers.IntegerField(label="每页数量")
 
 
 class FetchResource(BcsStorageBaseResource):
@@ -102,3 +102,28 @@ class FetchResource(BcsStorageBaseResource):
             break
 
         return data
+
+
+def fetch_iterator(cluster_id, resource_type, field=None):
+    """
+    获取bcs资源的迭代器
+    """
+    offset = 0
+    limit = settings.BCS_STORAGE_PAGE_SIZE
+    while True:
+        validated_request_data = {
+            "cluster_id": cluster_id,
+            "type": resource_type,
+            "offset": offset,
+            "limit": limit,
+            "field": field,
+        }
+        data_per_page = FetchPageResource().perform_request(validated_request_data)
+        yield from data_per_page
+
+        data_len = len(data_per_page)
+        # 通过判断返回结果的数据判断是否需要获取下一页的数据
+        if data_len == limit:
+            offset += limit
+            continue
+        break

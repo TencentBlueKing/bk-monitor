@@ -14,13 +14,14 @@ import time
 from collections import defaultdict
 from typing import List
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.range import load_condition_instance
 from constants.action import ActionPluginType, AssignMode, UserGroupType
 from constants.alert import EVENT_SEVERITY_DICT
+from core.drf_resource import api
 
 logger = logging.getLogger("fta_action.run")
 
@@ -340,6 +341,8 @@ class AlertAssignMatchManager:
             "notice_users": self.notice_users,
             "ip": getattr(self.alert.event, "ip", None),
             "bk_cloud_id": str(self.alert.event.bk_cloud_id) if hasattr(self.alert.event, "bk_cloud_id") else None,
+            # 新增bk_host_id 用以匹配动态分组
+            "bk_host_id": str(self.alert.event.bk_host_id) if hasattr(self.alert.event, "bk_host_id") else None,
         }
         # 第二部分： 告警维度
         alert_dimensions = [d.to_dict() for d in self.alert.dimensions]
@@ -358,9 +361,20 @@ class AlertAssignMatchManager:
 
         return dimensions
 
+    def get_host_ids_by_dynamic_groups(self, dynamic_group_ids):
+        host_ids = set()
+        dynamic_group_hosts = api.cmdb.batch_execute_dynamic_group(
+            bk_biz_id=self.bk_biz_id, ids=dynamic_group_ids, bk_obj_id="host"
+        )
+        for dynamic_group_host in dynamic_group_hosts.values():
+            for host in dynamic_group_host:
+                host_ids.add(host.bk_host_id)
+
+        return list(host_ids)
+
     def get_matched_rules(self) -> List[AssignRuleMatch]:
         """
-        适配分派规则
+        适配分派规则, 通过api获取动态分组，适用于SaaS调试预览，后台实现基于缓存重写
         :return:
         """
         matched_rules = []
@@ -372,6 +386,11 @@ class AlertAssignMatchManager:
                 if not rule.get("is_enabled"):
                     # 没有开启的直接返回
                     continue
+                # 动态分组转换
+                for condition in rule["conditions"]:
+                    if condition["field"] == "dynamic_group":
+                        condition["value"] = self.get_host_ids_by_dynamic_groups(condition["value"])
+                        condition["field"] = "bk_host_id"
                 rule_match_obj = AssignRuleMatch(rule, self.rule_snaps.get(str(rule.get("id", ""))), self.alert)
                 if rule_match_obj.is_matched(dimensions=self.dimensions):
                     matched_rules.append(rule_match_obj)

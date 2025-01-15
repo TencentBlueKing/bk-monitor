@@ -32,7 +32,7 @@
           "fields": {
             "bcs_cluster_id": "bcs_cluster_id",
             "node_name": "name",
-            "node_ip": "node_ip",
+            "node_ip": "node_ip"
           }
         }
       ],

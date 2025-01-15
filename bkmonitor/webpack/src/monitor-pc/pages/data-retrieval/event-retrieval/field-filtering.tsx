@@ -25,11 +25,12 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 
-import { FieldFilteringType, FieldListType, FieldValue, IFilterCondition, IOption } from '../typings';
-
 import FieldList from './field-list';
+
+import type { FieldFilteringType, FieldListType, FieldValue, IFilterCondition, IOption } from '../typings';
 
 import './field-filtering.scss';
 
@@ -51,18 +52,18 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
   /** 字段类型筛选选中的值 */
   fieldTypeValue: FieldFilteringType.IFieldTypeValue = {
     aggVal: 'all',
-    fieldType: 'all'
+    fieldType: 'all',
   };
   fieldTypevalueCache: FieldFilteringType.IFieldTypeValue = {
     aggVal: 'all',
-    fieldType: 'all'
+    fieldType: 'all',
   };
 
   /** 字段可聚合配置 */
   fieldAggList: IOption[] = [
     { id: 'all', name: i18n.t('不限') },
     { id: 'yes', name: i18n.t('是') },
-    { id: 'no', name: i18n.t('否') }
+    { id: 'no', name: i18n.t('否') },
   ];
   /** 字段数据类型可选列表 */
   fieldTypeList: IOption[] = [
@@ -70,7 +71,7 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
     { id: 'number', name: i18n.t('数字') },
     { id: 'string', name: i18n.t('字符串') },
     { id: 'text', name: i18n.t('文本') },
-    { id: 'date', name: i18n.t('时间') }
+    { id: 'date', name: i18n.t('时间') },
   ];
 
   /** 字段过滤选中的数量统计 */
@@ -166,7 +167,7 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
             right-icon='bk-icon icon-search'
             value={this.searchKeyword}
             onChange={this.handleSearchChange}
-          ></bk-input>
+          />
           {/* <span class="line"></span> */}
           {/* <bk-popover
             class="field-type-popover"
@@ -208,16 +209,16 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
         <div class='field-list-wrap'>
           {this.isCheckedList.length ? (
             <FieldList
-              value={this.isCheckedList}
               total={this.total}
+              value={this.isCheckedList}
               onAddCondition={this.handleAddCondition}
               onCheckedChange={this.handleValueChnage}
-            ></FieldList>
+            />
           ) : (
             <bk-exception
-              type='empty'
               scene='part'
-            ></bk-exception>
+              type='empty'
+            />
           )}
         </div>
       </div>

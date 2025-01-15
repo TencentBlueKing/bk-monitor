@@ -15,46 +15,77 @@ import itertools
 import logging
 import traceback
 from abc import ABC
-from typing import List, NamedTuple, Tuple
+from collections import defaultdict
+from typing import List, NamedTuple, Tuple, Union
 
-from apm import constants
-from apm.core.discover.precalculation.processor import PrecalculateProcessor
-from apm.core.discover.precalculation.storage import PrecalculateStorage
-from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
-from apm.utils.base import divide_biscuit
-from constants.apm import OtlpKey, SpanKind
+from django.conf import settings
 from opentelemetry.semconv.resource import ResourceAttributes
 
+from apm import constants
+from apm.constants import DiscoverRuleType
+from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
+from apm.utils.base import divide_biscuit
+from apm.utils.es_search import limits
 from bkmonitor.utils.thread_backend import ThreadPool
+from constants.apm import OtlpKey, SpanKind, TelemetryDataType
 
 logger = logging.getLogger("apm")
 
 
-def get_topo_instance_key(keys: List[Tuple[str, str]], kind: str, category: str, item, skip_component_prefix=False):
+def get_topo_instance_key(
+    keys: List[Tuple[str, str]],
+    kind: str,
+    category: str,
+    item,
+    simple_component_instance=True,
+    component_predicate_key=None,
+):
+    """
+    simple_component_instance / component_predicate_key
+    对于组件类型 topo
+    如果simple_component_instance为 True 则只会返回 predicate.value 的值 需要在外部进行额外处理(拼接服务名称)
+    """
     if item is None:
         return OtlpKey.UNKNOWN_SERVICE
+
+    if component_predicate_key and isinstance(component_predicate_key, list):
+        # 忽略 predicate_key 为多个的情况 直接取第一个
+        component_predicate_key = component_predicate_key[0]
+
     instance_keys = []
-    if (
-        kind in [ApmTopoDiscoverRule.TOPO_COMPONENT, ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE]
-        and not skip_component_prefix
-    ):
+    if kind == ApmTopoDiscoverRule.TOPO_COMPONENT:
+        if simple_component_instance and component_predicate_key:
+            return item.get(component_predicate_key[0], item).get(component_predicate_key[1], OtlpKey.UNKNOWN_COMPONENT)
+    elif kind == ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE:
         instance_keys = [category]
+
     for first_key, second_key in keys:
         key = item.get(first_key, item).get(second_key, "")
         instance_keys.append(str(key))
     return ":".join(instance_keys)
 
 
-def exists_field(predicate_key: Tuple[str, str], item) -> bool:
+def exists_field(predicate_key: Union[Tuple[str, str], List[Tuple[str, str]]], item) -> bool:
     if item is None:
         return False
-    predicate_first_key, predicate_second_key = predicate_key
-    if item.get(predicate_first_key, item).get(predicate_second_key):
-        return True
-    return False
+
+    if isinstance(predicate_key, tuple):
+        predicate_key = [predicate_key]
+
+    all_exists = []
+    for i in predicate_key:
+        first, second = i
+
+        all_exists.append(bool(item.get(first, item).get(second)))
+
+    return all(all_exists)
 
 
-def extract_field_value(key: Tuple[str, str], item):
+def extract_field_value(key: Union[List[Tuple[str, str]], Tuple[str, str]], item):
+    if key and isinstance(key, list):
+        # 忽略 predicate_key 为多个的情况 直接取第一个
+        key = key[0]
+
     first_key, second_key = key
     return item.get(first_key, item).get(second_key)
 
@@ -63,24 +94,32 @@ class ApmTopoDiscoverRuleCls(NamedTuple):
     instance_keys: List[Tuple[str, str]]
     topo_kind: str
     category_id: str
-    predicate_key: Tuple[str, str]
-    endpoint_key: Tuple[str, str]
+    predicate_key: Union[Tuple[str, str], List[Tuple[str, str]]]
+    endpoint_key: Union[Tuple[str, str], None]
+    type: str
+    sort: int
 
 
+class DiscoverContainer:
+    _discover_mapping = defaultdict(list)
+
+    @classmethod
+    def register(cls, module, target):
+        cls._discover_mapping[module].append(target)
+
+    @classmethod
+    def list_discovers(cls, module):
+        if module not in cls._discover_mapping:
+            raise ValueError(f"[DiscoverContainer] 未找到 discover 类型为: {module} ")
+        return cls._discover_mapping[module]
+
+
+# DiscoverBase: Trace 数据拓扑发现基类
 class DiscoverBase(ABC):
-    DISCOVER_CLS = []
     MAX_COUNT = None
     model = None
-
-    @classmethod
-    def register(cls, target):
-        cls.DISCOVER_CLS.append(target)
-        return target
-
-    @classmethod
-    def discovers(cls):
-        for target in cls.DISCOVER_CLS:
-            yield target
+    # 定义此发现器根据 span 列表发现时 span 列表是否为过滤后的 span 列表
+    DISCOVERY_ALL_SPANS = False
 
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
@@ -96,25 +135,40 @@ class DiscoverBase(ABC):
             return "", pair[0]
         return pair[0], pair[1]
 
-    def get_rules(self):
-        rule_instances = ApmTopoDiscoverRule.get_application_rule(self.bk_biz_id, self.app_name)
+    @classmethod
+    def join_keys(cls, keys):
+        return ".".join(keys)
+
+    def get_rules(self, _type=DiscoverRuleType.CATEGORY.value):
+        rule_instances = ApmTopoDiscoverRule.get_application_rule(self.bk_biz_id, self.app_name, _type=_type)
 
         rules = []
         other_rules = []
 
         for rule in rule_instances:
+
+            # [!!!] predicate_key 可能为单个也可能为多个
+            # 注意这里类型可能是 string 或者 list
+            # 目前只有 k8s 规则存在多个
+            p_keys = rule.predicate_key.split(",")
+            if len(p_keys) <= 1:
+                p_keys = self._get_key_pair(p_keys[0]) if p_keys else ""
+            else:
+                p_keys = [self._get_key_pair(i) for i in p_keys]
+
             instance = ApmTopoDiscoverRuleCls(
                 topo_kind=rule.topo_kind,
                 category_id=rule.category_id,
-                endpoint_key=self._get_key_pair(rule.endpoint_key),
-                instance_keys=[self._get_key_pair(i) for i in rule.instance_key.split(",")],
-                predicate_key=self._get_key_pair(rule.predicate_key),
+                endpoint_key=self._get_key_pair(rule.endpoint_key) if rule.endpoint_key else None,
+                instance_keys=[self._get_key_pair(i) for i in rule.instance_key.split(",")]
+                if rule.instance_key
+                else [],
+                predicate_key=p_keys,
+                type=rule.type,
+                sort=rule.sort,
             )
-            if instance.category_id == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
-                other_rules.append(instance)
 
             (rules, other_rules)[instance.category_id == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER].append(instance)
-
         return rules, other_rules[0]
 
     def filter_rules(self, rule_kind):
@@ -166,13 +220,11 @@ class DiscoverBase(ABC):
 
 
 class TopoHandler:
-
     TRACE_ID_CHUNK_MAX_DURATION = 10 * 60
     # 最大发现的TraceId数量
     TRACE_ID_MAX_SIZE = 50000
     # 每一轮最多分析多少个TraceId
     PER_ROUND_TRACE_ID_MAX_SIZE = 100
-
     FILTER_KIND = [
         SpanKind.SPAN_KIND_SERVER,
         SpanKind.SPAN_KIND_CLIENT,
@@ -218,17 +270,14 @@ class TopoHandler:
 
         return body
 
-    def list_trace_ids(self):
-
+    def list_trace_ids(self, index_name):
         start = datetime.datetime.now()
         after_key = None
 
         while True:
             query_body = self._get_after_key_body(after_key)
-
-            response = self.datasource.es_client.search(
-                index=self.datasource.index_name, body=query_body, request_timeout=60
-            )
+            logger.info(f"[TopoHandler] {self.bk_biz_id} {self.app_name} list_trace_ids body: {query_body}")
+            response = self.datasource.es_client.search(index=index_name, body=query_body, request_timeout=60)
 
             per_round_trace_ids = []
             # 处理结果
@@ -248,15 +297,15 @@ class TopoHandler:
             if not after_key:
                 break
 
-    def list_span_by_trace_ids(self, trace_ids, max_result_count):
-
-        if max_result_count >= constants.DISCOVER_BATCH_SIZE * len(trace_ids):
+    @limits(calls=100, period=1)
+    def list_span_by_trace_ids(self, trace_ids, max_result_count, index_name):
+        if max_result_count > constants.DISCOVER_BATCH_SIZE * len(trace_ids):
             # 直接获取
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
                 "size": constants.DISCOVER_BATCH_SIZE * len(trace_ids),
             }
-            response = self.datasource.es_client.search(index=self.datasource.index_name, body=query)
+            response = self.datasource.es_client.search(index=index_name, body=query)
             hits = response["hits"]["hits"]
             return [i["_source"] for i in hits]
         else:
@@ -264,9 +313,9 @@ class TopoHandler:
             res = []
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
-                "size": constants.DISCOVER_BATCH_SIZE * len(trace_ids),
+                "size": max_result_count,
             }
-            response = self.datasource.es_client.search(index=self.datasource.index_name, body=query, scroll="5m")
+            response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
             hits = response["hits"]["hits"]
             res += [i["_source"] for i in hits]
 
@@ -303,70 +352,91 @@ class TopoHandler:
 
     def _get_trace_task_splits(self):
         """根据此索引最大的结果返回数量判断每个子任务需要传递多少个traceId"""
-        index_settings = self.datasource.es_client.indices.get_settings(index=self.datasource.index_name)
+        lastly_index_name = self.datasource.index_name.split(",")[0]
+        index_settings = self.datasource.es_client.indices.get_settings(index=lastly_index_name)
+        max_size_count = None
         if not index_settings:
             max_size_count = self._ES_MAX_RESULT_WINDOWS
         else:
-            lastly_index = max(
-                index_settings.keys(),
-                key=lambda i: index_settings[i].get("settings", {}).get("index", {}).get("creation_date", 0),
-            )
-
-            max_size_count = index_settings[lastly_index].get("settings", {}).get("index", {}).get("max_result_window")
-        # ES 1.x-7.x默认值
+            if lastly_index_name in index_settings:
+                max_size_count = (
+                    index_settings[lastly_index_name].get("settings", {}).get("index", {}).get("max_result_window")
+                )
+        # ES 1.x-7.x默认值为 10000
         max_size_count = int(max_size_count) if max_size_count else self._ES_MAX_RESULT_WINDOWS
 
         if max_size_count >= constants.DISCOVER_BATCH_SIZE:
-            return max_size_count, max_size_count // constants.DISCOVER_BATCH_SIZE
+            return max_size_count, max_size_count // constants.DISCOVER_BATCH_SIZE, lastly_index_name
 
         logger.info(f"[TopoHandler] found max_size_count: {max_size_count} < {constants.DISCOVER_BATCH_SIZE}")
 
-        return max_size_count, 1
+        return max_size_count, 1, lastly_index_name
+
+    @classmethod
+    def calculate_round_count(cls, avg_group_span_count):
+        # 最大分析 Span 的数量不能超过 1000，防止每轮 Trace 数量增多导致OOM
+        if cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count > settings.PER_ROUND_SPAN_MAX_SIZE:
+            max_span_count = settings.PER_ROUND_SPAN_MAX_SIZE
+        else:
+            max_span_count = cls.PER_ROUND_TRACE_ID_MAX_SIZE * avg_group_span_count
+
+        per_trace_size = int(max_span_count / avg_group_span_count)
+        if per_trace_size > cls.PER_ROUND_TRACE_ID_MAX_SIZE:
+            per_trace_size = cls.PER_ROUND_TRACE_ID_MAX_SIZE
+
+        return 1 if not per_trace_size else per_trace_size
 
     def discover(self):
         """application spans discover"""
 
         start = datetime.datetime.now()
-        pre_calculate_storage = PrecalculateStorage(self.bk_biz_id, self.app_name)
         trace_id_count = 0
         span_count = 0
-        max_result_count, per_trace_size = self._get_trace_task_splits()
+        filter_span_count = 0
+        max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
 
-        for trace_ids in self.list_trace_ids():
+        for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
+            if not trace_ids:
+                continue
+
             trace_id_count += len(trace_ids)
 
             pool = ThreadPool()
-            get_spans_params = [(i, max_result_count) for i in divide_biscuit(trace_ids, per_trace_size)]
+            get_spans_params = [(i, max_result_count, index_name) for i in divide_biscuit(trace_ids, per_trace_size)]
             results = pool.map_ignore_exception(self.list_span_by_trace_ids, get_spans_params)
-            all_spans = list(itertools.chain(*[i for i in results if i]))
-            span_count += len(all_spans)
+            all_spans_group = [i for i in results if i]
+            all_spans = list(itertools.chain(*all_spans_group))
+            avg_group_span_count = len(all_spans) / len(get_spans_params)
+            if round_index == 0 and avg_group_span_count:
+                per_trace_size = self.calculate_round_count(avg_group_span_count)
 
-            topo_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
-
-            # 拓扑发现任务
-            topo_params = [(c, topo_spans, "topo") for c in DiscoverBase.DISCOVER_CLS]
-
-            # 预计算任务
-            if pre_calculate_storage.is_valid:
-                # 灰度应用不参与定时任务中的预计算功能
-                from apm.core.discover.precalculation.daemon import (
-                    PrecalculateGrayRelease,
+                logger.info(
+                    f"[TopoHandler] {self.bk_biz_id} {self.app_name} "
+                    f"index_name: {index_name} "
+                    f"per_trace_size: {per_trace_size} "
+                    f"avg_group_span_count: {avg_group_span_count} "
+                    f"span_count: {len(all_spans)}"
                 )
 
-                if not PrecalculateGrayRelease.exist(self.application.id):
-                    pre_calculate_params = [
-                        (
-                            PrecalculateProcessor(pre_calculate_storage, self.bk_biz_id, self.app_name),
-                            all_spans,
-                            "pre_calculate",
-                        )
-                    ]
-                    topo_params += pre_calculate_params
+            span_count += len(all_spans)
+
+            # 拓扑发现任务
+            # endpoint\relation\remote_service_relation\root_endpoint 需要 kind != 0/1 数据
+            # host\instance\node 需要全部 span 数据
+            topo_params = []
+            filter_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
+            filter_span_count += len(filter_spans)
+            for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
+                if c.DISCOVERY_ALL_SPANS:
+                    topo_params.append((c, all_spans, "topo"))
+                else:
+                    topo_params.append((c, filter_spans, "topo"))
 
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
         logger.info(
             f"[TopoHandler] discover finished {self.bk_biz_id} {self.app_name} "
-            f"trace count: {trace_id_count} span count: {span_count} "
+            f"trace count: {trace_id_count} all span count: {span_count} filter span count: {filter_span_count}"
             f"elapsed: {(datetime.datetime.now() - start).seconds}s"
         )
+        return True

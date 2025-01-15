@@ -8,10 +8,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
+from apm_web.decorators import user_visit_record
 from apm_web.metric.resources import (
     AlertQueryResource,
     ApdexQueryResource,
+    CalculateByRangeResource,
     CollectServiceResource,
     DynamicUnifyQueryResource,
     EndpointDetailListResource,
@@ -19,8 +20,12 @@ from apm_web.metric.resources import (
     ErrorListByTraceIdsResource,
     ErrorListResource,
     ExceptionDetailListResource,
+    GetFieldOptionValuesResource,
+    HostDetailResource,
     HostInstanceDetailListResource,
     InstanceListResource,
+    MetricDetailStatisticsResource,
+    QueryDimensionsByLimitResource,
     ServiceInstancesResource,
     ServiceListAsyncResource,
     ServiceListResource,
@@ -29,7 +34,6 @@ from apm_web.metric.resources import (
     UnifyQueryResource,
 )
 from apm_web.models import Application
-
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import BusinessActionPermission, InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -50,6 +54,9 @@ class MetricViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
+        if self.action in ["host_instance_detail"]:
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
+
         return [
             InstanceActionForDataPermission(
                 self.INSTANCE_ID,
@@ -60,20 +67,83 @@ class MetricViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("POST", UnifyQueryResource, "unify_query"),
-        ResourceRoute("POST", DynamicUnifyQueryResource, "dynamic_unify_query"),
-        ResourceRoute("POST", ServiceListResource, "service_list"),
-        ResourceRoute("POST", ServiceListAsyncResource, "service_list_async"),
-        ResourceRoute("POST", TopNQueryResource, "top_n_query"),
+        ResourceRoute(
+            "POST",
+            ServiceListResource,
+            endpoint="service_list",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute(
+            "POST",
+            ServiceInstancesResource,
+            endpoint="service_instances",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute(
+            "POST",
+            ErrorListResource,
+            endpoint="error_list",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute(
+            "POST",
+            EndpointListResource,
+            endpoint="endpoint_list",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute(
+            "POST",
+            HostInstanceDetailListResource,
+            endpoint="host_instance_detail_list",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute(
+            "POST",
+            HostDetailResource,
+            endpoint="host_instance_detail",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        # 调用分析功能埋点
+        ResourceRoute(
+            "POST",
+            CalculateByRangeResource,
+            endpoint="calculate_by_range",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        # GroupBy 功能埋点
+        ResourceRoute(
+            "POST",
+            QueryDimensionsByLimitResource,
+            endpoint="query_dimensions_by_limit",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
         ResourceRoute("GET", ApdexQueryResource, "apdex_query"),
         ResourceRoute("GET", AlertQueryResource, "alert_query"),
+        ResourceRoute("POST", UnifyQueryResource, "unify_query"),
+        ResourceRoute("POST", DynamicUnifyQueryResource, "dynamic_unify_query"),
+        ResourceRoute("POST", ServiceListAsyncResource, "service_list_async"),
+        ResourceRoute("POST", TopNQueryResource, "top_n_query"),
         ResourceRoute("POST", InstanceListResource, "instance_list"),
-        ResourceRoute("POST", ServiceInstancesResource, "service_instances"),
-        ResourceRoute("POST", ErrorListResource, "error_list"),
         ResourceRoute("POST", CollectServiceResource, "collect_service"),
-        ResourceRoute("POST", EndpointListResource, "endpoint_list"),
         ResourceRoute("POST", EndpointDetailListResource, "endpoint_detail_list"),
         ResourceRoute("POST", ExceptionDetailListResource, "exception_detail_list"),
-        ResourceRoute("POST", HostInstanceDetailListResource, "host_instance_detail_list"),
         ResourceRoute("POST", ServiceQueryExceptionResource, "service_query_exception"),
+        ResourceRoute("GET", MetricDetailStatisticsResource, "metric_statistics"),
+        ResourceRoute("POST", GetFieldOptionValuesResource, "get_field_option_values"),
     ]

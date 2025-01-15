@@ -47,10 +47,33 @@
   }
 }
 
-.full-dialog.bk-modal-wrapper.bk-dialog-wrapper {
+.full-dialog {
   @include viewWrap();
 
-  .bk-modal-footer {
-    display: none;
+  .bk-modal-content {
+    display: flex;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    height: 100% !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    max-height: 100% !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+    background-color: #f5f7fa;
+  }
+
+  .bk-modal-header {
+    height: 52px;
+    line-height: 52px;
+    text-align: center;
+    background: #fff;
+    box-shadow: 0 1px 0 0 #dcdee5, 0 3px 4px 0 rgba(64, 112, 203, 0.06);
+
+    .bk-dialog-title {
+      font-size: 16px;
+      color: #63656e;
+    }
   }
 }

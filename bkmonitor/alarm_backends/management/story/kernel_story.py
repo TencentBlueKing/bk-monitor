@@ -150,7 +150,7 @@ class CacheCronJobCheck(CheckStep):
     name = "check cron job cache"
 
     def check(self):
-        cache = Cache("cache")
+        cache = Cache("cache-cmdb")
         p_list = []
         # 1. cmdb
         cmdb_cache_types = [
@@ -164,7 +164,6 @@ class CacheCronJobCheck(CheckStep):
             "set",
             "module",
             "topo",
-            "host_to_service_instance_id",
         ]
         for cmdb_cache_type in cmdb_cache_types:
             key = f"{cache_key.KEY_PREFIX}.cache.cmdb.{cmdb_cache_type}"
@@ -176,8 +175,8 @@ class CacheCronJobCheck(CheckStep):
                 continue
 
             last_cache_duration = CMDBCacheManager.CACHE_TIMEOUT - ttl
-            if last_cache_duration > 7200:
-                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}在2小时内未刷新, key: {key}", self.story)
+            if last_cache_duration > 6 * 60 * 60:
+                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}在6小时内未刷新, key: {key}", self.story)
                 p_list.append(p)
                 continue
 
@@ -185,6 +184,7 @@ class CacheCronJobCheck(CheckStep):
 
         # 2. strategy
         # 随机抽取一条策略缓存
+        cache = Cache("cache-strategy")
         _, random_key = cache.scan(0, f"{cache_key.KEY_PREFIX}.cache.strategy_*")
         ttl = cache.ttl(random_key[0]) if random_key else None
         if ttl and ttl < StrategyCacheManager.CACHE_TIMEOUT - 60 * 30:
@@ -326,7 +326,7 @@ class KafkaNoData(ResolvedProblem):
 
 
 class KafkaDataDelay(ResolvedProblem):
-    solution = "请确认gse_data服务状态，或确认被管控机器是否启动了basereport进程"
+    solution = "请确认gse_data服务状态，或确认被管控机器是否启动了bkmonitorbeat进程"
 
 
 class Kafka1000Delay(ResolvedProblem):

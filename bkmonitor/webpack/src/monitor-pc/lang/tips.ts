@@ -113,7 +113,7 @@ export default {
     'Provides metrics such as single point availability, response time, and expected response code',
   '直接进行{0}，定位到 Trace 详情': 'Directly perform {0}, locate Trace details',
   '自定义上报指标和插件采集指标请勾选映射规则，K8S系统指标可以不勾选。':
-    'Please check the mapping rules for custom reporting metrics and plug-in collection metrics, and K8s system metrics can not be checked. ', // 确定位置
+    'Please check the mapping rules for custom reporting metrics and plugin collection metrics, and K8s system metrics can not be checked. ', // 确定位置
   '若不同时删除掉，相关联的策略配置则会成为失效策略':
     'if not deleted at the same time, the associated rule will become an invalid rule',
   '该指标需设置期望返回码/期望响应信息后才可选取':
@@ -140,8 +140,8 @@ export default {
   '数据格式需遵循{0},如下': 'The data format needs to follow {0}, as follows',
   本次下发覆盖: 'This Issuance Overwrites',
   监控项为策略配置: 'Monitoring items are alert rules',
-  空间数量指个人有权限的空间数量:
-    'The number of spaces refers to the number of spaces that an individual has access to',
+  '空间数量指个人有权限的空间数量，包含业务、研发项目、容器项目、蓝鲸应用四种类型':
+    'The number of spaces refers to the number of spaces that an individual has permission to use, including business, R&D projects, container projects, and Blue Whale applications',
   联系系统管理员升级至最新版本: 'Contact the system administrator to upgrade to the latest version',
   调整关键词: 'Adjusting keywords',
   配置管理业务: 'Configuration management business',
@@ -191,9 +191,19 @@ export default {
   主机当前状态: 'Host current status',
   可对当前采集内容进行检索: 'The current collection can be retrieved',
   去检索: 'To retrieve',
-  '当前维度未选择目标IP与云区域ID，会导致监控目标选择无法生效':
-    'The current dimension does not select the IP target and Cloud Region ID, which will cause the monitoring target selection to fail',
+  '监控数据维度未配置("目标IP"和"云区域ID")，监控目标无法命中目标':
+    'The monitoring data dimensions are not configured ("target IP" and "cloud region ID"), and the monitoring target cannot hit the target',
+  '监控数据维度未配置("服务实例")， 监控目标无法命中目标':
+    'The monitoring data dimension is not configured ("service instance"), and the monitoring target cannot hit the target',
   存在关联的告警组: 'There is an associated alarm group',
+  已选: 'selected',
+  设置展示类型: 'Set display type',
+  取消反馈根因: 'Cancel feedback root cause',
+  反馈根因: 'Feedback root cause',
+  '共 {slot0} 条边': 'There are {slot0} edges',
+  '共 {slot0} 个 {type}节点': 'There are {slot0} {type} nodes in total',
+  '共 {slot0} 个 {type}节点，其中 {slot1} 个异常':
+    'There are {slot0} {type} nodes in total, of which {slot1} are abnormal.',
   '10分钟内无数据': 'No data within 10 minutes',
   '直接进行 精准查询，定位到 Trace 详情': 'Directly perform precise queries and locate Trace details',
   '可以切换到 范围查询，根据条件筛选 Trace': 'You can switch to range query, filter Trace according to conditions',
@@ -201,7 +211,6 @@ export default {
   '文件解析可能耗费较长时间，可先选择已解析文件查看':
     'File parsing may take a long time, you can select the parsed file first to view',
   请上传文件后查看: 'Please upload the file and view it after that',
-  已选: 'selected',
   'tips-采集状态': 'Collection Status',
   '已成功发送 {0} 个内部用户': '{0} internal users successfully sent',
   '已成功发送 {0} 个外部邮件': '{0} external messages sent successfully',
@@ -232,5 +241,87 @@ export default {
   '输入自定义小时，按 Enter 确认': 'Enter custom hours and press Enter to confirm',
   '有效期内，订阅任务将正常发送；超出有效期，则任务失效，停止发送。':
     'Within the validity period, the subscription task will be sent normally; beyond the validity period, the task will become invalid and the sending will stop.',
-  当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals.'
+  当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals.',
+  '开启中，请耐心等待...': 'Opening, please wait patiently...',
+  '该服务所在 APM 应用未开启 Profiling 功能':
+    'The APM application where this service is located does not have the profiling function enabled.',
+  '已开启 Profiling 功能，请参考接入指引进行数据上报':
+    'The Profiling has been turned on, please refer to the access guide for data reporting.',
+  显示完整信息: 'Show full information',
+  '注意，该功能会调实际套餐去执行，请确认测试变量后再进行测试执行。':
+    'Note that this feature will execute the actual package, please confirm the test variable before testing execution.',
+  请确认是否导出: 'Please confirm whether to export',
+  '导出Yaml功能用于 As Code，如需进行策略导入导出，请前往{0}进行操作':
+    'The export YAML function is used for As Code. If you need to import and export policies, please go to {0} to perform operations.',
+  // 故障
+  节点图例: 'Node Legend',
+  标签图例: 'Tag Legend',
+  反馈的根因: 'Feedback Root',
+  边图例: 'Edge Legend',
+  从属关系: 'Subordinate',
+  调用关系: 'Call',
+  故障传播: 'Incident Spread',
+  显示图例: 'Show Legend',
+  显示小地图: 'Show Mini Map',
+  重置比例: 'Reset Scale',
+  自动聚合: 'Auto',
+  按从属关系聚合: 'Aggregate by Dependency',
+  按调用关系聚合: 'Aggregate by call relationship',
+  '如果同时开启了 按从属关系聚合，将先进行从属边的聚合，再进行调用边的聚合':
+    'If Aggregate by Dependency is enabled at the same time, subordinate edges will be aggregated first, followed by calling edges.',
+  不聚合: 'No',
+  聚合异常: 'Error ',
+  查看资源: 'View Resource',
+  查看从属: 'View Dependencies',
+  查看Span: 'View Span',
+  反馈新根因: 'New Feedback',
+  所属业务: 'Business',
+  '已恢复 / 已解决 / 已失效告警': 'Recovered / Resolved / Expired Alerts',
+  包含告警: 'Alarm',
+  '等共 {slot0} 个同类告警': 'And {slot0} Same Alerts',
+  异常信息: 'Exception Message',
+
+  // 故障
+  搜索数据为空: 'No search results',
+  已展开全部: 'All items expanded',
+  名称重复: 'Name duplication',
+  '请输入请求 URL': 'Enter request URL',
+  对象筛选: 'Space filter',
+  '标题 A-Z': 'Name A-Z',
+  暂无其他告警负责人: 'No other alarm responsible person',
+  '当前数据还未加载完成，如数据长时间未加载出来可{0}':
+    'The current data has not been loaded yet. If the data has not been loaded for a long time, {0}',
+  '默认取URL中的URI进行统计，实际生产中有很多将ID应用到URI中，所以需要通过手动设置将同一类URI进行归类统计。 如： /user/{ID}/index.html':
+    'By default, the URI in the URL is taken for statistics. In actual production, many IDs are applied to the URI, so it is necessary to manually set and classify the same type of URI for statistics. For example:/user/{ID}/index.com',
+  选择任一图并点选所需对比时间和参照时间:
+    'Select any graph and click on the desired comparison time and reference time',
+  '在“故障处理”展开折叠告警拓扑，会对应展开收起时序图块；在“故障流转”点击事件，会高亮对应的时间节点。':
+    'Expanding the folded alarm topology in "Incident Handling" will expand and collapse the timing diagram accordingly; clicking an event in "Incident Flow" will highlight the corresponding time node.',
+  '故障内的告警：共': 'Alarm in Incident: ',
+  个: ' in total',
+  请选择非接口节点: 'Please select a non-interface node',
+  请选择节点: 'Please select a node',
+  接口概览: 'Interface Overview',
+  烦躁: 'be agitated',
+  可容忍: 'tolerableness',
+  满意: 'satisfaction',
+  日志数: 'Log count',
+  可通过关联另一个应用来实现不同应用间调用问题的定位:
+    'You can locate the call problem between different applications by associating another application.',
+  暂无匹配: 'No match found',
+  右键更多操作: 'Right-click for more actions',
+  在节点右键进行更多操作: 'Right-click on the node for more actions',
+  指标数据未开启: 'Metric data is not enabled',
+  日志数据未开启: 'Log data is not enabled',
+  调用链数据未开启: 'Trace data is not enabled',
+  性能分析数据未开启: 'Profiling data is not enabled',
+  '尚未接入服务{0}': 'Service {0} has not been accessed',
+  '数据统计中，请耐心等待': 'Data statistics in progress, please wait patiently',
+  'Grafana已经升级到10版本，来看看有哪些功能差异':
+    'Grafana has been upgraded to version 10.1. What are the differences in functions?',
+  '稍等几分钟后，前往 {0} 查看相关数据': 'Wait a few minutes and go to {0} to view related data',
+  移除下钻: 'Remove drill down',
+  添加为筛选项: 'Add as filter',
+  移除该筛选项: 'Remove this filter',
+  点击加载更多: 'Click to load more',
 };

@@ -23,22 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
-import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
+
+import { Component, Mixins, Prop } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import { destroyActionConfig, listActionConfig, partialUpdateActionConfig } from 'monitor-api/modules/model';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { isZh } from 'monitor-pc/common/constant';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
 import debounce from '../../../common/debounce-decorator';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import setMealAddModule from '../../../store/modules/set-meal-add';
 import OperateOptions from '../components/operate-options';
-import SetMealDetail, { ISetMealDetail } from '../set-meal-detail/set-meal-detail';
-
+import SetMealDetail, { type ISetMealDetail } from '../set-meal-detail/set-meal-detail';
 import * as ruleAuth from './authority-map';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import './set-meal.scss';
 
@@ -59,11 +62,9 @@ interface IRowData {
 }
 Component.registerHooks(['beforeRouteLeave']);
 @Component({
-  name: 'set-meal'
+  name: 'set-meal',
 })
 class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Prop() public name!: string;
   @Prop({ default: '', type: String }) public id: string;
 
@@ -71,12 +72,12 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   private detailData: ISetMealDetail = {
     id: 0,
     isShow: false,
-    width: 610
+    width: 610,
   };
   private pagination = {
     current: 1,
     count: 1,
-    limit: 10
+    limit: 10,
     // 'limit-list': [1, 2, 5, 10]
   };
   private loading = false;
@@ -96,6 +97,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   }
 
   activated() {
+    this.pagination.limit = commonPageSizeGet();
     this.getListActionConfig();
     if (this.id) {
       // 打开详情
@@ -133,6 +135,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   handlePageLimitChange(limit: number) {
     this.pagination.current = 1;
     this.pagination.limit = limit;
+    commonPageSizeSet(limit);
   }
   @debounce(300)
   handleSearch(v: string) {
@@ -144,7 +147,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   headerMessage() {
     return (
       <div class='header-message'>
-        <i class='icon-monitor icon-tips'></i>
+        <i class='icon-monitor icon-tips' />
         <i18n path='处理套餐说明： 通过告警策略可以触发处理套餐，处理套餐可以与周边系统打通完成复杂的功能，甚至是达到自愈的目的。'>
           {/* <span class="message-link">{this.$t('查看文档')}</span> */}
         </i18n>
@@ -161,22 +164,22 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
       <div class='header-title'>
         <bk-button
           class='add-btn'
+          v-authority={{ active: !this.authority.MANAGE_ACTION_CONFIG }}
           theme='primary'
           onClick={() =>
             this.authority.MANAGE_ACTION_CONFIG
               ? this.handleGoAddMeal()
               : this.handleShowAuthorityDetail(ruleAuth.MANAGE_ACTION_CONFIG)
           }
-          v-authority={{ active: !this.authority.MANAGE_ACTION_CONFIG }}
         >
-          <span class='icon-monitor icon-plus-line mr-6'></span>
+          <span class='icon-monitor icon-plus-line mr-6' />
           {this.$t('添加套餐')}
         </bk-button>
         <bk-input
           class='search-input'
+          behavior='simplicity'
           placeholder={this.$t('搜索套餐名称 / 类型 / 修改人')}
           right-icon='bk-icon icon-search'
-          behavior='simplicity'
           value={this.keyword}
           on-change={this.handleSearch}
         />
@@ -191,27 +194,27 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
       subHeader: h(DeleteSubtitle, {
         props: {
           title: this.$tc('套餐名称'),
-          name: row.name
-        }
+          name: row.name,
+        },
       }),
       confirmLoading: true,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       confirmFn: async () => {
         const ret = await destroyActionConfig(row.id)
           .then(() => true)
           .catch(() => false);
         if (ret) this.getListActionConfig();
-      }
+      },
     });
   }
   handleSwichChange({ id, is_enabled: isEnabled }) {
     return new Promise((resolve, reject) => {
       this.$bkInfo({
         title: this.$t('确定{status}此套餐吗？', { status: !isEnabled ? this.$t('启用') : this.$t('停用') }),
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         confirmFn: async () => {
           const result = await partialUpdateActionConfig(id, {
-            is_enabled: !isEnabled
+            is_enabled: !isEnabled,
           })
             .then(() => true)
             .catch(() => false);
@@ -220,7 +223,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
           }
           result ? resolve(true) : reject();
         },
-        cancelFn: reject
+        cancelFn: reject,
       });
     });
   }
@@ -247,8 +250,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     this.$router.push({
       name: 'strategy-config',
       params: {
-        actionName: row.name
-      }
+        actionName: row.name,
+      },
     });
   }
 
@@ -259,7 +262,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   } {
     return {
       authority: bkBizId === 0 ? this.authority.MANAGE_PUBLIC_ACTION_CONFIG : this.authority.MANAGE_ACTION_CONFIG,
-      authorityType: bkBizId === 0 ? ruleAuth.MANAGE_PUBLIC_ACTION_CONFIG : ruleAuth.MANAGE_ACTION_CONFIG
+      authorityType: bkBizId === 0 ? ruleAuth.MANAGE_PUBLIC_ACTION_CONFIG : ruleAuth.MANAGE_ACTION_CONFIG,
     };
   }
   handleToEventCenter(id) {
@@ -270,8 +273,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
         activeFilterId: 'action',
         from: 'now-7d',
         to: 'now',
-        queryString: isZh() ? `套餐ID: ${id}` : `action_config_id: ${id}`
-      }
+        queryString: isZh() ? `套餐ID: ${id}` : `action_config_id: ${id}`,
+      },
     });
   }
 
@@ -298,17 +301,17 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
     const enableScopedSlots = {
       default: ({ row }) => (
         <bk-switcher
+          v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
+          preCheck={() =>
+            this.isAuth(Number.parseInt(row.bk_biz_id)).authority
+              ? this.handleSwichChange(row)
+              : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
+          }
           size='small'
           theme='primary'
           value={row.is_enabled}
-          v-authority={{ active: !this.isAuth(parseInt(row.bk_biz_id)).authority }}
-          preCheck={() =>
-            this.isAuth(parseInt(row.bk_biz_id)).authority
-              ? this.handleSwichChange(row)
-              : this.handleShowAuthorityDetail(this.isAuth(parseInt(row.bk_biz_id)).authorityType)
-          }
         />
-      )
+      ),
     };
     const oprateScopedSlots = {
       default: ({ row }) => (
@@ -316,28 +319,28 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
           {/* <bk-button text theme="primary">{this.$t('关联策略')} </bk-button> */}
           <bk-button
             class='mr-10'
-            text
-            theme='primary'
+            v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
             disabled={!row.edit_allowed}
-            v-authority={{ active: !this.isAuth(parseInt(row.bk_biz_id)).authority }}
+            theme='primary'
+            text
             onClick={() =>
-              this.isAuth(parseInt(row.bk_biz_id)).authority
+              this.isAuth(Number.parseInt(row.bk_biz_id)).authority
                 ? this.$router.push({ path: `/set-meal-edit/${row.id}` })
-                : this.handleShowAuthorityDetail(this.isAuth(parseInt(row.bk_biz_id)).authorityType)
+                : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
             }
           >
             {this.$t('button-编辑')}
           </bk-button>
           <bk-button
             class='mr-10'
-            text
-            theme='primary'
-            v-authority={{ active: !this.isAuth(parseInt(row.bk_biz_id)).authority }}
+            v-authority={{ active: !this.isAuth(Number.parseInt(row.bk_biz_id)).authority }}
             disabled={!row.delete_allowed}
+            theme='primary'
+            text
             onClick={() =>
-              this.isAuth(parseInt(row.bk_biz_id)).authority
+              this.isAuth(Number.parseInt(row.bk_biz_id)).authority
                 ? this.handleDeleteRow(row)
-                : this.handleShowAuthorityDetail(this.isAuth(parseInt(row.bk_biz_id)).authorityType)
+                : this.handleShowAuthorityDetail(this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType)
             }
           >
             {this.$t('删除')}
@@ -350,148 +353,152 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
                   {
                     id: 'clone',
                     name: window.i18n.t('克隆'),
-                    authority: this.isAuth(parseInt(row.bk_biz_id)).authority,
-                    authorityDetail: this.isAuth(parseInt(row.bk_biz_id)).authorityType
-                  }
-                ]
+                    authority: this.isAuth(Number.parseInt(row.bk_biz_id)).authority,
+                    authorityDetail: this.isAuth(Number.parseInt(row.bk_biz_id)).authorityType,
+                  },
+                ],
               } as any
             }
             onOptionClick={type => this.handleOperate(type, row.id)}
-          ></OperateOptions>
+          />
         </div>
-      )
+      ),
     };
     return (
       <div
         class='fta-set-meal'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         {this.headerTitle()}
         <div class='set-table'>
           {this.headerMessage()}
-          <bk-table
-            data={this.tableData}
-            outer-border={false}
-            header-border={false}
-            pagination={this.pagination}
-            on-page-change={this.handlePageChange}
-            on-page-limit-change={this.handlePageLimitChange}
-          >
-            <div slot='empty'>
-              <EmptyStatus
-                type={this.emptyType}
-                onOperation={this.handleEmptyOperation}
+          {this.loading ? (
+            <TableSkeleton type={1} />
+          ) : (
+            <bk-table
+              data={this.tableData}
+              header-border={false}
+              outer-border={false}
+              pagination={this.pagination}
+              on-page-change={this.handlePageChange}
+              on-page-limit-change={this.handlePageLimitChange}
+            >
+              <div slot='empty'>
+                <EmptyStatus
+                  type={this.emptyType}
+                  onOperation={this.handleEmptyOperation}
+                />
+              </div>
+              <bk-table-column
+                width={80}
+                formatter={this.idFormatter}
+                label={'ID'}
               />
-            </div>
-            <bk-table-column
-              label={'ID'}
-              formatter={this.idFormatter}
-              width={80}
-            />
-            <bk-table-column
-              label={this.$t('套餐名称')}
-              width='140'
-              show-overflow-tooltip
-              scopedSlots={{
-                default: ({ row: { name, id, plugin_type, bk_biz_id } }) => (
-                  <div class='meal-name-div'>
-                    <div
-                      class='meal-name'
-                      onClick={() => this.handleShowDetail(id, plugin_type)}
-                    >
-                      {name}
-                    </div>
-                    {!bk_biz_id && (
-                      <span
-                        class='default-msg'
-                        v-bk-tooltips={{ content: this.$t('默认策略不允许删除') }}
+              <bk-table-column
+                width='140'
+                scopedSlots={{
+                  default: ({ row: { name, id, plugin_type, bk_biz_id } }) => (
+                    <div class='meal-name-div'>
+                      <div
+                        class='meal-name'
+                        onClick={() => this.handleShowDetail(id, plugin_type)}
                       >
-                        {this.$t('默认')}
-                      </span>
-                    )}
-                  </div>
-                )
-              }}
-            />
-            <bk-table-column
-              label={this.$t('套餐类型')}
-              prop='plugin_name'
-              width='110'
-              show-overflow-tooltip
-            />
-            <bk-table-column
-              label={this.$t('关联策略')}
-              align='center'
-              width='110'
-              scopedSlots={{
-                default: ({ row }) => (
-                  <bk-button
-                    text
-                    class={{ 'is-empty': !row.strategy_count }}
-                    onClick={() => this.handleToStrategyList(row)}
-                  >
-                    {row.strategy_count || '--'}
-                  </bk-button>
-                )
-              }}
-            />
-            <bk-table-column
-              label={this.$t('触发次数(近 7 天)')}
-              width='170'
-              align='center'
-              scopedSlots={{
-                default: ({ row }) => (
-                  <bk-button
-                    onClick={() => row.execute_count && this.handleToEventCenter(row.id)}
-                    text
-                    class={{ 'is-empty': !row.execute_count }}
-                  >
-                    {row.execute_count || '--'}
-                  </bk-button>
-                )
-              }}
-            />
-            <bk-table-column
-              label={this.$t('最近更新人')}
-              align='left'
-              prop='update_user'
-            />
-            <bk-table-column
-              label={this.$t('最近更新时间')}
-              align='left'
-              width='180'
-              prop='update_time'
-            />
-            <bk-table-column
-              label={this.$t('配置来源')}
-              align='left'
-              width='150'
-              scopedSlots={{ default: ({ row }) => row.config_source || '--' }}
-            />
-            <bk-table-column
-              label={this.$t('配置分组')}
-              align='left'
-              width='160'
-              scopedSlots={{ default: ({ row }) => row.app || '--' }}
-            />
-            <bk-table-column
-              label={this.$t('启/停')}
-              align='center'
-              scopedSlots={enableScopedSlots}
-            />
-            <bk-table-column
-              label={this.$t('操作')}
-              width='150'
-              scopedSlots={oprateScopedSlots}
-            />
-          </bk-table>
+                        {name}
+                      </div>
+                      {!bk_biz_id && (
+                        <span
+                          class='default-msg'
+                          v-bk-tooltips={{ content: this.$t('默认策略不允许删除') }}
+                        >
+                          {this.$t('默认')}
+                        </span>
+                      )}
+                    </div>
+                  ),
+                }}
+                label={this.$t('套餐名称')}
+                show-overflow-tooltip
+              />
+              <bk-table-column
+                width='110'
+                label={this.$t('套餐类型')}
+                prop='plugin_name'
+                show-overflow-tooltip
+              />
+              <bk-table-column
+                width='110'
+                scopedSlots={{
+                  default: ({ row }) => (
+                    <bk-button
+                      class={{ 'is-empty': !row.strategy_count }}
+                      text
+                      onClick={() => this.handleToStrategyList(row)}
+                    >
+                      {row.strategy_count || '--'}
+                    </bk-button>
+                  ),
+                }}
+                align='center'
+                label={this.$t('关联策略')}
+              />
+              <bk-table-column
+                width='170'
+                scopedSlots={{
+                  default: ({ row }) => (
+                    <bk-button
+                      class={{ 'is-empty': !row.execute_count }}
+                      text
+                      onClick={() => row.execute_count && this.handleToEventCenter(row.id)}
+                    >
+                      {row.execute_count || '--'}
+                    </bk-button>
+                  ),
+                }}
+                align='center'
+                label={this.$t('触发次数(近 7 天)')}
+              />
+              <bk-table-column
+                align='left'
+                label={this.$t('最近更新人')}
+                prop='update_user'
+              />
+              <bk-table-column
+                width='180'
+                align='left'
+                label={this.$t('最近更新时间')}
+                prop='update_time'
+              />
+              <bk-table-column
+                width='150'
+                align='left'
+                label={this.$t('配置来源')}
+                scopedSlots={{ default: ({ row }) => row.config_source || '--' }}
+              />
+              <bk-table-column
+                width='160'
+                align='left'
+                label={this.$t('配置分组')}
+                scopedSlots={{ default: ({ row }) => row.app || '--' }}
+              />
+              <bk-table-column
+                align='center'
+                label={this.$t('启/停')}
+                scopedSlots={enableScopedSlots}
+              />
+              <bk-table-column
+                width='150'
+                label={this.$t('操作')}
+                scopedSlots={oprateScopedSlots}
+              />
+            </bk-table>
+          )}
         </div>
         <SetMealDetail
-          isShow={this.detailData.isShow}
           id={this.detailData.id}
           width={this.detailData.width}
+          isShow={this.detailData.isShow}
           onShowChange={v => (this.detailData.isShow = v)}
-        ></SetMealDetail>
+        />
       </div>
     );
   }

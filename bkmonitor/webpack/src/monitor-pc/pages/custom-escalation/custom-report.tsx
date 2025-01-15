@@ -25,26 +25,29 @@
  */
 import { Component, Mixins, Provide } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import {
   customTimeSeriesList,
   deleteCustomEventGroup,
   deleteCustomTimeSeries,
-  queryCustomEventGroup
+  queryCustomEventGroup,
 } from 'monitor-api/modules/custom_report';
 import { checkAllowedByActionIds, getAuthorityDetail } from 'monitor-api/modules/iam';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils/utils';
 // import LeftPanel from './left-panel.vue';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import PageTips from '../../components/pageTips/pageTips.vue';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import CommonTable, { ICommonTableProps } from '../monitor-k8s/components/common-table';
-import { ITableColumn } from '../monitor-k8s/typings';
+import CommonTable, { type ICommonTableProps } from '../monitor-k8s/components/common-table';
 import OperateOptions from '../uptime-check/components/operate-options';
-
 import * as customAuth from './authority-map';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { ITableColumn } from '../monitor-k8s/typings';
 
 import './custom-report.scss';
 
@@ -57,42 +60,42 @@ const TIME_SERIES_GROUP_ID = 'time_series_group_id';
 
 const dataIdName = {
   [BK_EVENT_GROUP_ID]: 'bkEventGroupId',
-  [TIME_SERIES_GROUP_ID]: 'timeSeriesGroupId'
+  [TIME_SERIES_GROUP_ID]: 'timeSeriesGroupId',
 };
 
 const dataIdMap = {
   [CUSTOM_EVENT]: BK_EVENT_GROUP_ID,
-  [CUSTOM_METRIC]: TIME_SERIES_GROUP_ID
+  [CUSTOM_METRIC]: TIME_SERIES_GROUP_ID,
 };
 
 const detailRouteName = {
   [CUSTOM_EVENT]: 'custom-detail-event',
-  [CUSTOM_METRIC]: 'custom-detail-timeseries'
+  [CUSTOM_METRIC]: 'custom-detail-timeseries',
 };
 
 const detailType = {
   [CUSTOM_EVENT]: 'customEvent',
-  [CUSTOM_METRIC]: 'customTimeSeries'
+  [CUSTOM_METRIC]: 'customTimeSeries',
 };
 
 const addPageName = {
   [CUSTOM_EVENT]: 'custom-set-event',
-  [CUSTOM_METRIC]: 'custom-set-timeseries'
+  [CUSTOM_METRIC]: 'custom-set-timeseries',
 };
 
 enum EFilterType {
   current = 'current',
-  platform = 'platform'
+  platform = 'platform',
 }
 const filterTypes = [
   {
     id: EFilterType.current,
-    name: window.i18n.tc('当前空间')
+    name: window.i18n.tc('当前空间'),
   },
   {
     id: EFilterType.platform,
-    name: window.i18n.tc('平台数据')
-  }
+    name: window.i18n.tc('平台数据'),
+  },
 ];
 
 // const panelList: { name: string, id: string, href: boolean }[] = [
@@ -132,7 +135,7 @@ interface IEventItem {
 const commonTableProps: ICommonTableProps = {
   checkable: false,
   defaultSize: 'medium',
-  hasColnumSetting: false,
+  hasColumnSetting: false,
   paginationType: 'normal',
   columns: [
     { id: 'bkDataId', name: window.i18n.tc('数据ID'), type: 'string', props: { minWidth: 100 } },
@@ -141,8 +144,8 @@ const commonTableProps: ICommonTableProps = {
     { id: 'relatedStrategyLink', name: window.i18n.tc('关联策略'), type: 'scoped_slots', props: { minWidth: 100 } },
     { id: 'create', name: window.i18n.tc('创建记录'), type: 'scoped_slots' },
     { id: 'update', name: window.i18n.tc('更新记录'), type: 'scoped_slots' },
-    { id: 'opreate', name: window.i18n.tc('操作'), type: 'scoped_slots' }
-  ]
+    { id: 'opreate', name: window.i18n.tc('操作'), type: 'scoped_slots' },
+  ],
 };
 
 const dataTransform = (data: IEventItem[]) =>
@@ -154,13 +157,13 @@ const dataTransform = (data: IEventItem[]) =>
     relatedStrategyLink: { slotId: 'related' },
     create: { slotId: 'create' },
     update: { slotId: 'update' },
-    opreate: { slotId: 'opreate' }
+    opreate: { slotId: 'opreate' },
   }));
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component({
-  name: 'CustomReport'
+  name: 'CustomReport',
 })
 class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
@@ -171,16 +174,16 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       count: 0,
       current: 1,
       limit: 10,
-      showTotalCount: true
+      showTotalCount: true,
     },
     loading: false,
-    data: []
+    data: [],
   };
   search = '';
   loading = false;
   authChecked = false;
   applyUrl = '';
-  handleSearch: Function | null = null;
+  handleSearch: (() => void) | null = null;
 
   emptyType: EmptyStatusType = 'empty';
 
@@ -194,7 +197,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   get hasViewAuth() {
     const auth = {
       [CUSTOM_EVENT]: this.authority.VIEW_CUSTOM_EVENT,
-      [CUSTOM_METRIC]: this.authority.VIEW_CUSTOM_METRIC
+      [CUSTOM_METRIC]: this.authority.VIEW_CUSTOM_METRIC,
     };
     return auth[this.getRouterName];
   }
@@ -202,7 +205,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   get hasManageAuth() {
     const auth = {
       [CUSTOM_EVENT]: this.authority.MANAGE_CUSTOM_EVENT,
-      [CUSTOM_METRIC]: this.authority.MANAGE_CUSTOM_METRIC
+      [CUSTOM_METRIC]: this.authority.MANAGE_CUSTOM_METRIC,
     };
     return auth[this.getRouterName];
   }
@@ -210,7 +213,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   get manageAuthDetail() {
     const auth = {
       [CUSTOM_EVENT]: customAuth.MANAGE_CUSTOM_EVENT,
-      [CUSTOM_METRIC]: customAuth.MANAGE_CUSTOM_METRIC
+      [CUSTOM_METRIC]: customAuth.MANAGE_CUSTOM_METRIC,
     };
     return auth[this.getRouterName];
   }
@@ -242,37 +245,37 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * 处理自定义指标表格特有的数据
    */
   handleCustomMetricTable() {
-    this.tableData.hasColnumSetting = true;
+    this.tableData.hasColumnSetting = true;
     this.tableData.columns.splice(
       2,
       0,
       ...([
         { id: 'data_label', name: window.i18n.tc('英文名'), type: 'string', props: { minWidth: 100 } },
         { id: 'desc', name: window.i18n.tc('说明'), type: 'string', props: { minWidth: 100 } },
-        { id: 'protocol', name: window.i18n.tc('上报协议'), type: 'string', props: { minWidth: 100 } }
+        { id: 'protocol', name: window.i18n.tc('上报协议'), type: 'string', props: { minWidth: 100 } },
       ] as ITableColumn[])
     );
     /** 隐藏的字段 */
     const excludeCheckedId = ['protocol', 'create'];
     this.tableData.columns = this.tableData.columns.map(item => ({
       ...item,
-      checked: !excludeCheckedId.includes(item.id)
+      checked: !excludeCheckedId.includes(item.id),
     }));
   }
   /* 重置数据 */
   dataReset() {
     this.tableData = {
       ...{
-        ...deepClone(commonTableProps)
+        ...deepClone(commonTableProps),
       },
       pagination: {
         count: 0,
         current: 1,
-        limit: 10,
-        showTotalCount: true
+        limit: commonPageSizeGet(),
+        showTotalCount: true,
       },
       loading: false,
-      data: []
+      data: [],
     };
     this.getRouterName === CUSTOM_METRIC && this.handleCustomMetricTable();
     this.search = this.$route.params.id || '';
@@ -285,14 +288,14 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       search_key: this.search,
       page: this.tableData.pagination.current,
       page_size: this.tableData.pagination.limit,
-      is_platform: this.filterType === EFilterType.platform ? 1 : undefined
+      is_platform: this.filterType === EFilterType.platform ? 1 : undefined,
     };
     this.emptyType = this.search ? 'search-empty' : 'empty';
     const hasAuth = await this.handleAuthCheck();
     if (hasAuth) {
       const api = {
         [CUSTOM_EVENT]: queryCustomEventGroup,
-        [CUSTOM_METRIC]: customTimeSeriesList
+        [CUSTOM_METRIC]: customTimeSeriesList,
       };
       const data = await api[this.getRouterName](params).catch(() => {
         this.emptyType = '500';
@@ -310,14 +313,14 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     if (this.authChecked) return this.hasViewAuth;
     const auth = {
       [CUSTOM_EVENT]: customAuth.VIEW_CUSTOM_EVENT,
-      [CUSTOM_METRIC]: customAuth.VIEW_CUSTOM_METRIC
+      [CUSTOM_METRIC]: customAuth.VIEW_CUSTOM_METRIC,
     };
     const authName = auth[this.getRouterName];
     const data = await checkAllowedByActionIds({ action_ids: [authName] }).catch(() => false);
     const hasAuth = Array.isArray(data) ? data.some(item => item.is_allowed) : false;
     if (!hasAuth) {
       const authDetail = await getAuthorityDetail({
-        action_ids: [authName]
+        action_ids: [authName],
       });
       this.applyUrl = authDetail.apply_url;
     }
@@ -327,22 +330,16 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
 
   //  还原分页参数和清空搜索框
   clearConditions() {
-    const defaultPageSize = this.handleGetCommonPageSize();
+    const defaultPageSize = commonPageSizeGet();
     this.tableData.pagination = {
       current: 1,
       count: 0,
       limit: defaultPageSize,
-      showTotalCount: true
+      showTotalCount: true,
     };
     this.search = '';
   }
 
-  handleSetCommonPageSize(pageSize = 10) {
-    localStorage.setItem('__common_page_size__', `${pageSize}`);
-  }
-  handleGetCommonPageSize() {
-    return +localStorage.getItem('__common_page_size__') || 10;
-  }
   /**
    * @description: 跳转详情
    * @param {IEventItem} row
@@ -354,8 +351,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       name,
       params: {
         id: row[dataIdMap[this.getRouterName]],
-        type: detailType[this.getRouterName]
-      }
+        type: detailType[this.getRouterName],
+      },
     });
   }
   /**
@@ -369,8 +366,8 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     this.$router.push({
       name: 'strategy-config',
       params: {
-        [dataIdName[dataId]]: row[dataId]
-      }
+        [dataIdName[dataId]]: row[dataId],
+      },
     });
   }
 
@@ -380,28 +377,28 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * @param {IEventItem} row
    * @return {*}
    */
-  handleOperate(v: 'view' | 'delete', row: IEventItem) {
+  handleOperate(v: 'delete' | 'view', row: IEventItem) {
     const toView = {
       [CUSTOM_EVENT]: () => {
         this.$router.push({
           name: 'custom-escalation-event-view',
           params: { id: String(row.bk_event_group_id) },
-          query: { name: row.name }
+          query: { name: row.name },
         });
       },
       [CUSTOM_METRIC]: () => {
         this.$router.push({
           name: 'custom-escalation-view',
           params: { id: String(row.time_series_group_id) },
-          query: { name: row.name }
+          query: { name: row.name },
         });
-      }
+      },
     };
     const handleDeleteItem = async () => {
       this.loading = true;
       const api = {
         [CUSTOM_EVENT]: deleteCustomEventGroup,
-        [CUSTOM_METRIC]: deleteCustomTimeSeries
+        [CUSTOM_METRIC]: deleteCustomTimeSeries,
       };
       const key = dataIdMap[this.getRouterName];
       const res = await api[this.getRouterName]({ [key]: row[key] })
@@ -410,7 +407,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       if (res) {
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('删除成功')
+          message: this.$t('删除成功'),
         });
         this.tableData.pagination.current = 1;
         this.init();
@@ -426,7 +423,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
           title: this.getRouterName === CUSTOM_EVENT ? this.$t('确定删除该事件？') : this.$t('确定删除该指标？'),
           confirmFn: () => {
             handleDeleteItem();
-          }
+          },
         });
         break;
     }
@@ -440,13 +437,13 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   addCustomEscalation() {
     const pageType = {
       [CUSTOM_EVENT]: 'customEvent',
-      [CUSTOM_METRIC]: 'customTimeSeries'
+      [CUSTOM_METRIC]: 'customTimeSeries',
     };
     this.$router.push({
       name: addPageName[this.getRouterName],
       params: {
-        type: pageType[this.getRouterName]
-      }
+        type: pageType[this.getRouterName],
+      },
     });
   }
 
@@ -473,7 +470,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     if (size !== this.tableData.pagination.limit) {
       this.tableData.pagination.limit = size;
       this.tableData.pagination.current = 1;
-      this.handleSetCommonPageSize(size);
+      commonPageSizeSet(size);
       this.init();
     }
   }
@@ -510,7 +507,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     return (
       <div
         class='custom-report-page'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         <div class='content-left'>
           <PageTips
@@ -518,15 +515,15 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
             tips-text={this.$t(
               '自定义上报是一种最灵活和自由的方式上报数据。如果是通过HTTP上报，agent和插件都不需要安装；如果是通过SDK和命令行上报，依赖bkmonitorbeat采集器。'
             )}
+            doc-link={'fromCustomRreporting'}
             link-text={this.$t('采集器安装前往节点管理')}
             link-url={`${this.$store.getters.bkNodemanHost}#/plugin-manager/list`}
-            doc-link={'fromCustomRreporting'}
-          ></PageTips>
+          />
           <div class='custom-report-page-content'>
             <div class='content-left-operator'>
               <bk-button
-                v-authority={{ active: !this.hasManageAuth }}
                 class='mc-btn-add mr-16'
+                v-authority={{ active: !this.hasManageAuth }}
                 theme='primary'
                 onClick={() =>
                   this.hasManageAuth
@@ -534,7 +531,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                     : this.handleShowAuthorityDetail(this.manageAuthDetail)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
+                <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
               <div class='bk-button-group'>
@@ -550,85 +547,92 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
               </div>
               <bk-input
                 extCls='operator-input'
+                v-model={this.search}
                 placeholder={this.$tc('搜索 ID / 名称')}
                 rightIcon='bk-icon icon-search'
-                v-model={this.search}
                 on-change={this.handleSearch}
-              ></bk-input>
+              />
             </div>
-            <CommonTable
-              class='content-left-table'
-              {...{ props: this.tableData }}
-              scopedSlots={{
-                name: (row: IEventItem) => (
-                  <span>
-                    {!!row?.is_readonly ? (
-                      <span>{row.name}</span>
-                    ) : (
-                      <span
-                        class='col-btn'
-                        onClick={() => this.handleGotoDetail(row)}
-                      >
-                        {row.name}
-                      </span>
-                    )}
-                    {!!row?.is_platform ? <span class='platform-tag'>{this.$t('公共')}</span> : undefined}
-                  </span>
-                ),
-                related: (row: IEventItem) => (
-                  <div class='col-strategy'>
-                    <span
-                      class={{ 'col-btn': row.related_strategy_count > 0 }}
-                      onClick={() => this.handleGotoStrategy(row)}
-                    >
-                      {row.related_strategy_count}
+            {this.tableData.loading ? (
+              <TableSkeleton
+                class='mt-16'
+                type={2}
+              />
+            ) : (
+              <CommonTable
+                class='content-left-table'
+                {...{ props: this.tableData }}
+                scopedSlots={{
+                  name: (row: IEventItem) => (
+                    <span>
+                      {row?.is_readonly ? (
+                        <span>{row.name}</span>
+                      ) : (
+                        <span
+                          class='col-btn'
+                          onClick={() => this.handleGotoDetail(row)}
+                        >
+                          {row.name}
+                        </span>
+                      )}
+                      {row?.is_platform ? <span class='platform-tag'>{this.$t('公共')}</span> : undefined}
                     </span>
-                  </div>
-                ),
-                create: (row: IEventItem) => (
-                  <div class='col-change'>
-                    <span class='col-change-author'>{row.create_user}</span>
-                    <span>{row.create_time}</span>
-                  </div>
-                ),
-                update: (row: IEventItem) =>
-                  row.update_time && row.update_user ? (
-                    <div class='col-change'>
-                      <span class='col-change-author'>{row.update_user}</span>
-                      <span>{row.update_time}</span>
-                    </div>
-                  ) : (
-                    <div>--</div>
                   ),
-                opreate: (row: IEventItem) => (
-                  <OperateOptions
-                    options={{
-                      outside: [
-                        { id: 'view', name: window.i18n.tc('可视化'), authority: true },
-                        {
-                          id: 'delete',
-                          name: window.i18n.tc('删除'),
-                          authority: this.hasManageAuth,
-                          authorityDetail: this.manageAuthDetail,
-                          tip: !!row?.is_readonly ? this.$tc('非当前业务，不允许操作') : '',
-                          disable: row.related_strategy_count !== 0 || !!row?.is_readonly
-                        }
-                      ]
-                    }}
-                    onOptionClick={(v: 'view' | 'delete') => this.handleOperate(v, row)}
-                  ></OperateOptions>
-                )
-              }}
-              onPageChange={this.handlePageChange}
-              onLimitChange={this.handlePageLimitChange}
-            >
-              <div slot='empty'>
-                <EmptyStatus
-                  type={this.emptyType}
-                  onOperation={this.handleEmptyOperation}
-                />
-              </div>
-            </CommonTable>
+                  related: (row: IEventItem) => (
+                    <div class='col-strategy'>
+                      <span
+                        class={{ 'col-btn': row.related_strategy_count > 0 }}
+                        onClick={() => this.handleGotoStrategy(row)}
+                      >
+                        {row.related_strategy_count}
+                      </span>
+                    </div>
+                  ),
+                  create: (row: IEventItem) => (
+                    <div class='col-change'>
+                      <span class='col-change-author'>{row.create_user}</span>
+                      <span>{row.create_time}</span>
+                    </div>
+                  ),
+                  update: (row: IEventItem) =>
+                    row.update_time && row.update_user ? (
+                      <div class='col-change'>
+                        <span class='col-change-author'>{row.update_user}</span>
+                        <span>{row.update_time}</span>
+                      </div>
+                    ) : (
+                      <div>--</div>
+                    ),
+                  opreate: (row: IEventItem) => (
+                    <OperateOptions
+                      options={{
+                        outside: [
+                          { id: 'view', name: window.i18n.tc('可视化'), authority: true },
+                          {
+                            id: 'delete',
+                            name: window.i18n.tc('删除'),
+                            authority: this.hasManageAuth,
+                            authorityDetail: this.manageAuthDetail,
+                            tip: row?.is_readonly ? this.$tc('非当前业务，不允许操作') : '',
+                            disable: row.related_strategy_count !== 0 || !!row?.is_readonly,
+                          },
+                        ],
+                      }}
+                      onOptionClick={(v: 'delete' | 'view') => this.handleOperate(v, row)}
+                    />
+                  ),
+                }}
+                onLimitChange={this.handlePageLimitChange}
+                onPageChange={this.handlePageChange}
+              >
+                <div slot='empty'>
+                  <EmptyStatus
+                    type={this.emptyType}
+                    onOperation={this.handleEmptyOperation}
+                  />
+                </div>
+              </CommonTable>
+            )}
           </div>
         </div>
         {/* <div class="content-right">
@@ -639,4 +643,4 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
   }
 }
 
-export default tsx.ofType<{}>().convert(CustomReport);
+export default tsx.ofType<object>().convert(CustomReport);

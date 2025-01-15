@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 """
 from enum import Enum
 
+from django.apps import apps
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
@@ -91,6 +92,7 @@ MAX_RESULT_WINDOW = 10000
 MAX_SEARCH_SIZE = 100000
 SCROLL = "1m"
 DEFAULT_TIME_FIELD = "dtEventTimeStamp"
+DEFAULT_TIME_FIELD_ALIAS_NAME = "utctime"
 BK_SUPPLIER_ACCOUNT = "0"
 BK_BCS_APP_CODE = "bk_bcs"
 
@@ -119,6 +121,10 @@ ASYNC_SORTED = "desc"
 ASYNC_COUNT_SIZE = 1
 # 异步导出最大条数
 MAX_ASYNC_COUNT = 2000000
+# 快速下载单分片异步导出最大条数
+MAX_QUICK_EXPORT_ASYNC_COUNT = 5000000
+# 快速下载异步导出最大分片数
+MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT = 3
 # 异步导出时间
 ASYNC_EXPORT_TIME_RANGE = "customized"
 # 异步导出目录
@@ -539,6 +545,7 @@ class CollectorScenarioEnum(ChoicesEnum):
     CUSTOM = "custom"
     REDIS_SLOWLOG = "redis_slowlog"
     SYSLOG = "syslog"
+    KAFKA = "kafka"
 
     _choices_labels = (
         (ROW, _("行日志文件")),
@@ -547,6 +554,7 @@ class CollectorScenarioEnum(ChoicesEnum):
         (CUSTOM, _("自定义")),
         (REDIS_SLOWLOG, _("Redis慢日志")),
         (SYSLOG, _("Syslog Server")),
+        (KAFKA, _("KAFKA")),
     )
 
     @classmethod
@@ -930,6 +938,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "double": "double",
             "object": "object",
             "nested": "nested",
+            "boolean": "boolean",
         }.get(es_field_type, "string")
 
 
@@ -947,6 +956,10 @@ class FieldDateFormatEnum(ChoicesEnum):
         description: DEMO
         :return: list[dict{id, name, description}]
         """
+        # 解决循环引用问题
+        FieldDateFormat = apps.get_model('log_databus', 'FieldDateFormat')
+        # 加入自定义时间格式
+        custom_time_format = FieldDateFormat.get_field_date_format()
         return [
             {
                 "id": "yyyy-MM-dd HH:mm:ss",
@@ -1142,7 +1155,7 @@ class FieldDateFormatEnum(ChoicesEnum):
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
-        ]
+        ] + custom_time_format
 
 
 # 监控保留字
@@ -1282,6 +1295,7 @@ RT_RESERVED_WORD_EXAC = [
     "iterationIndex",
     "__ext",
     "__ext_json",
+    "__parse_failure",
     "log",
     "dtEventTimeStamp",
     "datetime",
@@ -1347,7 +1361,11 @@ class TimeZoneEnum(ChoicesEnum):
         result = []
         for i in range(-12, 13, 1):
             result.append(
-                {"id": i, "name": "UTC" + ("+" if i >= 0 else "") + f"{i:02}:00", "default": True if i == 8 else False}
+                {
+                    "id": i,
+                    "name": "UTC" + ("+" if i >= 0 else "-") + f"{abs(i):02}:00",
+                    "default": True if i == 8 else False,
+                }
             )
         return result
 
@@ -1398,6 +1416,28 @@ class IndexSetType(ChoicesEnum):
     _choices_labels = ((SINGLE, _("单索引集")), (UNION, _("联合索引集")))
 
 
+class SearchMode(ChoicesEnum):
+    """
+    检索模式
+    """
+
+    UI = "ui"
+    SQL = "sql"
+
+    _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
+
+
+class QueryMode(ChoicesEnum):
+    """
+    查询模式
+    """
+
+    UI = "ui"
+    SQL = "sql"
+
+    _choices_labels = ((UI, _("UI模式")), (SQL, _("SQL模式")))
+
+
 # 索引集无数据检查缓存前缀
 INDEX_SET_NO_DATA_CHECK_PREFIX = "index_set_no_data_check_prefix"
 
@@ -1406,6 +1446,20 @@ INDEX_SET_NO_DATA_CHECK_INTERVAL = 15
 
 ERROR_MSG_CHECK_FIELDS_FROM_BKDATA = _(", 请在计算平台清洗中调整")
 ERROR_MSG_CHECK_FIELDS_FROM_LOG = _(", 请联系平台管理员")
+
+
+class ExportFileType(ChoicesEnum):
+    """
+    日志下载文件类型枚举
+    """
+
+    LOG = "log"
+    CSV = "csv"
+
+    _choices_labels = (
+        (LOG, _("log类型")),
+        (CSV, _("csv类型")),
+    )
 
 
 class FavoriteVisibleType(ChoicesEnum):
@@ -1452,6 +1506,17 @@ class FavoriteListOrderType(ChoicesEnum):
         (NAME_DESC, _("名称降序")),
         (UPDATED_AT_DESC, _("更新时间降序")),
     )
+
+
+class FavoriteType(ChoicesEnum):
+    """
+    收藏类型
+    """
+
+    SEARCH = "search"
+    CHART = "chart"
+
+    _choices_labels = ((SEARCH, _("检索")), (CHART, _("图表")))
 
 
 # 用户指引步骤
@@ -1562,7 +1627,7 @@ OPERATORS = {
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
-    "bool": [OperatorEnum.IS_TRUE, OperatorEnum.IS_FALSE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
+    "boolean": [OperatorEnum.IS_TRUE, OperatorEnum.IS_FALSE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
     "conflict": [
         OperatorEnum.EQ,
         OperatorEnum.NE,
@@ -1575,7 +1640,6 @@ OPERATORS = {
     ],
 }
 
-
 DEFAULT_INDEX_OBJECT_FIELDS_PRIORITY = ["__ext.io_kubernetes_pod", "serverIp", "ip"]
 
 # 默认索引集字段配置名称
@@ -1585,4 +1649,64 @@ DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME = _("默认")
 COMPRESS_INDICES_CACHE_KEY_LENGTH = 256
 
 # 检索选项历史记录API返回数据数量大小
-SEARCH_OPTION_HISTORY_NUM = 10
+SEARCH_OPTION_HISTORY_NUM = 20
+
+# 字段分析支持列表下载的最大数
+MAX_FIELD_VALUE_LIST_NUM = 10000
+# SQL模板
+SQL_PREFIX = "SELECT DATE_TRUNC(MAX(dtEventTime), 'minute') AS dtEventTime, COUNT(*) AS log_count"
+SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 10"
+
+# 日志检索条件到sql操作符的映射
+SQL_CONDITION_MAPPINGS = {
+    ">": ">",
+    ">=": ">=",
+    "<": "<",
+    "<=": "<=",
+    "=": "=",
+    "!=": "!=",
+    "=~": "LIKE",
+    "&=~": "LIKE",
+    "!=~": "NOT LIKE",
+    "&!=~": "NOT LIKE",
+    "contains": "LIKE",
+    "not contains": "NOT LIKE",
+    "contains match phrase": "MATCH_PHRASE",
+    "not contains match phrase": "NOT MATCH_PHRASE",
+    "all contains match phrase": "MATCH_PHRASE",
+    "all not contains match phrase": "NOT MATCH_PHRASE",
+    "is true": "IS TRUE",
+    "is false": "IS FALSE",
+}
+
+# es保留字符
+ES_RESERVED_CHARACTERS = [
+    "\\",
+    "+",
+    "-",
+    "=",
+    "&&",
+    "||",
+    ">",
+    "<",
+    "!",
+    "(",
+    ")",
+    "{",
+    "}",
+    "[",
+    "]",
+    "^",
+    "\"",
+    "~",
+    "*",
+    "?",
+    ":",
+    "/",
+    " ",
+]
+
+
+class DataFlowResourceUsageType(object):
+    online = "log_clustering_online"
+    agg = "log_clustering_agg"

@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import dayjs from 'dayjs';
 import en from 'dayjs/locale/en';
 import cn from 'dayjs/locale/zh-cn';
@@ -32,7 +33,6 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import tz from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
-
 import jsCookie from 'js-cookie';
 
 dayjs.extend(customParseFormat);
@@ -45,7 +45,7 @@ dayjs.extend(duration);
 const currentLang = jsCookie.get('blueking_language');
 dayjs.locale({
   ...(currentLang === 'en' ? en : cn),
-  weekStart: 1
+  weekStart: 1,
 });
 window.timezone = dayjs.tz.guess();
 dayjs.tz.setDefault(window.timezone);

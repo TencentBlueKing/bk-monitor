@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 
 export interface IBaseParams {
   bk_biz_id: number;
@@ -31,9 +31,13 @@ export interface IBaseParams {
   service_name: string;
 }
 
+export interface IBaseServiceInfo {
+  labels: string[];
+}
+
 export interface IBaseInfoList {
   label: TranslateResult;
-  icon: string | null;
+  icon: null | string;
   value: string;
 }
 
@@ -72,17 +76,17 @@ export interface IAppInfoList {
   relate_app_name?: string;
   relate_bk_biz_id?: number;
   relate_bk_biz_name?: string;
-  editBkID: string | number;
+  editBkID: number | string;
   submitType: string;
 }
 
 export interface ISelectEditValue {
-  activeItem: ICMDBInfoList | ILogsInfoList | IAppInfoList;
+  activeItem: IAppInfoList | ICMDBInfoList | ILogsInfoList;
   selectValue: string;
   type: string;
 }
 
-export type IReqType = 'get' | 'set' | 'del';
+export type IReqType = 'del' | 'get' | 'set';
 
 export interface IExtraData {
   category_name: string;
@@ -98,7 +102,7 @@ export interface ICmdbRelationCategory {
 }
 
 export interface ICmdbRelation {
-  template_id?: string | number;
+  template_id?: number | string;
   id?: number;
   template_name?: string;
   first_category?: ICmdbRelationCategory;
@@ -136,7 +140,7 @@ export interface IServiceRelation {
   log_relation?: ILogRelation;
   app_relation?: IAppRelation;
   apdex_relation?: IApdexRelation;
-  uri_relation?: IUriRelation;
+  uri_relation?: IUriRelation[];
 }
 
 export interface IServiceInfo {
@@ -144,6 +148,7 @@ export interface IServiceInfo {
   instance_count: number;
   extra_data: IExtraData;
   relation: IServiceRelation;
+  labels: string[];
 }
 
 export interface ILocationRelation {
@@ -153,7 +158,7 @@ export interface ILocationRelation {
   bizId: number | string;
   appId: string;
   apdex: number;
-  relatedBizId: number;
+  relatedBizId: number | string;
 }
 
 export interface ICmdbInfoItem {
@@ -173,6 +178,11 @@ export interface IAppInfoItem {
 }
 
 export interface IIndexSetItem {
+  id: string;
+  name: string;
+}
+
+export interface IApplicationItem {
   id: string;
   name: string;
 }

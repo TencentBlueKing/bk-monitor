@@ -27,9 +27,9 @@
   <div :class="['monitor-date-range-container', offset === 'left' ? 'offset-left' : 'offset-right']">
     <div class="monitor-date-range">
       <div
+        ref="monitorDateRange"
         :class="['date', { 'is-focus': isFoucs }]"
         tabindex="0"
-        ref="monitorDateRange"
         @click="handleFocus"
         @blur="handleBlur"
       >
@@ -38,40 +38,43 @@
           :class="[icon, 'icon-monitor', 'left-icon', { mr5: showName }]"
         />
         <span
-          class="text"
           v-show="showName"
-        >{{ dateName }}</span>
+          class="text"
+          >{{ dateName }}</span
+        >
         <span class="bk-select-angle bk-icon icon-angle-down" />
       </div>
       <transition name="fade">
         <div
-          class="date-panel"
           v-show="showDropdown"
+          class="date-panel"
           :style="{ minWidth: hasCustomDate ? '290px' : dropdownWidth + 'px', zIndex }"
         >
           <ul class="option-list">
             <li
               v-for="(option, index) in options"
               :key="index"
-              @click="handleSelect(option)"
               class="item"
               :class="{ 'item-active': date === option.name }"
+              @click="handleSelect(option)"
             >
               {{ option.name }}
             </li>
           </ul>
           <div
-            @mousedown.stop.prevent="handleCustom"
             class="option-footer"
-          >{{ $t('自定义') }}</div>
+            @mousedown.stop.prevent="handleCustom"
+          >
+            {{ $t('自定义') }}
+          </div>
         </div>
       </transition>
     </div>
     <bk-date-picker
+      ref="bkDateRange"
       :style="{ zIndex }"
       class="monitor-date"
       :split-panels="false"
-      ref="bkDateRange"
       :value="initDateTimeRange"
       :placeholder="$t('选择日期时间范围')"
       :type="'datetimerange'"
@@ -87,42 +90,41 @@ export default {
   name: 'MonitorDateRange',
   model: {
     prop: 'value',
-    event: 'change'
+    event: 'change',
   },
   props: {
     offset: {
       type: String,
-      default: 'left'
+      default: 'left',
     },
     options: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     icon: {
       type: String,
-      default: ''
+      default: '',
     },
     showName: {
       type: Boolean,
-      default: true
+      default: true,
     },
     dropdownWidth: {
       type: [Number, String],
-      default: '84'
+      default: '84',
     },
     value: [Number, String, Array],
     zIndex: {
       type: Number,
-      default: 10
-    }
+      default: 10,
+    },
   },
   data() {
     return {
       date: '',
       isFoucs: false,
       showDropdown: false,
-      initDateTimeRange: [dayjs.tz().subtract(1, 'hours')
-        .format(), dayjs.tz().format()]
+      initDateTimeRange: [dayjs.tz().subtract(1, 'hours').format(), dayjs.tz().format()],
     };
   },
   computed: {
@@ -135,12 +137,12 @@ export default {
       }
       const name = this.options.find(item => item.value === this.value)?.name;
       return name;
-    }
+    },
   },
   watch: {
     value() {
       this.handleSetDate();
-    }
+    },
   },
   mounted() {
     if (this.value) {
@@ -151,7 +153,7 @@ export default {
     handleSetDate() {
       const value = Array.isArray(this.value) ? `${this.value[0]} -- ${this.value[1]}` : this.value;
       this.date = value;
-      this.options.forEach((item) => {
+      this.options.forEach(item => {
         if (item.value === value) {
           this.date = item.name;
         }
@@ -181,7 +183,6 @@ export default {
       this.initDateTimeRange = v;
     },
     handleConfirm() {
-      // eslint-disable-next-line vue/max-len
       this.date = `${dayjs.tz(this.initDateTimeRange[0]).format('YYYY-MM-DD HH:mm:ss')} -- ${dayjs.tz(this.initDateTimeRange[1]).format('YYYY-MM-DD HH:mm:ss')}`;
       if (!this.options.some(set => set.value === this.date)) {
         // 重复的不新增
@@ -190,8 +191,8 @@ export default {
       this.$refs.bkDateRange.visible = false;
       this.$refs.monitorDateRange?.blur?.();
       this.$emit('change', this.initDateTimeRange);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -232,7 +233,7 @@ export default {
 
       &.is-focus {
         border-color: #3a84ff;
-        box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+        box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
       }
 
       .icon-angle-down {
@@ -292,13 +293,13 @@ export default {
 
   .fade-enter-active,
   .fade-leave-active {
-    transition: height .6s;
+    transition: height 0.6s;
   }
 
   .date-enter,
   .date-leave {
     opacity: 0;
-    transition: .6s cubic-bezier(.4, 0, .2, 1);
+    transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 

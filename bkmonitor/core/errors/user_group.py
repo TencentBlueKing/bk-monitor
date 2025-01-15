@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 from core.errors import Error
 
@@ -44,3 +44,9 @@ class ContentMessageError(UserGroupError):
     code = 3312005
     name = _lazy("创建告警组失败")
     message_tpl = _lazy("创建告警组失败：填写内容不合规范")
+
+
+class DutyRuleNameExist(UserGroupError):
+    code = 3312006
+    name = _lazy("轮值规则名称已存在")
+    message_tpl = _lazy("轮值规则名称重复错误: 轮值规则名称已存在")

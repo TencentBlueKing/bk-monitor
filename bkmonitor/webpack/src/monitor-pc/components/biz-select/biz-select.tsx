@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,14 +25,15 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
 import authorityStore from '../../store/modules/authority';
-import { ISpaceItem } from '../../types';
 import { Storage } from '../../utils';
+import List, { ETagsType, type IListItem } from './list';
 
-import List, { ETagsType, IListItem } from './list';
+import type { ISpaceItem } from '../../types';
 
 import './biz-select.scss';
 /** 业务组件常用的业务缓存key */
@@ -49,7 +49,7 @@ const BIZ_COLOR_LIST = [
   '#E9AE1D',
   '#EB9258',
   '#D36C68',
-  '#BC4FB3'
+  '#BC4FB3',
 ];
 interface IProps {
   value: number;
@@ -64,7 +64,7 @@ interface IProps {
 export type ThemeType = 'dark' | 'light';
 interface IEvents {
   onChange: number;
-  onOpenSpaceManager: void;
+  onOpenSpaceManager: () => void;
 }
 /**
  * 业务选择器组件
@@ -81,7 +81,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   @Prop({
     default: 'light',
     type: String,
-    validator: (val: string) => ['dark', 'light'].includes(val)
+    validator: (val: string) => ['dark', 'light'].includes(val),
   })
   theme: ThemeType;
   @Ref() menuSearchInput: any;
@@ -116,14 +116,14 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     current: 1,
     count: 0,
     limit: 20,
-    data: []
+    data: [],
   };
 
   /* type栏左右切换数据 */
   typeWrapInfo = {
     showBtn: false,
     nextDisable: false,
-    preDisable: false
+    preDisable: false,
   };
 
   firstCodeBgColor = '';
@@ -132,16 +132,16 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.localValue = this.value;
     this.bizBgColor = this.$store.getters.bizBgColor || this.getRandomColor();
     const spaceTypeMap: Record<string, any> = {};
-    this.bizList.forEach(item => {
+    for (const item of this.bizList) {
       spaceTypeMap[item.space_type_id] = 1;
       if (item.space_type_id === 'bkci' && item.space_code) {
         spaceTypeMap.bcs = 1;
       }
-    });
+    }
     this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
-      styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {}
+      styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
     }));
     this.getFirstCodeBgColor();
   }
@@ -185,10 +185,10 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.bizBgColor = this.getRandomColor();
     this.getFirstCodeBgColor();
   }
-  @Watch('isShrink')
-  isShrinkChange(val: boolean) {
-    val && this.showBizList && this.popoverRef?.instance?.hide();
-  }
+  // @Watch('isShrink')
+  // isShrinkChange(val: boolean) {
+  //   val && this.showBizList && this.popoverRef?.instance?.hide();
+  // }
 
   /** 搜索操作 */
   @Debounce(300)
@@ -210,21 +210,48 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     const stickyList: IListItem = {
       id: null,
       name: this.$tc('置顶'),
-      children: []
+      children: [],
     };
     const commonList: IListItem = {
       id: null,
       name: this.$tc('常用的'),
-      children: []
+      children: [],
     };
     const list: IListItem = {
       id: 'general',
       name: '' /** 普通列表 */,
-      children: []
+      children: [],
     };
     const keyword = this.keyword.trim().toLocaleLowerCase();
-    const generalList = [];
-    this.bizList.forEach(item => {
+    const listTemp = {
+      stickyList: {
+        preArr: [],
+        nextArr: [],
+      },
+      commonList: {
+        preArr: [],
+        nextArr: [],
+      },
+      generalList: {
+        preArr: [],
+        nextArr: [],
+      },
+    };
+    const setListTemp = (key: keyof typeof listTemp, item: IListItem, preciseMatch: boolean) => {
+      // 如果是精准匹配将数据插入到临时变量的preArr，否则插入到nextArr
+      if (preciseMatch) {
+        listTemp[key].preArr.push(item);
+      } else {
+        listTemp[key].nextArr.push(item);
+      }
+    };
+    const concatListTemp = (key: keyof typeof listTemp) => {
+      const { preArr, nextArr } = listTemp[key];
+      return [...preArr, ...nextArr];
+    };
+
+    for (const item of this.bizList) {
+      let preciseMatch = false;
       let show = false;
       if (this.searchTypeId) {
         show =
@@ -233,10 +260,17 @@ export default class BizSelect extends tsc<IProps, IEvents> {
             : item.space_type_id === this.searchTypeId;
       }
       if ((show && keyword) || (!this.searchTypeId && !show)) {
+        preciseMatch =
+          item.space_name?.toLocaleLowerCase() === keyword ||
+          item.py_text === keyword ||
+          item.pyf_text === keyword ||
+          `${item.id}` === keyword ||
+          `${item.space_id}`.toLocaleLowerCase() === keyword;
         show =
-          item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          item.py_text.indexOf(keyword) > -1 ||
-          item.pyf_text.indexOf(keyword) > -1 ||
+          preciseMatch ||
+          item.space_name?.toLocaleLowerCase().indexOf(keyword) > -1 ||
+          item.py_text?.indexOf(keyword) > -1 ||
+          item.pyf_text?.indexOf(keyword) > -1 ||
           `${item.id}`.includes(keyword) ||
           `${item.space_id}`.toLocaleLowerCase().includes(keyword);
       }
@@ -248,35 +282,47 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         const newItem = {
           ...item,
           name: item.space_name.replace(/\[.*?\]/, ''),
-          tags
+          tags,
         };
         if (this.stickyList.includes(item.space_uid)) {
+          setListTemp('stickyList', newItem as IListItem, preciseMatch);
           /** 置顶数据 */
-          stickyList.children.push(newItem as IListItem);
         } else if (this.commonListIds.includes(item.id) && this.isShowCommon) {
           /** 常用数据 */
-          commonList.children.push(newItem as IListItem);
+          setListTemp('commonList', newItem as IListItem, preciseMatch);
         } else {
           /** 普通列表 */
           // list.children.push(newItem as IListItem);
-          generalList.push(newItem);
+          setListTemp('generalList', newItem as IListItem, preciseMatch);
         }
       }
-    });
-    this.generalList = generalList;
+    }
+    this.generalList = concatListTemp('generalList');
+    stickyList.children = concatListTemp('stickyList');
     this.setPaginationData(true);
     list.children = this.pagination.data;
     const allList: IListItem[] = [];
-    if (!!stickyList.children.length) {
+    if (stickyList.children.length) {
       allList.push(stickyList);
     }
-    if (!!commonList.children.length) {
-      const temp = this.commonListIds.reduce((total, id) => {
-        const item = commonList.children.find(item => item.id === id);
-        if (!!item) total.push(item);
+    let preTemp = [];
+    let nextTemp = [];
+    if (listTemp.commonList.preArr.length) {
+      preTemp = this.commonListIds.reduce((total, id) => {
+        const item = listTemp.commonList.preArr.find(item => item.id === id);
+        if (item) total.push(item);
         return total;
       }, []);
-      commonList.children = [...temp];
+    }
+    if (listTemp.commonList.nextArr.length) {
+      nextTemp = this.commonListIds.reduce((total, id) => {
+        const item = listTemp.commonList.nextArr.find(item => item.id === id);
+        if (item) total.push(item);
+        return total;
+      }, []);
+    }
+    if (preTemp.length || nextTemp.length) {
+      commonList.children = [...preTemp, ...nextTemp];
       allList.push(commonList);
     }
     !!list.children.length && allList.push(list);
@@ -317,7 +363,9 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       newIds.unshift(id);
     } else {
       newIds.unshift(id);
-      leng >= BIZ_SELECTOR_COMMON_MAX && (newIds.length = BIZ_SELECTOR_COMMON_MAX);
+      if (leng >= BIZ_SELECTOR_COMMON_MAX) {
+        newIds.length = BIZ_SELECTOR_COMMON_MAX;
+      }
     }
     this.commonListIds = newIds;
     this.storage.set(BIZ_SELECTOR_COMMON_IDS, this.commonListIds);
@@ -336,7 +384,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.popoverRef.instance.popper.querySelector('.tippy-tooltip').style.width = `${this.listWidth}px`;
     this.zIndex &&
       this.popoverRef.instance.set({
-        zIndex: this.zIndex
+        zIndex: this.zIndex,
       });
     this.typeListWrapNextPreShowChange();
   }
@@ -346,13 +394,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     if (!data.apply_url) return;
     try {
       if (self === top) {
-        window.open(data.apply_url, '__blank');
+        window.open(data.apply_url, '_blank');
       } else {
         (top as any).BLUEKING.api.open_app_by_other('bk_iam', data.apply_url);
       }
-    } catch (_) {
+    } catch {
       // 防止跨域问题
-      window.open(data.apply_url, '__blank');
+      window.open(data.apply_url, '_blank');
     }
   }
   @Emit('openSpaceManager')
@@ -373,17 +421,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
    * @description: 跳转demo业务
    */
   handleToDemo() {
-    if (this.demo?.id) {
-      if (+this.$store.getters.bizId === +this.demo.id) {
-        location.reload();
-      } else {
-        /** 切换为demo业务 */
-        this.$store.commit('app/handleChangeBizId', {
-          bizId: this.demo.id,
-          ctx: this
-        });
-      }
-    }
+    this.handleBizChange(this.demo.id);
   }
 
   handleContentMouseDown(e: MouseEvent) {
@@ -428,12 +466,12 @@ export default class BizSelect extends tsc<IProps, IEvents> {
    * @description 左右切换type栏
    * @param type
    */
-  handleTypeWrapScrollChange(type: 'pre' | 'next') {
+  handleTypeWrapScrollChange(type: 'next' | 'pre') {
     const smoothScrollTo = (element: HTMLDivElement, targetPosition: number, duration: number, callback) => {
       const startPosition = element.scrollLeft;
       const distance = targetPosition - startPosition;
       const startTime = new Date().getTime();
-      const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+      const easeOutCubic = t => 1 - (1 - t) ** 3; // 1 - Math.pow(1 - t, 3)
       const scroll = () => {
         const elapsed = new Date().getTime() - startTime;
         const progress = easeOutCubic(Math.min(elapsed / duration, 1));
@@ -464,14 +502,14 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   /* 当前业务的tag颜色 多个tag取第一个 */
   getFirstCodeBgColor() {
     let tags = [];
-    this.bizList.forEach(item => {
+    for (const item of this.bizList) {
       if (item.id === this.localValue) {
         tags = [item.space_type_id];
         if (item.space_type_id === 'bkci' && item.space_code) {
           tags.push('bcs');
         }
       }
-    });
+    }
     this.firstCodeBgColor =
       SPACE_FIRST_CODE_COLOR_MAP[tags?.[0] || 'default']?.[this.theme]?.backgroundColor || '#63656E';
   }
@@ -479,8 +517,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   render() {
     const firstCode = (
       <span
-        class='biz-name-first-code'
         style={{ backgroundColor: this.firstCodeBgColor }}
+        class='biz-name-first-code'
       >
         {this.bizSortNameKey}
       </span>
@@ -489,15 +527,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       <div class={['biz-select-wrap', this.theme]}>
         <bk-popover
           ref='popoverRef'
-          trigger='click'
-          placement='bottom-start'
-          theme={`${this.theme} common-popover list-${this.theme}`}
-          animation='slide-toggle'
-          ext-cls={`biz-select-list-${this.theme}`}
-          arrow={false}
-          offset={-1}
-          distance={16}
           width={this.listWidth}
+          ext-cls={`biz-select-list-${this.theme}`}
           tippy-options={{
             appendTo: 'parent',
             onShow: this.handleSetListWidth,
@@ -505,8 +536,15 @@ export default class BizSelect extends tsc<IProps, IEvents> {
               this.showBizList = false;
               this.handleBizSearch('');
               return true;
-            }
+            },
           }}
+          animation='slide-toggle'
+          arrow={false}
+          distance={16}
+          offset={-1}
+          placement='bottom-start'
+          theme={`${this.theme} common-popover list-${this.theme}`}
+          trigger='click'
         >
           <div class={['biz-select-target', { 'is-shrink': this.isShrink }]}>
             {this.isShrink ? (
@@ -522,47 +560,47 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   <span class='biz-name-text-id'>({this.curentBizId})</span>
                 </span>
                 <i
-                  class='icon-monitor icon-mc-triangle-down'
                   style={{ transform: `rotate(${!this.showBizList ? '0deg' : '-180deg'})` }}
-                ></i>
+                  class='icon-monitor icon-mc-triangle-down'
+                />
               </div>
             )}
           </div>
           <div
-            slot='content'
-            class={['biz-list-wrap', this.theme]}
-            onMousedown={this.handleContentMouseDown}
             style={{ width: `${this.listWidth}px`, minWidth: `${this.minWidth}px` }}
+            class={['biz-list-wrap', this.theme]}
+            slot='content'
+            onMousedown={this.handleContentMouseDown}
           >
             <div class='biz-list-mian'>
               <div class='biz-search-wrap'>
                 <bk-input
                   ref='menuSearchInput'
                   class='biz-search'
+                  behavior='simplicity'
                   clearable={false}
                   left-icon='bk-icon icon-search'
                   placeholder={this.$t('输入关键字')}
-                  behavior='simplicity'
                   value={this.keyword}
-                  on-clear={() => this.handleBizSearch('')}
-                  on-change={this.handleBizSearch}
                   on-blur={this.handleSearchBlur}
+                  on-change={this.handleBizSearch}
+                  on-clear={() => this.handleBizSearch('')}
                 />
               </div>
               {this.spaceTypeIdList.length > 1 && (
                 <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }, this.theme]}>
                   <ul
-                    class={'space-type-list'}
                     ref='typeList'
+                    class={'space-type-list'}
                   >
                     {this.spaceTypeIdList.map(item => (
                       <li
-                        class='space-type-item'
+                        key={item.id}
                         style={{
                           ...item.styles,
-                          borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent'
+                          borderColor: item.id === this.searchTypeId ? item.styles.color : 'transparent',
                         }}
-                        key={item.id}
+                        class='space-type-item'
                         onClick={() => this.handleSearchType(item.id)}
                       >
                         {item.name}
@@ -573,13 +611,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class={['pre-btn', { disable: this.typeWrapInfo.preDisable }]}
                     onClick={() => !this.typeWrapInfo.preDisable && this.handleTypeWrapScrollChange('pre')}
                   >
-                    <span class='icon-monitor icon-arrow-left'></span>
+                    <span class='icon-monitor icon-arrow-left' />
                   </div>
                   <div
                     class={['next-btn', { disable: this.typeWrapInfo.nextDisable }]}
                     onClick={() => !this.typeWrapInfo.nextDisable && this.handleTypeWrapScrollChange('next')}
                   >
-                    <span class='icon-monitor icon-arrow-right'></span>
+                    <span class='icon-monitor icon-arrow-right' />
                   </div>
                 </div>
               )}
@@ -588,11 +626,11 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 onScroll={this.handleScroll}
               >
                 <List
-                  list={this.bizListFilter}
                   checked={this.localValue}
+                  list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}
-                ></List>
+                />
               </ul>
             </div>
             {(process.env.APP !== 'external' || !!this.demo) && (
@@ -602,7 +640,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class='biz-btn'
                     onClick={this.handleOpenSpaceManager}
                   >
-                    <i class='biz-btn-icon icon-monitor icon-mc-two-column'></i>
+                    <i class='biz-btn-icon icon-monitor icon-mc-two-column' />
                     <span class='biz-btn-text'>{this.$t('空间管理')}</span>
                   </span>
                 )}
@@ -615,7 +653,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                     class='biz-btn'
                     onClick={this.handleToDemo}
                   >
-                    <i class='biz-btn-icon icon-monitor icon-mc-demo'></i>
+                    <i class='biz-btn-icon icon-monitor icon-mc-demo' />
                     <span class='biz-btn-text'>{this.$t('DEMO')}</span>
                   </span>
                 )}

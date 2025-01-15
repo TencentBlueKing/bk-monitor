@@ -26,8 +26,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import TreeList, { IMoreData } from './tree-list';
-import { ITreeMenuItem, TreeMenuItem } from './utils';
+import TreeList, { type IMoreData } from './tree-list';
+import { type ITreeMenuItem, TreeMenuItem } from './utils';
 
 interface IProps {
   data: ITreeMenuItem[];
@@ -90,11 +90,11 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
         {
           ...item,
           expend: !this.inited ? this.defaultExpend : this.localData?.find(set => set.id === item.id)?.expend ?? false,
-          level
+          level,
         },
         {
           expendIcon: this.expendIcon,
-          closeIcon: this.closeIcon
+          closeIcon: this.closeIcon,
         }
       );
       return newItem;
@@ -119,10 +119,10 @@ export default class TreeMenu extends tsc<IProps, IEvents> {
       <TreeList
         checked={this.localChecked}
         list={this.localData}
-        onSelected={this.handleSelectedItem}
         onMore={this.handleMore}
         onRename={this.handleRename}
-      ></TreeList>
+        onSelected={this.handleSelectedItem}
+      />
     );
   }
 }

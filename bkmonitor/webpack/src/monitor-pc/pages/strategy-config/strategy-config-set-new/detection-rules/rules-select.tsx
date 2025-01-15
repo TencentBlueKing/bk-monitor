@@ -26,9 +26,13 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DetectionRuleTypeEnum, IDetectionTypeItem } from '../typings/index';
+import FuctionalDependency from '@blueking/functional-dependency/vue2';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
+
+import { DetectionRuleTypeEnum, type IDetectionTypeItem } from '../typings/index';
 
 import './rules-select.scss';
+import '@blueking/functional-dependency/vue2/vue2.css';
 
 interface IRulesSelect {
   readonly?: boolean;
@@ -51,7 +55,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
   @Ref('type-select') typeEl: HTMLElement;
 
   show = true;
-
+  showFunctionalDepsDialog = false;
   /** 按照智能算法和常规算法进行分类 */
   get induceTypeList() {
     return this.typeList.reduce(
@@ -65,7 +69,7 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
       },
       {
         ai: [] as IDetectionTypeItem[],
-        convention: [] as IDetectionTypeItem[]
+        convention: [] as IDetectionTypeItem[],
       }
     );
   }
@@ -76,7 +80,10 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
   }
 
   handleTypeChange(item) {
-    if (item.disabled) return;
+    if (item.disabled) {
+      this.showFunctionalDepsDialog = true;
+      return;
+    }
     this.show = false;
     this.$emit('typeChange', item);
     return item;
@@ -85,20 +92,22 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
   showChange() {
     this.show = !this.show;
   }
-
+  handleFunctionalDepsGotoMore() {
+    skipToDocsLink('bkDeploymentGuides');
+  }
   render() {
     return (
       <div class='rules-select-wrap'>
         {!this.show ? (
           <bk-button
+            ext-cls='rule-add-btn'
+            disabled={this.readonly}
+            size='small'
             text
             on-click={this.showChange}
-            size='small'
-            disabled={this.readonly}
-            ext-cls='rule-add-btn'
           >
             <div class='rule-add'>
-              <span class='icon-monitor icon-mc-add'></span>
+              <span class='icon-monitor icon-mc-add' />
               {this.$t('检测规则')}
             </div>
           </bk-button>
@@ -110,30 +119,45 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
                 <span
                   class='icon-monitor icon-mc-delete-line del-btn'
                   onClick={this.showChange}
-                ></span>
+                />
               )}
             </div>
             <div class='rules-category-list'>
               <p class='category-label'>{this.$t('智能算法')}</p>
               <div class='type-list'>
-                {this.induceTypeList.ai.map(item => (
-                  <div
-                    class={['type-list-item', item.disabled && 'disabled']}
-                    onClick={() => this.handleTypeChange(item)}
-                    v-bk-tooltips={{
-                      content: item.disabled ? item.disabledTip : item.tip,
-                      disabled: !item.disabled,
-                      allowHTML: false
-                    }}
-                  >
-                    <img
-                      src={item.icon}
-                      alt=''
-                      class='type-icon'
-                    />
-                    <span>{item.name}</span>
-                  </div>
-                ))}
+                {this.induceTypeList.ai.map(item =>
+                  item.disabledTip ? (
+                    <div
+                      key={item.id}
+                      class={['type-list-item', item.disabled && 'disabled']}
+                      v-bk-tooltips={{
+                        content: item.disabled ? item.disabledTip : item.tip,
+                        disabled: !item.disabled,
+                        allowHTML: false,
+                      }}
+                    >
+                      <img
+                        class='type-icon'
+                        alt=''
+                        src={item.icon}
+                      />
+                      <span>{item.name}</span>
+                    </div>
+                  ) : (
+                    <div
+                      key={item.id}
+                      class={['type-list-item', item.disabled && 'disabled']}
+                      onClick={() => this.handleTypeChange(item)}
+                    >
+                      <img
+                        class='type-icon'
+                        alt=''
+                        src={item.icon}
+                      />
+                      <span>{item.name}</span>
+                    </div>
+                  )
+                )}
               </div>
             </div>
             <div class='rules-category-list'>
@@ -141,18 +165,19 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
               <div class='type-list'>
                 {this.induceTypeList.convention.map(item => (
                   <div
+                    key={item.id}
                     class={['type-list-item', item.disabled && 'disabled']}
-                    onClick={() => this.handleTypeChange(item)}
                     v-bk-tooltips={{
                       content: item.disabled ? item.disabledTip : item.tip,
                       disabled: !item.disabled,
-                      allowHTML: false
+                      allowHTML: false,
                     }}
+                    onClick={() => this.handleTypeChange(item)}
                   >
                     <img
-                      src={item.icon}
-                      alt=''
                       class='type-icon'
+                      alt=''
+                      src={item.icon}
                     />
                     <span>{item.name}</span>
                   </div>
@@ -161,6 +186,15 @@ export default class RulesSelect extends tsc<IRulesSelect, IEvent> {
             </div>
           </div>
         )}
+        <FuctionalDependency
+          functionalDesc={this.$t('支持单指标异常检测、时序预测、离群检测等智能检测算法')}
+          guideDescList={[this.$t('如需使用该功能，请联系管理员')]}
+          mode='dialog'
+          showDialog={this.showFunctionalDepsDialog}
+          title={this.$t('暂无 AI 功能')}
+          onGotoMore={this.handleFunctionalDepsGotoMore}
+          onShowDialogChange={v => (this.showFunctionalDepsDialog = v)}
+        />
       </div>
     );
   }

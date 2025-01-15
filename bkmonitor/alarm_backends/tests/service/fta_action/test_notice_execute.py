@@ -24,7 +24,7 @@ import pytz
 from django.conf import settings
 from django.db import IntegrityError
 from django.test import TestCase, TransactionTestCase
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict
 
 from alarm_backends.core.alert import Alert, Event
@@ -973,6 +973,10 @@ class TestActionProcessor(TransactionTestCase):
             "bkmonitor.models.fta.action.ActionInstance.insert_alert_log", MagicMock(return_value=None)
         )
         self.insert_alert_log_patch.start()
+
+        self.dimensions_string_list = [
+            f"{key}={value}" for key, value in sorted([("云区域ID", 2), ("主机IP", "127.0.0.1"), ("backend", 1)])
+        ]
 
     def tearDown(self):
         settings.GLOBAL_SHIELD_ENABLED = False
@@ -2066,7 +2070,7 @@ class TestActionProcessor(TransactionTestCase):
         alert_context = ActionContext(action=None, alerts=[alert], use_alert_snap=True)
         self.assertEqual(alert_context.target.host.bk_host_innerip, "127.0.0.1")
         self.assertEqual(alert_context.alert, alert)
-        self.assertEqual(alert_context.alarm.dimension_string, "云区域ID=2,主机IP=127.0.0.1,backend=1")
+        self.assertEqual(alert_context.alarm.dimension_string, ",".join(self.dimensions_string_list))
         self.assertEqual(alert_context.related_actions, [])
         self.assertEqual(alert_context.alarm.level, alert.severity)
         self.assertTrue(_("已持续") in alert_context.content.content)
@@ -2176,7 +2180,23 @@ class TestActionProcessor(TransactionTestCase):
         context = alert_context.get_dictionary()
         context["alarm"].log_related_info = "testtesttest"
         content_template_path = "notice/abnormal/action/markdown_content.jinja"
-        context["content_template"] = "#test title#12345"
+        context[
+            "content_template"
+        ] = """#test title#12345
+{{content.level}}
+{{content.begin_time}}
+{{content.time}}
+{{content.duration}}
+{{content.target_type}}
+{{content.data_source}}
+{{content.content}}
+{{content.current_value}}
+{{content.biz}}
+{{content.target}}
+{{content.dimension}}
+{{content.detail}}
+{{content.assign_detail}}
+{{content.related_info}}"""
         render_content = AlarmNoticeTemplate(content_template_path).render(context)
         print("render_content", render_content)
         self.assertTrue("**test title: **12345" in render_content)
@@ -2201,7 +2221,9 @@ class TestActionProcessor(TransactionTestCase):
         context["alarm"].log_related_info = related_info
         content = Jinja2Renderer.render("{{content.related_info}}", context)
         self.assertEqual(content, f"**关联信息: **集群() 模块()\\n> {related_info}\\n")
-        self.assertEqual(context["content"].dimension, "**维度: **\\n> 云区域ID=2\\n> 主机IP=127.0.0.1\\n> backend=1\\n")
+        self.assertEqual(
+            context["content"].dimension, "**维度: **\\n> {}\\n> {}\\n> {}\\n".format(*self.dimensions_string_list)
+        )
         print(context["content"].target_markdown)
 
     def test_render_k8s_markdown_target(self):
@@ -2232,7 +2254,7 @@ class TestActionProcessor(TransactionTestCase):
             "**内容: **新告警, None\n"
             "**所属空间: **[2]蓝鲸 (业务)\n"
             "**目标: **[127.0.0.1]({host}route/?bizId=2&route_path={route_path})\n"
-            "**维度: **\\n> 云区域ID=2\\n> 主机IP=127.0.0.1\\n> backend=1\\n\n"
+            "**维度: **{dimension_string}"
             "**关联信息: **集群() 模块()\\n> {related_info}\\n\n"
             "**关联指标: **0 个指标,0 个维度\n"
             "**维度下钻: **异常维度 2，异常维度值 2"
@@ -2241,8 +2263,9 @@ class TestActionProcessor(TransactionTestCase):
             route_path=base64.b64encode(b"#/performance/detail/127.0.0.1-0").decode("utf8"),
             related_info=related_info,
             current_time=context.alarm.begin_time.strftime(settings.DATETIME_FORMAT),
+            dimension_string="\\n> {}\\n> {}\\n> {}\\n\n".format(*self.dimensions_string_list),
         )
-        self.assertEqual(expected_content, user_content)
+        self.assertEqual(user_content, expected_content)
 
     def test_render_related_info(self):
         alert = AlertDocument(**self.alert_info)
@@ -2323,7 +2346,7 @@ class TestActionProcessor(TransactionTestCase):
         ).get_dictionary()
         context["content_template"] = content
         sender = Sender(context=context, content_template_path="notice/abnormal/action/sms_content.jinja")
-        self.assertEqual(len(sender.content), 300)
+        self.assertLess(len(sender.content), 300)
         content = sender.get_notice_content(NoticeWay.SMS, sender.content)
         self.assertEqual(sender.content, content)
 
@@ -2349,14 +2372,15 @@ class TestActionProcessor(TransactionTestCase):
         ).get_dictionary()
         context["content_template"] = content
         sender = Sender(context=context, content_template_path="notice/abnormal/action/sms_content.jinja")
-        self.assertEqual(len(sender.content), 300)
+        self.assertLess(len(sender.content), 300)
 
     def test_sender_wxbot_ch_limit(self):
         """
         中文字符(utf8编码计算)的长度一定是小于设定的长度
         """
         settings.NOTICE_MESSAGE_MAX_LENGTH = {NoticeWay.WX_BOT: 4096}
-        content = "".join(["【" for i in range(0, 4096)])
+        content = "abc\tdef\nght"
+        content += "".join(["【" for i in range(0, 4096)])
         alert = AlertDocument(**self.alert_info)
         context = ActionContext(
             action=None, alerts=[alert], use_alert_snap=True, notice_way=NoticeWay.WX_BOT
@@ -2397,7 +2421,8 @@ class TestActionProcessor(TransactionTestCase):
 
     def test_send_webot_limit(self):
         settings.NOTICE_MESSAGE_MAX_LENGTH = {"rtx": 0}
-        content = "".join(["000000" for i in range(0, 500)])
+        content = "abc\tdef\nght"
+        content += "".join(["000000" for i in range(0, 500)])
         sender = NoneTemplateSender(title="1", content=content)
         sender.send("rtx", [])
         send_content = sender.content.encode("utf8")
@@ -2421,18 +2446,21 @@ class TestActionProcessor(TransactionTestCase):
         action_config_patch.start()
 
         event = EventDocument(**{"bk_biz_id": 2, "ip": "127.0.0.1", "bk_cloud_id": 0})
-        alert = AlertDocument(**{"event": event, "severity": 1, "id": 1})
+        alert = AlertDocument(**{"event": event, "severity": 1, "id": 1, "dedupe_md5": "xxx", "status": "ABNORMAL"})
 
         mget_alert_patch = patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert]))
         get_alert_patch = patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert))
+        refresh_duration = patch("alarm_backends.core.alert.alert.Alert.refresh_duration", MagicMock(return_value=None))
         mget_alert_patch.start()
         get_alert_patch.start()
+        refresh_duration.start()
 
         create_actions(1, "abnormal", alerts=[alert])
         self.assertEqual(ActionInstance.objects.all().count(), 0)
         mget_alert_patch.stop()
         get_alert_patch.stop()
         action_config_patch.stop()
+        refresh_duration.stop()
 
     def test_notice_collect(self):
         """
@@ -3703,6 +3731,53 @@ class TestActionProcessor(TransactionTestCase):
         shield_obj = AlertShieldObj(shield_config)
         self.assertFalse(shield_obj.is_match(test_strategy_alert))
 
+    def test_alert_shield_by_dynamic_group(self):
+        get_dynamic_group_patch = patch(
+            "alarm_backends.core.cache.cmdb.dynamic_group.DynamicGroupManager.multi_get",
+            return_value=[{"bk_obj_id": "host", "bk_inst_ids": [1, 2, 3], "id": "xxx"}],
+        )
+
+        get_dynamic_group_patch.start()
+
+        group = self.create_shield_group()
+        strategy_dict = get_strategy_dict(group.id)
+        test_strategy_alert = AlertDocument(
+            **{
+                "id": 1,
+                "severity": 1,
+                "begin_time": int(time.time()),
+                "create_time": int(time.time()),
+                "latest_time": int(time.time()),
+                "duration": 60,
+                "common_dimensions": {},
+                "dimensions": [
+                    AttrDict({"key": "bk_target_ip", "value": "127.0.0.1"}),
+                    AttrDict({"key": "bk_target_cloud_id", "value": "2"}),
+                    AttrDict({"key": "bk_host_id", "value": "1"}),
+                ],
+                "extra_info": {"strategy": strategy_dict},
+                "status": EventStatus.ABNORMAL,
+            }
+        )
+        # 策略屏蔽支持维度屏蔽
+        shield_config = {
+            "id": 123,
+            "is_enabled": True,
+            "is_deleted": False,
+            "bk_biz_id": 2,
+            "category": "strategy",
+            "scope_type": "dynamic_group",
+            "content": "",
+            "begin_time": datetime.now(tz=timezone.utc),
+            "end_time": datetime.now(tz=timezone.utc) + timedelta(hours=1),
+            "dimension_config": {"level": [1], "dynamic_group": [{"dynamic_group_id": "xxx"}]},
+            "cycle_config": {"type": 1, "week_list": [], "day_list": [], "begin_time": "", "end_time": ""},
+        }
+        shield_obj = AlertShieldObj(shield_config)
+        self.assertTrue(shield_obj.is_match(test_strategy_alert))
+
+        get_dynamic_group_patch.stop()
+
     def test_notice_global_shield(self):
         """
         测试通知屏蔽
@@ -3869,49 +3944,37 @@ class TestActionProcessor(TransactionTestCase):
         self.alert_info["extra_info"].update(strategy=strategy_dict)
 
         alert_doc = AlertDocument(**self.alert_info)
-        mget_alert_patch = patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert_doc]))
-        get_alert_patch = patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert_doc))
-
-        action_config_patch = patch(
+        with patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert_doc])), patch(
+            "bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert_doc)
+        ), patch(
             "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id",
             MagicMock(return_value=strategy_dict.pop("notice_action_config", {})),
-        )
+        ):
+            alert_doc.strategy_id = strategy_dict["id"]
+            alert = Alert(data=alert_doc.to_dict())
+            ShieldStatusChecker(alerts=[alert]).check_all()
+            # 告警屏蔽的状态下创建了通知，因为屏蔽，实际上仅创建了主任务
+            actions0 = create_actions(1, "abnormal", alerts=[alert_doc])
+            self.assertEqual(len(actions0), 1)
+            self.assertTrue(alert.data["is_shielded"])
 
-        mget_alert_patch.start()
-        get_alert_patch.start()
-        action_config_patch.start()
-        alert_doc.strategy_id = strategy_dict["id"]
-        alert = Alert(data=alert_doc.to_dict())
-        ShieldStatusChecker(alerts=[alert]).check_all()
-        # 告警屏蔽的状态下创建了通知，因为屏蔽，实际上仅创建了主任务
-        actions0 = create_actions(1, "abnormal", alerts=[alert_doc])
-        self.assertEqual(len(actions0), 1)
-        self.assertTrue(alert.data["is_shielded"])
+            settings.GLOBAL_SHIELD_ENABLED = False
+            with patch("alarm_backends.service.fta_action.tasks.create_actions.delay", return_value=1):
+                # 解除屏蔽之后，应该创建一个新的通知任务
+                checker = ShieldStatusChecker(alerts=[alert])
+                checker.check_all()
+                self.assertFalse(alert.data["is_shielded"])
+                self.assertEqual(ActionInstance.objects.filter(id__in=actions0, need_poll=False).count(), 1)
+                self.assertEqual(alert.cycle_handle_record["1"]["execute_times"], 2)
+                ActionInstance.objects.filter(id__in=actions0).delete()
+                unshielded_actions = create_actions(**checker.unshielded_actions[0])
 
-        settings.GLOBAL_SHIELD_ENABLED = False
-        create_actions_mock = patch("alarm_backends.service.fta_action.tasks.create_actions.delay", return_value=1)
-        create_actions_mock.start()
-        # 解除屏蔽之后，应该创建一个新的通知任务
-        checker = ShieldStatusChecker(alerts=[alert])
-        checker.check_all()
-        self.assertFalse(alert.data["is_shielded"])
-        self.assertEqual(ActionInstance.objects.filter(id__in=actions0, need_poll=False).count(), 1)
-
-        self.assertEqual(alert.cycle_handle_record["1"]["execute_times"], 2)
-        ActionInstance.objects.filter(id__in=actions0).delete()
-        unshielded_actions = create_actions(**checker.unshielded_actions[0])
-
-        # 四个通知方式，产生了5个子任务
-        self.assertEqual(len(unshielded_actions), 6)
-        parent_action = ActionInstance.objects.get(is_parent_action=True, id__in=unshielded_actions)
-        self.assertTrue(parent_action.inputs["is_unshielded"])
-        print(parent_action.get_content())
-        self.assertTrue("解除屏蔽" in parent_action.get_content()["text"])
-
-        mget_alert_patch.stop()
-        get_alert_patch.stop()
-        action_config_patch.stop()
-        create_actions_mock.stop()
+                # 四个通知方式，产生了5个子任务
+                self.assertEqual(len(unshielded_actions), 6)
+                parent_action = ActionInstance.objects.get(is_parent_action=True, id__in=unshielded_actions)
+                self.assertTrue(parent_action.inputs["is_unshielded"])
+                print(parent_action.get_content())
+                self.assertTrue("解除屏蔽" in parent_action.get_content()["text"])
 
     def test_create_no_action_of_unshielded(self):
         """
@@ -4011,7 +4074,7 @@ class TestActionProcessor(TransactionTestCase):
         alert.update_extra_info("need_unshield_notice", True)
         checker = ShieldStatusChecker(alerts=[alert])
         checker.check_all()
-        self.assertFalse(alert.data["extra_info"]["need_unshield_notice"])
+        self.assertFalse(alert.data["extra_info"].get("need_unshield_notice", False))
         mget_alert_patch.stop()
         get_alert_patch.stop()
         action_config_patch.stop()

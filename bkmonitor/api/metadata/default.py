@@ -227,6 +227,7 @@ class GetEsDataResource(MetaDataAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         query_body = serializers.DictField(required=True, label="查询内容")
+        use_full_index_names = serializers.BooleanField(required=False, label="是否使用索引全名进行检索", default=False)
 
 
 class ModifyDataIdResource(MetaDataAPIGWResource):
@@ -351,6 +352,7 @@ class GetEventGroupResource(MetaDataAPIGWResource):
         event_group_id = serializers.IntegerField(label="事件分组ID")
         with_result_table_info = serializers.BooleanField(label="是否返回数据源信息", required=False)
         need_refresh = serializers.BooleanField(required=False, label="是否需要实时刷新", default=False)
+        event_infos_limit = serializers.IntegerField(required=False, default=None, label="事件信息列表上限")
 
 
 class SingleQueryEventGroupResource(MetaDataAPIGWResource):

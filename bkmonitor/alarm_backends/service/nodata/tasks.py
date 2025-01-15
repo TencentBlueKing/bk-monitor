@@ -13,16 +13,15 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
-from celery.task import task
-
 from alarm_backends.service.nodata.processor import CheckProcessor
+from alarm_backends.service.scheduler.app import app
 from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
 
 logger = logging.getLogger("nodata")
 
 
-@task(ignore_result=True, queue="celery_service")
+@app.task(ignore_result=True, queue="celery_service")
 def no_data_check(strategy_id, now_timestamp):
     """
     :summary: 检测当前策略是否需要无数据告警

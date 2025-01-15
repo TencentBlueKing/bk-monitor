@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
-import SelectMenu, { ISelectMenuOption } from '../../../components/select-menu/select-menu';
+import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
-import { TimeRangeType } from '../../../components/time-range/utils';
-import { getDefautTimezone } from '../../../i18n/dayjs';
-import { IFavoriteItem } from '../../../typings';
+import { getDefaultTimezone } from '../../../i18n/dayjs';
 import FavoritesList from '../favorites-list/favorites-list';
+
+import type { TimeRangeType } from '../../../components/time-range/utils';
+import type { IFavoriteItem } from '../../../typings';
 
 import './search-header.scss';
 
@@ -41,32 +42,32 @@ export default defineComponent({
   props: {
     showLeft: {
       type: Boolean,
-      default: true
+      default: true,
     },
     favoritesList: {
       type: Array as PropType<IFavoriteItem[]>,
-      default: () => []
+      default: () => [],
     },
     timeRange: {
       type: Array as PropType<TimeRangeType>,
-      default: () => ['now-1h', 'now']
+      default: () => ['now-1h', 'now'],
     },
     timezone: {
       type: String,
-      default: getDefautTimezone()
+      default: getDefaultTimezone(),
     },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,
-      default: () => []
+      default: () => [],
     },
     refleshInterval: {
       type: Number,
-      default: -1
+      default: -1,
     },
     checkedValue: {
       type: Object,
-      defalut: () => ({})
-    }
+      defalut: () => ({}),
+    },
   },
   emits: [
     'update:showLeft',
@@ -77,7 +78,7 @@ export default defineComponent({
     'timezoneChange',
     'refleshIntervalChange',
     'menuSelectChange',
-    'immediateReflesh'
+    'immediateReflesh',
   ],
   setup(props, { emit }) {
     function handleDeleteCollect(id: number | string) {
@@ -100,15 +101,15 @@ export default defineComponent({
               class='tool-icon right'
               onClick={() => emit('update:showLeft', true)}
             >
-              <i class='arrow-right icon-monitor icon-double-up'></i>
+              <i class='arrow-right icon-monitor icon-double-up' />
             </span>
           )}
         </div>
         <div class='inquire-header-center'>
           {props.favoritesList.length ? (
             <FavoritesList
-              value={props.favoritesList}
               checkedValue={props.checkedValue}
+              value={props.favoritesList}
               onDelete={handleDeleteCollect}
               onSelect={handleSelectCollectItem}
             />
@@ -128,21 +129,21 @@ export default defineComponent({
           <span class='inquire-header-append-item'>
             <RefreshRate
               value={props.refleshInterval}
+              onImmediate={() => emit('immediateReflesh')}
               onSelect={val => {
                 emit('update:refleshInterval', val);
                 emit('refleshIntervalChange', val);
               }}
-              onImmediate={() => emit('immediateReflesh')}
             />
             <SelectMenu
               list={props.menuList}
               onSelect={val => emit('menuSelectChange', val)}
             >
-              <i class='icon-monitor icon-mc-more-tool'></i>
+              <i class='icon-monitor icon-mc-more-tool' />
             </SelectMenu>
           </span>
         </div>
       </div>
     );
-  }
+  },
 });

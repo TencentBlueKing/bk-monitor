@@ -15,7 +15,7 @@ import time
 from typing import List
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from MySQLdb import DatabaseError as MysqlDatabaseError
 from redis.exceptions import RedisError
 
@@ -32,6 +32,7 @@ from alarm_backends.core.cluster import get_cluster
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance
 from bkmonitor.strategy.expression import AlertExpressionValue
+from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import ActionSignal, AssignMode
 from constants.alert import EventStatus
@@ -89,6 +90,21 @@ class Alert:
 
         # 最新事件
         self.last_event = None
+
+        self.init_severity()
+
+    def init_severity(self):
+        # 智能监控如果有动态告警级别配置，则从extra_info里获取实际事件级别
+        try:
+            # 尝试取数据中的extra_info
+            origin_alarm = self.extra_info["origin_alarm"]
+            origin_extra_info = json.loads(origin_alarm["data"]["values"]["extra_info"])
+            self.data["severity"] = origin_extra_info.get("alert_level_msg", {}).get(
+                "alert_level", self.data["severity"]
+            )
+        except Exception:
+            # 取不到就拉倒，用默认的
+            return
 
     def update(self, event: Event):
         """
@@ -149,7 +165,7 @@ class Alert:
 
             # 更新告警级别：如果新的事件级别大于等于告警级别，才需要更新告警内容
             # (大于的情况已经在前面判断了)
-            if event.severity == self.data["severity"]:
+            if event.severity == self.severity:
                 self.data["event"] = event.to_dict()
 
             # 如果 next_status 是恢复，说明已经在等待恢复状态，此时需要打断这种状态，并且记录一条流水
@@ -374,6 +390,10 @@ class Alert:
         return self.top_event.get("bk_biz_id") or 0
 
     @property
+    def extra_info(self):
+        return self.data.get("extra_info", {})
+
+    @property
     def dedupe_md5(self) -> str:
         return self.data["dedupe_md5"]
 
@@ -467,6 +487,9 @@ class Alert:
         是否为异常告警
         """
         return self.status == EventStatus.ABNORMAL
+
+    def is_recovering(self) -> bool:
+        return self.is_abnormal and self.get_extra_info("is_recovering")
 
     def is_no_data(self):
         """
@@ -565,17 +588,6 @@ class Alert:
         """
         self._refresh_db = True
         self.data.setdefault("extra_info", {})[key] = value
-
-    def update_agg_dimensions(self, strategy):
-        """
-        更新dimension的维度排序
-        """
-        agg_dimensions = []
-        for item in strategy.get("items", []):
-            for query_config in item["query_configs"]:
-                if len(query_config.get("agg_dimension", [])) > len(agg_dimensions):
-                    agg_dimensions = query_config["agg_dimension"]
-        self.update_extra_info("agg_dimensions", agg_dimensions)
 
     def update_severity_source(self, source=""):
         self.update_extra_info("severity_source", source)
@@ -699,9 +711,13 @@ class Alert:
             "strategy_id": event.strategy_id,
             "labels": event.extra_info.get("strategy", {}).get("labels", []),
             "dimensions": [],
+            # extra_info 和 event["extra_info"] 一样
             "extra_info": event.extra_info or {},
             "is_blocked": False,
         }
+
+        # 补全维度信息
+        data["extra_info"]["agg_dimensions"] = [key[5:] for key in event.dedupe_keys if key.startswith("tags.")]
 
         alert = cls(data)
         alert.update_data_id_info(event)
@@ -815,14 +831,39 @@ class Alert:
     def key(self) -> AlertKey:
         return AlertKey(alert_id=self.id, strategy_id=self.strategy_id)
 
+    def pre_qos_check(self):
+        from alarm_backends.service.converge.shield.shielder.saas_config import (
+            IncidentShielder,
+        )
+
+        message = _("当前告警处理正常")
+        is_blocked = False
+        try:
+            # 加入故障影响范围匹配模块
+            incident_checker = IncidentShielder(self.to_document())
+            is_blocked = incident_checker.is_matched()
+            if is_blocked:
+                message = incident_checker.detail
+                logger.info(f"[告警抑制]: 告警{self.id} 被抑制，原因: {message}")
+        except Exception as e:
+            logger.exception(f"[告警抑制] raise error: {e}")
+        return is_blocked, message
+
     def qos_check(self):
         """
         告警QOS检测
         """
-        message = _("当前告警处理正常")
-        qos_threshold = settings.QOS_ALERT_THRESHOLD
-        if qos_threshold == 0 or not self.is_blocked and not self.is_new():
+        if not self.is_blocked and not self.is_new():
             # 如果不是新的，并且未被熔断，直接返回
+            return {"is_blocked": False, "message": ""}
+
+        # 新增 pre_qos_check 用以在QOS检测之前进行额外流控
+        is_blocked, message = self.pre_qos_check()
+        if is_blocked:
+            return {"is_blocked": True, "message": message}
+
+        qos_threshold = settings.QOS_ALERT_THRESHOLD
+        if qos_threshold == 0:
             # 如果当前设置阈值为0表示没有QOS，直接返回
             return {"is_blocked": self.is_blocked, "message": message}
 
@@ -838,8 +879,8 @@ class Alert:
         if self.is_new():
             if is_blocked:
                 # 当被流控的时候，还是上报策略, 没有策略的，按照告警名称来
-                metrics.Alert_QOS_COUNT.labels(strategy_id=self.strategy_id or self.alert_name, is_blocked="1").inc()
-            metrics.Alert_QOS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, is_blocked="1" if is_blocked else "0").inc()
+                metrics.ALERT_QOS_COUNT.labels(strategy_id=self.strategy_id or self.alert_name, is_blocked="1").inc()
+            metrics.ALERT_QOS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, is_blocked="1" if is_blocked else "0").inc()
 
         if is_blocked:
             # 被熔断，返回熔断日志
@@ -990,6 +1031,7 @@ class AlertUIDManager:
 
 
 class AlertCache:
+    # todo 下面两个可以合并
     @staticmethod
     def save_alert_to_cache(alerts: List[Alert]):
         alerts_to_saved = {}
@@ -1007,13 +1049,15 @@ class AlertCache:
         pipeline = ALERT_DEDUPE_CONTENT_KEY.client.pipeline(transaction=False)
         for alert in alerts_to_saved.values():
             key = ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id or 0, dedupe_md5=alert.dedupe_md5)
-            if not alert.is_abnormal():
+            if alert.is_end():
                 # 如果告警已经结束，不做删除，更新告警内容
                 finished_count += 1
             else:
                 # 如果告警未结束就更新
                 update_count += 1
-            pipeline.set(key, json.dumps(alert.to_dict()), ALERT_DEDUPE_CONTENT_KEY.ttl)
+            pipeline.set(
+                key, json.dumps(alert.to_dict(), cls=extended_json.ESJSONEncoder), ALERT_DEDUPE_CONTENT_KEY.ttl
+            )
         pipeline.execute()
         return update_count, finished_count
 
@@ -1027,7 +1071,7 @@ class AlertCache:
         for alert in alerts:
             # 已经结束的告警保存快照备用
             key = ALERT_SNAPSHOT_KEY.get_key(strategy_id=alert.strategy_id or 0, alert_id=alert.id)
-            pipeline.set(key, json.dumps(alert.to_dict()), ALERT_SNAPSHOT_KEY.ttl)
+            pipeline.set(key, json.dumps(alert.to_dict(), cls=extended_json.ESJSONEncoder), ALERT_SNAPSHOT_KEY.ttl)
             snapshot_count += 1
 
         pipeline.execute()

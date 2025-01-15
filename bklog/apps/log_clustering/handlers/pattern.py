@@ -20,6 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import copy
+import re
 from typing import List
 
 import arrow
@@ -54,6 +55,7 @@ from apps.utils.bkdata import BkData
 from apps.utils.db import array_hash
 from apps.utils.function import map_if
 from apps.utils.local import get_local_param, get_request_username
+from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range, generate_time_range_shift
 
@@ -100,38 +102,55 @@ class PatternHandler:
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
         # 同步的pattern保存信息
-        if self._clustering_config.model_output_rt:
+        if self._clustering_config.signature_pattern_rt:
+            pattern_map = self._get_pattern_data()
+        elif self._clustering_config.model_output_rt:
             # 在线训练逻辑适配
             pattern_map = AiopsSignatureAndPattern.objects.filter(
                 model_id=self._clustering_config.model_output_rt
-            ).values("signature", "pattern", "origin_pattern", "label")
+            ).values("signature", "pattern", "origin_pattern")
         else:
             pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
-                "signature", "pattern", "origin_pattern", "label"
+                "signature", "pattern", "origin_pattern"
             )
         signature_map_pattern = array_hash(pattern_map, "signature", "pattern")
         signature_map_origin_pattern = array_hash(pattern_map, "signature", "origin_pattern")
-        signature_map_label = array_hash(pattern_map, "signature", "label")
-        sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs])
+        sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs if pattern["key"]])
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
         clustering_remarks = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values(
-            "signature", "origin_pattern", "group_hash", "remark", "owners"
+            "signature",
+            "origin_pattern",
+            "group_hash",
+            "remark",
+            "owners",
+            "groups",
         )
 
         signature_map_remark = {}
+        signature_map_remark_without_group = {}
+
         origin_pattern_map_remark = {}
+        origin_pattern_map_remark_without_group = {}
+
         for remark in clustering_remarks:
             signature_map_remark[(remark["signature"], remark["group_hash"])] = remark
+            if not remark["groups"]:
+                # 只有不带分组的备注才允许继承到带分组的 pattern 中
+                signature_map_remark_without_group[remark["signature"]] = remark
             if remark["origin_pattern"]:
                 origin_pattern_map_remark[(remark["origin_pattern"], remark["group_hash"])] = remark
+                if not remark["groups"]:
+                    origin_pattern_map_remark_without_group[remark["origin_pattern"]] = remark
 
         result = []
         for pattern in pattern_aggs:
             count = pattern["doc_count"]
             signature = pattern["key"]
+            if not signature:
+                continue
             signature_pattern = signature_map_pattern.get(signature, "")
-            signature_origin_pattern = signature_map_origin_pattern.get(signature, "")
+            signature_origin_pattern = signature_map_origin_pattern.get(signature) or signature_pattern
             group_key = f"{signature}|{pattern.get('group', '')}"
             year_on_year_compare = year_on_year_result.get(group_key, MIN_COUNT)
 
@@ -146,12 +165,21 @@ class PatternHandler:
                 [signature] + [str(group_dict.get(field, "")) for field in self._clustering_config.group_fields]
             )
 
+            # 优先从带分组的记录中查找备注
             if (signature, group_hash) in signature_map_remark:
                 remark = signature_map_remark[(signature, group_hash)]["remark"]
                 owners = signature_map_remark[(signature, group_hash)]["owners"]
             elif signature_origin_pattern and (signature_origin_pattern, group_hash) in origin_pattern_map_remark:
                 remark = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["remark"]
                 owners = origin_pattern_map_remark[(signature_origin_pattern, group_hash)]["owners"]
+            # 如果带分组的记录中没有找到备注，则退化为使用无分组的备注内容展示
+            elif signature in signature_map_remark_without_group:
+                remark = signature_map_remark_without_group[signature]["remark"]
+                owners = signature_map_remark_without_group[signature]["owners"]
+            elif signature_origin_pattern and signature_origin_pattern in origin_pattern_map_remark_without_group:
+                remark = origin_pattern_map_remark_without_group[signature_origin_pattern]["remark"]
+                owners = origin_pattern_map_remark_without_group[signature_origin_pattern]["owners"]
+            # 任意一种情况都不匹配
             else:
                 remark = []
                 owners = []
@@ -160,13 +188,12 @@ class PatternHandler:
                 {
                     "pattern": signature_pattern,
                     "origin_pattern": signature_origin_pattern,
-                    "label": signature_map_label.get(signature, ""),
                     "remark": remark,
                     "owners": owners,
                     "count": count,
                     "signature": signature,
                     "percentage": self.percentage(count, sum_count),
-                    "is_new_class": new_class_group_key in new_class,
+                    "is_new_class": new_class_group_key in new_class or (signature,) in new_class,
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
                     "group": group,
@@ -183,8 +210,14 @@ class PatternHandler:
         elif self._remark_config == RemarkConfigEnum.NO_REMARK.value:
             result = [pattern for pattern in result if not pattern["remark"]]
 
+        result_list = []
         if self._owner_config == OwnerConfigEnum.NO_OWNER.value:
-            result = [pattern for pattern in result if not pattern["owners"]]
+            for pattern in result:
+                if not pattern["owners"]:
+                    result_list.append(pattern)
+                elif set(self._owners) & set(pattern["owners"]):
+                    result_list.append(pattern)
+            result = result_list
         elif self._owner_config == OwnerConfigEnum.OWNER.value:
             if not self._owners:
                 return result
@@ -288,17 +321,29 @@ class PatternHandler:
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
-        if self._clustering_config.log_count_agg_rt:
-            select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
+        if self._clustering_config.new_cls_strategy_output:
             # 新类异常检测逻辑适配
-            new_classes = (
-                BkData(self._clustering_config.log_count_agg_rt)
-                .select(*select_fields)
-                .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
-                .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                .time_range(start_time.timestamp, end_time.timestamp)
-                .query()
-            )
+            try:
+                select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
+                new_classes = (
+                    BkData(self._clustering_config.new_cls_strategy_output)
+                    .select(*select_fields)
+                    .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
+                    .where(IS_NEW_PATTERN_PREFIX, "=", 1)
+                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .query()
+                )
+            except Exception:  # pylint: disable=broad-except
+                # 分组字段不存在导致查询失败时，退化到不按分组聚合
+                select_fields = NEW_CLASS_QUERY_FIELDS
+                new_classes = (
+                    BkData(self._clustering_config.new_cls_strategy_output)
+                    .select(*select_fields)
+                    .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
+                    .where(IS_NEW_PATTERN_PREFIX, "=", 1)
+                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .query()
+                )
         else:
             select_fields = NEW_CLASS_QUERY_FIELDS
             new_classes = (
@@ -310,14 +355,39 @@ class PatternHandler:
             )
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
+    def _get_pattern_data(self):
+        start_time, end_time = generate_time_range(
+            NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
+        )
+        try:
+            records = (
+                BkData(self._clustering_config.signature_pattern_rt)
+                .select("signature", "pattern")
+                .time_range(start_time=start_time.shift(days=-1).timestamp)  # 只查截止开始时间前一天的数据，避免历史数据膨胀
+                .query()
+            )
+        except Exception as e:  # pylint:disable=broad-except
+            logger.exception(
+                "IndexSet(%s) get pattern data error for RT(%s): {%s}",
+                self._index_set_id,
+                self._clustering_config.signature_pattern_rt,
+                e,
+            )
+            records = []
+        for record in records:
+            record["pattern"] = re.sub(r'\$([a-zA-Z-_]+)', r'#\1#', record["pattern"])
+        return records
+
     def set_clustering_owner(self, params: dict):
         """
         日志聚类-数据指纹 页面展示信息修改
         """
+        condition = Q(signature=params["signature"])
+        if params.get("origin_pattern"):
+            condition |= Q(origin_pattern=params["origin_pattern"])
+
         remark_obj = (
-            ClusteringRemark.objects.filter(
-                Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
-            )
+            ClusteringRemark.objects.filter(condition)
             .filter(
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),
@@ -356,10 +426,12 @@ class PatternHandler:
         """
         日志聚类-数据指纹 页面展示信息修改
         """
+        condition = Q(signature=params["signature"])
+        if params.get("origin_pattern"):
+            condition |= Q(origin_pattern=params["origin_pattern"])
+
         remark_obj = (
-            ClusteringRemark.objects.filter(
-                Q(signature=params["signature"]) | Q(origin_pattern=params["origin_pattern"])
-            )
+            ClusteringRemark.objects.filter(condition)
             .filter(
                 bk_biz_id=self._clustering_config.bk_biz_id,
                 group_hash=ClusteringRemark.convert_groups_to_groups_hash(params["groups"]),

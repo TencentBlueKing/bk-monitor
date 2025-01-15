@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
+
 import { DatePicker } from '@blueking/date-picker';
 
 import { updateTimezone } from '../../i18n/dayjs';
 
-import { TimeRangeType } from './utils';
+import type { TimeRangeType } from './utils';
 
 import '@blueking/date-picker/vue3/vue3.css';
 
@@ -41,15 +42,15 @@ export default defineComponent({
   props: {
     modelValue: {
       type: Array as PropType<TimeRangeType>,
-      default: () => []
+      default: () => [],
     },
     timezone: {
-      type: String
+      type: String,
     },
     needTimezone: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   emits: ['update:timezone', 'update:modelValue'],
   setup(_, { emit }) {
@@ -62,7 +63,7 @@ export default defineComponent({
     };
     return {
       handleChange,
-      handleTimezoneChange
+      handleTimezoneChange,
     };
   },
   render() {
@@ -71,11 +72,11 @@ export default defineComponent({
         class='time-range-date-picker'
         behavior='simplicity'
         modelValue={this.modelValue}
-        timezone={this.timezone}
         needTimezone={this.needTimezone}
+        timezone={this.timezone}
         onUpdate:modelValue={this.handleChange}
         onUpdate:timezone={this.handleTimezoneChange}
       />
     );
-  }
+  },
 });

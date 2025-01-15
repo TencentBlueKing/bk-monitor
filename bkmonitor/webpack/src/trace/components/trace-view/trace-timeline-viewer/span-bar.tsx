@@ -23,53 +23,54 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref } from 'vue';
+import { type PropType, defineComponent, ref } from 'vue';
+
 import _groupBy from 'lodash/groupBy';
 
 // import AccordianLogs from './span-detail/accordian-logs';
 // import { ViewedBoundsFunctionType } from './utils';
-import { Span } from '../typings';
+import type { Span } from '../typings';
 
 import './span-bar.scss';
 
 const SpanBarProps = {
   color: {
-    type: String
+    type: String,
   },
   hintSide: {
-    type: String
+    type: String,
   },
   // onClick: (evt: React.MouseEvent<any>) => void;
   viewEnd: {
     type: Number,
-    default: 1
+    default: 1,
   },
   viewStart: {
     type: Number,
-    default: 0
+    default: 0,
   },
   // getViewedBounds: Function as PropType<ViewedBoundsFunctionType>,
   rpc: {
-    type: Object
+    type: Object,
   },
   // traceStartTime: {
   //   type: Number
   // },
   span: {
-    type: Object as PropType<Span>
+    type: Object as PropType<Span>,
   },
   label: {
     type: String,
-    default: ''
+    default: '',
   },
   longLabel: {
     type: String,
-    default: ''
+    default: '',
   },
   shortLabel: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 };
 
 function toPercent(value: number) {
@@ -93,7 +94,7 @@ export default defineComponent({
     return {
       label,
       setShortLabel,
-      setLongLabel
+      setLongLabel,
     };
   },
   render() {
@@ -106,7 +107,7 @@ export default defineComponent({
       onClick,
       rpc,
       // traceStartTime,
-      span
+      span,
     } = this.$props;
     // group logs based on timestamps
     // const logGroups = _groupBy(span.logs, (log) => {
@@ -132,27 +133,27 @@ export default defineComponent({
     return (
       <div
         class='span-bar-wrapper'
+        aria-hidden
         onClick={onClick}
         onMouseout={this.setShortLabel}
         onMouseover={this.setLongLabel}
-        aria-hidden
       >
         <div
-          aria-label={this.label}
-          class={{ 'span-bar': true, 'is-infer': isVirtual }}
           style={{
             backgroundColor: color,
             left: toPercent(viewStart),
-            width: toPercent(viewEnd - viewStart)
+            width: toPercent(viewEnd - viewStart),
           }}
+          class={{ 'span-bar': true, 'is-infer': isVirtual }}
+          aria-label={this.label}
         >
           <div class={`span-bar-label is-${hintSide}`}>
             {hintSide === 'right' && spanKindIcon && (
-              <i class={`icon-monitor icon-${spanKindIcon()} icon-span-kind is-right`}></i>
+              <i class={`icon-monitor icon-${spanKindIcon()} icon-span-kind is-right`} />
             )}
             {this.label}
             {hintSide === 'left' && spanKindIcon && (
-              <i class={`icon-monitor icon-${spanKindIcon()} icon-span-kind is-left`}></i>
+              <i class={`icon-monitor icon-${spanKindIcon()} icon-span-kind is-left`} />
             )}
           </div>
         </div>
@@ -178,15 +179,15 @@ export default defineComponent({
         </div> */}
         {rpc && (
           <div
-            class='span-bar-rpc'
             style={{
               background: rpc.color,
               left: toPercent(rpc.viewStart),
-              width: toPercent(rpc.viewEnd - rpc.viewStart)
+              width: toPercent(rpc.viewEnd - rpc.viewStart),
             }}
+            class='span-bar-rpc'
           />
         )}
       </div>
     );
-  }
+  },
 });

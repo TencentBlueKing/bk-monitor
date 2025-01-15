@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { PanelModel } from '../../typings';
+import type { PanelModel } from '../../typings';
 
 import './tag-chart.scss';
 
@@ -34,7 +34,6 @@ interface ITagChart {
   panel: PanelModel;
 }
 @Component
-// eslint-disable-next-line max-len
 export default class TagChart extends tsc<ITagChart> {
   @Prop({ required: true }) panel: PanelModel;
 

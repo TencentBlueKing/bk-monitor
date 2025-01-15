@@ -19,10 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import ugettext_lazy as _  # noqa
+
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user  # noqa
 from config.domains import DATAFLOW_APIGATEWAY_ROOT  # noqa
-from django.utils.translation import ugettext_lazy as _  # noqa
 
 
 class _BkDataDataFlowApi:
@@ -31,7 +32,7 @@ class _BkDataDataFlowApi:
     def __init__(self):
         self.export_flow = DataAPI(
             method="GET",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/export/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/export/",
             url_keys=["flow_id"],
             module=self.MODULE,
             description="导出flow",
@@ -40,7 +41,7 @@ class _BkDataDataFlowApi:
         )
         self.create_flow = DataAPI(
             method="POST",
-            url=DATAFLOW_APIGATEWAY_ROOT + "create/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/create/",
             module=self.MODULE,
             description="创建flow",
             before_request=add_esb_info_before_request_for_bkdata_user,
@@ -49,7 +50,7 @@ class _BkDataDataFlowApi:
         )
         self.start_flow = DataAPI(
             method="POST",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/start/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/start/",
             module=self.MODULE,
             url_keys=["flow_id"],
             description="启动flow",
@@ -58,7 +59,7 @@ class _BkDataDataFlowApi:
         )
         self.stop_flow = DataAPI(
             method="POST",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/stop/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/stop/",
             module=self.MODULE,
             url_keys=["flow_id"],
             description="停止flow",
@@ -67,7 +68,7 @@ class _BkDataDataFlowApi:
         )
         self.restart_flow = DataAPI(
             method="POST",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/restart/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/restart/",
             module=self.MODULE,
             url_keys=["flow_id"],
             description="重启flow",
@@ -76,7 +77,7 @@ class _BkDataDataFlowApi:
         )
         self.get_flow_graph = DataAPI(
             method="GET",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/graph/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/graph/",
             module=self.MODULE,
             url_keys=["flow_id"],
             description="获取DataFlow图信息",
@@ -85,7 +86,7 @@ class _BkDataDataFlowApi:
         )
         self.add_flow_nodes = DataAPI(
             method="POST",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/nodes/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/nodes/",
             module=self.MODULE,
             url_keys=["flow_id"],
             description="新增节点",
@@ -94,7 +95,7 @@ class _BkDataDataFlowApi:
         )
         self.put_flow_nodes = DataAPI(
             method="PUT",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/nodes/{node_id}/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/nodes/{node_id}/",
             module=self.MODULE,
             url_keys=["flow_id", "node_id"],
             description="更新节点",
@@ -103,19 +104,36 @@ class _BkDataDataFlowApi:
         )
         self.get_latest_deploy_data = DataAPI(
             method="GET",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/latest_deploy_data/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/latest_deploy_data/",
             module=self.MODULE,
             url_keys=["flow_id"],
             description="获取flow最近部署信息",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
         )
+        self.get_dataflow = DataAPI(
+            method="GET",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/",
+            module=self.MODULE,
+            url_keys=["flow_id"],
+            description="获取flow信息",
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            after_request=None,
+        )
         self.patch_flow_nodes = DataAPI(
             method="PATCH",
-            url=DATAFLOW_APIGATEWAY_ROOT + "{flow_id}/nodes/{node_id}/",
+            url=DATAFLOW_APIGATEWAY_ROOT + "flow/flows/{flow_id}/nodes/{node_id}/",
             module=self.MODULE,
             url_keys=["flow_id", "node_id"],
             description="部分更新节点",
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            after_request=None,
+        )
+        self.set_dataflow_resource = DataAPI(
+            method="POST",
+            url=DATAFLOW_APIGATEWAY_ROOT + "tool/job/set_resource/",
+            module=self.MODULE,
+            description="设置dataflow资源",
             before_request=add_esb_info_before_request_for_bkdata_user,
             after_request=None,
         )

@@ -48,8 +48,8 @@ export interface IBizItem {
 }
 
 export enum DocLinkType {
+  Link = 'link',
   Splice = 'splice',
-  Link = 'link'
 }
 
 // 文档链接

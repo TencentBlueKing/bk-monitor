@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { IBaseInfo, TPluginTypeObj, TScenaris } from '../types';
+import type { IBaseInfo, TPluginTypeObj, TScenaris } from '../types';
 
 import './detail-header.scss';
 
 const HeaderFunctional = ctx => {
   const {
     props: { curStatusText, curFontColor, data },
-    listeners: { install, viewEvent }
+    listeners: { install, viewEvent },
   } = ctx;
   const {
     name,
@@ -46,20 +46,20 @@ const HeaderFunctional = ctx => {
     categoryDisplay,
     scenario,
     pluginType,
-    isInstalled
+    isInstalled,
   } = data as IBaseInfo;
   const { i18n } = window;
 
   const scenarioMap: TScenaris = {
     MONITOR: i18n.tc('监控工具'),
     REST_API: 'REST API',
-    EMAIL: 'EMAIL'
+    EMAIL: 'EMAIL',
   };
 
   const theWayMap: TPluginTypeObj = {
     http_pull: i18n.tc('拉取'),
     http_push: i18n.tc('推送'),
-    email_pull: i18n.tc('拉取')
+    email_pull: i18n.tc('拉取'),
   };
 
   const getlogoText = (str: string) => str.slice(0, 1).toLocaleUpperCase();
@@ -71,8 +71,8 @@ const HeaderFunctional = ctx => {
           {logo ? (
             <img
               class='logo'
-              src={`data:image/png;base64,${logo}`}
               alt='logo'
+              src={`data:image/png;base64,${logo}`}
             />
           ) : (
             <div class='text-logo'>{getlogoText(name)}</div>
@@ -93,7 +93,7 @@ const HeaderFunctional = ctx => {
           <span class='version-wrap'>
             {sourceCode ? (
               <span class='src-code'>
-                <i class='icon-monitor icon-icon_12_source'></i>
+                <i class='icon-monitor icon-icon_12_source' />
                 {i18n.t('源码')}
               </span>
             ) : undefined}
@@ -104,29 +104,29 @@ const HeaderFunctional = ctx => {
           <tbody>
             <tr>
               <td
-                class='label'
                 style='width: 51px'
+                class='label'
               >
                 {i18n.t('类型')}
               </td>
               <td class='value'>{categoryDisplay || ''}</td>
               <td
-                class='label right'
                 style='width: 120px;'
+                class='label right'
               >
                 {i18n.t('作者')}
               </td>
               <td class='value'>{createUser}</td>
               <td class='label right'>{i18n.t('热度')}</td>
               <td class='value'>
-                <i class='icon-monitor icon-icon_12_heat'></i>
+                <i class='icon-monitor icon-icon_12_heat' />
                 {popularity}
               </td>
             </tr>
             <tr>
               <td
-                class='label'
                 style='width: 51px'
+                class='label'
               >
                 {i18n.t('分类')}
               </td>
@@ -138,8 +138,8 @@ const HeaderFunctional = ctx => {
             </tr>
             <tr>
               <td
-                class='label'
                 style='width: 51px'
+                class='label'
               >
                 {i18n.t('方式')}
               </td>

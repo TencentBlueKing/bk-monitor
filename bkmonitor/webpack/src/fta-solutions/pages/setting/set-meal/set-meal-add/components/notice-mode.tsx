@@ -32,7 +32,7 @@ import './notice-mode.scss';
 
 export const robot = {
   chatid: 'chatid',
-  wxworkBot: 'wxwork-bot'
+  wxworkBot: 'wxwork-bot',
 };
 
 interface INoticeModeProps {
@@ -59,14 +59,14 @@ export interface INoticeWayValue {
 }
 interface INoticeWays {
   name: string;
-  receivers?: string[] | string;
+  receivers?: string | string[];
 }
 interface INoticeModeEvent {
   onChange?: INoticeWayValue[];
 }
 
 @Component({
-  name: 'NoticeModeNew'
+  name: 'NoticeModeNew',
 })
 export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEvent> {
   @Prop({ type: Array, default: () => [] }) noticeWay!: INoticeWay[];
@@ -75,8 +75,8 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
     default: () => [
       { level: 1, notice_ways: [] },
       { level: 2, notice_ways: [] },
-      { level: 3, notice_ways: [] }
-    ]
+      { level: 3, notice_ways: [] },
+    ],
   })
   notifyConfig: INoticeWayValue[];
   @Prop({ type: Number, default: 0 }) type: number; // 0 提醒 1 执行前
@@ -91,7 +91,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
   tableTitle = [window.i18n.t('告警级别'), window.i18n.t('执行阶段')];
   titleMap = [
     [window.i18n.t('致命'), window.i18n.t('预警'), window.i18n.t('提醒')],
-    [window.i18n.t('失败时'), window.i18n.t('成功时'), window.i18n.t('执行前')]
+    [window.i18n.t('失败时'), window.i18n.t('成功时'), window.i18n.t('执行前')],
   ];
   newNoticeWay = [];
 
@@ -124,7 +124,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
       config[item.level] = {
         notice_ways: item.notice_ways.map(ways => {
           const obj = {
-            ...ways
+            ...ways,
           };
           if (ways?.receivers?.length) {
             if (ways.name === robot.wxworkBot) {
@@ -141,7 +141,7 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
             }
           }
           return obj;
-        })
+        }),
       };
     });
     this.noticeWay.forEach(set => {
@@ -161,18 +161,18 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
             receivers:
               config[key].notice_ways?.find(item => item.name === set.type)?.receivers ||
               (set.type === robot.wxworkBot ? '' : []),
-            checked: (config[key].notice_ways?.map(item => item.name) || []).includes(set.type)
+            checked: (config[key].notice_ways?.map(item => item.name) || []).includes(set.type),
           };
         }
         return {
           name: set.type,
-          checked: !!config[key]?.notice_ways?.map(item => item.name).includes(set.type)
+          checked: !!config[key]?.notice_ways?.map(item => item.name).includes(set.type),
         };
       });
       tableData.push({
         list,
         level: key,
-        title: this.levelMap[key - 1]
+        title: this.levelMap[key - 1],
       });
     });
     this.noticeData = tableData.reverse();
@@ -189,15 +189,15 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
           .filter(set => set.checked)
           .map(set => {
             const obj = {
-              name: set.name
+              name: set.name,
             };
             set.receivers &&
               Object.assign(obj, {
                 // 替换空格
-                receivers: set.receivers
+                receivers: set.receivers,
               });
             return obj;
-          })
+          }),
       };
       return noticeWay;
     });
@@ -210,17 +210,34 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
   validator(isStrict = true) {
     const msg = [
       window.i18n.tc('每个告警级别至少选择一种通知方式'),
-      window.i18n.tc('每个执行阶段至少选择一种通知方式')
+      window.i18n.tc('每个执行阶段至少选择一种通知方式'),
     ];
     const res = this.handleParams();
-    const isPass = res.every(item => {
+    const isSelect = res.every(item => {
       if (!item.notice_ways?.length) {
         this.errMsg = msg[this.type];
         return !isStrict;
       }
       return true;
     });
-    return isPass;
+    if (!isSelect) return false;
+
+    const isRobotValidPass = res.every(item => {
+      return item.notice_ways.every(({ name, receivers }) => {
+        if (name === robot.wxworkBot) {
+          if (
+            /(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(receivers as string)
+          ) {
+            this.errMsg = window.i18n.tc('不能输入emoji表情');
+            return false;
+          }
+        }
+        return true;
+      });
+    });
+    if (!isRobotValidPass) return false;
+
+    return true;
   }
 
   handleJumpAddGroup() {
@@ -245,14 +262,14 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
               <th class='first-col'>{this.tableTitle[this.type]}</th>
               {this.newNoticeWay.length
                 ? this.newNoticeWay.map(item => (
-                    <th>
+                    <th key={item.label}>
                       <div class='th-title'>
                         {item.icon ? (
                           <img
-                            alt=''
                             class='title-icon'
+                            alt=''
                             src={`data:image/png;base64,${item.icon}`}
-                          ></img>
+                          />
                         ) : undefined}
                         {item.label}
                         {item.tip ? (
@@ -263,9 +280,9 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               boundary: 'window',
                               placements: ['top'],
                               width: item.width,
-                              allowHTML: true
+                              allowHTML: true,
                             }}
-                          ></i>
+                          />
                         ) : undefined}
                       </div>
                     </th>
@@ -274,42 +291,43 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
             </thead>
             <tbody>
               {this.noticeData.map(item => (
-                <tr>
+                <tr key={item.level}>
                   <td class='first-col'>
                     <div
-                      class='cell'
                       key={item.title}
+                      class='cell'
                     >
-                      {this.showlevelMark && <span class={`level-mark level-mark-${item.level}`}></span>}
+                      {this.showlevelMark && <span class={`level-mark level-mark-${item.level}`} />}
                       <span class={[this.showlevelMark ? `level-title-${item.level}` : undefined]}>{item.title}</span>
                     </div>
                   </td>
                   {item.list.map(notice => (
                     <td
+                      key={notice.name + item.level}
                       class={[
                         this.channels.length === 3 && 'limit-width',
-                        [robot.wxworkBot, 'bkchat'].includes(notice.name) && 'custom-td'
+                        [robot.wxworkBot, 'bkchat'].includes(notice.name) && 'custom-td',
                       ]}
                     >
                       <div
-                        class={['cell', { 'wxwork-bot': notice.name === robot.wxworkBot }]}
                         key={notice.type}
+                        class={['cell', { 'wxwork-bot': notice.name === robot.wxworkBot }]}
                       >
                         {this.readonly ? (
-                          <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]}></i>
+                          <i class={['icon-monitor', notice.checked ? 'icon-mc-check-small' : undefined]} />
                         ) : ['bkchat', 'wxwork-bot'].includes(notice.name) ? undefined : (
                           <bk-checkbox
-                            size={'small'}
                             v-model={notice.checked}
-                            theme='primary'
                             v-bk-tooltips={{
                               content: `${this.$t('电话按通知对象顺序依次拨打,用户组里无法保证顺序')}`,
                               placements: ['top'],
                               boundary: 'window',
-                              disabled: notice.type !== 'voice'
+                              disabled: notice.type !== 'voice',
                             }}
+                            size={'small'}
+                            theme='primary'
                             on-change={() => this.handleParams()}
-                          ></bk-checkbox>
+                          />
                         )}
                         {notice.name === robot.wxworkBot && (
                           <div class='work-group'>
@@ -320,10 +338,10 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                                 v-model={notice.receivers}
                                 placeholder={this.$tc('输入群ID')}
                                 on-change={v => {
-                                  notice.checked = !!v;
+                                  notice.checked = !!v.trim();
                                   this.handleParams();
                                 }}
-                              ></AutoHeightTextarea>
+                              />
                               // <bk-input
                               //   v-model={notice.receivers}
                               //   placeholder={this.$t('输入群ID')}
@@ -338,15 +356,15 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                         )}
                         {notice.name === 'bkchat' && (
                           <div
-                            class='chat-group'
                             style={{ textAlign: 'start' }}
+                            class='chat-group'
                           >
                             <bk-select
                               v-model={notice.receivers}
-                              readonly={this.readonly}
-                              multiple={true}
                               display-tag={true}
+                              multiple={true}
                               placeholder='请选择通知方式'
+                              readonly={this.readonly}
                               on-change={v => {
                                 notice.checked = !!v?.length;
                                 this.handleParams();
@@ -355,19 +373,19 @@ export default class NoticeModeNew extends tsc<INoticeModeProps, INoticeModeEven
                               {this.bkchatList.map(bkchat => (
                                 <bk-option
                                   id={bkchat.id}
-                                  name={bkchat.name}
                                   key={bkchat.id + bkchat.name}
+                                  name={bkchat.name}
                                 />
                               ))}
                               <div
-                                slot='extension'
                                 style='cursor: pointer;'
+                                slot='extension'
                                 onClick={this.handleJumpAddGroup}
                               >
                                 <i
-                                  class='bk-icon icon-plus-circle'
                                   style={{ marginRight: '5px' }}
-                                ></i>
+                                  class='bk-icon icon-plus-circle'
+                                />
                                 {this.$tc('新增群组')}
                               </div>
                             </bk-select>

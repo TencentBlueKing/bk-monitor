@@ -13,7 +13,7 @@ import json
 import logging
 
 import requests
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.fta_action.common import BaseActionProcessor
 from bkmonitor.utils.encode import EncodeWebhook
@@ -27,11 +27,12 @@ class ActionProcessor(BaseActionProcessor):
 
     def __init__(self, action_id, alerts=None):
         super(ActionProcessor, self).__init__(action_id, alerts)
+        logger.info("---begin to webhook(%s) ---", self.action.id)
         template_detail = copy.deepcopy(self.execute_config["template_detail"])
         try:
             body = template_detail.get("body")
             body["content"] = json.loads(body.get("content"))
-        except BaseException as error:
+        except BaseException:
             pass
 
         try:
@@ -64,7 +65,6 @@ class ActionProcessor(BaseActionProcessor):
         发送回调请求
         """
         result = True
-        logger.info("---begin to webhook(%s) ---", self.action.id)
         try:
             r = requests.request(
                 self.method,
@@ -92,7 +92,7 @@ class ActionProcessor(BaseActionProcessor):
 
         except requests.Timeout:
             result = False
-            message = "webhook request timeout"
+            message = "webhook request timeout({})".format(self.failed_retry["timeout"])
         except Exception as e:
             result = False
             message = "webhook request failed, {}".format(e)

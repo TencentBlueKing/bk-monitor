@@ -50,7 +50,7 @@ const state = {
   pageSize: +localStorage.getItem('__common_page_size__') || 10,
   pageList: [10, 20, 50, 100],
   tableData: [],
-  groupTaskList: []
+  groupTaskList: [],
 };
 
 const getters = {
@@ -62,7 +62,7 @@ const getters = {
       limit: pageSize,
       count: total,
       current: page,
-      'pagination-list': pageList
+      'pagination-list': pageList,
     };
   },
   groupTaskList(state) {
@@ -79,7 +79,7 @@ const getters = {
   },
   searchData(state) {
     return state.searchData;
-  }
+  },
 };
 
 const mutations = {
@@ -119,7 +119,7 @@ const mutations = {
   },
   SET_GROUP_TASK_LIST(state, data = []) {
     state.groupTaskList = data;
-  }
+  },
 };
 const actions = {
   async getUptimeCheckTask({ commit, dispatch }) {
@@ -127,11 +127,11 @@ const actions = {
       get_available: true,
       get_task_duration: true,
       get_groups: true,
-      ordering: '-id'
+      ordering: '-id',
     }).catch(() => ({
       task_data: [],
       has_node: false,
-      group_data: []
+      group_data: [],
     }));
     let i = 0;
     const len = task_data.length;
@@ -151,7 +151,7 @@ const actions = {
       taskList.push({
         name: item.name,
         id: item.id,
-        bk_biz_id: item.bk_biz_id
+        bk_biz_id: item.bk_biz_id,
       });
       item.switch = ['running', 'stop_failed'].includes(item.status);
       i += 1;
@@ -233,12 +233,12 @@ const actions = {
       const { groupDetail, tasks } = params;
       await dispatch('getTaskList', { groupDetail, tasks });
     }
-  }
+  },
 };
 export default {
   namespaced: true,
   state,
   mutations,
   getters,
-  actions
+  actions,
 };

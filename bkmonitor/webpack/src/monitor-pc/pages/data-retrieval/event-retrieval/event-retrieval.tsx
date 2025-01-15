@@ -26,19 +26,27 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getGroupByCount } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 // import { handleTimeRange } from '../../../utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { handleGotoLink } from '../../../common/constant';
-import { EmptyStatusType } from '../../../components/empty-status/types';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FieldFiltering from '../event-retrieval/field-filtering';
 import HandleBtn from '../handle-btn/handle-btn';
-import { EventRetrievalViewType, FieldValue, IDataRetrievalView, IEventRetrieval, IFilterCondition } from '../typings';
-
+import {
+  type EventRetrievalViewType,
+  FieldValue,
+  type IDataRetrievalView,
+  type IEventRetrieval,
+  type IFilterCondition,
+} from '../typings';
 import FilterCondition from './filter-condition';
+
+import type { EmptyStatusType } from '../../../components/empty-status/types';
 
 import './event-retrieval.scss';
 
@@ -62,7 +70,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   formLoading = false;
 
   /** 维度过滤loading 获取维度数据时触发 */
-  gourpByLoading = false;
+  groupByLoading = false;
 
   /** 请求的时间范围换成你 */
   timeRangeCache: [number, number] = null;
@@ -70,7 +78,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   /** 事件类型下拉可选项 */
   eventTypeList: IEventRetrieval.IEventTypeList[] = [
     { id: 'custom_event', name: i18n.t('自定义上报事件') },
-    { id: 'bk_monitor_log', name: i18n.t('日志关键字事件') }
+    { id: 'bk_monitor_log', name: i18n.t('日志关键字事件') },
   ];
 
   // 数据id | 采集id 可选列表
@@ -81,7 +89,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     eventType: 'custom_event',
     result_table_id: '',
     query_string: '*',
-    where: []
+    where: [],
   };
   /** 查询语句的缓存 用于diff */
   queryStringCache = '';
@@ -97,7 +105,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     theme: 'light',
     content: '#tips-content',
     placement: 'bottom-start',
-    boundary: 'window'
+    boundary: 'window',
   };
   /** 查询语句提示文本 */
   tipsContentList: IEventRetrieval.ITipsContentListItem[] = [
@@ -106,7 +114,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     { label: i18n.t('字段名模糊匹配:'), value: ['vers\\*on:(quick brown)'] },
     { label: i18n.t('通配符匹配:'), value: ['qu?ck bro*'] },
     { label: i18n.t('正则匹配:'), value: ['name:/joh?n(ath[oa]n/'] },
-    { label: i18n.t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] }
+    { label: i18n.t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] },
   ];
 
   /** 标记是否主动点击查询按钮，失焦则不执行 */
@@ -120,12 +128,12 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     const paramsMap: IEventRetrieval.SourceAndTypeLabelMap = {
       custom_event: {
         data_source_label: 'custom',
-        data_type_label: 'event'
+        data_type_label: 'event',
       },
       bk_monitor_log: {
         data_source_label: 'bk_monitor',
-        data_type_label: 'log'
-      }
+        data_type_label: 'log',
+      },
     };
     return paramsMap[this.localValue.eventType];
   }
@@ -156,43 +164,33 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       query_string: this.localValue.query_string.trim(),
       where: this.localValue.where.map((item, index) => ({
         ...item,
-        condition: !!index ? item.condition : undefined
-      }))
+        condition: index ? item.condition : undefined,
+      })),
     };
   }
 
   /** 图表的时间范围 */
   get timeRange() {
-    // eslint-disable-next-line camelcase
     // const { startTime: start_time, endTime: end_time } = handleTimeRange(this.compareValue.tools.timeRange);
     const [start_time, end_time] = handleTransformToTimestamp(this.compareValue.tools.timeRange);
     return {
       start_time,
-      end_time
+      end_time,
     };
   }
 
   created() {
-    let queryConfig = null;
-    try {
-      queryConfig = JSON.parse((this.$route.query?.queryConfig || null) as string);
-      if (!queryConfig) {
-        queryConfig = JSON.parse((this.$route.query?.targets || null) as string)?.[0]?.data?.query_configs?.[0];
-      }
-    } catch (err) {
-      queryConfig = null;
-      console.log(err);
-    }
-    if (queryConfig) {
-      const { data_source_label, data_type_label, result_table_id, where } = queryConfig;
+    if (this.$route.query?.queryConfig) {
+      const { data_source_label, data_type_label, result_table_id, where } = JSON.parse(
+        this.$route.query.queryConfig as string
+      );
       this.localValue.where = where;
-      // eslint-disable-next-line camelcase
       this.localValue.result_table_id = result_table_id;
-      // eslint-disable-next-line camelcase
       this.localValue.eventType = `${data_source_label}_${data_type_label}` as IEventRetrieval.ILocalValue['eventType'];
-      this.initData(false);
-    } else {
-      this.initData(!this.queryConfig?.result_table_id);
+    }
+
+    if (!this.$route.query?.targets) {
+      this.initData(!this.localValue.result_table_id);
     }
   }
 
@@ -214,13 +212,10 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       this.isEdit = true;
       const { where, result_table_id, query_string, data_source_label, data_type_label } = this.queryConfig;
       this.localValue.where = where;
-      // eslint-disable-next-line camelcase
       this.localValue.result_table_id = result_table_id;
-      // eslint-disable-next-line camelcase
       this.localValue.query_string = query_string;
-      // eslint-disable-next-line camelcase
       this.localValue.eventType = `${data_source_label}_${data_type_label}` as IEventRetrieval.ILocalValue['eventType'];
-      this.initData(false);
+      this.initData(!result_table_id);
     }
   }
 
@@ -301,6 +296,7 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
     this.handleChartTitleChange();
     this.getGroupByList();
     this.emptyStatusChange(this.localValue.result_table_id ? 'search-empty' : 'empty');
+    this.$emit('change', this.localValue);
     // 每次查询若输入框的值与kv列表下钻的值不同则清空下钻查询语句
     if (this.drillKeywords !== this.localValue.query_string) this.handleClearDrillKeywords();
     return deepClone(this.currentGroupByVarPramas);
@@ -334,18 +330,18 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   /**
    * @description: 获取维度列表数据
    */
-  // eslint-disable-next-line camelcase
-  getGroupByList(timeRange?: { start_time: number; end_time: number }) {
+
+  getGroupByList(time?: { start_time: number; end_time: number }) {
     if (!this.currentGroupByVarPramas.result_table_id) return;
-    timeRange = timeRange ? timeRange : this.timeRange;
+    const timeRange = time ? time : this.timeRange;
     this.timeRangeCache = [timeRange.start_time, timeRange.end_time];
     const params = {
       ...timeRange,
       ...this.currentGroupByVarPramas,
       filter_dict: {},
-      index_set_id: ''
+      index_set_id: '',
     };
-    this.gourpByLoading = true;
+    this.groupByLoading = true;
     return getGroupByCount(params)
       .then(res => {
         this.handleCountChange(res.total);
@@ -355,7 +351,9 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
       .catch(() => {
         this.emptyStatusChange('500');
       })
-      .finally(() => (this.gourpByLoading = false));
+      .finally(() => {
+        this.groupByLoading = false;
+      });
   }
 
   @Emit('emptyStatusChange')
@@ -415,50 +413,64 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
 
   render() {
     // 查询语句的提示内容
-    const tipsContentTpl = () => (
-      <div
-        id='tips-content'
-        class='query-tips-content-wrapper'
-      >
+    const tipsContent = () => (
+      <div class='tips-content-main'>
         <div class='tips-content-title'>
           {this.$t('可输入SQL语句进行快速查询')}
           <a
             class='link'
             target='_blank'
-            onClick={() => handleGotoLink('bkLogQueryString')}
+            onClick={() => {
+              skipToDocsLink('bkLogQueryString');
+            }}
           >
             {this.$t('查看语法')}
-            <i class='icon-monitor icon-mc-link'></i>
+            <i class='icon-monitor icon-mc-link' />
           </a>
         </div>
         <ul class='tips-content-list'>
-          {this.tipsContentList.map(item => (
-            <li class='tips-content-item'>
+          {this.tipsContentList.map((item, index) => (
+            <li
+              key={index}
+              class='tips-content-item'
+            >
               <div class='tips-content-item-label'>{item.label}</div>
-              {item.value.map(val => (
-                <div class='tips-content-item-val'>{val}</div>
+              {item.value.map((val, vIndex) => (
+                <div
+                  key={vIndex}
+                  class='tips-content-item-val'
+                >
+                  {val}
+                </div>
               ))}
             </li>
           ))}
         </ul>
       </div>
     );
+    const tipsContentTpl = () => (
+      <div
+        id='tips-content'
+        class='query-tips-content-wrapper'
+      >
+        {this.groupByLoading ? <TableSkeleton type={4} /> : tipsContent()}
+      </div>
+    );
     return (
       <div class='event-retrieval-wrapper'>
-        <div
-          class='event-retrieval-bg'
-          v-bkloading={{ isLoading: this.formLoading }}
-        >
+        <div class='event-retrieval-bg'>
           <div class='er-from-item'>
             <div class='er-from-item-label'>{this.$t('事件类型')}</div>
             <bk-select
-              clearable={false}
               vModel={this.localValue.eventType}
+              clearable={false}
+              loading={this.formLoading}
               onSelected={this.handleChangeEventType}
             >
               {this.eventTypeList.map(item => (
                 <bk-option
                   id={item.id}
+                  key={item.id}
                   name={item.name}
                 />
               ))}
@@ -470,17 +482,39 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
                 {this.$t(this.localValue.eventType === 'custom_event' ? '数据ID' : '采集ID')}
               </div>
               <bk-select
-                clearable={false}
-                vModel={this.localValue.result_table_id}
                 key={JSON.stringify(this.dataIdList)}
+                vModel={this.localValue.result_table_id}
+                clearable={false}
+                ext-popover-cls={'event-retrieval-data-id-select-popover'}
+                loading={this.formLoading}
+                searchable={true}
                 onSelected={this.handleInitLocalValue}
               >
-                {this.dataIdList.map(item => (
-                  <bk-option
-                    id={item.id}
-                    name={item.name}
-                  />
-                ))}
+                {this.localValue.eventType === 'custom_event'
+                  ? this.dataIdList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      >
+                        <span class='event-item-name'>
+                          <span
+                            class='name-text'
+                            v-bk-overflow-tips
+                          >
+                            {item.name}
+                          </span>
+                          {!!item?.is_platform && <span class='platform-tag'>{this.$t('平台数据')}</span>}
+                        </span>
+                      </bk-option>
+                    ))
+                  : this.dataIdList.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
               </bk-select>
             </div>
           ) : undefined}
@@ -490,44 +524,46 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
               <i
                 class='icon-monitor icon-mc-help-fill'
                 v-bk-tooltips={this.tipsConfig}
-              ></i>
+              />
             </div>
             <bk-input
-              type='textarea'
               class='query-string-input'
               vModel={this.localValue.query_string}
+              disabled={this.formLoading}
+              type='textarea'
               onBlur={this.handleQueryStringBlur}
               onFocus={this.handleInputFocus}
             />
           </div>
           <div class='er-from-item'>
             <FilterCondition
-              value={this.localValue.where}
               groupBy={this.currentDimensionsList}
+              value={this.localValue.where}
               varParams={this.currentGroupByVarPramas}
               onChange={this.handleConditionChange}
             />
           </div>
           <HandleBtn
             style='padding-top: 8px;'
-            canQuery={true}
-            canFav={Boolean(this.localValue.result_table_id)}
             autoQuery={this.autoQuery}
+            canFav={Boolean(this.localValue.result_table_id)}
+            canQuery={true}
             favCheckedValue={this.favCheckedValue}
             isFavoriteUpdate={this.isFavoriteUpdate}
-            onQueryTypeChange={this.handleAutoQueryChange}
-            onQuery={this.handleEventQuery}
             onAddFav={this.handleAddEventFav}
             onClear={this.handleClearQuery}
+            onQuery={this.handleEventQuery}
+            onQueryTypeChange={this.handleAutoQueryChange}
           />
         </div>
         <FieldFiltering
-          v-bkloading={{ isLoading: this.gourpByLoading }}
           class='field-filtering'
-          value={this.groupByList}
           total={this.total}
-          onChange={list => (this.groupByList = list)}
+          value={this.groupByList}
           onAddCondition={this.handleAddFilterCondition}
+          onChange={list => {
+            this.groupByList = list;
+          }}
         />
         {tipsContentTpl()}
       </div>

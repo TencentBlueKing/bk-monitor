@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from typing import Dict, Iterable, List, Union
+from typing import Dict, List, Union
 
 from django.conf import settings
 from iam import (
@@ -30,13 +30,12 @@ from iam.apply.models import (
     ResourceInstance,
     ResourceNode,
 )
+from iam.eval.expression import OP
 from iam.exceptions import AuthAPIError
 from iam.meta import setup_action, setup_resource, setup_system
 from iam.utils import gen_perms_apply_data
 
-from api.cmdb.define import Business
 from bkm_space.api import SpaceApi
-from bkm_space.define import Space
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import (
@@ -51,7 +50,6 @@ from bkmonitor.iam.resource import Business as BusinessResource
 from bkmonitor.iam.resource import _all_resources, get_resource_by_id
 from bkmonitor.models import ApiAuthToken
 from bkmonitor.utils.request import get_request
-from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from core.errors.share import TokenValidatedError
@@ -76,6 +74,8 @@ ActionIdMap = {
     "dashboard": [ActionEnum.VIEW_SINGLE_DASHBOARD],
     # APM
     "apm": [ActionEnum.VIEW_APM_APPLICATION],
+    # 故障根因定位
+    "incident": [ActionEnum.VIEW_INCIDENT],
 }
 
 api_paths = ["/time_series/unify_query/", "log/query/", "time_series/unify_trace_query/"]
@@ -116,11 +116,17 @@ class Permission(object):
 
     @classmethod
     def get_iam_client(cls):
-        app_info = (settings.APP_CODE, settings.SECRET_KEY)
+        app_code, secret_key = settings.APP_CODE, settings.SECRET_KEY
         if settings.ROLE in ["api", "worker"]:
             # 后台api模式下使用SaaS身份
-            app_info = (settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY)
-        return CompatibleIAM(*app_info, settings.BK_IAM_INNER_HOST, settings.BK_COMPONENT_API_URL)
+            app_code, secret_key = settings.SAAS_APP_CODE, settings.SAAS_SECRET_KEY
+
+        bk_apigateway_url = (
+            settings.IAM_API_BASE_URL
+            if settings.IAM_API_BASE_URL
+            else f"{settings.BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+        )
+        return CompatibleIAM(app_code, secret_key, settings.BK_IAM_INNER_HOST, None, bk_apigateway_url)
 
     def grant_creator_action(self, resource: Resource, creator: str = None, raise_exception=False):
         """
@@ -287,31 +293,6 @@ class Permission(object):
         url = self.get_apply_url(actions, resources)
         return data, url
 
-    @staticmethod
-    def is_demo_biz_resource(resources: List[Resource] = None):
-        """
-        判断资源是否为demo业务的资源
-        """
-        if not settings.DEMO_BIZ_ID or int(settings.DEMO_BIZ_ID) <= 0:
-            return False
-        if not resources:
-            return False
-        if not len(resources) == 1:
-            return False
-        if (resources[0].system, resources[0].type, str(resources[0].id)) == (
-            BusinessResource.system_id,
-            BusinessResource.id,
-            str(settings.DEMO_BIZ_ID),
-        ):
-            # 业务类型资源判断资源ID
-            return True
-        if resources[0].attribute and resources[0].attribute.get("_bk_iam_path_", "").startswith(
-            f"/biz,{settings.DEMO_BIZ_ID}/"
-        ):
-            # 其他类型资源，判断路径
-            return True
-        return False
-
     def is_allowed(
         self, action: Union[ActionMeta, str], resources: List[Resource] = None, raise_exception: bool = False
     ):
@@ -349,14 +330,6 @@ class Permission(object):
         action = get_action_by_id(action)
         if not action.related_resource_types:
             resources = []
-
-        # ===== 针对demo业务的权限豁免 开始 ===== #
-        if self.is_demo_biz_resource(resources):
-            # 如果是demo业务，则进行权限豁免，分为读写权限
-            if settings.DEMO_BIZ_WRITE_PERMISSION or action.is_read_action():
-                # 鉴权通过，直接返回。如果不通过，就走权限中心鉴权
-                return True
-        # ===== 针对demo业务的权限豁免 结束 ===== #
 
         request = self.make_request(action, resources)
 
@@ -450,17 +423,6 @@ class Permission(object):
         request = self.make_multi_action_request(actions)
         result = self.iam_client.batch_resource_multi_actions_allowed(request, resources)
 
-        # ===== 针对demo业务的权限豁免 开始 ===== #
-        for action in actions:
-            if action.is_read_action():
-                continue
-            for resource in resources:
-                resource_id = resource[0].id
-                action_id = action.id
-                if self.is_demo_biz_resource(resource) and resource_id in result and action_id in result[resource_id]:
-                    result[resource_id][action_id] = True
-        # ===== 针对demo业务的权限豁免 结束 ===== #
-
         return result
 
     @classmethod
@@ -493,11 +455,11 @@ class Permission(object):
             )
         return data["actions"]
 
-    def filter_space_list_by_action(self, action: Union[ActionMeta, str]) -> List[Space]:
+    def filter_space_list_by_action(self, action: Union[ActionMeta, str], using_cache=True) -> List[dict]:
         """
         获取有对应action权限的空间列表
         """
-        space_list = SpaceApi.list_spaces()
+        space_list = SpaceApi.list_spaces_dict(using_cache)
         # 对后台API进行权限豁免
         if self.skip_check:
             return space_list
@@ -512,11 +474,14 @@ class Permission(object):
             return []
 
         if not policies:
-            # 如果策略是空，则说明没有任何权限，若存在Demo业务，返回Demo业务，否则返回空
-            for space in space_list:
-                if int(settings.DEMO_BIZ_ID) == space.bk_biz_id:
-                    return [space]
             return []
+
+        op = policies["op"]
+        if op == OP.ANY:
+            return space_list
+        elif op == OP.IN:
+            value = policies["value"]
+            return list(filter(lambda x: str(x["bk_biz_id"]) in value, space_list))
 
         # 生成表达式
         expr = make_expression(policies)
@@ -524,80 +489,12 @@ class Permission(object):
         results = []
         for space in space_list:
             obj_set = ObjectSet()
-            obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(space.bk_biz_id)})
+            obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(space["bk_biz_id"])})
 
-            # 计算表达式
-            is_allowed = self.iam_client._eval_expr(expr, obj_set)
-
-            # 如果是demo业务，也直接加到业务列表中
-            if is_allowed or int(settings.DEMO_BIZ_ID) == space.bk_biz_id:
+            if self.iam_client._eval_expr(expr, obj_set):
                 results.append(space)
 
         return results
-
-    def filter_business_list_by_action(
-        self, action: Union[ActionMeta, str], business_list: List[Business] = None
-    ) -> List[Business]:
-        """
-        根据动作过滤用户有权限的业务列表
-        """
-
-        if business_list is None:
-            # 获取业务列表
-            business_list = api.cmdb.get_business()
-
-        # 对后台API进行权限豁免
-        if self.skip_check:
-            return business_list
-
-        # 拉取策略
-        request = self.make_request(action=action)
-
-        try:
-            policies = self.iam_client._do_policy_query(request)
-        except AuthAPIError as e:
-            logger.exception("[IAM AuthAPI Error]: %s", e)
-            return []
-
-        if not policies:
-            # 如果策略是空，则说明没有任何权限，若存在Demo业务，返回Demo业务，否则返回空
-            for business in business_list:
-                if int(settings.DEMO_BIZ_ID) == business.bk_biz_id:
-                    return [business]
-            return []
-
-        # 生成表达式
-        expr = make_expression(policies)
-
-        results = []
-        for business in business_list:
-            obj_set = ObjectSet()
-            obj_set.add_object(ResourceEnum.BUSINESS.id, {"id": str(business.bk_biz_id)})
-
-            # 计算表达式
-            is_allowed = self.iam_client._eval_expr(expr, obj_set)
-
-            # 如果是demo业务，也直接加到业务列表中
-            if is_allowed or int(settings.DEMO_BIZ_ID) == business.bk_biz_id:
-                results.append(business)
-
-        return results
-
-    def filter_biz_ids_by_action(self, action: Union[ActionMeta, str], bk_biz_ids: Iterable[int] = None) -> List[int]:
-        """
-        过滤只包含数值的业务ID列表，filter_business_list_by_action 的进一步封装
-        """
-        bk_biz_ids = bk_biz_ids or []
-        if -1 in bk_biz_ids:
-            # -1 代表获取用户所有有权限的业务
-            bk_biz_ids = []
-
-        business_list = [Business(bk_biz_id) for bk_biz_id in bk_biz_ids]
-        if not business_list:
-            business_list = None
-
-        filtered_business = self.filter_business_list_by_action(action=action, business_list=business_list)
-        return [business.bk_biz_id for business in filtered_business]
 
     @classmethod
     def setup_meta(cls):

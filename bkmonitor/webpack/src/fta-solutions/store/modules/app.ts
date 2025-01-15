@@ -28,12 +28,16 @@
  * @LastEditTime: 2021-06-26 11:33:00
  * @Description:
  */
-/* eslint-disable new-cap */
-import Vue from 'vue';
-import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
-import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 
-import { ISpaceItem } from '../../typings';
+import Vue from 'vue';
+
+import { LANGUAGE_COOKIE_KEY, docCookies } from 'monitor-common/utils';
+import { Module, Mutation, VuexModule } from 'vuex-module-decorators';
+
+import type { ISpaceItem } from '../../typings';
+
+// 设置 biz bg color
+export const SET_BIZ_BGCOLOR = 'SET_BIZ_BGCOLOR';
 
 export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 export interface IAppState {
@@ -45,26 +49,33 @@ export interface IAppState {
   siteUrl: string;
   bkUrl: string;
   navRouteList: any[];
+  bizBgColor: string;
   lang: string;
+  spaceUidMap: Map<string, ISpaceItem>;
+  bizIdMap: Map<string, ISpaceItem>;
 }
 
 @Module({ name: 'app', namespaced: true })
 export default class App extends VuexModule implements IAppState {
-  public navId = 'home';
-  public userName = '';
+  public bizBgColor = ''; // 业务颜色
   public bizId = '';
+  public bizIdMap;
   public bizList = [];
-  public csrfCookieName = '';
-  public siteUrl = '/';
-  public navTitle = '';
   public bkUrl = '';
-  public navRouteList = [];
+  public csrfCookieName = '';
   public lang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn';
+  public navId = 'home';
+  public navRouteList = [];
+  public navTitle = '';
+  public siteUrl = '/';
+  public spaceUidMap;
+  public userName = ''; // 业务id是否切换
+
   @Mutation
   SET_APP_STATE(data: IAppState) {
-    Object.keys(data).forEach(key => {
+    for (const [key, value] of Object.entries(data)) {
       if (key === 'bizList') {
-        this[key] = data[key].map(item => {
+        this[key] = value.map(item => {
           const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
           const pyText = pinyinStr.replace(/,/g, '');
           const pyfText = pinyinStr
@@ -74,17 +85,19 @@ export default class App extends VuexModule implements IAppState {
           return {
             ...item,
             py_text: pyText,
-            pyf_text: pyfText
+            pyf_text: pyfText,
           };
         });
-        return;
+        this.spaceUidMap = new Map(this.bizList.map(item => [item.space_uid, item]));
+        this.bizIdMap = new Map(this.bizList.map(item => [item.bk_biz_id, item]));
+        continue;
       }
-      this[key] = data[key];
-    });
+      this[key] = value;
+    }
   }
   @Mutation
-  SET_NAV_TITLE(title: string) {
-    this.navTitle = title;
+  [SET_BIZ_BGCOLOR](val: string) {
+    this.bizBgColor = val;
   }
 
   @Mutation
@@ -95,5 +108,10 @@ export default class App extends VuexModule implements IAppState {
   @Mutation
   [SET_NAV_ROUTE_LIST](list) {
     this.navRouteList = list;
+  }
+
+  @Mutation
+  SET_NAV_TITLE(title: string) {
+    this.navTitle = title;
   }
 }

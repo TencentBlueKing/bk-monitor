@@ -35,10 +35,10 @@ const actions = {
       collect_config_list: [],
       strategy_config_list: [],
       view_config_list: [],
-      error: true // 接口报错
+      error: true, // 接口报错
     }));
     return transformDataKey(obj);
-  }
+  },
 };
 
 export default {
@@ -46,5 +46,5 @@ export default {
   state,
   getters,
   mutations,
-  actions
+  actions,
 };

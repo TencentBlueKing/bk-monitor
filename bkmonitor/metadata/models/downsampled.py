@@ -9,7 +9,7 @@ from django.db import models
 from django.template import Context, Template
 from django.utils.functional import cached_property
 from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from influxdb.line_protocol import quote_ident
 
 from bkmonitor.dataflow.auth import ensure_has_permission_with_rt_id

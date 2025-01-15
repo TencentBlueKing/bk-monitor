@@ -167,12 +167,19 @@ class AlgorithmModel(Model):
         TimeSeriesForecasting = "TimeSeriesForecasting"
         AbnormalCluster = "AbnormalCluster"
         MultivariateAnomalyDetection = "MultivariateAnomalyDetection"
+        HostAnomalyDetection = "HostAnomalyDetection"
 
     AIOPS_ALGORITHMS = [
         AlgorithmChoices.IntelligentDetect,
         AlgorithmChoices.TimeSeriesForecasting,
         AlgorithmChoices.AbnormalCluster,
         AlgorithmChoices.MultivariateAnomalyDetection,
+        AlgorithmChoices.HostAnomalyDetection,
+    ]
+
+    AUTHORIZED_SOURCE_ALGORITHMS = [
+        AlgorithmChoices.MultivariateAnomalyDetection,
+        AlgorithmChoices.HostAnomalyDetection,
     ]
 
     ALGORITHM_CHOICES = (
@@ -192,6 +199,7 @@ class AlgorithmModel(Model):
         (AlgorithmChoices.TimeSeriesForecasting, _lazy("时序预测算法")),
         (AlgorithmChoices.AbnormalCluster, _lazy("离群检测算法")),
         (AlgorithmChoices.MultivariateAnomalyDetection, _lazy("多指标异常检测算法")),
+        (AlgorithmChoices.HostAnomalyDetection, _lazy("主机异常检测算法")),
     )
 
     strategy_id = models.IntegerField("关联策略ID", db_index=True)
@@ -324,8 +332,9 @@ class StrategyModel(Model):
     class StrategyType:
         Monitor = "monitor"
         FTASolution = "fta"
+        Dashboard = "dashboard"
 
-        Choices = ((Monitor, _lazy("监控")), (FTASolution, _lazy("故障自愈")))
+        Choices = ((Monitor, _lazy("监控")), (FTASolution, _lazy("故障自愈")), (Dashboard, _lazy("仪表盘")))
 
     class InvalidType:
         NONE = ""
@@ -335,6 +344,7 @@ class StrategyModel(Model):
         INVALID_TARGET = "invalid_target"
         INVALID_METRIC = "invalid_metric"
         INVALID_BIZ = "invalid_biz"
+        INVALID_DASHBOARD_PANEL = "invalid_dashboard_panel"
 
         Choices = [
             (NONE, NONE),
@@ -344,6 +354,7 @@ class StrategyModel(Model):
             (INVALID_TARGET, _lazy("监控目标全部失效")),
             (INVALID_METRIC, _lazy("监控指标不存在")),
             (INVALID_BIZ, _lazy("策略所属业务不存在")),
+            (INVALID_DASHBOARD_PANEL, _lazy("策略配置的仪表盘图表失效")),
         ]
 
     name = models.CharField("策略名称", max_length=128, db_index=True)
@@ -500,7 +511,7 @@ class UserGroup(AbstractRecordModel):
             ]
             if valid_work_times:
                 plan.work_times = valid_work_times
-                plan.start_time = min([work_time["start_time"] for work_time in plan.work_times])
+                plan.start_time = plan.start_time[:-3]
                 work_finished_time = max([work_time["end_time"] for work_time in plan.work_times])
                 # plan的结束时间，以工作时间和当前排班结束时间的最小值为准
                 plan_finish_time = plan.finished_time[:-3]
@@ -573,8 +584,8 @@ class DutyRule(AbstractRecordModel):
     category = models.CharField(
         "轮值类型",
         choices=(
-            ("regular", _lazy("常规值班")),
-            ("handoff", _lazy("交替轮值")),
+            ("regular", "常规值班"),
+            ("handoff", "交替轮值"),
         ),
         default="regular",
         max_length=64,
@@ -741,6 +752,7 @@ class DutyArrange(AbstractRecordModel):
         # update old duty arranges
         for duty_hash, duty_data in existed_duty.items():
             duty = existed_duty_instances[duty_hash]
+            duty_data[instance_id_key] = instance.id
             for attr, value in duty_data.items():
                 setattr(duty, attr, value)
             duty.save()
@@ -796,7 +808,7 @@ class DutyPlan(Model):
     """
 
     id = models.BigAutoField("主键", primary_key=True)
-    user_group_id = models.IntegerField("关联的告警组", null=False, db_index=True)
+    user_group_id = models.IntegerField("关联的告警组", null=False)
     duty_rule_id = models.IntegerField("关联的告警信息", null=True, db_index=True)
     duty_arrange_id = models.IntegerField("轮值组ID", null=True, db_index=True)
     order = models.IntegerField("轮班组的顺序")
@@ -805,7 +817,7 @@ class DutyPlan(Model):
     is_active = models.BooleanField("是否生效状态（已废弃）", default=False)
 
     # 是否有效，替换原来的is_active字段，这样可以设置索引
-    is_effective = models.IntegerField("是否有效", default=0, db_index=True)
+    is_effective = models.IntegerField("是否有效", default=0)
     start_time = models.CharField("当前轮班生效开始时间", null=False, max_length=32, default="1970-01-01 00:00:00")
     finished_time = models.CharField("当前轮班生效结束时间", null=True, max_length=32, db_index=True)
 
@@ -822,6 +834,12 @@ class DutyPlan(Model):
 
     # duty_time: [{"work_type": "daily|month|week", "work_days":[1,2,3], "work_time"}]
     duty_time = models.JSONField(verbose_name="轮班时间安排", default=dict)
+
+    class Meta:
+        indexes = [
+            # 避免定时任务 index merge 引起的死锁，finished_time 用于加速用户组视图
+            models.Index(fields=["user_group_id", "is_effective", "finished_time"])
+        ]
 
     def is_active_plan(self, data_time=None):
         """

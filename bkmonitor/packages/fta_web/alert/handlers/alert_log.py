@@ -11,8 +11,8 @@ specific language governing permissions and limitations under the License.
 import json
 from typing import List
 
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
@@ -29,8 +29,8 @@ class AlertLogHandler:
         AlertLog.OpType.RECOVERING: _lazy("告警恢复中"),
         AlertLog.OpType.DELAY_RECOVER: _lazy("延迟恢复"),
         AlertLog.OpType.ABORT_RECOVER: _lazy("中断恢复"),
-        AlertLog.OpType.SYSTEM_RECOVER: _lazy("告警恢复"),
-        AlertLog.OpType.SYSTEM_CLOSE: _lazy("告警关闭"),
+        AlertLog.OpType.SYSTEM_RECOVER: _lazy("系统恢复"),
+        AlertLog.OpType.SYSTEM_CLOSE: _lazy("系统关闭"),
         AlertLog.OpType.ACK: _lazy("告警确认"),
         AlertLog.OpType.SEVERITY_UP: _lazy("告警级别调整"),
         AlertLog.OpType.ACTION: _lazy("处理动作"),

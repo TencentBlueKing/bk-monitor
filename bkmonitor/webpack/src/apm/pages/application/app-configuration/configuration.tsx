@@ -23,32 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide, Ref } from 'vue-property-decorator';
-import { applicationInfo, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { Component, Mixins, Prop, Ref } from 'vue-property-decorator';
+
+import { applicationInfoByAppName, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import ConfigurationNav from '../../../components/configuration-nav/configuration-nav';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as authorityMap from '../../home/authority-map';
-
 import BasicConfiguration from './basic-configuration';
-// import IndicatorDimension from './indicator-dimension';
 import ConfigurationView from './configuration-view';
-import CustomService from './custom-service';
-import DataStatus from './data-status';
-import StorageState from './storage-state';
-import { IAppInfo, IClusterItem, IMenuItem } from './type';
+import DataStatus from './data-state/data-state';
+import StorageState from './storage-state/storage-state';
+
+import type { IAppInfo, IClusterItem, IMenuItem } from './type';
+import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './configuration.scss';
 
 @Component
 export default class ApplicationConfiguration extends Mixins(authorityMixinCreate(authorityMap)) {
   @Ref() contentRef: HTMLElement;
-
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
+  @Prop({ type: String, default: '' }) appName: string;
   routeList: INavItem[] = []; // 导航条设置
   activeMenu = 'basicConfiguration'; // 当前设置菜单
   loading = false;
@@ -66,7 +62,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       apdex_db: 0,
       apdex_rpc: 0,
       apdex_backend: 0,
-      apdex_messaging: 0
+      apdex_messaging: 0,
     },
     owner: '',
     is_enabled: false,
@@ -75,7 +71,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       es_number_of_replicas: 0,
       es_retention: 1,
       es_storage_cluster: 0, // 存储集群
-      es_shards: 1 // 分片数
+      es_shards: 1, // 分片数
     },
     create_user: '',
     create_time: '',
@@ -84,10 +80,10 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     no_data_period: 0,
     application_sampler_config: {
       sampler_type: '',
-      sampler_percentage: 0
+      sampler_percentage: 0,
     },
     application_instance_name_config: {
-      instance_name_composition: []
+      instance_name_composition: [],
     },
     application_db_config: [],
     application_db_system: [],
@@ -100,14 +96,14 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       paths: [''],
       bk_biz_id: window.bk_biz_id,
       bk_data_id: '',
-      subscription_id: ''
-    }
+      subscription_id: '',
+    },
   };
   /** 历史记录弹窗配置 */
   recordData: Record<string, string> = {};
   /** 插件使用说明侧栏配置 */
   configurationView: {
-    rightWidth: string | number;
+    rightWidth: number | string;
     range: number[];
     isActive: boolean;
     show: boolean;
@@ -115,38 +111,28 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     rightWidth: '33%',
     range: [300, 1200],
     isActive: false,
-    show: false
+    show: false,
   };
   menuList: IMenuItem[] = [
     // { id: 'baseInfo', name: window.i18n.tc('基本信息') },
     { id: 'basicConfiguration', name: window.i18n.tc('基础配置') },
-    { id: 'customService', name: window.i18n.tc('自定义服务') },
     { id: 'storageState', name: window.i18n.tc('存储状态') },
-    { id: 'dataStatus', name: window.i18n.tc('数据状态') }
+    { id: 'dataStatus', name: window.i18n.tc('数据状态') },
     // { id: 'indicatorDimension', name: window.i18n.tc('指标维度') }
   ];
   clusterList: IClusterItem[] = []; // 存储集群列表
 
-  /** 应用ID */
-  get appId() {
-    return this.$route.params.id;
-  }
   get rightWidth() {
     const { show, rightWidth } = this.configurationView;
-    // eslint-disable-next-line no-nested-ternary
+
     return show ? (typeof rightWidth === 'string' ? rightWidth : `${rightWidth}px`) : '0px';
   }
-  /** 页面权限校验实例资源 */
-  get authorityResource() {
-    return { application_id: this.appId || '' };
-  }
-  get positonText() {
+  get positionText() {
     return `${window.i18n.tc('应用')}：${this.appInfo.app_name}`;
   }
 
   beforeRouteEnter(from, to, next) {
     next((vm: ApplicationConfiguration) => {
-      // eslint-disable-next-line no-param-reassign
       vm.routeList = [
         // {
         //   id: 'home',
@@ -165,8 +151,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
         // }
         {
           id: 'configuration',
-          name: window.i18n.tc('route-配置应用')
-        }
+          name: window.i18n.tc('route-配置应用'),
+        },
       ];
     });
   }
@@ -183,9 +169,11 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
    * @desc 获取应用基本信息
    */
   async getAppBaseInfo() {
-    if (this.appId) {
+    if (this.appName) {
       this.loading = this.firstLoad;
-      const res = await applicationInfo(this.appId).catch(() => {});
+      const res = await applicationInfoByAppName({
+        app_name: this.appName,
+      }).catch(() => {});
       // 特殊处理。应该后端的 bug 。
       if ((res as IAppInfo).application_db_config.length === 0) {
         res.application_db_config.push({
@@ -193,16 +181,17 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
           trace_mode: 'closed',
           length: 10000,
           threshold: 500,
-          enabled_slow_sql: true
+          enabled_slow_sql: true,
         });
       }
       Object.assign(this.appInfo, res);
+      this.authority.MANAGE_AUTH = res?.permission?.manage_apm_application_v2 || false;
       const {
         // app_name: appName,
         create_user: createUser,
         create_time: createTime,
         update_time: updateTime,
-        update_user: updateUser
+        update_user: updateUser,
       } = this.appInfo;
       // this.routeList[1].name = `${this.$t('应用')}：${appName}`;
       // this.routeList[1].query['filter-app_name'] = appName;
@@ -244,8 +233,8 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     this.$router.push({
       name: 'application',
       query: {
-        'filter-app_name': this.appInfo.app_name
-      }
+        'filter-app_name': this.appInfo.app_name,
+      },
     });
   }
   /**
@@ -293,7 +282,7 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
     const width = direction === 'left' ? `calc(100% - ${this.rightWidth})` : this.rightWidth;
     return {
       width,
-      flexBasis: width
+      flexBasis: width,
     };
   }
   /**
@@ -309,18 +298,16 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
             on-change={this.getAppBaseInfo}
           />
         );
-      case 'customService': // 自定义服务
-        return <CustomService data={this.appInfo} />;
       case 'storageState': // 存储状态
         return (
           <StorageState
-            data={this.appInfo}
             clusterList={this.clusterList}
+            data={this.appInfo}
             on-change={this.getAppBaseInfo}
           />
         );
       case 'dataStatus': // 数据状态
-        return <DataStatus />;
+        return <DataStatus data={this.appInfo} />;
       // case 'indicatorDimension': // 指标维度
       //   return <IndicatorDimension />;
       default:
@@ -339,46 +326,48 @@ export default class ApplicationConfiguration extends Mixins(authorityMixinCreat
       >
         <CommonNavBar
           class='application-configuration-nav'
+          navMode={'display'}
+          needBack={true}
+          positionText={this.positionText}
           routeList={this.routeList}
           needCopyLink
-          needBack={true}
-          navMode={'display'}
-          positionText={this.positonText}
-        ></CommonNavBar>
+        >
+          {
+            <span
+              class={['application-configuration-detail-trigger', { active: this.configurationView.show }]}
+              slot='append'
+              onClick={this.handleTrigger}
+            >
+              <i class='icon-monitor icon-mc-detail' />
+            </span>
+          }
+        </CommonNavBar>
         <div
-          class='application-configuration-page'
           ref='contentRef'
+          class='application-configuration-page'
         >
           <div
-            class='configuration-content-left'
             style={this.handleContentStyle('left')}
+            class='configuration-content-left'
           >
             <ConfigurationNav
               active={this.activeMenu}
               menuList={this.menuList}
-              onMenuClick={this.handleMenuClick}
               onAlertClick={this.handleClickAlert}
+              onMenuClick={this.handleMenuClick}
             >
               {!this.firstLoad && this.getContentPanel()}
             </ConfigurationNav>
           </div>
           <div
-            class='configuration-content-right'
             style={this.handleContentStyle('right')}
+            class='configuration-content-right'
           >
             <div class='right-wrapper'>
               <div
                 class={['drag', { active: this.configurationView.isActive }]}
                 on-mousedown={this.handleMouseDown}
-              >
-                <span
-                  class={['line-trigger', { 'is-show': this.configurationView.show }]}
-                  onClick={this.handleTrigger}
-                >
-                  {!this.configurationView.show && <span class='trigger-text'>{this.$t('button-说明')}</span>}
-                  <i class='icon-monitor icon-arrow-left'></i>
-                </span>
-              </div>
+              />
               <ConfigurationView
                 data={this.pluginDesc}
                 onShrink={() => (this.configurationView.show = !this.configurationView.show)}

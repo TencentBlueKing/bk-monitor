@@ -27,8 +27,9 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorIpSelector from '../../../components/monitor-ip-selector/monitor-ip-selector';
-import { IHost, IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 import AddBtn from '../uptime-check-task/uptime-check-form/add-btn';
+
+import type { IHost, IIpV6Value } from '../../../components/monitor-ip-selector/typing';
 
 import './node-target.scss';
 
@@ -45,7 +46,7 @@ export default class NodeTarget extends tsc<INodeTargetProps> {
   @Watch('target', { immediate: true })
   onTargetChange() {
     this.ipValue = {
-      host_list: this.target.host_list
+      host_list: this.target.host_list,
     };
   }
   addNodeTarget() {
@@ -66,14 +67,14 @@ export default class NodeTarget extends tsc<INodeTargetProps> {
           onClick={this.addNodeTarget}
         />
         <MonitorIpSelector
+          disableHostMethod={this.disableHostMethod}
+          keepHostFieldOutput={true}
           mode='dialog'
           panelList={['staticTopo']}
           showDialog={this.showAddNodeTarget}
           showView={true}
-          value={this.ipValue}
           singleHostSelect={true}
-          keepHostFieldOutput={true}
-          disableHostMethod={this.disableHostMethod}
+          value={this.ipValue}
           onChange={this.handleIpChange}
           onCloseDialog={this.closeDialog}
         />

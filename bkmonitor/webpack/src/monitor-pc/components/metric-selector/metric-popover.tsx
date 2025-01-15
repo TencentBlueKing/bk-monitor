@@ -27,7 +27,7 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { MetricPopoverEvents, MetricPopoverProps } from './typings';
+import type { MetricPopoverEvents, MetricPopoverProps } from './typings';
 
 import './metric-popover.scss';
 
@@ -75,7 +75,7 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
       onHidden: () => {
         this.destroyPopoverInstance();
         this.handleShowChange(false);
-      }
+      },
     });
     // this.curTarget = target;
   }
@@ -114,8 +114,8 @@ export default class MetricPopover extends tsc<MetricPopoverProps, MetricPopover
       <div style={{ display: 'none' }}>
         <div
           ref='metricSelectorPopover'
-          class='metric-selector-popover'
           style={{ width: `${this.width}px` }}
+          class='metric-selector-popover'
         >
           {this.$slots.default}
         </div>

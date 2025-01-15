@@ -11,15 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import re
 
-from django.utils.translation import ugettext as _
-from monitor_web.commons.data_access import PluginDataAccessor
-from monitor_web.models.plugin import (
-    CollectorPluginConfig,
-    CollectorPluginInfo,
-    CollectorPluginMeta,
-    OperatorSystem,
-)
-from monitor_web.plugin.constant import PARAM_MODE_CHOICES, SCRIPT_TYPE_CHOICES
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
@@ -29,6 +21,14 @@ from bkmonitor.utils.serializers import (
     MetricJsonSerializer,
     StrictCharField,
 )
+from monitor_web.commons.data_access import PluginDataAccessor
+from monitor_web.models.plugin import (
+    CollectorPluginConfig,
+    CollectorPluginInfo,
+    CollectorPluginMeta,
+    OperatorSystem,
+)
+from monitor_web.plugin.constant import PARAM_MODE_CHOICES, SCRIPT_TYPE_CHOICES
 
 
 class CollectorPluginMetaSerializer(serializers.ModelSerializer):
@@ -55,7 +55,9 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
         file_base64 = serializers.CharField(required=False, label="文件Base64")
         mode = serializers.ChoiceField(required=True, choices=PARAM_MODE_CHOICES, label="模式")
         type = serializers.ChoiceField(
-            required=True, choices=["text", "password", "switch", "file", "encrypt", "host", "service"], label="类型"
+            required=True,
+            choices=["text", "password", "switch", "file", "encrypt", "host", "service", "code", "list"],
+            label="类型",
         )
         name = serializers.CharField(required=True, label="名称")
         alias = serializers.CharField(required=False, allow_blank=True, default="", label="别名")
@@ -63,6 +65,9 @@ class CollectorPluginMixin(MetricJsonBaseSerializer):
         visible = serializers.BooleanField(required=False, label="是否可见")
         auth_json = serializers.ListField(required=False, label="认证信息")
         key = serializers.CharField(required=False, label="名称")
+        required = serializers.BooleanField(required=False, label="是否必填", default=False)
+        election = serializers.ListField(required=False, label="列表选项")
+        options = serializers.DictField(required=False, label="选项")
 
     config_json = ConfigJsonSeriliazer(required=False, many=True, default=[], label="采集配置")
     plugin_display_name = StrictCharField(required=True, allow_blank=True, label="插件别名")
@@ -88,6 +93,7 @@ class CollectorMetaSerializer(serializers.ModelSerializer, CollectorPluginMixin)
     COLLECTOR_PLUGIN_META_FIELDS = ["plugin_id", "plugin_type", "bk_biz_id", "bk_supplier_id", "tag", "label"]
 
     plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=30, label="插件ID")
+    data_label = serializers.CharField(required=False, default="", label="数据标签")
     bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
     bk_supplier_id = serializers.IntegerField(required=False, default=0, label="供应商ID")
     plugin_type = serializers.ChoiceField(
@@ -194,6 +200,14 @@ class ProcessSerializer(CollectorMetaSerializer):
     # exclude_pattern = serializers.CharField(required=False, label="进程排除正则")
     # port_detect = serializers.BooleanField(required=False, label="是否端口检测", default=True)
     # labels = serializers.DictField(required=False, default={}, label="自定义标签")
+
+
+class K8sSerializer(CollectorMetaSerializer):
+    class CollectorJsonSerializer(serializers.Serializer):
+        template = serializers.CharField(label="模板文件")
+        values = serializers.JSONField(label="默认配置", default=dict)
+
+    collector_json = CollectorJsonSerializer(required=True, label="采集器配置")
 
 
 class DataDogSerializer(CollectorMetaSerializer):

@@ -27,12 +27,12 @@ import { Component, Emit, Mixins, Prop, Provide, ProvideReactive, Ref } from 'vu
 import { ofType } from 'vue-tsx-support';
 
 import authorityMixinCreate from '../../../mixins/authorityMixin';
-import { ISpaceItem } from '../../../types';
 import * as grafanaAuth from '../authority-map';
-
 import DashboardAside, { GRAFANA_HOME_ID } from './dashboard-aside';
-import { IFavListItem } from './fav-list';
-import { TreeMenuItem } from './utils';
+
+import type { ISpaceItem } from '../../../types';
+import type { IFavListItem } from './fav-list';
+import type { TreeMenuItem } from './utils';
 
 // import ResizeLayout from '../../../components/resize-layout/resize-layout';
 import './dashboard-container.scss';
@@ -42,7 +42,7 @@ interface IProps {
 }
 interface IEvents {
   onBizChange: number;
-  onOpenSpaceManager?: void;
+  onOpenSpaceManager?: () => void;
 }
 @Component
 class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'created')) {
@@ -70,11 +70,15 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
   handleGotoFavaritate(item: IFavListItem) {
     if (item.uid === GRAFANA_HOME_ID) {
       this.$router.push({
-        name: 'grafana-home'
+        name: 'grafana-home',
       });
     } else {
+      // console.info(item.url, '+++++++++++++++++');
       this.$router.push({
-        path: `/grafana/d/${item.uid}`
+        path: item.url?.startsWith?.('/grafana') ? item.url : `/grafana/d/${item.uid}`,
+        params: {
+          rawUrl: item.url,
+        },
       });
     }
   }
@@ -86,37 +90,37 @@ class DashboardContainer extends Mixins(authorityMixinCreate(grafanaAuth, 'creat
   render() {
     return (
       <bk-resize-layout
-        class='dashboard-container'
         ref='bkResizeLayout'
-        min={240}
-        max={800}
-        initial-divide={this.expend ? 280 : 5}
+        class='dashboard-container'
         border={false}
+        initial-divide={this.expend ? 280 : 5}
+        max={800}
+        min={240}
+        placement='left'
         collapsible
         immediate
-        placement='left'
       >
         <DashboardAside
           slot='aside'
           bizIdList={this.bizIdList}
-          onSelectedFav={this.handleGotoFavaritate}
-          onSelectedDashboard={this.handleGotoDashboard}
           onBizChange={this.handleBizChange}
           onOpenSpaceManager={this.handleOpenSpace}
+          onSelectedDashboard={this.handleGotoDashboard}
+          onSelectedFav={this.handleGotoFavaritate}
         />
         <div
-          slot='main'
           style='height: 100%'
+          slot='main'
         >
           {this.$slots.main}
         </div>
         <div
-          slot='collapse-trigger'
           class={['toggle-wrap', { expend: this.expend }]}
+          slot='collapse-trigger'
           onClick={this.handleExpend}
         >
           {!this.expend && <span class='toggle-wrap-text'>{this.$t('目录')}</span>}
-          <i class='icon-monitor icon-arrow-left'></i>
+          <i class='icon-monitor icon-arrow-left' />
         </div>
       </bk-resize-layout>
     );

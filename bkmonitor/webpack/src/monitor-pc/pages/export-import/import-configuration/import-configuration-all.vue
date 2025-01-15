@@ -25,13 +25,13 @@
 -->
 <template>
   <article
-    class="import-config"
     v-bkloading="{ isLoading: loading }"
+    class="import-config"
   >
     <!--按钮组（统计信息）-->
     <section
-      class="import-config-tag"
       v-show="historyId"
+      class="import-config-tag"
     >
       <div class="config-tag">
         <div class="bk-button-group">
@@ -56,9 +56,9 @@
     </section>
     <!--折叠内容-->
     <section
+      ref="collapse"
       class="import-config-content"
       :style="{ marginBottom: isScroll ? '34px' : '' }"
-      ref="collapse"
     >
       <bk-collapse
         v-model="collapse.activeName"
@@ -80,14 +80,15 @@
               />
               <span class="collapse-item-title">{{ getItemTitle(item) }}</span>
               <span
-                class="collapse-item-mark"
                 v-if="item.markName"
-              >{{ item.markName }}</span>
+                class="collapse-item-mark"
+                >{{ item.markName }}</span
+              >
             </div>
             <!--右侧状态-->
             <div
-              class="collapse-item-right"
               v-show="table.statistics && table.statistics[item.name]"
+              class="collapse-item-right"
             >
               <!-- eslint-disable-next-line vue/no-v-html -->
               <span>
@@ -95,8 +96,8 @@
                   {{ `{0}个${statusMap[status].name}` }}
                   <i18n
                     v-if="table.statistics[item.name][status]"
-                    :path="status === 'success' ? '{0} 个检测成功' : '{0} 个检测失败'"
                     :key="status"
+                    :path="status === 'success' ? '{0} 个检测成功' : '{0} 个检测失败'"
                   >
                     <span :class="`total-${status}`">{{ table.statistics[item.name][status] }}</span>
                   </i18n>
@@ -107,22 +108,22 @@
           <!--折叠表格-->
           <template #content>
             <bk-table
-              max-height="410"
-              :ref="item.name"
               v-show="tableData(item.name)"
+              :ref="item.name"
+              max-height="410"
               :data="tableData(item.name)"
               row-key="uuid"
               @select="handleSelectChange"
               @select-all="handleSelectAll($event, item.name)"
             >
               <bk-table-column
+                v-if="!historyId && !item.markName"
                 align="left"
                 header-align="left"
                 type="selection"
                 width="40"
                 :selectable="handleItemSelectable"
                 reserve-selection
-                v-if="!historyId && !item.markName"
               />
               <bk-table-column
                 :label="$t('配置名称')"
@@ -143,22 +144,22 @@
               >
                 <template #default="{ row }">
                   <div
-                    class="status-col"
                     v-if="statusMap[row.status]"
+                    class="status-col"
                   >
                     <span
                       v-if="row.status === 'importing'"
                       class="status-runing icon-monitor icon-loading"
                     />
                     <span
-                      :class="'status-' + row.status"
                       v-else
+                      :class="'status-' + row.status"
                     />
                     <span>{{ statusMap[row.status].name }}</span>
                   </div>
                   <div
-                    class="status-col"
                     v-else
+                    class="status-col"
                   >
                     <span class="status-failed" />
                     <span> {{ $t('状态未知') }} </span>
@@ -198,8 +199,8 @@
           theme="primary"
           class="mr10"
           :class="{ 'footer-button1': isScroll }"
-          @click="handleImportClick"
           :disabled="disabledConfirmBtn"
+          @click="handleImportClick"
         >
           {{ historyId ? $t('前往添加统一监控目标') : $t('导入') }}
         </bk-button>
@@ -216,26 +217,30 @@
   </article>
 </template>
 <script>
-import { mapActions } from 'vuex';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { transformDataKey } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
+import { mapActions } from 'vuex';
 
 export default {
   name: 'ImportConfiguration',
+  beforeRouteLeave(to, from, next) {
+    this.table.runingQueue = [];
+    next();
+  },
   props: {
     // history id
     id: {
       type: [Number, String],
-      default: 0
+      default: 0,
     },
     // 导入界面数据
     importData: {
       type: Object,
       default: () => ({
-        configList: []
-      })
-    }
+        configList: [],
+      }),
+    },
   },
   data() {
     return {
@@ -244,83 +249,83 @@ export default {
           {
             name: this.$t('全部'),
             num: 0,
-            status: 'total'
+            status: 'total',
           },
           {
             name: this.$t('成功'),
             num: 0,
-            status: 'success'
+            status: 'success',
           },
           {
             name: this.$t('失败'),
             num: 0,
-            status: 'failed'
+            status: 'failed',
           },
           {
             name: this.$t('执行中'),
             num: 0,
-            status: 'importing'
-          }
+            status: 'importing',
+          },
         ],
-        active: 'total'
+        active: 'total',
       },
       collapse: {
         list: [
           {
             name: 'collect',
-            title: this.$t('采集配置')
+            title: this.$t('采集配置'),
           },
           {
             name: 'strategy',
-            title: this.$t('策略配置')
+            title: this.$t('策略配置'),
           },
           {
             name: 'view',
-            title: this.$t('视图配置')
+            title: this.$t('视图配置'),
           },
           {
             name: 'bkmonitor.models.fta.plugin',
             title: this.$t('被关联插件'),
-            markName: this.$t('被关联')
-          }
+            markName: this.$t('被关联'),
+          },
         ],
-        activeName: ['collect']
+        activeName: ['collect'],
       },
       configStatusMap: {
         success: {
           name: this.$t('检测成功'),
-          status: 'success'
+          status: 'success',
         },
         failed: {
           name: this.$t('检测失败'),
-          status: 'failed'
-        }
+          status: 'failed',
+        },
       },
       detailStatusMap: {
         success: {
           name: this.$t('成功'),
-          status: 'success'
+          status: 'success',
         },
         failed: {
           name: this.$t('失败'),
-          status: 'failed'
+          status: 'failed',
         },
         importing: {
           name: this.$t('导入中'),
-          status: 'importing'
-        }
+          status: 'importing',
+        },
       },
       // 当前statusMap
       statusMap: {},
       statusFilterArr: [
         {
           text: this.$t('检测成功'),
-          value: 'success'
+          value: 'success',
         },
         {
           text: this.$t('检测失败'),
-          value: 'fail'
-        }
+          value: 'fail',
+        },
       ],
       table: {
         list: [],
@@ -331,14 +336,14 @@ export default {
         interval: 300,
         selection: [],
         filterStatusName: this.$t('任务状态'),
-        taskId: 0
+        taskId: 0,
       },
       listenResize() {},
       historyId: this.id,
       batchRetryLoading: false,
       isScroll: false,
       loading: false,
-      popoverInstance: null
+      popoverInstance: null,
     };
   },
   computed: {
@@ -353,8 +358,8 @@ export default {
       }
       const hasRepeat = {};
       return (
-        this.table.list
-        && !this.table.list.every((item, index) => {
+        this.table.list &&
+        !this.table.list.every((item, index) => {
           if (index === 0) {
             hasRepeat[item.label] = true;
           }
@@ -364,11 +369,12 @@ export default {
     },
     tableData() {
       // 从list中筛选出每个表格的数据
-      return type => this.table.list.filter((item) => {
-        const curActive = this.tag.active === 'total' || item.status === this.tag.active;
-        return item.type === type && curActive;
-      });
-    }
+      return type =>
+        this.table.list.filter(item => {
+          const curActive = this.tag.active === 'total' || item.status === this.tag.active;
+          return item.type === type && curActive;
+        });
+    },
   },
   watch: {
     'table.runingQueue': {
@@ -383,7 +389,7 @@ export default {
           this.table.timer = null;
         }
       },
-      immediate: true
+      immediate: true,
     },
     id: {
       handler(value, old) {
@@ -394,8 +400,8 @@ export default {
         } else {
           this.statusMap = this.configStatusMap;
         }
-      }
-    }
+      },
+    },
   },
   created() {
     // just do it
@@ -404,10 +410,6 @@ export default {
   mounted() {
     this.listenResize = debounce(200, v => this.handleResize(v));
     addListener(this.$el, this.listenResize);
-  },
-  beforeRouteLeave(to, from, next) {
-    this.table.runingQueue = [];
-    next();
   },
   beforeDestroy() {
     this.table.runingQueue = [];
@@ -430,7 +432,7 @@ export default {
       const data = transformDataKey(this.importData);
       // todo
       this.table.taskId = data.importHistoryId;
-      this.table.list = data.configList.map((item) => {
+      this.table.list = data.configList.map(item => {
         if (item.type !== 'bkmonitor.models.fta.plugin') {
           item.checked = item.fileStatus === 'success'; // 默认勾选所有成功项
         }
@@ -446,12 +448,12 @@ export default {
       const data = await this.getHistoryDetail(this.id || this.table.taskId).catch(() => {
         this.loading = false;
       });
-      this.table.list = data.configList.map((item) => {
+      this.table.list = data.configList.map(item => {
         item.status = item.importStatus;
         return item;
       });
       this.table.statistics = this.handleCountData(data);
-      this.tag.list.forEach((item) => {
+      this.tag.list.forEach(item => {
         item.num = this.table.statistics.allCount[item.status] || 0;
       });
       // 刷新运行中的任务
@@ -466,11 +468,11 @@ export default {
         plugin: data.pluginCount,
         strategy: data.strategyCount,
         view: data.viewCount,
-        allCount: data.allCount
+        allCount: data.allCount,
       };
     },
     async handleRunTimer() {
-      const interval = (cb) => {
+      const interval = cb => {
         const fn = async () => {
           await cb();
           if (this.table.runingQueue.length === 0) {
@@ -495,8 +497,8 @@ export default {
     },
     handleChangeStatus(data) {
       if (!data?.configList) return;
-      data.configList.forEach((current) => {
-        this.table.list.forEach((item) => {
+      data.configList.forEach(current => {
+        this.table.list.forEach(item => {
           if (current.uuid === item.uuid && this.table.runingQueue.includes(current.uuid)) {
             // 更新当前item最新状态
             item.status = current.importStatus;
@@ -509,7 +511,7 @@ export default {
         });
       });
       this.table.statistics = this.handleCountData(data);
-      this.tag.list.forEach((item) => {
+      this.tag.list.forEach(item => {
         item.num = this.table.statistics.allCount[item.status] || 0;
       });
     },
@@ -522,7 +524,7 @@ export default {
       // 获取失败任务ID并设置任务状态
       const uuids = this.table.list
         .filter(item => item.status === 'failed')
-        .map((item) => {
+        .map(item => {
           item.status = 'importing';
           return item.uuid;
         });
@@ -541,7 +543,7 @@ export default {
     },
     handleClickCollapse() {
       this.$nextTick().then(() => {
-        this.collapse.activeName.forEach((item) => {
+        this.collapse.activeName.forEach(item => {
           // 首次展开默认全选
           if (!this.table.firstCheckedAll.includes(item) && this.$refs[item] && this.$refs[item].length === 1) {
             this.$refs[item][0].toggleAllSelection();
@@ -573,7 +575,7 @@ export default {
       }
     },
     handleSelectAll(selection, name) {
-      this.table.list.forEach((item) => {
+      this.table.list.forEach(item => {
         if (item.type === name && item.status === 'success') {
           item.checked = !(selection.length === 0);
         }
@@ -597,10 +599,10 @@ export default {
             this.$router.push({
               name: 'import-configuration-target',
               params: {
-                objectType: 'SERVICE'
-              }
+                objectType: 'SERVICE',
+              },
             });
-          }
+          },
         });
       }
     },
@@ -613,7 +615,7 @@ export default {
           cancelText: this.$t('取消'),
           confirmFn: () => {
             this.$router.push({ name: 'export-import' });
-          }
+          },
         });
       } else {
         this.$router.back();
@@ -625,7 +627,7 @@ export default {
           content: this.$t('监控对象不一致，无法添加统一监控目标'),
           arrow: true,
           lazy: false,
-          theme: 'add-target'
+          theme: 'add-target',
         });
       } else {
         this.popoverInstance.popperInstance.reference = e.target;
@@ -646,38 +648,38 @@ export default {
       return h(
         'div',
         {
-          class: 'render-header'
+          class: 'render-header',
         },
         [
           this.table.filterStatusName,
           h('i', {
-            class: 'bk-icon icon-angle-down header-icon'
+            class: 'bk-icon icon-angle-down header-icon',
           }),
           h(
             bkSelect,
             {
               props: {
-                multiple: true
+                multiple: true,
               },
               on: {
-                selected: this.handleHeaderStatusChange
-              }
+                selected: this.handleHeaderStatusChange,
+              },
             },
             [
               h(bkOption, {
                 props: {
                   id: 'failed',
-                  name: this.$t('检测失败')
-                }
+                  name: this.$t('检测失败'),
+                },
               }),
               h(bkOption, {
                 props: {
                   id: 'success',
-                  name: this.$t('检测成功')
-                }
-              })
+                  name: this.$t('检测成功'),
+                },
+              }),
             ]
-          )
+          ),
         ]
       );
     },
@@ -690,8 +692,8 @@ export default {
         this.table.filterStatusName = this.$t('任务状态');
         this.tag.active = 'total';
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -821,7 +823,7 @@ $markBackground: #caddff;
 
       &-icon {
         display: inline-block;
-        transition: transform .2s ease-in-out;
+        transition: transform 0.2s ease-in-out;
       }
 
       &-title {
@@ -914,7 +916,7 @@ $markBackground: #caddff;
       width: 100%;
       height: 54px;
       background: $whiteColor;
-      box-shadow: 0px -3px 6px 0px rgba(49, 50, 56, .05);
+      box-shadow: 0px -3px 6px 0px rgba(49, 50, 56, 0.05);
     }
 
     .button1-wrap {

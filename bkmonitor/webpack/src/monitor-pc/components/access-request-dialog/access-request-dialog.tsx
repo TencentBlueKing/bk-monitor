@@ -25,9 +25,10 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 
-import { handleGotoLink } from '../../common/constant';
+import { fetchBusinessInfo } from 'monitor-api/modules/commons';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
+
 import { ETagsType } from '../biz-select/list';
 
 import './access-request-dialog.scss';
@@ -43,7 +44,7 @@ interface IBusinessInfo {
 }
 
 @Component
-export default class AccessRequestDialog extends tsc<{}> {
+export default class AccessRequestDialog extends tsc<object> {
   // 原先跳转到 权限申请 的链接
   @Prop({ type: String, default: '' })
   originAccessURL: string;
@@ -68,7 +69,7 @@ export default class AccessRequestDialog extends tsc<{}> {
   @Watch('originAccessURL')
   handleOriginAccessURLChange() {
     fetchBusinessInfo({
-      bk_biz_id: this.bizId || window.cc_biz_id
+      bk_biz_id: this.bizId || window.cc_biz_id,
     })
       .then((response: IBusinessInfo) => {
         this.administrators = response.operator;
@@ -98,16 +99,16 @@ export default class AccessRequestDialog extends tsc<{}> {
   render() {
     return (
       <bk-dialog
-        v-model={this.visible}
         width={480}
-        show-footer={false}
-        draggable={false}
         ext-cls='access-requst-dialog'
+        v-model={this.visible}
+        draggable={false}
         mask-close={false}
+        show-footer={false}
       >
         <bk-exception
-          type={403}
           scene={'part'}
+          type={403}
         >
           <div class='access-request-title'>{window.i18n.t('你当前暂无 {0} 业务权限', [this.bizName])}</div>
           <div class='access-request-container'>
@@ -131,7 +132,7 @@ export default class AccessRequestDialog extends tsc<{}> {
                 <span style='margin-right: 10px;'>3. {window.i18n.t('查看')}</span>
                 <bk-link
                   theme='primary'
-                  onClick={() => handleGotoLink('accessRequest')}
+                  onClick={() => skipToDocsLink('accessRequest')}
                 >
                   {window.i18n.t('权限申请文档')}
                 </bk-link>

@@ -45,7 +45,7 @@ interface IProps {
 
 const componentClassNames = {
   selectInput: 'data-pipeline-select-content',
-  pop: 'data-pipeline-select-component-popover-content'
+  pop: 'data-pipeline-select-component-popover-content',
 };
 const rightIconClassName = 'data-pipeline-select-right-icon';
 
@@ -101,7 +101,7 @@ export default class CustomSelect extends tsc<IProps> {
   created() {
     this.localList = [
       // { id: 'all', name: this.$tc('全部'), isCheck: false },
-      ...this.list.map(item => ({ ...item, isCheck: false }))
+      ...this.list.map(item => ({ ...item, isCheck: false })),
     ];
     if (this.value.length) {
       this.handleWatchValue(this.value);
@@ -121,7 +121,7 @@ export default class CustomSelect extends tsc<IProps> {
       arrow: false,
       placement: 'bottom-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
     });
     this.popInstance?.show?.();
     this.isOpen = true;
@@ -220,28 +220,28 @@ export default class CustomSelect extends tsc<IProps> {
             class={rightIconClassName}
             onClick={e => this.handleClear(e)}
           >
-            <span class='icon-monitor icon-arrow-down'></span>
-            <span class='icon-monitor icon-mc-close-fill'></span>
+            <span class='icon-monitor icon-arrow-down' />
+            <span class='icon-monitor icon-mc-close-fill' />
           </span>
         </div>
         <div style={{ display: 'none' }}>
           <div
-            class={componentClassNames.pop}
             ref='wrap'
             style={{ width: `${this.width}px` }}
+            class={componentClassNames.pop}
           >
             <div class='select-list'>
               {this.localList.map(item => (
                 <div
-                  class={'select-list-item'}
                   key={item.id}
+                  class={'select-list-item'}
                   onClick={() => this.handleSelectOption(item)}
                 >
                   <div onClick={(e: Event) => e.stopPropagation()}>
                     <bk-checkbox
                       value={item.isCheck}
                       onChange={v => this.handleCheckOption(v, item)}
-                    ></bk-checkbox>
+                    />
                   </div>
                   <span
                     class='name'

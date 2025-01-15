@@ -29,13 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import './page-loading.scss';
 
 @Component
-export default class PageLoading extends tsc<{}> {
+export default class PageLoading extends tsc<object> {
   render() {
     return (
       <div
         class='page-loading'
         v-bkloading={{ isLoading: true }}
-      ></div>
+      />
     );
   }
 }

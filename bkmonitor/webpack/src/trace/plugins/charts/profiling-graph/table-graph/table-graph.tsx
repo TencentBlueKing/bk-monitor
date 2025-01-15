@@ -24,87 +24,114 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType, ref, shallowRef, Teleport, watch } from 'vue';
+import {
+  type PropType,
+  Teleport,
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  shallowRef,
+  watch,
+} from 'vue';
+
 import { Exception } from 'bkui-vue';
 import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
+import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
+import {
+  type ProfileDataUnit,
+  parseProfileDataTypeValue,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
-import { ITableTipsDetail, ProfilingTableItem, TableColumn } from 'monitor-ui/chart-plugins/typings/profiling-graph';
-import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { DirectionType } from '../../../../typings';
+import type { DirectionType } from '../../../../typings';
+import type {
+  ITableTipsDetail,
+  ProfilingTableItem,
+  TableColumn,
+} from 'monitor-ui/chart-plugins/typings/profiling-graph';
 
-// import { ColorTypes } from './../../flame-graph-v2/types';
 import './table-graph.scss';
 
-// const valueColumnWidth = 150;
-
 const TABLE_BGCOLOR_COLUMN_WIDTH = 120;
-
+const TABLE_PAGE_SIZE = 30;
 export default defineComponent({
   name: 'ProfilingTableGraph',
   props: {
     textDirection: {
       type: String as PropType<DirectionType>,
-      default: 'ltr'
+      default: 'ltr',
     },
     unit: {
-      type: String,
-      default: ''
+      type: String as () => ProfileDataUnit,
+      default: '',
     },
     data: {
       type: Array as PropType<ProfilingTableItem[]>,
-      default: () => []
+      default: () => [],
     },
     highlightId: {
       type: Number,
-      default: -1
+      default: -1,
+    },
+    highlightName: {
+      type: String,
+      default: '',
     },
     filterKeyword: {
       type: String,
-      default: ''
+      default: '',
     },
     // 对比模式
     isCompared: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // 数据类型
     dataType: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
-  emits: ['updateHighlightId', 'sortChange'],
+  emits: ['sortChange', 'updateHighlightName'],
   setup(props, { emit }) {
     /** 表格数据 */
     const tableData = ref<ProfilingTableItem[]>([]);
     const tableColumns = ref<TableColumn[]>([
-      { id: 'Location', name: 'Location', sort: '' },
-      { id: 'Self', name: 'Self', mode: 'normal', sort: '' },
-      { id: 'Total', name: 'Total', mode: 'normal', sort: '' },
+      { id: 'name', name: 'Location', sort: '' },
+      { id: 'self', name: 'Self', mode: 'normal', sort: '' },
+      { id: 'total', name: 'Total', mode: 'normal', sort: '' },
       { id: 'baseline', name: window.i18n.t('查询项'), mode: 'diff', sort: '' },
       { id: 'comparison', name: window.i18n.t('对比项'), mode: 'diff', sort: '' },
-      { id: 'diff', name: 'Diff', mode: 'diff', sort: '' }
+      { id: 'diff', name: 'Diff', mode: 'diff', sort: '' },
     ]);
+    const tabelLoadingRef = ref<HTMLDivElement>();
     const maxItem = ref<{ self: number; total: number }>({
       self: 0,
-      total: 0
+      total: 0,
     });
     const tipDetail = shallowRef<ITableTipsDetail>({});
     const localIsCompared = ref(false);
-
+    const sortKey = ref('');
+    const sortType = ref('');
+    let intersectionObserver: IntersectionObserver = null;
+    const renderTableData = shallowRef([]);
+    const hiddenLoading = ref(false);
     watch(
       () => props.data,
       (val: ProfilingTableItem[]) => {
         maxItem.value = {
           self: Math.max(...val.map(item => item.self)),
-          total: Math.max(...val.map(item => item.total))
+          total: Math.max(...val.map(item => item.total)),
         };
+        sortKey.value = '';
         getTableData();
+        tableColumns.value = tableColumns.value.map(item => ({ ...item, sort: '' }));
       },
       {
         immediate: true,
-        deep: true
+        // deep: true,
       }
     );
     watch(
@@ -115,30 +142,35 @@ export default defineComponent({
     );
 
     function getTableData() {
-      tableData.value = props.data
-        .filter(item => (!!props.filterKeyword ? item.name.includes(props.filterKeyword) : true))
-        .map(item => {
-          const palette = Object.values(ColorTypes);
-          const colorIndex = getHashVal(item.name) % palette.length;
-          const color = palette[colorIndex];
-          return {
-            ...item,
-            color
-          };
-        });
+      const filterList = JSON.parse(
+        JSON.stringify(
+          (props.data || [])
+            .filter(item =>
+              props.filterKeyword
+                ? item.name.toLocaleLowerCase().includes(props.filterKeyword.toLocaleLowerCase())
+                : true
+            )
+            .map(item => {
+              const palette = Object.values(ColorTypes);
+              const colorIndex = getHashVal(item.name) % palette.length;
+              const color = palette[colorIndex];
+              return {
+                ...item,
+                color,
+              };
+            })
+        )
+      );
+      tableData.value = sortTableGraph(filterList, sortKey.value, sortType.value);
+      nextTick(() => {
+        renderTableData.value = tableData.value.slice(0, TABLE_PAGE_SIZE);
+      });
       localIsCompared.value = props.isCompared;
     }
     // Self 和 Total 值的展示
     function formatColValue(val: number) {
-      switch (props.unit) {
-        case 'nanoseconds': {
-          const nsFormat = getValueFormat('ns');
-          const { text, suffix } = nsFormat(val);
-          return text + suffix;
-        }
-        default:
-          return '';
-      }
+      const { value } = parseProfileDataTypeValue(val, props.unit);
+      return value;
     }
     function getColStyle(row: ProfilingTableItem, field: string) {
       const { color } = row;
@@ -152,30 +184,33 @@ export default defineComponent({
       return {
         'background-image': `linear-gradient(${color}, ${color})`,
         'background-position': `-${xPosition}px 0px`,
-        'background-repeat': 'no-repeat'
+        'background-repeat': 'no-repeat',
       };
     }
     /** 列字段排序 */
     function handleSort(col: TableColumn) {
-      let sortKey;
       switch (col.sort) {
         case 'asc':
           col.sort = 'desc';
-          sortKey = `-${col.id}`;
+          sortType.value = 'desc';
+          sortKey.value = col.id;
           break;
         case 'desc':
           col.sort = '';
-          sortKey = undefined;
+          sortType.value = '';
+          sortKey.value = undefined;
           break;
         default:
           col.sort = 'asc';
-          sortKey = col.id;
+          sortType.value = 'asc';
+          sortKey.value = col.id;
       }
       emit('sortChange', sortKey);
+      getTableData();
       tableColumns.value = tableColumns.value.map(item => {
         return {
           ...item,
-          sort: col.id === item.id ? col.sort : ''
+          sort: col.id === item.id ? col.sort : '',
         };
       });
     }
@@ -189,11 +224,9 @@ export default defineComponent({
       }
       if (axisTop + 120 > window.innerHeight) {
         axisTop = axisTop - 120;
-      } else {
-        axisTop = axisTop;
       }
 
-      const { name, self, total, baseline, comparison, mark = '' } = row;
+      const { name, self, total, baseline, comparison, mark = '', diff = 0 } = row;
       const totalItem = tableData.value[0];
 
       tipDetail.value = {
@@ -205,21 +238,60 @@ export default defineComponent({
         baseline,
         comparison,
         mark,
+        diff,
         selfPercent: `${((self / totalItem.self) * 100).toFixed(2)}%`,
-        totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`
+        totalPercent: `${((total / totalItem.total) * 100).toFixed(2)}%`,
       };
     }
     function handleRowMouseout() {
       tipDetail.value = {};
     }
-    function handleHighlightClick(id) {
-      let hightlightId = -1;
-      if (props.highlightId !== id) {
-        hightlightId = id;
+    function handleHighlightClick(name) {
+      let hightlightName = '';
+      if (props.highlightName !== name) {
+        hightlightName = name;
       }
-      return emit('updateHighlightId', hightlightId);
+      return emit('updateHighlightName', hightlightName);
+    }
+    function isInViewport(element: Element) {
+      const rect = element.getBoundingClientRect();
+      return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+      );
+    }
+    function handleTriggerObserver() {
+      hiddenLoading.value = true;
+      window.requestIdleCallback(() => {
+        hiddenLoading.value = false;
+      });
     }
 
+    function observerTableLoading() {
+      intersectionObserver = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (entry.intersectionRatio <= 0) return;
+          if (renderTableData.value.length >= tableData.value.length) return;
+          renderTableData.value.push(
+            ...tableData.value.slice(renderTableData.value.length, renderTableData.value.length + TABLE_PAGE_SIZE)
+          );
+          nextTick(() => {
+            if (isInViewport(tabelLoadingRef.value) && renderTableData.value.length < tableData.value.length) {
+              handleTriggerObserver();
+            }
+          });
+        }
+      });
+      intersectionObserver.observe(tabelLoadingRef.value);
+    }
+    onMounted(() => {
+      observerTableLoading();
+    });
+    onBeforeUnmount(() => {
+      intersectionObserver?.unobserve(tabelLoadingRef.value);
+    });
     return {
       tableData,
       tableColumns,
@@ -230,7 +302,10 @@ export default defineComponent({
       formatColValue,
       handleRowMouseMove,
       handleRowMouseout,
-      handleHighlightClick
+      handleHighlightClick,
+      tabelLoadingRef,
+      hiddenLoading,
+      renderTableData,
     };
   },
   render() {
@@ -239,12 +314,11 @@ export default defineComponent({
         return <span style={`color: ${row.mark === 'removed' ? '#ff5656' : '#2dcb56'}`}>{row.mark}</span>;
       }
 
-      const { baseline, comparison } = row;
-      const diffVal = (baseline - comparison) / comparison;
+      const { diff } = row;
 
-      if (diffVal === 0) return <span style='color:#dddfe3'>0%</span>;
+      if (diff === 0) return <span style='color:#dddfe3'>0%</span>;
 
-      return <span style={`color:${diffVal > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diffVal * 100).toFixed(0)}%`}</span>;
+      return <span style={`color:${diff > 0 ? '#ff5656' : '#2dcb56'}`}>{`${(diff * 100).toFixed(2)}%`}</span>;
     };
 
     return (
@@ -261,8 +335,8 @@ export default defineComponent({
                       <div class='thead-content'>
                         <span>{col.name}</span>
                         <div class='sort-button'>
-                          <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`}></i>
-                          <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`}></i>
+                          <i class={`icon-monitor icon-mc-arrow-down asc ${col.sort === 'asc' ? 'active' : ''}`} />
+                          <i class={`icon-monitor icon-mc-arrow-down desc ${col.sort === 'desc' ? 'active' : ''}`} />
                         </div>
                       </div>
                     </th>
@@ -273,32 +347,43 @@ export default defineComponent({
           <tbody>
             {this.tableData.length ? (
               <>
-                {this.tableData.map(row => (
+                {this.renderTableData.map(row => (
                   <tr
-                    class={row.id === this.highlightId ? 'hightlight' : ''}
+                    key={row.id}
+                    class={row.name === this.highlightName ? 'hightlight' : ''}
+                    onClick={() => this.handleHighlightClick(row.name)}
                     onMousemove={e => this.handleRowMouseMove(e, row)}
                     onMouseout={() => this.handleRowMouseout()}
-                    onClick={() => this.handleHighlightClick(row.id)}
                   >
                     <td>
                       <div class='location-info'>
                         <span
-                          class='color-reference'
                           style={`background-color: ${!this.localIsCompared ? row.color : '#dcdee5'}`}
-                        ></span>
+                          class='color-reference'
+                        />
                         <span class={`text direction-${this.textDirection}`}>{row.name}</span>
                         {/* <div class='trace-mark'>Trace</div> */}
                       </div>
                     </td>
                     {this.localIsCompared
                       ? [
-                          <td>{this.formatColValue(row.baseline)}</td>,
-                          <td>{this.formatColValue(row.comparison)}</td>,
-                          <td>{getDiffTpl(row)}</td>
+                          <td key={1}>{this.formatColValue(row.baseline)}</td>,
+                          <td key={2}>{this.formatColValue(row.comparison)}</td>,
+                          <td key={3}>{getDiffTpl(row)}</td>,
                         ]
                       : [
-                          <td style={this.getColStyle(row, 'self')}>{this.formatColValue(row.self)}</td>,
-                          <td style={this.getColStyle(row, 'total')}>{this.formatColValue(row.total)}</td>
+                          <td
+                            key={4}
+                            style={this.getColStyle(row, 'self')}
+                          >
+                            {this.formatColValue(row.self)}
+                          </td>,
+                          <td
+                            key={5}
+                            style={this.getColStyle(row, 'total')}
+                          >
+                            {this.formatColValue(row.total)}
+                          </td>,
                         ]}
                   </tr>
                 ))}
@@ -308,43 +393,64 @@ export default defineComponent({
                 <td colspan='3'>
                   <Exception
                     class='empty-table-exception'
-                    type='search-empty'
-                    scene='part'
                     description={this.$t('搜索为空')}
+                    scene='part'
+                    type='search-empty'
                   />
                 </td>
               </tr>
             )}
+            <tr key='tabelLoadingRef'>
+              <td colspan={3}>
+                <div
+                  ref='tabelLoadingRef'
+                  style={{
+                    display:
+                      this.hiddenLoading || this.tableData.length <= this.renderTableData.length ? 'none' : 'flex',
+                  }}
+                  class='table-loading'
+                >
+                  {this.$t('加载中...')}
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
-
         <Teleport to='body'>
           <div
-            class='table-graph-row-tips'
             style={{
               left: `${this.tipDetail.left || 0}px`,
               top: `${this.tipDetail.top || 0}px`,
-              display: this.tipDetail.title ? 'block' : 'none'
+              display: this.tipDetail.title ? 'block' : 'none',
             }}
+            class='table-graph-row-tips'
           >
             {this.tipDetail.title && [
-              <div class='funtion-name'>{this.tipDetail.title}</div>,
-              <table class='tips-table'>
+              <div
+                key={1}
+                class='funtion-name'
+              >
+                {this.tipDetail.title}
+              </div>,
+              <table
+                key={2}
+                class='tips-table'
+              >
                 {this.localIsCompared
                   ? [
-                      <thead>
-                        <th></th>
-                        <th>Baseline</th>
-                        <th>Comparison</th>
-                        <th>Diff</th>
-                      </thead>
+                      <thead key={1}>
+                        <th />
+                        <th>{this.$t('当前')}</th>
+                        <th>{this.$t('参照')}</th>
+                        <th>{this.$t('差异')}</th>
+                      </thead>,
                     ]
                   : [
-                      <thead>
-                        <th></th>
+                      <thead key={2}>
+                        <th />
                         <th>Self (% of total)</th>
                         <th>Total (% of total)</th>
-                      </thead>
+                      </thead>,
                     ]}
                 {this.localIsCompared ? (
                   <tbody>
@@ -364,11 +470,11 @@ export default defineComponent({
                     </tr>
                   </tbody>
                 )}
-              </table>
+              </table>,
             ]}
           </div>
         </Teleport>
       </div>
     );
-  }
+  },
 });

@@ -41,5 +41,5 @@ export interface ILegendItem {
   totalSource?: number;
   metricField?: string;
 }
-export type TableLegendHeadType = 'Min' | 'Max' | 'Avg';
-export type LegendActionType = 'shift-click' | 'click' | 'highlight' | 'downplay';
+export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
+export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';

@@ -38,8 +38,8 @@
           v-for="(tab, index) in variateList"
           :key="index"
           :class="{ 'tab-active': tabActive === index }"
-          @click="tabActive = index"
           class="preview-tab-item"
+          @click="tabActive = index"
         >
           {{ tab.name }}
         </li>
@@ -70,29 +70,23 @@
           <h5 class="desc-title">
             {{ $t('说明') }}
           </h5>
-          <div class="item-title">
-            {{ $t('变量格式') }}:
-          </div>
+          <div class="item-title">{{ $t('变量格式') }}:</div>
           <div class="item-desc">
             {{ descData['format'] || '--' }}
           </div>
-          <div class="item-title">
-            {{ $t('对象包含') }}:
-          </div>
+          <div class="item-title">{{ $t('对象包含') }}:</div>
           <div class="item-desc">
             <template v-if="descData['object']">
               <div
                 v-for="item in descData['object']"
                 :key="item.id"
-              >{{ item.id }} {{ item.name }}</div>
+              >
+                {{ item.id }} {{ item.name }}
+              </div>
             </template>
-            <template v-else>
-              --
-            </template>
+            <template v-else> -- </template>
           </div>
-          <div class="item-title">
-            {{ $t('字段名') }}:
-          </div>
+          <div class="item-title">{{ $t('字段名') }}:</div>
           <div class="item-desc">
             {{ descData['field'] || '--' }}
           </div>
@@ -108,7 +102,7 @@ import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog';
 export default {
   name: 'StrategyVariateList',
   components: {
-    MonitorDialog
+    MonitorDialog,
   },
   // 是否显示
   props: {
@@ -116,13 +110,13 @@ export default {
     variateList: {
       type: Array,
       required: true,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   data() {
     return {
       show: false,
-      tabActive: 0
+      tabActive: 0,
     };
   },
   computed: {
@@ -133,15 +127,15 @@ export default {
     descData() {
       const tab = this.variateList[this.tabActive];
       return tab ? tab.description : {};
-    }
+    },
   },
   watch: {
     dialogShow: {
       handler(v) {
         this.show = v;
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   beforeDestroy() {
     this.handleConfirm();
@@ -154,8 +148,8 @@ export default {
     handleConfirm() {
       this.show = false;
       this.$emit('update:dialogShow', false);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

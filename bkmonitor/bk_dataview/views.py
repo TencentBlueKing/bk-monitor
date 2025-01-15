@@ -12,13 +12,14 @@ import logging
 from typing import Dict, Optional
 
 import requests
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.utils.decorators import method_decorator
 from django.utils.encoding import smart_str
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 from bkm_space.utils import space_uid_to_bk_biz_id
+from bkmonitor.utils.request import is_ajax_request
 
 from .api import (
     get_or_create_org,
@@ -148,7 +149,7 @@ class ProxyBaseView(View):
             dashboard_list = list(provisioning.dashboards(request, org_name, org_id))
             sync_dashboards(org_id, dashboard_list)
 
-    def get_request_headers(self, request):
+    def get_request_headers(self, request: HttpRequest):
         headers = {}
         for key, value in request.META.items():
             if key.startswith("HTTP_") and key != "HTTP_HOST":
@@ -163,7 +164,7 @@ class ProxyBaseView(View):
             }
         )
 
-        if request.is_ajax():
+        if is_ajax_request(request):
             headers["X-Requested-With"] = "XMLHttpRequest"
 
         if self.org and self.org["id"]:

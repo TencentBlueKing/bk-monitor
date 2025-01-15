@@ -1,10 +1,9 @@
 {
-  "src/**/*.(vue|ts|tsx)": [
-    "eslint --ext .js,.tsx,.ts,.vue --cache --fix",
-    "git add"
+  "*.(ts|tsx|js)": [
+    "npx biome check --write --files-ignore-unknown=true --no-errors-on-unmatched --colors=force --max-diagnostics=1000 --diagnostic-level=warn",
+    "npx eslint --cache --fix"
   ],
-  "src/**/*.(vue|scss|css|sass)": [
-    "stylelint --cache --fix",
-    "git add"
-  ]
+  "src/**/*.(vue|scss|css|sass)": ["npx stylelint --cache --fix"],
+  "*.json": ["npx biome check --write"],
+  "*.{md,yml}": ["npx prettier --ignore-unknown --write"]
 }

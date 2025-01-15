@@ -12,7 +12,7 @@ from datetime import datetime
 
 from django.conf import settings
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.context import ActionContext
 from alarm_backends.core.i18n import i18n
@@ -36,7 +36,7 @@ class ActionProcessor(BaseActionProcessor):
         self.action = ActionInstance.objects.get(id=action_id)
         i18n.set_biz(self.action.bk_biz_id)
         self.alerts = alerts
-        self.context = ActionContext(self.action, alerts=self.alerts).get_dictionary()
+        self.context = ActionContext(self.action, alerts=self.alerts, use_alert_snap=True).get_dictionary()
 
     def execute(self):
         if not settings.ENABLE_MESSAGE_QUEUE or not settings.MESSAGE_QUEUE_DSN:
@@ -60,6 +60,7 @@ class ActionProcessor(BaseActionProcessor):
 
         send_message = self.context["alarm"].alert_info
         if settings.COMPATIBLE_ALARM_FORMAT:
+            # COMPATIBLE_ALARM_FORMAT 表示是否使用老版本告警格式（设置为True的话，推送的字段会少一些）
             send_message = self.context["alarm"].callback_message
         try:
             self.client.send(send_message)

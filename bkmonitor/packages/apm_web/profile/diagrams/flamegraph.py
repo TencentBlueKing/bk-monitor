@@ -11,21 +11,11 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from apm_web.profile.converter import Converter
-from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
+from apm_web.profile.diagrams.base import FunctionNode
 from apm_web.profile.diagrams.diff import DiffNode, ProfileDiffer
+from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 logger = logging.getLogger("apm")
-
-
-def function_node_to_element(function_node: FunctionNode) -> dict:
-    return {
-        "id": function_node.id,
-        "name": function_node.display_name,
-        "value": function_node.value,
-        "self": function_node.self_time,
-        "children": [function_node_to_element(child) for child in function_node.children],
-    }
 
 
 def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
@@ -38,25 +28,34 @@ def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
 
 @dataclass
 class FlamegraphDiagrammer:
-    def draw(self, c: Converter, **options) -> dict:
-        tree = FunctionTree.load_from_profile(c)
+    def draw(self, c: TreeConverter, **_) -> dict:
+        def function_node_to_element(function_node: FunctionNode) -> dict:
+            return {
+                "id": function_node.id,
+                "name": function_node.name,
+                "value": function_node.value,
+                "self": function_node.self_time,
+                "children": [function_node_to_element(child) for child in function_node.children.values()],
+            }
 
-        root = {"name": "total", "value": tree.root.value, "children": [], "id": 0}
-        for r in tree.root.children:
+        root = {"name": "total", "value": c.tree.root.value, "children": [], "id": 0}
+        for r in c.tree.root.children.values():
             root["children"].append(function_node_to_element(r))
 
         return {"flame_data": root}
 
-    def diff(self, base_doris_converter: Converter, diff_doris_converter: Converter, **options) -> dict:
-        diff_tree = ProfileDiffer.from_raw(base_doris_converter, diff_doris_converter).diff_tree()
+    def diff(self, base_tree_c: TreeConverter, comp_tree_c: TreeConverter, **_) -> dict:
+        diff_tree = ProfileDiffer.from_raw(base_tree_c, comp_tree_c).diff_tree()
+        diff_tree_root = diff_tree.root
+        if diff_tree_root is None:
+            return {"flame_data": {}}
 
         flame_data = [
             {
-                **root.default.to_dict(),
-                "diff_info": root.diff_info,
-                "children": [diff_node_to_element(child) for child in root.children],
+                **diff_tree_root.default.to_dict(),
+                "diff_info": diff_tree_root.diff_info,
+                "children": [diff_node_to_element(child) for child in diff_tree_root.children],
             }
-            for root in diff_tree.roots
         ]
 
         if not flame_data:

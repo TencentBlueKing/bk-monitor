@@ -27,7 +27,7 @@ import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 // import TemporaryShare from '../../../components/temporary-share/temporary-share';
-import { INavItem, IRouteBackItem } from '../typings';
+import type { INavItem, IRouteBackItem } from '../typings';
 
 import './common-nav-bar.scss';
 
@@ -41,14 +41,14 @@ interface ICommonNavBarProps {
   navMode?: NavBarMode;
   callbackRouterBack?: () => void;
 }
-export type NavBarMode = 'copy' | 'share' | 'display';
+export type NavBarMode = 'copy' | 'display' | 'share';
 
 @Component({
   name: 'CommonNavBar',
   components: {
     TemporaryShare: () =>
-      import(/* webpackChunkName: "TemporaryShare" */ '../../../components/temporary-share/temporary-share') as any
-  }
+      import(/* webpackChunkName: "TemporaryShare" */ '../../../components/temporary-share/temporary-share') as any,
+  },
 })
 export default class CommonNavBar extends tsc<ICommonNavBarProps> {
   @Prop({ type: Array, default: () => [] }) routeList: INavItem[];
@@ -98,17 +98,17 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
     const len = this.routeList.length;
     return (
       <div
+        key='navigationBar'
         class={`navigation-bar common-nav-bar ${this.needShadow ? 'detail-bar' : ''}`}
         slot='title'
-        key='navigationBar'
       >
         {!this.readonly && (this.needBack || ((this.needBack ?? true) && len > 1)) && (
           <span
             class='icon-monitor icon-back-left navigation-bar-back'
             onClick={() => this.handleBackGotoPage()}
-          ></span>
+          />
         )}
-        {!!this.$slots.custom ? (
+        {this.$slots.custom ? (
           <div class='navigation-bar-list'>{this.$slots.custom}</div>
         ) : (
           <ul class='navigation-bar-list'>
@@ -142,9 +142,9 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
         {
           !(this.readonly && !this.positionText?.length) && this.needCopyLink ? (
             <TemporaryShare
-              positionText={this.positionText}
               navList={this.routeList}
               navMode={this.navMode}
+              positionText={this.positionText}
               onlyCopy={this.navMode === 'copy'}
             />
           ) : undefined

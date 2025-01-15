@@ -32,23 +32,23 @@
       v-bind="formProps"
     >
       <bk-form-item
-        class="create-form-item"
         v-for="(item, index) in formList"
         :key="index"
+        class="create-form-item"
         v-bind="item.formItemProps"
         :icon-offset="item.type === 'input' && item.formChildProps.type === 'number' ? 358 : 8"
       >
         <component
           :is="'bk-' + item.type"
           v-bind="item.formChildProps"
-          :style="{ width: item.type === 'input' && item.formChildProps.type === 'number' ? '120px' : '' }"
           v-model="model[item.formItemProps.property]"
+          :style="{ width: item.type === 'input' && item.formChildProps.type === 'number' ? '120px' : '' }"
         >
           <template v-if="item.type === 'select'">
             <bk-option
               v-for="option in item.formChildProps.options"
-              :key="option.id"
               :id="option.id"
+              :key="option.id"
               :name="option.name"
             />
           </template>
@@ -82,15 +82,19 @@
           v-authority="{ active: !authority.MANAGE_GLOBAL_AUTH }"
           class="footer-btn"
           theme="primary"
-          @click="authority.MANAGE_GLOBAL_AUTH ? handleConfirm() : handleShowAuthorityDetail(authorityMap.MANAGE_GLOBAL_AUTH)"
           :loading="isChecking"
+          @click="
+            authority.MANAGE_GLOBAL_AUTH ? handleConfirm() : handleShowAuthorityDetail(authorityMap.MANAGE_GLOBAL_AUTH)
+          "
         >
           {{ $t('提交') }}
         </bk-button>
         <bk-button
           theme="default"
           @click="handleReset"
-        > {{ $t('重置') }} </bk-button>
+        >
+          {{ $t('重置') }}
+        </bk-button>
       </bk-form-item>
     </bk-form>
   </div>
@@ -98,23 +102,24 @@
 <script>
 export default {
   name: 'CreateForm',
+  inject: ['authority', 'handleShowAuthorityDetail', 'authorityMap'],
   props: {
     // 验证信息
     rules: {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
     // form model数据集
     model: {
       type: Object,
-      required: true
+      required: true,
     },
     // form配置列表
     formList: {
       type: Array,
-      required: true
+      required: true,
     },
     validate: Function,
     // form属性
@@ -122,15 +127,14 @@ export default {
       type: Object,
       default() {
         return {
-          'label-width': 200
+          'label-width': 200,
         };
-      }
-    }
+      },
+    },
   },
-  inject: ['authority', 'handleShowAuthorityDetail', 'authorityMap'],
   data() {
     return {
-      isChecking: false
+      isChecking: false,
     };
   },
   methods: {
@@ -141,8 +145,8 @@ export default {
     // 点击重置
     handleReset() {
       this.$emit('reset', this.model);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

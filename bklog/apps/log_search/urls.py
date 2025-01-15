@@ -26,10 +26,12 @@ from apps.log_search.views import (
     aggs_views,
     bizs_views,
     favorite_search_views,
+    field_views,
     index_set_views,
     meta_views,
     result_table_views,
     search_views,
+    user_custom_config_views
 )
 
 app_name = "apps.log_search"  # pylint: disable=invalid-name
@@ -44,6 +46,8 @@ router.register(r"bizs", bizs_views.BizsViewSet, basename="bizs")
 
 router.register(r"index_set", index_set_views.IndexSetViewSet, basename="index_set")
 
+router.register(r"user_custom_config", user_custom_config_views.UserCustomConfigViewSet, basename="user_custom_config")
+
 router.register(r"search/index_set", search_views.SearchViewSet, basename="search")
 router.register(r"search/index_set", aggs_views.AggsViewSet, basename="aggs")
 router.register(r"search/favorite", favorite_search_views.FavoriteViewSet, basename="favorite")
@@ -51,5 +55,7 @@ router.register(r"search/favorite_group", favorite_search_views.FavoriteGroupVie
 router.register(r"search/favorite_union", favorite_search_views.FavoriteUnionSearchViewSet, basename="favorite_union")
 
 router.register(r"result_table", result_table_views.ResultTablesViewSet, basename="result_table")
+
+router.register(r"field/index_set", field_views.FieldViewSet, basename="field")
 
 urlpatterns = [url(r"^", include(router.urls))]

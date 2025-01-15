@@ -25,5 +25,5 @@ export default {
   itemDetail,
   itemList,
   getTimeZone,
-  getParentItemList
+  getParentItemList,
 };

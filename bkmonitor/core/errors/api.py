@@ -12,8 +12,8 @@ specific language governing permissions and limitations under the License.
 API请求错误
 """
 
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
 from core.errors import Error
 
@@ -42,3 +42,20 @@ class BKAPIError(Error):
         self.message = message_tpl.format(
             system_name=system_name, code=result.get("code"), url=url, message=result or _("空")
         )
+        # 设置返回错误详情信息，适配新版错误样式
+        self.set_details(
+            exc_type=type(self).__name__,
+            exc_code=result.get("code") or self.code,
+            overview=_("请求系统'{system_name}'错误，").format(system_name=system_name),
+            detail=result.get('message'),
+            popup_message="warning",
+        )
+
+
+class DevopsNotDeployedError(BKAPIError):
+    """
+    蓝盾环境未部署错误
+    """
+
+    code = 3301002
+    name = _lazy("蓝盾环境未部署")

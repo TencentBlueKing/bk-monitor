@@ -15,12 +15,13 @@ import logging
 
 import six
 from django.db import models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from opentelemetry import trace
+from opentelemetry.trace.status import Status, StatusCode
 
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
-from core.drf_resource.exceptions import CustomException
+from core.drf_resource.exceptions import CustomException, record_exception
 from core.drf_resource.tasks import run_perform_request
 from core.drf_resource.tools import (
     format_serializer_errors,
@@ -91,8 +92,6 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
     def __call__(self, *args, **kwargs):
         # thread safe
         tmp_resource = self.__class__()
-        if hasattr(self, "stage"):
-            tmp_resource.set_stage(self.stage)
         from core.drf_resource.models import ResourceData
 
         return ResourceData.objects.request(tmp_resource, args, kwargs)
@@ -119,9 +118,7 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
 
     @classmethod
     def get_resource_name(cls):
-        subclass_name = cls.__name__
-        resource_name = subclass_name.replace("Resource", "")
-        return resource_name
+        return f"{cls.__module__}.{cls.__qualname__}"
 
     @classmethod
     def _search_serializer_class(cls):
@@ -216,12 +213,25 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
         """
         执行请求，并对请求数据和返回数据进行数据校验
         """
-        with tracer.start_as_current_span(f"drf_resource/{self.get_resource_name()}"):
-            request_data = request_data or kwargs
-            validated_request_data = self.validate_request_data(request_data)
-            response_data = self.perform_request(validated_request_data)
-            validated_response_data = self.validate_response_data(response_data)
-            return validated_response_data
+        with tracer.start_as_current_span(self.get_resource_name(), record_exception=False) as span:
+            try:
+                request_data = request_data or kwargs
+                validated_request_data = self.validate_request_data(request_data)
+                response_data = self.perform_request(validated_request_data)
+                validated_response_data = self.validate_response_data(response_data)
+                return validated_response_data
+            except Exception as exc:  # pylint: disable=broad-except
+                # Record the exception as an event
+                record_exception(span, exc, out_limit=10)
+
+                # Set status in case exception was raised
+                span.set_status(
+                    Status(
+                        status_code=StatusCode.ERROR,
+                        description=f"{type(exc).__name__}: {exc}",
+                    )
+                )
+                raise
 
     def bulk_request(self, request_data_iterable=None, ignore_exceptions=False):
         """
@@ -298,11 +308,3 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
             "request_params": render_schema(request_params),
             "response_params": render_schema(response_params, using_source=True),
         }
-
-    @classmethod
-    def etag(cls, request, *args, **kwargs):
-        return
-
-    @classmethod
-    def last_modified(cls, request, *args, **kwargs):
-        return

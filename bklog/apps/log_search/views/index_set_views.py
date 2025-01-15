@@ -19,6 +19,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import json
+
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
@@ -35,18 +37,22 @@ from apps.iam.handlers.drf import (
 )
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
-from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, SpaceApi
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
     CreateIndexSetTagSerializer,
     CreateOrUpdateDesensitizeConfigSerializer,
     DesensitizeConfigStateSerializer,
+    ESRouterListSerializer,
     IndexSetAddTagSerializer,
     IndexSetDeleteTagSerializer,
+    UserSearchSerializer,
+    UserFavoriteSerializer,
 )
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
+from apps.utils.local import get_request_username
 from bkm_space.serializers import SpaceUIDField
 
 
@@ -69,7 +75,7 @@ class IndexSetViewSet(ModelViewSet):
                 return []
         except Exception:  # pylint: disable=broad-except
             pass
-        if self.action in ["mark_favorite", "cancel_favorite"]:
+        if self.action in ["mark_favorite", "cancel_favorite", "user_search", "user_favorite"]:
             return []
         if self.action in ["create", "replace"]:
             return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
@@ -278,6 +284,78 @@ class IndexSetViewSet(ModelViewSet):
         response.data["list"] = IndexSetHandler.post_list(response.data["list"])
         return response
 
+    @list_route(methods=["GET"], url_path="list_es_router")
+    def list_es_router(self, request):
+        params = self.params_valid(ESRouterListSerializer)
+        router_list = []
+        qs = LogIndexSet.objects.all()
+        if params.get("scenario_id", ""):
+            qs = qs.filter(scenario_id=params["scenario_id"])
+
+        if params.get("space_uid", ""):
+            qs = qs.filter(space_uid=params["space_uid"])
+        else:
+            space_uids = [i.space_uid for i in SpaceApi.list_spaces()]
+            qs = qs.filter(space_uid__in=space_uids)
+
+        total = qs.count()
+        qs = qs[(params["page"] - 1) * params["pagesize"] : params["page"] * params["pagesize"]]
+        index_set_ids = list(qs.values_list("index_set_id", flat=True))
+        index_set_list = list(qs.values())
+        index_set_dict = {
+            index_set["index_set_id"]: index_set for index_set in index_set_list if index_set.get("index_set_id")
+        }
+        index_list = list(
+            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values("index_set_id", "result_table_id")
+        )
+        for index in index_list:
+            index_set = index_set_dict.get(index["index_set_id"], {})
+            if index_set:
+                if index_set.get("indexes", []):
+                    index_set["indexes"].append(index)
+                else:
+                    index_set["indexes"] = [index]
+
+        for index_set_id, index_set in index_set_dict.items():
+            if not index_set.get("indexes", []):
+                continue
+            origin_index_set = ",".join([index["result_table_id"] for index in index_set["indexes"]])
+            if index_set["scenario_id"] == Scenario.LOG:
+                origin_index_set = origin_index_set.replace(".", "_")
+            router_list.append(
+                {
+                    "cluster_id": index_set["storage_cluster_id"],
+                    "index_set": origin_index_set,
+                    "source_type": index_set["scenario_id"],
+                    "data_label": BaseIndexSetHandler.get_data_label(index_set["scenario_id"], index_set_id),
+                    "table_id": BaseIndexSetHandler.get_rt_id(
+                        index_set_id, index_set["collector_config_id"], index_set["indexes"]
+                    ),
+                    "space_uid": index_set["space_uid"],
+                    "need_create_index": True if index_set["collector_config_id"] else False,
+                    "options": [
+                        {
+                            "name": "time_field",
+                            "value_type": "dict",
+                            "value": json.dumps(
+                                {
+                                    "name": index_set["time_field"],
+                                    "type": index_set["time_field_type"],
+                                    "unit": index_set["time_field_unit"]
+                                    if index_set["time_field_type"] != TimeFieldTypeEnum.DATE.value
+                                    else TimeFieldUnitEnum.MILLISECOND.value,
+                                }
+                            ),
+                        }, {
+                            "name": "need_add_time",
+                            "value_type": "bool",
+                            "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
+                        }
+                    ],
+                }
+            )
+        return Response({"total": total, "list": router_list})
+
     def retrieve(self, request, *args, **kwargs):
         """
         @api {get} /index_set/$index_set_id/ 索引集-详情
@@ -359,7 +437,9 @@ class IndexSetViewSet(ModelViewSet):
             "result": true
         }
         """
-        return super().retrieve(request, *args, **kwargs)
+        response = super().retrieve(request, *args, **kwargs)
+        response.data = IndexSetHandler.post_list([response.data])[0]
+        return response
 
     def create(self, request, *args, **kwargs):
         """
@@ -449,6 +529,7 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
         )
+
         return Response(self.get_serializer_class()(instance=index_set).data)
 
     def update(self, request, *args, **kwargs):
@@ -517,6 +598,7 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
         )
+
         return Response(self.get_serializer_class()(instance=index_set).data)
 
     @list_route(methods=["POST"], url_path="replace")
@@ -1066,3 +1148,84 @@ class IndexSetViewSet(ModelViewSet):
         @apiGroup 05_AccessIndexSet
         """
         return Response(IndexSetHandler().tag_list())
+
+    @list_route(methods=["POST"], url_path="user_search")
+    def user_search(self, request):
+        """
+        @api {post} /index_set/user_search/
+        @apiDescription 获取用户最近查询的索引集
+        @apiName user_search
+        @apiGroup 05_AccessIndexSet
+        @apiParam {String} username 用户名(必填)
+        @apiParam {String} [space_uid] 空间唯一标识(非必填)
+        @apiParam {Int} [start_time] 开始时间(非必填)
+        @apiParam {Int} [end_time] 结束时间(非必填)
+        @apiParam {Int} limit 限制条数(必填)
+        @apiParamExample {Json} 请求参数
+        {
+            "username": "admin",
+            "space_uid": "bkcc__2",
+            "start_time": 1732694693,
+            "end_time": 1735286693,
+            "limit": 1
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                {
+                    "index_set_id": 305,
+                    "created_at": "2024-12-23T09:10:59.968318Z",
+                    "params": {
+                        "keyword": "mylevel: *",
+                        "ip_chooser": {},
+                        "addition": [],
+                        "start_time": "2024-12-23 16:55:59",
+                        "end_time": "2024-12-23 17:10:59",
+                        "time_range": null
+                    },
+                    "duration": 680.0,
+                    "index_set_name": "[采集项]ES存储集群无损切换-测试验证",
+                    "space_uid": "bkcc__2"
+                }
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(UserSearchSerializer)
+        return Response(IndexSetHandler.fetch_user_search_index_set(params=data))
+
+    @list_route(methods=["POST"], url_path="user_favorite")
+    def user_favorite(self, request):
+        """
+        @api {post} /index_set/user_favorite/
+        @apiDescription 获取用户收藏的索引集
+        @apiName user_favorite
+        @apiGroup 05_AccessIndexSet
+        @apiParam {String} username 用户名(必填)
+        @apiParam {String} [space_uid] 空间唯一标识(非必填)
+        @apiParam {Int} [limit] 限制条数(非必填)
+        @apiParamExample {Json} 请求参数
+        {
+            "username": "admin",
+            "space_uid": "bkcc__2",
+            "limit": 1
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                {
+                    "index_set_id": 305,
+                    "created_at": "2024-12-23T09:10:59.968318Z",
+                    "index_set_name": "[采集项]ES存储集群无损切换-测试验证",
+                    "space_uid": "bkcc__2"
+                }
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(UserFavoriteSerializer)
+        return Response(IndexSetHandler.fetch_user_favorite_index_set(params=data))

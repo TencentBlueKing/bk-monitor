@@ -28,88 +28,88 @@ const traceListSetting = {
     {
       label: 'Trace ID',
       field: 'traceID',
-      disabled: true
+      disabled: true,
     },
     {
       label: `${window.i18n.t('开始时间')}`,
-      field: 'min_start_time'
+      field: 'min_start_time',
     },
     {
       label: `${window.i18n.t('根Span')}`,
-      field: 'root_span_name'
+      field: 'root_span_name',
     },
     {
       label: `${window.i18n.t('入口服务')}`,
-      field: 'entryService'
+      field: 'entryService',
     },
     {
       label: `${window.i18n.t('入口接口')}`,
-      field: 'root_service_span_name'
+      field: 'root_service_span_name',
     },
     {
       label: `${window.i18n.t('调用类型')}`,
-      field: 'root_service_category'
+      field: 'root_service_category',
     },
     {
       label: `${window.i18n.t('状态码')}`,
-      field: 'statusCode'
+      field: 'statusCode',
     },
     {
       label: `${window.i18n.t('耗时')}`,
-      field: 'trace_duration'
+      field: 'trace_duration',
     },
     {
       label: `${window.i18n.t('同步Span数量')}`,
-      field: 'kind_statistics.sync'
+      field: 'kind_statistics.sync',
     },
     {
       label: `${window.i18n.t('异步Span数量')}`,
-      field: 'kind_statistics.async'
+      field: 'kind_statistics.async',
     },
     {
       label: `${window.i18n.t('内部Span数量')}`,
-      field: 'kind_statistics.interval'
+      field: 'kind_statistics.interval',
     },
     {
       label: `${window.i18n.t('未知Span数量')}`,
-      field: 'kind_statistics.unspecified'
+      field: 'kind_statistics.unspecified',
     },
     {
       label: `${window.i18n.t('DB 数量')}`,
-      field: 'category_statistics.db'
+      field: 'category_statistics.db',
     },
     {
       label: `${window.i18n.t('Messaging 数量')}`,
-      field: 'category_statistics.messaging'
+      field: 'category_statistics.messaging',
     },
     {
       label: `${window.i18n.t('HTTP 数量')}`,
-      field: 'category_statistics.http'
+      field: 'category_statistics.http',
     },
     {
       label: `${window.i18n.t('RPC 数量')}`,
-      field: 'category_statistics.rpc'
+      field: 'category_statistics.rpc',
     },
     {
       label: `${window.i18n.t('Async 数量')}`,
-      field: 'category_statistics.async_backend'
+      field: 'category_statistics.async_backend',
     },
     {
       label: `${window.i18n.t('Other 数量')}`,
-      field: 'category_statistics.other'
+      field: 'category_statistics.other',
     },
     {
       label: `${window.i18n.t('Span 数量')}`,
-      field: 'span_count'
+      field: 'span_count',
     },
     {
       label: `${window.i18n.t('Span 层数')}`,
-      field: 'hierarchy_count'
+      field: 'hierarchy_count',
     },
     {
       label: `${window.i18n.t('服务数量')}`,
-      field: 'service_count'
-    }
+      field: 'service_count',
+    },
   ],
   checked: [
     'traceID',
@@ -121,12 +121,12 @@ const traceListSetting = {
     'statusCode',
     'root_service_category',
     'hierarchy_count',
-    'service_count'
+    'service_count',
   ],
   limit: 0,
   size: 'medium',
   sizeList: [],
-  showLineHeight: false
+  showLineHeight: false,
 };
 
 // traceListSetting.fields.forEach((item) => {
@@ -138,58 +138,58 @@ const spanListSetting = {
     {
       label: 'Span ID',
       field: 'span_id',
-      disabled: true
+      disabled: true,
     },
     {
       label: `${window.i18n.t('接口名称')}`,
-      field: 'span_name'
+      field: 'span_name',
     },
     {
       label: `${window.i18n.t('开始时间')}`,
-      field: 'start_time'
+      field: 'start_time',
     },
     {
       label: `${window.i18n.t('结束时间')}`,
-      field: 'end_time'
+      field: 'end_time',
     },
     {
       label: `${window.i18n.t('耗时')}`,
-      field: 'elapsed_time'
+      field: 'elapsed_time',
     },
     {
       label: `${window.i18n.t('状态')}`,
-      field: 'status_code'
+      field: 'status_code',
     },
     {
       label: `${window.i18n.t('类型')}`,
-      field: 'kind'
+      field: 'kind',
     },
     {
       label: `${window.i18n.t('所属服务')}`,
-      field: 'resource.service.name'
+      field: 'resource.service.name',
     },
     {
       label: `${window.i18n.t('实例 ID')}`,
-      field: 'resource.bk.instance.id'
+      field: 'resource.bk.instance.id',
     },
     {
       label: `${window.i18n.t('SDK 名称')}`,
-      field: 'resource.telemetry.sdk.name'
+      field: 'resource.telemetry.sdk.name',
     },
     {
       label: `${window.i18n.t('SDK 版本')}`,
-      field: 'resource.telemetry.sdk.version'
+      field: 'resource.telemetry.sdk.version',
     },
     {
       label: `${window.i18n.t('所属Trace')}`,
-      field: 'trace_id'
-    }
+      field: 'trace_id',
+    },
   ],
   checked: ['span_id', 'span_name', 'start_time', 'end_time', 'elapsed_time', 'status_code', 'kind', 'trace_id'],
   limit: 0,
   size: 'medium',
   sizeList: [],
-  showLineHeight: false
+  showLineHeight: false,
 };
 
 const interfaceStatisticsSetting = {
@@ -197,44 +197,44 @@ const interfaceStatisticsSetting = {
     {
       label: `${window.i18n.t('接口名')}`,
       field: 'span_name',
-      disabled: true
+      disabled: true,
     },
     {
       label: `${window.i18n.t('所属Service')}`,
-      field: 'service_name'
+      field: 'service_name',
     },
     {
       label: `${window.i18n.t('来源类型')}`,
-      field: 'source'
+      field: 'source',
     },
     {
       label: `${window.i18n.t('接口类型')}`,
-      field: 'kind'
+      field: 'kind',
     },
     {
       label: `${window.i18n.t('Span数量')}`,
-      field: 'span_count'
+      field: 'span_count',
     },
     {
       label: `${window.i18n.t('错误数')}`,
-      field: 'error_count'
+      field: 'error_count',
     },
     {
       label: `${window.i18n.t('错误率')}`,
-      field: 'error_rate'
+      field: 'error_rate',
     },
     {
       label: `${window.i18n.t('平均耗时')}`,
-      field: 'avg_duration'
+      field: 'avg_duration',
     },
     {
       label: `${window.i18n.t('P90耗时')}`,
-      field: 'p90_duration'
+      field: 'p90_duration',
     },
     {
       label: `${window.i18n.t('P50耗时')}`,
-      field: 'p50_duration'
-    }
+      field: 'p50_duration',
+    },
   ],
   checked: [
     'kind',
@@ -244,48 +244,48 @@ const interfaceStatisticsSetting = {
     'error_count',
     'avg_duration',
     'p90_duration',
-    'p50_duration'
+    'p50_duration',
   ],
   limit: 0,
   size: 'medium',
   sizeList: [],
-  showLineHeight: false
+  showLineHeight: false,
 };
 
 const serviceStatisticsSetting = {
   fields: [
     {
       label: 'Service',
-      field: 'service_name'
+      field: 'service_name',
     },
     {
       label: `${window.i18n.t('服务类型')}`,
-      field: 'kind'
+      field: 'kind',
     },
     {
       label: `${window.i18n.t('Span数量')}`,
-      field: 'span_count'
+      field: 'span_count',
     },
     {
       label: `${window.i18n.t('错误数')}`,
-      field: 'error_count'
+      field: 'error_count',
     },
     {
       label: `${window.i18n.t('错误率')}`,
-      field: 'error_rate'
+      field: 'error_rate',
     },
     {
       label: `${window.i18n.t('平均耗时')}`,
-      field: 'avg_duration'
+      field: 'avg_duration',
     },
     {
       label: `${window.i18n.t('P90耗时')}`,
-      field: 'p90_duration'
+      field: 'p90_duration',
     },
     {
       label: `${window.i18n.t('P50耗时')}`,
-      field: 'p50_duration'
-    }
+      field: 'p50_duration',
+    },
   ],
   checked: [
     'service_name',
@@ -295,12 +295,12 @@ const serviceStatisticsSetting = {
     'error_rate',
     'avg_duration',
     'p90_duration',
-    'p50_duration'
+    'p50_duration',
   ],
   limit: 0,
   size: 'medium',
   sizeList: [],
-  showLineHeight: false
+  showLineHeight: false,
 };
 
 // spanListSetting.fields.forEach((item) => {
@@ -311,76 +311,76 @@ const statisticTableSetting = {
   fields: [
     {
       label: `${window.i18n.t('接口')}`,
-      field: 'span_name'
+      field: 'span_name',
     },
     {
       label: `${window.i18n.t('服务')}`,
-      field: 'resource.service.name'
+      field: 'resource.service.name',
     },
     {
       label: `${window.i18n.t('最大时间')}`,
-      field: 'max_duration'
+      field: 'max_duration',
     },
     {
       label: `${window.i18n.t('最小时间')}`,
-      field: 'min_duration'
+      field: 'min_duration',
     },
     {
       label: `${window.i18n.t('总时间')}`,
-      field: 'sum_duration'
+      field: 'sum_duration',
     },
     {
       label: `${window.i18n.t('CP95')}`,
-      field: 'P95'
+      field: 'P95',
     },
     {
       label: `${window.i18n.t('总数')}`,
-      field: 'count'
-    }
+      field: 'count',
+    },
   ],
   checked: ['span_name', 'resource.service.name', 'max_duration', 'min_duration', 'sum_duration', 'P95', 'count'],
   limit: 0,
   size: 'medium',
   sizeList: [],
-  showLineHeight: false
+  showLineHeight: false,
 };
 
 const statisticDiffTableSetting = {
   fields: [
     {
       label: `${window.i18n.t('接口')}`,
-      field: 'span_name'
+      field: 'span_name',
     },
     {
       label: `${window.i18n.t('服务')}`,
-      field: 'resource.service.name'
+      field: 'resource.service.name',
     },
     {
       label: `${window.i18n.t('最大时间')}`,
-      field: 'max_duration'
+      field: 'max_duration',
     },
     {
       label: `${window.i18n.t('最小时间')}`,
-      field: 'min_duration'
+      field: 'min_duration',
     },
     {
       label: `${window.i18n.t('总时间')}`,
-      field: 'sum_duration'
+      field: 'sum_duration',
     },
     {
       label: `${window.i18n.t('CP95')}`,
-      field: 'P95'
+      field: 'P95',
     },
     {
       label: `${window.i18n.t('总数')}`,
-      field: 'count'
-    }
+      field: 'count',
+    },
   ],
   checked: ['span_name', 'resource.service.name', 'max_duration', 'min_duration', 'sum_duration', 'P95', 'count'],
   limit: 0,
   size: 'medium',
   sizeList: [],
-  showLineHeight: false
+  showLineHeight: false,
 };
 
 export {
@@ -389,5 +389,5 @@ export {
   spanListSetting,
   statisticDiffTableSetting,
   statisticTableSetting,
-  traceListSetting
+  traceListSetting,
 };

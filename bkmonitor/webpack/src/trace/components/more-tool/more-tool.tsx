@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref } from 'vue';
+import { type PropType, defineComponent, ref } from 'vue';
 
 import IconFont from '../icon-font/icon-font';
-import SelectMenu, { ISelectMenuOption } from '../select-menu/select-menu';
+import SelectMenu, { type ISelectMenuOption } from '../select-menu/select-menu';
 /**
  * 更多操作菜单选择器
  * 通过默认插槽可改变触发的icon
@@ -36,11 +36,11 @@ export default defineComponent({
   props: {
     list: {
       type: Array as PropType<ISelectMenuOption[]>,
-      default: () => []
+      default: () => [],
     },
     onSelect: {
-      type: Function as PropType<(item: ISelectMenuOption) => void>
-    }
+      type: Function as PropType<(item: ISelectMenuOption) => void>,
+    },
   },
   setup(props, { emit }) {
     const isShow = ref(false);
@@ -52,7 +52,7 @@ export default defineComponent({
 
     return {
       isShow,
-      handleSelect
+      handleSelect,
     };
   },
   render() {
@@ -60,21 +60,21 @@ export default defineComponent({
       <span class='more-tool-wrap'>
         <SelectMenu
           list={this.list}
-          onShowChange={val => (this.isShow = val)}
           onSelect={this.handleSelect}
+          onShowChange={val => (this.isShow = val)}
         >
           {this.$slots.default?.() ?? (
             <IconFont
               width={24}
               height={24}
-              icon='icon-mc-more'
-              hoverStyle
               activeStyle={this.isShow}
               classes={['icon-more']}
-            ></IconFont>
+              icon='icon-mc-more'
+              hoverStyle
+            />
           )}
         </SelectMenu>
       </span>
     );
-  }
+  },
 });

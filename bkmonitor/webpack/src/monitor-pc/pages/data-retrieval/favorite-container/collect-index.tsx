@@ -27,12 +27,12 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { FavoriteIndexType, IFavList } from '../typings';
-
-import SharedDialog from './component/shared-dialog';
 import CollectContainer from './collect-container';
+import SharedDialog from './component/shared-dialog';
 import ManageGroupDialog from './manage-group-dialog';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { FavoriteIndexType, IFavList } from '../typings';
 
 import './collect-index.scss';
 
@@ -54,7 +54,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   searchVal = ''; // 搜索
   // groupName = ''; // 新增或编辑组名
   verifyData = {
-    groupName: ''
+    groupName: '',
   };
   sharedConfig = null as IFavList.favList;
   baseSortType = 'asc'; // 排序参数
@@ -63,45 +63,45 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
     // 排序展示列表
     {
       name: window.i18n.t('按名称 A - Z 排序'),
-      id: 'asc'
+      id: 'asc',
     },
     {
       name: window.i18n.t('按名称 Z - A 排序'),
-      id: 'desc'
+      id: 'desc',
     },
     {
       name: window.i18n.t('按更新时间排序'),
-      id: 'update'
-    }
+      id: 'update',
+    },
   ];
   public rules = {
     groupName: [
       {
         validator: this.checkName,
         message: window.i18n.t('组名不规范, 包含了特殊符号.'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkExistName,
         message: window.i18n.t('注意: 名字冲突'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.i18n.t('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.i18n.t('注意：最大值为30个字符'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
   tippyOption = {
     trigger: 'click',
     interactive: true,
-    theme: 'light'
+    theme: 'light',
   };
   groupList: IFavList.groupList[] = []; // 分组列表
   filterCollectList: IFavList.favGroupList[] = []; // 搜索的收藏列表
@@ -171,7 +171,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   initGroupList() {
     this.groupList = this.favoritesList.map(item => ({
       group_name: item.name,
-      group_id: item.id
+      group_id: item.id,
     }));
   }
 
@@ -231,7 +231,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
           ...item,
           favorites: item.favorites.filter(
             fItem => fItem.create_user.includes(this.searchVal) || fItem.name.includes(this.searchVal)
-          )
+          ),
         }))
         .filter(item => item.favorites.length);
       if (isRequest) this.searchLoading = false;
@@ -254,12 +254,12 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
     return (
       <div class='retrieve-collect-index'>
         <CollectContainer
+          collectLoading={this.searchLoading || this.favoriteLoading}
           dataList={this.filterCollectList}
-          groupList={this.groupList}
           emptyStatusType={this.emptyStatusType}
           favCheckedValue={this.favCheckedValue}
+          groupList={this.groupList}
           isSearchFilter={this.isSearchFilter}
-          collectLoading={this.searchLoading || this.favoriteLoading}
           onChange={this.handleUserOperate}
           onHandleOperation={this.handleEmptyOperation}
         >
@@ -272,45 +272,45 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
               <span
                 class='icon-monitor icon-mc-wholesale-editor'
                 onClick={() => (this.isShowManageDialog = true)}
-              ></span>
+              />
             </div>
             <div class='search-box fl-jcsb'>
               <bk-input
-                right-icon='bk-icon icon-search'
                 vModel={this.searchVal}
+                placeholder={this.$t('搜索收藏名')}
+                right-icon='bk-icon icon-search'
                 onEnter={this.handleSearchFavorite}
                 onKeyup={this.handleInputSearchFavorite}
                 onRightIconClick={this.handleSearchFavorite}
-                placeholder={this.$t('搜索收藏名')}
-              ></bk-input>
+              />
               <div class='fl-jcsb operate-box'>
                 <bk-popover
                   ref='popoverGroup'
-                  tippy-options={this.tippyOption}
-                  placement='bottom-start'
                   ext-cls='new-group-popover'
+                  placement='bottom-start'
+                  tippy-options={this.tippyOption}
                 >
-                  <span class='bk-icon icon-plus-circle'></span>
+                  <span class='bk-icon icon-plus-circle' />
                   <div slot='content'>
                     <bk-form
-                      labelWidth={0}
-                      style={{ width: '100%' }}
                       ref='checkInputForm'
+                      style={{ width: '100%' }}
+                      labelWidth={0}
                       {...{
                         props: {
                           model: this.verifyData,
-                          rules: this.rules
-                        }
+                          rules: this.rules,
+                        },
                       }}
                     >
                       <bk-form-item property='groupName'>
                         <bk-input
-                          clearable
-                          placeholder={this.$t('输入组名,30个字符')}
                           vModel={this.verifyData.groupName}
-                          onKeydown={this.handleGroupKeyDown}
+                          placeholder={this.$t('输入组名,30个字符')}
+                          clearable
                           onEnter={() => this.handleClickGroupBtn('add')}
-                        ></bk-input>
+                          onKeydown={this.handleGroupKeyDown}
+                        />
                       </bk-form-item>
                     </bk-form>
                     <div class='operate-button'>
@@ -326,18 +326,18 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                 </bk-popover>
                 <bk-popover
                   ref='popoverSort'
-                  tippy-options={this.tippyOption}
-                  placement='bottom-start'
                   ext-cls='sort-group-popover'
+                  placement='bottom-start'
+                  tippy-options={this.tippyOption}
                 >
                   <div class='icon-box'>
-                    <span class='bk-icon icon-sort'></span>
+                    <span class='bk-icon icon-sort' />
                   </div>
                   <div slot='content'>
                     <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
                     <bk-radio-group
-                      vModel={this.sortType}
                       class='sort-group-container'
+                      vModel={this.sortType}
                     >
                       {this.groupSortList.map(item => (
                         <bk-radio value={item.id}>{item.name}</bk-radio>
@@ -361,7 +361,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
             class={['new-search', { active: this.isNewSearch }]}
             onClick={() => this.handleEmitOperateChange('new-search', undefined)}
           >
-            <span class='bk-icon icon-enlarge-line'></span>
+            <span class='bk-icon icon-enlarge-line' />
             <span>{this.$t('新检索')}</span>
           </div>
         </CollectContainer>

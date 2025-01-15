@@ -25,12 +25,13 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import ResizeContainer from 'fta-solutions/components/resize-container/resize-container';
 import AutoInput from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/auto-input/auto-input';
 import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import {
   DEFAULT_MESSAGE_TMPL,
-  DEFAULT_TITLE_TMPL
+  DEFAULT_TITLE_TMPL,
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import { getConvergeFunction, getVariables } from 'monitor-api/modules/action';
 import { listActionConfig, listUserGroup } from 'monitor-api/modules/model';
@@ -40,17 +41,20 @@ import MultiLabelSelect from '../../../components/multi-label-select/multi-label
 import TimePickerMultiple from '../../../components/time-picker-multiple/time-picker-multiple';
 import TemplateInput from '../strategy-config-set/strategy-template-input/strategy-template-input.vue';
 import {
+  type IValue as IAlarmItem,
+  type IAllDefense,
   actionConfigGroupList,
-  IAllDefense,
-  IValue as IAlarmItem
 } from '../strategy-config-set-new/alarm-handling/alarm-handling';
 import AlarmHandlingList from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
 import AlarmGroup from '../strategy-config-set-new/components/alarm-group';
 import CommonItem from '../strategy-config-set-new/components/common-form-item';
-import { IGroupItem } from '../strategy-config-set-new/components/group-select';
 import VerifyItem from '../strategy-config-set-new/components/verify-item';
+import DetectionRules from '../strategy-config-set-new/detection-rules/detection-rules';
 import { DEFAULT_TIME_RANGES } from '../strategy-config-set-new/judging-condition/judging-condition';
 import { actionOption, intervalModeList, noticeOptions } from '../strategy-config-set-new/notice-config/notice-config';
+
+import type { IGroupItem } from '../strategy-config-set-new/components/group-select';
+import type { MetricDetail } from '../strategy-config-set-new/typings';
 
 import './strategy-config-dialog.scss';
 
@@ -58,73 +62,81 @@ import './strategy-config-dialog.scss';
 const TYPE_MAP = {
   1: {
     title: window.i18n.tc('修改触发条件'),
-    width: 480
+    width: 480,
   },
   3: {
     title: window.i18n.tc('修改无数据告警'),
-    width: 480
+    width: 480,
   },
   5: {
     title: window.i18n.tc('修改恢复条件'),
-    width: 400
+    width: 400,
   },
   6: {
     title: window.i18n.tc('启/停策略'),
-    width: 400
+    width: 400,
   },
   7: {
     title: window.i18n.tc('删除策略'),
-    width: 400
+    width: 400,
   },
   8: {
     title: window.i18n.tc('增删目标'),
-    width: 480
+    width: 480,
   },
   10: {
     title: window.i18n.tc('修改标签'),
-    width: 480
+    width: 480,
   },
   12: {
     title: window.i18n.tc('修改生效时间段'),
-    width: 480
+    width: 480,
   },
   13: {
     title: window.i18n.tc('修改处理套餐'),
-    width: 640
+    width: 640,
   },
   14: {
     title: window.i18n.tc('修改告警组'),
-    width: 480
+    width: 480,
   },
   15: {
     title: window.i18n.tc('修改通知场景'),
-    width: 640
+    width: 640,
   },
   16: {
     title: window.i18n.tc('修改通知间隔'),
-    width: 640
+    width: 640,
   },
   17: {
     title: window.i18n.tc('修改通知模板'),
-    width: 640
+    width: 640,
   },
   18: {
     title: window.i18n.tc('修改告警风暴开关'),
-    width: 480
-  }
+    width: 480,
+  },
+  20: {
+    title: window.i18n.tc('修改通知升级'),
+    width: 480,
+  },
+  21: {
+    title: window.i18n.tc('修改算法'),
+    width: 640,
+  },
 };
 
 // 通知间隔类型
 const intervalModeTips = {
   standard: window.i18n.t('固定N分钟间隔进行通知'),
-  increasing: window.i18n.t('按通知次数的指数递增，依次按N，2N，4N，8N,...依次类推执行，最大24小时')
+  increasing: window.i18n.t('按通知次数的指数递增，依次按N，2N，4N，8N,...依次类推执行，最大24小时'),
 };
 
 // 模板数据类型
 const templateList = [
   { key: 'abnormal', label: window.i18n.tc('告警触发时') },
   { key: 'recovered', label: window.i18n.tc('告警恢复时') },
-  { key: 'closed', label: window.i18n.tc('告警关闭时') }
+  { key: 'closed', label: window.i18n.tc('告警关闭时') },
 ];
 
 interface IAlarmGroupList {
@@ -145,11 +157,12 @@ interface IProps {
   groupList?: IGroup[];
   dialogShow?: boolean;
   setType?: number;
+  selectMetricData?: MetricDetail[];
 }
 interface IEvents {
-  onGetGroupList?: void;
-  onConfirm?: void;
-  onHideDialog?: void;
+  onGetGroupList?: () => void;
+  onConfirm?: () => void;
+  onHideDialog?: () => void;
 }
 
 @Component
@@ -159,8 +172,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) groupList: IGroup[];
   @Prop({ type: Boolean, default: false }) dialogShow: boolean;
   @Prop({ type: Number, default: 0 }) setType: number;
+  @Prop({ type: Array, default: () => [] }) selectMetricData: MetricDetail[];
 
   @Ref('alarmHandlingList') alarmHandlingListRef: AlarmHandlingList;
+  @Ref('detection-rules') readonly detectionRulesEl: DetectionRules;
 
   isLoading = false;
   data = {
@@ -170,16 +185,16 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       cycleOne: 5,
       count: 4,
       cycleTwo: 5,
-      type: 1
+      type: 1,
     },
     recover: {
-      val: 5
+      val: 5,
     },
     notice: {
-      val: 120
+      val: 120,
     },
     noDataAlarm: {
-      cycle: 5
+      cycle: 5,
     },
     openAlarmNoData: true,
     alarmNotice: true,
@@ -190,6 +205,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     noDataCycleError: false,
     enAbled: false,
     labelsError: false,
+    upgradeError: '',
     timeRange: DEFAULT_TIME_RANGES, // 时间段
     alarmItems: [] as IAlarmItem[], // 告警处理
     userGroups: [] as number[], // 告警组
@@ -198,23 +214,40 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     noticeInterval: {
       // 通知间隔
       interval_notify_mode: 'standard',
-      notify_interval: 120
+      notify_interval: 120,
     },
     noticeIntervalError: false,
     template: [
       // 模板数据
       { signal: 'abnormal', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
       { signal: 'recovered', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
-      { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL }
+      { signal: 'closed', message_tmpl: DEFAULT_MESSAGE_TMPL, title_tmpl: DEFAULT_TITLE_TMPL },
     ],
     templateActive: 'abnormal', // 当前模板类型
     templateData: { signal: 'abnormal', message_tmpl: '', title_tmpl: '' }, // 当前模板数据
     templateError: '',
-    needBizConverge: true
+    needBizConverge: true,
+    /** 通知升级 */
+    upgrade_config: {
+      /** 通知升级开关 */
+      is_enabled: true,
+      /** 通知升级间隔 */
+      upgrade_interval: 1,
+      /** 通知升级告警组 */
+      user_groups: [],
+    },
+    // 检测规则数据
+    detectionConfig: {
+      unit: '',
+      unitType: '', // 单位类型
+      unitList: [],
+      connector: 'and',
+      data: [],
+    },
   };
   triggerTypeList = [{ id: 1, name: window.i18n.tc('累计') }];
   numbersScope = {
-    countMax: 5
+    countMax: 5,
   };
   allAction: IGroupItem[] = []; // 套餐列表
   defenseList: IAllDefense[] = []; // 防御列表
@@ -225,6 +258,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
 
   cachInitData = {};
 
+  type = '';
   get curItem() {
     return TYPE_MAP[this.setType] || {};
   }
@@ -247,7 +281,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           await this.getDefenseList();
         }
       }
-      if (this.setType === 14 && !this.alarmGroupList.length) {
+      if (this.setType === 14 || this.setType === 20) {
         await this.getAlarmGroupList();
       }
       if (this.setType === 17) {
@@ -286,7 +320,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
-      receiver: item.users?.map(rec => rec.display_name) || []
+      receiver: item.users?.map(rec => rec.display_name) || [],
     }));
   }
   // 获取自动填充列表
@@ -294,13 +328,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     const data = await getVariables().catch(() => []);
     const list = data
       .reduce((total, cur) => {
-        total = total.concat(cur.items);
-        return total;
+        return total.concat(cur.items);
       }, [])
       .map(item => ({
         id: item.name,
         name: item.desc,
-        example: item.example
+        example: item.example,
       }));
     this.messageTemplateList = list;
   }
@@ -314,7 +347,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     if (num) {
       let inputVal = num.toString();
       inputVal = inputVal.replace(/\./gi, '');
-      this.data[type][prop] = parseInt(inputVal, 10);
+      this.data[type][prop] = Number.parseInt(inputVal, 10);
     }
   }
 
@@ -333,6 +366,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     }
   }
 
+  // 批量追加/替换参数
+  handleClick(type: string) {
+    this.type = type;
+    this.handleConfirm();
+  }
+
   // 提交参数
   async generationParam() {
     const setTypeMap = {
@@ -342,12 +381,14 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           ? false
           : {
               trigger_config: {
-                count: parseInt(String(this.data.triggerCondition.count), 10),
-                check_window: parseInt(String(this.data.triggerCondition.cycleOne) as unknown as string, 10)
-              }
+                count: Number.parseInt(String(this.data.triggerCondition.count), 10),
+                check_window: Number.parseInt(String(this.data.triggerCondition.cycleOne) as unknown as string, 10),
+              },
             },
       2: () =>
-        this.validateRecoveAlarmCondition() ? false : { alarm_interval: parseInt(String(this.data.notice.val), 10) },
+        this.validateRecoveAlarmCondition()
+          ? false
+          : { alarm_interval: Number.parseInt(String(this.data.notice.val), 10) },
       3: () => {
         if (this.data.openAlarmNoData && this.validateNoDataAlarmCycle()) {
           return false;
@@ -355,9 +396,9 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         return this.data.openAlarmNoData
           ? {
               no_data_config: {
-                continuous: parseInt(String(this.data.noDataAlarm.cycle), 10),
-                is_enabled: this.data.openAlarmNoData
-              }
+                continuous: Number.parseInt(String(this.data.noDataAlarm.cycle), 10),
+                is_enabled: this.data.openAlarmNoData,
+              },
             }
           : { no_data_config: { is_enabled: this.data.openAlarmNoData } };
       },
@@ -367,7 +408,30 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       6: () => ({ is_enabled: this.data.enAbled }),
       7: () => ({ isDel: true }),
       /* 修改标签 */
-      10: () => (this.validateLabelsList() ? false : { labels: this.data.labels }),
+      10: () => {
+        if (this.validateLabelsList()) {
+          return false;
+        }
+        // 构建类型映射的配置
+        const buildTypeMap = () => {
+          const labels = this.data.labels.map(path => path.replace(/^\/|\/$/g, ''));
+          return {
+            replace: {
+              labels: {
+                labels,
+              },
+            },
+            append: {
+              labels: {
+                labels,
+                append_keys: ['labels'],
+              },
+            },
+          };
+        };
+        // 返回相应的配置
+        return buildTypeMap()[this.type] ?? {};
+      },
       /* 修改生效时间段 */
       12: () => {
         return {
@@ -375,10 +439,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             uptime: {
               time_ranges: this.data.timeRange.map(range => ({
                 start: range[0],
-                end: range[1]
-              }))
-            }
-          }
+                end: range[1],
+              })),
+            },
+          },
         };
       },
       /* 修改处理套餐 */
@@ -391,24 +455,42 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               options: {
                 converge_config: {
                   ...item.options.converge_config,
-                  timedelta: item.options.converge_config.timedelta * 60
-                }
-              }
-            }))
+                  timedelta: item.options.converge_config.timedelta * 60,
+                },
+              },
+            })),
           };
         }
         return false;
       },
       /* 修改告警组 */
       14: () => {
-        if (this.data.userGroups.length) {
-          return {
-            notice: {
-              user_groups: this.data.userGroups
-            }
-          };
+        // 判断 userGroups 是否存在且非空
+        if (!this.data.userGroups.length) {
+          this.data.userGroupsErr = true;
+          return {};
         }
-        this.data.userGroupsErr = true;
+
+        // 构建类型映射的配置
+        const buildTypeMap = () => {
+          const userGroups = this.data.userGroups;
+          return {
+            replace: {
+              notice: {
+                user_groups: userGroups,
+              },
+            },
+            append: {
+              notice: {
+                user_groups: userGroups,
+                append_keys: ['user_groups'],
+              },
+            },
+          };
+        };
+
+        // 返回相应的配置
+        return buildTypeMap()[this.type] ?? {};
       },
       /* 修改告警场景 */
       15: () => ({ notice: { signal: this.data.signal } }),
@@ -417,8 +499,8 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         if (this.data.noticeInterval.notify_interval) {
           return {
             notice: {
-              config: { ...this.data.noticeInterval, notify_interval: this.data.noticeInterval.notify_interval * 60 }
-            }
+              config: { ...this.data.noticeInterval, notify_interval: this.data.noticeInterval.notify_interval * 60 },
+            },
           };
         }
         this.data.noticeIntervalError = true;
@@ -426,10 +508,10 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       /* 修改告警通知模板 */
       17: () => {
         const templateValidate = this.data.template.some(template => {
-          if (!Boolean(template.title_tmpl)) {
+          if (!template.title_tmpl) {
             this.handleChangeTemplate(template.signal);
           }
-          return !Boolean(template.title_tmpl);
+          return !template.title_tmpl;
         });
         if (templateValidate) {
           this.data.templateError = window.i18n.tc('必填项');
@@ -438,7 +520,19 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         }
       },
       /* 修改告警风暴开关 */
-      18: () => ({ notice: { options: { converge_config: { need_biz_converge: this.data.needBizConverge } } } })
+      18: () => ({ notice: { options: { converge_config: { need_biz_converge: this.data.needBizConverge } } } }),
+      20: () =>
+        this.validUpgradeConfig() ? false : { notice: { options: { upgrade_config: this.data.upgrade_config } } },
+      21: async () => {
+        try {
+          await this.detectionRulesEl.validate();
+          return {
+            algorithms: this.data.detectionConfig.data,
+          };
+        } catch {
+          return false;
+        }
+      },
     };
     return setTypeMap[this.setType]?.() || {};
   }
@@ -456,8 +550,8 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
         return true;
       }
     }
-    const cycleOne = parseInt(String(this.data.triggerCondition.cycleOne), 10);
-    const count = parseInt(String(this.data.triggerCondition.count), 10);
+    const cycleOne = Number.parseInt(String(this.data.triggerCondition.cycleOne), 10);
+    const count = Number.parseInt(String(this.data.triggerCondition.count), 10);
     if (cycleOne < count) {
       this.data.triggerError = true;
     } else {
@@ -485,6 +579,17 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
   validateLabelsList() {
     this.data.labelsError = !this.data.labels.length;
     return this.data.labelsError;
+  }
+
+  /** 校验通知升级 */
+  validUpgradeConfig() {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { is_enabled, upgrade_interval, user_groups } = this.data.upgrade_config;
+    this.data.upgradeError = '';
+    if (is_enabled && (upgrade_interval < 1 || user_groups.length === 0)) {
+      this.data.upgradeError = this.$tc('通知升级必须填写时间间隔以及用户组');
+    }
+    return !!this.data.upgradeError;
   }
 
   // 取消
@@ -544,6 +649,17 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     });
   }
 
+  /** 通知升级时间间隔 */
+  handleUpgradeIntervalChange(val: string) {
+    const num = Number.parseInt(val, 10);
+    this.data.upgrade_config.upgrade_interval = Number.isNaN(num) ? 1 : num;
+  }
+
+  // 检测算法值更新
+  handleDetectionRulesChange(v) {
+    this.data.detectionConfig.data = v;
+  }
+
   // 所有选项组件
   getAllTypeComponent() {
     switch (this.setType) {
@@ -557,50 +673,53 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
               path='在{0}个周期内{1}满足{2}次检测算法触发异常告警'
             >
               <bk-input
-                behavior='simplicity'
-                onChange={(v: number) => this.handleFormatNumber(v, 'triggerCondition', 'cycleOne')}
                 class='number-input w56'
-                type='number'
-                showControls={false}
-                min={1}
-                max={60}
                 v-model={this.data.triggerCondition.cycleOne}
-              ></bk-input>
-              <bk-select
                 behavior='simplicity'
+                max={60}
+                min={1}
+                showControls={false}
+                type='number'
+                onChange={(v: number) => this.handleFormatNumber(v, 'triggerCondition', 'cycleOne')}
+              />
+              <bk-select
                 style='width: 64px'
-                clearable={false}
                 v-model={this.data.triggerCondition.type}
+                behavior='simplicity'
+                clearable={false}
               >
                 {this.triggerTypeList.map((item, index) => (
                   <bk-option
-                    key={index}
                     id={item.id}
+                    key={index}
                     name={item.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
               <bk-input
-                behavior='simplicity'
-                onChange={(v: number) => this.handleFormatNumber(v, 'triggerCondition', 'count')}
                 class='number-input w56'
-                type='number'
-                showControls={false}
-                min={1}
-                max={this.numbersScope.countMax}
                 v-model={this.data.triggerCondition.count}
-              ></bk-input>
+                behavior='simplicity'
+                max={this.numbersScope.countMax}
+                min={1}
+                showControls={false}
+                type='number'
+                onChange={(v: number) => this.handleFormatNumber(v, 'triggerCondition', 'count')}
+              />
             </i18n>
             {this.data.triggerError ? (
               <span class='trigger-condition-tips'>
-                <i class='icon-monitor icon-mind-fill item-icon'></i> {this.$t('要求: 满足次数&lt;=周期数')}
+                <i class='icon-monitor icon-mind-fill item-icon' /> {this.$t('要求: 满足次数&lt;=周期数')}
               </span>
             ) : undefined}
           </div>
         );
       case 3 /* 批量修改无数据告警 */:
         return [
-          <div class='no-data-alarm'>
+          <div
+            key='no-data-alarm'
+            class='no-data-alarm'
+          >
             <i18n
               class='i18n'
               path='{0}当数据连续丢失{1}个周期触发无数据告警'
@@ -610,41 +729,55 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 v-model={this.data.openAlarmNoData}
                 size='small'
                 theme='primary'
-              ></bk-switcher>
+              />
               <bk-input
+                class='number-input'
+                v-model={this.data.noDataAlarm.cycle}
                 behavior='simplicity'
                 disabled={!this.data.openAlarmNoData}
-                onChange={(v: number) => this.handleFormatNumber(v, 'noDataAlarm', 'cycle')}
-                class='number-input'
-                type='number'
-                showControls={false}
                 min={1}
-                v-model={this.data.noDataAlarm.cycle}
-              ></bk-input>
+                showControls={false}
+                type='number'
+                onChange={(v: number) => this.handleFormatNumber(v, 'noDataAlarm', 'cycle')}
+              />
             </i18n>
           </div>,
           this.data.noDataCycleError ? (
-            <span class='no-data-error-msg error-msg-font'> {this.$t('仅支持整数')} </span>
-          ) : undefined
+            <span
+              key='no-data-error-msg'
+              class='no-data-error-msg error-msg-font'
+            >
+              {' '}
+              {this.$t('仅支持整数')}{' '}
+            </span>
+          ) : undefined,
         ];
       case 5 /* 修改恢复条件 */:
         return [
-          <div class='modify-trigger-condition'>
+          <div
+            key='modify-trigger-condition'
+            class='modify-trigger-condition'
+          >
             <i18n path='连续{0}个周期内不满足触发条件表示恢复'>
               <bk-input
-                behavior='simplicity'
-                onChange={(v: number) => this.handleFormatNumber(v, 'recover', 'val')}
                 class='number-input'
-                type='number'
-                showControls={false}
-                min={1}
                 v-model={this.data.recover.val}
-              ></bk-input>
+                behavior='simplicity'
+                min={1}
+                showControls={false}
+                type='number'
+                onChange={(v: number) => this.handleFormatNumber(v, 'recover', 'val')}
+              />
             </i18n>
           </div>,
           this.data.recoverCycleError ? (
-            <span class='recover-cycle-error-msg error-msg-font'>{this.$t('仅支持整数')}</span>
-          ) : undefined
+            <span
+              key='recover-cycle-error-msg'
+              class='recover-cycle-error-msg error-msg-font'
+            >
+              {this.$t('仅支持整数')}
+            </span>
+          ) : undefined,
         ];
       case 6 /* 启停策略 */:
         return (
@@ -674,13 +807,17 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             </div>
             <MultiLabelSelect
               style='width: 100%; margin-bottom: 40px'
-              mode='select'
-              behavior='simplicity'
               autoGetList={true}
+              behavior='simplicity'
               checkedNode={this.data.labels}
-              on-loading={v => (this.isLoading = v)}
-              on-checkedChange={v => (this.data.labels = v)}
-            ></MultiLabelSelect>
+              mode='select'
+              on-checkedChange={v => {
+                this.data.labels = v;
+              }}
+              on-loading={v => {
+                this.isLoading = v;
+              }}
+            />
             {this.data.labelsError ? (
               <span class='notice-error-msg error-msg-font'> {this.$t('选择标签')} </span>
             ) : undefined}
@@ -696,15 +833,15 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
       case 13 /* 修改处理套餐 */:
         return (
           <AlarmHandlingList
-            class='alarm-list'
             ref='alarmHandlingList'
-            value={this.data.alarmItems}
+            class='alarm-list'
             allAction={this.allAction}
             allDefense={this.defenseList}
             isSimple={true}
-            onChange={v => (this.data.alarmItems = v)}
+            value={this.data.alarmItems}
             onAddMeal={() => this.handleHideDialog(false)}
-          ></AlarmHandlingList>
+            onChange={v => (this.data.alarmItems = v)}
+          />
         );
       case 14 /* 修改告警组 */:
         return (
@@ -712,13 +849,24 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             <span class='title'>{this.$t('告警组')}：</span>
             <AlarmGroup
               class='alarm-group'
-              list={this.alarmGroupList}
-              value={this.data.userGroups}
-              showAddTip={false}
               isSimple={true}
-              onChange={data => this.handleUserGroupChange(data)}
+              list={this.alarmGroupList}
+              showAddTip={false}
+              value={this.data.userGroups}
               onAddGroup={() => this.handleHideDialog(false)}
-            ></AlarmGroup>
+              onChange={data => this.handleUserGroupChange(data)}
+            >
+              <span
+                key={1}
+                class='icon-monitor icon-mc-add'
+              />
+              <span
+                key={2}
+                class='add-tag-text'
+              >
+                {this.$t('选择告警组')}
+              </span>
+            </AlarmGroup>
             {this.data.userGroupsErr ? (
               <span class='alarm-groups-err-msg error-msg-font'> {this.$t('必填项')} </span>
             ) : undefined}
@@ -735,7 +883,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   on-change={v => this.handleSignalChange(v, 'notice')}
                 >
                   {noticeOptions.map(item => (
-                    <bk-checkbox value={item.key}>{item.text}</bk-checkbox>
+                    <bk-checkbox
+                      key={item.key}
+                      value={item.key}
+                    >
+                      {item.text}
+                    </bk-checkbox>
                   ))}
                 </bk-checkbox-group>
               </span>
@@ -748,7 +901,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                   on-change={v => this.handleSignalChange(v, 'action')}
                 >
                   {actionOption.map(item => (
-                    <bk-checkbox value={item.key}>{item.text}</bk-checkbox>
+                    <bk-checkbox
+                      key={item.key}
+                      value={item.key}
+                    >
+                      {item.text}
+                    </bk-checkbox>
                   ))}
                 </bk-checkbox-group>
               </span>
@@ -761,39 +919,39 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             <span class='title'>{this.$t('通知间隔')}:</span>
             <span class='content'>
               <i18n
-                path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
                 class='content-interval'
+                path='若产生相同的告警未确认或者未屏蔽,则{0}间隔{1}分钟再进行告警。'
               >
                 <bk-select
                   class='select select-inline'
-                  clearable={false}
-                  behavior='simplicity'
-                  size='small'
                   v-model={this.data.noticeInterval.interval_notify_mode}
+                  behavior='simplicity'
+                  clearable={false}
+                  size='small'
                 >
                   {intervalModeList.map(item => (
                     <bk-option
-                      key={item.id}
                       id={item.id}
+                      key={item.id}
                       name={item.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
                 <bk-input
                   class='input-inline input-center'
-                  behavior='simplicity'
                   v-model={this.data.noticeInterval.notify_interval}
+                  behavior='simplicity'
                   showControls={false}
-                  type='number'
                   size='small'
+                  type='number'
                   onFocus={() => (this.data.noticeIntervalError = false)}
-                ></bk-input>
+                />
               </i18n>
               <span
+                style={{ color: '#979ba5', marginTop: '-3px' }}
                 class='icon-monitor icon-hint'
                 v-bk-tooltips={{ content: intervalModeTips[this.data.noticeInterval.interval_notify_mode] }}
-                style={{ color: '#979ba5', marginTop: '-3px' }}
-              ></span>
+              />
             </span>
             {this.data.noticeIntervalError ? (
               <span class='notice-interval-err-msg error-msg-font'> {this.$t('必填项')} </span>
@@ -805,33 +963,33 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           <div class='template-container'>
             <div class='wrap-top'>
               <CustomTab
-                panels={templateList}
                 active={this.data.templateActive}
+                panels={templateList}
                 type={'text'}
                 onChange={this.handleChangeTemplate}
-              ></CustomTab>
+              />
             </div>
             <div class='wrap-bottom'>
               <CommonItem
-                title={this.$tc('告警标题')}
                 class='template'
+                title={this.$tc('告警标题')}
                 isRequired
               >
                 <VerifyItem
-                  errorMsg={this.data.templateError}
                   style={{ flex: 1 }}
+                  errorMsg={this.data.templateError}
                 >
                   <AutoInput
                     class='template-title'
-                    tipsList={this.messageTemplateList}
                     v-model={this.data.templateData.title_tmpl}
+                    tipsList={this.messageTemplateList}
                     on-change={this.templateChange}
-                  ></AutoInput>
+                  />
                 </VerifyItem>
               </CommonItem>
               <div
-                class='label-wrap'
                 style={{ marginTop: '7px' }}
+                class='label-wrap'
               >
                 <span class='label'>{this.$t('告警通知模板')}</span>
               </div>
@@ -842,12 +1000,12 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
                 minWidth={200}
               >
                 <TemplateInput
+                  style='width: 100%; height: 100%;'
                   extCls={'notice-config-template-pop'}
                   defaultValue={this.data.templateData.message_tmpl}
                   triggerList={this.messageTemplateList}
                   onChange={this.noticeTemplateChange}
-                  style='width: 100%; height: 100%;'
-                ></TemplateInput>
+                />
               </ResizeContainer>
             </div>
           </div>
@@ -859,14 +1017,94 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
             <span class='content'>
               <bk-switcher
                 v-model={this.data.needBizConverge}
-                theme='primary'
                 size='small'
-              ></bk-switcher>
-              <i class='icon-monitor icon-hint'></i>
+                theme='primary'
+              />
+              <i class='icon-monitor icon-hint' />
               <span class='text'>
                 {this.$t('当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。')}
               </span>
             </span>
+          </div>
+        );
+      case 20 /** 修改通知升级 */:
+        return (
+          <div class='upgrade-config'>
+            <div class='title'>{this.$t('通知升级')}</div>
+            <div class='content'>
+              <bk-switcher
+                v-model={this.data.upgrade_config.is_enabled}
+                size='small'
+                theme='primary'
+              />
+
+              {this.data.upgrade_config.is_enabled && (
+                <i18n
+                  class='text'
+                  path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
+                  tag='div'
+                >
+                  <bk-select
+                    style='width: 70px'
+                    class='notice-select'
+                    v-model={this.data.upgrade_config.upgrade_interval}
+                    behavior='simplicity'
+                    placeholder={this.$t('输入')}
+                    zIndex={99999}
+                    allow-create
+                    allow-enter
+                    onChange={this.handleUpgradeIntervalChange}
+                  >
+                    <bk-option
+                      id={1}
+                      name={1}
+                    />
+                    <bk-option
+                      id={5}
+                      name={5}
+                    />
+                    <bk-option
+                      id={10}
+                      name={10}
+                    />
+                    <bk-option
+                      id={30}
+                      name={30}
+                    />
+                  </bk-select>
+                </i18n>
+              )}
+
+              {this.data.upgrade_config.is_enabled && (
+                <AlarmGroup
+                  class='alarm-group'
+                  v-model={this.data.upgrade_config.user_groups}
+                  list={this.alarmGroupList}
+                  showAddTip={false}
+                  onAddGroup={() => this.handleHideDialog(false)}
+                />
+              )}
+              {this.data.upgradeError ? (
+                <span class='notice-error-msg error-msg-font'> {this.data.upgradeError} </span>
+              ) : undefined}
+            </div>
+          </div>
+        );
+      case 21 /** 修改算法 */:
+        return (
+          <div class='detection-rules'>
+            <DetectionRules
+              key={+this.dialogShow}
+              ref='detection-rules'
+              connector={this.data.detectionConfig.connector}
+              dataMode={'converge'}
+              isEdit={false}
+              metricData={this.selectMetricData}
+              needShowUnit={true}
+              unit={this.data.detectionConfig.unit}
+              unitType={this.data.detectionConfig.unitType}
+              onChange={this.handleDetectionRulesChange}
+            />
           </div>
         );
       default:
@@ -874,16 +1112,65 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
     }
   }
 
+  // 底部组件
+  getFooterComponent() {
+    switch (this.setType) {
+      case 6:
+      case 7:
+        return (
+          <bk-button
+            theme='primary'
+            onClick={this.handleConfirm}
+          >
+            {this.$t('确认')}
+          </bk-button>
+        );
+      case 10:
+      case 14:
+        return [
+          <bk-button
+            key='append'
+            disabled={this.loading}
+            theme='primary'
+            onClick={() => this.handleClick('append')}
+          >
+            {' '}
+            {this.$t('批量追加')}{' '}
+          </bk-button>,
+          <bk-button
+            key='replace'
+            disabled={this.loading}
+            theme='primary'
+            onClick={() => this.handleClick('replace')}
+          >
+            {' '}
+            {this.$t('批量替换')}{' '}
+          </bk-button>,
+        ];
+      default:
+        return (
+          <bk-button
+            disabled={this.loading}
+            theme='primary'
+            onClick={this.handleConfirm}
+          >
+            {' '}
+            {this.$t('保存')}{' '}
+          </bk-button>
+        );
+    }
+  }
+
   render() {
     return (
       <bk-dialog
-        class='strategy-list-dialog'
-        title={this.curItem.title}
         width={this.curItem.width}
+        class='strategy-list-dialog'
         escClose={false}
-        value={this.dialogShow}
-        maskClose={false}
         headerPosition={'left'}
+        maskClose={false}
+        title={this.curItem.title}
+        value={this.dialogShow}
         on-after-leave={this.handleAfterLeave}
         on-confirm={this.handleConfirm}
       >
@@ -894,23 +1181,7 @@ export default class StrategyConfigDialog extends tsc<IProps, IEvents> {
           {this.getAllTypeComponent()}
         </div>
         <div slot='footer'>
-          {this.setType === 6 || this.setType === 7 ? (
-            <bk-button
-              theme='primary'
-              onClick={this.handleConfirm}
-            >
-              {this.$t('确认')}
-            </bk-button>
-          ) : (
-            <bk-button
-              theme='primary'
-              onClick={this.handleConfirm}
-              disabled={this.loading}
-            >
-              {' '}
-              {this.$t('保存')}{' '}
-            </bk-button>
-          )}
+          {this.getFooterComponent()}
           <bk-button onClick={this.handleCancel}> {this.$t('取消')} </bk-button>
         </div>
       </bk-dialog>

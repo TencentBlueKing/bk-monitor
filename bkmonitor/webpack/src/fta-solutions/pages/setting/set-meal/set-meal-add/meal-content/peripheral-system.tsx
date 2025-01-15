@@ -32,7 +32,7 @@ import CommonItem from '../components/common-item';
 import Container from '../components/container';
 import DynamicForm from '../components/dynamic-form/dynamic-form';
 
-import { IPeripheral } from './meal-content-data';
+import type { IPeripheral } from './meal-content-data';
 
 import './peripheral-system.scss';
 
@@ -51,12 +51,12 @@ interface IEvents {
 }
 
 @Component({
-  name: 'PeripheralSystem'
+  name: 'PeripheralSystem',
 })
 export default class PeripheralSystem extends tsc<IProps, IEvents> {
   @Prop({ default: 0, type: Number }) id: number;
   @Prop({ default: () => ({}), type: Object }) peripheralData: IPeripheral;
-  @Prop({ default: false, type: Boolean }) isEdit: Boolean;
+  @Prop({ default: false, type: Boolean }) isEdit: boolean;
   @Prop({ type: String, default: 'add' }) type: PageType;
   @Prop({ type: Boolean, default: true }) isInit: boolean;
 
@@ -77,10 +77,10 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
   formList = [];
 
   errorMsg = {
-    getFormTemplateId: ''
+    getFormTemplateId: '',
   };
 
-  formTemplateId: string | number = '';
+  formTemplateId: number | string = '';
 
   get curLink() {
     const curLinkObj = this.templates.find(item => +item.id === +this.formTemplateId);
@@ -147,7 +147,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
     this.formTemplateId = templateId;
     this.data = {
       ...this.peripheralData,
-      data: {}
+      data: {},
     };
     this.data.data = {};
     this.getTemplateDetail(this.id, templateId as any);
@@ -257,29 +257,29 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
               >
                 <bk-select
                   class='select input-width'
-                  clearable={false}
                   behavior='simplicity'
-                  searchable={true}
+                  clearable={false}
                   placeholder={this.$tc('选择')}
+                  searchable={true}
                   value={this.formTemplateId}
                   onSelected={this.handleFormDataChange}
                 >
                   {this.templates.map(option => (
                     <bk-option
-                      key={option.id}
                       id={option.id}
+                      key={option.id}
                       name={option.name}
-                    ></bk-option>
+                    />
                   ))}
                   <div
+                    style='cursor: pointer;'
                     slot='extension'
                     onClick={() => this.newInfo.url && window.open(this.newInfo.url)}
-                    style='cursor: pointer;'
                   >
                     <i
-                      class='bk-icon icon-plus-circle'
                       style={{ marginRight: '5px' }}
-                    ></i>
+                      class='bk-icon icon-plus-circle'
+                    />
                     {this.newInfo.tips}
                   </div>
                 </bk-select>
@@ -289,12 +289,12 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                   <i
                     class='icon-monitor icon-mc-link'
                     onClick={this.handleLinkTo}
-                  ></i>
+                  />
                 ) : undefined}
                 <i
                   class='icon-monitor icon-shuaxin'
                   onClick={this.handleRefreshTemplate}
-                ></i>
+                />
               </span>
             </div>
           </CommonItem>
@@ -314,15 +314,15 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                     formModel={this.formModel}
                     formRules={this.formRules}
                     on-change={this.handleFormDataChage}
-                  ></DynamicForm>
+                  />
                 ) : (
                   [this.$t('当前{n}无需填写参数', { n: this.label }), <br />]
                 )}
                 {this.formList.length ? (
                   <bk-button
+                    style={{ marginTop: '16px' }}
                     theme='primary'
                     outline
-                    style={{ marginTop: '16px' }}
                     onClick={this.handleDebug}
                   >
                     {this.$t('调试')}
@@ -333,21 +333,21 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
             {this.formTemplateId && (
               <div class='sensitivity-failure-judgment'>
                 <CommonItem
-                  title={this.$tc('失败判断')}
                   class='failure'
+                  title={this.$tc('失败判断')}
                 >
                   <i18n
-                    path='当执行{0}分钟未结束按失败处理。'
                     class='failure-text'
+                    path='当执行{0}分钟未结束按失败处理。'
                   >
                     <bk-input
                       class='input-inline'
                       v-model={this.data.timeout}
                       behavior={'simplicity'}
-                      type={'number'}
                       showControls={false}
+                      type={'number'}
                       on-change={() => this.handleDataChange()}
-                    ></bk-input>
+                    />
                   </i18n>
                 </CommonItem>
               </div>

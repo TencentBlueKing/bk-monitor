@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from kubernetes import client as k8s_client
 
+from bkmonitor.utils.db import JsonField
 from metadata import config
+from metadata.models import common
 from metadata.models.custom_report import EventGroup, TimeSeriesGroup
 from metadata.models.data_source import DataSource
 from metadata.models.result_table import ResultTableOption
@@ -30,6 +32,8 @@ class BCSClusterInfo(models.Model):
 
     CLUSTER_STATUS_RUNNING = "running"
     CLUSTER_STATUS_DELETED = "deleted"
+    CLUSTER_RAW_STATUS_RUNNING = "RUNNING"
+    CLUSTER_RAW_STATUS_DELETED = "DELETED"
 
     DEFAULT_SERVICE_MONITOR_DIMENSION_TERM = ["bk_monitor_name", "bk_monitor_namespace/bk_monitor_name"]
 
@@ -67,7 +71,7 @@ class BCSClusterInfo(models.Model):
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
     bk_cloud_id = models.IntegerField("云区域ID", default=None, null=True)
     project_id = models.CharField("项目ID", max_length=128)
-    status = models.CharField("集群状态", default=CLUSTER_STATUS_RUNNING, max_length=50)
+    status = models.CharField("集群状态", default=CLUSTER_RAW_STATUS_RUNNING, max_length=50)
 
     # 集群链接信息
     domain_name = models.CharField("集群链接域名", max_length=512)
@@ -101,6 +105,9 @@ class BCSClusterInfo(models.Model):
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     last_modify_user = models.CharField("最后更新者", max_length=32)
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
+
+    # 是否允许查看历史数据（针对已下线集群）
+    is_deleted_allow_view = models.BooleanField("已下线集群是否允许查看数据", default=False)
 
     @cached_property
     def api_client(self) -> k8s_client.ApiClient:
@@ -155,6 +162,7 @@ class BCSClusterInfo(models.Model):
         is_skip_ssl_verify: bool = True,
         transfer_cluster_id: str = None,
         bk_env: str = settings.BCS_CLUSTER_BK_ENV_LABEL,
+        is_fed_cluster: Optional[bool] = False,
     ) -> "BCSClusterInfo":
         """
         注册一个新的bcs集群信息
@@ -269,10 +277,13 @@ class BCSClusterInfo(models.Model):
 
         return cluster
 
-    def compose_dataid_resource_name(self, name: str) -> str:
+    def compose_dataid_resource_name(self, name: str, is_fed_cluster: Optional[bool] = False) -> str:
         """组装下发的配置资源的名称"""
         if self.bk_env_label:
             name = f"{self.bk_env_label}-{name}"
+        # 如果是联邦集群，则添加`fed`后缀
+        if is_fed_cluster:
+            name = f"{name}-{self.cluster_id.lower()}-fed"
         return name
 
     def compose_dataid_resource_label(self, labels: Dict) -> Dict:
@@ -281,7 +292,7 @@ class BCSClusterInfo(models.Model):
             labels["bk_env"] = self.bk_env_label
         return labels
 
-    def refresh_common_resource(self):
+    def refresh_common_resource(self, is_fed_cluster: Optional[bool] = False):
         """
         刷新内置公共dataid资源信息，追加部署的资源，更新未同步的资源
         :param cluster_id: 集群ID
@@ -307,10 +318,14 @@ class BCSClusterInfo(models.Model):
             resource_items[name] = resource
 
         for usage, register_info in self.DATASOURCE_REGISTER_INFO.items():
+            if is_fed_cluster and usage != self.DATA_TYPE_CUSTOM_METRIC:
+                continue
             # 由于k8s命名格式要求，取小写
-            datasource_name_lower = self.compose_dataid_resource_name(register_info["datasource_name"].lower())
+            datasource_name_lower = self.compose_dataid_resource_name(
+                register_info["datasource_name"].lower(), is_fed_cluster=is_fed_cluster
+            )
 
-            dataid_config = self.make_config(register_info)
+            dataid_config = self.make_config(register_info, is_fed_cluster)
             # 检查k8s集群里是否已经存在对应resource
             if datasource_name_lower not in resource_items.keys():
                 # 如果k8s_resource不存在，则增加
@@ -339,7 +354,7 @@ class BCSClusterInfo(models.Model):
         self.server_address_path = server_address_path
         self.save()
 
-    def make_config(self, item) -> dict:
+    def make_config(self, item, is_fed_cluster: bool = False) -> dict:
         # 获取全局的replace配置
         replace_config = ReplaceConfig.get_common_replace_config()
         cluster_replace_config = ReplaceConfig.get_cluster_replace_config(cluster_id=self.cluster_id)
@@ -360,7 +375,7 @@ class BCSClusterInfo(models.Model):
             "apiVersion": f"{config.BCS_RESOURCE_GROUP_NAME}/{config.BCS_RESOURCE_VERSION}",
             "kind": f"{config.BCS_RESOURCE_DATA_ID_RESOURCE_KIND}",
             "metadata": {
-                "name": self.compose_dataid_resource_name(item["datasource_name"].lower()),
+                "name": self.compose_dataid_resource_name(item["datasource_name"].lower(), is_fed_cluster),
                 "labels": self.compose_dataid_resource_label(labels),
             },
             "spec": {
@@ -372,12 +387,17 @@ class BCSClusterInfo(models.Model):
         }
         return result
 
-    def init_resource(self) -> bool:
+    def init_resource(self, is_fed_cluster: Optional[bool] = False) -> bool:
         """初始化resource信息并绑定data_id"""
         # 基于各dataid，生成配置并写入bcs集群
         for usage, register_info in self.DATASOURCE_REGISTER_INFO.items():
-            dataid_config = self.make_config(register_info)
-            name = self.compose_dataid_resource_name(register_info["datasource_name"].lower())
+            # 针对联邦集群，跳过 k8s 内置指标的 data_id 下发
+            if is_fed_cluster and usage != self.DATA_TYPE_CUSTOM_METRIC:
+                continue
+            dataid_config = self.make_config(register_info, is_fed_cluster=is_fed_cluster)
+            name = self.compose_dataid_resource_name(
+                register_info["datasource_name"].lower(), is_fed_cluster=is_fed_cluster
+            )
             if not ensure_data_id_resource(self.api_client, name, dataid_config):
                 return False
         return True
@@ -389,7 +409,12 @@ class BCSClusterInfo(models.Model):
         return f"Core{version.capitalize()}Api"
 
     def create_datasource(
-        self, usage: str, etl_config: str, operator: str, transfer_cluster_id: str, mq_cluster_id: str
+        self,
+        usage: str,
+        etl_config: str,
+        operator: str,
+        transfer_cluster_id: str,
+        mq_cluster_id: str,
     ) -> DataSource:
         """
         创建数据源
@@ -415,6 +440,8 @@ class BCSClusterInfo(models.Model):
                 type_label=type_label_dict[etl_config],
                 transfer_cluster_id=transfer_cluster_id,
                 source_system=settings.SAAS_APP_CODE,
+                bcs_cluster_id=self.cluster_id,
+                bk_biz_id=self.bk_biz_id,
             )
         except ValueError as err:
             logger.exception(
@@ -449,3 +476,22 @@ class BCSClusterInfo(models.Model):
             "is_skip_ssl_verify": self.is_skip_ssl_verify,
             "cert_content": self.cert_content,
         }
+
+
+class BcsFederalClusterInfo(common.BaseModelWithTime):
+    fed_cluster_id = models.CharField("代理集群 ID", max_length=32)
+    host_cluster_id = models.CharField("HOST 集群 ID", max_length=32)
+    sub_cluster_id = models.CharField("子集群 ID", max_length=32)
+    is_deleted = models.BooleanField("是否已删除", default=False)
+    fed_namespaces = JsonField("命名空间列表", default=[])
+    fed_builtin_metric_table_id = models.CharField("内置指标结果表", max_length=128, null=True, blank=True)
+    fed_builtin_event_table_id = models.CharField("内置事件结果表", max_length=128, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "BCS联邦集群拓扑信息"
+        verbose_name_plural = "BCS联邦集群拓扑信息"
+
+    @classmethod
+    def is_federal_cluster(cls, cluster_id: str) -> bool:
+        """判断是否为联邦集群，这里对应的是集群入口，不包含子集群和host集群"""
+        return cls.objects.filter(host_cluster_id=cluster_id).exists()

@@ -103,7 +103,7 @@ export const defaultConfig = {
     // This sets the width of the loop-box (loop, alt, opt, par)
     labelBoxWidth: 50,
     // This sets the height of the loop-box (loop, alt, opt, par)
-    labelBoxHeight: 20
+    labelBoxHeight: 20,
   },
   // securityLevel: 'sandbox',
   themeVariables: {
@@ -117,6 +117,6 @@ export const defaultConfig = {
     activationBkgColor: '#C4C6CC',
     activationBorderColor: '#DCDEE5',
     noteBkgColor: '#fdd',
-    noteBorderColor: '#fdd'
-  }
+    noteBorderColor: '#fdd',
+  },
 };

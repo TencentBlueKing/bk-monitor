@@ -23,18 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, reactive, ref } from 'vue';
+import { type PropType, computed, defineComponent, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Exception, Select } from 'bkui-vue';
 import { Upload as UploadIcon } from 'bkui-vue/lib/icon';
 import { listProfileUploadRecord } from 'monitor-api/modules/apm_profile';
+import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
+import { docCookies } from 'monitor-common/utils/utils';
 
-import { IQueryParams } from '../../../typings/trace';
-import { ConditionType, DataTypeItem, RetrievalFormData } from '../typings';
+import { ConditionType, type DataTypeItem, type RetrievalFormData } from '../typings';
 import { EFileStatus, fileStatusMap } from '../typings/profiling-file';
-
 import ProfilingFileUpload from './profiling-file-upload';
 import ProfilingRetrievalView from './profiling-retrieval-view';
+
+import type { IQueryParams } from '../../../typings/trace';
 
 import './upload-retrieval-view.scss';
 
@@ -43,20 +46,20 @@ export default defineComponent({
   props: {
     formData: {
       type: Object as PropType<RetrievalFormData>,
-      required: true
+      required: true,
     },
     queryParams: {
       type: Object as PropType<IQueryParams>,
-      required: true
+      required: true,
     },
     dataTypeList: {
       type: Array as PropType<DataTypeItem[]>,
-      default: () => []
+      default: () => [],
     },
     dataType: {
       type: String,
-      default: 'cpu'
-    }
+      default: 'cpu',
+    },
   },
   emits: ['showFileDetail', 'selectFile', 'dataTypeChange'],
   setup(props, { emit }) {
@@ -70,12 +73,12 @@ export default defineComponent({
     const searchObj = reactive({
       selectFile: '',
       selectFileInfo: null,
-      list: []
+      list: [],
     });
     /* 对比项   暂时不做 */
     const compareObj = reactive({
       selectFile: '',
-      list: []
+      list: [],
     });
     const loading = ref(false);
 
@@ -85,6 +88,8 @@ export default defineComponent({
     });
 
     const selectToggle = ref(false);
+
+    const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 
     init();
 
@@ -142,21 +147,23 @@ export default defineComponent({
      */
     function handleSelectFileToggle(v: boolean) {
       selectToggle.value = v;
+      // 每次打开下拉框都更新下拉列表数据状态
+      if (v) handleRefleshFiles();
     }
 
     function statusRender(status: EFileStatus, needName = true) {
       if ([EFileStatus.uploaded, EFileStatus.parsingSucceed, EFileStatus.storeSucceed].includes(status)) {
         return (
-          <div class='status'>
-            <div class='success circle'></div>
+          <div class={['status', { en: isEn }]}>
+            <div class='success circle' />
             {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
         );
       }
       if ([EFileStatus.parsingFailed, EFileStatus.storeFailed].includes(status)) {
         return (
-          <div class='status'>
-            <div class='error circle'></div>
+          <div class={['status', { en: isEn }]}>
+            <div class='error circle' />
             {needName && <span class='label'>{fileStatusMap[status].name}</span>}
           </div>
         );
@@ -188,7 +195,7 @@ export default defineComponent({
       handleSelectFile,
       handleRefleshFiles,
       handleDataTypeChange,
-      handleSelectFileToggle
+      handleSelectFileToggle,
     };
   },
   render() {
@@ -205,14 +212,14 @@ export default defineComponent({
           </Button>
 
           <div class='file-select'>
-            {this.isCompare && <div class='label where'>{this.t('查询项')}</div>}
+            {this.isCompare && <div class='label where'>{this.t('当前查询项')}</div>}
             <Select
-              modelValue={this.searchObj.selectFile}
               popoverOptions={{
                 extCls: 'upload-select-popover',
-                zIndex: 1
+                zIndex: 1,
               }}
               clearable={false}
+              modelValue={this.searchObj.selectFile}
               onSelect={v => this.handleSelectFile(v)}
               onToggle={v => this.handleSelectFileToggle(v)}
             >
@@ -228,7 +235,7 @@ export default defineComponent({
                       )}
                     </span>
                     <span class='right'>
-                      <span class={['icon-monitor icon-mc-triangle-down', { active: this.selectToggle }]}></span>
+                      <span class={['icon-monitor icon-mc-triangle-down', { active: this.selectToggle }]} />
                     </span>
                   </span>
                 ),
@@ -237,13 +244,13 @@ export default defineComponent({
                     <Select.Option
                       id={item.id}
                       key={item.id}
-                      name={item.file_name || '--'}
                       disabled={item.status !== EFileStatus.storeSucceed}
+                      name={item.file_name || '--'}
                     >
                       <div class='upload-select-item'>
                         <div class='left'>
                           {this.statusRender(item.status)}
-                          <div class='divider'></div>
+                          <div class='divider' />
                           <div class='name'>{item.file_name || '--'}</div>
                           <div class='origin-name'>{`（${item.origin_file_name}）`}</div>
                         </div>
@@ -253,36 +260,36 @@ export default defineComponent({
                             e.stopPropagation();
                             this.handleShowFileDetail(item);
                           }}
-                        ></i>
+                        />
                       </div>
                     </Select.Option>
-                  ))
+                  )),
               }}
             </Select>
           </div>
           {this.isCompare && (
             <div class='file-select'>
-              {this.isCompare && <div class='label comparison'>{this.t('对比项')}</div>}
+              {this.isCompare && <div class='label comparison'>{this.t('参照查询项')}</div>}
               <Select
-                modelValue={this.compareObj.selectFile}
                 popoverOptions={{
-                  extCls: 'upload-select-popover'
+                  extCls: 'upload-select-popover',
                 }}
+                modelValue={this.compareObj.selectFile}
               >
                 {this.compareObj.list.map(item => (
                   <Select.Option
                     id={item.id}
-                    name={item.file_name || '--'}
                     key={item.id}
+                    name={item.file_name || '--'}
                   >
                     <div class='upload-select-item'>
                       <div class='left'>
                         {this.statusRender(item.status)}
-                        <div class='divider'></div>
+                        <div class='divider' />
                         <div class='name'>{item.file_name}</div>
                         <div class='origin-name'>{`（${item.origin_file_name}）`}</div>
                       </div>
-                      <i class='icon-monitor icon-mc-detail'></i>
+                      <i class='icon-monitor icon-mc-detail' />
                     </div>
                   </Select.Option>
                 ))}
@@ -311,21 +318,21 @@ export default defineComponent({
           ) : (
             <ProfilingRetrievalView
               dataType={this.dataType}
+              dataTypeList={this.dataTypeList}
               queryParams={this.queryParams}
               onUpdate:dataType={this.handleDataTypeChange}
-              dataTypeList={this.dataTypeList}
-            ></ProfilingRetrievalView>
+            />
           )}
         </div>
 
         <ProfilingFileUpload
-          show={this.uploadDialogShow}
           appName={this.formData.server.app_name}
           isCompare={this.isCompare}
-          onShowChange={this.handleUploadShowChange}
+          show={this.uploadDialogShow}
           onRefleshFiles={this.handleRefleshFiles}
-        ></ProfilingFileUpload>
+          onShowChange={this.handleUploadShowChange}
+        />
       </div>
     );
-  }
+  },
 });

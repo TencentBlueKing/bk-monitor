@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, nextTick, onMounted, PropType, reactive, ref, toRefs } from 'vue';
+import { type PropType, computed, defineComponent, inject, nextTick, onMounted, reactive, ref, toRefs } from 'vue';
 
 import { useTraceStore } from '../../../store/modules/trace';
-import { ITraceTree } from '../../../typings';
 import { useChildrenHiddenProvide } from '../hooks';
-import { Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
-
 import TimelineHeaderRow from './timeline-header-row';
 import VirtualizedTraceView from './virtualized-trace-view';
+
+import type { ITraceTree } from '../../../typings';
+import type { Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
 
 interface IState {
   height: number;
@@ -43,7 +43,7 @@ const DEFAULT_MIN_VALUE = 240;
 
 const TProps = {
   updateViewRangeTime: Function as PropType<TUpdateViewRangeTimeFunction>,
-  updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>
+  updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>,
 };
 
 const NUM_TICKS = 5;
@@ -62,7 +62,7 @@ export default defineComponent({
 
     const state = reactive<IState>({
       height: 0,
-      resizeObserver: null
+      resizeObserver: null,
     });
 
     const trace = computed<ITraceTree>(() => store.traceTree);
@@ -70,7 +70,7 @@ export default defineComponent({
 
     useChildrenHiddenProvide({
       childrenHiddenIds,
-      onChange: (spanId: string) => childrenToggle(spanId)
+      onChange: (spanId: string) => childrenToggle(spanId),
     });
 
     const isFullscreen = inject('isFullscreen', false);
@@ -193,35 +193,35 @@ export default defineComponent({
       expandAll,
       setSpanNameColumnWidth,
       trace,
-      childrenHiddenIds
+      childrenHiddenIds,
     };
   },
 
   render() {
     return (
       <div
-        class='trace-timeline-viewer'
-        style='position:relative;height:100%;'
         ref='wrapperRef'
+        style='position:relative;height:100%;'
+        class='trace-timeline-viewer'
       >
         <TimelineHeaderRow
+          columnResizeHandleHeight={this.height}
           duration={this.trace?.duration as number}
+          minSpanNameColumnWidth={this.minSpanNameColumnWidth}
+          nameColumnWidth={this.spanNameColumnWidth}
+          numTicks={NUM_TICKS}
           onCollapseAll={this.collapseAll}
           onCollapseOne={this.collapseOne}
-          onExpandOne={this.expandOne}
-          onExpandAll={this.expandAll}
-          nameColumnWidth={this.spanNameColumnWidth}
-          minSpanNameColumnWidth={this.minSpanNameColumnWidth}
           onColummWidthChange={this.setSpanNameColumnWidth}
-          numTicks={NUM_TICKS}
-          columnResizeHandleHeight={this.height}
+          onExpandAll={this.expandAll}
+          onExpandOne={this.expandOne}
         />
         <VirtualizedTraceView
           ref='virtualizedTraceView'
-          spanNameColumnWidth={this.spanNameColumnWidth}
           detailStates={new Map()}
+          spanNameColumnWidth={this.spanNameColumnWidth}
         />
       </div>
     );
-  }
+  },
 });

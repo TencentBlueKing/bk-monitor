@@ -33,15 +33,15 @@
       nav-mode="copy"
     />
     <div
-      class="alarm-shield-content"
       v-bkloading="{ isLoading: loading }"
+      class="alarm-shield-content"
     >
       <div class="operation">
         <bk-button
-          style="width: 88px; margin-right: 8px;"
+          v-authority="{ active: !authority.MANAGE_AUTH }"
+          style="width: 88px; margin-right: 8px"
           theme="primary"
           outline
-          v-authority="{ active: !authority.MANAGE_AUTH }"
           @click="handleEditShield"
         >
           {{ $t('编辑') }}
@@ -51,15 +51,21 @@
       <div
         v-if="detailData.category === 'scope'"
         class="title"
-      >{{ $t('基于范围进行屏蔽') }}</div>
+      >
+        {{ $t('基于范围进行屏蔽') }}
+      </div>
       <div
         v-else-if="detailData.category === 'strategy'"
         class="title"
-      >{{ $t('基于策略进行屏蔽') }}</div>
+      >
+        {{ $t('基于策略进行屏蔽') }}
+      </div>
       <div
         v-else-if="detailData.category === 'event'"
         class="title"
-      >{{ $t('基于告警事件进行屏蔽') }}</div>
+      >
+        {{ $t('基于告警事件进行屏蔽') }}
+      </div>
       <div class="scope-item">
         <div class="item-label">
           {{ $t('所属') }}
@@ -78,8 +84,8 @@
       </div>
       <!-- 屏蔽对象的详情展示 -->
       <component
-        v-if="!loading"
         :is="componentId"
+        v-if="!loading"
         :dimension="detailData.dimensionConfig"
         :detail-data="detailData"
       />
@@ -99,30 +105,34 @@
         <div
           v-if="cycleConfig.type === 1"
           class="item-data"
-        >{{ detailData.beginTime }} ~ {{ detailData.endTime }}</div>
+        >
+          {{ detailData.beginTime }} ~ {{ detailData.endTime }}
+        </div>
         <div
           v-else-if="cycleConfig.type === 2"
           class="item-data"
         >
-          {{ $t('每天的') }}&nbsp;<span
-            class="item-highlight"
-          >{{ cycleConfig.startTime }} ~ {{ cycleConfig.endTime }}</span>&nbsp;{{ $t('进行告警屏蔽') }}
+          {{ $t('每天的') }}&nbsp;<span class="item-highlight"
+            >{{ cycleConfig.startTime }} ~ {{ cycleConfig.endTime }}</span
+          >&nbsp;{{ $t('进行告警屏蔽') }}
         </div>
         <div
           v-else-if="cycleConfig.type === 3"
           class="item-data"
         >
-          {{ $t('每周') }}&nbsp;<span class="item-highlight">{{ cycleConfig.weekList }}</span>&nbsp;{{ $t('的') }}&nbsp;<span
-            class="item-highlight"
-          >{{ cycleConfig.startTime }} ~ {{ cycleConfig.endTime }}</span>&nbsp;{{ $t('进行告警屏蔽') }}
+          {{ $t('每周') }}&nbsp;<span class="item-highlight">{{ cycleConfig.weekList }}</span
+          >&nbsp;{{ $t('的') }}&nbsp;<span class="item-highlight"
+            >{{ cycleConfig.startTime }} ~ {{ cycleConfig.endTime }}</span
+          >&nbsp;{{ $t('进行告警屏蔽') }}
         </div>
         <div
           v-else-if="cycleConfig.type === 4"
           class="item-data"
         >
-          {{ $t('每月') }}&nbsp;<span class="item-highlight">{{ cycleConfig.dayList }}</span>&nbsp;{{ $t('日的') }}&nbsp;<span
-            class="item-highlight"
-          >{{ cycleConfig.startTime }} ~ {{ cycleConfig.endTime }}</span>&nbsp;{{ $t('进行告警屏蔽') }}
+          {{ $t('每月') }}&nbsp;<span class="item-highlight">{{ cycleConfig.dayList }}</span
+          >&nbsp;{{ $t('日的') }}&nbsp;<span class="item-highlight"
+            >{{ cycleConfig.startTime }} ~ {{ cycleConfig.endTime }}</span
+          >&nbsp;{{ $t('进行告警屏蔽') }}
         </div>
       </div>
       <div
@@ -132,9 +142,7 @@
         <div class="item-label">
           {{ $t('日期范围') }}
         </div>
-        <div class="item-content">
-          {{ detailData.beginTime }} ~ {{ detailData.endTime }}
-        </div>
+        <div class="item-content">{{ detailData.beginTime }} ~ {{ detailData.endTime }}</div>
       </div>
       <!-- 屏蔽原因 -->
       <div class="scope-item">
@@ -142,9 +150,10 @@
           {{ $t('屏蔽原因') }}
         </div>
         <div class="item-content">
-          <pre style="margin: 0; white-space: pre-wrap">
-{{ detailData.description || '--' }}
-</pre>
+          <pre style="margin: 0; white-space: pre-wrap"
+            >{{ detailData.description || '--' }}
+</pre
+          >
         </div>
       </div>
       <!-- 通知方式 -->
@@ -158,15 +167,15 @@
           </div>
           <div class="item-content">
             <div
-              class="personnel-choice"
               v-for="(item, index) in noticeConfig.receiver"
               :key="index"
+              class="personnel-choice"
             >
               <img
                 v-if="item.logo"
                 :src="item.logo"
                 alt=""
-              >
+              />
               <i
                 v-else-if="!item.logo && item.type === 'group'"
                 class="icon-monitor icon-mc-user-group no-img"
@@ -183,9 +192,7 @@
           <div class="item-label">
             {{ $t('通知方式') }}
           </div>
-          <div class="item-content">
-            {{ noticeConfig.way }}；
-          </div>
+          <div class="item-content">{{ noticeConfig.way }}；</div>
         </div>
         <div class="scope-item">
           <div class="item-label">
@@ -205,18 +212,17 @@
 </template>
 
 <script>
-import { mapMutations } from 'vuex';
 import { shieldSnapshot } from 'monitor-api/modules/alert_events';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { frontendShieldDetail } from 'monitor-api/modules/shield';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { mapMutations } from 'vuex';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import * as alarmShieldAuth from '../../authority-map';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
-
 import AlarmShieldDetailDimension from './alarm-shield-detail-dimension.tsx';
 import AlarmShieldDetailEvent from './alarm-shield-detail-event.vue';
 import AlarmShieldDetailScope from './alarm-shield-detail-scope.vue';
@@ -230,15 +236,15 @@ export default {
     AlarmShieldDetailStrategy,
     AlarmShieldDetailDimension,
     CommonNavBar,
-    HistoryDialog
+    HistoryDialog,
   },
   mixins: [authorityMixinCreate(alarmShieldAuth)],
   props: {
     id: [Number, String],
     fromRouteName: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   data() {
     return {
@@ -251,35 +257,35 @@ export default {
         {
           type: 'scope',
           title: this.$t('基于范围进行屏蔽'),
-          componentId: 'AlarmShieldDetailScope'
+          componentId: 'AlarmShieldDetailScope',
         },
         {
           type: 'strategy',
           title: this.$t('基于策略进行屏蔽'),
-          componentId: 'AlarmShieldDetailStrategy'
+          componentId: 'AlarmShieldDetailStrategy',
         },
         {
           type: 'event',
           title: this.$t('基于告警事件进行屏蔽'),
-          componentId: 'AlarmShieldDetailEvent'
+          componentId: 'AlarmShieldDetailEvent',
         },
         {
           type: 'alert',
           title: this.$t('基于告警事件进行屏蔽'),
-          componentId: 'AlarmShieldDetailEvent'
+          componentId: 'AlarmShieldDetailEvent',
         },
         {
           type: 'dimension',
           title: this.$t('基于维度进行屏蔽'),
-          componentId: 'AlarmShieldDetailDimension'
-        }
+          componentId: 'AlarmShieldDetailDimension',
+        },
       ],
       componentId: 'AlarmShieldDetailScope',
       statusMap: ['', this.$t('屏蔽中'), this.$t('已过期'), this.$t('被解除')],
       statusColorMap: {
         [this.$t('屏蔽中')]: '#63656E',
         [this.$t('被解除')]: '#FF9C01',
-        [this.$t('已过期')]: '#C4C6CC'
+        [this.$t('已过期')]: '#C4C6CC',
       },
       // 时间，日期数据
       cycleConfig: {},
@@ -292,15 +298,15 @@ export default {
         this.$t('星期四'),
         this.$t('星期五'),
         this.$t('星期六'),
-        this.$t('星期日')
+        this.$t('星期日'),
       ],
       strategyStatusMap: {
         UPDATED: this.$t('（已修改）'),
         DELETED: this.$t('（已修改）'),
-        UNCHANGED: ''
+        UNCHANGED: '',
       },
       // 通知方式数据
-      noticeConfig: {}
+      noticeConfig: {},
     };
   },
   computed: {
@@ -316,16 +322,16 @@ export default {
         { label: this.$t('创建人'), value: this.detailData.createUser || '--' },
         { label: this.$t('创建时间'), value: this.detailData.createTime || '--' },
         { label: this.$t('最近更新人'), value: this.detailData.updateUser || '--' },
-        { label: this.$t('修改时间'), value: this.detailData.updateTime || '--' }
+        { label: this.$t('修改时间'), value: this.detailData.updateTime || '--' },
       ];
-    }
+    },
   },
   watch: {
     id(newId, oldId) {
       if (`${newId}` !== `${oldId}`) {
         this.getDetailData(newId);
       }
-    }
+    },
   },
   mounted() {
     const { params } = this.$route;
@@ -338,7 +344,7 @@ export default {
     ...mapMutations('app', ['SET_NAV_TITLE']),
     async getNoticeWay() {
       let noticeWay = [];
-      await getNoticeWay({ bk_biz_id: this.bizId }).then((data) => {
+      await getNoticeWay({ bk_biz_id: this.bizId }).then(data => {
         noticeWay = data;
       });
       return noticeWay;
@@ -349,7 +355,7 @@ export default {
       const routeList = [];
       routeList.push({
         name,
-        id: ''
+        id: '',
       });
       this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
     },
@@ -360,7 +366,7 @@ export default {
       if (this.fromEvent) {
         data = await shieldSnapshot({
           shield_snapshot_id: id,
-          id: eventId
+          id: eventId,
         })
           .then(data => transformDataKey(data))
           .catch(() => ({}));
@@ -394,20 +400,20 @@ export default {
         startTime: data.cycleConfig.beginTime,
         endTime: data.cycleConfig.endTime,
         dayList: data.cycleConfig.dayList.join('、'),
-        weekList: weekList.join('、')
+        weekList: weekList.join('、'),
       };
       // 通知方式处理 shieldNotice: 是否开启通知方式
       if (data.shieldNotice) {
         const { noticeConfig } = data;
         const noticeWay = await this.getNoticeWay();
-        const way = noticeConfig.noticeWay.map((item) => {
+        const way = noticeConfig.noticeWay.map(item => {
           const res = noticeWay.find(el => el.type === item);
           return res.label;
         });
         this.noticeConfig = {
           receiver: noticeConfig.noticeReceiver,
           way: way.join('；'),
-          time: noticeConfig.noticeTime
+          time: noticeConfig.noticeTime,
         };
       }
       this.loading = false;
@@ -417,11 +423,11 @@ export default {
         name: 'alarm-shield-edit',
         params: {
           id: this.detailData.id,
-          type: this.detailData.category
-        }
+          type: this.detailData.category,
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
 

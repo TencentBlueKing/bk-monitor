@@ -26,9 +26,10 @@
  */
 import { Component, Emit, Inject, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
-import AlarmGroupDetail, { IAlarmGroupDeatail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
+import AlarmGroupDetail, { type IAlarmGroupDetail } from '../../../alarm-group/alarm-group-detail/alarm-group-detail';
 import * as ruleAuth from '../../authority-map';
 
 import './alarm-group.scss';
@@ -49,7 +50,7 @@ interface IAlarmList {
 }
 interface IEvent {
   onChange?: number[];
-  onAddGroup?: void;
+  onAddGroup?: () => void;
   onToggle?: (v: boolean) => void;
   onRefresh?: () => void;
 }
@@ -63,8 +64,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
   @Prop({ default: false, type: Boolean }) readonly readonly: boolean;
   @Prop({ default: false, type: Boolean }) readonly isRefresh: boolean;
   @Prop({ default: false, type: Boolean }) readonly loading: boolean;
-  @Prop({ default: '', type: [Number, String] }) readonly strategyId: string | number;
-  @Prop({ default: true, type: Boolean }) showAddTip: Boolean;
+  @Prop({ default: '', type: [Number, String] }) readonly strategyId: number | string;
+  @Prop({ default: true, type: Boolean }) showAddTip: boolean;
   @Prop({ default: false, type: Boolean }) isSimple: boolean; // 简洁模式（无预览，无回填）
   @Prop({ default: null, type: Function }) tagClick: (id: number, e: Event) => void;
   @Prop({ default: false, type: Boolean }) isOpenNewPage: boolean; // 点击创建按钮新开页
@@ -79,9 +80,9 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
 
   localValue: number[] = [];
 
-  detail: IAlarmGroupDeatail = {
+  detail: IAlarmGroupDetail = {
     id: 0,
-    show: false
+    show: false,
   };
 
   @Watch('value', { immediate: true, deep: true })
@@ -164,8 +165,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
       name: 'alarm-group-edit',
       params: {
         id,
-        strategyId: `${this.strategyId}`
-      }
+        strategyId: `${this.strategyId}`,
+      },
     });
   }
 
@@ -183,8 +184,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
     this.$router.push({
       name: 'alarm-group-add',
       params: {
-        strategyId: !this.isSimple ? `${this.strategyId}` : undefined
-      }
+        strategyId: !this.isSimple ? `${this.strategyId}` : undefined,
+      },
     });
   }
 
@@ -206,8 +207,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
         <div class='alarm-group-tag-list'>
           {this.localValue.map((item, index) => (
             <span
-              class={['alarm-group-tag', { 'tag-active': this.detail.id === item }]}
               key={index}
+              class={['alarm-group-tag', { 'tag-active': this.detail.id === item }]}
               onClick={e => (this.tagClick ? this.tagClick(item, e) : this.handleSelectTag(item, e))}
             >
               <span
@@ -220,34 +221,34 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 <span
                   class='icon-monitor icon-mc-close'
                   onClick={e => this.handleDelete(index, e)}
-                ></span>
+                />
               )}
             </span>
           ))}
           {this.readonly ? undefined : (
             <span class='add-btn'>
               <bk-select
-                ext-popover-cls='alarm-group-popover'
-                class='alarm-group-select'
                 ref='alarmGroupSelect'
-                popover-width={380}
+                class='alarm-group-select'
+                v-model={this.localValue}
                 popover-options={{
                   boundary: 'window',
-                  flipOnUpdate: true
+                  flipOnUpdate: true,
                 }}
-                searchable
+                ext-popover-cls='alarm-group-popover'
+                popover-width={380}
+                zIndex={5000}
                 multiple
-                v-model={this.localValue}
+                searchable
                 onChange={this.handleSelectChange}
                 onToggle={this.handleToggle}
-                zIndex={5000}
               >
                 {this.list.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
-                    name={option.name}
+                    key={option.id}
                     disabled={this.disabledList.includes(option.id)}
+                    name={option.name}
                   >
                     <div class='alarm-group-option'>
                       <div class='group-content'>
@@ -269,8 +270,8 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                   </bk-option>
                 ))}
                 <div
-                  slot='extension'
                   class='item-input-create'
+                  slot='extension'
                   v-authority={{ active: !this.authority.ALARM_GROUP_MANAGE_AUTH }}
                   onClick={() =>
                     this.authority.ALARM_GROUP_MANAGE_AUTH
@@ -279,12 +280,12 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                   }
                 >
                   <div class='add-container'>
-                    <i class='bk-icon icon-plus-circle'></i>
+                    <i class='bk-icon icon-plus-circle' />
                     <span
                       class='add-text'
                       v-bk-tooltips={{
                         content: this.$t('进入新增页，新增完可直接返回不会丢失数据'),
-                        disabled: this.showAddTip || this.isOpenNewPage
+                        disabled: this.showAddTip || this.isOpenNewPage,
                       }}
                     >
                       {this.$t('新增告警组')}
@@ -302,24 +303,34 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                     >
                       {this.loading ? (
                         <img
-                          src={require('../../../../static/images/svg/spinner.svg')}
                           class='status-loading'
                           alt=''
-                        ></img>
+                          src={require('../../../../static/images/svg/spinner.svg')}
+                        />
                       ) : (
-                        <span class='icon-monitor icon-mc-retry'></span>
+                        <span class='icon-monitor icon-mc-retry' />
                       )}
                     </div>
                   )}
                 </div>
               </bk-select>
               <span
-                class={['add-tag', { disabled: this.disabled }]}
                 v-en-style='width: 120px'
+                class={['add-tag', { disabled: this.disabled }]}
                 onClick={!this.disabled && this.handleShowSelect}
               >
-                <span class='icon-monitor icon-mc-add'></span>
-                <span class='add-tag-text'>{this.$t('添加告警组')}</span>
+                {this.$slots.default || [
+                  <span
+                    key={1}
+                    class='icon-monitor icon-mc-add'
+                  />,
+                  <span
+                    key={2}
+                    class='add-tag-text'
+                  >
+                    {this.$t('添加告警组')}
+                  </span>,
+                ]}
               </span>
             </span>
           )}
@@ -331,7 +342,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
           customEdit
           onEditGroup={this.handleEditAlarmGroup}
           onShowChange={val => !val && (this.detail.id = 0)}
-        ></AlarmGroupDetail>
+        />
       </div>
     );
   }

@@ -25,11 +25,11 @@
  */
 
 export enum EClusterType {
+  Argus = 'argus',
+  ES = 'elasticsearch',
+  Influxdb = 'influxdb',
   Kafka = 'kafka',
   Transfer = 'transfer',
-  Influxdb = 'influxdb',
-  ES = 'elasticsearch',
-  Argus = 'argus'
 }
 
 /* 表格筛选项 */
@@ -37,50 +37,50 @@ export const FILTER_LIST = [
   {
     id: 'all',
     icon: '',
-    name: window.i18n.tc('全部')
+    name: window.i18n.tc('全部'),
   },
   {
     id: EClusterType.Kafka,
     icon: 'icon-Kafka',
-    name: window.i18n.tc('Kafka 集群')
+    name: window.i18n.tc('Kafka 集群'),
   },
   {
     id: EClusterType.Transfer,
     icon: 'icon-Transfer',
-    name: window.i18n.tc('Transfer 集群')
+    name: window.i18n.tc('Transfer 集群'),
   },
   {
     id: EClusterType.Influxdb,
     icon: 'icon-DB1',
-    name: window.i18n.tc('influxdb 集群')
+    name: window.i18n.tc('influxdb 集群'),
   },
   {
     id: EClusterType.ES,
     icon: 'icon-ES',
-    name: window.i18n.tc('ES 集群')
-  }
+    name: window.i18n.tc('ES 集群'),
+  },
 ];
 export enum EScopes {
+  allSpace = 'all-space',
   currentSpace = 'current-space',
   multiSpace = 'multi-space',
-  allSpace = 'all-space',
-  spaceType = 'space-type'
+  spaceType = 'space-type',
 }
 export const EsSpaceScopes = [
   { id: EScopes.currentSpace, name: window.i18n.tc('当前业务可见') },
   { id: EScopes.multiSpace, name: window.i18n.tc('多业务选择') },
   { id: EScopes.allSpace, name: window.i18n.tc('全平台') },
-  { id: EScopes.spaceType, name: window.i18n.tc('按业务属性选择') }
+  { id: EScopes.spaceType, name: window.i18n.tc('按业务属性选择') },
 ];
 
 export enum ETableColumn {
+  description = 'description',
   name = 'name',
-  use = 'use',
+  operate = 'operate',
+  operator = 'operator',
   pipeline = 'pipeline',
   status = 'status',
-  operator = 'operator',
-  description = 'description',
-  operate = 'operate'
+  use = 'use',
 }
 
 export interface IInfluxdbChildData {

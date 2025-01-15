@@ -71,7 +71,7 @@
           padding: 0 10px;
           line-height: 22px;
           background: #fafbfd;
-          border: 1px solid rgba(151, 155, 165, .3);
+          border: 1px solid rgba(151, 155, 165, 0.3);
           border-radius: 2px;
 
           &:not(:last-child) {
@@ -93,4 +93,17 @@
 .monitor-metric-popover-theme {
   padding: 8px;
   line-height: 20px;
+
+  .sheet-name {
+    display: flex;
+    align-items: center;
+  }
+
+  .copy-btn {
+    margin-left: 5px;
+    font-size: 16px;
+    line-height: 20px;
+    text-align: center;
+    cursor: pointer;
+  }
 }

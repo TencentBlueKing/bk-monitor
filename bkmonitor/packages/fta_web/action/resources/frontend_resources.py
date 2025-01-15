@@ -16,7 +16,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.template import TemplateDoesNotExist
 from django.utils import translation
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from api.monitor.default import (
     BatchCreateActionBackendResource,
@@ -482,7 +482,7 @@ class GetTemplateDetailResource(GetPluginTemplatesResource):
         return {
             "formItemProps": {"label": name or key, "required": required, "property": key, "help_text": help_text},
             "type": "input",
-            "key": key,
+            "key": _(key),
             "value": value,
             "formChildProps": {"placeholder": placeholder},
             "rules": [{"message": _("必填项不可为空"), "required": True, "trigger": "blur"}] if required else [],

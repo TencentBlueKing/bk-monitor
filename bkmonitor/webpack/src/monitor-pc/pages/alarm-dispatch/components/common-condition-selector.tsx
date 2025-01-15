@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,15 +28,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import SimpleSelectInput from '../../alarm-shield/components/simple-select-input';
 import SelectMenu from '../../strategy-config/strategy-config-set-new/components/select-menu';
-import { CONDITIONS, ICondtionItem, METHODS, TContionType, TMthodType } from '../typing';
-import { TGroupKeys, TValueMap } from '../typing/condition';
+import { CONDITIONS, type ICondtionItem, METHODS, type TContionType, type TMthodType } from '../typing';
+
+import type { TGroupKeys, TValueMap } from '../typing/condition';
 
 import './common-condition-selector.scss';
 
 const nullOptions = {
   // 下拉选项第一为空值
   id: '',
-  name: `- ${window.i18n.tc('空')} -`
+  name: `- ${window.i18n.tc('空')} -`,
 };
 
 interface IListItem {
@@ -100,7 +100,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
       .filter(item => !!item.field)
       .map(item => ({
         ...item,
-        name: this.keyMaps.get(item.field)?.name || item.field
+        name: this.keyMaps.get(item.field)?.name || item.field,
       }));
     if (conditions.length) {
       this.conditions = conditions;
@@ -170,7 +170,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
         field: '',
         name: '',
         value: [],
-        method: 'eq'
+        method: 'eq',
       },
       needCondition ? { condition: 'and' } : {}
     );
@@ -201,7 +201,7 @@ export default class CommonConditionSelector extends tsc<IProps> {
         ret.push({
           id: val,
           name: val,
-          show: true
+          show: true,
         });
       }
     });
@@ -256,35 +256,35 @@ export default class CommonConditionSelector extends tsc<IProps> {
         {this.conditions.map((item, index) => [
           item.condition && item.field && index > 0 ? (
             <input
-              style={{ display: item.condition ? 'block' : 'none' }}
               key={`condition-${index}-${item.field}`}
+              style={{ display: item.condition ? 'block' : 'none' }}
               class='condition-item condition-item-condition'
-              readonly
               value={item.condition.toLocaleUpperCase()}
+              readonly
               on-click={e => this.handleToggleCondition(e, { index, prop: 'condition' })}
             />
           ) : undefined,
           <SimpleSelectInput
             ref={`selectInput${index}`}
-            value={item.name}
-            list={this.keyList as any}
-            placeholder={window.i18n.t('选择') as string}
             v-bk-tooltips={{
               content: item.field,
               trigger: 'mouseenter',
               zIndex: 9999,
               disabled: !item.field,
               boundary: document.body,
-              allowHTML: false
+              allowHTML: false,
             }}
+            list={this.keyList as any}
             nodataMsg={window.i18n.t('无选项') as string}
+            placeholder={window.i18n.t('选择') as string}
+            value={item.name}
             onChange={v => this.handleKeyChange(item, v)}
-          ></SimpleSelectInput>,
+          />,
           item.name
             ? [
                 <span
-                  class='condition-item condition-item-method'
                   key={`method-${index}-${item.field}`}
+                  class='condition-item condition-item-method'
                   on-click={e => this.handleToggleMethod(e, { index, prop: 'method' })}
                 >
                   {this.handleGetMethodNameById(item.method)}
@@ -295,32 +295,32 @@ export default class CommonConditionSelector extends tsc<IProps> {
                   list={
                     this.valueMap.get(item.field) ? [nullOptions].concat(this.valueMap.get(item.field)) : [nullOptions]
                   }
-                  trigger='focus'
-                  has-delete-icon
-                  allow-create
-                  allow-auto-match
-                  value={item.value}
                   paste-fn={v => this.handlePaste(v, item)}
+                  trigger='focus'
+                  value={item.value}
+                  allow-auto-match
+                  allow-create
+                  has-delete-icon
                   on-change={(v: string[]) => this.handleValueChange(item, v)}
-                ></bk-tag-input>
+                />,
               ]
-            : undefined
+            : undefined,
         ])}
         <span
-          class='condition-item condition-add'
           style={{ display: this.showAdd ? 'flex' : 'none' }}
+          class='condition-item condition-add'
           on-click={() => this.handleAddCondition()}
         >
-          <i class='bk-icon icon-plus'></i>
+          <i class='bk-icon icon-plus' />
         </span>
         <SelectMenu
-          show={this.showSelectMenu}
-          target={this.curSelectTarget}
           list={this.menuList}
           min-width={60}
-          on-on-select={item => this.handelMenuSelect(item)}
+          show={this.showSelectMenu}
+          target={this.curSelectTarget}
           on-on-hidden={() => this.handleMenuHidden()}
-        ></SelectMenu>
+          on-on-select={item => this.handelMenuSelect(item)}
+        />
       </div>
     );
   }

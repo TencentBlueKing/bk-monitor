@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ITableItemMap } from './table';
+import type { ITableItemMap } from './table';
 
 interface Children {
   name: string;
@@ -31,7 +31,7 @@ interface Children {
   value: string | string[];
 }
 
-export type CommonDetailType = 'link' | 'number' | 'list' | 'status' | 'string' | 'tag' | 'time' | 'kv' | 'progress';
+export type CommonDetailType = 'kv' | 'link' | 'list' | 'number' | 'progress' | 'status' | 'string' | 'tag' | 'time';
 
 export interface IDetailItem {
   name: string;

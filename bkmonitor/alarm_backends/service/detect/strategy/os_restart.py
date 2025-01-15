@@ -11,11 +11,11 @@ specific language governing permissions and limitations under the License.
 """
 系统重启算法：基于时序数据 system.env.uptime 进行判断。
 uptime表示主机运行时长。
-该检测算法依赖basereport采集器被gse agent托管(机器重启后basereport自动拉起)否则无数据上报会导致该检测算法失效。
+该检测算法依赖bkmonitorbeat采集器被gse agent托管(机器重启后bkmonitorbeat自动拉起)否则无数据上报会导致该检测算法失效。
 """
 
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from alarm_backends.service.detect.strategy import ExprDetectAlgorithms
 from alarm_backends.service.detect.strategy.simple_ring_ratio import SimpleRingRatio
@@ -23,7 +23,6 @@ from alarm_backends.service.detect.strategy.threshold import Threshold
 
 
 class OsRestart(SimpleRingRatio):
-
     expr_op = "and"
     desc_tpl = _("当前服务器在{{data_point.value}}秒前发生系统重启事件")
     config_serializer = None

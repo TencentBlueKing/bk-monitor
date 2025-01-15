@@ -56,6 +56,51 @@ class AccessStatus:
     FAILED = "failed"
 
 
+class AccessErrorType:
+    """
+    数据接入异常类型
+    """
+
+    # 接入数据源异常
+    ACCESS_DATAID = "access_dataid"
+
+    # 指标不支持
+    METRIC_NOT_SUPPORT = "metric_not_support"
+
+    # 创建计算平台FLow异常
+    CREATE_FLOW = "create_flow"
+
+    # 启动计算平台Flow异常
+    START_FLOW = "start_flow"
+
+
+class CheckErrorType:
+    """
+    策略任务巡检异常类型
+    """
+
+    # 接入失败
+    ACCESS_ERROR = "access_error"
+
+    # 任务没有在正常运行中
+    NOT_RUNNING = "not_running"
+
+    # 任务运行异常
+    RUNNING_FAILURE = "running_failure"
+
+    # 任务没有输出
+    NO_OUTPUT = "no_output"
+
+    # 巡检异常
+    CHECK_FAILED = "check_failed"
+
+    # 任务没有埋点
+    NO_RUNTIME_METRICS = "no_runtime_metrics"
+
+    # 任务应该停止
+    NEED_TO_STOP = "need_to_stop"
+
+
 class RTAccessBkDataStatus:
     # 等待中
     PENDING = "pending"
@@ -110,6 +155,11 @@ ALGORITHM_INFO_MAP = {
         env_plan_variate_name="BK_DATA_PLAN_ID_MULTIVARIATE_ANOMALY_DETECTION",
         bk_base_name="MultivariateAnomalyDetection",
     ),
+    AlgorithmModel.AlgorithmChoices.HostAnomalyDetection: AlgorithmInfo(
+        env_scene_variate_name="BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION",
+        env_plan_variate_name="BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION",
+        bk_base_name="HostAnomalyDetection",
+    ),
     METRIC_RECOMMENDATION_SCENE_NAME: AlgorithmInfo(
         env_scene_variate_name="BK_DATA_SCENE_ID_METRIC_RECOMMENDATION",
         env_plan_variate_name="BK_DATA_PLAN_ID_METRIC_RECOMMENDATION",
@@ -138,6 +188,7 @@ def get_scene_id_by_algorithm(algorithm_id):
 AI_SETTING_ALGORITHMS = [
     AlgorithmModel.AlgorithmChoices.IntelligentDetect,
     AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection,
+    AlgorithmModel.AlgorithmChoices.HostAnomalyDetection,
 ]
 
 

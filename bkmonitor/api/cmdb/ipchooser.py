@@ -51,13 +51,7 @@ class IpChooserApi(AbstractBkApi):
     def get_agent_status(params: dict = None):
         from core.drf_resource import api
 
-        return api.gse.get_agent_status(params)
-
-    @staticmethod
-    def get_agent_status_v2(params: dict = None):
-        from core.drf_resource import api
-
-        return api.gse.list_agent_state(params)
+        return api.node_man.ipchooser_host_detail(params)
 
     @staticmethod
     def list_service_template(params: dict = None):
@@ -92,22 +86,12 @@ class IpChooserApi(AbstractBkApi):
     @staticmethod
     def search_dynamic_group(params: dict = None):
         """查询动态分组"""
-        raise NotImplementedError
-
-    @staticmethod
-    def bulk_search_dynamic_group(params: dict = None):
-        """批量查询动态分组"""
-        raise NotImplementedError
+        return client.search_dynamic_group(params)
 
     @staticmethod
     def execute_dynamic_group(params: dict = None):
         """执行动态分组"""
-        raise NotImplementedError
-
-    @staticmethod
-    def bulk_execute_dynamic_group(params: dict = None):
-        """批量执行动态分组"""
-        raise NotImplementedError
+        return client.execute_dynamic_group(params)
 
     @staticmethod
     def find_host_by_service_template(params: dict = None):

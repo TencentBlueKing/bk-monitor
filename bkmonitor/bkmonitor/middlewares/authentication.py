@@ -28,6 +28,8 @@ class NoCsrfSessionAuthentication(SessionAuthentication):
 
 class ApiTokenAuthBackend(ModelBackend):
     def authenticate(self, request, username=None, **kwargs):
+        if not username:
+            return None
         try:
             user_model = get_user_model()
             user, _ = user_model.objects.get_or_create(username=username, defaults={"nickname": username})
@@ -63,7 +65,8 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
 
             # grafana、as_code场景权限模式：替换请求用户为令牌创建者
             if record.type.lower() in ["as_code", "grafana"]:
-                user = auth.authenticate(username="system")
+                username = "system" if record.type.lower() == "as_code" else "admin"
+                user = auth.authenticate(username=username)
                 auth.login(request, user)
                 request.skip_check = True
             else:

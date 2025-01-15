@@ -4,14 +4,14 @@
 @mixin basecontent {
   background: #fff;
   border-radius: 2px;
-  box-shadow: 0px 1px 2px 0px rgba(0,0,0,.05);
+  box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
 }
 
 .strategy-config {
   height: 100%;
   font-size: 12px;
 
-  .displaynone {
+  .hidden {
     /* stylelint-disable-next-line declaration-no-important */
     display: none !important;
   }
@@ -115,10 +115,7 @@
       flex: 1;
       width: 360px;
       margin-left: 14px;
-
-      .bk-search-select {
-        background: #fff;
-      }
+      background: #fff;
     }
 
     .header-select {
@@ -382,13 +379,13 @@
             }
 
             &.red {
-              background: rgba(255, 221, 221, .5);
-              border: 1px solid rgba(253, 156, 156, .5);
+              background: rgba(255, 221, 221, 0.5);
+              border: 1px solid rgba(253, 156, 156, 0.5);
 
               .icon-mc-chart-alert {
                 font-size: 12px;
                 color: #ea3636;
-                transform: scale(.8);
+                transform: scale(0.8);
               }
 
               .alert-count {
@@ -480,6 +477,10 @@
               border: 0px;
             }
 
+            &:hover {
+              background: #dcdee5;
+            }
+
             &:first-child {
               margin-left: 0;
             }
@@ -530,6 +531,10 @@
               line-height: 24px;
               text-align: center;
             }
+
+            &:hover {
+              background: #dcdee5;
+            }
           }
         }
       }
@@ -549,7 +554,6 @@
 
           i {
             color: #c4c6cc;
-
           }
         }
 
@@ -651,6 +655,16 @@
   }
 }
 
+.bk-dialog-wrapper {
+  .i18n-as-code {
+    font-size: 14px;
+
+    .i18n-link {
+      margin: 0 4px;
+    }
+  }
+}
+
 .operator-group {
   display: flex;
   flex-direction: column;
@@ -717,7 +731,7 @@
         flex-shrink: 0;
         max-width: 200px;
         margin: 8px 0;
-  
+
         @include ellipsis;
 
         .bk-form-checkbox {
@@ -731,11 +745,15 @@
 
           .bk-checkbox-text {
             width: 130px;
-  
+
             @include ellipsis;
           }
         }
       }
     }
   }
+}
+
+.ext-cls {
+  max-width: 200px;
 }

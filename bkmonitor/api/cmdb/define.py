@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 import six
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.country import CHINESE_PROVINCE_MAP, COUNTRY_MAP, ISP_MAP
 
@@ -149,6 +149,7 @@ class Business(TopoNode):
         :param str or unicode bk_biz_name: 业务名称
         :param str time_zone: 时区
         """
+        kwargs.pop("bk_obj_id", "")
         super(Business, self).__init__(
             bk_obj_id="biz", bk_obj_name="business", bk_inst_id=bk_biz_id, bk_inst_name=bk_biz_name, **kwargs
         )
@@ -199,7 +200,7 @@ class Business(TopoNode):
         # display_name:
         # '[xxx]xx系统 (研发项目)'
         # '[2]蓝鲸 (业务)'
-        type_name = getattr(self, "type_name", "业务")
+        type_name = _(getattr(self, "type_name", "业务"))
         return (f"[{self.bk_biz_id}]{self.bk_biz_name} " if self.bk_biz_id > 0 else self.bk_biz_name) + f"({type_name})"
 
 
@@ -712,7 +713,11 @@ class ServiceInstance(object):
         self.bk_module_id = int(bk_module_id or 0)
         self.service_category_id = int(service_category_id or 0)
         self.labels = labels or {}
-        self.topo_link = topo_link
+        self.topo_link = {}
+
+        if topo_link:
+            for node_id, nodes in topo_link.items():
+                self.topo_link[node_id] = [TopoNode(**node) if isinstance(node, dict) else node for node in nodes]
 
         # 自定义属性
         self._extra_attr = kwargs

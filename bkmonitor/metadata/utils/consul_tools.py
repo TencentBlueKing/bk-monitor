@@ -15,6 +15,8 @@ import logging
 import time
 from typing import Optional
 
+from consul.base import ConsulException
+
 from bkmonitor.utils import consul
 from metadata import config
 from metadata.utils import hash_util
@@ -87,6 +89,7 @@ class HashConsul(object):
         :param key: 键值
         :param value: 内容，期待传入的是字典或者数组
         :param is_force_update: 是否需要强行更新
+        :param bk_data_id: 数据源ID
         :return: True | False
         """
         consul_client = consul.BKConsul(host=self.host, port=self.port, scheme=self.scheme, verify=self.verify)
@@ -123,4 +126,8 @@ class HashConsul(object):
             logger.info(
                 "new value hash->[%s] is different from the old hash->[%s], will updated it", new_hash, old_hash
             )
-        return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+        try:
+            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+        except ConsulException as e:
+            logger.error("put consul key error, data_id: %s, error: %s", bk_data_id, e)
+            raise

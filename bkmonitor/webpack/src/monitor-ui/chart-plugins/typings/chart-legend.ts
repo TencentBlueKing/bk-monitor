@@ -41,9 +41,11 @@ export interface ILegendItem {
   totalSource?: number;
   metricField?: string;
   dimensions?: Record<string, string>;
+  lineStyleType?: 'dashed' | 'solid';
+  silent?: boolean;
 }
-export type TableLegendHeadType = 'Min' | 'Max' | 'Avg';
-export type LegendActionType = 'shift-click' | 'click' | 'highlight' | 'downplay';
+export type TableLegendHeadType = 'Avg' | 'Max' | 'Min';
+export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
 
 export interface IRelationStatusItem {
   show: boolean;

@@ -26,36 +26,41 @@
 <template>
   <div
     class="log-wrapper"
+    :class="{ solid: file.show }"
     @mouseover="handleMouseOver"
     @mouseleave="showMask = false"
     @click="handleOpenUpload"
-    :class="{ solid: file.show }"
   >
     <div
-      class="mask"
       v-show="showMask"
-    >{{ file.base64 ? $t('点击更换') : $t('点击上传') }}</div>
+      class="mask"
+    >
+      {{ file.base64 ? $t('点击更换') : $t('点击上传') }}
+    </div>
     <div
       v-if="!file.show"
       class="log"
-    ><span class="text">LOGO</span></div>
+    >
+      <span class="text">LOGO</span>
+    </div>
     <img
-      class="log-img"
       v-if="file.show && file.base64.length > 1"
+      class="log-img"
       :src="file.base64"
       alt="logo"
-    >
+    />
     <span
-      class="word-logo"
       v-if="file.show && file.base64.length === 1"
-    >{{ file.base64.toUpperCase() }}</span>
+      class="word-logo"
+      >{{ file.base64.toUpperCase() }}</span
+    >
     <input
       ref="uploadImage"
       accept=".png,.jpg,.jpeg"
       type="file"
       style="display: none"
       @change="getImageFile"
-    >
+    />
   </div>
 </template>
 <script>
@@ -63,23 +68,23 @@ export default {
   name: 'Logo',
   props: {
     logo: {
-      type: String
-    }
+      type: String,
+    },
   },
   data() {
     return {
       file: {
         base64: '',
-        show: false
+        show: false,
       },
-      showMask: false
+      showMask: false,
     };
   },
   watch: {
     logo(val) {
       this.file.base64 = val;
       this.file.show = Boolean(val);
-    }
+    },
   },
   methods: {
     handleMouseOver() {
@@ -91,7 +96,7 @@ export default {
     getImageFile(e) {
       const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = e => {
         const { result } = e.target;
         this.graphLogo(result);
       };
@@ -122,8 +127,8 @@ export default {
         this.$emit('update:logo', this.file.base64);
       };
       img.src = result;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -153,7 +158,7 @@ export default {
     font-size: 12px;
     color: #fff;
     background-color: #63656e;
-    opacity: .6;
+    opacity: 0.6;
 
     @include content-center;
   }

@@ -25,11 +25,12 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getDashboardList } from 'monitor-api/modules/grafana';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import bus from 'monitor-common/utils/event-bus';
 
-import { DASHBOARD_ID_KEY } from '../../constant/constant';
-
+import { DASHBOARD_ID_KEY, UPDATE_GRAFANA_KEY } from '../../constant/constant';
 import { getDashboardCache } from './utils';
 
 import './grafana.scss';
@@ -43,15 +44,17 @@ interface IMessageEvent extends MessageEvent {
     login_url?: string;
   };
 }
+const FavoriteDashboardRouteName = 'favorite-dashboard';
 @Component({
-  name: 'grafana'
+  name: 'grafana',
 })
-export default class MyComponent extends tsc<{}> {
+export default class MyComponent extends tsc<object> {
   @Prop({ default: '' }) url: string;
   grafanaUrl = '';
   unWatch = null;
   loading = true;
   hasLogin = false;
+  showAlert = false;
   get orignUrl() {
     return process.env.NODE_ENV === 'development' ? `${process.env.proxyUrl}/` : `${location.origin}${window.site_url}`;
   }
@@ -65,6 +68,7 @@ export default class MyComponent extends tsc<{}> {
   }
   @Watch('url', { immediate: true })
   async handleUrlChange() {
+    this.showAlert = !localStorage.getItem(UPDATE_GRAFANA_KEY);
     if (this.$store.getters.bizIdChangePedding) {
       this.loading = true;
       this.grafanaUrl = `${this.orignUrl}${this.$store.getters.bizIdChangePedding.replace('/home', '')}/?orgName=${
@@ -83,8 +87,8 @@ export default class MyComponent extends tsc<{}> {
       const url = new URL(grafanaUrl);
       this.iframeRef?.contentWindow.postMessage(
         {
-          route: url.pathname.replace('/grafana', ''),
-          search: url.search
+          route: `${url.pathname.replace('/grafana', '')}${url.search || ''}`,
+          // search: url.search,
         },
         '*'
       );
@@ -102,10 +106,10 @@ export default class MyComponent extends tsc<{}> {
         const dashboardCacheId = dashboardCache?.[bizId] || '';
         if (dashboardCacheId && list.some(item => item.uid === dashboardCacheId)) {
           this.$router.replace({
-            name: 'favorite-dashboard',
+            name: FavoriteDashboardRouteName,
             params: {
-              url: dashboardCacheId
-            }
+              url: dashboardCacheId,
+            },
           });
           localStorage.setItem(DASHBOARD_ID_KEY, JSON.stringify({ ...dashboardCache, [bizId]: dashboardCacheId }));
         } else {
@@ -122,8 +126,8 @@ export default class MyComponent extends tsc<{}> {
       //   { deep: true, immediate: true }
       // );
     } else {
-      const isFavorite = this.$route.name === 'favorite-dashboard';
-      grafanaUrl = `${this.orignUrl}grafana/${isFavorite ? `d/${this.url}` : this.url}?orgName=${
+      const isFavorite = this.$route.name === FavoriteDashboardRouteName;
+      grafanaUrl = `${this.orignUrl}grafana/${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${
         this.$store.getters.bizId
       }${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
@@ -133,7 +137,7 @@ export default class MyComponent extends tsc<{}> {
   getUrlParamsString() {
     const str = Object.entries({
       ...(this.$route.query || {}),
-      ...Object.fromEntries(new URLSearchParams(location.search))
+      ...Object.fromEntries(new URLSearchParams(location.search)),
     })
       .map(entry => entry.join('='))
       .join('&');
@@ -176,7 +180,7 @@ export default class MyComponent extends tsc<{}> {
     let parsedUrl: string | URL;
     try {
       parsedUrl = new URL(url);
-    } catch (e) {
+    } catch {
       return false; // 不是合法的URL
     }
     if (!parsedUrl.protocol.match(/^https?:$/)) {
@@ -189,21 +193,25 @@ export default class MyComponent extends tsc<{}> {
     // iframe 内路由变化
     if (e?.data?.pathname) {
       const pathname = `${e.data.pathname}`;
-      const matches = pathname.match(/\/d\/([^/]+)\//);
-      const dashboardId = matches?.[1] || '';
+      const dashboardId = pathname.includes('grafana/d/')
+        ? pathname.replace(/\/?grafana\/d\//, '').replace(/\/$/, '')
+        : '';
       if (dashboardId && this.url !== dashboardId) {
         this.$router.push({
-          name: 'favorite-dashboard',
+          name: FavoriteDashboardRouteName,
           params: {
-            url: dashboardId
-          }
+            url: dashboardId,
+          },
+          query: {
+            ...Object.fromEntries(new URLSearchParams(e.data?.search || '')),
+          },
         });
         this.handleSetDashboardCache(dashboardId);
       }
       return;
     }
     // 302跳转
-    if (e?.data?.redirected) {
+    if (e?.data?.redirected && !this.hasLogin) {
       if (this.isAllowedUrl(e.data.href)) {
         const url = new URL(location.href);
         const curl = url.searchParams.get('c_url');
@@ -218,20 +226,24 @@ export default class MyComponent extends tsc<{}> {
     }
     // 登录 iframe内登入态失效
     if (e?.data?.status === 'login' && !this.hasLogin) {
-      this.hasLogin = true;
       if (e.data.login_url) {
+        this.hasLogin = true;
         const url = new URL(e.data.login_url);
         const curl = url.searchParams.get('c_url').replace(/^http:/, location.protocol);
         url.searchParams.set('c_url', curl);
-        window.LoginModal.$props.loginUrl = url.href;
-        window.LoginModal.show();
+        url.protocol = location.protocol;
+        window.showLoginModal({ loginUrl: url.href });
       } else {
         location.reload();
       }
-      setTimeout(() => {
-        this.hasLogin = false;
-      }, 1000 * 60);
     }
+  }
+  handleCloseUpdateAlert() {
+    localStorage.setItem(UPDATE_GRAFANA_KEY, 'true');
+    this.showAlert = false;
+  }
+  gotoDocs() {
+    skipToDocsLink('grafanaFeatures');
   }
   render() {
     return (
@@ -239,12 +251,42 @@ export default class MyComponent extends tsc<{}> {
         class='grafana-wrap'
         v-monitor-loading={{ isLoading: this.loading }}
       >
+        {this.showAlert && (
+          <bk-alert
+            class='grafana-update-alert'
+            show-icon={false}
+            type='info'
+            closable
+            onClose={this.handleCloseUpdateAlert}
+          >
+            <div
+              class='grafana-update-alert-title'
+              slot='title'
+            >
+              <i class='icon-monitor icon-inform' />
+              {this.$t('Grafana已经升级到10版本，来看看有哪些功能差异')}
+              <bk-button
+                size='small'
+                theme='primary'
+                text
+                onClick={this.gotoDocs}
+              >
+                {this.$t('查看详情')}
+                <i class='icon-monitor icon-fenxiang link-icon' />
+              </bk-button>
+            </div>
+          </bk-alert>
+        )}
         <iframe
-          onLoad={this.handleLoad}
           ref='iframe'
+          style={{
+            'min-height': this.showAlert ? 'calc(100% - 32px)' : '100%',
+            height: this.showAlert ? 'calc(100% - 32px)' : '100%',
+          }}
           class='grafana-wrap-frame'
-          allow='fullscreen'
           src={this.grafanaUrl}
+          title='grafana'
+          onLoad={this.handleLoad}
         />
       </div>
     );

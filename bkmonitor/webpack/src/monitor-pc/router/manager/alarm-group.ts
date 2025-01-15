@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import * as AlarmGroupAuth from '../../pages/alarm-group/authority-map';
+
 /*
  * @Date: 2020-11-10 21:35:35
  * @LastEditTime: 2021-06-26 10:03:15
  * @Description:
  */
-import Vue from 'vue';
-import { Route, RouteConfig } from 'vue-router';
-
-import * as AlarmGroupAuth from '../../pages/alarm-group/authority-map';
+import type Vue from 'vue';
+import type { Route, RouteConfig } from 'vue-router';
 
 const AlarmGroup = () => import(/* webpackChunkName: 'AlarmGroup' */ '../../pages/alarm-group/alarm-group');
 const AlarmGroupAdd = () =>
@@ -42,26 +42,26 @@ export default [
     path: '/alarm-group',
     name: 'alarm-group',
     components: {
-      noCache: AlarmGroup
+      noCache: AlarmGroup,
     },
     meta: {
       title: '告警组',
       navId: 'alarm-group',
       authority: {
         map: AlarmGroupAuth,
-        page: [AlarmGroupAuth.VIEW_AUTH]
+        page: [AlarmGroupAuth.VIEW_AUTH],
       },
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/alarm-group/add',
     name: 'alarm-group-add',
     components: {
-      noCache: AlarmGroupAdd
+      noCache: AlarmGroupAdd,
     },
     meta: {
       title: '新增告警组',
@@ -69,27 +69,27 @@ export default [
       needBack: true,
       authority: {
         map: AlarmGroupAuth,
-        page: [AlarmGroupAuth.MANAGE_AUTH]
+        page: [AlarmGroupAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'alarm-group'
-      }
+        parent: 'alarm-group',
+      },
       // noNavBar: true
-    }
+    },
   },
   {
     path: '/alarm-group/edit/:id',
     name: 'alarm-group-edit',
     components: {
-      noCache: AlarmGroupAdd
+      noCache: AlarmGroupAdd,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     beforeEnter(
       to: Route,
       from: Route,
-      next: (to?: string | false | void | Location | ((vm: Vue) => any) | undefined) => void
+      next: (to?: ((vm: Vue) => any) | Location | false | string | undefined | void) => void
     ) {
       to.meta.title = to.params.title || '加载中...';
       next();
@@ -101,12 +101,12 @@ export default [
       needCopyLink: false,
       authority: {
         map: AlarmGroupAuth,
-        page: [AlarmGroupAuth.MANAGE_AUTH]
+        page: [AlarmGroupAuth.MANAGE_AUTH],
       },
       route: {
-        parent: 'alarm-group'
-      }
+        parent: 'alarm-group',
+      },
       // noNavBar: true
-    }
-  }
+    },
+  },
 ] as RouteConfig[];

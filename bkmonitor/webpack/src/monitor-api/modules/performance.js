@@ -13,5 +13,5 @@ export default {
   topoNodeProcessStatus,
   hostPerformance,
   searchHostInfo,
-  searchHostMetric
+  searchHostMetric,
 };

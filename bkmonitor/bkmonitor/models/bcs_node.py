@@ -19,11 +19,12 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSBaseUsageResources, BCSLabel
 from bkmonitor.utils.common_utils import chunks
+from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.kubernetes import BcsClusterType
 from core.drf_resource import api
 
@@ -31,6 +32,10 @@ logger = logging.getLogger("kubernetes")
 
 
 class BCSNodeManager(BCSBaseManager):
+    def get_queryset(self):
+        # 忽略 eks节点
+        return super(BCSNodeManager, self).get_queryset().exclude(name__startswith="eklet-")
+
     def filter_by_biz_id(
         self,
         bk_biz_id: int,
@@ -77,7 +82,8 @@ class BCSNodeManager(BCSBaseManager):
             node_list = []
         if not node_list:
             return None
-        ip_list = [f"{node.ip}:" for node in node_list if node.ip]
+        # ipv6 的 instance 的格式形如：[x:x:x:x:x:x:x:x]:port
+        ip_list = [f"\\\\[{node.ip}\\\\]:" if is_v6(node.ip) else f"{node.ip}:" for node in node_list if node.ip]
         instance = "^({})".format("|".join(ip_list))
         return instance
 
@@ -190,6 +196,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
                     "checked": True,
                     "sortable": True,
                     "sortable_type": "progress",
+                    "header_pre_icon": "icon-avg",
                 },
                 {
                     "id": "system_mem_pct_used",
@@ -199,6 +206,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
                     "checked": True,
                     "sortable": True,
                     "sortable_type": "progress",
+                    "header_pre_icon": "icon-avg",
                 },
                 {
                     "id": "system_io_util",
@@ -217,6 +225,7 @@ class BCSNode(BCSBase, BCSBaseUsageResources):
                     "checked": True,
                     "sortable": True,
                     "sortable_type": "progress",
+                    "header_pre_icon": "icon-avg",
                 },
                 {
                     "id": "system_load_load15",

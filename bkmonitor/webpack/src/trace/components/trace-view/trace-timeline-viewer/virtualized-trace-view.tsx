@@ -50,18 +50,20 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, nextTick, PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, inject, nextTick, onMounted, onUnmounted, ref } from 'vue';
+
 import * as authorityMap from 'apm/pages/home/authority-map';
 import _isEqual from 'lodash/isEqual';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 
 import SpanDetails from '../../../pages/main/span-details';
+import { QUERY_TRACE_RELATION_APP } from '../../../store/constant';
 import { useAuthorityStore } from '../../../store/modules/authority';
 import { useTraceStore } from '../../../store/modules/trace';
 import { useChildrenHiddenInject } from '../hooks';
-import { Span, TNil, Trace } from '../typings';
-
 import ListView from './list-view';
+
+import type { Span, TNil, Trace } from '../typings';
 
 import './virtualized-trace-view.scss';
 
@@ -75,27 +77,27 @@ type RowState = {
 const VirtualizedTraceViewProps = {
   registerAccessors: Function as PropType<(accesors: any) => void>,
   setSpanNameColumnWidth: Function as PropType<(width: number) => void>,
-  setTrace: Function as PropType<(trace: Trace | TNil, uiFind: string | TNil) => void>,
+  setTrace: Function as PropType<(trace: TNil | Trace, uiFind: string | TNil) => void>,
   focusUiFindMatches: Function as PropType<(trace: Trace, uiFind: string | TNil, allowHide?: boolean) => void>,
   shouldScrollToFirstUiFindMatch: {
-    type: Boolean
+    type: Boolean,
   },
   uiFind: {
-    type: String
+    type: String,
   },
   detailStates: {
-    type: Object
+    type: Object,
   },
   hoverIndentGuideIds: {
-    type: Array as PropType<string[]>
+    type: Array as PropType<string[]>,
   },
   spanNameColumnWidth: {
-    type: Number
+    type: Number,
   },
   traceID: {
-    type: String
+    type: String,
   },
-  handleShowSpanDetail: Function as PropType<(span: Span) => void>
+  handleShowSpanDetail: Function as PropType<(span: Span) => void>,
 };
 
 export function generateRowStates(
@@ -113,7 +115,7 @@ export function generateRowStates(
     const span = spans[i];
     const { spanID, depth } = span;
     let hidden = false;
-    // eslint-disable-next-line eqeqeq
+
     if (collapseDepth != null) {
       if (depth >= collapseDepth) {
         hidden = true;
@@ -130,13 +132,13 @@ export function generateRowStates(
     rowStates.push({
       span,
       isDetail: false,
-      spanIndex: i
+      spanIndex: i,
     });
     if (detailStates?.has(spanID)) {
       rowStates.push({
         span,
         isDetail: true,
-        spanIndex: i
+        spanIndex: i,
       });
     }
   }
@@ -165,7 +167,7 @@ function handleSetBgColorIndex(list: RowState[]) {
 export const DEFAULT_HEIGHTS = {
   bar: 28,
   detail: 161,
-  detailWithLogs: 197
+  detailWithLogs: 197,
 };
 
 export default defineComponent({
@@ -180,7 +182,8 @@ export default defineComponent({
     const curShowDetailSpanId = ref<string>('');
     const haveReadSpanIds = ref<string[]>([]);
     const showSpanDetails = ref(false);
-    const spanDetails = ref<Span | null>(null);
+    const spanDetails = ref<null | Span>(null);
+    const activeTab = ref('BasicInfo');
 
     const childrenHiddenStore = useChildrenHiddenInject();
     const isFullscreen = inject('isFullscreen', false);
@@ -195,15 +198,29 @@ export default defineComponent({
         : [];
     });
 
+    onMounted(() => {
+      document.addEventListener('keydown', handleEscKeydown);
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('keydown', handleEscKeydown);
+    });
+
+    function handleEscKeydown(evt) {
+      if (evt.code === 'Escape') showSpanDetails.value = false;
+    }
+
     /** 点击span事件 */
-    const handleSpanClick = (span: Span) => {
+    const handleSpanClick = (span: Span, isEventTab = false) => {
       curShowDetailSpanId.value = span.spanID;
       if (!haveReadSpanIds.value.includes(span.spanID)) {
         haveReadSpanIds.value.push(span.spanID);
       }
       showSpanDetails.value = true;
       spanDetails.value = span;
+      activeTab.value = isEventTab ? 'Event' : 'BasicInfo';
     };
+
     /** 获取跨应用span */
     const getAcrossAppInfo = async (span: Span) => {
       const {
@@ -211,7 +228,7 @@ export default defineComponent({
         trace_id: traceId,
         bk_biz_id: bkBizId,
         permission,
-        bk_app_code: appCode
+        bk_app_code: appCode,
       } = span.cross_relation;
       if (!permission) {
         // 无权限查看跨应用
@@ -223,7 +240,8 @@ export default defineComponent({
         const params = {
           app_name: appName,
           trace_id: traceId,
-          bk_biz_id: bkBizId
+          bk_biz_id: bkBizId,
+          [QUERY_TRACE_RELATION_APP]: store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP),
         };
         const data = await traceDetail(params).catch(() => null);
         if (data) {
@@ -243,6 +261,28 @@ export default defineComponent({
     const handleToggleCollapse = (groupID, status) => {
       nextTick(() => store.updateSpanGroupCollapse(groupID, status));
     };
+    /** 点击上一跳/下一跳 */
+    const handlePrevNextClicked = flag => {
+      // 获取当前spanId, spanIndex
+      const curSpanId = spanDetails.value?.span_id;
+      const curSpanIndex = spans.value.findIndex(span => span.span_id === curSpanId);
+
+      if (curSpanIndex === -1) return; // 找不到当前 span，直接返回
+
+      if (flag === 'next') {
+        // 展开节点
+        spanDetails.value.hasChildren &&
+          Boolean(childrenHiddenStore?.childrenHiddenIds.value.has(curSpanId)) &&
+          childrenHiddenStore?.onChange(curSpanId || '');
+        spanDetails.value = spans.value[curSpanIndex + 1];
+      } else {
+        // 上一跳
+        spanDetails.value = spans.value
+          .slice(0, curSpanIndex)
+          .reverse()
+          .find(({ depth }) => depth === spanDetails.value.depth || depth === spanDetails.value.depth - 1);
+      }
+    };
 
     return {
       virtualizedTraceViewElm,
@@ -256,7 +296,9 @@ export default defineComponent({
       spanDetails,
       traceTree,
       spans,
-      handleToggleCollapse
+      handlePrevNextClicked,
+      handleToggleCollapse,
+      activeTab,
     };
   },
 
@@ -265,31 +307,37 @@ export default defineComponent({
 
     return (
       <div
-        class='virtualized-trace-view-spans'
         ref='virtualizedTraceViewElm'
+        class='virtualized-trace-view-spans'
       >
         <ListView
           ref='listViewElm'
+          activeSpanId={this.spanDetails?.span_id || ''}
+          dataLength={this.getRowStates.length}
+          detailStates={this.detailStates}
+          haveReadSpanIds={this.haveReadSpanIds}
           // key={this.spans.length}
           itemsWrapperClassName='virtualized-trace-view-rows-wrapper'
+          spanNameColumnWidth={spanNameColumnWidth}
           viewBuffer={300}
           viewBufferMin={100}
-          dataLength={this.getRowStates.length}
           windowScroller
-          haveReadSpanIds={this.haveReadSpanIds}
-          detailStates={this.detailStates}
-          spanNameColumnWidth={spanNameColumnWidth}
-          onItemClick={this.handleSpanClick}
           onGetCrossAppInfo={this.getAcrossAppInfo}
+          onItemClick={this.handleSpanClick}
           onToggleCollapse={this.handleToggleCollapse}
         />
         <SpanDetails
-          show={this.showSpanDetails}
           isFullscreen={this.isFullscreen}
+          isShowPrevNextButtons={true}
+          show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
+          activeTab={this.activeTab}
+          onPrevNextClicked={flag => {
+            this.handlePrevNextClicked(flag);
+          }}
           onShow={v => (this.showSpanDetails = v)}
         />
       </div>
     );
-  }
+  },
 });

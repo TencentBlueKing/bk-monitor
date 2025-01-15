@@ -13,10 +13,13 @@ from functools import lru_cache
 from typing import Dict, Optional
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.request import get_request
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
+from monitor_web.constants import EVENT_TYPE
+from monitor_web.models.custom_report import CustomEventGroup
 
 
 @lru_cache(maxsize=1000)
@@ -117,7 +120,8 @@ def patch_home_panels():
 </div>
 <br><br><br><br>
 <div>
-    <a href="{settings.BK_DOCS_SITE_URL}markdown/监控平台/产品白皮书/data-visualization/dashboard.md" target="_blank">
+    <a href="{settings.BK_DOCS_SITE_URL}markdown/ZH/Monitor/{settings.BK_DOC_VERSION}"""
+                + """/UserGuide/ProductFeatures/data-visualization/dashboard.md" target="_blank">
         """
                 + _("查看产品文档")
                 + """
@@ -193,3 +197,54 @@ def remove_all_conditions(where_list: list) -> list:
         where_list[0].pop("condition", None)
 
     return where_list
+
+
+def convert_to_microseconds(time_str: str) -> int:
+    # 定义单位转换关系
+    time_multipliers = {
+        'ns': 1e-3,  # 纳秒到微秒
+        'us': 1,  # 微秒到微秒
+        'µs': 1,  # 微秒到微秒 (有些地方会用µs表示)
+        'ms': 1e3,  # 毫秒到微秒
+        's': 1e6,  # 秒到微秒
+        'm': 60 * 1e6,  # 分钟到微秒
+        'h': 3600 * 1e6,  # 小时到微秒
+    }
+
+    # 提取数字部分和单位部分
+    for unit in time_multipliers:
+        if time_str.lower().endswith(unit):
+            time_value = float(time_str[: -len(unit)])
+            return int(time_value * time_multipliers[unit])
+
+    raise ValueError("Unsupported time format")
+
+
+def is_global_k8s_event(params: Dict, bk_biz_id: int) -> bool:
+    """
+    判断是否是全局k8s事件
+    """
+
+    data_source_label = params["data_source_label"]
+    data_type_label = params["data_type_label"]
+    field = params["field"]
+    metric_field = params["metric_field"]
+    result_table_id = params["result_table_id"]
+    data_id = result_table_id.split("_")[-1]
+
+    # 获取指定业务的自定义事件的数据ID
+    bk_data_ids = CustomEventGroup.objects.filter(type=EVENT_TYPE.CUSTOM_EVENT, bk_biz_id=bk_biz_id).values_list(
+        "bk_data_id", flat=True
+    )
+
+    # 判断是否是全局k8s事件,是则返回True
+    if (
+        data_source_label == DataSourceLabel.CUSTOM
+        and data_type_label == DataTypeLabel.EVENT
+        and field == "event_name"
+        and metric_field == "__INDEX__"
+        and data_id not in bk_data_ids
+    ):
+        return True
+    else:
+        return False

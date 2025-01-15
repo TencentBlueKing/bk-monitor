@@ -33,15 +33,20 @@ from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleS
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_esquery.constants import WILDCARD_PATTERN
 from apps.log_search.constants import (
+    ExportFileType,
     FavoriteListOrderType,
+    FavoriteType,
     FavoriteVisibleType,
     IndexSetType,
     InstanceTypeEnum,
+    QueryMode,
+    SearchMode,
     SearchScopeEnum,
     TagColor,
     TemplateType,
 )
-from apps.log_search.models import ProjectInfo, Scenario
+from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
+from apps.log_unifyquery.constants import FIELD_TYPE_MAP
 from apps.utils.drf import DateTimeFieldWithEpoch
 from apps.utils.local import get_local_param
 from apps.utils.lucene import EnhanceLuceneAdapter
@@ -274,12 +279,16 @@ class KeywordSerializer(serializers.Serializer):
 
 class SearchAttrSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
+    search_mode = serializers.ChoiceField(
+        label=_("检索模式"), required=False, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
 
     start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
     time_range = serializers.CharField(required=False, default=None)
+    from_favorite_id = serializers.IntegerField(required=False, default=0)
 
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     begin = serializers.IntegerField(required=False, default=0)
@@ -297,6 +306,8 @@ class SearchAttrSerializer(serializers.Serializer):
     is_return_doc_id = serializers.BooleanField(label=_("是否返回文档ID"), required=False, default=False)
 
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+
+    track_total_hits = serializers.BooleanField(label=_("是否统计总数"), required=False, default=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -466,6 +477,7 @@ class SearchUserIndexSetOptionHistoryDeleteSerializer(serializers.Serializer):
 
 class SearchExportSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
+    keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
     start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("起始时间"), required=True)
     end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("结束时间"), required=True)
@@ -476,6 +488,9 @@ class SearchExportSerializer(serializers.Serializer):
     interval = serializers.CharField(label=_("匹配规则"), required=False)
     export_fields = serializers.ListField(label=_("导出字段"), required=False, default=[])
     is_desensitize = serializers.BooleanField(label=_("是否脱敏"), required=False, default=True)
+    file_type = serializers.ChoiceField(
+        label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
+    )
 
 
 class UnionSearchSearchExportSerializer(SearchExportSerializer):
@@ -590,6 +605,9 @@ class CreateFavoriteSerializer(serializers.Serializer):
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
     group_id = serializers.IntegerField(label=_("收藏组ID"), required=False)
     visible_type = serializers.ChoiceField(choices=FavoriteVisibleType.get_choices(), required=True)
+    search_mode = serializers.ChoiceField(
+        label=_("检索模式"), required=False, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -602,6 +620,10 @@ class CreateFavoriteSerializer(serializers.Serializer):
     index_set_type = serializers.ChoiceField(
         label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+    favorite_type = serializers.ChoiceField(
+        label=_("收藏类型"), required=False, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
+    )
+    chart_params = serializers.JSONField(label=_("图表相关参数"), default=dict, required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -627,6 +649,9 @@ class UpdateFavoriteSerializer(serializers.Serializer):
     name = serializers.CharField(label=_("收藏组名"), max_length=256, required=False)
     group_id = serializers.IntegerField(label=_("收藏组ID"), required=False, default=0)
     visible_type = serializers.ChoiceField(choices=FavoriteVisibleType.get_choices(), required=False)
+    search_mode = serializers.ChoiceField(
+        label=_("检索模式"), required=False, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -815,3 +840,162 @@ class GetDisplayNameSerializer(serializers.Serializer):
     """
 
     host_list = serializers.ListField(child=HostInfoSerializer(), default=[])
+
+
+class ESRouterListSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=False, label="空间ID")
+    scenario_id = serializers.CharField(required=False, label="数据源类型")
+    page = serializers.IntegerField(label=_("分页"), required=True)
+    pagesize = serializers.IntegerField(label=_("分页大小"), required=True)
+
+
+class QueryFieldBaseSerializer(serializers.Serializer):
+    """
+    字段分析查询序列化
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())
+    result_table_ids = serializers.ListField(
+        label=_("结果表ID列表"), required=False, child=serializers.CharField(), default=list
+    )
+    agg_field = serializers.CharField(label=_("字段名"), required=False)
+
+    # filter条件，span选择器等
+    addition = serializers.ListField(allow_empty=True, required=False, default="")
+    host_scopes = serializers.DictField(default={}, required=False)
+    ip_chooser = serializers.DictField(default={}, required=False)
+
+    # 时间选择器字段
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
+    time_range = serializers.CharField(required=False, default=None)
+
+    # 关键字填充条
+    keyword = serializers.CharField(allow_null=True, allow_blank=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["result_table_ids"] = []
+        result_table_ids = list(
+            LogIndexSetData.objects.filter(index_set_id__in=attrs["index_set_ids"]).values_list(
+                "result_table_id", flat=True
+            )
+        )
+        if result_table_ids:
+            attrs["result_table_ids"] = result_table_ids
+        return attrs
+
+
+class FetchTopkListSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段topk计数列表序列化
+    """
+
+    limit = serializers.IntegerField(label=_("topk限制条数"), required=False, default=5)
+
+
+class FetchValueListSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段值列表序列化
+    """
+
+    limit = serializers.IntegerField(label=_("字段值限制个数"), required=False, default=10)
+
+
+class FetchStatisticsInfoSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段统计信息
+    """
+
+    field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
+
+
+class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
+    """
+    获取字段统计图表
+    """
+
+    field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
+    max = serializers.IntegerField(label=_("最大值"), required=False)
+    min = serializers.IntegerField(label=_("最小值"), required=False)
+    threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)
+    limit = serializers.IntegerField(label=_("top条数"), required=False, default=5)
+    distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
+
+
+class UserIndexSetCustomConfigSerializer(serializers.Serializer):
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=False, allow_empty=False, child=serializers.IntegerField()
+    )
+    index_set_type = serializers.ChoiceField(label=_("索引集类型"), required=True, choices=IndexSetType.get_choices())
+    index_set_config = serializers.JSONField(label=_("索引集字段宽度配置"), required=True)
+
+    def validate(self, attrs):
+        index_set_id = attrs.get('index_set_id')
+        index_set_ids = attrs.get('index_set_ids')
+        index_set_type = attrs.get('index_set_type')
+
+        if index_set_type == IndexSetType.SINGLE.value and not index_set_id:
+            raise serializers.ValidationError(_("参数校验失败: index_set_id 必须被提供"))
+        elif index_set_type == IndexSetType.UNION.value and not index_set_ids:
+            raise serializers.ValidationError(_("参数校验失败: index_set_ids 必须被提供"))
+        return attrs
+
+
+class ChartSerializer(serializers.Serializer):
+    sql = serializers.CharField(label=_("sql语句"), required=True)
+    query_mode = serializers.ChoiceField(
+        label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
+    )
+
+
+class SearchConditionSerializer(serializers.Serializer):
+    field = serializers.CharField(label=_("字段名"), required=True)
+    operator = serializers.CharField(label=_("操作符"), required=True)
+    value = serializers.ListField(label=_("值"), required=True)
+
+
+class UISearchSerializer(serializers.Serializer):
+    addition = serializers.ListField(
+        required=False,
+        default=list,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=False),
+    )
+    start_time = serializers.IntegerField(label=_("开始时间"), required=True)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=True)
+
+
+class QueryStringSerializer(serializers.Serializer):
+    addition = serializers.ListField(
+        required=True,
+        child=SearchConditionSerializer(label=_("搜索条件"), required=True),
+    )
+
+
+class UserCustomConfigSerializer(serializers.Serializer):
+    """
+    用户自定义配置
+    """
+    custom_config = serializers.JSONField(label=_("自定义配置"), required=True)
+
+
+class UserSearchSerializer(serializers.Serializer):
+    """
+    用户最近查询的索引集
+    """
+    username = serializers.CharField(label=_("用户名"), required=True)
+    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+    limit = serializers.IntegerField(label=_("限制条数"), required=True)
+
+
+class UserFavoriteSerializer(serializers.Serializer):
+    """
+    用户收藏的索引集
+    """
+    username = serializers.CharField(label=_("用户名"), required=True)
+    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
+    limit = serializers.IntegerField(label=_("限制条数"), required=False)

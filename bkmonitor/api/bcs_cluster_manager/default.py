@@ -38,11 +38,8 @@ class BcsClusterManagerBaseResource(BcsApiGatewayBaseResource):
             .format(**validated_request_data)
         )
 
-    def perform_request(self, validated_request_data):
-        result_json = super().perform_request(validated_request_data)
-        data = result_json.get("data", [])
-
-        return data
+    def render_response_data(self, validated_request_data, response_data):
+        return response_data.get("data", [])
 
 
 class FetchClustersResource(BcsClusterManagerBaseResource):
@@ -102,6 +99,7 @@ class GetProjectClustersResource(BcsClusterManagerBaseResource):
                     "project_id": c["projectID"],
                     "cluster_id": c["clusterID"],
                     "bk_biz_id": c["businessID"],
+                    "cluster_type": c["clusterType"],
                 }
                 for c in clusters or []
                 if not c.get("is_shared")
@@ -113,6 +111,7 @@ class GetProjectClustersResource(BcsClusterManagerBaseResource):
                 "cluster_id": c["clusterID"],
                 "bk_biz_id": c["businessID"],
                 "is_shared": c.get("is_shared", False),
+                "cluster_type": c["clusterType"],
             }
             for c in clusters or []
         ]
@@ -149,10 +148,8 @@ class GetSharedClustersResource(BcsClusterManagerBaseResource):
     action = "sharedclusters"
     method = "GET"
 
-    def perform_request(self, validated_request_data):
-        shared_clusters = super(GetSharedClustersResource, self).perform_request(validated_request_data)
-        # NOTE: 这里 businessID 为字符串
+    def render_response_data(self, validated_request_data, response_data):
         return [
             {"project_id": c["projectID"], "cluster_id": c["clusterID"], "bk_biz_id": c["businessID"]}
-            for c in shared_clusters or []
+            for c in response_data or []
         ]

@@ -30,7 +30,7 @@ import AlarmShieldDetail from './alarm-shield-detail/alarm-shield-detail.vue';
 
 Component.registerHooks(['beforeRouteEnter']);
 @Component
-export default class MonitorAlarmShieldDetail extends tsc<{}> {
+export default class MonitorAlarmShieldDetail extends tsc<object> {
   fromRouteName = '';
   beforeRouteEnter(to, from, next) {
     next((vm: MonitorAlarmShieldDetail) => {

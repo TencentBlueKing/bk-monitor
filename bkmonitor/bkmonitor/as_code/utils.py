@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 from typing import Dict, List, Optional
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.as_code.ply.conditions import condition_lexer, conditions_parser
 from bkmonitor.as_code.ply.function import function_lexer, function_parser
@@ -118,7 +118,7 @@ def create_conditions_expression(configs: List[Dict]):
             continue
 
         if isinstance(values[0], str) or method not in number_methods:
-            expression = f"{key}{method_mapping[method]}\"{','.join(values)}\""
+            expression = f"{key}{method_mapping[method]}\"{','.join([str(v) for v in values])}\""
         else:
             expression = f"{key}{method_mapping[method]}{','.join([str(v) for v in values])}"
 
@@ -138,12 +138,16 @@ def parse_metric_id(data_source_label: str, data_type_label: str, metric_id: str
         (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
         (DataSourceLabel.BK_APM, DataTypeLabel.TRACE),
     ):
+        data_label = ""
         if "." in metric_id:
             result_table_id, metric_field = metric_id.rsplit(".", 1)
+            if "." not in result_table_id:
+                data_label = result_table_id
         else:
             result_table_id = ""
             metric_field = metric_id
-        return {"result_table_id": result_table_id, "metric_field": metric_field}
+            data_label = ""
+        return {"result_table_id": result_table_id, "metric_field": metric_field, "data_label": data_label}
     elif data_source == (DataSourceLabel.BK_APM, DataTypeLabel.TIME_SERIES):
         *result_table_id, metric_field = metric_id.split(".", 2)
         result_table_id = ".".join(result_table_id)
@@ -157,6 +161,8 @@ def parse_metric_id(data_source_label: str, data_type_label: str, metric_id: str
         return {"index_set_id": metric_id, "result_table_id": metric_id}
     elif data_source == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
         result_table_id, custom_event_name = metric_id.rsplit(".", 1)
+        if custom_event_name == "__INDEX__":
+            custom_event_name = ""
         return {"result_table_id": result_table_id, "custom_event_name": custom_event_name}
     elif data_source in (
         (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
@@ -180,7 +186,9 @@ def get_metric_id(data_source_label: str, data_type_label: str, query_config: Di
         (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
         (DataSourceLabel.BK_APM, DataTypeLabel.TRACE),
     ):
-        if query_config["result_table_id"]:
+        if query_config.get("data_label"):
+            metric_id = f"{query_config['data_label']}.{query_config['metric_field']}"
+        elif query_config.get("result_table_id"):
             metric_id = f"{query_config['result_table_id']}.{query_config['metric_field']}"
         else:
             metric_id = query_config["metric_field"]
@@ -193,7 +201,7 @@ def get_metric_id(data_source_label: str, data_type_label: str, query_config: Di
     elif data_source == (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG):
         metric_id = str(query_config["index_set_id"])
     elif data_source == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
-        metric_id = f"{query_config['result_table_id']}.{query_config['custom_event_name']}"
+        metric_id = f"{query_config['result_table_id']}.{query_config['custom_event_name'] or '__INDEX__'}"
     elif data_source in (
         (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
         (DataSourceLabel.BK_FTA, DataTypeLabel.ALERT),

@@ -44,11 +44,11 @@ export default defineComponent({
       { id: 'neibutiaoyong', label: '内部调用' },
       { id: 'undefined', label: '未知' },
       { id: 'Network1', label: '网络请求' },
-      { id: 'System1', label: '系统调用' }
+      { id: 'System1', label: '系统调用' },
     ]);
 
     return {
-      legendList
+      legendList,
     };
   },
   render() {
@@ -56,11 +56,11 @@ export default defineComponent({
       <div class='trace-view-legend'>
         {this.legendList.map(item => (
           <div class='length-item'>
-            <i class={`icon-monitor icon-${item.id} legend-icon`}></i>
+            <i class={`icon-monitor icon-${item.id} legend-icon`} />
             <span class='legend-label'>{item.label}</span>
           </div>
         ))}
       </div>
     );
-  }
+  },
 });

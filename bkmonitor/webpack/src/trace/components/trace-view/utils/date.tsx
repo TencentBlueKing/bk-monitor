@@ -50,7 +50,7 @@ const UNIT_STEPS: { unit: string; microseconds: number; ofPrevious: number }[] =
   { unit: 'm', microseconds: ONE_MINUTE, ofPrevious: 60 },
   { unit: 's', microseconds: ONE_SECOND, ofPrevious: 1000 },
   { unit: 'ms', microseconds: ONE_MILLISECOND, ofPrevious: 1000 },
-  { unit: 'μs', microseconds: 1, ofPrevious: 1000 }
+  { unit: 'μs', microseconds: 1, ofPrevious: 1000 },
 ];
 
 const timeUnitToShortTermMapper = {
@@ -58,7 +58,7 @@ const timeUnitToShortTermMapper = {
   seconds: 's',
   minutes: 'm',
   hours: 'h',
-  days: 'd'
+  days: 'd',
 };
 
 /**
@@ -71,7 +71,6 @@ export function getPercentageOfDuration(duration: number, totalDuration: number)
   return (duration / totalDuration) * 100;
 }
 
-// eslint-disable-next-line max-len
 const quantizeDuration = (duration: number, floatPrecision: number, conversionFactor: number) =>
   toFloatPrecision(duration / conversionFactor, floatPrecision) * conversionFactor;
 
@@ -89,6 +88,10 @@ export function formatDate(duration: number) {
  */
 export function formatTime(duration: number, isMs = false) {
   return dayjs.tz(duration / ONE_MILLISECOND).format(isMs ? STANDARD_TIME_MS_FORMAT : STANDARD_TIME_FORMAT);
+}
+
+export function customFormatTime(duration: number, format = 'HH:mm') {
+  return dayjs.tz(duration / ONE_MILLISECOND).format(format);
 }
 
 /**

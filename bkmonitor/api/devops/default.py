@@ -4,11 +4,11 @@ import logging
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils.request import get_request
 from core.drf_resource.contrib.api import APIResource
-from core.errors.api import BKAPIError
+from core.errors.api import DevopsNotDeployedError
 
 logger = logging.getLogger("bcs_storage")
 
@@ -37,8 +37,11 @@ class DevopsBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return data
 
     def perform_request(self, validated_request_data):
-        if not settings.BK_CI_HOST:
-            raise BKAPIError(system_name=self.module_name, url=self.action, result=_("蓝盾环境未部署"))
+        if not settings.BK_CI_URL:
+            self.report_api_failure_metric(
+                error_code=DevopsNotDeployedError.code, exception_type=DevopsNotDeployedError.__name__
+            )
+            raise DevopsNotDeployedError(system_name=self.module_name, url=self.action, result=_("蓝盾环境未部署"))
         return super(DevopsBaseResource, self).perform_request(validated_request_data)
 
 
@@ -50,10 +53,10 @@ class ListUserProjectResource(DevopsBaseResource):
     action = "/v4/apigw-user/projects/project_list"
     method = "GET"
 
-    def perform_request(self, validated_request_data):
-        if not settings.BK_CI_HOST:
+    def request(self, request_data=None, **kwargs):
+        if not settings.BK_CI_URL:
             return []
-        return super(ListUserProjectResource, self).perform_request(validated_request_data)
+        return super(ListUserProjectResource, self).request(request_data, **kwargs)
 
 
 class UserProjectCreateResource(DevopsBaseResource):

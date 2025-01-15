@@ -24,29 +24,42 @@
  * IN THE SOFTWARE.
  */
 import { Component, Ref } from 'vue-property-decorator';
-import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { destroyTimezone } from '../../i18n/dayjs';
-
 import DataRetrieval from './data-retrieval';
+
+import type { Route } from 'vue-router';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
-export default class EventRetrieval extends tsc<{}> {
+export default class EventRetrieval extends tsc<object> {
   @Ref() eventRetrieval: DataRetrieval;
 
-  beforeRouteEnter(to: Route, from: Route, next: Function) {
-    next((vm: EventRetrieval) => {
-      vm.eventRetrieval.handleBeforeRouteEnter(to, from);
+  // beforeRouteEnter(to: Route, from: Route, next: (a: (vm: EventRetrieval) => void) => void) {
+  //   next((vm: EventRetrieval) => {
+  //     vm.eventRetrieval.handleBeforeRouteEnter(to, from);
+  //   });
+  // }
+  /*
+  todo: 这里需要把整个数据检索拆分出来
+  */
+  created() {
+    this.$nextTick(() => {
+      this.eventRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
     });
   }
-  beforeRouteLeave(to: Route, from: Route, next: Function) {
+  beforeRouteLeave(to: Route, from: Route, next: () => void) {
     destroyTimezone();
     next();
   }
   render() {
-    return <DataRetrieval ref='eventRetrieval' />;
+    return (
+      <DataRetrieval
+        key={this.$store.getters.bizId}
+        ref='eventRetrieval'
+      />
+    );
   }
 }

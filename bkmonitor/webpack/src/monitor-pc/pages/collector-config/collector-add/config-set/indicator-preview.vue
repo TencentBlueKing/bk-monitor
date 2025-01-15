@@ -26,30 +26,32 @@
 <template>
   <!-- eslint-disable vue/no-mutating-props -->
   <bk-dialog
+    v-model="options.isShow"
     class="indicator-preview"
     :title="$t('预览')"
     width="960"
-    v-model="options.isShow"
     header-position="left"
     :show-footer="false"
   >
     <div class="preview-container">
       <div class="preview-content">
         <div
-          class="hint-text"
           v-if="!options.isOfficial"
+          class="hint-text"
         >
           <span> {{ $t('编辑/增加/删除/启动/停用指标？') }} </span>
           <span
             class="hint-here"
             @click="handelEditPlugin(options.pluginId)"
-          > {{ $t('点击这里') }} </span>
+          >
+            {{ $t('点击这里') }}
+          </span>
         </div>
         <div class="preview-data">
           <right-panel
-            class="data-container"
             v-for="(table, index) in options.data"
             :key="index"
+            class="data-container"
             :collapse="table.expand"
             need-border
             :class="{ 'no-bottom': table.expand }"
@@ -80,7 +82,9 @@
                   <div
                     :title="props.row.name"
                     class="name"
-                  >{{ props.row.name }}</div>
+                  >
+                    {{ props.row.name }}
+                  </div>
                 </template>
               </bk-table-column>
               <bk-table-column :label="$t('别名')">
@@ -88,7 +92,9 @@
                   <div
                     :title="props.row.description"
                     class="alias"
-                  >{{ props.row.description }}</div>
+                  >
+                    {{ props.row.description }}
+                  </div>
                 </template>
               </bk-table-column>
               <bk-table-column
@@ -117,14 +123,12 @@
               >
                 <template slot-scope="props">
                   <div
-                    :class="props.row.is_active ? 'start' : 'stop'"
                     v-if="props.row.monitor_type === 'metric'"
+                    :class="props.row.is_active ? 'start' : 'stop'"
                   >
                     {{ props.row.is_active ? $t('已启用') : $t('已停用') }}
                   </div>
-                  <div v-else>
-                    --
-                  </div>
+                  <div v-else>--</div>
                 </template>
               </bk-table-column>
             </bk-table>
@@ -141,7 +145,7 @@ import RightPanel from '../../../../components/ip-select/right-panel';
 export default {
   name: 'IndicatorPreview',
   components: {
-    RightPanel
+    RightPanel,
   },
   props: {
     options: {
@@ -150,16 +154,16 @@ export default {
         isShow: false,
         isOfficial: false,
         pluginId: '',
-        data: []
-      })
-    }
+        data: [],
+      }),
+    },
   },
   watch: {
     'options.isShow'(v) {
       if (v && this.options.data.length) {
         this.handleToggleTable(0);
       }
-    }
+    },
   },
   methods: {
     handleClose() {
@@ -174,8 +178,8 @@ export default {
     },
     handelEditPlugin(id) {
       window.open(location.href.replace(location.hash, `#/plugin/setmetric/${id}`), '_blank');
-    }
-  }
+    },
+  },
 };
 </script>
 

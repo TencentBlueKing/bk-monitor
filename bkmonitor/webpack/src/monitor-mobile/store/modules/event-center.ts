@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable new-cap */
-import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
+
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import { getEventList } from '../../../monitor-api/modules/mobile_event';
 import store from '../store';
@@ -67,26 +67,18 @@ interface IData {
 class EventCenter extends VuexModule implements IEventCenterState {
   // type下所有数据
   public allList = [];
-  // level的所有数据
-  public filterList = [];
-  // 页面显示的列表
-  public viewList = [];
   // 统计数据
   public count = {};
-  // 当前页
-  public page = 1;
-  // 每页条数
-  public limit = 10;
+  // level的所有数据
+  public filterList = [];
   // 是否加载完当前分类下的数据
   public finished = false;
-
-  // 设置state
-  @Mutation
-  public setListData(data: IEventCenterState) {
-    Object.keys(data).forEach(key => {
-      this[key] = data[key];
-    });
-  }
+  // 每页条数
+  public limit = 10;
+  // 当前页
+  public page = 1;
+  // 页面显示的列表
+  public viewList = [];
 
   // 增加一页数据
   @Mutation
@@ -100,6 +92,21 @@ class EventCenter extends VuexModule implements IEventCenterState {
     this.viewList.length >= this.filterList.length && (this.finished = true);
   }
 
+  // 接口获取数据
+  @Action
+  public async getAllList(payload: { level?: number; type?: string }) {
+    store.commit('app/setPageLoading', true);
+    let data: IData = await getEventList({
+      bk_biz_id: store.getters['app/curBizId'],
+      type: payload.type,
+    }).catch(() => []);
+    store.commit('app/setPageLoading', false);
+    data = transformDataKey(data);
+    const list = data.groups;
+    this.setListData({ allList: list, count: data.count });
+    this.getFilterLIst(payload.level);
+  }
+
   // 过滤类型数据
   @Mutation
   public getFilterLIst(level: number | string) {
@@ -108,19 +115,12 @@ class EventCenter extends VuexModule implements IEventCenterState {
     this.page = 1;
   }
 
-  // 接口获取数据
-  @Action
-  public async getAllList(payload: { level?: number; type?: string }) {
-    store.commit('app/setPageLoading', true);
-    let data: IData = await getEventList({
-      bk_biz_id: store.getters['app/curBizId'],
-      type: payload.type
-    }).catch(() => []);
-    store.commit('app/setPageLoading', false);
-    data = transformDataKey(data);
-    const list = data.groups;
-    this.setListData({ allList: list, count: data.count });
-    this.getFilterLIst(payload.level);
+  // 设置state
+  @Mutation
+  public setListData(data: IEventCenterState) {
+    Object.keys(data).forEach(key => {
+      this[key] = data[key];
+    });
   }
 }
 

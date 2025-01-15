@@ -27,17 +27,17 @@ export const allRouteConfig = [
   {
     id: 'home',
     name: '首页',
-    route: 'home'
+    route: 'home',
   },
   {
     id: 'event-center',
     name: '告警事件',
-    route: 'event-center'
+    route: 'event-center',
   },
   {
     id: 'intergrations',
     name: '集成',
-    route: 'intergrations'
+    route: 'intergrations',
   },
   {
     id: 'manager',
@@ -54,9 +54,9 @@ export const allRouteConfig = [
             icon: 'icon-monitor icon-chulitaocan menu-icon',
             id: 'set-meal',
             path: '/set-meal',
-            href: '#/set-meal'
-          }
-        ]
+            href: '#/set-meal',
+          },
+        ],
       },
       {
         name: '监控',
@@ -68,33 +68,33 @@ export const allRouteConfig = [
             icon: 'icon-monitor icon-mc-strategy menu-icon',
             id: 'strategy-config',
             path: '/strategy-config',
-            href: '#/strategy-config'
+            href: '#/strategy-config',
           },
           {
             name: '告警分派',
             icon: 'icon-monitor icon-fenpai menu-icon',
             id: 'alarm-dispatch',
             path: '/alarm-dispatch',
-            href: '#/alarm-dispatch'
+            href: '#/alarm-dispatch',
           },
           {
             name: '告警屏蔽',
             icon: 'icon-monitor icon-menu-shield menu-icon',
             id: 'alarm-shield',
             path: '/trace/alarm-shield',
-            href: '#/trace/alarm-shield'
+            href: '#/trace/alarm-shield',
           },
           {
             name: '告警组',
             icon: 'icon-monitor icon-menu-group menu-icon',
             id: 'alarm-group',
             path: '/alarm-group',
-            href: '#/alarm-group'
-          }
-        ]
-      }
-    ]
-  }
+            href: '#/alarm-group',
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export const createRouteConfig = () => allRouteConfig;

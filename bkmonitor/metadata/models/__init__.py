@@ -9,7 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from .bcs import BCSClusterInfo, PodMonitorInfo, ReplaceConfig, ServiceMonitorInfo
+from .bcs import (
+    BCSClusterInfo,
+    BcsFederalClusterInfo,
+    PodMonitorInfo,
+    ReplaceConfig,
+    ServiceMonitorInfo,
+)
+from .bkdata import BkBaseResultTable
 from .common import Label
 from .custom_report import (
     CustomReportSubscription,
@@ -21,6 +28,16 @@ from .custom_report import (
     TimeSeriesGroup,
     TimeSeriesMetric,
     TimeSeriesTag,
+)
+from .data_link import (  # noqa
+    ConditionalSinkConfig,
+    DataBusConfig,
+    DataIdConfig,
+    DataLink,
+    DataLinkResource,
+    DataLinkResourceConfig,
+    VMResultTableConfig,
+    VMStorageBindingConfig,
 )
 from .data_pipeline import (
     DataPipeline,
@@ -48,15 +65,24 @@ from .influxdb_cluster import (
     InfluxDBTagInfo,
 )
 from .ping_server import PingServerSubscriptionConfig
+from .record_rule import RecordRule, ResultTableFlow
 from .result_table import (
     CMDBLevelRecord,
+    ESFieldQueryAliasOption,
     ResultTable,
     ResultTableField,
     ResultTableFieldOption,
     ResultTableOption,
     ResultTableRecordFormat,
 )
-from .space import Space, SpaceDataSource, SpaceResource, SpaceStickyInfo, SpaceType
+from .space import (
+    BkAppSpaceRecord,
+    Space,
+    SpaceDataSource,
+    SpaceResource,
+    SpaceStickyInfo,
+    SpaceType,
+)
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -66,6 +92,7 @@ from .storage import (
     KafkaStorage,
     KafkaTopicInfo,
     RedisStorage,
+    StorageClusterRecord,
     StorageResultTable,
 )
 from .vm import AccessVMRecord, SpaceVMInfo
@@ -87,6 +114,7 @@ __all__ = [
     "CMDBLevelRecord",
     "ResultTableOption",
     "ResultTableFieldOption",
+    "ESFieldQueryAliasOption",
     # storage
     "ClusterInfo",
     "KafkaTopicInfo",
@@ -101,6 +129,7 @@ __all__ = [
     "DownsampledContinuousQueries",
     "DownsampleByDateFlow",
     "ArgusStorage",
+    "StorageClusterRecord",
     # custom_report
     "EventGroup",
     "Event",
@@ -117,6 +146,7 @@ __all__ = [
     "Label",
     # bcs
     "BCSClusterInfo",
+    "BcsFederalClusterInfo",
     "ServiceMonitorInfo",
     "PodMonitorInfo",
     "ReplaceConfig",
@@ -131,6 +161,7 @@ __all__ = [
     "SpaceDataSource",
     "SpaceResource",
     "SpaceStickyInfo",
+    "BkAppSpaceRecord",
     # data pipeline
     "DataPipeline",
     "DataPipelineSpace",
@@ -138,4 +169,11 @@ __all__ = [
     "DataPipelineDataSource",
     "AccessVMRecord",
     "SpaceVMInfo",
+    # vm data link
+    "DataLinkResource",
+    "DataLinkResourceConfig",
+    # record rule
+    "RecordRule",
+    "ResultTableFlow",
+    "BkBaseResultTable",
 ]

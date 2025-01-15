@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, PropType } from 'vue';
-import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
+import { type PropType, defineComponent } from 'vue';
 
-import { IFavoriteItem } from '../../typings';
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
+
 import RefreshRate from '../refresh-rate/refresh-rate';
-import SelectMenu, { ISelectMenuOption } from '../select-menu/select-menu';
+import SelectMenu, { type ISelectMenuOption } from '../select-menu/select-menu';
 import TimeRange from '../time-range/time-range';
-import { TimeRangeType } from '../time-range/utils';
+
+import type { IFavoriteItem } from '../../typings';
+import type { TimeRangeType } from '../time-range/utils';
 
 import './page-tool-header.scss';
 
@@ -40,28 +42,28 @@ export default defineComponent({
   props: {
     showLeft: {
       type: Boolean,
-      default: true
+      default: true,
     },
     favoritesList: {
       type: Array as PropType<IFavoriteItem[]>,
-      default: () => []
+      default: () => [],
     },
     timeRange: {
       type: Array as PropType<TimeRangeType>,
-      default: () => ['now-1h', 'now']
+      default: () => ['now-1h', 'now'],
     },
     timezone: {
       type: String,
-      default: getDefautTimezone()
+      default: getDefaultTimezone(),
     },
     menuList: {
       type: Array as PropType<ISelectMenuOption[]>,
-      default: () => []
+      default: () => [],
     },
     refreshInterval: {
       type: Number,
-      default: -1
-    }
+      default: -1,
+    },
   },
   emits: [
     'update:showLeft',
@@ -72,7 +74,7 @@ export default defineComponent({
     'timezoneChange',
     'refreshIntervalChange',
     'menuSelectChange',
-    'immediateRefresh'
+    'immediateRefresh',
   ],
   setup(props, { emit, slots }) {
     function handleTimeRangeChange(time: TimeRangeType) {
@@ -83,7 +85,7 @@ export default defineComponent({
     }
     return () => (
       <div class='page-tool-header-component'>
-        {slots.prepend ? slots.prepend() : <div class='inquire-header-prepend'></div>}
+        {slots.prepend ? slots.prepend() : <div class='inquire-header-prepend' />}
         {slots.append ? (
           slots.append()
         ) : (
@@ -99,22 +101,22 @@ export default defineComponent({
             <span class='append-tools-item'>
               <RefreshRate
                 value={props.refreshInterval}
+                onImmediate={() => emit('immediateRefresh')}
                 onSelect={val => {
                   emit('update:refreshInterval', val);
                   emit('refreshIntervalChange', val);
                 }}
-                onImmediate={() => emit('immediateRefresh')}
               />
               <SelectMenu
                 list={props.menuList}
                 onSelect={val => emit('menuSelectChange', val)}
               >
-                <i class='icon-monitor icon-mc-more-tool'></i>
+                <i class='icon-monitor icon-mc-more-tool' />
               </SelectMenu>
             </span>
           </div>
         )}
       </div>
     );
-  }
+  },
 });

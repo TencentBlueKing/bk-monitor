@@ -1,33 +1,101 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
-    <title>${PAGE_TITLE}</title>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <link rel="manifest" as="fetch" crossorigin="use-credentials" href="${SITE_URL}manifest.json" />
-    <link rel="icon" type="image/png" href="img/monitor-64.png" />
-    <meta name="theme-color" content="#FAFBFD" />
+    <meta
+      http-equiv="X-UA-Compatible"
+      content="ie=edge"
+    />
+    <% if (APP_ENV === 'pc') { %>
+      <link
+        rel="preload"
+        as="image"
+        href="${STATIC_URL}monitor/loading.gif"
+      />
+    <% } %>
+    <link
+      rel="manifest"
+      as="fetch"
+      crossorigin="use-credentials"
+      href="${SITE_URL}manifest.json"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      href="img/monitor-64.png"
+    />
+    <meta
+      name="theme-color"
+      content="#FAFBFD"
+    />
     <!-- 针对safari（iOS）的添加到桌面功能进行相关设置 -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="监控平台|蓝鲸" />
-    <link rel="apple-touch-icon" href="img/monitor-256.png" />
+    <meta
+      name="apple-mobile-web-app-capable"
+      content="yes"
+    />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="default"
+    />
+    <meta
+      name="apple-mobile-web-app-title"
+      content="监控平台|蓝鲸"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="img/monitor-256.png"
+    />
     <!-- IE的设置 -->
-    <meta name="application-name" content="监控平台|蓝鲸" />
-    <meta name="msapplication-TileColor" content="#222" />
-    <meta name="msapplication-square70x70logo" content="img/monitor-128.png" />
-    <meta name="msapplication-square150x150logo" content="img/monitor-256.png" />
-    <meta name="msapplication-square310x310logo" content="img/monitor-512.png" />
+    <meta
+      name="application-name"
+      content="监控平台|蓝鲸智云"
+    />
+    <meta
+      name="msapplication-TileColor"
+      content="#222"
+    />
+    <meta
+      name="msapplication-square70x70logo"
+      content="img/monitor-128.png"
+    />
+    <meta
+      name="msapplication-square150x150logo"
+      content="img/monitor-256.png"
+    />
+    <meta
+      name="msapplication-square310x310logo"
+      content="img/monitor-512.png"
+    />
     <script template>
-      document.title = '监控平台';
+      document.title = '监控平台|蓝鲸智云';
     </script>
   </head>
-  <body>
+  <body style="margin: 0;">
     <noscript> This is your fallback content in case JavaScript fails to load. </noscript>
+    <% if (APP_ENV === 'pc') { %>
+      <div
+        id="__app_loading__"
+        style="
+          position: fixed;
+          z-index: 9999;
+          width: 100vw;
+          height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        "
+      >
+        <img
+          height="160px"
+          width="200px"
+          src="${STATIC_URL}monitor/loading.gif"
+        />
+      </div>
+      <% } %>
     <div id="app"></div>
   </body>
 </html>

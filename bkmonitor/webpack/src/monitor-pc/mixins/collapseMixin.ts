@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -28,10 +27,28 @@ import { Component, Vue } from 'vue-property-decorator';
 
 @Component
 export default class collapseMixin extends Vue {
+  public afterEnter(el) {
+    el.classList.remove('collapse-transition');
+    el.style.height = '';
+    el.style.overflow = el.dataset.oldOverflow;
+  }
+  public afterLeave(el) {
+    el.classList.remove('collapse-transition');
+    el.style.height = '';
+    el.style.overflow = el.dataset.oldOverflow;
+  }
+
   public beforeEnter(el) {
     el.classList.add('collapse-transition');
     el.style.height = '0';
   }
+
+  public beforeLeave(el) {
+    el.dataset.oldOverflow = el.style.overflow;
+    el.style.height = `${el.scrollHeight}px`;
+    el.style.overflow = 'hidden';
+  }
+
   public enter(el) {
     el.dataset.oldOverflow = el.style.overflow;
     if (el.scrollHeight !== 0) {
@@ -45,28 +62,10 @@ export default class collapseMixin extends Vue {
     el.style.overflow = 'hidden';
   }
 
-  public afterEnter(el) {
-    el.classList.remove('collapse-transition');
-    el.style.height = '';
-    el.style.overflow = el.dataset.oldOverflow;
-  }
-
-  public beforeLeave(el) {
-    el.dataset.oldOverflow = el.style.overflow;
-    el.style.height = `${el.scrollHeight}px`;
-    el.style.overflow = 'hidden';
-  }
-
   public leave(el) {
     if (el.scrollHeight !== 0) {
       el.classList.add('collapse-transition');
       el.style.height = 0;
     }
-  }
-
-  public afterLeave(el) {
-    el.classList.remove('collapse-transition');
-    el.style.height = '';
-    el.style.overflow = el.dataset.oldOverflow;
   }
 }

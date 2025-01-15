@@ -23,14 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getVariableValue } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils/utils';
 
 import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../../constant/constant';
-import { ICommonItem, IWhereItem, MetricDetail } from '../../strategy-config-set-new/typings';
+
+import type { ICommonItem, IWhereItem, MetricDetail } from '../../strategy-config-set-new/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './where-display.scss';
 
@@ -52,7 +54,7 @@ export default class WhereDisplay extends tsc<IProps> {
   @Prop({ type: Object }) metric: MetricDetail;
 
   /** 维度名 */
-  whereNameMap: Map<string | number, string | TranslateResult> = new Map();
+  whereNameMap: Map<number | string, TranslateResult | string> = new Map();
 
   /** 方法名 */
   methodNameMap: Map<string, string> = new Map();
@@ -85,15 +87,15 @@ export default class WhereDisplay extends tsc<IProps> {
               data_type_label,
               metric_field,
               result_table_id,
-              where: []
+              where: [],
             },
             data_source_label === 'bk_log_search'
               ? {
-                  index_set_id
+                  index_set_id,
                 }
               : {}
           ),
-          type: 'dimension'
+          type: 'dimension',
         };
         return getVariableValue(params).then(res => {
           this.whereValueMap.set(
@@ -120,7 +122,10 @@ export default class WhereDisplay extends tsc<IProps> {
     return (
       <span class='where-display-wrap'>
         {this.value.map((item, index) => (
-          <span class='where-item'>
+          <span
+            key={index}
+            class='where-item'
+          >
             {!!item.condition && !!index ? <span class='where-condition'>{` ${item.condition} `}</span> : undefined}
             <span
               class='where-field'
@@ -130,13 +135,13 @@ export default class WhereDisplay extends tsc<IProps> {
                 zIndex: 9999,
                 offset: '0, 6',
                 boundary: document.body,
-                allowHTML: false
+                allowHTML: false,
               }}
             >{` ${this.whereNameMap.get(item.key) || item.key} `}</span>
             <span class='where-method'>{` ${this.methodNameMap.get(item.method) || item.method} `}</span>
             <span
-              class='where-content'
               key={this.valueKey}
+              class='where-content'
             >
               {this.handleValue(item.value, item.key)}
             </span>

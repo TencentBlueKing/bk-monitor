@@ -20,6 +20,7 @@ from alarm_backends.service.alert.enricher.cmdb import CMDBEnricher
 from alarm_backends.service.alert.enricher.dimension import (
     DimensionOrderEnricher,
     MonitorTranslateEnricher,
+    PreEventEnricher,
     StandardTranslateEnricher,
 )
 from alarm_backends.service.alert.enricher.kubernetes_cmdb import KubernetesCMDBEnricher
@@ -30,6 +31,7 @@ from alarm_backends.service.alert.enricher.whitelist import BizWhiteListFor3rdEv
 logger = logging.getLogger("alert.enricher")
 
 INSTALLED_EVENT_ENRICHER: List[Type[BaseEventEnricher]] = [
+    PreEventEnricher,
     CMDBEnricher,
     BizWhiteListFor3rdEvent,
 ]
@@ -51,11 +53,8 @@ class EventEnrichFactory:
     def enrich(self):
         events = self.events
         for enricher_cls in INSTALLED_EVENT_ENRICHER:
-            try:
-                enricher = enricher_cls(events)
-                events = enricher.enrich()
-            except Exception as e:
-                logger.exception("event enrich error, enricher(%s), reason: %s", enricher_cls, e)
+            enricher = enricher_cls(events)
+            events = enricher.enrich()
         return events
 
 
@@ -66,9 +65,6 @@ class AlertEnrichFactory:
     def enrich(self):
         alerts = self.alerts
         for enricher_cls in INSTALLED_AlERT_ENRICHER:
-            try:
-                enricher = enricher_cls(alerts)
-                alerts = enricher.enrich()
-            except Exception as e:
-                logger.exception("alert enrich error, enricher(%s), reason: %s", enricher_cls, e)
+            enricher = enricher_cls(alerts)
+            alerts = enricher.enrich()
         return alerts

@@ -26,10 +26,10 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { TGroupKeys, TValueMap } from '../typing/condition';
-
 // import CommonConditionSelector from './common-condition-selector';
 import CommonCondition from './common-condition-new';
+
+import type { TGroupKeys, TValueMap } from '../typing/condition';
 
 import './condition-find-replace.scss';
 
@@ -69,30 +69,30 @@ export default class ConditionFindReplace extends tsc<IProps> {
           <div class='header-title'>{this.$t('查找规则')}</div>
           <div class='select-content'>
             <CommonCondition
-              value={this.findData}
-              keyList={this.keyList}
-              valueMap={this.valueMap}
-              groupKeys={this.groupKeys}
               groupKey={this.groupKey}
-              needValidate={false}
+              groupKeys={this.groupKeys}
               isFormMode={false}
+              keyList={this.keyList}
+              needValidate={false}
+              value={this.findData}
+              valueMap={this.valueMap}
               onChange={v => (this.findData = v)}
-            ></CommonCondition>
+            />
           </div>
         </div>
         <div class='repace-wrap'>
           <div class='header-title'>{this.$t('批量替换成')}</div>
           <div class='select-content'>
             <CommonCondition
-              value={this.findData}
-              keyList={this.keyList}
-              valueMap={this.valueMap}
-              groupKeys={this.groupKeys}
               groupKey={this.groupKey}
-              needValidate={false}
+              groupKeys={this.groupKeys}
               isFormMode={false}
+              keyList={this.keyList}
+              needValidate={false}
+              value={this.findData}
+              valueMap={this.valueMap}
               onChange={v => (this.replaceData = v)}
-            ></CommonCondition>
+            />
           </div>
         </div>
       </div>

@@ -3,14 +3,15 @@
 $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a4a6 #e88c8d #e77474;
 
 .profiling-flame-graph {
-  
   &.has-diff-legend {
-    top: 32px;
     height: calc(100% - 20px);
   }
 
   .flame-graph {
     padding: 8px 16px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    overflow: hidden !important;
   }
 }
 
@@ -23,19 +24,17 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   height: 100%;
   padding: 6px;
   padding-bottom: 0;
-  overflow: auto;
-  overflow-x: hidden;
+  overflow: hidden !important;
   background-color: #f5f7fa;
 
   * {
     user-select: none;
   }
 
-
   rect {
     &:hover {
       cursor: pointer;
-      opacity: .5;
+      opacity: 0.5;
     }
   }
 
@@ -82,7 +81,6 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
       text-overflow: clip;
       white-space: nowrap;
     }
-
   }
 
   &-label {
@@ -108,8 +106,6 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
 .flame-graph-wrapper {
   position: relative;
-  top: 0;
-  left: 0;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -175,7 +171,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   left: 0;
   z-index: 99999;
   display: block;
-  width: 240px;
+  width: 360px;
   height: 100px;
   font-size: 12px;
   color: #fff;
@@ -210,8 +206,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
     th,
     td {
-      padding-left: 4px;
       font-weight: 400;
+      text-align: center;
       background-color: #000;
       border: 1px solid #63656e;
     }
@@ -298,7 +294,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   display: flex;
   width: 1px;
   background-color: #eee;
-  opacity: .6;
+  opacity: 0.6;
 }
 
 .flame-graph-aside {
@@ -306,15 +302,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 }
 
 .profiling-compare-legend {
-  position: absolute;
   display: flex;
-  z-index: 99;
   padding: 8px 16px 0;
-  visibility: hidden;
-
-  &.is-show {
-    visibility: visible;
-  }
 
   .tag {
     width: 66px;
@@ -335,13 +324,14 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   }
 
   .percent-queue {
+    flex: 1;
     margin: 0 4px;
     border-radius: 2px;
 
     @include flex-center;
 
     .percent-tag {
-      width: 40px;
+      flex: 1;
       height: 22px;
       font-size: 12px;
       color: #000;

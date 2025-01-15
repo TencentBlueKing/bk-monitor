@@ -25,9 +25,10 @@
  */
 
 import dayjs from 'dayjs';
+import { random } from 'monitor-common/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 
-import { IExtendMetricData } from '../plugins/typings';
+import type { IExtendMetricData } from '../plugins/typings';
 
 export const specialEqual = (v: any, o: any) => {
   if (v === o || v == o) return true;
@@ -58,7 +59,7 @@ export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) =>
 export const MAX_PONIT_COUNT = 2880;
 export const MIN_PONIT_COUNT = 1440;
 export const INTERVAL_CONTANT_LIST = [10, 30, 60, 2 * 60, 5 * 60, 10 * 60, 30 * 60, 60 * 60];
-export const reviewInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const reviewInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     reviewInterval = interval;
@@ -73,12 +74,12 @@ export const reviewInterval = (interval: number | 'auto' | string, timeRange: nu
   return reviewInterval;
 };
 
-export const recheckInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const recheckInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     const minInterval = (timeRange / (step || 60) / MAX_PONIT_COUNT) * 60;
     const maxInterval = (timeRange / (step || 60) / MIN_PONIT_COUNT) * 60;
-    let minStep = Infinity;
+    let minStep = Number.POSITIVE_INFINITY;
     let val = 0;
     INTERVAL_CONTANT_LIST.forEach(v => {
       const step1 = Math.abs(v - minInterval);
@@ -104,7 +105,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
   const options = [
     // 公共展示项
     { val: data.metric_field, label: window.i18n.t('指标名') },
-    { val: data.metric_field_name, label: window.i18n.t('指标别名') }
+    { val: data.metric_field_name, label: window.i18n.t('指标别名') },
   ];
   const elList = {
     bk_monitor_time_series: [
@@ -114,7 +115,7 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
       { val: data.related_name, label: window.i18n.t('插件名') },
       { val: data.result_table_id, label: window.i18n.t('分类ID') },
       { val: data.result_table_name, label: window.i18n.t('分类名') },
-      { val: data.description, label: window.i18n.t('含义') }
+      { val: data.description, label: window.i18n.t('含义') },
     ],
     bk_log_search_time_series: [
       // 日志采集
@@ -122,20 +123,20 @@ export const createMetricTitleTooltips = (metricData: IExtendMetricData) => {
       { val: data.related_name, label: window.i18n.t('索引集') },
       { val: data.result_table_id, label: window.i18n.t('索引') },
       { val: data.extend_fields?.scenario_name, label: window.i18n.t('数据源类别') },
-      { val: data.extend_fields?.storage_cluster_name, label: window.i18n.t('数据源名') }
+      { val: data.extend_fields?.storage_cluster_name, label: window.i18n.t('数据源名') },
     ],
     bk_data_time_series: [
       // 数据平台
       ...options,
-      { val: data.result_table_id, label: window.i18n.t('表名') }
+      { val: data.result_table_id, label: window.i18n.t('表名') },
     ],
     custom_time_series: [
       // 自定义指标
       ...options,
       { val: data.extend_fields?.bk_data_id, label: window.i18n.t('数据ID') },
-      { val: data.result_table_name, label: window.i18n.t('数据名') }
+      { val: data.result_table_name, label: window.i18n.t('数据名') },
     ],
-    bk_monitor_log: [...options]
+    bk_monitor_log: [...options],
   };
   // 拨测指标融合后不需要显示插件id插件名
   const resultTableLabel = data.result_table_label;
@@ -225,4 +226,33 @@ export const transformByte = (size: number) => {
 
   number = Math.round(number * 100) / 100;
   return `${number}${units[index]}`;
+};
+
+/**
+ * 为数据节点及其子节点分配唯一 ID。
+ *
+ * @param data - 目标数据，可以是单个节点或节点数组。
+ * @param idProperty - 用于存储 ID 的属性名称，默认为 'id'。
+ * @param idLength - 生成 ID 的长度，默认为 8。
+ *
+ * 此函数会递归地为每个节点及其所有子节点生成唯一的 ID，
+ * 并将其存储在指定的属性中。适用于层级结构的数据。
+ */
+export const assignUniqueIds = (data, idProperty = 'id', idLength = 8) => {
+  const assignId = obj => {
+    obj[idProperty] = random(idLength);
+    if (obj.children && Array.isArray(obj.children)) {
+      for (const child of obj.children) {
+        assignId(child);
+      }
+    }
+  };
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      assignId(item);
+    }
+  } else {
+    assignId(data);
+  }
 };

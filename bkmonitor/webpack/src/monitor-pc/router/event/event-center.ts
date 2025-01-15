@@ -23,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
-import { RouteConfig } from 'vue-router';
 
 import * as eventCenterAuth from '../../pages/event-center/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 // import PageLoading from '../../pages/loading/page-loading';
 const EventCenter = () => import(/* webpackChunkName: "Event" */ 'fta-solutions/pages/event/event');
 const EventCenterDetail = () =>
   import(/* webpackChunkName: "EventDetail" */ 'fta-solutions/pages/event/event-detail/event-detail');
 const ActionDetail = () =>
   import(/* webpackChunkName: "EventDetail" */ 'fta-solutions/pages/event/event-detail/action-detail');
+const IncidentDetail = () => import(/* webpackChunkName: "IncidentDetail" */ '../../pages/incident/incident-detail');
 // const createAsyncComponent = () => ({
 //   component: import(/* webpackChunkName: "Event" */ 'fta-solutions/pages/event/event'),
 //   // 异步组件加载时使用的组件
@@ -52,16 +53,16 @@ export default [
     path: '/event-center',
     name: 'event-center',
     components: {
-      noCache: EventCenter
+      noCache: EventCenter,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: Object.assign(
       {
         route: {
-          parent: 'event'
-        }
+          parent: 'event',
+        },
       },
       {
         title: '事件中心',
@@ -69,34 +70,34 @@ export default [
         navClass: 'event-center-nav',
         noNavBar: true,
         authority: {
-          map: eventCenterAuth
-        }
+          map: eventCenterAuth,
+        },
       },
       !isSpecEvent
         ? {
             authorityList: ['view_event_v2'],
             authority: {
               page: eventCenterAuth.VIEW_AUTH,
-              map: eventCenterAuth
-            }
+              map: eventCenterAuth,
+            },
           }
         : {}
-    )
+    ),
   },
   {
     path: '/event-action',
     name: 'event-action',
     components: {
-      noCache: EventCenter
+      noCache: EventCenter,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: Object.assign(
       {
         route: {
-          parent: 'event'
-        }
+          parent: 'event',
+        },
       },
       {
         title: '事件中心',
@@ -104,19 +105,19 @@ export default [
         navClass: 'event-center-nav',
         noNavBar: true,
         authority: {
-          map: eventCenterAuth
-        }
+          map: eventCenterAuth,
+        },
       },
       !isSpecEvent
         ? {
             authorityList: ['view_event'],
             authority: {
               page: eventCenterAuth.VIEW_AUTH,
-              map: eventCenterAuth
-            }
+              map: eventCenterAuth,
+            },
           }
         : {}
-    )
+    ),
   },
   {
     path: '/event-center/detail/:id',
@@ -129,8 +130,8 @@ export default [
     meta: Object.assign(
       {
         route: {
-          parent: 'event'
-        }
+          parent: 'event',
+        },
       },
       {
         title: '告警详情',
@@ -139,17 +140,17 @@ export default [
         noNavBar: true,
         navClass: 'event-center-nav',
         authority: {
-          map: eventCenterAuth
-        }
+          map: eventCenterAuth,
+        },
       },
       !isSpecEvent
         ? {
             authority: {
-              page: eventCenterAuth.VIEW_AUTH
-            }
+              page: eventCenterAuth.VIEW_AUTH,
+            },
           }
         : {}
-    )
+    ),
   },
   {
     path: '/event-center/action-detail/:id',
@@ -162,8 +163,8 @@ export default [
     meta: Object.assign(
       {
         route: {
-          parent: 'event'
-        }
+          parent: 'event',
+        },
       },
       {
         title: '处理记录详情',
@@ -172,16 +173,42 @@ export default [
         noNavBar: true,
         navClass: 'event-center-nav',
         authority: {
-          map: eventCenterAuth
-        }
+          map: eventCenterAuth,
+        },
       },
       !isSpecEvent
         ? {
             authority: {
-              page: eventCenterAuth.VIEW_AUTH
-            }
+              page: eventCenterAuth.VIEW_AUTH,
+            },
           }
         : {}
-    )
-  }
+    ),
+  },
+  {
+    path: '/trace/incident/detail/:id?',
+    name: 'incident-detail',
+    props: {
+      noCache: true,
+    },
+    beforeEnter(to, from, next) {
+      !!to.params.id ? next() : next(false);
+    },
+    components: {
+      noCache: IncidentDetail,
+    },
+    meta: {
+      title: '故障详情',
+      navId: 'event-center',
+      needBack: true,
+      noNavBar: true,
+      navClass: 'event-center-nav',
+      authority: {
+        map: eventCenterAuth,
+      },
+      route: {
+        parent: 'event',
+      },
+    },
+  },
 ] as RouteConfig[];

@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable camelcase */
 /*
  * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -24,6 +22,7 @@
 
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import create from '@blueking/ip-selector/dist/index.esm';
 import {
   agentStatisticsIpChooserTemplate,
@@ -42,10 +41,15 @@ import {
   serviceInstanceCountIpChooserTemplate,
   templatesIpChooserTemplate,
   treesIpChooserTopo,
-  updateConfigIpChooserConfig
+  updateConfigIpChooserConfig,
+  groupsIpChooserDynamicGroup,
+  executeIpChooserDynamicGroup,
+  agentStatisticsIpChooserDynamicGroup,
 } from 'monitor-api/modules/model';
 
-import {
+import { PanelTargetMap } from './utils';
+
+import type {
   CommomParams,
   CoutIntanceName,
   IFetchNode,
@@ -53,27 +57,26 @@ import {
   IIpV6Value,
   INode,
   INodeType,
-  IpSelectorConfig,
-  IpSelectorHostMemuExtend,
-  IpSelectorHostTableCustomColumn,
-  IpSelectorMode,
-  IpSelectorNameStyle,
-  IpSelectorService,
   IQuery,
   IScopeItme,
   IStatistics,
   ITemplateHost,
   ITemplateItem,
   ITemplateNode,
-  ITreeItem
+  ITreeItem,
+  IpSelectorConfig,
+  IpSelectorHostMemuExtend,
+  IpSelectorHostTableCustomColumn,
+  IpSelectorMode,
+  IpSelectorNameStyle,
+  IpSelectorService,
 } from './typing';
-import { PanelTargetMap } from './utils';
 
 import '@blueking/ip-selector/dist/styles/index.css';
 
 const BkIpSelector = create({
   version: '3',
-  serviceConfigError: false
+  serviceConfigError: false,
 });
 export interface IMonitorIpSelectorProps {
   panelList?: string[];
@@ -92,8 +95,8 @@ export interface IMonitorIpSelectorProps {
   showView?: boolean;
   showViewDiff?: boolean;
   readonly?: boolean;
-  disableDialogSubmitMethod?: Function;
-  disableHostMethod?: Function;
+  disableDialogSubmitMethod?: () => void;
+  disableHostMethod?: () => void;
   viewSearchKey?: string;
   service?: IpSelectorService;
   height?: number;
@@ -114,8 +117,8 @@ export interface IMonitorIpSelectorEvents {
 
 @Component({
   components: {
-    BkIpSelector
-  }
+    BkIpSelector,
+  },
 })
 export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMonitorIpSelectorEvents> {
   // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate',
@@ -154,9 +157,9 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   // 静态拓扑主机单选
   @Prop({ default: false, type: Boolean }) singleHostSelect: boolean;
   // Dialog 确定按钮是否禁用
-  @Prop({ type: Function }) disableDialogSubmitMethod: Function;
+  @Prop({ type: Function }) disableDialogSubmitMethod: () => void;
   // 静态拓扑主机是否禁用
-  @Prop({ type: Function }) disableHostMethod: Function;
+  @Prop({ type: Function }) disableHostMethod: () => void;
   // 在选择结果面板搜索主机
   @Prop({ default: '', type: String }) viewSearchKey: string;
   @Prop({ default: 'host', type: String }) countInstanceType: string;
@@ -176,8 +179,8 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   scopeList: IScopeItme[] = [
     {
       scope_type: 'biz',
-      scope_id: this.$store.getters.bizId
-    }
+      scope_id: this.$store.getters.bizId,
+    },
   ];
   ipSelectorServices: IpSelectorService = {};
   ipSelectorConfig: IpSelectorConfig = {};
@@ -208,7 +211,10 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       fetchCustomSettings: this.fetchCustomSettings,
       updateCustomSettings: this.updateCustomSettings,
       fetchConfig: this.fetchConfig,
-      ...this.service
+      fetchDynamicGroups: this.fetchDynamicGroups, // 动态分组列表
+      fetchHostsDynamicGroup: this.fetchHostsDynamicGroup, // 动态分组下的节点
+      fetchHostAgentStatisticsDynamicGroups: this.fetchHostAgentStatisticsDynamicGroups,
+      ...this.service,
     };
     this.ipSelectorConfig = {
       // 需要支持的面板（'staticTopo', 'dynamicTopo', 'dynamicGroup', 'serviceTemplate', 'setTemplate', 'manualInput'）
@@ -218,7 +224,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
         // 'dynamicGroup',
         'serviceTemplate',
         'setTemplate',
-        'manualInput'
+        'manualInput',
       ],
       // 面板选项的值是否唯一
       unqiuePanelValue: this.unqiuePanelValue,
@@ -235,9 +241,38 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       //  'osName', 'coludVerdor', 'osType', 'hostId', 'agentId']
       hostTableRenderColumnList: this.hostTableRenderColumnList ?? [],
       hostViewFieldRender: this.hostViewFieldRender,
-      serviceConfigError: true
+      serviceConfigError: true,
     };
   }
+  // 动态分组api
+  async fetchDynamicGroups(p) {
+    const data = await groupsIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    return data;
+  }
+  async fetchHostsDynamicGroup(p) {
+    const data = await executeIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    return data;
+  }
+  async fetchHostAgentStatisticsDynamicGroups(p) {
+    const data = await agentStatisticsIpChooserDynamicGroup(
+      this.transformParams({
+        scope_list: this.scopeList,
+        ...p,
+      })
+    );
+    return data;
+  }
+
   // 拉取topology
   async fetchTopologyHostCount(): Promise<ITreeItem[]> {
     return await treesIpChooserTopo(this.transformParams({ scope_list: this.scopeList })).catch(() => []);
@@ -247,7 +282,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     const { search_content, ...p } = params;
     const data = {
       scope_list: this.scopeList,
-      ...(search_content ? params : p)
+      ...(search_content ? params : p),
     };
     return await queryHostsIpChooserTopo(data).catch(() => []);
   }
@@ -256,9 +291,22 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     const { search_content, ...p } = params;
     const data = {
       scope_list: this.scopeList,
-      ...(search_content ? params : p)
+      ...(search_content ? params : p),
     };
-    return await queryHostIdInfosIpChooserTopo(data).catch(() => []);
+    return await queryHostIdInfosIpChooserTopo(data).then(list => {
+      return {
+        ...list,
+        data:
+          list?.data?.map(item => {
+            return {
+              cloud_area: {
+                id: item.cloud_id,
+              },
+              ...item,
+            };
+          }) || [],
+      };
+    });
   }
 
   // 动态拓扑 - 勾选节点(查询多个节点拓扑路径)
@@ -266,7 +314,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     return await queryPathIpChooserTopo(
       this.transformParams({
         scope_list: this.scopeList,
-        ...node
+        ...node,
       })
     ).catch(() => []);
   }
@@ -274,20 +322,20 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   async fetchHostAgentStatisticsNodes(node: IFetchNode): Promise<{ agent_statistics: IStatistics; node: INode }[]> {
     return await agentStatisticsIpChooserTopo({
       scope_list: this.scopeList,
-      ...node
+      ...node,
     }).catch(() => []);
   }
   async fetchHostsDetails(node) {
     return await detailsIpChooserHost({
       scope_list: this.scopeList,
-      ...node
+      ...node,
     }).catch(() => []);
   }
   // 手动输入
   async fetchHostCheck(node: IFetchNode) {
     return await checkIpChooserHost({
       scope_list: this.scopeList,
-      ...node
+      ...node,
     }).catch(() => []);
   }
   // // 获取动态分组列表
@@ -322,7 +370,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         template_type: 'SERVICE_TEMPLATE',
-        ...params
+        ...params,
       })
     ).catch(() => []);
   }
@@ -332,7 +380,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         template_type: 'SERVICE_TEMPLATE',
-        ...query
+        ...query,
       })
     ).catch(() => []);
   }
@@ -342,7 +390,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
       template_id: query.id,
-      ...query
+      ...query,
     }).catch(() => []);
   }
   // 获取服务模板Agent统计状态
@@ -350,7 +398,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     const params = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
-      ...query
+      ...query,
     };
     if (this.countInstanceType === 'service_instance') {
       return await serviceInstanceCountIpChooserTemplate(params)
@@ -360,9 +408,9 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
             host_count: item.count,
             node_count: item.node_count || 0,
             agent_statistics: {
-              total_count: item.count
+              total_count: item.count,
             },
-            service_template: query.service_template_list[0]
+            service_template: query.service_template_list[0],
           }))
         )
         .catch(() => []);
@@ -375,7 +423,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         template_type: 'SET_TEMPLATE',
-        ...query
+        ...query,
       })
     ).catch(() => []);
   }
@@ -385,7 +433,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       this.transformParams({
         scope_list: this.scopeList,
         template_type: 'SET_TEMPLATE',
-        ...query
+        ...query,
       })
     ).catch(() => []);
   }
@@ -395,7 +443,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
       template_id: query.id,
-      ...query
+      ...query,
     }).catch(() => []);
   }
   // 获取集群模板Agent统计状态
@@ -403,7 +451,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     const params = {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
-      ...query
+      ...query,
     };
     if (this.countInstanceType === 'service_instance') {
       return await serviceInstanceCountIpChooserTemplate(params)
@@ -413,9 +461,9 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
             host_count: item.count,
             node_count: item.node_count || 0,
             agent_statistics: {
-              total_count: item.count
+              total_count: item.count,
             },
-            set_template: query.set_template_list[0]
+            set_template: query.set_template_list[0],
           }))
         )
         .catch(() => []);
@@ -439,35 +487,35 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       // CMDB 服务模板链接
       bk_cmdb_service_template_url: `${CC_ROOT_URL}/#/business/${bizId}/service/template`,
       // CMDB 集群模板链接
-      bk_cmdb_set_template_url: `${CC_ROOT_URL}/#/business/${bizId}/set/template`
+      bk_cmdb_set_template_url: `${CC_ROOT_URL}/#/business/${bizId}/set/template`,
     };
   }
   // 获取服务实例左侧树topo数据
   async fetchTopologyServiceInstance(): Promise<ITreeItem[]> {
     return await treesIpChooserTopo({
       scope_list: this.scopeList,
-      count_instance_type: 'service_instance'
+      count_instance_type: 'service_instance',
     }).catch(() => []);
   }
   // 获取服务实例列表
   async fetchSeriviceInstanceList(params: CommomParams): Promise<ITreeItem[]> {
     return await queryServiceInstancesIpChooserTopo({
       scope_list: this.scopeList,
-      ...params
+      ...params,
     }).catch(() => []);
   }
   // 获取服务实例详情
   async fetchSeriviceInstanceDetails(params: CommomParams): Promise<ITreeItem[]> {
     return await detailsIpChooserServiceInstance({
       scope_list: this.scopeList,
-      ...params
+      ...params,
     }).catch(() => []);
   }
   transformParams(params: Record<string, any>) {
     if (this.countInstanceType === 'service_instance') {
       return {
         ...params,
-        count_instance_type: this.countInstanceType
+        count_instance_type: this.countInstanceType,
       };
     }
     return params;
@@ -494,27 +542,27 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
   render() {
     return (
       <BkIpSelector
-        mode={this.mode}
-        value={this.value}
-        originalValue={this.originalValue}
-        showView={this.showView}
-        showDialog={this.showDialog}
-        showViewDiff={this.showViewDiff}
-        viewSearchKey={this.viewSearchKey}
-        readonly={this.readonly}
-        keepHostFieldOutput={this.keepHostFieldOutput}
+        config={this.ipSelectorConfig}
+        defaultOutputFieldList={this.defaultOutputFieldList}
         disableDialogSubmitMethod={this.disableDialogSubmitMethod}
         disableHostMethod={this.disableHostMethod}
-        service={this.ipSelectorServices}
-        config={this.ipSelectorConfig}
-        singleHostSelect={this.singleHostSelect}
+        keepHostFieldOutput={this.keepHostFieldOutput}
+        mode={this.mode}
+        originalValue={this.originalValue}
         outputFieldList={this.outputFieldList}
         outputFieldOptionalHostTableColumn={this.outputFieldOptionalHostTableColumn}
-        defaultOutputFieldList={this.defaultOutputFieldList}
+        readonly={this.readonly}
+        service={this.ipSelectorServices}
+        showDialog={this.showDialog}
+        showView={this.showView}
+        showViewDiff={this.showViewDiff}
+        singleHostSelect={this.singleHostSelect}
+        value={this.value}
+        viewSearchKey={this.viewSearchKey}
         on-change={this.change}
-        on-panel-change={this.panelChange}
         on-close-dialog={this.closeDialog}
         on-output-field-change={this.outPutFieldChange}
+        on-panel-change={this.panelChange}
       />
     );
   }

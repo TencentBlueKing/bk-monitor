@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, getCurrentInstance, PropType, ref, watch } from 'vue';
+import { type PropType, defineComponent, getCurrentInstance, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 
 import { createMetricTitleTooltips } from '../../utils';
-import { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem } from '../typings';
+
+import type { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem } from '../typings';
 
 import './title-menu.scss';
 
@@ -37,20 +39,20 @@ export default defineComponent({
   props: {
     list: {
       type: Array as PropType<ChartTitleMenuType[]>,
-      default: () => ['save', 'screenshot', 'explore', 'set', 'area']
+      default: () => ['save', 'screenshot', 'explore', 'set', 'area'],
     },
     drillDownOption: {
       type: Array as PropType<IMenuChildItem[]>,
-      default: () => []
+      default: () => [],
     },
     metrics: {
       type: Array as PropType<IExtendMetricData[]>,
-      default: () => []
+      default: () => [],
     },
     showAddMetric: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   emits: ['select', 'metricSelect', 'selectChild', 'childMenuToggle'],
   setup(props, { emit }) {
@@ -61,26 +63,26 @@ export default defineComponent({
         name: t('保存到仪表盘'),
         checked: false,
         id: 'save',
-        icon: 'mc-mark'
+        icon: 'mc-mark',
       },
       {
         name: t('截图到本地'),
         checked: false,
         id: 'screenshot',
-        icon: 'mc-camera'
+        icon: 'mc-camera',
       },
       {
         name: t('查看大图'),
         checked: false,
         id: 'fullscreen',
-        icon: 'fullscreen'
+        icon: 'fullscreen',
       },
       {
         name: t('检索'),
         checked: false,
         id: 'explore',
         icon: 'mc-retrieval',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: t('下钻'),
@@ -89,21 +91,21 @@ export default defineComponent({
         icon: 'xiazuan',
         hasLink: true,
         childValue: '',
-        children: []
+        children: [],
       },
       {
         name: t('相关告警'),
         checked: false,
         id: 'relate-alert',
         icon: 'mc-menu-alert',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: t('添加策略'),
         checked: false,
         id: 'strategy',
         icon: 'mc-strategy',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: t('Y轴固定最小值为0'),
@@ -111,7 +113,7 @@ export default defineComponent({
         id: 'set',
         nextName: t('Y轴自适应'),
         icon: 'mc-yaxis',
-        nextIcon: 'mc-yaxis-scale'
+        nextIcon: 'mc-yaxis-scale',
       },
       {
         name: t('更多'),
@@ -123,15 +125,15 @@ export default defineComponent({
           {
             id: 'screenshot',
             name: t('截图到本地'),
-            icon: 'mc-camera'
+            icon: 'mc-camera',
           },
           {
             id: 'export-csv',
             name: t('导出CSV'),
-            icon: 'xiazai1'
-          }
-        ]
-      }
+            icon: 'xiazai1',
+          },
+        ],
+      },
     ]);
     watch(
       () => props.drillDownOption,
@@ -150,7 +152,7 @@ export default defineComponent({
           }
           drillDown.children = props.drillDownOption.map(item => ({
             ...item,
-            needTips: true
+            needTips: true,
           }));
         }
       }
@@ -177,7 +179,7 @@ export default defineComponent({
       (instance?.refs[key] as any)?.hideHandler?.();
       emit('selectChild', {
         child,
-        menu
+        menu,
       });
     }
     function handleChildMenuToggle(val: boolean) {
@@ -192,7 +194,7 @@ export default defineComponent({
       handleMetricSelect,
       handleSelectChild,
       handleChildMenuToggle,
-      handleGetItemName
+      handleGetItemName,
     };
   },
   render() {
@@ -216,7 +218,7 @@ export default defineComponent({
                     class={['child-list-item', { active: child.id === item.childValue }]}
                     onClick={() => this.handleSelectChild(item, child)}
                   >
-                    {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`}></i>}
+                    {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`} />}
                     {child.name}
                   </li>
                 </Popover>
@@ -228,47 +230,45 @@ export default defineComponent({
            */
           const menuItemTpl = (
             <li
-              class='chart-menu-item'
               key={item.id}
+              class='chart-menu-item'
               onClick={() => this.handleMenuClick(item)}
             >
-              <i
-                class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`}
-              ></i>
+              <i class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`} />
               {!item.checked ? item.name : item.nextName || item.name}
               {!!item.children?.length && item.hasLink && (
                 <bk-popover
                   ref={`${item.id}-popover`}
+                  animation='slide-toggle'
+                  arrow={false}
+                  disabled={item.children.length < 2}
+                  distance={12}
+                  offset={-1}
                   placement='bottom-start'
                   theme='light cycle-list-wrapper child-list-popover'
-                  animation='slide-toggle'
-                  disabled={item.children.length < 2}
-                  arrow={false}
-                  offset={-1}
-                  distance={12}
                 >
                   <span class='menu-item-trigger'>{this.handleGetItemName(item.children, item.childValue!)}</span>
                   {childTpl(item)}
                 </bk-popover>
               )}
-              {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon'></i> : undefined}
+              {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon' /> : undefined}
               {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right more-icon' />}
             </li>
           );
           if (item.children?.length && !item.hasLink) {
             return (
               <Popover
-                class='chart-menu-item-more'
                 ref={`${item.id}-popover`}
-                placement='right-start'
-                theme='light cycle-list-wrapper child-list-popover more'
-                arrow={false}
-                offset={-1}
+                class='chart-menu-item-more'
                 v-slots={{
                   default: () => menuItemTpl,
-                  content: () => childTpl(item)
+                  content: () => childTpl(item),
                 }}
-              ></Popover>
+                arrow={false}
+                offset={-1}
+                placement='right-start'
+                theme='light cycle-list-wrapper child-list-popover more'
+              />
             );
           }
           return menuItemTpl;
@@ -280,7 +280,7 @@ export default defineComponent({
               class={`chart-menu-item ${index === 0 ? 'segmentation-item' : ''}`}
               onClick={() => this.handleMetricSelect(item)}
             >
-              <i class='icon-monitor icon-mc-add-strategy strategy-icon'></i>
+              <i class='icon-monitor icon-mc-add-strategy strategy-icon' />
               <span class='field-name'>{item.metric_field_name}</span>
               <Popover>
                 {{
@@ -289,13 +289,13 @@ export default defineComponent({
                     <div
                       class='common-chart-tooltips-wrap'
                       v-html={createMetricTitleTooltips(item)}
-                    ></div>
-                  )
+                    />
+                  ),
                 }}
               </Popover>
             </li>
           ))}
       </ul>
     );
-  }
+  },
 });

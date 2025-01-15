@@ -26,7 +26,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { FieldFilteringType, FieldListType, FieldValue, IFilterCondition } from '../typings';
+import type { FieldFilteringType, FieldListType, FieldValue, IFilterCondition } from '../typings';
 
 import './field-list.scss';
 /** 维度值记录排名前5 */
@@ -53,7 +53,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
     return {
       index,
       checked: !item.checked,
-      field: item.field
+      field: item.field,
     };
   }
 
@@ -72,7 +72,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
       key: item.field,
       method,
       value: [val.id],
-      condition: 'and'
+      condition: 'and',
     };
   }
 
@@ -82,7 +82,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
   handleAlias(key: string) {
     const aliasMap = {
       event_name: this.$t('事件名'),
-      target: this.$t('目标')
+      target: this.$t('目标'),
     };
     return aliasMap[key] ?? key;
   }
@@ -90,7 +90,7 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
     const titleSlot = (item: FieldValue, index: number) => (
       <div class={['collapse-item-title', { 'is-expanded': this.expandedData.includes(item.key) }]}>
         <span class='title-left'>
-          <i class={['icon-monitor', 'icon-mc-triangle-down', { acitve: this.expandedData.includes(item.key) }]}></i>
+          <i class={['icon-monitor', 'icon-mc-triangle-down', { active: this.expandedData.includes(item.key) }]} />
           {/* <span class="type-icon">#</span> */}
           <span class='field-name'>{this.handleAlias(item.field)}</span>
           <span class='field-value-count'>({item.total})</span>
@@ -122,27 +122,31 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
           {item.dimensions.map((val, i) => {
             if (!item.showMore && i + 1 > TOP_NUM) return undefined;
             return (
-              <div class='val-percent-item'>
+              <div
+                key={val.id || i}
+                class='val-percent-item'
+              >
                 <div class='val-percent-progress'>
                   <div class='val-percent-text'>
                     <span class='field'>{val.id || '--'}</span>
                     <span class='percent'>{val.percent}%</span>
                   </div>
                   <bk-progress
-                    theme='success'
                     percent={val.percent / 100}
                     show-text={false}
+                    size='small'
                     stroke-width={6}
-                  ></bk-progress>
+                    theme='success'
+                  />
                 </div>
                 <i
                   class='icon-monitor icon-jia'
                   onClick={() => this.handleAddConditon('eq', item, val)}
-                ></i>
+                />
                 <i
                   class='icon-monitor icon-jian'
                   onClick={() => this.handleAddConditon('neq', item, val)}
-                ></i>
+                />
               </div>
             );
           })}
@@ -169,13 +173,13 @@ export default class FieldList extends tsc<FieldListType.IProp, FieldListType.IE
           <bk-collapse-item
             key={item.key}
             class={['collapse-item', { 'is-empty': !item.dimensions?.length }]}
-            name={item.key}
-            disabled={!item.dimensions?.length}
             scopedSlots={{
               default: () => titleSlot(item, index),
-              content: () => contentSlot(item)
+              content: () => contentSlot(item),
             }}
-          ></bk-collapse-item>
+            disabled={!item.dimensions?.length}
+            name={item.key}
+          />
         ))}
       </bk-collapse>
     );

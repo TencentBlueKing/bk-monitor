@@ -23,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { modifiers, Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
-import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { IOption } from '../../typings';
-import { COMPARE_KEY, COMPARE_LIST, COMPARE_TIME_OPTIONS, PanelToolsType } from '../../typings/panel-tools';
-
+import { COMPARE_KEY, COMPARE_LIST, COMPARE_TIME_OPTIONS, type PanelToolsType } from '../../typings/panel-tools';
 import TargetCompareSelect from './target-compare-select';
+
+import type { IOption } from '../../typings';
+import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import type { VNode } from 'vue';
 
 import './compare-select.scss';
 
@@ -64,13 +65,13 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   @Prop({
     default: () => COMPARE_KEY,
     type: Array,
-    validator: val => val.every(item => COMPARE_KEY.includes(item))
+    validator: val => val.every(item => COMPARE_KEY.includes(item)),
   })
   compareListEnable: PanelToolsType.CompareId[];
   /** 时间对比可选列表 */
   @Prop({
     default: () => COMPARE_TIME_OPTIONS,
-    type: Array
+    type: Array,
   })
   compareTimeOptions: PanelToolsType.ICompareListItem[];
   /** 目标可选项 */
@@ -145,7 +146,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
         if (!allListMap.has(item))
           allList.push({
             id: item,
-            name: item
+            name: item,
           });
       });
     }
@@ -174,9 +175,9 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   @Watch('targetValue', { immediate: true })
   targetValueChange() {
     const viewOptions = deepClone(this.targetValue) as IViewOptions;
-    // eslint-disable-next-line max-len
-    this.localTargetValue = viewOptions.compares?.targets?.map(
-      item => this.panel.targets?.[0]?.handleCreateItemId(item, true)
+
+    this.localTargetValue = viewOptions.compares?.targets?.map(item =>
+      this.panel.targets?.[0]?.handleCreateItemId(item, true)
     );
     // this.localTargetValue = viewOptions.compares?.targets?.filter(item => item).map(item => item.bk_host_id);
   }
@@ -211,11 +212,11 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
       none: true,
       target: (val as PanelToolsType.CompareValue<'target'>) || [],
       time: (val as PanelToolsType.CompareValue<'time'>) || [],
-      metric: (val as PanelToolsType.CompareValue<'metric'>) || []
+      metric: (val as PanelToolsType.CompareValue<'metric'>) || [],
     };
     const data = {
       type,
-      value: defaultDataMap[type]
+      value: defaultDataMap[type],
     };
     return data;
   }
@@ -240,7 +241,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
       this.$bkMessage({
         theme: 'warning',
         message: this.$t('按照提示输入'),
-        offsetY: 40
+        offsetY: 40,
       });
     }
   }
@@ -254,7 +255,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
     if (this.compareTimeList.every(item => item.id !== str)) {
       this.compareTimeCustomList.push({
         id: str,
-        name: str
+        name: str,
       });
     }
     !timeValue.includes(str) && timeValue.push(str);
@@ -298,8 +299,8 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
     const viewOptions: IViewOptions = {
       ...this.targetValue,
       compares: {
-        targets: targetCheckedList
-      }
+        targets: targetCheckedList,
+      },
     };
     return viewOptions;
   }
@@ -314,15 +315,15 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
   commonSelectTpl() {
     const optionsMap = {
       metric: this.metricOptions,
-      target: this.targetOptionsFilter
+      target: this.targetOptionsFilter,
     };
     const localValueMap = {
       metric: this.localMetricValue,
-      target: this.localTargetValue
+      target: this.localTargetValue,
     };
     const eventMap = {
       metric: this.handleMetricChange,
-      target: this.handleTargetChange
+      target: this.handleTargetChange,
     };
     const options = optionsMap[this.localType] || [];
     const localValue = localValueMap[this.localType];
@@ -331,19 +332,19 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
       <bk-select
         class='bk-select-simplicity compare-select'
         behavior='simplicity'
+        value={localValue}
+        zIndex={this.zIndex}
         multiple
         searchable
-        zIndex={this.zIndex}
-        value={localValue}
-        onSelected={handler}
         onClear={() => handler([])}
+        onSelected={handler}
       >
         {options.map(item => (
           <bk-option
-            key={item.id}
             id={item.id}
+            key={item.id}
             name={item.name}
-          ></bk-option>
+          />
         ))}
       </bk-select>
     );
@@ -376,10 +377,10 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
           onChange={this.handleTargetChange} /> */}
           <span class='target-compare-select'>
             <TargetCompareSelect
-              value={this.localTargetValue}
               list={this.targetOptionsFilter as any}
+              value={this.localTargetValue}
               onChange={this.handleTargetChange}
-            ></TargetCompareSelect>
+            />
           </span>
           {/* {this.commonSelectTpl()} */}
         </span>
@@ -387,18 +388,18 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
       time: (
         <bk-select
           class='bk-select-simplicity compare-select time-compare-select'
-          behavior='simplicity'
           v-model={this.localTimeValue}
-          multiple
+          behavior='simplicity'
           zIndex={this.zIndex}
-          onToggle={this.handleSelectToggle}
-          onSelected={list => this.handleTimeChange(list)}
+          multiple
           onClear={() => this.handleTimeChange([])}
+          onSelected={list => this.handleTimeChange(list)}
+          onToggle={this.handleSelectToggle}
         >
           {this.compareTimeList.map(item => (
             <bk-option
-              key={item.id}
               id={item.id}
+              key={item.id}
               name={item.name}
             />
           ))}
@@ -406,13 +407,13 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
             {this.showCustomTime ? (
               <span class='time-input-wrap'>
                 <bk-input
-                  size='small'
                   v-model={this.customTimeVal}
+                  size='small'
                   onKeydown={(_, evt) => this.handleModifiers(evt, this.handleAddCustomTime)}
                 />
                 <span
-                  v-bk-tooltips={this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')}
                   class='help-icon icon-monitor icon-mc-help-fill'
+                  v-bk-tooltips={this.$t('自定义输入格式: 如 1w 代表一周 m 分钟 h 小时 d 天 w 周 M 月 y 年')}
                 />
               </span>
             ) : (
@@ -425,7 +426,7 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
             )}
           </div>
         </bk-select>
-      )
+      ),
     };
     return tplMap[this.localType];
   }
@@ -436,17 +437,17 @@ export default class CompareSelect extends tsc<IProps, IEvents> {
         <span class='compare-select-label'>{this.$t('对比方式')}</span>
         <bk-select
           class='bk-select-simplicity compare-select'
+          v-model={this.localType}
           behavior='simplicity'
           clearable={false}
-          v-model={this.localType}
           disabled={!this.needCompare}
           zIndex={this.zIndex}
           onSelected={this.handleTypeChange}
         >
           {this.compareEnable.map(item => (
             <bk-option
-              key={item.id}
               id={item.id}
+              key={item.id}
               name={item.name}
             />
           ))}

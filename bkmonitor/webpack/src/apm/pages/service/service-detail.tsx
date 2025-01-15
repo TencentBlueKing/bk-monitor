@@ -25,17 +25,19 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import CommonPage from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
-import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+
+import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './service-detail.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MonitorK8s extends tsc<{}> {
+export default class MonitorK8s extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
 
   viewOptions: IViewOptions = {};
@@ -60,17 +62,17 @@ export default class MonitorK8s extends tsc<{}> {
       vm.routeList = [
         {
           id: 'application',
-          name: 'APM'
+          name: 'APM',
         },
         {
           id: 'service',
           name: 'service',
-          query: {}
+          query: {},
         },
         {
           id: '',
-          name: 'loading...'
-        }
+          name: 'loading...',
+        },
       ];
       vm.viewOptions = {};
     });
@@ -83,18 +85,18 @@ export default class MonitorK8s extends tsc<{}> {
     return (
       <div class='monitor-k8s-detail'>
         <CommonPage
+          defaultViewOptions={this.viewOptions}
           sceneId={'apm_service'}
           sceneType={'detail'}
-          defaultViewOptions={this.viewOptions}
           onPageTitleChange={this.handlePageTitleChange}
           onTitleChange={this.headerTitleChange}
         >
           <CommonNavBar
             slot='nav'
-            routeList={this.routeList}
-            needShadow={true}
-            needCopyLink
             needBack={false}
+            needShadow={true}
+            routeList={this.routeList}
+            needCopyLink
           />
         </CommonPage>
       </div>

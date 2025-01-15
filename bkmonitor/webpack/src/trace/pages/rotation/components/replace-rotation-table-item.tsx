@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, PropType, reactive, Ref, TransitionGroup, watch } from 'vue';
+import { type PropType, type Ref, TransitionGroup, computed, defineComponent, inject, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Input, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { isEn } from 'monitor-pc/i18n/lang';
 
-import MemberSelect, { TagItemModel } from '../../../components/member-select/member-select';
+import MemberSelect, { type TagItemModel } from '../../../components/member-select/member-select';
 import { RotationSelectTypeEnum } from '../typings/common';
 import { validTimeOverlap } from '../utils';
-
 import CalendarSelect from './calendar-select';
 import DataTimeSelect from './data-time-select';
 import FormItem from './form-item';
@@ -39,9 +40,8 @@ import TimeTagPicker from './time-tag-picker';
 import WeekSelect from './week-select';
 
 import './replace-rotation-table-item.scss';
-
-type CustomTabType = 'duration' | 'classes';
-type WorkTimeType = 'time_range' | 'datetime_range';
+type CustomTabType = 'classes' | 'duration';
+type WorkTimeType = 'datetime_range' | 'time_range';
 export interface ReplaceRotationDateModel {
   key: number;
   workDays?: number[];
@@ -49,7 +49,7 @@ export interface ReplaceRotationDateModel {
 }
 export interface ReplaceRotationUsersModel {
   groupNumber?: number;
-  groupType: 'specified' | 'auto';
+  groupType: 'auto' | 'specified';
   value: { key: number; value: { type: 'group' | 'user'; id: string }[]; orderIndex: number }[];
 }
 
@@ -66,7 +66,7 @@ export interface ReplaceItemDataModel {
     /** 自定义轮值有效日期 */
     customWorkDays: number[];
     /** 单班时长 */
-    periodSettings: { unit: 'hour' | 'day'; duration: number };
+    periodSettings: { unit: 'day' | 'hour'; duration: number };
     value: ReplaceRotationDateModel[];
   };
   users: ReplaceRotationUsersModel;
@@ -77,8 +77,8 @@ export default defineComponent({
   props: {
     data: {
       type: Object as PropType<ReplaceItemDataModel>,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   emits: ['change', 'drop'],
   setup(props, { emit }) {
@@ -86,6 +86,7 @@ export default defineComponent({
     const colorList = inject<{ value: string[]; setValue: (val: string[]) => void }>('colorList');
 
     const defaultGroup = inject<Ref<any[]>>('defaultGroup');
+    const labelWidth = computed(() => (isEn ? 110 : 70));
 
     const rotationTypeList: { label: string; value: RotationSelectTypeEnum }[] = [
       { label: t('每天'), value: RotationSelectTypeEnum.Daily },
@@ -93,7 +94,7 @@ export default defineComponent({
       { label: t('每月'), value: RotationSelectTypeEnum.Monthly },
       { label: t('每工作日(周一至周五)'), value: RotationSelectTypeEnum.WorkDay },
       { label: t('每周末(周六、周日)'), value: RotationSelectTypeEnum.Weekend },
-      { label: t('自定义'), value: RotationSelectTypeEnum.Custom }
+      { label: t('自定义'), value: RotationSelectTypeEnum.Custom },
     ];
 
     const localValue = reactive<ReplaceItemDataModel>({
@@ -106,15 +107,15 @@ export default defineComponent({
         customWorkDays: [],
         periodSettings: {
           unit: 'day',
-          duration: 1
+          duration: 1,
         },
-        value: [createDefaultDate(RotationSelectTypeEnum.WorkDay)]
+        value: [createDefaultDate(RotationSelectTypeEnum.WorkDay)],
       },
       users: {
         groupType: 'specified',
         groupNumber: 1,
-        value: [{ key: random(8, true), value: [], orderIndex: 0 }]
-      }
+        value: [{ key: random(8, true), value: [], orderIndex: 0 }],
+      },
     });
 
     /** 轮值类型 */
@@ -135,7 +136,7 @@ export default defineComponent({
         }
         localValue.date.value = [createDefaultDate(val)];
         handleEmitData();
-      }
+      },
     });
 
     watch(
@@ -146,7 +147,7 @@ export default defineComponent({
         }
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -172,7 +173,7 @@ export default defineComponent({
       return {
         key: random(8, true),
         workTime: [],
-        workDays: days
+        workDays: days,
       };
     }
 
@@ -193,7 +194,7 @@ export default defineComponent({
      * @param rotationType 轮值类型
      * @returns 渲染的内容
      */
-    function weekAndMonthClasses(rotationType: RotationSelectTypeEnum.Weekly | RotationSelectTypeEnum.Monthly) {
+    function weekAndMonthClasses(rotationType: RotationSelectTypeEnum.Monthly | RotationSelectTypeEnum.Weekly) {
       const val = localValue.date.value;
 
       /**
@@ -215,6 +216,7 @@ export default defineComponent({
         return [
           rotationType === RotationSelectTypeEnum.Weekly ? (
             <WeekSelect
+              key={'week-select'}
               class='mr8'
               v-model={item.workDays}
               label={val.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
@@ -222,14 +224,16 @@ export default defineComponent({
             />
           ) : (
             <CalendarSelect
+              key={'calendar-select'}
               class='mr8'
-              hasStart
               v-model={item.workDays}
               label={val.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
+              hasStart
               onSelectEnd={handleEmitData}
             />
           ),
           <TimeTagPicker
+            key={'time-tag-picker'}
             v-model={item.workTime}
             onChange={handleEmitData}
           />,
@@ -238,10 +242,10 @@ export default defineComponent({
               class='icon-monitor icon-mc-delete-line del-icon'
               onClick={() => handleClassesItemChange('del', ind)}
             />
-          )
+          ),
         ];
       }
-      function dataTimeSelectChange(val: string[], item: ReplaceRotationDateModel, type: 'start' | 'end') {
+      function dataTimeSelectChange(val: string[], item: ReplaceRotationDateModel, type: 'end' | 'start') {
         if (type === 'start') {
           item.workTime[0] = val;
         } else {
@@ -257,13 +261,20 @@ export default defineComponent({
       function renderDateTimeRangeItem(item: ReplaceRotationDateModel, ind: number) {
         return [
           <DataTimeSelect
-            modelValue={item.workTime[0]}
+            key={'data-time-select'}
             label={val.length > 1 ? t('第 {num} 班', { num: ind + 1 }) : ''}
+            modelValue={item.workTime[0]}
             type={rotationType === RotationSelectTypeEnum.Weekly ? 'week' : 'calendar'}
             onChange={val => dataTimeSelectChange(val, item, 'start')}
           />,
-          <span class='separator-to'>{t('至')}</span>,
+          <span
+            key={'separator-to'}
+            class='separator-to'
+          >
+            {t('至')}
+          </span>,
           <DataTimeSelect
+            key={'data-time-select'}
             modelValue={item.workTime[1]}
             type={rotationType === RotationSelectTypeEnum.Weekly ? 'week' : 'calendar'}
             onChange={val => dataTimeSelectChange(val, item, 'end')}
@@ -273,14 +284,15 @@ export default defineComponent({
               class='icon-monitor icon-mc-delete-line del-icon'
               onClick={() => handleClassesItemChange('del', ind)}
             />
-          )
+          ),
         ];
       }
 
       return [
         <FormItem
+          key={'date-type'}
           label=''
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <div class='tab-list'>
             <div
@@ -298,20 +310,21 @@ export default defineComponent({
           </div>
         </FormItem>,
         <FormItem
+          key={'classes'}
           label={t('单班时间')}
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <div class='classes-list'>
             {val.map((item, ind) => [
               <div
-                class='classes-item'
                 key={item.key}
+                class='classes-item'
               >
                 {localValue.date.workTimeType === 'time_range'
                   ? renderTimeRangeItem(item, ind)
                   : renderDateTimeRangeItem(item, ind)}
               </div>,
-              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>,
             ])}
             <Button
               class='add-btn'
@@ -319,11 +332,11 @@ export default defineComponent({
               text
               onClick={() => handleClassesItemChange('add')}
             >
-              <i class='icon-monitor icon-plus-line add-icon'></i>
+              <i class='icon-monitor icon-plus-line add-icon' />
               {t('新增值班')}
             </Button>
           </div>
-        </FormItem>
+        </FormItem>,
       ];
     }
     /**
@@ -349,15 +362,16 @@ export default defineComponent({
 
       return [
         <FormItem
-          label={t('有效日期')}
-          labelWidth={70}
+          key='expiration-date-form-item'
           class='expiration-date-form-item'
+          label={t('有效日期')}
+          labelWidth={labelWidth.value}
         >
           <Select
-            v-model={localValue.date.type}
             class='date-type-select'
-            onChange={handleDateTypeChange}
+            v-model={localValue.date.type}
             clearable={false}
+            onChange={handleDateTypeChange}
           >
             <Select.Option
               label={t('按周')}
@@ -383,8 +397,9 @@ export default defineComponent({
           )}
         </FormItem>,
         <FormItem
+          key='custom-tab-form-item'
           label=''
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <div class='tab-list'>
             <div
@@ -404,14 +419,14 @@ export default defineComponent({
 
         localValue.date.customTab === 'duration' && (
           <FormItem
-            label={t('单班时长')}
-            labelWidth={70}
             class='classes-duration-form-item'
+            label={t('单班时长')}
+            labelWidth={labelWidth.value}
           >
             <Input
               v-model={localValue.date.periodSettings.duration}
-              type='number'
               min={1}
+              type='number'
               onChange={handleDurationChange}
             />
             <Select
@@ -431,14 +446,15 @@ export default defineComponent({
           </FormItem>
         ),
         <FormItem
+          key='classes-form-item'
           label={localValue.date.customTab === 'duration' ? t('有效时间') : t('单班时间')}
-          labelWidth={70}
+          labelWidth={labelWidth.value}
         >
           <div class='classes-list'>
             {value.map((item, ind) => [
               <div
-                class='classes-item'
                 key={item.key}
+                class='classes-item'
               >
                 <TimeTagPicker
                   v-model={item.workTime}
@@ -452,7 +468,7 @@ export default defineComponent({
                   />
                 )}
               </div>,
-              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+              validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>,
             ])}
             {localValue.date.customTab === 'classes' && (
               <Button
@@ -461,12 +477,12 @@ export default defineComponent({
                 text
                 onClick={() => handleClassesItemChange('add')}
               >
-                <i class='icon-monitor icon-plus-line add-icon'></i>
+                <i class='icon-monitor icon-plus-line add-icon' />
                 {t('新增值班')}
               </Button>
             )}
           </div>
-        </FormItem>
+        </FormItem>,
       ];
     }
     /**
@@ -484,11 +500,14 @@ export default defineComponent({
           return (
             <FormItem
               label={t('单班时间')}
-              labelWidth={70}
+              labelWidth={labelWidth.value}
             >
               <div class='classes-list'>
                 {val.map((item, ind) => [
-                  <div class='classes-item'>
+                  <div
+                    key={ind}
+                    class='classes-item'
+                  >
                     <TimeTagPicker
                       key={item.key}
                       v-model={item.workTime}
@@ -502,7 +521,7 @@ export default defineComponent({
                       />
                     )}
                   </div>,
-                  validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>
+                  validTimeOverlap(item.workTime) && <p class='err-msg'>{t('时间段重复')}</p>,
                 ])}
                 <Button
                   class='add-btn'
@@ -546,7 +565,7 @@ export default defineComponent({
           return pre;
         }, new Map());
         localValue.users.value = [
-          { key: localValue.users.value[0].key, value: Array.from(res.values()), orderIndex: 0 }
+          { key: localValue.users.value[0].key, value: Array.from(res.values()), orderIndex: 0 },
         ];
       }
       handleEmitData();
@@ -579,15 +598,25 @@ export default defineComponent({
       }
       return [
         <div
-          class='auto-group-tag-color'
+          key={1}
           style={{ 'background-color': colorList.value[getOrderIndex(index)] }}
-        ></div>,
-        <span class='icon-monitor icon-mc-tuozhuai'></span>,
-        <span class='user-name'>{data?.username}</span>,
+          class='auto-group-tag-color'
+        />,
         <span
+          key={2}
+          class='icon-monitor icon-mc-tuozhuai'
+        />,
+        <span
+          key={3}
+          class='user-name'
+        >
+          {data?.username}
+        </span>,
+        <span
+          key={4}
           class='icon-monitor icon-mc-close'
           onClick={e => handleCloseTag(e)}
-        ></span>
+        />,
       ];
     }
 
@@ -656,6 +685,7 @@ export default defineComponent({
 
     return {
       t,
+      labelWidth,
       colorList,
       defaultGroup,
       rotationTypeList,
@@ -673,7 +703,7 @@ export default defineComponent({
       handleAutoGroupDrop,
       handleEmitDrop,
       handleEmitData,
-      handleGroupTabChange
+      handleGroupTabChange,
     };
   },
   render() {
@@ -682,7 +712,7 @@ export default defineComponent({
         <td class='step-wrapper replace-rotation'>
           <FormItem
             label={this.t('轮值类型')}
-            labelWidth={70}
+            labelWidth={this.labelWidth}
           >
             <Select
               v-model={this.rotationSelectType}
@@ -690,10 +720,10 @@ export default defineComponent({
             >
               {this.rotationTypeList.map(item => (
                 <Select.Option
+                  id={item.value}
                   key={item.value}
                   name={item.label}
-                  id={item.value}
-                ></Select.Option>
+                />
               ))}
             </Select>
           </FormItem>
@@ -722,36 +752,36 @@ export default defineComponent({
                 <TransitionGroup name={'flip-list'}>
                   {this.localValue.users.value.map((item, ind) => (
                     <div
-                      class='specified-group-item'
                       key={item.key}
+                      class='specified-group-item'
                       draggable
-                      onDragstart={e => this.handleDragstart(e, ind)}
                       onDragover={e => this.handleDragover(e)}
+                      onDragstart={e => this.handleDragstart(e, ind)}
                       onDrop={e => this.handleDrop(e, ind)}
                     >
                       <MemberSelect
-                        showType='avatar'
                         v-model={item.value}
-                        hasDefaultGroup={true}
                         defaultGroup={this.defaultGroup}
+                        hasDefaultGroup={true}
+                        showType='avatar'
                         onSelectEnd={val => this.handMemberSelectChange(ind, val)}
                       >
                         {{
                           prefix: () => (
                             <div
-                              class='member-select-prefix'
                               style={{ 'border-left-color': this.colorList.value[this.getOrderIndex(ind)] }}
+                              class='member-select-prefix'
                             >
-                              <span class='icon-monitor icon-mc-tuozhuai'></span>
+                              <span class='icon-monitor icon-mc-tuozhuai' />
                             </div>
-                          )
+                          ),
                         }}
                       </MemberSelect>
                       {this.localValue.users.value.length > 1 && (
                         <i
                           class='icon-monitor icon-mc-delete-line del-icon'
                           onClick={() => this.handleDelUserGroup(ind)}
-                        ></i>
+                        />
                       )}
                     </div>
                   ))}
@@ -774,29 +804,29 @@ export default defineComponent({
               >
                 <FormItem
                   label={this.t('轮值人员')}
-                  labelWidth={70}
+                  labelWidth={this.labelWidth}
                 >
                   <MemberSelect
-                    showType='tag'
                     v-model={this.localValue.users.value[0].value}
-                    hasDefaultGroup={true}
                     defaultGroup={this.defaultGroup}
+                    hasDefaultGroup={true}
+                    showType='tag'
                     tagTpl={this.autoGroupTagTpl}
-                    onSelectEnd={val => this.handMemberSelectChange(0, val)}
                     onDrop={this.handleAutoGroupDrop}
+                    onSelectEnd={val => this.handMemberSelectChange(0, val)}
                   />
                 </FormItem>
                 <FormItem
                   label={this.t('单次值班')}
-                  labelWidth={70}
+                  labelWidth={this.labelWidth}
                 >
                   <Input
                     style='width: 200px'
                     v-model={this.localValue.users.groupNumber}
-                    onChange={this.handleEmitData}
-                    type='number'
-                    suffix={this.t('人')}
                     min={1}
+                    suffix={this.t('人')}
+                    type='number'
+                    onChange={this.handleEmitData}
                   />
                 </FormItem>
               </div>
@@ -806,5 +836,5 @@ export default defineComponent({
         {this.$slots.default?.()}
       </tr>
     );
-  }
+  },
 });

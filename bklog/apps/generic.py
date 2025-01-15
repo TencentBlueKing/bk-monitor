@@ -21,6 +21,19 @@ the project delivered to anyone in the future.
 """
 from typing import List
 
+from django.conf import settings
+from django.http import Http404, JsonResponse
+from django.utils.translation import ugettext as _
+from django_filters import rest_framework as django_filters
+from iam import Resource
+from opentelemetry import trace
+from opentelemetry.trace import format_trace_id
+from rest_framework import exceptions, filters, serializers, status
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet
+from rest_framework.viewsets import ModelViewSet as _ModelViewSet
+
 from apps.exceptions import BaseException, ErrorCode, ValidationError
 from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.iam.exceptions import PermissionDeniedError
@@ -35,18 +48,6 @@ from apps.utils.drf import (
 )
 from apps.utils.function import ignored
 from apps.utils.log import logger
-from django.conf import settings
-from django.http import Http404, JsonResponse
-from django.utils.translation import ugettext as _
-from django_filters import rest_framework as django_filters
-from iam import Resource
-from opentelemetry import trace
-from opentelemetry.trace import format_trace_id
-from rest_framework import exceptions, filters, serializers, status
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
-from rest_framework.viewsets import ModelViewSet as _ModelViewSet
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -61,7 +62,7 @@ class FlowMixin(object):
         {result: True, data: {}, code: 00, message: ''}
     """
 
-    authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
+    authentication_classes = (CsrfExemptSessionAuthentication,)
 
     def finalize_response(self, request, response, *args, **kwargs):
         # 目前仅对 Restful Response 进行处理

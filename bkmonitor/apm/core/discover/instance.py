@@ -25,6 +25,7 @@ from constants.apm import OtlpKey
 
 
 class InstanceDiscover(DiscoverBase):
+    DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     INSTANCE_ID_SPLIT = ":"
     model = TopoInstance
@@ -171,11 +172,19 @@ class InstanceDiscover(DiscoverBase):
                         match_component_rule.topo_kind,
                         match_component_rule.category_id,
                         span,
-                        skip_component_prefix=True,
+                        simple_component_instance=False,
+                        component_predicate_key=match_component_rule.predicate_key,
+                    )
+                    topo_key = get_topo_instance_key(
+                        match_component_rule.instance_keys,
+                        match_component_rule.topo_kind,
+                        match_component_rule.category_id,
+                        span,
+                        component_predicate_key=match_component_rule.predicate_key,
                     )
                     found_keys.append(
                         (
-                            service_name,
+                            f"{service_name}-{topo_key}",
                             component_instance_id,
                             ApmTopoDiscoverRule.TOPO_COMPONENT,
                             match_component_rule.category_id,

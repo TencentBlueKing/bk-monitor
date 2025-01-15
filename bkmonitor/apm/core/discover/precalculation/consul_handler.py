@@ -20,8 +20,9 @@ import traceback
 from dataclasses import asdict, dataclass
 from urllib.parse import urlunparse
 
-from core.drf_resource import resource
 from django.conf import settings
+
+from core.drf_resource import resource
 from metadata.models import ClusterInfo
 from metadata.utils import consul_tools
 
@@ -56,6 +57,7 @@ class ConsulData:
     """
 
     data_id: str
+    token: str
     bk_biz_id: str
     bk_biz_name: str
     app_id: str
@@ -77,7 +79,7 @@ class ConsulHandler:
 
         space_mapping = {i["space_id"]: i for i in resource.metadata.list_spaces().get("list", [])}
 
-        for application in ApmApplication.objects.all():
+        for application in ApmApplication.objects.filter(is_enabled=True):
             cls._check_update(application, space_mapping)
 
         logger.info("check all consul update finished")
@@ -87,8 +89,10 @@ class ConsulHandler:
         from apm.core.discover.precalculation.storage import PrecalculateStorage
 
         data_id = trace_datasource.bk_data_id
-        trace_index_name = f"{trace_datasource.result_table_id.replace('.', '_')}*"
         datasource_info = resource.metadata.query_data_source(bk_data_id=data_id)
+        if not datasource_info.get("result_table_list"):
+            return None
+
         result_table_config = datasource_info["result_table_list"][0]["shipper_list"][0]
         result_table_cluster_config = result_table_config["cluster_config"]
         save_storage = PrecalculateStorage(application.bk_biz_id, application.app_name)
@@ -96,6 +100,7 @@ class ConsulHandler:
 
         return ConsulData(
             data_id=data_id,
+            token=application.get_bk_data_token(),
             bk_biz_id=application.bk_biz_id,
             bk_biz_name=space_mapping[str(application.bk_biz_id)]["space_name"]
             if str(application.bk_biz_id) in space_mapping
@@ -111,7 +116,7 @@ class ConsulHandler:
                 topic=datasource_info['mq_config']['storage_config']["topic"],
             ),
             trace_es_info=ConsulEsInfo(
-                index_name=trace_index_name,
+                index_name=trace_datasource.result_table_id.replace(".", "_"),
                 host=urlunparse(
                     (
                         result_table_cluster_config["schema"] if result_table_cluster_config["schema"] else "http",
@@ -148,10 +153,15 @@ class ConsulHandler:
         检查应用的consul配置是否有更新 若有则刷新配置
         """
         trace_datasource = application.trace_datasource
+        if trace_datasource is None:
+            return None
+
         key = CONSUL_PATH.format(data_id=trace_datasource.bk_data_id)
 
         try:
             cur_data = cls._get_info(space_mapping, application, trace_datasource)
+            if cur_data is None:
+                return None
         except Exception as e:  # noqa
             logger.error(
                 f"failed to get current consul config! app_id: {application.id}. "

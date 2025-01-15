@@ -26,11 +26,11 @@
 export default class TableStore {
   public data: { id: string; name: string }[];
   public keyword: string;
-  public total: number;
   public page: number;
-  public pageSize: number;
   public pageList: number[];
+  public pageSize: number;
   public searchCondition: { id: string; name: string; values?: { id: string; name: string }[] }[] = [];
+  public total: number;
   public constructor(originData) {
     originData.forEach(set => {
       const item = set;
@@ -53,14 +53,6 @@ export default class TableStore {
     }
     this.total = ret.length;
     return ret.slice(this.pageSize * (this.page - 1), this.pageSize * this.page);
-  }
-
-  public setDefaultStore() {
-    this.keyword = '';
-    this.page = 1;
-    this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
-    this.pageList = [10, 20, 50, 100];
-    this.total = 0;
   }
 
   /**
@@ -110,5 +102,13 @@ export default class TableStore {
       }
       return iss.length ? iss.some(is => is) : true;
     });
+  }
+
+  public setDefaultStore() {
+    this.keyword = '';
+    this.page = 1;
+    this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
+    this.pageList = [10, 20, 50, 100];
+    this.total = 0;
   }
 }

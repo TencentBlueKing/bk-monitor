@@ -29,6 +29,7 @@ from apps.log_search.constants import (
     INDEX_SET_NOT_EXISTED,
     FavoriteGroupType,
     FavoriteListOrderType,
+    FavoriteType,
     FavoriteVisibleType,
     IndexSetType,
 )
@@ -150,6 +151,7 @@ class FavoriteHandler(object):
                 "group_name": group_info[fi["group_id"]]["name"],
                 "index_set_type": fi["index_set_type"],
                 "visible_type": fi["visible_type"],
+                "search_mode": fi["search_mode"],
                 "params": fi["params"],
                 "search_fields": fi["params"].get("search_fields", []),
                 "keyword": fi["params"].get("keyword", ""),
@@ -183,14 +185,25 @@ class FavoriteHandler(object):
         search_fields: list,
         is_enable_display_fields: bool,
         display_fields: list,
+        chart_params: dict = None,
+        search_mode: str = None,
         index_set_id: int = None,
         group_id: int = None,
         index_set_ids: list = None,
         index_set_type: str = IndexSetType.SINGLE.value,
+        favorite_type: str = FavoriteType.SEARCH.value,
     ) -> dict:
+        chart_params = chart_params or {}
         # 构建params
-        params = {"ip_chooser": ip_chooser, "addition": addition, "keyword": keyword, "search_fields": search_fields}
+        params = {
+            "ip_chooser": ip_chooser,
+            "addition": addition,
+            "keyword": keyword,
+            "search_fields": search_fields,
+            "chart_params": chart_params,
+        }
         space_uid = self.space_uid if self.space_uid else self.data.space_uid
+        search_mode = search_mode if search_mode else self.data.search_mode
 
         # 可见为个人时归类到个人组
         if visible_type == FavoriteVisibleType.PRIVATE.value:
@@ -219,6 +232,7 @@ class FavoriteHandler(object):
                 "group_id": group_id,
                 "params": params,
                 "visible_type": visible_type,
+                "search_mode": search_mode,
                 "is_enable_display_fields": is_enable_display_fields,
                 "display_fields": display_fields,
             }
@@ -236,10 +250,12 @@ class FavoriteHandler(object):
                 group_id=group_id,
                 params=params,
                 visible_type=visible_type,
+                search_mode=search_mode,
                 is_enable_display_fields=is_enable_display_fields,
                 display_fields=display_fields,
                 index_set_ids=index_set_ids,
                 index_set_type=index_set_type,
+                favorite_type=favorite_type,
             )
 
         return model_to_dict(self.data)
@@ -254,6 +270,7 @@ class FavoriteHandler(object):
                 addition=param["addition"],
                 keyword=param["keyword"],
                 visible_type=param["visible_type"],
+                search_mode=param.get("search_mode"),
                 search_fields=param["search_fields"],
                 is_enable_display_fields=param["is_enable_display_fields"],
                 display_fields=param["display_fields"],

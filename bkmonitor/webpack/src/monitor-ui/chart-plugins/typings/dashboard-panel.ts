@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,15 +25,17 @@
  */
 import { isObject, random, typeTools } from 'monitor-common/utils/utils';
 
+import { filterDictConvertedToWhere, getMetricId } from '../utils/utils';
+
 import type { MonitorEchartOptions } from './index';
-import { TimeSeriesType } from './time-series';
+import type { TimeSeriesType } from './time-series';
 
 // 图例呈现模式
-export type LegendDisplayMode = 'table' | 'list' | 'hidden';
+export type LegendDisplayMode = 'hidden' | 'list' | 'table';
 // 图例展示位置
-export type LegendPlacement = 'right' | 'bottom';
+export type LegendPlacement = 'bottom' | 'right';
 // 图例计算配置
-export type LegendCalcs = 'max' | 'min' | 'avg' | 'sum';
+export type LegendCalcs = 'avg' | 'max' | 'min' | 'sum';
 
 export interface IFilterListItem {
   id: string;
@@ -86,6 +87,9 @@ export interface ITimeSeriesOption {
     custom_timerange?: boolean;
     nearSeriesNum?: number;
     noTransformVariables?: boolean;
+    hoverAllTooltips?: boolean;
+    YAxisLabelWidth?: number;
+    needAllAlertMarkArea?: boolean;
   };
 }
 
@@ -118,13 +122,20 @@ export interface ITargetListOption {
     show_overview?: boolean;
     show_status_bar?: boolean;
     placeholder?: string;
+    time_range_change_refresh?: boolean; // 时间范围变化是否刷新列表数据
+    status_tab_list?: {
+      id: string;
+      name: string;
+      status: string;
+      tips: string;
+    }[];
   };
 }
 export interface ITableChartOption {
   table_chart?: {
     need_filters?: boolean; // 是否需要表格筛选tab
     need_title?: boolean; // 表格图是否需要标题栏
-    search_type?: 'input' | 'search_select' | 'none'; // 普通搜索 | search select组件
+    search_type?: 'input' | 'none' | 'search_select'; // 普通搜索 | search select组件
     json_viewer_data_key?: string; // 显示json格式数据的key show_expand=true生效
     json_viewer_data_empty_text?: string; // json格式数据为空的情况下提示内容 show_expand=true生效
     show_expand?: boolean; // 是否需要点击展开内容
@@ -174,7 +185,7 @@ export interface DataQueryOptions {
   };
 }
 export interface IDataQuery {
-  datasource?: string | null;
+  datasource?: null | string;
   // 查询图表配置
   data: any;
   // 数据api
@@ -192,7 +203,7 @@ export interface IDataQuery {
   /** 根据当前请求接口数据的映射规则生成id */
   handleCreateItemId?: (item: object, isFilterDict?: boolean, fieldsSort?: FieldsSortType) => string;
   /** 根据接口数据提取对应的filter_dict值  */
-  // eslint-disable-next-line max-len
+
   handleCreateFilterDictValue?: (
     item: object,
     isFilterDict?: boolean,
@@ -201,27 +212,32 @@ export interface IDataQuery {
 }
 
 export class DataQuery implements IDataQuery {
-  datasource?: string | null;
-  // 查询图表配置
-  data: any;
-  // 数据api
-  api?: string;
-  // 数据类型 table time_series ...
-  dataType?: string;
   // 别名 用于图例 设置有变量
   alias?: string;
-  // 变量的映射关系
-  fields?: Record<string, string> = {};
-  /** fields的拼接顺序 */
-  fieldsSort?: FieldsSortType = [];
-  fieldsKey?: string = '';
-  field?: Record<string, string> = {};
-  isMultiple?: boolean;
-  options?: DataQueryOptions;
+  // 数据api
+  api?: string;
+  chart_type: 'bar' | 'line' = undefined;
   /** 目标对比的字段映射 */
   compareFieldsSort?: FieldsSortType = [];
+  // 查询图表配置
+  data: any;
+  datasource?: null | string;
+  // 数据类型 table time_series ...
+  dataType?: string;
+  expression?: string;
+  field?: Record<string, string> = {};
+  // 变量的映射关系
+  fields?: Record<string, string> = {};
+  fieldsKey?: string = '';
+  /** fields的拼接顺序 */
+  fieldsSort?: FieldsSortType = [];
   // 用于主机ipv6 去除不需要的group_by字段
   ignore_group_by?: string[];
+  isMultiple?: boolean;
+  options?: DataQueryOptions;
+  // 主键参数
+  primary_key?: string;
+  yAxisIndex?: number;
   constructor(model: IDataQuery, isMultiple = false) {
     this.isMultiple = isMultiple;
     Object.keys(model || {}).forEach(key => {
@@ -244,52 +260,53 @@ export class DataQuery implements IDataQuery {
       }
     });
   }
-  get apiModule() {
-    return this.api?.split('.')[0] || '';
-  }
   get apiFunc() {
     return this.api?.split('.')[1] || '';
   }
-  /** 对象生成有序的二维数组 */
-  handleCreateFieldsSort(fields: Record<string, string>): FieldsSortType {
-    const fieldsSort: FieldsSortType = [];
-    Object.entries(fields)
-      ?.map(item => item[0])
-      ?.sort()
-      ?.forEach(key => fieldsSort.push([key, fields[key]]));
-    return fieldsSort;
+  get apiModule() {
+    return this.api?.split('.')[0] || '';
   }
-  /** 生成一个唯一的key */
-  handleCreateFieldsKey(fieldsSort) {
-    return fieldsSort.reduce((total, cur, index) => {
-      const joiner = !index ? '' : '-';
-      return (total = `${total}${joiner}${cur[1]}`);
-    }, '');
-  }
-  /** 根据当前请求接口数据的映射规则生成id */
-  handleCreateItemId(item: Object, isFilterDict = false, fieldsSort?: FieldsSortType, splitChar = '-') {
-    const localFieldsSort = fieldsSort || this.fieldsSort;
+  handleCreateCompares(data: object) {
+    const localFieldsSort = this.fieldsSort;
     let isExist = true;
-    const itemIds = [];
-    localFieldsSort.forEach(set => {
-      const [itemKey, filterDictKey] = set;
-      const key = isFilterDict ? filterDictKey : itemKey;
-      let value = item[key];
+    const result = localFieldsSort.reduce((total, cur) => {
+      const [itemKey, filterDictKey] = cur;
+      let value = data?.[itemKey];
       value === undefined && isExist && (isExist = false);
       value =
-        this.isMultiple || ['pod_name_list'].includes(key)
+        this.isMultiple || ['pod_name_list'].includes(itemKey)
           ? Array.isArray(value)
             ? value
             : [value]
           : isObject(value)
             ? value.value
             : value; // 兼容对象结构的value
-      itemIds.push(value);
-    });
-    return isExist ? itemIds.filter(item => item !== undefined).join(splitChar) : null;
+      total[filterDictKey] = value;
+      return total;
+    }, {});
+    return isExist ? result : null;
+  }
+  /** 生成一个唯一的key */
+  handleCreateFieldsKey(fieldsSort) {
+    return fieldsSort.reduce((total, cur, index) => {
+      const joiner = !index ? '' : '-';
+      return `${total}${joiner}${cur[1]}`;
+    }, '');
+  }
+  /** 对象生成有序的二维数组 */
+  handleCreateFieldsSort(fields: Record<string, string>): FieldsSortType {
+    const fieldsSort: FieldsSortType = [];
+    const list =
+      Object.entries(fields)
+        ?.map(item => item[0])
+        ?.sort() || [];
+    for (const key of list) {
+      fieldsSort.push([key, fields[key]]);
+    }
+    return fieldsSort;
   }
   /** 根据接口数据提取对应的filter_dict值 */
-  handleCreateFilterDictValue(data: Object, isFilterDict = false, fieldsSort?: FieldsSortType) {
+  handleCreateFilterDictValue(data: object, isFilterDict = false, fieldsSort?: FieldsSortType) {
     const localFieldsSort = fieldsSort || this.fieldsSort;
     let isExist = true;
     const result = localFieldsSort.reduce((total, cur) => {
@@ -309,25 +326,27 @@ export class DataQuery implements IDataQuery {
     }, {});
     return isExist ? result : null;
   }
-  handleCreateCompares(data: Object) {
-    const localFieldsSort = this.fieldsSort;
+  /** 根据当前请求接口数据的映射规则生成id */
+  handleCreateItemId(item: object, isFilterDict = false, fieldsSort?: FieldsSortType, splitChar = '-') {
+    const localFieldsSort = fieldsSort || this.fieldsSort;
     let isExist = true;
-    const result = localFieldsSort.reduce((total, cur) => {
-      const [itemKey, filterDictKey] = cur;
-      let value = data?.[itemKey];
+    const itemIds = [];
+    for (const set of localFieldsSort) {
+      const [itemKey, filterDictKey] = set;
+      const key = isFilterDict ? filterDictKey : itemKey;
+      let value = item[key];
       value === undefined && isExist && (isExist = false);
       value =
-        this.isMultiple || ['pod_name_list'].includes(itemKey)
+        this.isMultiple || ['pod_name_list'].includes(key)
           ? Array.isArray(value)
             ? value
             : [value]
           : isObject(value)
             ? value.value
             : value; // 兼容对象结构的value
-      total[filterDictKey] = value;
-      return total;
-    }, {});
-    return isExist ? result : null;
+      itemIds.push(value);
+    }
+    return isExist ? itemIds.filter(item => item !== undefined).join(splitChar) : null;
   }
 }
 
@@ -370,17 +389,55 @@ export interface IResourceChartOption {
 export interface IRelatedLogChartoption {
   related_log_chart?: {
     defaultKeyword: string;
+    isSimpleChart?: boolean; // 是否为精简模式
   };
 }
 
-// eslint-disable-next-line max-len
+export interface IApmTimeSeriesOption {
+  apm_time_series?: {
+    unit?: string; // 详情单位
+    metric?: string;
+    app_name?: string;
+    service_name?: string;
+    enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    xAxisSplitNumber?: number;
+    disableZoom?: boolean;
+    sceneType?: string;
+  };
+}
+
+export interface IApmRelationGraphOption {
+  apm_relation_graph?: {
+    app_name?: string;
+    service_name?: string;
+  };
+}
+
+export interface IApdexChartOption {
+  apdex_chart?: {
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    sceneType?: string;
+  };
+}
+
 // 视图特殊配置
 export type PanelOption = {
   legend?: ILegendOption;
   unit?: string; // 单位
+  precision?: number; // 单位精度
+  is_support_compare: boolean;
+  is_support_group_by: boolean;
+  enable_panels_selector?: boolean;
+  child_panels_selector_variables?: {
+    id?: string;
+    title?: string;
+  };
+  need_zr_click_event?: boolean; // 是否需要zrender click 事件
   header?: {
     tips: string; // 提示
   };
+  collect_interval_display?: string; // 数据步长（步长过大情况时需要，正常情况无此字段）
 } & ISelectorList &
   IDashboardCommon &
   IVariablesOption &
@@ -393,10 +450,13 @@ export type PanelOption = {
   IRatioRingChartOption &
   IPercentageBarOption &
   IResourceChartOption &
-  IRelatedLogChartoption;
+  IRelatedLogChartoption &
+  IApmTimeSeriesOption &
+  IApmRelationGraphOption &
+  IApdexChartOption;
 
 export interface IPanelModel {
-  id: string | number;
+  id: number | string;
   // 图表位置
   gridPos?: IGridPos;
   // 图表类型 如 line-chart bar-chart status-chart group
@@ -416,13 +476,13 @@ export interface IPanelModel {
   // 图表配置
   options?: PanelOption;
   // 图表dashboard id
-  dashboardId?: string | number;
+  dashboardId?: number | string;
   // 组内视图列表
   panels?: IPanelModel[];
   // 是否显示
   show?: boolean;
   // 组id
-  groupId?: string | number;
+  groupId?: number | string;
   // 是否实时
   instant?: boolean;
   // 数据步长
@@ -436,57 +496,73 @@ export interface IPanelModel {
 }
 
 export interface ObservablePanelField {
-  [key: string | number]: Pick<IPanelModel, 'show' | 'collapsed' | 'checked'>;
+  [key: number | string]: Pick<IPanelModel, 'checked' | 'collapsed' | 'show'>;
 }
 
 export class PanelModel implements IPanelModel {
-  // 图表id
-  id!: string | number;
-  // 图表位置
-  gridPos!: IGridPos;
-  // 图表类型 如 line-chart bar-chart status-chart group
-  type!: string;
-  // 图表title
-  title!: string;
-  subTitle!: string;
-  // 图标带icon说明
-  descrition!: string;
-  // 是否折叠
-  collapsed?: boolean = false;
-  // 图表数据源
-  targets: DataQuery[];
-  // 图表配置
-  options?: PanelOption;
-  // dashbordId
-  dashboardId?: string;
+  // 当前业务id
+  bk_biz_id?: number | string;
   // 是否被勾选
   checked?: boolean = false;
-  // 组id
-  groupId?: string | number;
-  // 是否显示
-  show?: boolean = true;
-  panels?: PanelModel[];
-  // 是否正在drag中
-  draging = false;
-  // 是否为实时
-  instant = false;
-
+  // 是否折叠
+  collapsed?: boolean = false;
   collect_interval: number;
+  // dashbordId
+  dashboardId?: string;
+  // 图标带icon说明
+  descrition!: string;
+  dimension_panels?: PanelModel[];
   // 维度列表
   dimensions: string[];
-  realHeight = 0;
+  // 是否正在drag中
+  draging = false;
+  externalData: Record<string, any>; // 一些额外自定义数据 用于图表
+  extra_panels?: PanelModel[];
+  // 图表位置
+  gridPos!: IGridPos;
+  // 组id
+  groupId?: number | string;
+  // 图表id
+  id!: number | string;
+  // 是否为实时
+  instant = false;
   // 匹配显示字段
   matchDisplay?: Record<string, any>;
+  // 图表配置
+  options?: PanelOption;
+
+  panels?: PanelModel[];
   // 是否显示百分比
   percent?: boolean;
-  // 当前业务id
-  bk_biz_id?: string | number;
-
-  constructor(model: IPanelModel & { panelIds?: (string | number)[] }) {
+  rawTargetQueryMap = new WeakMap<Record<string, any>>();
+  realHeight = 0;
+  // 是否显示
+  show?: boolean = true;
+  subTitle!: string;
+  // 图表数据源
+  targets: DataQuery[];
+  // 图表title
+  title!: string;
+  // 图表类型 如 line-chart bar-chart status-chart group
+  type!: string;
+  constructor(model: Partial<IPanelModel> & { panelIds?: (number | string)[] }) {
     this.id = model.id || random(10);
+    // biome-ignore lint/complexity/noForEach: <explanation>
     Object.keys(model).forEach(key => {
       if (key === 'targets') {
         this.targets = model[key].map(item => new DataQuery(item));
+      } else if (key === 'extra_panels') {
+        this.extra_panels =
+          model[key]?.map(
+            item =>
+              new PanelModel({
+                ...item,
+                options: {
+                  ...item.options,
+                  need_zr_click_event: true,
+                },
+              })
+          ) || [];
       } else {
         this[key] = model[key];
       }
@@ -495,15 +571,12 @@ export class PanelModel implements IPanelModel {
       this.options = {
         legend: {
           displayMode: 'list',
-          placement: 'bottom'
+          placement: 'bottom',
         },
-        ...this.options
+        ...this.options,
       };
     }
     this.updateGridPos(model.gridPos);
-  }
-  get canSetGrafana() {
-    return ['graph', 'performance-chart'].includes(this.type);
   }
   get canDrag() {
     // return !(['row'].includes(this.type) && this.collapsed);
@@ -515,6 +588,147 @@ export class PanelModel implements IPanelModel {
     // 当期需求默认配置视图不可resize
     return false;
   }
+  get canSetGrafana() {
+    return [
+      'graph',
+      'performance-chart',
+      'caller-line-chart',
+      'apm-timeseries-chart',
+      'apm-custom-graph',
+      'k8s_custom_graph',
+    ].includes(this.type);
+  }
+  setRawQueryConfigs(target: Record<string, any>, data: Record<string, any>) {
+    this.rawTargetQueryMap.set(target, data);
+  }
+  public toDashboardPanels() {
+    const queries = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            alias: set.alias || '',
+            expression: set.expression || 'A',
+            ...config,
+            query_configs: [
+              filterDictConvertedToWhere(
+                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+              ),
+            ],
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!queries.length) return undefined;
+    return {
+      name: this.title,
+      fill: this.fill,
+      min_y_zero: this.min_y_zero,
+      queries,
+    };
+  }
+  public toDataRetrieval() {
+    const targets = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            data: {
+              ...config,
+              query_configs: [
+                filterDictConvertedToWhere(
+                  Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+                ),
+              ],
+            },
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!targets.length) return undefined;
+    return targets;
+  }
+  public toRelateEvent() {
+    const queries = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            query_configs: [
+              filterDictConvertedToWhere(
+                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+              ),
+            ],
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!queries.length) return undefined;
+    const metricIdMap = {};
+    const promqlSet = new Set<string>();
+    for (const target of queries) {
+      if (target?.query_configs?.length) {
+        for (const item of target.query_configs) {
+          if (item.promql) {
+            promqlSet.add(JSON.stringify(item.promql));
+          } else {
+            const metricId = getMetricId(
+              item.data_source_label,
+              item.data_type_label,
+              item.metrics?.[0]?.field,
+              item.table,
+              item.index_set_id
+            );
+            if (metricId) {
+              metricIdMap[metricId] = 'true';
+            }
+          }
+        }
+      }
+    }
+    let queryString = '';
+    for (const metricId of Object.keys(metricIdMap)) {
+      queryString += `${queryString.length ? ' OR ' : ''}指标ID : ${metricId}`;
+    }
+    let promqlString = '';
+    for (const promql of promqlSet) {
+      promqlString = `promql=${promql}`;
+    }
+    return promqlString || `queryString=${queryString}`;
+  }
+  public toStrategy() {
+    const queries = this.targets
+      .map(set => {
+        if (this.rawTargetQueryMap.has(set)) {
+          const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
+          return {
+            expression: set.expression || 'A',
+            query_configs: [
+              filterDictConvertedToWhere(
+                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
+              ),
+            ],
+          };
+        }
+        return undefined;
+      })
+      .filter(Boolean);
+    if (!queries.length) return undefined;
+    return queries[0];
+  }
+  public updateChecked(v: boolean) {
+    this.checked = v;
+  }
+  public updateCollapsed(v: boolean) {
+    this.collapsed = v;
+    this.panels?.length && this.panels.forEach(item => item?.updateShow?.(v));
+  }
+  public updateDraging(v: boolean) {
+    this.draging = v;
+  }
   public updateGridPos(v: IGridPos) {
     this.gridPos = {
       ...v,
@@ -525,24 +739,14 @@ export class PanelModel implements IPanelModel {
       i: this.id,
       static: !(this.canDrag && this.canResize),
       isDraggable: this.canDrag,
-      isResizable: this.canResize
+      isResizable: this.canResize,
     };
-  }
-  public updateChecked(v: boolean) {
-    this.checked = v;
-  }
-  public updateCollapsed(v: boolean) {
-    this.collapsed = v;
-    this.panels?.length && this.panels.forEach(item => item?.updateShow?.(v));
-  }
-  public updateShow(v: boolean) {
-    this.show = v;
-  }
-  public updateDraging(v: boolean) {
-    this.draging = v;
   }
   public updateRealHeight(v: number) {
     this.realHeight = v;
+  }
+  public updateShow(v: boolean) {
+    this.show = v;
   }
 }
 
@@ -563,21 +767,46 @@ export interface IVariableModel {
   /** 根据当前请求接口数据的映射规则生成id */
   handleCreateItemId: (item: object, isFilterDict?: boolean) => string;
 }
+
+class VariableDataQuery extends DataQuery {
+  /** 根据接口数据提取对应的filter_dict值 */
+  handleCreateFilterDictValue(data: object, isFilterDict = false, fieldsSort?: FieldsSortType) {
+    const localFieldsSort = fieldsSort || this.fieldsSort;
+    let isExist = true;
+    const result = localFieldsSort.reduce((total, cur) => {
+      const [itemKey, filterDictKey] = cur;
+      let value = data?.[isFilterDict ? filterDictKey : itemKey];
+      value === undefined && isExist && (isExist = false);
+      value =
+        this.isMultiple || ['pod_name_list'].includes(itemKey)
+          ? Array.isArray(value)
+            ? value
+            : [value]
+          : isObject(value)
+            ? value.value
+            : value; // 兼容对象结构的value
+      total[filterDictKey] = value;
+      return total;
+    }, {});
+    return isExist ? result : null;
+  }
+}
+
 /** 变量数据类 */
 export class VariableModel implements IVariableModel {
-  type = '';
-  title = '';
-  targets: DataQuery[] = [];
-  options: IVariablesOption = {};
-  fieldsKey = '';
-  fieldsSort: FieldsSortType = [];
-  value: Record<string, any> = {};
   checked = true;
   fields: Record<string, any> = {};
+  fieldsKey = '';
+  fieldsSort: FieldsSortType = [];
+  options: IVariablesOption = {};
+  targets: DataQuery[] = [];
+  title = '';
+  type = '';
+  value: Record<string, any> = {};
   constructor(model) {
-    Object.keys(model || {}).forEach(key => {
+    for (const key of Object.keys(model || {})) {
       if (key === 'targets') {
-        this.targets = model[key].map(item => new DataQuery(item, model.options?.variables?.multiple ?? false));
+        this.targets = model[key].map(item => new VariableDataQuery(item, model.options?.variables?.multiple ?? true));
         const target = this.targets[0];
         this.fields = target.fields;
         this.fieldsSort = target.fieldsSort;
@@ -589,7 +818,11 @@ export class VariableModel implements IVariableModel {
       } else {
         this[key] = model[key];
       }
-    });
+    }
+  }
+  /** 变量是否支持多选 */
+  get isMultiple() {
+    return this.options?.variables?.multiple ?? false;
   }
   /** 生成id */
   handleCreateItemId(srcData: IFields, isFilterDict = false) {
@@ -610,15 +843,11 @@ export class VariableModel implements IVariableModel {
     }, []);
     return isExits ? resData.join(JOINER) : null;
   }
-  /** 变量是否支持多选 */
-  get isMultiple() {
-    return this.options?.variables?.multiple ?? false;
-  }
 }
 
 export interface IDashbordConfig {
-  id: string | number;
+  id: number | string;
   panels: IPanelModel[];
 }
 
-export type DashboardColumnType = number | 'custom';
+export type DashboardColumnType = 'custom' | number;

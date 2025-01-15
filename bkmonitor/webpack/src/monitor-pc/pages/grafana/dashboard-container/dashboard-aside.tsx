@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { listStickySpaces } from 'monitor-api/modules/commons';
 import {
   createDashboardOrFolder,
@@ -34,23 +35,24 @@ import {
   getDirectoryTree,
   renameFolder,
   starDashboard,
-  unstarDashboard
+  unstarDashboard,
+  copyDashboardToFolder,
 } from 'monitor-api/modules/grafana';
 import bus from 'monitor-common/utils/event-bus';
-import { deepClone, random } from 'monitor-common/utils/utils';
+import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 
 import BizSelect from '../../../components/biz-select/biz-select';
 import Collapse from '../../../components/collapse/collapse';
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
-import { ISpaceItem } from '../../../types';
 import { WATCH_SPACE_STICKY_LIST } from '../../app';
-
-import FavList, { IFavListItem } from './fav-list';
-import IconBtn, { IIconBtnOptions } from './icon-btn';
-import { IMoreData } from './tree-list';
+import FavList, { type IFavListItem } from './fav-list';
+import IconBtn, { type IIconBtnOptions } from './icon-btn';
 import TreeMenu from './tree-menu';
-import { ITreeMenuItem, TreeMenuItem } from './utils';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { ISpaceItem } from '../../../types';
+import type { IMoreData } from './tree-list';
+import type { ITreeMenuItem, TreeMenuItem } from './utils';
 
 import './dashboard-aside.scss';
 
@@ -68,7 +70,7 @@ interface IEvents {
   onSelectedFav: IFavListItem;
   onSelectedDashboard: TreeMenuItem;
   onBizChange: number;
-  onOpenSpaceManager?: void;
+  onOpenSpaceManager?: () => void;
 }
 interface IFormData {
   name: string;
@@ -76,17 +78,18 @@ interface IFormData {
 }
 
 export enum MoreType {
-  dashboard /** 仪表盘 */,
-  dir /** 目录 */,
-  import /** 导入 */,
-  imports /** 批量导入 */,
-  delete /** 删除 */,
-  fav /** 收藏 */,
-  unfav /** 取消收藏 */,
-  export /** 导出 */,
-  rename /** 重命名 */
+  copy = 9 /** 复制到 */,
+  dashboard = 0 /** 仪表盘 */,
+  delete = 4 /** 删除 */,
+  dir = 1 /** 目录 */,
+  export = 7 /** 导出 */,
+  fav = 5 /** 收藏 */,
+  import = 2 /** 导入 */,
+  imports = 3 /** 批量导入 */,
+  rename = 8 /** 重命名 */,
+  unfav = 6 /** 取消收藏 */,
 }
-type FormType = MoreType.dashboard | MoreType.dir;
+type FormType = MoreType.copy | MoreType.dashboard | MoreType.dir;
 @Component
 export default class DashboardAside extends tsc<IProps, IEvents> {
   @Prop({ type: Array, default: () => [] }) bizIdList: ISpaceItem[];
@@ -107,25 +110,25 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     {
       icon: 'icon-mc-youjian',
       tips: window.i18n.tc('route-邮件订阅'),
-      router: 'email-subscriptions'
+      router: 'email-subscriptions',
     },
     {
       icon: 'icon-mc-history',
       tips: window.i18n.tc('route-发送历史'),
-      router: 'email-subscriptions-history'
+      router: 'email-subscriptions-history',
     },
     process.env.APP !== 'external'
       ? {
           icon: 'icon-menu-export',
           tips: window.i18n.tc('批量导入'),
-          router: 'export-import'
+          router: 'export-import',
         }
       : undefined,
     {
       icon: 'icon-shezhi',
       tips: window.i18n.tc('route-仪表盘设置'),
-      router: 'grafana-datasource'
-    }
+      router: 'grafana-admin',
+    },
   ].filter(Boolean);
 
   /** 我的收藏列表 */
@@ -142,28 +145,28 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         id: MoreType.dashboard,
         name: window.i18n.tc('仪表盘'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       {
         id: MoreType.dir,
         name: window.i18n.tc('目录'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       {
         id: MoreType.import,
         name: window.i18n.tc('导入'),
         hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-        action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+        action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
       },
       process.env.APP !== 'external'
         ? {
             id: MoreType.imports,
             name: window.i18n.tc('批量导入'),
             hasAuth: this.authority.NEW_DASHBOARD_AUTH,
-            action_id: this.authorityMap.NEW_DASHBOARD_AUTH
+            action_id: this.authorityMap.NEW_DASHBOARD_AUTH,
           }
-        : undefined
+        : undefined,
     ].filter(Boolean);
   }
 
@@ -172,14 +175,14 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   formData: IFormData = {
     name: '',
-    dir: null
+    dir: null,
   };
   /**
    * 表单校验规则
    */
   formRules = {
     name: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }],
-    dir: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }]
+    dir: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }],
   };
   loading = false;
 
@@ -189,11 +192,10 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   get searchResList(): TreeMenuItem[] {
     if (!this.keywork) return [];
     const res = this.grafanaList.reduce((total, item) => {
-      // eslint-disable-next-line max-len
       const res = item.children.filter(
         child => child.title.toLocaleLowerCase().indexOf(this.keywork.toLocaleLowerCase()) > -1
       );
-      total = [...total, ...res];
+      total.push(...res);
       return total;
     }, []);
     return deepClone(res);
@@ -203,13 +205,17 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     return this.curFormType === MoreType.dashboard;
   }
 
+  get isCopyDashboard() {
+    return this.curFormType === MoreType.copy;
+  }
+
   /** 目录列表 */
   get dirList() {
     return this.grafanaList.reduce((total, item) => {
       if (item.isFolder && item.title && item.uid !== GRAFANA_HOME_ID) {
         total.push({
           id: item.id,
-          name: item.title
+          name: item.title,
         });
       }
       return total;
@@ -248,7 +254,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   async handleFetchStickyList() {
     const params = {
-      username: this.$store.getters.userName
+      username: this.$store.getters.userName,
     };
     const res = await listStickySpaces(params).catch(() => []);
     this.spacestickyList = res;
@@ -267,7 +273,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     } else if (this.$route.name === 'grafana-home') {
       this.checked = GRAFANA_HOME_ID;
     } else if (this.$route.name === 'favorite-dashboard') {
-      this.checked = this.$route.params?.url || '';
+      const list = (this.$route.params?.url || '').split('/') || [];
+      this.checked = list[0] || '';
     } else {
       this.checked = random(10);
     }
@@ -288,7 +295,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       icon: 'icon-mc-grafana-home',
       isFolder: false,
       isStarred: false,
-      children: []
+      children: [],
     });
   }
 
@@ -299,15 +306,16 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleGrafanaTreeData(list: Array<any>): ITreeMenuItem[] {
     return list.map(item => {
-      const { id, title, dashboards = [], uid = '', isStarred = false } = item;
+      const { id, title, dashboards = [], uid = '', isStarred = false, url } = item;
       return {
         id,
         title,
         uid,
         isStarred,
+        url,
         isFolder: Object.prototype.hasOwnProperty.call(item, 'dashboards'),
         editable: item.editable ?? true,
-        children: this.handleGrafanaTreeData(dashboards)
+        children: this.handleGrafanaTreeData(dashboards),
       };
     });
   }
@@ -321,15 +329,16 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       {
         id: 3,
         name: this.$tc('我的收藏'),
-        children: []
-      }
+        children: [],
+      },
     ];
     favList[0].children = list.reduce((total, item) => {
       if (item.is_starred)
         total.push({
           id: item.id,
           name: item.name,
-          uid: item.uid
+          uid: item.uid,
+          url: item.url,
         });
       return total;
     }, []);
@@ -357,6 +366,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     }
   }
 
+  @Debounce(300)
   @Emit('selectedDashboard')
   handleSelectedGrafana(item: TreeMenuItem) {
     this.checked = item.uid;
@@ -375,6 +385,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     switch (data.option.id) {
       case MoreType.dashboard:
       case MoreType.dir:
+      case MoreType.copy:
         this.handleShowAddFrom(data);
         break;
       case MoreType.delete:
@@ -401,7 +412,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   async handleDelete(item: IMoreData['item']) {
     if (item.isGroup) {
       /** 删除目录 */
-      if (!!item.children.length) {
+      if (item.children.length) {
         this.$bkMessage({ message: this.$t('先删除该目录下的所有仪表盘'), theme: 'error' });
       } else if (!item.children.length) {
         this.$bkInfo({
@@ -416,7 +427,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               this.$bkMessage({ message: this.$t('目录删除成功'), theme: 'success' });
               this.handleFetchGrafanaTree();
             }
-          }
+          },
         });
       }
     } else {
@@ -433,7 +444,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             this.$bkMessage({ message: this.$t('仪表盘删除成功'), theme: 'success' });
             this.handleFetchGrafanaTree();
           }
-        }
+        },
       });
     }
   }
@@ -462,7 +473,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleImportsDashboard() {
     this.$router.push({
-      name: 'import-configuration-upload'
+      name: 'import-configuration-upload',
     });
   }
 
@@ -471,7 +482,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleImportDashboard() {
     this.$router.push({
-      path: '/grafana/import'
+      path: '/grafana/import',
     });
   }
 
@@ -482,7 +493,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   async handleFavDashboard(data: IMoreData) {
     if (data.item.isDashboard) {
       const res = await starDashboard({
-        dashboard_id: data.item.id
+        dashboard_id: data.item.id,
       })
         .then(() => true)
         .catch(() => false);
@@ -507,6 +518,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.formData.dir = item?.isGroup && !!item?.isFolder ? item?.id : '';
     this.showAddForm = true;
     this.curFormType = option.id as FormType;
+    this.formData.name = (this.isCopyDashboard && item?.title) || '';
   }
 
   /** 表单校验 */
@@ -518,13 +530,17 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   }
 
   /**
-   * 新增他提交
+   * 新增提交
    */
   async handleConfirm() {
     this.loading = true;
     const isPass = await this.handleValidate();
     if (isPass) {
-      const api = this.isDashboard ? this.handleAddDashboard : this.handleAddFolder;
+      const api = this.isDashboard
+        ? this.handleAddDashboard
+        : this.isCopyDashboard
+          ? this.handleCopyDashboard
+          : this.handleAddFolder;
       const isSuccess = await api().catch(() => false);
       if (isSuccess) {
         this.showAddForm = false;
@@ -540,11 +556,35 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     const params = {
       title: this.formData.name,
       folderId: this.formData.dir,
-      type: 'dashboard'
+      type: 'dashboard',
     };
     return createDashboardOrFolder(params)
-      .then(() => true)
+      .then(res => {
+        this.$bkMessage({ message: `${this.$t('创建成功')}：${res?.title}`, theme: 'success' });
+        return true;
+      })
       .catch(() => false);
+  }
+  /**
+   * 复制仪表盘
+   */
+  handleCopyDashboard() {
+    const params = {
+      dashboard_uid: this.checked,
+      folder_id: this.formData.dir,
+    };
+    return copyDashboardToFolder(params)
+      .then(res => {
+        const url = res?.imported_url
+          ? `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#${res.imported_url}`
+          : '';
+        url && window.open(url, '_blank');
+        return true;
+      })
+      .catch(rs => {
+        rs?.message && this.$bkMessage({ message: `${rs?.message}`, theme: 'error' });
+        return false;
+      });
   }
   /**
    * 新增目录
@@ -552,7 +592,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   handleAddFolder() {
     const params = {
       title: this.formData.name,
-      type: 'folder'
+      type: 'folder',
     };
     return createDashboardOrFolder(params)
       .then(() => true)
@@ -575,7 +615,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   async handleRename(item: TreeMenuItem) {
     const res = await renameFolder({
       uid: item.uid,
-      title: item.editValue
+      title: item.editValue,
     })
       .then(() => true)
       .catch(() => false);
@@ -591,8 +631,8 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.$router.push({
       name: 'export-configuration',
       params: {
-        dashboardChecked: checkList as any
-      }
+        dashboardChecked: checkList as any,
+      },
     });
   }
 
@@ -631,13 +671,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
         <div class='grafana-aside-main'>
           <div class='grafana-biz'>
             <BizSelect
-              value={+this.bizId}
               bizList={this.bizIdList}
               minWidth={380}
-              theme={'dark'}
               stickyList={this.spacestickyList}
-              onOpenSpaceManager={this.handleOpenSpace}
+              theme={'dark'}
+              value={+this.bizId}
               onChange={this.handleBizChange}
+              onOpenSpaceManager={this.handleOpenSpace}
             />
           </div>
           {/* 如果没有收藏仪表盘，就不显示空列表。 */}
@@ -646,9 +686,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               <FavList
                 checked={this.checked}
                 list={this.favList}
-                onUnstarred={this.handleUnstarred}
                 onSelected={this.handleSelectedFav}
-              ></FavList>
+                onUnstarred={this.handleUnstarred}
+              />
             </div>
           )}
           <div class='grafana-handle'>
@@ -660,9 +700,9 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 {this.$t('全部')}
               </span>
               <IconBtn
-                iconOnly
-                checked={this.searchActive}
                 class='search-icon'
+                checked={this.searchActive}
+                iconOnly
                 onClick={this.handleShowSearch}
               >
                 <bk-icon
@@ -673,13 +713,13 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
               {process.env.APP !== 'external' && (
                 <IconBtn
                   class='no-wrap'
-                  title={this.$tc('新增')}
                   options={this.addOptions}
+                  title={this.$tc('新增')}
                   onSelected={this.handleAdd}
                 >
                   <bk-icon
-                    slot='icon'
                     class='add-icon'
+                    slot='icon'
                     type='plus'
                   />
                 </IconBtn>
@@ -691,26 +731,27 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             >
               <div class='grafana-handle-main'>
                 <bk-input
-                  right-icon='bk-icon icon-search'
                   v-model={this.keywork}
+                  right-icon='bk-icon icon-search'
                   onInput={this.handleSearchInput}
-                ></bk-input>
+                />
               </div>
             </Collapse>
           </div>
-          {!!this.keywork ? (
+          {this.keywork ? (
             <div class='search-list'>
               {this.searchResList.length ? (
                 this.searchResList.map(item => (
                   <div
+                    key={item.uid}
                     class={`search-item ${this.checked === item.uid ? 'is-active' : ''}`}
                     onClick={() => this.handleSelectedGrafana(item)}
                   >
-                    <span class='search-icon'></span>
+                    <span class='search-icon' />
                     <span
                       class='search-content'
                       domPropsInnerHTML={this.handleSearchHit(item)}
-                    ></span>
+                    />
                   </div>
                 ))
               ) : (
@@ -727,25 +768,26 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 data={this.grafanaList}
                 defaultExpend={false}
                 onMore={this.handleTreeMore}
-                onSelected={this.handleSelectedGrafana}
                 onRename={this.handleRename}
-              ></TreeMenu>
+                onSelected={this.handleSelectedGrafana}
+              />
             </div>
           )}
           {
             // #if APP !== 'external'
             <div class='garfana-link'>
-              {this.linkList.map(item => (
+              {this.linkList.map((item, index) => (
                 <span
+                  key={index}
+                  class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   v-bk-tooltips={{
                     content: item.tips,
                     extCls: 'garfana-link-tips',
-                    allowHTML: false
+                    allowHTML: false,
                   }}
-                  class={`link-item ${this.$route.meta?.navId === item.router ? 'is-active' : ''}`}
                   onClick={() => this.handleLinkTo(item)}
                 >
-                  <i class={['icon-monitor', item.icon]}></i>
+                  <i class={['icon-monitor', item.icon]} />
                 </span>
               ))}
             </div>
@@ -753,12 +795,11 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           }
         </div>
         <bk-dialog
-          title={this.$t(this.isDashboard ? '新建仪表盘' : '新增目录')}
-          header-position='left'
           width={480}
-          zIndex={1}
           ext-cls='dashboard-add-dialog'
           v-model={this.showAddForm}
+          header-position='left'
+          title={this.$t(this.isDashboard ? '新建仪表盘' : this.isCopyDashboard ? '复制仪表盘' : '新增目录')}
           show-footer
           onCancel={this.handleCancel}
         >
@@ -766,39 +807,49 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             {...{
               props: {
                 model: this.formData,
-                rules: this.formRules
-              }
+                rules: this.formRules,
+              },
             }}
             ref='dashboardForm'
             formType='vertical'
           >
-            <bk-form-item
-              required
-              property='name'
-              label={this.$t(this.isDashboard ? '仪表盘名称' : '目录名称')}
-            >
-              <bk-input v-model={this.formData.name}></bk-input>
-            </bk-form-item>
-            {this.isDashboard && (
+            {
               <bk-form-item
+                label={this.$t(this.isDashboard || this.isCopyDashboard ? '仪表盘名称' : '目录名称')}
+                property='name'
                 required
-                property='dir'
-                label={this.$t('所属目录')}
               >
-                <bk-select v-model={this.formData.dir}>
+                <bk-input
+                  v-model={this.formData.name}
+                  readonly={this.isCopyDashboard}
+                />
+              </bk-form-item>
+            }
+            {(this.isDashboard || this.isCopyDashboard) && (
+              <bk-form-item
+                label={this.$t(this.isCopyDashboard ? '目标目录' : '所属目录')}
+                property='dir'
+                required
+              >
+                <bk-select
+                  v-model={this.formData.dir}
+                  placeholder={this.$t(`请选择${this.isCopyDashboard ? '目标目录' : '所属目录'}`)}
+                  searchable
+                >
                   {this.dirList.map(item => (
                     <bk-option
                       id={item.id}
+                      key={item.id}
                       name={item.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               </bk-form-item>
             )}
           </bk-form>
           <div
-            slot='footer'
             class='dashboard-add-dialog-footer'
+            slot='footer'
           >
             <bk-button
               disabled={this.loading}

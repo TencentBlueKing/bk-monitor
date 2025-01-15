@@ -1,6 +1,0 @@
-node_modules
-*.d.ts
-*.js
-public-path.ts
-dist/*
-./plugins/charts/sequence-graph/dist/

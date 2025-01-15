@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable max-len */
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,28 +27,37 @@
  */
 import { Component, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
+import { CancelToken } from 'monitor-api/index';
+import { start } from 'monitor-api/modules/apm_meta';
 import { query, queryServicesDetail } from 'monitor-api/modules/apm_profile';
+import { serviceInfo } from 'monitor-api/modules/apm_service';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { Debounce, typeTools } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import CommonDetail from 'monitor-pc/pages/monitor-k8s/components/common-detail';
 
 import {
-  BaseDataType,
-  DataTypeItem,
-  IQueryParams,
+  type BaseDataType,
+  type DataTypeItem,
+  type IQueryParams,
   PanelModel,
-  ProfilingTableItem,
+  type ProfilingTableItem,
   TextDirectionType,
-  ViewModeType
+  ViewModeType,
 } from '../../typings';
+import { assignUniqueIds } from '../../utils';
 import { CommonSimpleChart } from '../common-simple-chart';
-
 import ChartTitle from './chart-title/chart-title';
+import DiffChart from './diff-chart/diff-chart';
 import FilterSelect from './filter-select/filter-select';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 import TrendChart from './trend-chart/trend-chart';
+
+import type { ProfileDataUnit } from './utils';
 
 import './profiling-graph.scss';
 
@@ -58,43 +67,107 @@ interface IProfilingChartProps {
 
 @Component
 class ProfilingChart extends CommonSimpleChart {
-  @Ref() frameGraphRef: FrameGraph;
+  @Ref() frameGraphRef: InstanceType<typeof FrameGraph>;
+  @Ref() grahWrapperRef: HTMLDivElement;
 
-  isLoading = false;
+  isGraphLoading = false;
+  isFirstLoad = true;
   tableData: ProfilingTableItem[] = [];
   flameData: BaseDataType = {
     name: '',
     children: undefined,
-    id: ''
+    id: '',
   };
-  unit = '';
+  unit: ProfileDataUnit = 'nanoseconds';
   empty = true;
-  emptyText = window.i18n.t('查无数据');
+  emptyText = window.i18n.t('加载中...');
   // 视图模式
   activeMode: ViewModeType = ViewModeType.Combine;
   textDirection: TextDirectionType = TextDirectionType.Ltr;
   highlightId = -1;
+  highlightName = '';
   filterKeyword = '';
   topoSrc = '';
   dataTypeList: DataTypeItem[] = [];
   dataType = '';
+  /** trend图表数据 */
+  trendSeriesData = [];
+  trendLoading = false;
   queryParams: IQueryParams = {};
+  /** 是否开启时间对比 */
+  enableDateDiff = false;
+  /** 对比时间 */
+  diffDate: number[][] = [];
+  /** 服务详情侧边栏展开 / 收起 */
+  collapseInfo = false;
+  /** 是否展示服务详情侧边栏 */
+  enableDetail = false;
+  /** 未开启 profiling */
+  enableProfiling = false;
+  /** 无 profiling 上报数据 */
+  isProfilingDataNormal = false;
+  /** 开启 profiling 请求 loading */
+  enableProfilingLoading = false;
+  applicationId = -1;
+
+  get detailPanel() {
+    return new PanelModel({
+      title: 'workload',
+      type: 'info',
+      targets: [
+        {
+          datasource: 'info',
+          dataType: 'info',
+          api: 'apm_profile.queryServicesDetail',
+          data: {
+            start_time: '$start_time',
+            end_time: '$end_time',
+            app_name: '$app_name',
+            service_name: '$service_name',
+            view_mode: 'sidebar',
+          },
+        },
+      ],
+    } as any);
+  }
+
+  cancelTableFlameFn = () => {};
+  cancelTopoFn = () => {};
 
   get flameFilterKeywords() {
     return this.filterKeyword?.trim?.().length ? [this.filterKeyword] : [];
   }
 
   getParams(args: Record<string, any> = {}, start_time = '', end_time = '') {
-    const { app_name, service_name } = this.viewOptions as any;
+    const { app_name, service_name } = this.viewOptions.filters as any;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const { diff_filter_labels = {}, filter_labels = {}, ...queryParams } = this.queryParams;
     const params = {
       ...args,
-      ...this.queryParams,
+      ...queryParams,
+      filter_labels: {
+        ...filter_labels,
+        ...(this.enableDateDiff && this.diffDate.length
+          ? {
+              start: Math.floor(this.diffDate[0][0] / 1000) * 1000000,
+              end: Math.floor(this.diffDate[0][1] / 1000) * 1000000,
+            }
+          : {}),
+      },
+      diff_filter_labels: {
+        ...diff_filter_labels,
+        ...(this.enableDateDiff && this.diffDate.length
+          ? {
+              start: Math.floor(this.diffDate[1][0] / 1000) * 1000000,
+              end: Math.floor(this.diffDate[1][1] / 1000) * 1000000,
+            }
+          : {}),
+      },
       app_name,
       service_name,
-      start: (start_time ? dayjs.tz(start_time).unix() : startTime) * Math.pow(10, 6),
-      end: (end_time ? dayjs.tz(end_time).unix() : endTime) * Math.pow(10, 6),
-      data_type: this.dataType
+      start: (start_time ? dayjs.tz(start_time).unix() : startTime) * 10 ** 6,
+      end: (end_time ? dayjs.tz(end_time).unix() : endTime) * 10 ** 6,
+      data_type: this.dataType,
     };
 
     return params;
@@ -102,22 +175,55 @@ class ProfilingChart extends CommonSimpleChart {
 
   @Debounce(300)
   async getPanelData(start_time = '', end_time = '') {
-    if (!this.dataTypeList.length) {
-      await this.getServiceDetail(start_time, end_time);
-      return;
+    const initQuery = () => {
+      if (!this.dataTypeList.length) {
+        this.getServiceDetail(start_time, end_time);
+        return;
+      }
+      this.handleQuery(start_time, end_time);
+    };
+
+    if (this.isFirstLoad) {
+      const [start, end] = handleTransformToTimestamp(this.timeRange);
+      const { app_name, service_name } = this.viewOptions.filters as any;
+
+      await serviceInfo({
+        start_time: (start_time ? dayjs.tz(start_time).unix() : start) * 1000,
+        end_time: (end_time ? dayjs.tz(end_time).unix() : end) * 1000,
+        app_name,
+        service_name,
+      })
+        .then(data => {
+          this.enableProfiling = data?.is_enabled_profiling ?? false;
+          this.isProfilingDataNormal = data?.is_profiling_data_normal ?? false;
+          this.applicationId = data?.application_id ?? -1;
+
+          if (this.enableProfiling && this.isProfilingDataNormal) {
+            initQuery();
+          } else {
+            this.emptyText = '';
+          }
+        })
+        .catch(() => {
+          this.emptyText = '';
+        })
+        .finally(() => {
+          this.isFirstLoad = false;
+        });
+    } else {
+      initQuery();
     }
-    this.handleQuery(start_time, end_time);
   }
 
   async getServiceDetail(start_time = '', end_time = '') {
     const [start, end] = handleTransformToTimestamp(this.timeRange);
-    const { app_name, service_name } = this.viewOptions as any;
+    const { app_name, service_name } = this.viewOptions.filters as any;
 
     await queryServicesDetail({
       start_time: start_time ? dayjs.tz(start_time).unix() : start,
       end_time: end_time ? dayjs.tz(end_time).unix() : end,
       app_name,
-      service_name
+      service_name,
     })
       .then(res => {
         if (res?.data_types?.length) {
@@ -126,7 +232,7 @@ class ProfilingChart extends CommonSimpleChart {
           this.queryParams = {
             app_name,
             service_name,
-            data_type: this.dataType
+            data_type: this.dataType,
           };
           this.handleQuery(start_time, end_time);
         }
@@ -140,67 +246,92 @@ class ProfilingChart extends CommonSimpleChart {
         this.activeMode = ViewModeType.Combine;
       }
     } else {
-      this.getTopoSrc(start_time, end_time);
+      if (this.activeMode === ViewModeType.Topo) {
+        this.getTopoSrc(start_time, end_time);
+      }
     }
   }
   async handleModeChange(val: ViewModeType) {
     if (val === this.activeMode) return;
-
     this.highlightId = -1;
     this.activeMode = val;
+    if (val === ViewModeType.Topo && !this.topoSrc) {
+      this.getTopoSrc();
+    }
   }
   /** 获取表格和火焰图 */
   async getTableFlameData(start_time = '', end_time = '') {
-    try {
-      this.isLoading = true;
-      this.highlightId = -1;
-      const params = this.getParams({ diagram_types: ['table', 'flamegraph'] }, start_time, end_time);
-      const data = await query(params).catch(() => false);
-      if (data) {
-        this.unit = data.unit || '';
-        this.tableData = data.table_data?.items ?? [];
-        this.flameData = data.flame_data;
-        this.empty = false;
-      } else {
-        this.empty = true;
-      }
-      this.isLoading = false;
-    } catch (e) {
-      console.error(e);
-      this.isLoading = false;
-    }
+    this.isGraphLoading = true;
+    this.highlightId = -1;
+    this.emptyText = window.i18n.t('加载中...');
+    this.cancelTableFlameFn();
+    const params = this.getParams({ diagram_types: ['table', 'flamegraph'] }, start_time, end_time);
+    await query(params, {
+      cancelToken: new CancelToken(c => (this.cancelTableFlameFn = c)),
+    })
+      .then(data => {
+        // 为数据节点及其子节点分配唯一 ID
+        data?.flame_data?.children && assignUniqueIds(data.flame_data.children);
+        if (data && Object.keys(data)?.length) {
+          this.unit = data.unit || '';
+          this.tableData = data.table_data?.items ?? [];
+          this.flameData = data.flame_data;
+          this.empty = false;
+          this.emptyText = '';
+        } else {
+          this.empty = true;
+          this.emptyText = window.i18n.t('查无数据');
+        }
+        this.isGraphLoading = false;
+      })
+      .catch(e => {
+        if (e.message) {
+          this.emptyText = '';
+          this.isGraphLoading = false;
+        }
+      });
   }
   /** 获取拓扑图 */
   async getTopoSrc(start_time = '', end_time = '') {
-    try {
-      if (ViewModeType.Topo === this.activeMode) {
-        this.isLoading = true;
-      }
-      const params = this.getParams({ diagram_types: ['callgraph'] }, start_time, end_time);
-      const data = await query(params).catch(() => false);
-      if (data) {
-        this.topoSrc = data.call_graph_data || '';
-      }
-      this.isLoading = false;
-    } catch (e) {
-      console.error(e);
-      this.isLoading = false;
+    this.cancelTopoFn();
+    if (ViewModeType.Topo === this.activeMode) {
+      this.isGraphLoading = true;
     }
+    const params = this.getParams({ diagram_types: ['callgraph'] }, start_time, end_time);
+    await query(params, {
+      cancelToken: new CancelToken(c => (this.cancelTopoFn = c)),
+    })
+      .then(data => {
+        if (data) {
+          this.topoSrc = data.call_graph_data || '';
+        }
+        this.isGraphLoading = false;
+      })
+      .catch(e => {
+        if (e.message) {
+          this.isGraphLoading = false;
+        }
+      });
+  }
+  handleTimeRangeChange() {
+    this.isFirstLoad = true;
+    this.getPanelData();
   }
   handleTextDirectionChange(val: TextDirectionType) {
     this.textDirection = val;
   }
   /** 表格排序 */
-  async handleSortChange(sortKey: string) {
-    const params = this.getParams({
-      diagram_types: ['table'],
-      sort: sortKey
-    });
-    const data = await query(params).catch(() => false);
-    if (data) {
-      this.highlightId = -1;
-      this.tableData = data.table_data?.items ?? [];
-    }
+  async handleSortChange() {
+    // const params = this.getParams({
+    //   diagram_types: ['table'],
+    //   sort: sortKey
+    // });
+    // const data = await query(params).catch(() => false);
+    // if (data) {
+    //   this.highlightId = -1;
+    //   this.tableData = data.table_data?.items ?? [];
+    // }
+    this.highlightId = -1;
   }
   handleDownload(type: string) {
     switch (type) {
@@ -248,13 +379,15 @@ class ProfilingChart extends CommonSimpleChart {
     return '';
   }
   goLink() {
-    const url = location.href.replace(location.hash, '#/trace/profiling');
+    const params = this.getParams({ diagram_types: this.activeMode });
+    const target = JSON.stringify({ ...params, start: this.timeRange[0], end: this.timeRange[1] });
+    const url = location.href.replace(location.hash, `#/trace/profiling?target=${encodeURIComponent(target)}`);
     window.open(url, '_blank');
   }
   handleFiltersChange(values, key) {
     this.queryParams = {
       ...this.queryParams,
-      [key === 'filter' ? 'filter_labels' : 'diff_filter_labels']: values
+      [key === 'filter' ? 'filter_labels' : 'diff_filter_labels']: values,
     };
     this.getPanelData();
   }
@@ -262,102 +395,260 @@ class ProfilingChart extends CommonSimpleChart {
   handleDiffModeChange(isDiff: boolean) {
     this.queryParams = {
       ...this.queryParams,
-      is_compared: isDiff
+      is_compared: isDiff,
     };
     this.getPanelData();
+  }
+  handleDateDiffChange(enable) {
+    this.enableDateDiff = enable;
+    this.setDiffDefaultDate();
+  }
+  handleTrendSeriesData(data) {
+    this.trendSeriesData = data;
+  }
+
+  handleTrendLoading(loading) {
+    this.trendLoading = loading;
+  }
+
+  setDiffDefaultDate() {
+    if (this.enableDateDiff && this.trendSeriesData.length) {
+      const { datapoints } = this.trendSeriesData[0];
+      const len = datapoints.length;
+      const start = datapoints[0][1];
+      const end = datapoints[len - 1][1];
+      const mid = start + (end - start) / 2;
+      this.diffDate = [
+        [start, mid],
+        [mid, end],
+      ];
+    } else {
+      this.diffDate = [];
+    }
+    this.handleQuery();
+  }
+
+  handleBrushEnd(data, type) {
+    if (type === 'search') {
+      this.diffDate[0] = data;
+    } else {
+      this.diffDate[1] = data;
+    }
+    this.diffDate = [...this.diffDate];
+    this.handleQuery();
+  }
+
+  handleDetailShowChange(show: boolean) {
+    this.collapseInfo = !show;
+  }
+  async handleEmptyEvent() {
+    // 开启 profiling
+    if (!this.enableProfiling) {
+      if (this.enableProfilingLoading) return;
+      // const { app_name, service_name } = this.viewOptions as any;
+      this.enableProfilingLoading = true;
+      await start({ application_id: this.applicationId, type: 'profiling' })
+        .then(() => {
+          this.enableProfiling = true;
+        })
+        .finally(() => (this.enableProfilingLoading = false));
+    } else if (!this.isProfilingDataNormal) {
+      // 查看接入指引
+      skipToDocsLink('profiling_docs', window.docUrlMap);
+    }
+  }
+  handleKeywordChange(v: string) {
+    this.filterKeyword = v;
+    this.grahWrapperRef?.scrollTo({
+      top: 0,
+      behavior: 'instant',
+    });
   }
 
   render() {
     return (
       <div class='profiling-retrieval-chart'>
-        <FilterSelect
-          appName={this.queryParams.app_name}
-          serviceName={this.queryParams.service_name}
-          onDiffModeChange={this.handleDiffModeChange}
-          onFilterChange={val => this.handleFiltersChange(val, 'filter')}
-          onDiffChange={val => this.handleFiltersChange(val, 'diff')}
-        />
-        <div class='profiling-retrieval-header'>
-          <div class='data-type'>
-            <span>{this.$t('数据类型')}</span>
-            <div class='bk-button-group data-type-list'>
-              {this.dataTypeList.map(item => {
-                return (
-                  <bk-button
-                    size='small'
-                    key={item.key}
-                    class={item.key === this.dataType ? 'is-selected' : ''}
-                    onClick={() => this.handleDataTypeChange(item.key)}
-                  >
-                    {item.name}
-                  </bk-button>
-                );
-              })}
-            </div>
-          </div>
-          <div class='link-tips'>
-            <i class='icon-monitor icon-tishi'></i>
-            <i18n
-              path='更多功能，请前往 {0}'
-              class='flex-center'
+        {this.enableProfiling && this.isProfilingDataNormal ? (
+          [
+            <div
+              key={'main'}
+              class='main'
             >
-              <span
-                class='link-text'
-                onClick={() => this.goLink()}
+              <FilterSelect
+                appName={this.queryParams.app_name}
+                serviceName={this.queryParams.service_name}
+                onDateDiffChange={this.handleDateDiffChange}
+                onDiffChange={val => this.handleFiltersChange(val, 'diff')}
+                onDiffModeChange={this.handleDiffModeChange}
+                onFilterChange={val => this.handleFiltersChange(val, 'filter')}
+              />
+              <div class='profiling-retrieval-header'>
+                <div class='data-type'>
+                  <span>{this.$t('数据类型')}</span>
+                  <div class='bk-button-group data-type-list'>
+                    {this.dataTypeList.map(item => {
+                      return (
+                        <bk-button
+                          key={item.key}
+                          class={item.key === this.dataType ? 'is-selected' : ''}
+                          size='small'
+                          onClick={() => this.handleDataTypeChange(item.key)}
+                        >
+                          {item.name}
+                        </bk-button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div class='link-tips'>
+                  <i class='icon-monitor icon-tishi' />
+                  <i18n
+                    class='flex-center'
+                    path='更多功能，请前往 {0}'
+                  >
+                    <span
+                      class='link-text'
+                      onClick={() => this.goLink()}
+                    >
+                      {`Profiling ${this.$t('检索')}`}
+                    </span>
+                  </i18n>
+                </div>
+              </div>
+              <TrendChart
+                diffDate={this.diffDate}
+                queryParams={this.queryParams}
+                onLoading={this.handleTrendLoading}
+                onOptionsLoaded={this.setDiffDefaultDate}
+                onSeriesData={this.handleTrendSeriesData}
+              />
+              {this.enableDateDiff && (
+                <div
+                  key='diffChartView'
+                  class='diff-chart-view'
+                >
+                  <DiffChart
+                    brushRect={this.diffDate[0]}
+                    colorIndex={0}
+                    data={this.trendSeriesData[0]}
+                    loading={this.trendLoading}
+                    title={this.$tc('查询项')}
+                    onBrushEnd={val => this.handleBrushEnd(val, 'search')}
+                  />
+                  <DiffChart
+                    brushRect={this.diffDate[1]}
+                    colorIndex={1}
+                    data={this.trendSeriesData[1]}
+                    loading={this.trendLoading}
+                    title={this.$tc('对比项')}
+                    onBrushEnd={val => this.handleBrushEnd(val, 'diff')}
+                  />
+                </div>
+              )}
+
+              <div
+                class='profiling-graph'
+                v-bkloading={{ isLoading: this.isGraphLoading }}
               >
-                {this.$t('Profiling 检索')}
-              </span>
-            </i18n>
+                <ChartTitle
+                  activeMode={this.activeMode}
+                  isCompared={this.queryParams.is_compared}
+                  textDirection={this.textDirection}
+                  onDownload={this.handleDownload}
+                  onKeywordChange={this.handleKeywordChange}
+                  onModeChange={this.handleModeChange}
+                  onTextDirectionChange={this.handleTextDirectionChange}
+                />
+                {this.empty ? (
+                  <div class='empty-chart'>{this.emptyText}</div>
+                ) : (
+                  <div
+                    ref='grahWrapperRef'
+                    class='profiling-graph-content'
+                  >
+                    {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
+                      <TableGraph
+                        style={{
+                          width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
+                        }}
+                        data={this.tableData}
+                        dataType={this.queryParams.data_type}
+                        filterKeyword={this.filterKeyword}
+                        highlightName={this.highlightName}
+                        isCompared={this.queryParams.is_compared}
+                        textDirection={this.textDirection}
+                        unit={this.unit}
+                        onSortChange={this.handleSortChange}
+                        onUpdateHighlightName={name => (this.highlightName = name)}
+                      />
+                    )}
+                    {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
+                      <FrameGraph
+                        ref='frameGraphRef'
+                        style={{
+                          width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
+                        }}
+                        appName={(this.viewOptions as any).app_name}
+                        data={this.flameData}
+                        filterKeywords={this.flameFilterKeywords}
+                        highlightId={this.highlightId}
+                        highlightName={this.highlightName}
+                        isCompared={this.queryParams.is_compared}
+                        showGraphTools={false}
+                        textDirection={this.textDirection}
+                        unit={this.unit}
+                        onUpdateHighlightId={id => (this.highlightId = id)}
+                        onUpdateHighlightName={name => (this.highlightName = name)}
+                      />
+                    )}
+                    {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}
+                  </div>
+                )}
+              </div>
+            </div>,
+            <keep-alive key={'keep-aliave'}>
+              <CommonDetail
+                collapse={this.collapseInfo}
+                maxWidth={500}
+                needShrinkBtn={false}
+                panel={this.detailPanel}
+                placement={'right'}
+                startPlacement={'left'}
+                title={this.$tc('详情')}
+                onShowChange={this.handleDetailShowChange}
+              />
+            </keep-alive>,
+          ]
+        ) : (
+          <div class='empty-page'>
+            {this.emptyText ? (
+              this.emptyText
+            ) : (
+              <bk-exception type='building'>
+                <span>
+                  {!this.enableProfiling ? this.$t('暂未开启 Profiling 功能') : this.$t('暂无 Profiling 数据')}
+                </span>
+                <div class='text-wrap'>
+                  <span class='text-row'>
+                    {!this.enableProfiling
+                      ? this.enableProfilingLoading
+                        ? this.$t('开启中，请耐心等待...')
+                        : this.$t('该服务所在 APM 应用未开启 Profiling 功能')
+                      : this.$t('已开启 Profiling 功能，请参考接入指引进行数据上报')}
+                  </span>
+                  <bk-button
+                    loading={this.enableProfilingLoading}
+                    text={this.enableProfiling}
+                    theme='primary'
+                    onClick={() => this.handleEmptyEvent()}
+                  >
+                    {this.enableProfiling ? this.$t('查看接入指引') : this.$t('立即开启')}
+                  </bk-button>
+                </div>
+              </bk-exception>
+            )}
           </div>
-        </div>
-        <TrendChart queryParams={this.queryParams}></TrendChart>
-        <div
-          class='profiling-graph'
-          v-bkloading={{ isLoading: this.isLoading }}
-        >
-          <ChartTitle
-            activeMode={this.activeMode}
-            textDirection={this.textDirection}
-            isCompared={this.queryParams.is_compared}
-            onModeChange={this.handleModeChange}
-            onTextDirectionChange={this.handleTextDirectionChange}
-            onKeywordChange={val => (this.filterKeyword = val)}
-            onDownload={this.handleDownload}
-          />
-          {this.empty ? (
-            <div class='empty-chart'>{this.emptyText}</div>
-          ) : (
-            <div class='profiling-graph-content'>
-              {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
-                <TableGraph
-                  data={this.tableData}
-                  unit={this.unit}
-                  textDirection={this.textDirection}
-                  highlightId={this.highlightId}
-                  filterKeyword={this.filterKeyword}
-                  isCompared={this.queryParams.is_compared}
-                  dataType={this.queryParams.data_type}
-                  onUpdateHighlightId={id => (this.highlightId = id)}
-                  onSortChange={this.handleSortChange}
-                />
-              )}
-              {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
-                <FrameGraph
-                  ref='frameGraphRef'
-                  appName={(this.viewOptions as any).app_name}
-                  textDirection={this.textDirection}
-                  showGraphTools={false}
-                  data={this.flameData}
-                  highlightId={this.highlightId}
-                  isCompared={this.queryParams.is_compared}
-                  filterKeywords={this.flameFilterKeywords}
-                  onUpdateHighlightId={id => (this.highlightId = id)}
-                />
-              )}
-              {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     );
   }

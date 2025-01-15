@@ -52,10 +52,10 @@ export default class DragItem extends tsc<IDragItemProps> {
         class={['drag-item-wrap', { 'is-hover': this.hover }]}
         data-index={this.index}
         draggable={this.draggable}
-        onDrop={() => (this.hover = false)}
-        onDragover={(e: Event) => this.handleDragOver(e)}
         onDragenter={() => (this.hover = true)}
         onDragleave={() => (this.hover = false)}
+        onDragover={(e: Event) => this.handleDragOver(e)}
+        onDrop={() => (this.hover = false)}
       >
         {this.$slots.default}
       </div>

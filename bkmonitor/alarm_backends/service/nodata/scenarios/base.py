@@ -12,10 +12,12 @@ import itertools
 from itertools import chain
 
 from alarm_backends.constants import NO_DATA_TAG_DIMENSION
+from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.detect_result import CheckResult
 from alarm_backends.service.nodata.scenarios.filters import DimensionRangeFilter
+from bkmonitor.utils.cache import mem_cache
 from constants.strategy import HOST_SCENARIO, SERVICE_SCENARIO
 
 SCENARIO_CLS = {}
@@ -86,7 +88,7 @@ class BaseScenario(object):
                         target_instances_exist.add(target_filters)
                 # 历史维度中不存在的目标实例
                 missing_target_instances = [
-                    dict(instance, **{"__NO_DATA_DIMENSION__": True})
+                    dict(instance, **{NO_DATA_TAG_DIMENSION: True})
                     for instance in target_instances_set - target_instances_exist
                 ]
         else:
@@ -155,6 +157,7 @@ class HostScenario(BaseScenario):
     scenarios_type = HOST_SCENARIO
 
     def get_target_instances(self):
+        mem_cache.clear()
         target = self.item.target
         if len(target[0]) == 0:
             return []
@@ -166,23 +169,37 @@ class HostScenario(BaseScenario):
             return None
 
         if target_data["field"] == "bk_target_ip":
-            biz_hosts = set(HostManager.refresh_by_biz(self.strategy.bk_biz_id).keys())
+            hosts = set(HostManager.refresh_by_biz(self.strategy.bk_biz_id).keys())
             target_instances = [
                 inst
                 for inst in target_data["value"]
-                if "{}|{}".format(inst["bk_target_ip"], inst["bk_target_cloud_id"]) in biz_hosts
+                if "{}|{}".format(inst["bk_target_ip"], inst["bk_target_cloud_id"]) in hosts
             ]
         # 动态拓扑
         elif target_data["field"] == "host_topo_node":
             target_instances = []
             target_topo = {"{}|{}".format(inst["bk_obj_id"], inst["bk_inst_id"]) for inst in target_data["value"]}
             hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
-            for host_info in list(hosts.values()):
-                host_topo = set({node.id for node in chain(*list(host_info.topo_link.values()))})
+            for host_info in hosts.values():
+                host_topo = {node.id for node in chain(*list(host_info.topo_link.values()))}
                 if host_topo & target_topo:
                     target_instances.append(
                         {"bk_target_ip": host_info.bk_host_innerip, "bk_target_cloud_id": host_info.bk_cloud_id}
                     )
+        # 动态分组
+        elif target_data["field"] == "dynamic_group":
+            condition = {}
+            condition.update(target_data)
+            condition["value"] = []
+            for group in target_data["value"]:
+                condition["value"] += list(group.values())
+            bk_host_ids = AssignCacheManager.parse_dynamic_group(condition)["value"]
+            hosts = HostManager.refresh_by_biz(self.strategy.bk_biz_id)
+            target_instances = [
+                {"bk_target_ip": host.bk_host_innerip, "bk_target_cloud_id": host.bk_cloud_id}
+                for host in hosts.values()
+                if host.bk_host_id in bk_host_ids
+            ]
         else:
             target_instances = None
         return self.format_dicts_value_to_str(target_instances)
@@ -193,6 +210,7 @@ class ServiceScenario(BaseScenario):
     scenarios_type = SERVICE_SCENARIO
 
     def get_target_instances(self):
+        mem_cache.clear()
         if not list(itertools.chain(*self.item.target)):
             return []
         target_data = self.item.target[0][0]
@@ -200,6 +218,7 @@ class ServiceScenario(BaseScenario):
         if "bk_target_service_instance_id" in self.get_no_data_dimensions():
             target_topo = {"{}|{}".format(inst["bk_obj_id"], inst["bk_inst_id"]) for inst in target_data["value"]}
             all_services = ServiceInstanceManager.refresh_by_biz(self.strategy.bk_biz_id)
+            ServiceInstanceManager.cache_by_biz(self.strategy.bk_biz_id, all_services)
             target_services = []
             for service in list(all_services.values()):
                 service_topo = set({node.id for node in chain(*list(service.topo_link.values()))})

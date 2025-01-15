@@ -189,9 +189,11 @@ build.yml
 
 # GTM
 .gtm.yaml
+.gtmproject.yaml
 
 .idea
 .vscode
+.fleet
 
 pre-*-bkcodeai
 bkcodeai.json

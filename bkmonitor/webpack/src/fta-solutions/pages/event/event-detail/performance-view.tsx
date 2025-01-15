@@ -23,17 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils/utils';
-import { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
-import { BookMarkModel, IBookMark, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { BookMarkModel, type IBookMark, type IPanelModel, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import { createAutoTimerange } from './aiops-chart';
-import { IDetail, setBizIdToPanel } from './type';
+import { type IDetail, setBizIdToPanel } from './type';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './performance-view.scss';
 
@@ -62,6 +64,9 @@ export default class PerformanceView extends tsc<IProps> {
 
   loading = false;
 
+  // 时间范围缓存用于复位功能
+  cacheTimeRange = [];
+
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 视图变量
@@ -69,9 +74,27 @@ export default class PerformanceView extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 当前业务id
-  @ProvideReactive('bkBizId') bkBizId: string | number = null;
+  @ProvideReactive('bkBizId') bkBizId: number | string = null;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
+  // 是否展示复位
+  @ProvideReactive('showRestore') showRestore = false;
+  // 是否开启（框选/复位）全部操作
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+  @Provide('handleChartDataZoom')
+  handleChartDataZoom(value) {
+    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
+      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+      this.timeRange = value;
+      this.showRestore = true;
+    }
+  }
+  @Provide('handleRestoreEvent')
+  handleRestoreEvent() {
+    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
+    this.showRestore = false;
+  }
   @Watch('show')
   handleShow(v: boolean) {
     if (v && !this.localPanels.length) {
@@ -84,13 +107,13 @@ export default class PerformanceView extends tsc<IProps> {
     this.loading = true;
     const currentTarget: Record<string, any> = {
       bk_target_ip: '0.0.0.0',
-      bk_target_cloud_id: '0'
+      bk_target_cloud_id: '0',
     };
     const variables: Record<string, any> = {
       bk_target_ip: '0.0.0.0',
       bk_target_cloud_id: '0',
       ip: '0.0.0.0',
-      bk_cloud_id: '0'
+      bk_cloud_id: '0',
     };
     this.bkBizId = this.detail.bk_biz_id;
     this.detail.tags?.forEach(item => {
@@ -123,7 +146,7 @@ export default class PerformanceView extends tsc<IProps> {
       variables,
       interval,
       group_by: [],
-      current_target: currentTarget
+      current_target: currentTarget,
     };
     const data: IBookMark = await getSceneView(
       this.isProcess
@@ -131,13 +154,13 @@ export default class PerformanceView extends tsc<IProps> {
             bk_biz_id: this.detail.bk_biz_id,
             scene_id: 'host',
             type: 'detail',
-            id: 'process'
+            id: 'process',
           }
         : {
             bk_biz_id: this.detail.bk_biz_id,
             scene_id: 'host',
             type: 'detail',
-            id: 'host'
+            id: 'host',
           }
     ).catch(() => ({ id: '', panels: [], name: '' }));
     this.sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
@@ -190,17 +213,17 @@ export default class PerformanceView extends tsc<IProps> {
       >
         {this.localPanels.length ? (
           <DashboardPanel
-            panels={this.localPanels}
-            needOverviewBtn={false}
-            isSplitPanel={false}
-            isSingleChart={false}
-            column={3}
             id={this.dashboardPanelId}
-          ></DashboardPanel>
+            column={3}
+            isSingleChart={false}
+            isSplitPanel={false}
+            needOverviewBtn={false}
+            panels={this.localPanels}
+          />
         ) : (
           <div class='no-data'>
             {/* 无数据情况暂且不做 */}
-            {/* eslint-disable-next-line @typescript-eslint/no-require-imports */}
+            {}
             {/* <img class="no-data-img" src={require('../../../static/img/empty.svg')}></img>
           <div class="no-data-msg">
             {(() => {
@@ -234,7 +257,7 @@ export default class PerformanceView extends tsc<IProps> {
                   onClick={() => this.handleToPerformance()}
                 >
                   {window.i18n.t('跳转至主机监控')}
-                  <span class='icon-monitor icon-fenxiang'></span>
+                  <span class='icon-monitor icon-fenxiang' />
                 </span>
               </i18n>
             </div>

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TimeRangeType } from '../../../components/time-range/utils';
+import type { TimeRangeType } from '../../../components/time-range/utils';
 
 export interface ToolsFormData {
   /** 日期时间 */
@@ -35,5 +35,5 @@ export interface ToolsFormData {
 }
 
 export enum MenuEnum {
-  FullScreen = 'fullScreen'
+  FullScreen = 'fullScreen',
 }

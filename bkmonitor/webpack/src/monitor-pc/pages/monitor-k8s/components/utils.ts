@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
+
+import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 /**
  * @description: 获取单个panel数据
  * @param {PanelModel} panel panelModel
@@ -38,7 +40,7 @@ export async function getPanelData(panel: PanelModel, viewOptions: IViewOptions)
     const variablesService = new VariablesService({
       ...viewOptions,
       ...viewOptions.filters,
-      ...viewOptions.variables
+      ...viewOptions.variables,
     });
     const params = variablesService.transformVariables(item.data);
     const data = await Vue.prototype.$api[item.apiModule][item.apiFunc](params).catch(() => []);

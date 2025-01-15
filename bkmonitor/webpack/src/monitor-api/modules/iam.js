@@ -33,5 +33,5 @@ export default {
   getAuthorizerByBiz,
   getAuthorizerList,
   getApplyRecordList,
-  callback
+  callback,
 };

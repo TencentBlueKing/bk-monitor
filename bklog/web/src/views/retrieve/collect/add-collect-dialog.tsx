@@ -1,29 +1,32 @@
-/* eslint-disable camelcase */
-/* eslint-disable no-useless-escape */
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Emit, Prop, Ref, Model } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import {
   Dialog,
   Form,
@@ -36,9 +39,11 @@ import {
   CheckboxGroup,
   Checkbox,
   Switcher,
-  Tag
+  Tag,
 } from 'bk-magic-vue';
+
 import $http from '../../../api';
+
 import './add-collect-dialog.scss';
 
 interface IProps {
@@ -66,7 +71,7 @@ export default class CollectDialog extends tsc<IProps> {
   isDisableSelect = false; // 是否禁用 所属组下拉框
   isShowAddGroup = true;
   verifyData = {
-    groupName: ''
+    groupName: '',
   };
   baseFavoriteData = {
     // 收藏参数
@@ -80,18 +85,18 @@ export default class CollectDialog extends tsc<IProps> {
         modules: [],
         ips: '',
         target_nodes: [],
-        target_node_type: ''
+        target_node_type: '',
       },
       addition: [],
       keyword: null,
-      search_fields: []
+      search_fields: [],
     },
     is_enable_display_fields: false,
     index_set_ids: [],
     index_set_name: '',
     index_set_names: [],
     visible_type: 'public',
-    display_fields: []
+    display_fields: [],
   };
   favoriteData = {
     // 收藏参数
@@ -105,18 +110,18 @@ export default class CollectDialog extends tsc<IProps> {
         modules: [],
         ips: '',
         target_nodes: [],
-        target_node_type: ''
+        target_node_type: '',
       },
       addition: [],
       keyword: null,
-      search_fields: []
+      search_fields: [],
     },
     is_enable_display_fields: false,
     index_set_ids: [],
     index_set_name: '',
     index_set_names: [],
     visible_type: 'public',
-    display_fields: []
+    display_fields: [],
   };
   positionTop = 0;
   publicGroupList = []; // 可见状态为公共的时候显示的收藏组
@@ -128,35 +133,35 @@ export default class CollectDialog extends tsc<IProps> {
   isInitShowDisplayFields = false; // 编辑初始化时 是否显示字段
   groupNameMap = {
     unknown: window.mainComponent.$t('未分组'),
-    private: window.mainComponent.$t('个人收藏')
+    private: window.mainComponent.$t('个人收藏'),
   };
   public rules = {
     name: [
       {
         required: true,
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkSpecification,
         message: window.mainComponent.$t('{n}不规范, 包含特殊符号', { n: window.mainComponent.$t('收藏名') }),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkRepeatName,
         message: window.mainComponent.$t('收藏名重复'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkCannotUseName,
         message: window.mainComponent.$t('保留名称，不可使用'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   public groupNameRules = {
@@ -164,24 +169,24 @@ export default class CollectDialog extends tsc<IProps> {
       {
         validator: this.checkName,
         message: window.mainComponent.$t('{n}不规范, 包含特殊符号', { n: window.mainComponent.$t('组名') }),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkExistName,
         message: window.mainComponent.$t('组名重复'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   get spaceUid() {
@@ -239,14 +244,14 @@ export default class CollectDialog extends tsc<IProps> {
   handleSubmitChange(isCreate: boolean, resValue?: object) {
     return {
       isCreate,
-      resValue
+      resValue,
     };
   }
 
   checkName() {
     if (this.verifyData.groupName.trim() === '') return true;
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupName.trim()
+      this.verifyData.groupName.trim(),
     );
   }
 
@@ -262,7 +267,7 @@ export default class CollectDialog extends tsc<IProps> {
   /** 检查收藏语法是否正确 */
   checkSpecification() {
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|\s,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.favoriteData.name.trim()
+      this.favoriteData.name.trim(),
     );
   }
   /** 检查是否有内置名称不能使用 */
@@ -304,12 +309,12 @@ export default class CollectDialog extends tsc<IProps> {
       const data = { name: this.verifyData.groupName, space_uid: this.spaceUid };
       try {
         const res = await $http.request('favorite/createGroup', {
-          data
+          data,
         });
         if (res.result) {
           this.$bkMessage({
             message: this.$t('操作成功'),
-            theme: 'success'
+            theme: 'success',
           });
           this.requestGroupList(true, this.verifyData.groupName.trim());
         }
@@ -354,14 +359,14 @@ export default class CollectDialog extends tsc<IProps> {
     keyword === '' && (keyword = '*');
     try {
       const res = await $http.request('favorite/getSearchFields', {
-        data: { keyword }
+        data: { keyword },
       });
       this.searchFieldsList = res.data.map(item => ({
         ...item,
         name: item.is_full_text_field
           ? `${this.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
           : item.name,
-        chName: item.name
+        chName: item.name,
       }));
     } catch (error) {}
   }
@@ -380,25 +385,25 @@ export default class CollectDialog extends tsc<IProps> {
       addition,
       keyword,
       search_fields,
-      is_enable_display_fields
+      is_enable_display_fields,
     };
     if (this.isCreateFavorite) {
       Object.assign(data, {
         index_set_id,
-        space_uid: this.spaceUid
+        space_uid: this.spaceUid,
       });
     }
     if (this.isUnionSearch) {
       Object.assign(data, {
         index_set_ids: this.unionIndexList,
-        index_set_type: 'union'
+        index_set_type: 'union',
       });
     }
     const requestStr = this.isCreateFavorite ? 'createFavorite' : 'updateFavorite';
     try {
       const res = await $http.request(`favorite/${requestStr}`, {
         params: { id },
-        data
+        data,
       });
       if (res.result) {
         this.handleSubmitChange(this.isCreateFavorite, res.data);
@@ -412,12 +417,12 @@ export default class CollectDialog extends tsc<IProps> {
     try {
       const res = await $http.request('favorite/getGroupList', {
         query: {
-          space_uid: this.spaceUid
-        }
+          space_uid: this.spaceUid,
+        },
       });
       this.groupList = res.data.map(item => ({
         ...item,
-        name: this.groupNameMap[item.group_type] ?? item.name
+        name: this.groupNameMap[item.group_type] ?? item.name,
       }));
       this.publicGroupList = this.groupList.slice(1, this.groupList.length);
       this.privateGroupList = [this.groupList[0]];
@@ -455,27 +460,27 @@ export default class CollectDialog extends tsc<IProps> {
     };
     return (
       <Dialog
-        value={this.value}
-        title={this.isCreateFavorite ? this.$t('新建收藏') : this.$t('编辑收藏')}
-        ok-text={this.isCreateFavorite ? this.$t('确定') : this.$t('保存')}
-        header-position='left'
-        ext-cls='add-collect-dialog'
-        render-directive='if'
         width={640}
-        position={{ top: this.positionTop }}
+        ext-cls='add-collect-dialog'
         auto-close={false}
-        on-value-change={this.handleValueChange}
+        header-position='left'
+        ok-text={this.isCreateFavorite ? this.$t('确定') : this.$t('保存')}
+        position={{ top: this.positionTop }}
+        render-directive='if'
+        title={this.isCreateFavorite ? this.$t('新建收藏') : this.$t('编辑收藏')}
+        value={this.value}
         on-confirm={this.handleSubmitFormData}
+        on-value-change={this.handleValueChange}
       >
         <Form
-          form-type='vertical'
           ref='validateForm'
           v-bkloading={{ isLoading: this.formLoading }}
+          form-type='vertical'
           {...{
             props: {
               model: this.favoriteData,
-              rules: this.rules
-            }
+              rules: this.rules,
+            },
           }}
         >
           <div class='edit-information'>
@@ -489,8 +494,8 @@ export default class CollectDialog extends tsc<IProps> {
           <div class='form-item-container'>
             <FormItem
               label={this.$t('收藏名')}
-              required
               property='name'
+              required
             >
               <Input
                 class='collect-name'
@@ -511,8 +516,8 @@ export default class CollectDialog extends tsc<IProps> {
                   {this.$t('公开')}({this.$t('本业务可见')})
                 </Radio>
                 <Radio
-                  value={'private'}
                   disabled={this.isCannotChangeVisible}
+                  value={'private'}
                 >
                   {this.$t('私有')}({this.$t('仅个人可见')})
                 </Radio>
@@ -527,9 +532,9 @@ export default class CollectDialog extends tsc<IProps> {
                 <Select
                   vModel={this.favoriteData.group_id}
                   disabled={this.isDisableSelect}
-                  on-change={this.handleSelectGroup}
                   ext-popover-cls='add-new-page-container'
                   searchable
+                  on-change={this.handleSelectGroup}
                 >
                   {this.showGroupList.map(item => (
                     <Option
@@ -550,25 +555,25 @@ export default class CollectDialog extends tsc<IProps> {
                       </div>
                     ) : (
                       <li
-                        class='add-new-page-input'
                         style={{ padding: '6px 0' }}
+                        class='add-new-page-input'
                       >
                         <Form
-                          labelWidth={0}
-                          style={{ width: '100%' }}
                           ref='checkInputForm'
+                          style={{ width: '100%' }}
+                          labelWidth={0}
                           {...{
                             props: {
                               model: this.verifyData,
-                              rules: this.groupNameRules
-                            }
+                              rules: this.groupNameRules,
+                            },
                           }}
                         >
                           <FormItem property='groupName'>
                             <Input
-                              clearable
-                              placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                               vModel={this.verifyData.groupName}
+                              placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
+                              clearable
                             ></Input>
                           </FormItem>
                         </Form>
@@ -595,7 +600,7 @@ export default class CollectDialog extends tsc<IProps> {
           <FormItem label={this.$t('表单模式')}>
             <div class='explanation-field'>
               {this.$t(
-                '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)'
+                '该功能指从查询语句中获取相应的字段，当勾选对应的字段时，将以表单的填写方式显示给收藏的使用者。（字段说明：没有字段时，为全文检索；重复的字段增加显示序号(N) ，默认不勾选任何字段)',
               )}
             </div>
             <CheckboxGroup vModel={this.favoriteData.params.search_fields}>
@@ -605,15 +610,15 @@ export default class CollectDialog extends tsc<IProps> {
             </CheckboxGroup>
           </FormItem>
           <FormItem
-            label={this.$t('是否同时显示字段')}
             ext-cls='filed-label'
-            desc-icon='bk-icon icon-info'
-            desc-type='icon'
-            labelWidth={400}
             desc={{
               content: `${this.$t('当打开时，使用该收藏将同时显示如下字段，不影响用户字段显示设置。')}`,
-              placements: ['right']
+              placements: ['right'],
             }}
+            desc-icon='bk-icon icon-info'
+            desc-type='icon'
+            label={this.$t('是否同时显示字段')}
+            labelWidth={400}
           >
             <div class='filed-container'>
               <Switcher

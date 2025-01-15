@@ -26,19 +26,19 @@
 <template>
   <div class="strategy-set-input">
     <component
-      v-for="(item, index) in alarmConditionList"
-      :key="item.type + '-' + item.compKey"
       :is="item.component"
-      :ref="'component-' + index"
+      v-for="(item, index) in alarmConditionList"
       v-show="item.show"
+      :key="item.type + '-' + item.compKey"
+      :ref="'component-' + index"
+      :list="item.list"
+      v-bind="item"
       @click="curActive = index"
       @remove="handleItemRemove(item, index)"
       @set-hide="handleSetHide(item, index)"
-      @set-value="(data) => handleSetValue(data, item, index)"
-      @item-select="(data) => handleItemSelect(data, item, index)"
+      @set-value="data => handleSetValue(data, item, index)"
+      @item-select="data => handleItemSelect(data, item, index)"
       @set-add="item.addEvent && handleSetAdd($event, item, index)"
-      :list="item.list"
-      v-bind="item"
     />
     <!-- <span class="input-blank"></span> -->
   </div>
@@ -53,31 +53,31 @@ export default {
   name: 'StrategyConditionInput',
   components: {
     SetInput,
-    SetAdd
+    SetAdd,
   },
   props: {
     dimensionList: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     conditions: {
       type: Array,
       default() {
         return [];
-      }
+      },
     },
     value: {
       type: Array,
       default() {
         return [];
-      }
-    }
+      },
+    },
   },
   data() {
     return {
-      alarmConditionList: []
+      alarmConditionList: [],
     };
   },
   watch: {
@@ -85,8 +85,8 @@ export default {
       handler() {
         this.$emit('change', deepClone(this.getValue()));
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   created() {
     this.handleSetDefaultValue();
@@ -98,32 +98,32 @@ export default {
         list: [
           {
             id: 'gt',
-            name: '>'
+            name: '>',
           },
           {
             id: 'gte',
-            name: '>='
+            name: '>=',
           },
           {
             id: 'lt',
-            name: '<'
+            name: '<',
           },
           {
             id: 'lte',
-            name: '<='
+            name: '<=',
           },
           {
             id: 'eq',
-            name: '='
+            name: '=',
           },
           {
             id: 'neq',
-            name: '!='
-          }
+            name: '!=',
+          },
         ],
         value: {
           id: 'gte',
-          name: '>='
+          name: '>=',
         },
         width: '32',
         'list-min-width': '30',
@@ -132,7 +132,7 @@ export default {
         show: true,
         type: 'method',
         compKey: key,
-        isKey: true
+        isKey: true,
       };
     },
     getDefaultValue() {
@@ -141,14 +141,14 @@ export default {
         list: [],
         value: {
           id: '',
-          name: ''
+          name: '',
         },
         component: 'set-input',
         show: true,
         type: 'value',
         'input-type': 'number',
         placeholder: this.$t('输入数字'),
-        compKey: key
+        compKey: key,
       };
     },
     getDefaultCondition(isOr = false) {
@@ -159,13 +159,13 @@ export default {
           {
             id: 'and',
             name: 'AND',
-            show: true
+            show: true,
           },
           {
             id: 'or',
             name: 'OR',
-            show: true
-          }
+            show: true,
+          },
         ],
         value,
         width: '40',
@@ -176,7 +176,7 @@ export default {
         type: 'condition',
         compKey: key,
         unique: false,
-        readonly: false
+        readonly: false,
       };
     },
     getDefaultAdd() {
@@ -186,7 +186,7 @@ export default {
         show: false,
         addEvent: true,
         type: 'add',
-        compKey: key
+        compKey: key,
       };
     },
     handleSetAdd(e, item, index) {
@@ -234,14 +234,14 @@ export default {
           }
           const methodItem = this.getDefaultMethod();
           methodItem.value.id = item.method;
-          methodItem.value.name = (methodItem.list.find(set => set.id === item.method))?.name;
+          methodItem.value.name = methodItem.list.find(set => set.id === item.method)?.name;
           this.alarmConditionList.push(methodItem);
           const valueItem = this.getDefaultValue();
           valueItem.value.id = item.value;
           valueItem.value.name = item.value;
           valueItem.list.unshift({
             id: item.value,
-            name: item.value
+            name: item.value,
           });
           this.alarmConditionList.push(valueItem);
         });
@@ -281,7 +281,7 @@ export default {
       const ret = [];
       if (this.alarmConditionList.length) {
         let data = {};
-        this.alarmConditionList.forEach((item) => {
+        this.alarmConditionList.forEach(item => {
           const { type } = item;
           if (['method', 'value', 'condition'].includes(type)) {
             if (type === 'condition') {
@@ -295,8 +295,8 @@ export default {
         Object.keys(data).length && ret.push(data);
       }
       return ret;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

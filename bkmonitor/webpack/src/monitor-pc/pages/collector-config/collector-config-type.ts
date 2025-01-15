@@ -83,8 +83,8 @@ export interface ICustomData {
 }
 
 export interface IVariableData {
-  $bk_target_ip?: string | number;
-  $bk_target_cloud_id?: string | number;
+  $bk_target_ip?: number | string;
+  $bk_target_cloud_id?: number | string;
   $bk_target_service_instance_id?: string[];
   $target?: string;
   $bk_inst_id?: string;

@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import datetime
 import decimal
+import gzip
 import hashlib
 import inspect
 import json
@@ -31,16 +32,16 @@ from typing import Dict, List, Union
 from zipfile import ZipFile
 
 from django.conf import settings
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from django.utils.timezone import is_aware
-from django.utils.translation import ugettext as _
-from six.moves import map, range
+from django.utils.translation import gettext as _
 
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.text import camel_to_underscore
 from constants.cmdb import BIZ_ID_FIELD_NAMES
 from constants.result_table import RT_RESERVED_WORD_EXACT, RT_RESERVED_WORD_FUZZY
+from core.errors import ErrorDetails
 from core.errors.dataapi import TSDBParseError
 
 logger = logging.getLogger(__name__)
@@ -99,7 +100,7 @@ class DatetimeEncoder(json.JSONEncoder):
         if isinstance(obj, set):
             return list(obj)
         if isinstance(obj, Promise):
-            return force_text(obj)
+            return force_str(obj)
         if issubclass(obj.__class__, DictObj):
             return obj.__dict__
         if isinstance(obj, bytes):
@@ -152,12 +153,37 @@ def ok(message="", **options):
     return result
 
 
-def failed(message="", **options):
+def failed(message="", error_code=None, error_name=None, exc_type=None, popup_type=None, **options):
+    """
+    生成标准化错误响应字典
+    :param message: 错误信息，可以是任何类型。它将被转换为字符串。
+    :param error_code 错误编码
+    :param error_name 错误名称
+    :param exc_type 错误类型
+    :param popup_type 弹窗类型（danger为红框，warn为黄框）
+    :param options: 附加的键值对，将包含在响应字典中。
+
+    :return: 包含错误响应的字典，键包括：'code' 'name' 'result', 'message', 'data', 'msg' 'error_details'。
+    """
     if not isinstance(message, str):
         if isinstance(message, str):
             message = message.encode("utf-8")
         message = str(message)
-    result = {"result": False, "message": message, "data": {}, "msg": message}
+    result = {
+        "code": error_code,
+        "name": error_name,
+        "result": False,
+        "message": message,
+        "data": {},
+        "msg": message,
+        "error_details": ErrorDetails(
+            exc_type=exc_type,
+            exc_code=error_code,
+            overview=message,
+            detail=message,
+            popup_message=popup_type if popup_type else "warning",  # 默认均为warn
+        ).to_dict(),
+    }
     result.update(**options)
     return result
 
@@ -741,18 +767,6 @@ def to_dict(obj):
         return obj
 
 
-def replce_special_val(s, replace_dict):
-    """
-    替换特殊变量
-    :param s: 待替换字符串
-    :param replace_dict: 替换映射
-    :return: 替换结果
-    """
-    for key, value in replace_dict.items():
-        s = s.replace(key, value)
-    return s
-
-
 def chunks(data, n):
     """分隔数组 ."""
     return (data[i : i + n] for i in range(0, len(data), n))
@@ -780,3 +794,23 @@ def camel_obj_key_to_underscore(obj: Union[List, Dict, str]) -> object:
             new_obj.append(value)
             return new_obj
     return obj
+
+
+def compress_and_serialize(data):
+    # 将字典转换为 JSON 字符串
+    json_str = json.dumps(data)
+
+    # 压缩 JSON 字符串
+    compressed_data = gzip.compress(json_str.encode('utf-8'))
+
+    return compressed_data
+
+
+def deserialize_and_decompress(compressed_data):
+    # 解压缩数据
+    json_str = gzip.decompress(compressed_data).decode('utf-8')
+
+    # 将 JSON 字符串转换回字典
+    data = json.loads(json_str)
+
+    return data

@@ -37,20 +37,20 @@
       />
       <div>
         <uptimecheck
-          :alarm="alarm"
           v-if="active === 'uptimecheck'"
+          :alarm="alarm"
         />
         <service
-          :alarm="alarm"
           v-if="active === 'service'"
+          :alarm="alarm"
         />
         <os
-          :alarm="alarm"
           v-if="active === 'os'"
+          :alarm="alarm"
         />
         <process
-          :alarm="alarm"
           v-if="active === 'process'"
+          :alarm="alarm"
         />
       </div>
     </bk-tab>
@@ -68,14 +68,14 @@ export default {
     Uptimecheck,
     Service,
     Os,
-    Process
+    Process,
   },
   props: {
     selectedIndex: Number,
     alarm: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -83,9 +83,9 @@ export default {
         { label: this.$t('拨测监控'), name: 'uptimecheck' },
         { label: this.$t('服务监控'), name: 'service' },
         { label: this.$t('进程监控'), name: 'process' },
-        { label: this.$t('主机监控'), name: 'os' }
+        { label: this.$t('主机监控'), name: 'os' },
       ],
-      active: 'uptimecheck'
+      active: 'uptimecheck',
     };
   },
   methods: {
@@ -94,10 +94,10 @@ export default {
         uptimecheck: 0,
         service: 1,
         process: 2,
-        os: 3
+        os: 3,
       };
       this.$emit('update:selectedIndex', indexMap[v]);
-    }
-  }
+    },
+  },
 };
 </script>

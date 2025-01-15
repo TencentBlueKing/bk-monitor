@@ -2,17 +2,15 @@
   position: relative;
   width: 100%;
   height: 100%;
-  background-color: #fff;
   overflow: hidden;
-  // z-index: 10;
+  cursor: grab;
+  background-color: #fff;
 
   .topo-img {
     position: absolute;
     width: 100%;
     height: 100%;
     overflow: hidden;
-    cursor: grab;
-    // z-index: 1;
 
     svg {
       width: 100%;

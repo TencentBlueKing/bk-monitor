@@ -28,7 +28,7 @@ from typing import Any, Dict, List, Union
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db import models
+from django.db import connection, models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.html import format_html
@@ -53,6 +53,7 @@ from apps.log_search.constants import (
     EtlConfigEnum,
     FavoriteGroupType,
     FavoriteListOrderType,
+    FavoriteType,
     FavoriteVisibleType,
     FieldBuiltInEnum,
     FieldDataTypeEnum,
@@ -61,6 +62,7 @@ from apps.log_search.constants import (
     GlobalTypeEnum,
     IndexSetType,
     InnerTag,
+    SearchMode,
     SearchScopeEnum,
     SeparatorEnum,
     StorageDurationTimeEnum,
@@ -76,6 +78,7 @@ from apps.log_search.exceptions import (
     ScenarioNotSupportedException,
     SourceDuplicateException,
 )
+from apps.log_search.utils import fetch_request_username
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaField,
@@ -85,7 +88,7 @@ from apps.models import (
 )
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.db import array_group, array_hash
-from apps.utils.local import get_request_app_code, get_request_username
+from apps.utils.local import get_request_app_code
 from apps.utils.time_handler import (
     datetime_to_timestamp,
     timestamp_to_datetime,
@@ -371,7 +374,16 @@ class LogIndexSet(SoftDeleteModel):
 
     # 上下文、实时日志 定位字段 排序字段
     target_fields = models.JSONField(_("定位字段"), null=True, default=list)
-    sort_fields = models.JSONField(_("排序字段"),  null=True, default=list)
+    sort_fields = models.JSONField(_("排序字段"), null=True, default=list)
+
+    result_window = models.IntegerField(default=10000, verbose_name=_("单次导出的日志条数"))
+
+    max_analyzed_offset = models.IntegerField(default=0, verbose_name=_("日志长文本高亮长度限制"))
+    max_async_count = models.IntegerField(default=0, verbose_name=_("日志异步下载最大条数限制"))
+
+    # doris
+    support_doris = models.BooleanField(_("是否支持doris存储类型"), default=False)
+    doris_table_id = models.CharField(_("doris表名"), max_length=128, null=True, default=None)
 
     def get_name(self):
         return self.index_set_name
@@ -388,13 +400,14 @@ class LogIndexSet(SoftDeleteModel):
     list_operate.__name__ = "操作列表"
 
     def save(self, *args, **kwargs):
-        queryset = LogIndexSet.objects.filter(
-            space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
-        )
-        if queryset.exists() and queryset[0].index_set_id != self.index_set_id:
-            raise IndexSetNameDuplicateException(
-                IndexSetNameDuplicateException.MESSAGE.format(index_set_name=self.index_set_name)
+        if self.pk is None:
+            queryset = LogIndexSet.objects.filter(
+                space_uid=self.space_uid, index_set_name=self.index_set_name, is_deleted=False
             )
+            if queryset.exists() and queryset[0].index_set_id != self.index_set_id:
+                raise IndexSetNameDuplicateException(
+                    IndexSetNameDuplicateException.MESSAGE.format(index_set_name=self.index_set_name)
+                )
         super().save(*args, **kwargs)
 
     @property
@@ -404,19 +417,6 @@ class LogIndexSet(SoftDeleteModel):
         :return:
         """
         return self.get_indexes()
-
-    @classmethod
-    def get_bcs_index_set(cls, space_uid, bcs_project_id, bcs_cluster_id):
-        src_index_list = LogIndexSet.objects.filter(space_uid=space_uid, bcs_project_id=bcs_project_id)
-        bcs_path_index_set = None
-        bcs_std_index_set = None
-        for src_index in src_index_list:
-            if src_index.index_set_name == f"{bcs_cluster_id}_path":
-                bcs_path_index_set = src_index
-                continue
-            if src_index.index_set_name == f"{bcs_cluster_id}_std":
-                bcs_std_index_set = src_index
-        return bcs_path_index_set, bcs_std_index_set
 
     @property
     def scenario_name(self):
@@ -445,9 +445,9 @@ class LogIndexSet(SoftDeleteModel):
 
         return BkDataAuthHandler.get_auth_url(not_applied_indices)
 
-    @property
-    def no_data_check_time(self):
-        result = cache.get(INDEX_SET_NO_DATA_CHECK_PREFIX + str(self.index_set_id))
+    @staticmethod
+    def no_data_check_time(index_set_id: str):
+        result = cache.get(INDEX_SET_NO_DATA_CHECK_PREFIX + index_set_id)
         if result is None:
             temp = timestamp_to_datetime(time.time()) - datetime.timedelta(minutes=INDEX_SET_NO_DATA_CHECK_INTERVAL)
             result = datetime_to_timestamp(temp)
@@ -499,8 +499,6 @@ class LogIndexSet(SoftDeleteModel):
         if is_trace_log:
             qs = qs.filter(is_trace_log=is_trace_log)
 
-        no_data_check_time_list = [item.no_data_check_time for item in qs]
-
         index_sets = qs.values(
             "space_uid",
             "index_set_id",
@@ -515,15 +513,30 @@ class LogIndexSet(SoftDeleteModel):
             "time_field_unit",
             "tag_ids",
             "target_fields",
-            "sort_fields"
+            "sort_fields",
+            "support_doris",
+            "doris_table_id",
         )
 
         # 获取接入场景
         scenarios = array_hash(Scenario.get_scenarios(), "scenario_id", "scenario_name")
 
-        # 获取索引详情
-        index_set_ids = [index_set["index_set_id"] for index_set in index_sets]
-        mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, get_request_username()))
+        # 获取索引详情和标签信息
+        index_set_ids, tag_id_list = [], []
+        for index_set in index_sets:
+            tag_id_list.extend(index_set["tag_ids"])
+            index_set_ids.append(index_set["index_set_id"])
+
+        tags_data_dic = IndexSetTag.batch_get_tags(set(tag_id_list))
+
+        no_data_check_time = None
+        for index_set_id in index_set_ids:
+            no_data_check_time = cls.no_data_check_time(str(index_set_id))
+            if no_data_check_time:
+                # 这里只要近似值，只要取到其中一个即可，没有必要将全部索引的时间都查出来
+                break
+
+        mark_index_set_ids = set(IndexSetUserFavorite.batch_get_mark_index_set(index_set_ids, fetch_request_username()))
 
         index_set_data = array_group(
             list(
@@ -537,7 +550,7 @@ class LogIndexSet(SoftDeleteModel):
         )
 
         result = []
-        for index_set, no_data_check_time in zip(index_sets, no_data_check_time_list):
+        for index_set in index_sets:
             if show_indices:
                 index_set["indices"] = index_set_data.get(index_set["index_set_id"], [])
                 if not index_set["indices"]:
@@ -556,8 +569,8 @@ class LogIndexSet(SoftDeleteModel):
 
             index_set["scenario_name"] = scenarios.get(index_set["scenario_id"])
             index_set["bk_biz_id"] = space_uid_to_bk_biz_id(index_set["space_uid"])
+            index_set["tags"] = [tags_data_dic.get(tag_id, []) for tag_id in index_set["tag_ids"]]
 
-            index_set["tags"] = IndexSetTag.batch_get_tags(index_set["tag_ids"])
             index_set["is_favorite"] = index_set["index_set_id"] in mark_index_set_ids
             index_set["no_data_check_time"] = no_data_check_time
             index_set["target_fields"] = [] if not index_set["target_fields"] else index_set["target_fields"]
@@ -694,16 +707,21 @@ class UserIndexSetSearchHistory(SoftDeleteModel):
     index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     params = JsonField(_("检索条件"), null=True, default=None)
     search_type = models.CharField(_("检索类型"), max_length=32, default="default")
+    search_mode = models.CharField(
+        _("检索模式"), max_length=32, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     duration = models.FloatField(_("查询耗时"), null=True, default=None)
     rank = models.IntegerField(_("排序"), default=0)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+    from_favorite_id = models.IntegerField(_("检索收藏ID"), default=0, db_index=True)
 
     class Meta:
         verbose_name = _("索引集用户检索记录")
         verbose_name_plural = _("32_搜索-索引集用户检索记录")
+        indexes = [models.Index(fields=["created_by"])]
 
 
 class ResourceChange(OperateRecordModel):
@@ -801,12 +819,18 @@ class Favorite(OperateRecordModel):
     group_id = models.IntegerField(_("收藏组ID"), db_index=True)
     params = JsonField(_("检索条件"), null=True, default=None)
     visible_type = models.CharField(_("可见类型"), max_length=64, choices=FavoriteVisibleType.get_choices())  # 个人 | 公开
+    search_mode = models.CharField(
+        _("检索模式"), max_length=32, choices=SearchMode.get_choices(), default=SearchMode.UI.value
+    )
     is_enable_display_fields = models.BooleanField(_("是否同时显示字段"), default=False)
     display_fields = models.JSONField(_("显示字段"), blank=True, default=None)
     source_app_code = models.CharField(verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True)
     index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
+    favorite_type = models.CharField(
+        _("收藏类型"), max_length=32, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
     )
 
     class Meta:
@@ -1022,6 +1046,12 @@ class IndexSetUserFavorite(models.Model):
             "index_set_id", flat=True
         )
 
+    @classmethod
+    def fetch_user_favorite_index_set(cls, username: str):
+        return cls.objects.filter(username=username).values_list(
+            "index_set_id", flat=True
+        )
+
 
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)
@@ -1034,17 +1064,20 @@ class IndexSetTag(models.Model):
 
     @classmethod
     def get_tag_id(cls, name: str) -> int:
-        if cls.objects.filter(name=name).exists():
-            return cls.objects.get(name=name).tag_id
-        return cls.objects.create(name=name).tag_id
+        tag, created = cls.objects.get_or_create(name=name)
+        return tag.tag_id
 
     @classmethod
-    def batch_get_tags(cls, tag_ids: list):
+    def batch_get_tags(cls, tag_ids: set):
         tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "color", "tag_id")
-        return [
-            {"name": InnerTag.get_choice_label(tag["name"]), "color": tag["color"], "tag_id": tag["tag_id"]}
+        return {
+            str(tag["tag_id"]): {
+                "name": InnerTag.get_choice_label(tag["name"]),
+                "color": tag["color"],
+                "tag_id": tag["tag_id"],
+            }
             for tag in tags
-        ]
+        }
 
 
 class AsyncTask(OperateRecordModel):
@@ -1208,6 +1241,28 @@ class Space(SoftDeleteModel):
         verbose_name = _("空间信息")
         verbose_name_plural = _("空间信息")
 
+    @classmethod
+    def get_all_spaces(cls):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id,
+                       space_type_id,
+                       space_type_name,
+                       space_id,
+                       space_name,
+                       space_uid,
+                       space_code,
+                       bk_biz_id,
+                       JSON_EXTRACT(properties, '$.time_zone') AS time_zone
+                FROM log_search_space
+            """
+            )
+            columns = [col[0] for col in cursor.description]
+            spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        return spaces
+
 
 class SpaceApi(AbstractSpaceApi):
     """
@@ -1368,4 +1423,33 @@ class StorageClusterRecord(SoftDeleteModel):
     class Meta:
         verbose_name = _("索引集存储集群记录")
         verbose_name_plural = _("索引集存储集群记录")
+        ordering = ("-updated_at",)
+
+
+class UserIndexSetCustomConfig(models.Model):
+    """用户索引集自定义配置"""
+
+    username = models.CharField(_("用户name"), max_length=256)
+    index_set_id = models.IntegerField(_("索引集ID"), null=True)
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, default=list)
+    index_set_hash = models.CharField("索引集哈希", max_length=32)
+    index_set_config = models.JSONField(_("用户索引集配置"), default=dict)
+
+    class Meta:
+        verbose_name = _("用户索引集自定义配置")
+        verbose_name_plural = _("用户索引集自定义配置")
+        unique_together = ('username', 'index_set_hash')
+
+    @classmethod
+    def get_index_set_hash(cls, index_set_id: Union[list, int]):
+        return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()
+
+
+class UserCustomConfig(SoftDeleteModel):
+    user_id = models.IntegerField(_("用户ID"), db_index=True)
+    custom_config = models.JSONField(_("自定义配置"))
+
+    class Meta:
+        verbose_name = _("用户自定义配置")
+        verbose_name_plural = _("用户自定义配置")
         ordering = ("-updated_at",)

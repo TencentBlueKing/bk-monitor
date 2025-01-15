@@ -30,14 +30,14 @@ import './select-card-item.scss';
 
 interface IProps {
   title: string;
-  img: String;
+  img: string;
   checked?: boolean;
   theme?: ThemeType;
   descData?: IDescData;
   mode?: 'normal' | 'small';
   multiple?: boolean;
 }
-export type ThemeType = 'system' | 'plugin' | 'lang' | 'intro';
+export type ThemeType = 'intro' | 'lang' | 'plugin' | 'system';
 
 export interface IDescData {
   name: string;
@@ -72,42 +72,42 @@ export default class SelectCardItem extends tsc<IProps, IEvent> {
           `${this.mode}-mode`,
           {
             checked: this.checked,
-            multiple: this.multiple
-          }
+            multiple: this.multiple,
+          },
         ]}
         onClick={this.handleClick}
       >
         {this.mode === 'normal' ? (
           <div class='select-card-item-main'>
-            {this.multiple && this.checked && <span class='lang-checked-icon'></span>}
+            {this.multiple && this.checked && <span class='lang-checked-icon' />}
             <div class='img-contain'>
               <img
-                src={this.img}
                 alt='img'
-              ></img>
+                src={this.img}
+              />
             </div>
             <div class='item-title'>{this.title}</div>
             {this.theme === 'plugin' && (
               <div class='plugin-desc'>
                 <span class='left-wrap'>
                   <span class='text'>{this.descData.name}</span>
-                  {this.descData.isOfficial && <i class='icon-monitor icon-mc-official'></i>}
+                  {this.descData.isOfficial && <i class='icon-monitor icon-mc-official' />}
                 </span>
                 <span class='right-wrap'>
                   <span class='text'>{this.descData.heat}</span>
-                  <i class='icon-monitor icon-mc-heat'></i>
+                  <i class='icon-monitor icon-mc-heat' />
                 </span>
               </div>
             )}
           </div>
         ) : (
           <div class='select-card-item-main'>
-            {this.multiple && this.checked && <span class='lang-checked-icon'></span>}
+            {this.multiple && this.checked && <span class='lang-checked-icon' />}
             <span class='img-contain'>
               <img
-                src={this.img}
                 alt='img'
-              ></img>
+                src={this.img}
+              />
             </span>
             <span class='item-text'>{this.title}</span>
           </div>

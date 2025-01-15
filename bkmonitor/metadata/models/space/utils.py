@@ -7,7 +7,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.drf_resource import api
 from core.errors.bkmonitor.space import SpaceNotFound
@@ -35,6 +35,28 @@ from .constants import (
 from .space import Space, SpaceDataSource, SpaceResource, SpaceType
 
 logger = logging.getLogger("metadata")
+
+
+def get_related_spaces(space_type_id, space_id, target_space_type_id=SpaceTypes.BKCI.value):
+    """
+    获取{space_type_id}__{space_id} 关联的{target_space_type_id}类型的空间ID
+    现阶段而言，只存在通过业务去查询关联的CI空间场景,即查询bkcc类型关联的bkci类型空间列表
+    """
+    filtered_resources = SpaceResource.objects.filter(
+        resource_type=space_type_id, resource_id=space_id, space_type_id=target_space_type_id
+    )
+    return list(filtered_resources.values_list('space_id', flat=True))
+
+
+def get_biz_ids_by_space_ids(space_type, space_ids):
+    """
+    获取空间ID对应的业务ID列表
+    """
+    res = []
+    for space_id in space_ids:
+        biz_id = Space.objects.get_biz_id_by_space(space_type, space_id)
+        res.append(biz_id)
+    return res
 
 
 def list_spaces(

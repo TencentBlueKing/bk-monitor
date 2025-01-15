@@ -26,8 +26,9 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem } from '../../typings';
 import { createMetricTitleTooltips } from '../../utils';
+
+import type { ChartTitleMenuType, IExtendMetricData, IMenuChildItem, IMenuItem } from '../../typings';
 
 import './chart-title-menu.scss';
 
@@ -37,6 +38,8 @@ interface IChartTitleProps {
   list: ChartTitleMenuType[];
   // 是否显示添加指标到策略选项
   showAddMetric?: boolean;
+  // 菜单是否展示
+  showMenu?: boolean;
   drillDownOption?: IMenuChildItem[];
 }
 export interface IChartTitleMenuEvents {
@@ -51,33 +54,36 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
   @Prop({ default: () => [] }) drillDownOption: IMenuChildItem[];
   @Prop({ default: () => [] }) metrics: IExtendMetricData[];
   @Prop({ type: Boolean, default: true }) showAddMetric: boolean;
+  @Prop({ type: Boolean, default: true }) showMenu: boolean;
   menuList: IMenuItem[] = [];
+  showMenuItem = false;
+  currShowItemRef = '';
   created() {
     this.menuList = [
       {
         name: window.i18n.tc('保存到仪表盘'),
         checked: false,
         id: 'save',
-        icon: 'mc-mark'
+        icon: 'mc-mark',
       },
       {
         name: window.i18n.tc('截图到本地'),
         checked: false,
         id: 'screenshot',
-        icon: 'mc-camera'
+        icon: 'mc-camera',
       },
       {
         name: window.i18n.tc('查看大图'),
         checked: false,
         id: 'fullscreen',
-        icon: 'fullscreen'
+        icon: 'fullscreen',
       },
       {
         name: window.i18n.tc('检索'),
         checked: false,
         id: 'explore',
         icon: 'mc-retrieval',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: window.i18n.tc('下钻'),
@@ -86,21 +92,21 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
         icon: 'xiazuan',
         hasLink: true,
         childValue: '',
-        children: []
+        children: [],
       },
       {
         name: window.i18n.tc('相关告警'),
         checked: false,
         id: 'relate-alert',
         icon: 'mc-menu-alert',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: window.i18n.tc('添加策略'),
         checked: false,
         id: 'strategy',
         icon: 'mc-strategy',
-        hasLink: true
+        hasLink: true,
       },
       {
         name: window.i18n.tc('Y轴固定最小值为0'),
@@ -108,7 +114,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
         id: 'set',
         nextName: window.i18n.tc('Y轴自适应'),
         icon: 'mc-yaxis',
-        nextIcon: 'mc-yaxis-scale'
+        nextIcon: 'mc-yaxis-scale',
       },
       {
         name: window.i18n.tc('更多'),
@@ -121,15 +127,15 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
           {
             id: 'screenshot',
             name: window.i18n.tc('截图到本地'),
-            icon: 'mc-camera'
+            icon: 'mc-camera',
           },
           {
             id: 'export-csv',
             name: window.i18n.tc('导出CSV'),
-            icon: 'xiazai1'
-          }
-        ]
-      }
+            icon: 'xiazai1',
+          },
+        ],
+      },
       // {
       //   name: window.i18n.tc('面积图'),
       //   checked: false,
@@ -143,7 +149,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
   @Watch('drillDownOption', { deep: true })
   drillDownOptionChange() {
     const drillDown = this.menuList.find(item => item.id === 'drill-down');
-    if (!!drillDown) {
+    if (drillDown) {
       /** 服务实例实例 | 主机 | 自定义上报target 优先级从左往右 */
       const defaultKeys = ['bk_target_service_instance_id', 'bk_target_ip', 'target'];
       const optionsKeys = this.drillDownOption.map(item => item.id);
@@ -156,10 +162,18 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
       }
       drillDown.children = this.drillDownOption.map(item => ({
         ...item,
-        needTips: true
+        needTips: true,
       }));
     }
   }
+
+  @Watch('showMenu')
+  handleShowMenuChange(val) {
+    if (!val) {
+      (this.$refs[this.currShowItemRef] as any)?.hideHandler?.();
+    }
+  }
+
   @Emit('select')
   handleMenuClick(item: IMenuItem) {
     return item;
@@ -187,7 +201,7 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
     (this.$refs[key] as any)?.hideHandler?.();
     return {
       child,
-      menu
+      menu,
     };
   }
 
@@ -200,6 +214,24 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
     return options.find(item => item.id === id)?.name;
   }
 
+  /**
+   * 展示子菜单
+   * @param event
+   * @param key
+   */
+  toggleMenuItem(event, key: string) {
+    this.showMenuItem = !this.showMenuItem;
+    const popoverRef = this.$refs[`${key}-popover`] as any;
+    if (popoverRef) {
+      if (this.showMenuItem && popoverRef.showHandler) {
+        popoverRef.showHandler();
+        this.currShowItemRef = `${key}-popover`;
+      } else if (!this.showMenuItem && popoverRef.hideHandler) {
+        popoverRef.hideHandler();
+      }
+    }
+    event.stopPropagation();
+  }
   render() {
     return (
       <ul class='chart-menu'>
@@ -211,22 +243,23 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
            */
           const childTpl = item => (
             <ul
-              slot='content'
               class='child-list'
+              slot='content'
             >
               {item.children.map(child => (
                 <li
+                  key={child.id}
+                  class={['child-list-item', { active: child.id === item.childValue }]}
                   v-bk-tooltips={{
                     content: child.id,
                     placement: 'right',
                     boundary: document.body,
                     disabled: !child.needTips,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
-                  class={['child-list-item', { active: child.id === item.childValue }]}
                   onClick={() => this.handleSelectChild(item, child)}
                 >
-                  {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`}></i>}
+                  {child.icon && <i class={`child-icon icon-monitor ${`icon-${child.icon}`}`} />}
                   {child.name}
                 </li>
               ))}
@@ -237,42 +270,68 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
            */
           const menuItemTpl = (
             <li
-              class='chart-menu-item'
               key={item.id}
+              class='chart-menu-item'
               onClick={() => this.handleMenuClick(item)}
             >
-              <i
-                class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`}
-              ></i>
-              {!item.checked ? item.name : item.nextName || item.name}
+              <i class={`menu-icon icon-monitor ${`icon-${!item.checked ? item.icon : item.nextIcon || item.icon}`}`} />
+              <span class='menu-item-name'>{!item.checked ? item.name : item.nextName || item.name}</span>
               {!!item.children?.length && item.hasLink && (
                 <bk-popover
                   ref={`${item.id}-popover`}
+                  class='menu-item-trigger-popover'
+                  tippy-options={{
+                    trigger: 'click',
+                    appendTo: 'parent',
+                    onHide: () => {
+                      this.showMenuItem = false;
+                      this.currShowItemRef = '';
+                      return true;
+                    },
+                  }}
+                  animation='slide-toggle'
+                  arrow={false}
+                  disabled={item.children.length < 2}
+                  distance={12}
+                  offset={-1}
                   placement='bottom-start'
                   theme='light cycle-list-wrapper child-list-popover'
-                  animation='slide-toggle'
-                  disabled={item.children.length < 2}
-                  arrow={false}
-                  offset={-1}
-                  distance={12}
                 >
-                  <span class='menu-item-trigger'>{this.handleGetItemName(item.children, item.childValue)}</span>
+                  <div
+                    class={['menu-item-trigger', { 'menu-item-show': this.showMenuItem }]}
+                    onClick={e => {
+                      this.toggleMenuItem(e, item.id);
+                    }}
+                    onMousedown={e => {
+                      e.preventDefault();
+                    }}
+                  >
+                    <span
+                      class='menu-item-trigger-content'
+                      v-bk-overflow-tips
+                    >
+                      {this.handleGetItemName(item.children, item.childValue)}
+                    </span>
+                    <i class='bk-icon icon-angle-down' />
+                  </div>
                   {childTpl(item)}
                 </bk-popover>
               )}
-              {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon'></i> : undefined}
-              {!item.hasLink && item.children?.length && <i class='icon-monitor icon-arrow-right more-icon' />}
+              {item.hasLink ? <i class='icon-monitor icon-mc-link link-icon' /> : undefined}
+              {!item.hasLink && item.children?.length && (
+                <i class='icon-monitor icon-arrow-right chart-menu-more-icon' />
+              )}
             </li>
           );
           if (item.children?.length && !item.hasLink) {
             return (
               <bk-popover
-                class='chart-menu-item-more'
                 ref={`${item.id}-popover`}
-                placement='right-start'
-                theme='light cycle-list-wrapper child-list-popover more'
+                class='chart-menu-item-more'
                 animation='slide-toggle'
                 arrow={false}
+                placement='right-start'
+                theme='light cycle-list-wrapper child-list-popover more'
               >
                 {menuItemTpl}
                 {childTpl(item)}
@@ -290,12 +349,17 @@ export default class ChartTitleMenu extends tsc<IChartTitleProps, IChartTitleMen
                 class={`chart-menu-item ${index === 0 ? 'segmentation-item' : ''}`}
                 onClick={() => this.handleMetricSelect(item)}
               >
-                <i class='icon-monitor icon-mc-add-strategy strategy-icon'></i>
-                <span class='field-name'>{item.metric_field_name}</span>
+                <i class='icon-monitor icon-mc-add-strategy strategy-icon' />
+                <span
+                  class='field-name'
+                  v-bk-overflow-tips
+                >
+                  {item.metric_field_name}
+                </span>
                 <i
                   class='bk-icon icon-info-circle tips-icon'
                   v-bk-tooltips={{ content: createMetricTitleTooltips(item), allowHTML: true }}
-                ></i>
+                />
               </li>
             ))}
       </ul>

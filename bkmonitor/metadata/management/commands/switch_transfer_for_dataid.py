@@ -27,20 +27,25 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("transfer_cluster_id", type=str, help="target transfer cluster id")
         parser.add_argument("--data_id", type=int, nargs="*", help="data_id to switch")
+        parser.add_argument("--bk_data_ids", type=str, help="data_ids, split by comma")
         parser.add_argument("--source_system", type=str, help="data_id for source system to switch")
 
     def handle(self, transfer_cluster_id, *args, **options):
         data_ids = options.get("data_id")
+        bk_data_ids = options.get("bk_data_ids")
         source_system = options.get("source_system")
 
-        if not data_ids and not source_system:
-            raise CommandError("one of --data_id or --source_system option must be given")
+        if not (data_ids or bk_data_ids or source_system):
+            raise CommandError("one of --data_id, --source_system or --bk_data_ids option must be given")
 
         queryset = DataSource.objects.all()
         if data_ids:
             queryset = queryset.filter(bk_data_id__in=data_ids)
         if source_system:
             queryset = queryset.filter(source_system=source_system)
+        if bk_data_ids:
+            filter_data_id_list = [int(data_id) for data_id in bk_data_ids.split(",")]
+            queryset = queryset.filter(bk_data_id__in=filter_data_id_list)
 
         self.stdout.write(
             self.style.SUCCESS("[switch_transfer_for_dataid] START. Total count: {}".format(queryset.count()))

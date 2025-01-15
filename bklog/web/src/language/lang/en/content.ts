@@ -1,3 +1,29 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
 export default {
   '正则匹配：': 'Regex matching:',
   '范围匹配：': 'Range matching:',
@@ -11,7 +37,7 @@ export default {
   搜索收藏名: 'Search collection name',
   收藏名重复: 'Collection name duplicated',
   收藏名排序: 'Sort by collection name',
-  未完成配置: 'Incomplete configuration',
+  请先完成采集接入: 'Please complete the collection first',
   查看调用链: 'View trace',
   保存待生效: 'Saved and will take effect in 1 hour',
   索引集管理: 'Index set management',
@@ -72,12 +98,12 @@ export default {
   设置显示字段: 'Set display fields',
   暂未进行检索: 'No search yet',
   优化查询语句: 'Optimize query statements',
-  近24H新增: 'Added in the last 24 hours',
+  仅查看新类: 'Just view new class strategy',
   批量使用告警: 'Batch use alerts',
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
   上次检测时间: 'Last time',
-  腾讯蓝鲸智云: 'Tencent BlueKing',
+  蓝鲸智云: 'BlueKing',
   业务DEMO: 'Demo',
   体验DEMO: 'Demo',
   最大字段长度: 'Maximum field length',
@@ -143,7 +169,6 @@ export default {
   无法定位上下文: 'Unable to locate context',
   trace检索: 'Trace query',
   仅显示同步请求: 'Show only synchronous requests',
-  该数据名已重复: 'This english name is already duplicated',
   保留匹配字符串: 'Retain matching string',
   过滤匹配字符串: 'Filter matching string',
   '第 {n} 列': 'Column {n}',
@@ -217,7 +242,6 @@ export default {
   前端忽略所有的数字: 'Front-end ignores all numbers',
   输入关键字进行过滤: 'Enter keywords to filter',
   '是否按原配置提交?': 'Submit according to original configuration?',
-  请选择字段提取方法: 'Select field extraction method',
   高级清洗仍在进行中: 'Advanced parsing is still in progress',
   同步计算平台的结果: 'Synchronize the results of the BK-Base',
   '已选择{0}个节点': 'Selected {0} nodes',
@@ -302,7 +326,7 @@ export default {
   '字段名匹配(*代表通配符)：': 'Field name matching (* stands for wildcard):',
   '当前业务没有接入调用链日志，': 'The current business has not accessed the trace logs,',
   '文本类型不支持 {n} 操作': 'Text type does not support {n} operation',
-  当前索引集不支持字段提取设置: 'The current index set does not support field extraction settings',
+  当前索引集不支持日志聚类设置: 'The current index set does not support log cluster settings',
   '{n}不规范, 包含特殊符号': '{n} is not standard, contains special characters',
   查询命中pattern的日志: 'Query logs that hit the pattern',
   日志数据已进入数据平台或ES: 'The log data has entered the data platform or es',
@@ -317,7 +341,6 @@ export default {
   '当前可能是手动查询，请 {0}': 'It may be a manual query, please {0}',
   您可以按照以下方式优化检索结果: 'You can optimize search results in the following ways',
   '当前日志聚类未启用，请前往设置': 'The current log clustering is not enabled, please go to settings',
-  '当前数据指纹未启用，请前往设置': 'Current data fingerprint is not enabled, please go to settings',
   '私有的只支持默认的“个人收藏”': "Private only supports default 'personal collection'",
   '{n}不规范, 包含特殊符号.': '{n} is not standard, contains special characters.',
   '需要采集日志，请先创建采集任务': 'Log collection is required, please create a collection task first',
@@ -330,7 +353,7 @@ export default {
   '微秒（microsecond）': 'Microsecond',
   '检查查询条件是否完整，是否有报错': 'Check if query conditions are complete and if there are errors',
   '当前收藏有更新，点击保存当前修改': 'The current collection has been updated, click Save Current Modifications',
-  '该保存需要1小时生效,请耐心等待': 'This save will take effect in 1 hour. please be patient',
+  '该保存需要10分钟生效, 请耐心等待': 'This save will take effect in 10 minutes. please be patient',
   'include(保留匹配字符串)': 'Include (preserve matching strings)',
   'exclude(过滤匹配字符串)': 'Exclude (filter matching strings)',
   '当前索引集为{n}，确认要删除？': 'The current index set is {n}, confirm to delete it?',
@@ -345,7 +368,7 @@ export default {
   '格式解析失败，可以尝试其他提取方法': 'Format parsing failed, other extraction methods can be tried',
   '注： 同一个日志可以进行多次清洗。': 'Note: the same log can be parsed multiple times.',
   '应用程序(Application)': 'Application',
-  自动添加Pod中的labels: 'Auto-add Labels from Pod',
+  '自动添加Pod中的{n}': 'Auto-add {n} from Pod',
   'IP格式有误或不存在，检查后重试！': 'Ip format is incorrect or does not exist, please check and retry!',
   '最多匹配{0}行，最大耗时{1}秒': 'Max {0} lines matched, max {1} seconds consumed',
   '当前归档ID为{n}，确认要删除？': 'Current archive id is {n}, confirm deletion?',
@@ -354,7 +377,7 @@ export default {
   '当前仓库名称为{n}，确认要删除？': 'The current store name is {n}, confirm to delete?',
   '当前是否有数据源，如果没有请 {0}': 'Is there a data source currently? if not, please {0}',
   '无分词字段 请前往 {0} 调整清洗': 'No tokenization field. please go to {0} to adjust parsing',
-  '显示字段（已选 {0} / {1})': 'Display fields (selected {0} / {1})',
+  '显示字段（已选 {0} 条)': 'Display fields ({0} selected)',
   设置了时间格式后将替换默认的数据时间: 'Setting a time format will replace the default data time',
   '未部署基础计算平台，无法进行高级清洗': 'Advanced parsing cannot be performed without basic BK-Base deployment',
   '按行过滤: 从第{0}行到第{1}行': 'Filter by line: from line {0} to line {1}',
@@ -395,20 +418,18 @@ export default {
     'Note: if stored as another type after parsing, it will not be associated.',
   '不能跨集群添加多个索引，切换集群请先清空索引':
     'Multiple indexes cannot be added across clusters, please clear the indexes before switching clusters',
-  '{0}/{1}条记录中数量排名前 5 的数据值': 'Top 5 data values with the highest quantity ranking in {0}/{1} records',
+  '{0}/{1}条记录中数量排名前 {2} 的数据值': 'Top {2} data values with the highest quantity ranking in {0}/{1} records',
   '自定义输入格式: 如 1h 代表一小时 h小时': 'Custom input format: e.g. 1h represents one hour, h for hours',
   '支持拖拽更改顺序，排在上面的拥有更高的排序权重':
     'Supports drag and drop to change order, those above have a higher sorting weight',
   '只能设置一个数据时间，如果要更改请先取消原来的':
     'Only one data time can be set, if you want to change it, please cancel the previous one first',
-  '您当前没有业务--${n}的权限，请先申请吧！':
-    'You currently do not have permission for business--${n}, please apply first!',
+  '您当前没有业务--{n}的权限，请先申请吧！':
+    'You currently do not have permission for business--{n}, please apply first!',
   '平台默认的集群不允许编辑和删除，请联系管理员。':
     'Editing and deletion are not allowed for default clusters, please contact the administrator',
   '支持拖拽更改顺序，从上向下对应列表列从左到右顺序':
     'Supports drag and drop to change order, corresponding to the list columns from top to bottom and from left to right',
-  '调试需要等待1分钟以上，在此区间不可进行其余操作':
-    'Debugging takes more than 1 minute, and no other operations can be performed during this period',
   '前端忽略数字和所有的常见符号，只保留日志具体内容':
     'The front-end ignores numbers and all common symbols, only retaining the specific contents of the log',
   '已加载完全部数据，如需查看更多查询条件可以{0}':
@@ -477,8 +498,6 @@ export default {
     'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
   '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源':
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
-  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
-    "To reduce transmission and storage costs, some content can be filtered out, more complex filtering can be done in the 'parsing' function",
   '非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。':
     'Non-required fields, after filling in, will replace the field name; when the field name conflicts with the built-in field, it must be renamed.',
   '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
@@ -524,16 +543,17 @@ export default {
   '选择{n}范围': 'Select {n} scope',
   所有选择范围可相互叠加并作用: 'All selection ranges can be stacked and act on each other',
   按命名空间选择: 'Select by NameSpace',
-  '按标签选择{n}': 'Select {n} by tags',
-  按标签选择: 'Select by tags',
+  '按标签选择{n}': 'Select {n} by label',
+  '按注解选择{n}': 'Select {n} by annotation',
+  按标签选择: 'Select by label',
   按工作负载选择: 'Select by workload',
   '直接指定{n}': 'Directly specify {n}',
   容器名: 'Container name',
-  手动输入标签: 'Enter tags manually',
+  手动输入标签: 'Enter label manually',
   选择已有标签: 'Select an existing tag',
   预览: 'preview',
-  选择标签: 'Select tags',
-  暂无标签: 'No tags yet',
+  选择标签: 'Select label',
+  暂无标签: 'No label yet',
   请先在左侧列表进行选择: 'Please select from the list on the left first',
   工作负载: 'workload',
   暂无命中内容: 'No hit content',
@@ -640,8 +660,8 @@ export default {
   当前显示全部字段: 'Currently showing all fields',
   显示全部字段: 'Currently showing all fields',
   新开标签页: 'New tab',
-  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请 {0} 采集器版本。':
-    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please {0} the collector version.',
+  '采集范围排除能力依赖采集器 bk-log-collector >= 0.3.2，请保证采集器已升级到最新版本':
+    'The collection range exclusion ability depends on the bk-log-collector >= 0.3.2, please ensure that the collector has been upgraded to the latest version.',
   '输入自定义同比，按 Enter 确认': 'Enter custom year-on-year and press enter to confirm',
   将分组作为列展示: 'Display groups as columns',
   '如需根据某些维度拆分聚类结果，可将字段设置为维度。':
@@ -653,7 +673,7 @@ export default {
   大于或等于: 'greater than or equal',
   小于或等于: 'less than or equal',
   '已选择{0}个索引集': '{0} index sets selected',
-  每次最多可选择10项: 'A maximum of 10 items can be selected at a time',
+  每次最多可选择20项: 'A maximum of 10 items can be selected at a time',
   已有同名收藏: 'There is already a favorite with the same name',
   多索引集: 'Multiple index sets',
   已失效: 'Expired',
@@ -746,5 +766,247 @@ export default {
   我申请的: 'My Application',
   生效结束时间不能小于生效起始时间: 'The effective end time cannot be less than the effective start time',
   生效起始时间必填: 'Effective start time is required',
-  如: 'Example'
+  如: 'Example',
+  '您可以随时切换所选集群。切换集群后，不会造成数据丢失。原数据将在新集群存储时长到期后自动清除。':
+    'You can switch selected clusters at any time. There will be no data loss after switching clusters. The original data will be automatically cleared after the new cluster storage period.',
+  '最大自定义分片数为: {n}': 'The maximum number of custom shards is: {n}',
+  '最大自定义副本数为: {n}': 'The maximum number of custom replies is: {n}',
+  '是否保存本次操作？': 'Do you want to save this operation?',
+  '容量审核中，请等待': 'Capacity review is in progress, please wait.',
+  总行数: 'Total number of lines',
+  出现行数: 'Number of occurrences',
+  日志条数: 'Number of log entries',
+  次: 'Times',
+  去重后条数: 'Real after the number',
+  最大值: 'Maximum value',
+  最小值: 'Minimum value',
+  平均值: 'Average value',
+  中位数: 'Median value',
+  时序图: 'Related Pictures',
+  数值分布直方图: 'Numeric Distribution Histogram',
+  该字段暂无匹配日志: 'There is no matching log for this field yet.',
+  查询异常: 'Query abnormal',
+  图表分析: 'Chart analysis',
+  点击隐藏: 'Click to hide',
+  点击显示: 'Click to display',
+  暂不支持: 'Not supported',
+  查询时段: 'Query period',
+  字段在该事件范围内有数据的日志条数: 'The number of log entries whose fields have data within the event range.',
+  '计算规则：出现行数/总行数。若该值不为100%，该字段存在空值。':
+    'Calculation rule: number of rows/total number of rows. If the value is not 100%, there is a null value in the field.',
+  '当前采集项已配置基础清洗，无需重复配置':
+    'The current collection item has been configured with basic cleaning. Repeat the configuration.',
+  '自然语言分词，按照日常语法习惯进行分词':
+    'Natural language word segmentation, segmentation according to daily grammar habits.',
+  '支持自定义分词符，可按需自行配置符号进行分词':
+    'Supports custom word breakers, you can configure your own symbols for word breakers.',
+  '更改字段类型后在同时检索新老数据时可能会出现异常，确认请继续':
+    'After changing the field type, an exception may occur when retrieving old and new data at the same time. Please confirm and continue.',
+  '第{n}组': 'Group {n}',
+  不等于: 'Not equal to',
+  正则不匹配: 'Regular expression mismatch',
+  路径黑名单: 'Path blacklist',
+  '若需要排除指定路径，请展开添加路径': 'If you need to exclude the specified path, please expand Add path',
+  '过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本':
+    'The filter supports filtering non-conforming log content during collection, please ensure that the collector has been upgraded to the latest version.',
+  操作符: 'Operator',
+  新增过滤组: 'Add filter group',
+  请输入列数: 'Please enter the number of columns',
+  请输入日志样例: 'Please enter a log sample',
+  '第{n}行': '{n} line',
+  '第{n}列': '{n} column',
+  '支持正则匹配，如18*123': 'Support regular matching, such as 18*123',
+  分隔符匹配: 'Delimiter match',
+  默认定位: 'Default target',
+  上下文命中: 'Context hit',
+  高亮: 'Highlight',
+  '当前页面提供快速配置，如需完整配置，请前往{0}':
+    'The current page provides quick configuration. For complete configuration, please go to {0}',
+  新建完整策略: 'Create a new complete strategy',
+  低: 'Low',
+  高: 'High',
+  致命: 'Fatal',
+  预警: 'Warning',
+  提醒: 'Remind',
+  变化敏感度: 'Change sensitivity',
+  数量突增告警策略: 'Volume surge strategy',
+  '策略：': 'Strategy: ',
+  '是否删除该策略？': 'Has this policy been deleted?',
+  '聚类告警已开启，请点击右侧入口编辑策略':
+    'Clustering alarms have been enabled. Please click the entry on the right to edit the policy.',
+  '每隔 n（整数）天数，再次产生的日志模式将视为新类':
+    'Every n (integer) days, the log pattern generated again will be treated as a new class.',
+  新类对应日志触发告警的条数: 'The number of alarms triggered by logs corresponding to the new category',
+  请先新建新类告警策略: 'Please create a new category strategy first',
+  '大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志':
+    'A large number of logs can lead to excessive clustering results. It is recommended to use filtering rules to cluster important logs; for example, cluster only warn logs.',
+  '此为系统默认告警屏蔽时间，以防止聚类初期的告警风暴':
+    'This is the system default alert suppression time to prevent an alert storm in the early stages of clustering.',
+  接入日志聚类: 'Log Clustering Access',
+  效果预览: 'Effect Preview',
+  '可在更多操作中管理日志聚类，包含以下能力：':
+    'More operations are available to manage log clustering, including the following capabilities:',
+  启用或停用日志聚类: 'Enable or Disable Log Clustering',
+  正则管理: 'Regex Management',
+  '模型首次启动准备，该过程应该会持续5-10分钟':
+    'The model is being prepared for its first start, which should take 5-10 minutes.',
+  '任务启动中，预计等待时长 {0} 分钟': 'Task is starting, estimated wait time is {0} minutes.',
+  问题反馈: 'Feedback',
+  请输入反馈问题: 'Please enter your feedback',
+  存在冲突匹配结果: 'conflicting Match Results Exist',
+  确认提取: 'Confirm Extraction',
+  日志样例: 'Log Sample',
+  '左键框选字段，可提取并生成正则表达式':
+    'Left-click and drag to select fields, which can be extracted and used to generate regex.',
+  正则表达式: 'Regular Expression',
+  聚类启动失败: 'Cluster start failed',
+  重新接入: 'Reconnect',
+  失败原因: 'Failure Reason',
+  模型创建: 'Model Creation',
+  '系统将创建模型，并将该日志历史数据投入模型中。':
+    'The system will create a model and feed the historical log data into it.',
+  模型启动: 'Model Start Up',
+  '模型首次启动准备，该过程应该会持续5-10分钟。':
+    'The model is being prepared for its first start, which should take 5-10 minutes.',
+  预测准备: 'Prediction Preparation',
+  '针对已投入数据进行在线与离线分析，分析结束后，页面将展示聚类结果。':
+    'Online and offline analysis will be performed on the ingested data. After the analysis is complete, the clustering results will be displayed on the page.',
+  快速开启日志聚类: 'Quickly Enable Log Clustering',
+  '日志聚类可以通过智能分析算法，将相似度高的日志进行快速的汇聚分析，提取日志 Pattern 并进行展示':
+    'Log clustering can use intelligent analysis algorithms to quickly aggregate and analyze logs with high similarity, extract log patterns, and display them.',
+  日志聚类的优势: 'Advantages of Log Clustering',
+  '有利于发现日志中的规律和共性问题，方便从海量日志中排查问题，定位故障':
+    'Helps discover patterns and common issues in logs, making it easier to troubleshoot and identify faults from a large volume of logs.',
+  '可从海量日志中，提取共性部分同时保留独立信息以便于减少存储成本，最多可减少 10% 的存储成本':
+    'Can extract common parts from a large volume of logs while retaining individual information to reduce storage costs, potentially reducing storage costs by up to 10%.',
+  '当版本变更时，可快速定位变更后新增问题': 'Can quickly identify new issues introduced after a version change.',
+  '表示近一段时间内新增日志模式。可自定义新类判定的时间区间。如：近30天内新增':
+    'Indicates new log patterns within a recent period. The time interval for determining new categories can be customized. For example, new patterns added within the last 30 days.',
+  '表示某日志模式数量突然异常增长，可能某些模块突发风险':
+    'The sudden abnormal increase in the number of a certain log pattern may indicate a sudden risk in some modules.',
+  配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
+  收藏夹: 'Favorite',
+  UI查询: 'UI',
+  语句查询: 'Lucene',
+  历史查询: 'History Query',
+  请输入关键字: 'Please enter keywords',
+  请搜索: 'Please search',
+  '输入文本后按 [Enter] 键进行检索': 'Enter text and press [Enter] to search',
+  可通过上下键快速切换选择字段值: 'You can quickly switch the fields value through the up and down keys',
+  'Enter 键': 'Enter key',
+  上下键: 'Up and down keys',
+  移动光标: 'Move the cursor',
+  '选中/检索': 'Confirm / Search',
+  '请选择或直接输入，Enter分隔': 'Please select or enter directly, Enter to separate',
+  搜索名称: 'Search for name',
+  '导入的集群已被删除，请手动选择集群。': 'Imported cluster has been deleted, please manually select a cluster.',
+  '为减少传输和存储成本，可以过滤掉部分内容,更复杂的可在“清洗”功能中完成':
+    'To reduce transmission and storage costs, some content can be filtered out. More complex operations can be completed in the "Cleaning" feature.',
+  请选择需要同步的配置: 'Please select the configuration to be synchronized',
+  字段列表: 'Field List',
+  字段统计: 'Field Statistics',
+  如何查询: 'How to query',
+  '精确匹配(支持AND、OR):': 'Exact match (supports AND, OR):',
+  '字段名匹配(*代表通配符):': 'Field name match (* represents wildcard):',
+  '字段名模糊匹配:': 'Field name fuzzy match:',
+  '通配符匹配:': 'Wildcard match:',
+  '正则匹配:': 'Regular match:',
+  '范围匹配:': 'Range match:',
+  '使用LIKE、NOT LINK操作符时请在过滤值前后增加%':
+    'When using the LIKE and NOT LINK operators, please add % before and after the filter value.',
+  手动输入annotation: 'Manually enter annotation',
+  获取字段列表失败: 'Failed to get field list',
+  检索内容: 'Retrieval content',
+  '平台获取蓝鲸 CMDB 主机信息，您可通过 IP 选择器选择主机，快速过滤日志':
+    'To obtain host information from the Blue Whale CMDB on the platform, you can use the IP selector to choose hosts and quickly filter logs.',
+  '【Enter】唤起IP选择器，点击取消关闭窗口': '[Enter] Call up the IP selector and click Cancel to close the window.',
+  暂无字段数据: 'No field data yet',
+  索引集为空: 'Index collection is empty',
+  请选择索引集: 'Please select an index set',
+  字段内容分布: 'Field content assignment',
+  确认结果: 'Confirmation',
+  副本: 'copy',
+  新建检索: 'New search',
+  '收起查询/弹出选项': 'Collapse query/Popup options',
+  '导入{0}的权限配置': 'Import the permission configuration of {0}',
+  至少选择一个操作权限: 'Select at least one operation permission',
+  '平台上报日志的时间，默认选择该设置': 'Time to report logs on the platform, select this setting by default',
+  '你可以自行指定日志展示时间，勾选前请提前清洗日志时间':
+    'You can specify the log display time by yourself. Please clean the log time in advance before checking',
+  '日志存在多种格式时，可以保留不符合解析规则的日志，避免遗漏；未解析的日志可以通过 _prase.failure 进行过滤，为 true 时表示解析失败':
+    'When there are multiple formats in the log, you can retain logs that do not meet the analytical rules to avoid omissions; uncomfortable logs can be filtered through _prase.failure, which indicates the analysis failure when true',
+  '定义元数据并补充至日志中，可通过元数据进行过滤筛选':
+    'Define meta -data and supplement it to the log, you can filter and screen through metadata',
+  本地导入: 'Local import',
+  其他索引集导入: 'Other index set import',
+  '确定要删除当前规则？': 'Are you sure you want to delete the current rule?',
+  模板名: 'template name',
+  模板名重复: 'Template name repeat',
+  选择索引集: 'Select Index Set',
+  请输入模板名: 'Please enter the template name',
+  导入模式: 'Export type',
+  索引字段: 'Index Field',
+  '当前聚类规则有更变，请调试后进行保存': 'The current clustering rules have changed, please save after debugging.',
+  '当前聚类规则有更改，退出无法保存，是否要要退出？':
+    'The current clustering rules have been changed and cannot be saved after exiting. Do you want to exit?',
+  '当前模板在下列索引集中占用，取消占用后才能删除模板：{n}':
+    'The current template is occupied in the following index set, and the template can be deleted only after the occupation is cancelled: {n}',
+  下载模式: 'Download Mode',
+  当前数据量级: 'Current Data Scale',
+  '{n}条': '{n} entries',
+  预计下载时长: 'Estimated Download Duration',
+  请选择文件类型: 'Please Select File Type',
+  文件类型: 'File Type',
+  '快速下载(提速100%+)': 'Fast Download (Speed Up 100%+)',
+  '取样下载(前1万条)': 'Sample Download (First 10,000 Entries)',
+  '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条':
+    'In this mode, only the original text of the unordered log reported by you is downloaded, and you can sort it locally by log time; the log cannot contain platform supplementary fields: such as cluster name, module name and other information. The maximum number of log exports in this mode is 5 million.',
+  '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条':
+    'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer. The maximum number of log exports in this mode is 2 million.',
+  全文下载: 'Full text download',
+  暂未保留原始日志: 'The original log has not been kept yet',
+  '超出集群最大可保存天数，当前最大可保存{n}天':
+    'The maximum number of days can be preserved by the cluster, and the current maximum can be saved {n}',
+  前往配置: 'Go to Configuration',
+  '任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态':
+    'If the task is submitted successfully, you will receive an email notification when the download is completed. You can go to download history to check the download status.',
+  SQL模式: 'SQL mode',
+  添加至仪表盘: 'Add to dashboard',
+  指标: 'Metric',
+  图表样式: 'Chart style',
+  折线图: 'Line chart',
+  柱状图: 'Bar chart',
+  饼图: 'Pie chart',
+  标题: 'Title',
+  聚合算法: 'Aggregation algorithm',
+  请输入标题: 'Please enter title',
+  描述: 'Description',
+  副标题: 'Subhead',
+  收藏至仪表盘: 'Favorite to dashboard',
+  同名视图替换: 'Replace the same name view',
+  '此操作将根据当前日志查询条件覆盖当前SQL查询语句，请谨慎操作':
+    'This operation will overwrite the current SQL query statement according to the current log query conditions, please operate with caution',
+  SQL查询: 'SQL Query',
+  '至少需要一个指标，一个维度': 'At least one metric, one dimension',
+  '至少需要一个指标，一个维度/时间维度': 'At least one metric, one dimension/time dimension',
+  图表查询配置已变更: 'Chart query configuration has changed',
+  请重新发起查询: 'Please initiate a query again',
+  我知道了: 'I know',
+  当前缺少指标和维度: 'Current metrics and dimensions are missing',
+  '当前缺少指标和维度/时间维度': 'Current metrics and dimensions/time dimensions are missing',
+  当前缺少维度: 'Current dimensions are missing',
+  '当前缺少维度/时间维度': 'Current dimensions/time dimensions are missing',
+  当前缺少指标: 'Current metrics are missing',
+  字段名不支持快速修改: 'Field name does not support quick modification',
+  去重后字段统计: 'Field statistics after deduplication',
+  请选择常用过滤字段: 'Please select a common filter fields',
+  常用过滤字段: 'Common Filter Fields',
+  自动清空条件: 'Automatic Clearing Conditions',
+  不清空: 'Not Clear',
+  常用查询设置: 'Common query settings',
+  '=': '=',
+  '!=': '!=',
+  复制当前查询: 'Copy the current query',
+  清理当前查询: 'Clean up the current query',
+  收藏当前查询: 'Add current query to favorites',
 };

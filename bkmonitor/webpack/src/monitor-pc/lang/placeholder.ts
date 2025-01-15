@@ -85,7 +85,7 @@ export default {
   输入非中文符号的英文名: 'Enter an English name without Chinese symbols', // 查看语境
   输入合法的十六进制请求内容: 'Enter a valid hexadecimal request content',
   '输入插件名称，仅以字母开头，仅支持字母、下划线和数字, 长度不能超过30个字符':
-    'Enter the plug-in name, which only starts with a letter, only supports letters, underscores and numbers, and the length cannot exceed 30 characters',
+    'Enter the plugin name, which only starts with a letter, only supports letters, underscores and numbers, and the length cannot exceed 30 characters',
   '输入请求 URL': 'Enter Request URL',
   '输入指标名/ID': 'Enter Metric Name/ID',
   '输入屏蔽内容、ID': 'Enter the content and ID to be blocked',
@@ -124,6 +124,8 @@ export default {
   输入仪表盘名称: 'Enter dashboard name',
   '输入 ID 可精准查询': 'Enter the ID for exact query',
   输入群ID: 'Enter group ID',
+  '请输入Trace ID': 'Enter Trace ID',
+  '请输入{0}': 'Enter {0} ',
 
   // 规范: 选择xxx  Select xxx
   选择IP目标: 'Select an IP target',
@@ -184,6 +186,8 @@ export default {
   选择索引集: 'Select Indices',
   '选择{0}调试主机': 'Select {0} debug host',
   请选择空间: 'Please select a space',
+  请选择目标目录: 'Please select the target directory',
+  请选择所属目录: 'Please select the directory',
 
   // 请选择文件
 
@@ -206,12 +210,13 @@ export default {
   '输入1-50个字符': 'Enter 1-50 characters',
   '输入1-50个字符，且仅支持小写字母、数字、_- 中任意一条件即可':
     'Enter 1-50 characters, and only support any one of lowercase letters, numbers, and _-',
+  '1-50字符': '1-50 characters',
   '输入自定义的天数，按Enter确认': 'Enter a custom number of days and press Enter to confirm',
   '输入中文、英文、数字、下划线类型的字符': 'Enter characters of Chinese, English, numbers, and underscores',
   '输入指标名,以字母开头,允许包含下划线和数字':
     'Enter the metric name, which starts with a letter and can include underscores and numbers.',
   '输入插件名称，仅以字母开头，仅支持字母、下划线和数字':
-    'Enter the plug-in name, which only starts with a letter, and only supports letters, underscores and numbers',
+    'Enter the plugin name, which only starts with a letter, and only supports letters, underscores and numbers',
   '输入域名说明/校验规则，可通过回车区隔多个域名':
     'Enter domain name description/verification rules, multiple domain names can be separated by carriage return',
   '输入指标名,以字母开头,允许包含下划线和数字且不能为group_default':
@@ -262,7 +267,8 @@ export default {
   进程关键字: 'Process Keyword',
   进程排除正则: 'Process exclusion regular expression',
   PID的绝对路径: 'Absolute Path of PID',
-  'Shift + Enter换行，Enter查询': 'Shift + Enter for line break, Enter for query',
+  '请输入 PromQL 查询语句，Shift + Enter换行，Enter查询':
+    'Please enter the PromQL query statement,Shift + Enter for line break, Enter for query',
   '留空默认以二进制名称，可以手动指定或者取值':
     'Leave it blank to use the binary name by default, or specify or retrieve it manually.',
   指标映射规则文件格式为yaml: 'The metric mapping rule file format is yaml',
@@ -287,5 +293,16 @@ export default {
   请输入搜索或筛选: 'Please enter search or filter',
 
   '选择应用/服务': 'Select Application/Service',
-  请输入关键字或标签: 'Please enter keywords or tags'
+  请输入关键字或标签: 'Please enter keywords or tags',
+  搜索指标: 'Search Metrics',
+  选择方案: 'Select Plan',
+  选择服务: 'Select Service',
+  选择应用: 'Select Application',
+  搜索服务名称: 'Search Service Name',
+  '搜索 故障处理人': 'Search Incident Handler',
+  '搜索 流转记录': 'Search Flow Record',
+  请输入自定义标签: 'Please enter custom tags',
+  '1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成':
+    '1-50 characters, consisting of lowercase letters, numbers, underscores (_), and hyphens (-)',
+  '最大为{n}天': 'Up to {n} days',
 };

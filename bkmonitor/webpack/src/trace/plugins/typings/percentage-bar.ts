@@ -27,9 +27,9 @@
 // Percentage Bar api 数据定义
 
 // text 为普通文本展示 link 为可跳转链接
-export type BarLabelType = 'text' | 'link';
+export type BarLabelType = 'link' | 'text';
 // self 为内部框架跳转  blank为新开窗口跳转 event 触发本地事件
-export type LinkItemTarget = 'self' | 'blank' | 'event';
+export type LinkItemTarget = 'blank' | 'event' | 'self';
 export interface IPercentageBarData {
   // 图例名称
   name: string;

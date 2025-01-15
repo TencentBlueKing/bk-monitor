@@ -31,6 +31,12 @@ class LogSearchAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         return self.__doc__
 
 
+class LogSearchAPIByApiGwResource(LogSearchAPIGWResource):
+    """仅通过 APIGW 访问日志平台API"""
+
+    base_url = settings.BKLOGSEARCH_API_GW_BASE_URL
+
+
 class IndexSetResource(LogSearchAPIGWResource):
     def get_request_url(self, validated_request_data):
         """
@@ -38,6 +44,15 @@ class IndexSetResource(LogSearchAPIGWResource):
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class ESQueryDslResource(LogSearchAPIGWResource):
+    """
+    日志查询接口（DSL）
+    """
+
+    action = "esquery_dsl/"
+    method = "POST"
 
 
 class ESQuerySearchResource(LogSearchAPIGWResource):
@@ -277,6 +292,10 @@ class BkLogSearchClusterGroupsResource(LogSearchAPIGWResource):
     action = "/databus_storage/cluster_groups/"
     method = "GET"
 
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        bk_username = serializers.CharField(required=False, allow_blank=True, label="用户名")
+
 
 class CreateIndexSetResource(LogSearchAPIGWResource):
     """
@@ -326,3 +345,166 @@ class SearchPatternResource(LogSearchAPIGWResource):
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class ListEsRouterResource(LogSearchAPIByApiGwResource):
+    """获取Es的结果表"""
+
+    action = "/index_set/list_es_router/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        page = serializers.IntegerField(required=False, default=1)
+        pagesize = serializers.IntegerField(required=False, default=10)
+        space_uid = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+
+class DataBusCollectorsResource(LogSearchAPIByApiGwResource):
+    """
+    采集项列表
+    """
+
+    action = "/databus_collectors/{collector_config_id}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集器ID")
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class DataBusCollectorsIndicesResource(LogSearchAPIByApiGwResource):
+    """
+    采集项索引列表
+    """
+
+    action = "/databus_collectors/{collector_config_id}/indices_info/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        collector_config_id = serializers.IntegerField(required=True, label="采集器ID")
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class LogSearchIndexSetResource(LogSearchAPIByApiGwResource):
+    """
+    索引集列表
+    """
+
+    action = "/search_index_set/{index_set_id}/fields/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        index_set_id = serializers.IntegerField(required=False, label="索引集ID")
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(index_set_id=validated_request_data.pop("index_set_id"))
+
+
+class CreateCustomReportResource(LogSearchAPIGWResource):
+    """
+    创建自定义上报
+    """
+
+    action = "/databus_custom_create/"
+    method = "POST"
+
+
+class UpdateCustomReportResource(LogSearchAPIGWResource):
+    """
+    更新自定义上报
+    """
+
+    action = "/{collector_config_id}/databus_custom_update/"
+    method = "POST"
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class StartCollectorsResource(LogSearchAPIGWResource):
+    """
+    开启自定义上报
+    """
+
+    action = "/databus_collectors/{collector_config_id}/start/"
+    method = "POST"
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class StopCollectorsResource(LogSearchAPIGWResource):
+    """
+    关闭自定义上报
+    """
+
+    action = "/databus_collectors/{collector_config_id}/stop/"
+    method = "POST"
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
+
+
+class ListCollectorsResource(LogSearchAPIGWResource):
+    """
+    获取采集项列表(全量)
+    """
+
+    action = "/databus_list_collectors/"
+    method = "GET"
+
+
+class GetUserFavoriteIndexSetResource(LogSearchAPIByApiGwResource):
+    """
+    获取用户收藏的索引集
+    """
+
+    action = "/index_set/user_favorite/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(required=False, label="空间ID")
+        username = serializers.CharField(required=True, label="用户名")
+        limit = serializers.IntegerField(required=False, label="限制条数", default=10)
+
+
+class GetUserRecentIndexSetResource(LogSearchAPIByApiGwResource):
+    """
+    获取用户最近访问的索引集
+    """
+
+    action = "/index_set/user_search/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(required=False, label="空间ID")
+        username = serializers.CharField(required=True, label="用户名")
+        limit = serializers.IntegerField(required=False, label="限制条数", default=10)

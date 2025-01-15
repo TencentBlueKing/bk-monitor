@@ -17,5 +17,5 @@ export default {
   getEventList,
   ackEvent,
   quickAlertShield,
-  quickAlertAck
+  quickAlertAck,
 };

@@ -25,7 +25,8 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { copyText, Debounce } from 'monitor-common/utils/utils';
+
+import { Debounce, copyText } from 'monitor-common/utils/utils';
 
 import './position-link.scss';
 
@@ -57,7 +58,7 @@ export default class PositionLink extends tsc<IProps> {
     copyText(this.copyContent || location.href, errMsg => {
       this.$bkMessage({
         message: errMsg,
-        theme: 'error'
+        theme: 'error',
       });
       hasErr = !!errMsg;
     });
@@ -73,15 +74,15 @@ export default class PositionLink extends tsc<IProps> {
           boundary: 'window',
           disabled: !this.tipsText,
           placement: 'right',
-          allowHTML: false
+          allowHTML: false,
         }}
         onClick={this.handleCopyText}
       >
-        <i class='icon-monitor icon-dingwei1'></i>
+        <i class='icon-monitor icon-dingwei1' />
         <span class='position-text'>{this.positionText}</span>
         <span
-          class={['icon-monitor', 'copy-text-button', this.icon]}
           style='font-size: 12px;'
+          class={['icon-monitor', 'copy-text-button', this.icon]}
         />
       </div>
     );

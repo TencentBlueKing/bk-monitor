@@ -17,14 +17,13 @@ from typing import Dict, List, Optional
 
 import arrow
 from django.http import Http404
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from bkmonitor.aiops.utils import AiSetting
+from apm_web.constants import METRIC_COMMON_DIMENSION
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.models import MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from constants.aiops import SceneSet
 from constants.data_source import GRAPH_MAX_SLIMIT, DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models.scene_view import (
@@ -52,6 +51,11 @@ def validate_scene_type(params):
     if scene_id in ["apm_application", "apm_service", "kubernetes", "alert"]:
         params["type"] = ""
     return params
+
+
+def addon_top_limit_attributes(dimension: dict):
+    if dimension["id"] in METRIC_COMMON_DIMENSION:
+        dimension["top_limit_enable"] = True
 
 
 class GetSceneResource(Resource):
@@ -84,6 +88,8 @@ class GetSceneViewListResource(ApiAuthResource):
         apm_category = serializers.CharField(label="服务分类(APM场景变量)", required=False, allow_null=True)
         apm_kind = serializers.CharField(label="服务类型(APM场景变量)", required=False, allow_null=True)
         apm_predicate_value = serializers.CharField(label="服务类型具体值(APM场景变量)", required=False, allow_null=True)
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
         def validate(self, params):
             return validate_scene_type(params)
@@ -125,7 +131,12 @@ class GetSceneViewListResource(ApiAuthResource):
                 specific_views = custom_view_list
 
             for view in specific_views:
-                view_config = get_view_config(view, params)
+                view_config = get_view_config(view, {**params, "only_simple_info": True})
+
+                hidden: bool = view_config.get("hidden") or False
+                if hidden:
+                    continue
+
                 result.append(
                     {
                         "id": view.id,
@@ -217,6 +228,13 @@ class GetSceneViewResource(ApiAuthResource):
         bk_host_innerip = serializers.CharField(label="主机内网IP", required=False, allow_null=True)
         bk_cloud_id = serializers.CharField(label="主机云区域ID", required=False, allow_null=True)
         bk_host_id = serializers.CharField(label="主机ID", required=False, allow_null=True)
+        # ---
+        # 时间范围
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+        # ---
+        # view场景开关
+        view_switches = serializers.DictField(label="view场景开关", required=False, default={})
         # ---
 
         def validate(self, params):
@@ -319,22 +337,6 @@ class GetSceneViewResource(ApiAuthResource):
         if params["is_split"]:
             return self.process_split(view_config, params["split_variables"])
 
-        if scene_id == SceneSet.HOST:
-            ai_setting = AiSetting(bk_biz_id=bk_biz_id)
-
-            pop_ai_panel_flag = False
-
-            if ai_setting.multivariate_anomaly_detection.host.is_access_aiops():
-                for panel in view_config.get("panels", []):
-                    for item in panel.get("panels", []):
-                        if item.get("type") == "graph":
-                            item["type"] = "performance-chart"
-            else:
-                pop_ai_panel_flag = True
-
-            if pop_ai_panel_flag:
-                view_config["options"].pop("ai_panel", None)
-
         return view_config
 
 
@@ -431,6 +433,11 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
         id = serializers.CharField(label="视图ID")
         name = serializers.CharField(label="资源名称", allow_blank=True, allow_null=True, required=False)
         namespace = serializers.CharField(label="命名空间", required=False)
+        apm_app_name = serializers.CharField(label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
+        apm_service_name = serializers.CharField(label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
+
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
     @classmethod
     def get_metrics(cls, params: Dict):
@@ -439,6 +446,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
         bcs_cluster_id = params.get("bcs_cluster_id")
         name = params.get("name")
         namespace = params.get("namespace")
+        filter_with_metric = False
+        filter_metrics = set()
+
         if resource_id == "service_monitor":
             if not (name and bcs_cluster_id):
                 return []
@@ -451,9 +461,13 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
             panels = resource.scene_view.get_kubernetes_pod_monitor_panels(
                 {"bcs_cluster_id": bcs_cluster_id, "name": name, "bk_biz_id": bk_biz_id, "namespace": namespace}
             )
+        elif resource_id == "service-default-custom_metric":
+            view_config = GetSceneViewResource().request({**params, "view_switches": {"only_dimension": True}})
+            panels = view_config.get("overview_panels")
+            filter_with_metric = True
         else:
             view_config = GetSceneViewResource().request(params)
-            panels = view_config.get("panels")
+            panels = view_config.get("panels") or view_config.get("overview_panels")
 
         if not panels:
             return []
@@ -486,6 +500,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
                             continue
                         data_source = (query_config["data_source_label"], query_config["data_type_label"])
                         result_table_ids[data_source].add(table)
+                        if filter_with_metric:
+                            for metric in query_config.get("metrics", []):
+                                filter_metrics.add(metric["field"])
 
         if k8s_metric_fields:
             k8s_metrics = MetricListCache.objects.filter(result_table_id="", metric_field__in=k8s_metric_fields)
@@ -500,6 +517,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
                     data_source_label=data_source_label, data_type_label=data_type_label, related_id__in=tables
                 )
 
+            if filter_with_metric:
+                metrics = metrics.filter(metric_field__in=list(filter_metrics))
+
             yield from metrics
 
     def perform_request(self, params):
@@ -509,6 +529,7 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
             for dimension in metric.dimensions:
                 if dimension["id"] in existed_dimensions:
                     continue
+                addon_top_limit_attributes(dimension)
                 dimensions.append(dimension)
                 existed_dimensions.add(dimension["id"])
         return dimensions
@@ -529,6 +550,8 @@ class GetSceneViewDimensionValueResource(ApiAuthResource):
         limit = serializers.IntegerField(label="限制数量", default=GRAPH_MAX_SLIMIT)
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
+        apm_app_name = serializers.CharField(label="应用名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
+        apm_service_name = serializers.CharField(label="服务名称(仅APM服务页面场景变量使用)", required=False, allow_null=True)
 
     def perform_request(self, params):
         for metric in GetSceneViewDimensionsResource.get_metrics(params):

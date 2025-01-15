@@ -30,48 +30,48 @@ import './diff-color-list.scss';
 const ColorList = [
   {
     value: -100,
-    color: '#30B897'
+    color: '#30B897',
   },
   {
     value: -80,
-    color: '#55C2A9'
+    color: '#55C2A9',
   },
   {
     value: -60,
-    color: '#7BCCBB'
+    color: '#7BCCBB',
   },
   {
     value: -40,
-    color: '#9FD7CC'
+    color: '#9FD7CC',
   },
   {
     value: -20,
-    color: '#C5E1DE'
+    color: '#C5E1DE',
   },
   {
     value: 0,
-    color: '#DDDFE3'
+    color: '#DDDFE3',
   },
   {
     value: +20,
-    color: '#E9D3D7'
+    color: '#E9D3D7',
   },
   {
     value: +40,
-    color: '#E8BBBE'
+    color: '#E8BBBE',
   },
   {
     value: +60,
-    color: '#E8A4A6'
+    color: '#E8A4A6',
   },
   {
     value: +80,
-    color: '#E88C8D'
+    color: '#E88C8D',
   },
   {
     value: +100,
-    color: '#E77474'
-  }
+    color: '#E77474',
+  },
 ];
 export default defineComponent({
   render() {
@@ -81,9 +81,9 @@ export default defineComponent({
         <ul class='color-list'>
           {ColorList.map(item => (
             <li
-              class='color-item'
-              style={{ background: item.color }}
               key={item.value}
+              style={{ background: item.color }}
+              class='color-item'
             >
               {item.value > 0 ? '+' : ''}
               {item.value}%
@@ -93,5 +93,5 @@ export default defineComponent({
         <div class='next-color'>removed</div>
       </div>
     );
-  }
+  },
 });

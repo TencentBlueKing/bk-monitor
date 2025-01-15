@@ -25,26 +25,30 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { HierarchyNode } from 'd3-hierarchy';
-import { Debounce } from 'monitor-common/utils/utils';
-import MonitorResizeLayout from 'monitor-pc/components/resize-layout/resize-layout';
+import { Debounce, copyText } from 'monitor-common/utils/utils';
+import {
+  type ProfileDataUnit,
+  parseProfileDataTypeValue,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 
 import { getValueFormat } from '../../../../monitor-echarts/valueFormats';
 import {
-  BaseDataType,
+  type BaseDataType,
   CommonMenuList,
-  IAxisRect,
-  ICommonMenuItem,
-  IContextMenuRect,
-  IOtherData,
-  ITipsDetail,
-  IZoomRect,
-  RootId
+  type IAxisRect,
+  type ICommonMenuItem,
+  type IContextMenuRect,
+  type IOtherData,
+  type ITipsDetail,
+  type IZoomRect,
+  RootId,
 } from '../../../typings';
-
 import { FlameChart } from './use-flame';
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from './utils';
+
+import type { HierarchyNode } from 'd3-hierarchy';
 
 import './frame-graph.scss';
 
@@ -60,14 +64,17 @@ interface IFlameGraphProps {
   bizId?: number;
   showGraphTools?: boolean;
   highlightId?: number;
+  highlightName?: string;
   isCompared?: boolean;
+  unit: ProfileDataUnit;
 }
 
 interface IFlameGraphEvent {
-  onUpdateLoading: void;
-  onShowSpanDetail: void;
-  onDiffTraceSuccess: void;
+  onUpdateLoading: () => void;
+  onShowSpanDetail: () => void;
+  onDiffTraceSuccess: () => void;
   onUpdateHighlightId: number;
+  onUpdateHighlightName: string;
 }
 
 const usFormat = getValueFormat('µs');
@@ -91,7 +98,9 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   @Prop({ default: 0, type: Number }) bizId: number;
   @Prop({ default: true, type: Boolean }) showGraphTools: boolean;
   @Prop({ default: -1, type: Number }) highlightId: number;
+  @Prop({ default: '', type: String }) highlightName: string;
   @Prop({ default: false, type: Boolean }) isCompared: boolean;
+  @Prop({ default: 'nanoseconds', type: String }) unit: ProfileDataUnit;
 
   showException = true;
   showDiffLegend = false;
@@ -100,7 +109,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     left: 0,
     top: 0,
     spanId: '',
-    spanName: ''
+    spanName: '',
   };
 
   axisRect: IAxisRect = { left: 0, bottom: 0, title: '', visibility: 'hidden' };
@@ -138,7 +147,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   }
 
   @Debounce(16)
-  @Watch('flameInstance', { immediate: true, deep: true })
+  @Watch('flameInstance', { immediate: true })
   async handleFlameInstanceChange() {
     this.contextMenuRect.left = -1;
     this.handleUpdateloadingChange(true);
@@ -150,7 +159,6 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
         }
         this.showException = false;
         await this.$nextTick();
-        // initScale();
         if (!this.chartRef?.clientWidth) return;
         this.localIsCompared = this.isCompared;
         this.graphInstance = new FlameChart(
@@ -162,6 +170,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
             minHeight: this.wrapperRef?.getBoundingClientRect().height - 40,
             direction: this.textDirection,
             keywords: this.filterKeywords,
+            unit: this.unit,
             getFillColor: (d: BaseDataType) => {
               if (d.id === RootId) return 'rgb(223,133,32)';
               return this.isCompared && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
@@ -171,31 +180,35 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 this.tipDetail = {};
                 return;
               }
-              const { text, suffix } = usFormat(d.data.value / 1000);
-              let diffDuration = '';
+              let detailsData = undefined;
+              let dataText = undefined;
+              const { value: dataValue, text: profileText } = parseProfileDataTypeValue(d.data.value, this.unit, true);
+              detailsData = dataValue;
+              dataText = profileText;
+
+              let diffData = undefined;
               let diffValue = 0;
               if (this.isCompared && d.data?.diff_info) {
-                const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
-                diffDuration = diffText + diffSuffix;
+                const { value: diffProfileValue } = parseProfileDataTypeValue(d.data.diff_info.comparison, this.unit);
+                diffData = diffProfileValue;
                 diffValue =
                   d.data.diff_info.comparison === 0 || d.data.diff_info.mark === 'unchanged'
                     ? 0
-                    : +(
-                        ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
-                        d.data.diff_info.comparison
-                      ).toFixed(2);
+                    : d.data.diff_info.diff;
+                // : +(
+                //     ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
+                //     d.data.diff_info.comparison
+                //   ).toFixed(2);
               }
               let axisLeft = e.pageX - (boundryBody ? 0 : this.svgRect.left);
               let axisTop = e.pageY - (boundryBody ? 0 : this.svgRect.top);
-              if (axisLeft + 240 > window.innerWidth) {
-                axisLeft = axisLeft - 220 - 16;
+              if (axisLeft + 360 > window.innerWidth) {
+                axisLeft = axisLeft - 340 - 16;
               } else {
                 axisLeft = axisLeft + 16;
               }
-              if (axisTop + 120 > window.innerHeight) {
-                axisTop = axisTop - 120;
-              } else {
-                axisTop = axisTop;
+              if (axisTop + 180 > window.innerHeight) {
+                axisTop = axisTop - 180;
               }
               this.tipDetail = {
                 left: axisLeft,
@@ -203,10 +216,11 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 id: d.data.id,
                 title: d.data.name,
                 proportion: ((d.data.value * 100) / c.rootValue).toFixed(4).replace(/[0]+$/g, ''),
-                duration: text + suffix,
-                diffDuration,
+                data: detailsData,
+                dataText,
+                diffData,
                 diffValue,
-                mark: d.data.diff_info?.mark
+                mark: d.data.diff_info?.mark,
               };
             },
             onContextMenu: (e: MouseEvent, d: HierarchyNode<BaseDataType>) => {
@@ -229,14 +243,14 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                 bottom: this.svgRect.bottom + paddingLeft,
                 title: text + suffix,
                 visibility:
-                  axisLeft < this.svgRect.x || axisLeft > this.svgRect.width + this.svgRect.x ? 'hidden' : 'visible'
+                  axisLeft < this.svgRect.x || axisLeft > this.svgRect.width + this.svgRect.x ? 'hidden' : 'visible',
               };
             },
             onMouseOut: () => {
               this.axisRect = { left: 0, title: '', visibility: 'hidden' };
               this.tipDetail = {};
             },
-            onMouseDown: () => {}
+            onMouseDown: () => {},
           },
           this.chartRef
         );
@@ -268,6 +282,10 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   handleHighlightIdChange() {
     this.graphInstance?.highlightNodeId(this.highlightId);
   }
+  @Watch('highlightName')
+  handleHighlightNameChange() {
+    this.graphInstance?.highlightNode(this.highlightName);
+  }
 
   beforeDestroy() {
     this.wrapperRef && removeListener(this.wrapperRef!, this.handleResize);
@@ -285,7 +303,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     const threads = [];
     return {
       main,
-      threads
+      threads,
     };
   }
   /**
@@ -294,7 +312,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   setSvgRect() {
     this.svgRect = this.chartRef.querySelector('svg').getBoundingClientRect();
     this.graphToolsRect = {
-      left: this.svgRect.x + 4
+      left: this.svgRect.x + 4,
     };
   }
   /**
@@ -315,9 +333,17 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
    */
   handleContextMenuClick(item: ICommonMenuItem) {
     this.contextMenuRect.left = -1;
-    // if (item.id === 'span') {
-    //   return this.contextMenuRect.spanId && emit('showSpanDetail', this.contextMenuRect.spanId);
-    // }
+    if (item.id === 'copy') {
+      let hasErr = false;
+      copyText(this.contextMenuRect.spanName, (errMsg: string) => {
+        this.$bkMessage({
+          message: errMsg,
+          theme: 'error',
+        });
+        hasErr = !!errMsg;
+      });
+      if (!hasErr) this.$bkMessage({ theme: 'success', message: this.$t('复制成功') });
+    }
     if (item.id === 'reset') {
       this.initScale();
       this.$emit('updateHighlightId', -1);
@@ -325,6 +351,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     }
     if (item.id === 'highlight') {
       this.graphInstance.highlightNode(this.contextMenuRect.spanName);
+      this.$emit('updateHighlightName', this.contextMenuRect.spanName);
     }
   }
   /**
@@ -377,7 +404,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
 
     // 加载SVG图像
-    img.onload = function () {
+    img.onload = () => {
       // 在canvas上绘制SVG图像
       ctx.drawImage(img, 0, 0, width, height);
 
@@ -415,59 +442,71 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     if (this.showException)
       return (
         <bk-exception
-          type='empty'
-          scene='part'
           description={this.$t('暂无数据')}
+          scene='part'
+          type='empty'
         />
       );
     return (
-      <MonitorResizeLayout
-        placement='right'
-        style='height: 100%'
-        class={'hide-aside'}
-      >
-        <div
-          slot='main'
-          class='selector-list-slot'
-        >
-          <div class={['profiling-compare-legend', { 'is-show': this.localIsCompared }]}>
-            <span class='tag tag-new'>added</span>
-            <div class='percent-queue'>
-              {this.diffPercentList.map((item, index) => (
-                <span class={`percent-tag tag-${index + 1}`}>{item}</span>
-              ))}
+      <div style='height: fit-content; flex: 1'>
+        <div class='selector-list-slot'>
+          {this.localIsCompared && (
+            <div
+              key='compareLegend'
+              class='profiling-compare-legend'
+            >
+              <span class='tag tag-new'>added</span>
+              <div class='percent-queue'>
+                {this.diffPercentList.map((item, index) => (
+                  <span
+                    key={index}
+                    class={`percent-tag tag-${index + 1}`}
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+              <span class='tag tag-removed'>removed</span>
             </div>
-            <span class='tag tag-removed'>removed</span>
-          </div>
+          )}
+
           <div
+            ref='wrapperRef'
             class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
             tabindex={1}
             onBlur={this.handleClickWrapper}
             onClick={this.handleClickWrapper}
-            ref='wrapperRef'
           >
             <div
               ref='chartRef'
               class='flame-graph'
             />
             <div
-              class='flame-graph-tips'
               style={{
                 left: `${this.tipDetail.left}px`,
                 top: `${this.tipDetail.top + 16}px`,
-                display: this.tipDetail.title ? 'block' : 'none'
+                display: this.tipDetail.title ? 'block' : 'none',
               }}
+              class='flame-graph-tips'
             >
               {this.tipDetail.title && [
-                <div class='funtion-name'>{this.tipDetail.title}</div>,
-                <table class='tips-table'>
+                <div
+                  key={'funtion-name'}
+                  class='funtion-name'
+                >
+                  {this.tipDetail.title}
+                </div>,
+                <table
+                  key={'tips-table'}
+                  class='tips-table'
+                >
                   {this.localIsCompared && (
                     <thead>
-                      <th></th>
+                      <th />
                       <th>{window.i18n.t('当前')}</th>
                       {this.tipDetail.id !== RootId && [
-                        <th>{window.i18n.t('参照')}</th>,
-                        <th>{window.i18n.t('差异')}</th>
+                        <th key={'参照'}>{window.i18n.t('参照')}</th>,
+                        <th key='差异'>{window.i18n.t('差异')}</th>,
                       ]}
                     </thead>
                   )}
@@ -479,40 +518,43 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
                       </tr>
                     )}
                     <tr>
-                      <td>{window.i18n.t('耗时')}</td>
-                      <td>{this.tipDetail.duration}</td>
+                      <td>{this.tipDetail.dataText}</td>
+                      <td>{this.tipDetail.data}</td>
                       {this.localIsCompared &&
                         this.tipDetail.id !== RootId && [
-                          <td>{this.tipDetail.diffDuration ?? '--'}</td>,
-                          <td>
+                          <td key={1}>{this.tipDetail.diffData ?? '--'}</td>,
+                          <td key={2}>
                             {this.tipDetail.mark === 'added' ? (
                               <span class='tips-added'>{this.tipDetail.mark}</span>
                             ) : (
-                              `${this.tipDetail.diffValue}%`
+                              `${((this.tipDetail.diffValue as number) * 100).toFixed(2)}%`
                             )}
-                          </td>
+                          </td>,
                         ]}
                     </tr>
                   </tbody>
                 </table>,
-                <div class='tips-info'>
-                  <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
+                <div
+                  key={'tips-info'}
+                  class='tips-info'
+                >
+                  <span class='icon-monitor icon-mc-mouse tips-info-icon' />
                   {window.i18n.t('鼠标右键有更多菜单')}
-                </div>
+                </div>,
               ]}
             </div>
             <ul
-              class='flame-graph-menu'
               style={{
                 left: `${this.contextMenuRect.left}px`,
                 top: `${this.contextMenuRect.top}px`,
-                visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden'
+                visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
               }}
+              class='flame-graph-menu'
             >
               {CommonMenuList.map(item => (
                 <li
-                  class='menu-item'
                   key={item.id}
+                  class='menu-item'
                   onClick={() => this.handleContextMenuClick(item)}
                 >
                   <i class={`menu-item-icon icon-monitor ${item.icon}`} />
@@ -521,26 +563,26 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
               ))}
             </ul>
             <div
-              class='flame-graph-axis'
               style={{
                 left: `${this.axisRect.left || 0}px`,
                 top: `${this.axisRect.top || 0}px`,
                 bottom: `${this.axisRect.bottom || 0}px`,
-                visibility: this.axisRect.visibility
+                visibility: this.axisRect.visibility,
               }}
+              class='flame-graph-axis'
             >
               <span class='axis-label'>{this.axisRect.title}</span>
             </div>
             <div
-              class='flame-graph-zoom'
               style={{
                 left: `${this.zoomRect?.left || 0}px`,
-                width: `${this.zoomRect?.width || 0}px`
+                width: `${this.zoomRect?.width || 0}px`,
               }}
-            ></div>
+              class='flame-graph-zoom'
+            />
           </div>
         </div>
-      </MonitorResizeLayout>
+      </div>
     );
   }
 }

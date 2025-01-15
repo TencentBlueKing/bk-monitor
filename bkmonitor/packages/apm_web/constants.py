@@ -8,12 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.utils.translation import ugettext_lazy as _
+from functools import lru_cache
+
+from django.utils.functional import cached_property
+from django.utils.translation import gettext
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from constants.alert import EventSeverity
-from constants.apm import OtlpKey, SpanKindKey
+from constants.apm import CachedEnum, OtlpKey, SpanKindKey, TelemetryDataType
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
 DEFAULT_EMPTY_NUMBER = 0
@@ -22,19 +26,35 @@ DEFAULT_NO_DATA_PERIOD = 10  # minute
 DEFAULT_DIMENSION_DATA_PERIOD = 5  # minute
 NODATA_ERROR_STRATEGY_CONFIG_KEY = "nodata_error_strategy_id"
 
-APDEX_VIEW_ITEM_LEN = 24
+nodata_error_strategy_config_mapping = {
+    TelemetryDataType.TRACE.value: "nodata_error_strategy_id",
+    TelemetryDataType.METRIC.value: "nodata_error_metric_strategy_id",
+    TelemetryDataType.LOG.value: "nodata_error_log_strategy_id",
+    TelemetryDataType.PROFILING.value: "nodata_error_profiling_strategy_id",
+}
+
+DEFAULT_APM_APP_QPS = 500
+
 OTLP_JAEGER_SPAN_KIND = {2: "server", 3: "client", 4: "producer", 5: "consumer", 1: "internal", 0: "unset"}
 IDENTIFY_KEYS = ["db.system", "http.target", "messaging.system", "rpc.system"]
 
 DEFAULT_DIFF_TRACE_MAX_NUM = 5
 
-# 随组件类型变化的where条件 用于指标值查询
+# 随组件类型变化的where条件 用于指标值查询 (如果 where 里面有 or 连接符的话不能使用这个因为不能设置优先级)
 component_where_mapping = {
     "db": {"key": "db_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
     "messaging": {"key": "messaging_system", "method": "eq", "value": ["{predicate_value}"], "condition": "and"},
 }
 
+# 随组件类型变化的where条件 用于指标值查询
+component_filter_mapping = {
+    "db": {"db_system": "{predicate_value}"},
+    "messaging": {"messaging_system": "{predicate_value}"},
+}
+
+
 COLUMN_KEY_PROFILING_DATA_COUNT = "profiling_data_count"
+COLUMN_KEY_PROFILING_DATA_STATUS = "profiling_data_status"
 
 
 class TraceKind:
@@ -139,7 +159,7 @@ class CategoryEnum:
             {
                 "id": cls.DB,
                 "name": cls.get_label_by_key(cls.DB),
-                "icon": "icon-DB",
+                "icon": "icon-shujuku",
             },
             {
                 "id": cls.MESSAGING,
@@ -154,7 +174,7 @@ class CategoryEnum:
             {
                 "id": cls.OTHER,
                 "name": cls.get_label_by_key(cls.OTHER),
-                "icon": "icon-zidingyi",
+                "icon": "icon-mc-service-unknown",
             },
         ]
 
@@ -171,6 +191,25 @@ class CategoryEnum:
             return cls.MESSAGING
         return cls.OTHER
 
+    @classmethod
+    def list_span_keys(cls):
+        """获取所有分类字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+            SpanAttributes.RPC_SYSTEM,
+            SpanAttributes.HTTP_METHOD,
+            SpanAttributes.MESSAGING_DESTINATION,
+        ]
+
+    @classmethod
+    def list_component_generate_keys(cls):
+        """获取 APM 手动处理(手动生成服务节点)的字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+        ]
+
 
 class CalculationMethod:
     # 错误率
@@ -185,6 +224,15 @@ class CalculationMethod:
     INSTANCE_COUNT = "instance_count"
     # 健康度
     APDEX = "apdex"
+    # 耗时 Bucket
+    DURATION_BUCKET = "duration_bucket"
+
+    # 服务间调用错误率
+    SERVICE_FLOW_ERROR_RATE = "service_flow_error_rate"
+    # 服务间请求数
+    SERVICE_FLOW_COUNT = "service_flow_request_count"
+    # 服务间耗时
+    SERVICE_FLOW_DURATION = "service_flow_duration"
 
 
 class ApdexColor:
@@ -238,19 +286,36 @@ class Status:
 class DataStatus:
     NORMAL = "normal"
     NO_DATA = "no_data"
-    STOP = "stop"
+    DISABLED = "disabled"
 
     @classmethod
     def get_label_by_key(cls, key: str):
-        return {cls.NORMAL: _("正常"), cls.NO_DATA: _("无数据"), cls.STOP: _("已停止")}.get(key, key)
+        return {
+            cls.NORMAL: _("正常"),
+            cls.NO_DATA: _("无数据"),
+            cls.DISABLED: _("未开启"),
+        }.get(key, key)
 
     @classmethod
     def get_status_by_key(cls, key: str):
         return {
             cls.NORMAL: {"type": Status.SUCCESS, "text": cls.get_label_by_key(key)},
             cls.NO_DATA: {"type": Status.FAILED, "text": cls.get_label_by_key(key)},
-            cls.STOP: {"type": Status.DISABLED, "text": cls.get_label_by_key(key)},
         }.get(key, {"type": Status.FAILED, "text": cls.get_label_by_key(key)})
+
+
+class StorageStatus:
+    NORMAL = "normal"
+    ERROR = "error"
+    DISABLED = "disabled"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.NORMAL: _("正常"),
+            cls.ERROR: _("异常"),
+            cls.DISABLED: _("未开启"),
+        }.get(key, key)
 
 
 class ServiceStatus(EventSeverity):
@@ -323,13 +388,21 @@ class AlertLevel:
     # 提醒
     INFO = 3
 
+    @classmethod
+    def get_label(cls, key):
+        return {
+            cls.ERROR: "error",
+            cls.WARN: "warn",
+            cls.INFO: "info",
+        }.get(key, key)
+
 
 class AlertStatus:
     # 未恢复
     ABNORMAL = "ABNORMAL"
     # 已恢复
     RECOVERED = "RECOVERED"
-    # 已关闭
+    # 已失效
     CLOSED = "CLOSED"
 
 
@@ -340,7 +413,7 @@ class ServiceDetailReqTypeChoices:
 
     @classmethod
     def choices(cls):
-        return [(cls.GET, _("获取")), (cls.SET, _("更新")), (cls.DEL, _("删除"))]
+        return [(cls.GET, "获取"), (cls.SET, "更新"), (cls.DEL, "删除")]
 
 
 class ServiceRelationLogTypeChoices:
@@ -350,8 +423,8 @@ class ServiceRelationLogTypeChoices:
     @classmethod
     def choices(cls):
         return [
-            (cls.BK_LOG, _("日志平台")),
-            (cls.OTHER, _("其他日志")),
+            (cls.BK_LOG, "日志平台"),
+            (cls.OTHER, "其他日志"),
         ]
 
     @classmethod
@@ -384,9 +457,9 @@ class SamplerTypeChoices:
     @classmethod
     def choices(cls):
         return [
-            (cls.RANDOM, _("随机采样")),
-            (cls.TAIL, _("尾部采样")),
-            (cls.EMPTY, _("不采样")),
+            (cls.RANDOM, "随机采样"),
+            (cls.TAIL, "尾部采样"),
+            (cls.EMPTY, "不采样"),
         ]
 
 
@@ -562,8 +635,8 @@ class CustomServiceMatchType:
     @classmethod
     def choices(cls):
         return [
-            (cls.AUTO, _("自动匹配")),
-            (cls.MANUAL, _("手动匹配")),
+            (cls.AUTO, "自动匹配"),
+            (cls.MANUAL, "手动匹配"),
         ]
 
 
@@ -573,6 +646,31 @@ class TopoNodeKind:
     SERVICE = "service"
     COMPONENT = "component"
     REMOTE_SERVICE = "remote_service"
+
+    # 虚拟服务 (Flow 指标处)
+    VIRTUAL_SERVICE = "virtualService"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.SERVICE: _("服务"),
+            cls.COMPONENT: _("服务组件"),
+            cls.REMOTE_SERVICE: _("自定义服务"),
+            cls.VIRTUAL_SERVICE: _("虚拟服务"),
+        }.get(key, key)
+
+
+class TopoVirtualServiceKind:
+    """虚拟服务中的分类"""
+
+    # 虚拟主调服务
+    CALLER = "bk_vServiceCaller"
+    # 虚拟被调服务
+    CALLEE = "bk_vServiceCallee"
+
+    @classmethod
+    def all_kinds(cls):
+        return [cls.CALLER, cls.CALLEE]
 
 
 class TraceFilterField:
@@ -586,10 +684,10 @@ class TraceFilterField:
     @classmethod
     def choices(cls):
         return [
-            (cls.ROOT_SERVICE, _("入口服务")),
-            (cls.ROOT_SPAN_NAME, _("入口接口")),
-            (cls.ROOT_STATUS_CODE, _("状态码")),
-            (cls.ROOT_CATEGORY, _("调用类型")),
+            (cls.ROOT_SERVICE, "入口服务"),
+            (cls.ROOT_SPAN_NAME, "入口接口"),
+            (cls.ROOT_STATUS_CODE, "状态码"),
+            (cls.ROOT_CATEGORY, "调用类型"),
         ]
 
 
@@ -602,8 +700,8 @@ class QueryMode:
     @classmethod
     def choices(cls):
         return [
-            (cls.TRACE, _("Trace视角")),
-            (cls.SPAN, _("span视角")),
+            (cls.TRACE, "Trace视角"),
+            (cls.SPAN, "span视角"),
         ]
 
 
@@ -823,3 +921,247 @@ OPERATOR_MAP = {"=": "equal", "!=": "not_equal", "exists": "exists", "does not e
 DEFAULT_MAX_VALUE = 10000
 
 DEFAULT_SPLIT_SYMBOL = "--"
+
+
+class ApmCacheKey:
+    """一些 APM 的缓存 Key"""
+
+    # 存放应用下服务的数据状态
+    APP_SERVICE_STATUS_KEY = "apm:application:{application_id}:service_data_status"
+    # 存放应用下监控项数据的映射
+    APP_SCOPE_NAME_KEY = "apm:application_metric_scope_name_mapping:{bk_biz_id}:{application_id}"
+
+
+class LogIndexSource:
+    """服务日志的数据关联来源"""
+
+    HOST = "host"
+    RELATION = "relation"
+    CUSTOM_REPORT = "custom_report"
+
+    @classmethod
+    def get_source_label(cls, key):
+        return {
+            cls.HOST: "主机关联",
+            cls.RELATION: "关联配置",
+            cls.CUSTOM_REPORT: "自定义上报",
+        }.get(key, key)
+
+
+METRIC_COMMON_DIMENSION = [
+    "namespace",  # 环境
+    "env_name",  # 用户环境
+    "instance",  # 实例
+    "container_name",  # 容器
+    "version",  # 版本
+    "app",  # 应用
+    "server",  # 服务
+    "service_name",  # 服务名：service_name (组成逻辑app+server)
+]
+
+
+class ServiceStatusCachedEnum(CachedEnum):
+    FATAL = 1
+    WARNING = 2
+    REMIND = 3
+    NORMAL = 9999
+
+    @cached_property
+    def label(self):
+        return str(
+            {
+                self.NORMAL: _("无告警"),
+                self.FATAL: _("致命"),
+                self.REMIND: _("提醒"),
+                self.WARNING: _("预警"),
+            }.get(self, self.value)
+        )
+
+    @cached_property
+    def status(self):
+        return {
+            self.NORMAL: {"type": Status.SUCCESS, "text": self.label},
+            self.FATAL: {"type": Status.FAILED, "text": self.label},
+            self.REMIND: {"type": Status.WARNING, "text": self.label},
+            self.WARNING: {"type": Status.WARNING, "text": self.label},
+        }.get(self, {"type": Status.FAILED, "text": self.label})
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        default.status = {"type": Status.FAILED, "text": value}
+        return default
+
+
+class ApdexCachedEnum(CachedEnum):
+    DIMENSION_KEY = "apdex_type"
+    SATISFIED = "satisfied"
+    TOLERATING = "tolerating"
+    FRUSTRATED = "frustrated"
+    ERROR = "error"
+
+    @cached_property
+    def label(self):
+        return str(
+            {self.SATISFIED: _("满意"), self.TOLERATING: _("可容忍"), self.FRUSTRATED: _("烦躁期")}.get(self, self.value)
+        )
+
+    @cached_property
+    def status(self):
+        return {
+            self.SATISFIED: {"type": Status.SUCCESS, "text": self.label},
+            self.TOLERATING: {"type": Status.WAITING, "text": self.label},
+            self.FRUSTRATED: {"type": Status.FAILED, "text": self.label},
+        }.get(self, {"type": None, "text": "--"})
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        default.status = {"type": None, "text": "--"}
+        return default
+
+
+class CategoryCachedEnum(CachedEnum):
+    HTTP = "http"
+    RPC = "rpc"
+    DB = "db"
+    MESSAGING = "messaging"
+    ASYNC_BACKEND = "async_backend"
+    ALL = "all"
+    OTHER = "other"
+
+    # profile 为新的展示类型 只用来展示在 serviceList 无实际作用
+    PROFILING = "profiling"
+
+    @cached_property
+    def label(self):
+        return str(
+            {
+                self.HTTP: _("网页"),
+                self.RPC: _("远程调用"),
+                self.DB: _("数据库"),
+                self.MESSAGING: _("消息队列"),
+                self.ASYNC_BACKEND: _("后台任务"),
+                self.ALL: _("全部"),
+                self.OTHER: _("其他"),
+            }.get(self, self.value)
+        )
+
+    @cached_property
+    def remote_service_label(self):
+        return str({self.HTTP: _("网页(自定义服务)")}.get(self, self.value))
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_filter_fields(cls):
+        return [
+            {
+                "id": cls.ALL.value,
+                "name": gettext("全部"),
+                "icon": "icon-gailan",
+            },
+            {
+                "id": cls.HTTP.value,
+                "name": gettext("网页"),
+                "icon": "icon-wangye",
+            },
+            {
+                "id": cls.RPC.value,
+                "name": gettext("远程调用"),
+                "icon": "icon-yuanchengfuwu",
+            },
+            {
+                "id": cls.DB.value,
+                "name": gettext("数据库"),
+                "icon": "icon-shujuku",
+            },
+            {
+                "id": cls.MESSAGING.value,
+                "name": gettext("消息队列"),
+                "icon": "icon-xiaoxizhongjianjian",
+            },
+            {
+                "id": cls.ASYNC_BACKEND.value,
+                "name": gettext("后台任务"),
+                "icon": "icon-renwu",
+            },
+            {
+                "id": cls.OTHER.value,
+                "name": gettext("其他"),
+                "icon": "icon-mc-service-unknown",
+            },
+        ]
+
+    @classmethod
+    def classify(cls, span):
+        # TODO: 转为InferenceHandler进行推断
+        if span[OtlpKey.ATTRIBUTES].get(SpanAttributes.HTTP_METHOD):
+            return cls.HTTP.value
+        if span[OtlpKey.ATTRIBUTES].get(SpanAttributes.RPC_SERVICE):
+            return cls.RPC.value
+        if span[OtlpKey.ATTRIBUTES].get(SpanAttributes.DB_SYSTEM):
+            return cls.DB.value
+        if span[OtlpKey.ATTRIBUTES].get(SpanAttributes.MESSAGING_SYSTEM):
+            return cls.MESSAGING.value
+        return cls.OTHER.value
+
+    @classmethod
+    def list_span_keys(cls):
+        """获取所有分类字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+            SpanAttributes.RPC_SYSTEM,
+            SpanAttributes.HTTP_METHOD,
+            SpanAttributes.MESSAGING_DESTINATION,
+        ]
+
+    @classmethod
+    def list_component_generate_keys(cls):
+        """获取 APM 手动处理(手动生成服务节点)的字段"""
+        return [
+            SpanAttributes.DB_SYSTEM,
+            SpanAttributes.MESSAGING_SYSTEM,
+        ]
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        default.remote_service_label = value
+        return default
+
+
+class DataStatusColumnEnum(CachedEnum):
+    NORMAL = "normal"
+    NO_DATA = "no_data"
+    DISABLED = "disabled"
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def list(cls):
+        return {
+            cls.NORMAL: _("正常"),
+            cls.NO_DATA: _("无数据"),
+            cls.DISABLED: _("未开启"),
+        }
+
+    @cached_property
+    def label(self):
+        return str(self.list().get(self, self.value))
+
+    @cached_property
+    def status(self):
+        return {
+            self.NORMAL: {"type": Status.SUCCESS, "text": gettext("正常")},
+            self.NO_DATA: {"type": Status.FAILED, "text": gettext("无数据")},
+        }.get(self, {"type": Status.FAILED, "text": self.value})
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = gettext("未开启")
+        default.status = {"type": Status.FAILED, "text": gettext("未开启")}
+        return default

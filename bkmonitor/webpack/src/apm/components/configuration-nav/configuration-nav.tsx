@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import MonitorTab from 'monitor-pc/components/monitor-tab/monitor-tab';
 
 import './configuration-nav.scss';
@@ -66,9 +67,9 @@ export default class ConfigurationNav extends tsc<IConfiguratioNavProps, IConfig
           {this.menuList.map(item => (
             <bk-tab-panel
               key={item.id}
-              name={item.id}
               label={item.name}
-            ></bk-tab-panel>
+              name={item.id}
+            />
           ))}
         </MonitorTab>
         <bk-alert class='info-alert'>

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { TextDirectionType, ViewModeType } from '../../../typings/profiling-graph';
@@ -49,19 +50,13 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ required: true, type: String }) textDirection: string;
   @Prop({ default: false, type: Boolean }) isCompared: boolean;
 
-  downloadTypeMaps = [
-    'png',
-    // 'json',
-    'pprof'
-    // 'html'
-  ];
   keyword = '';
 
   get viewModeList() {
     const list = [
       { id: ViewModeType.Table, icon: 'table' },
       { id: ViewModeType.Combine, icon: 'mc-fenping' },
-      { id: ViewModeType.Flame, icon: 'mc-flame' }
+      { id: ViewModeType.Flame, icon: 'mc-flame' },
     ];
 
     if (!this.isCompared) {
@@ -69,6 +64,15 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     }
 
     return list;
+  }
+
+  // 表格火焰图 && 火焰图 展示png下载
+  get downloadTypeMaps() {
+    const baseTypes = ['pprof'];
+    if ([ViewModeType.Flame, ViewModeType.Combine].includes(this.activeMode as ViewModeType)) {
+      baseTypes.unshift('png');
+    }
+    return baseTypes;
   }
 
   @Emit('modeChange')
@@ -98,25 +102,27 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         <div class='view-mode button-group'>
           {this.viewModeList.map(mode => (
             <div
+              key={mode.id}
               class={`button-group-item ${this.activeMode === mode.id ? 'active' : ''}`}
               onClick={() => this.handleModeChange(mode.id)}
             >
-              <i class={`icon-monitor icon-${mode.icon}`}></i>
+              <i class={`icon-monitor icon-${mode.icon}`} />
             </div>
           ))}
         </div>
         <bk-input
-          right-icon='bk-icon icon-search'
           v-model={this.keyword}
+          right-icon='bk-icon icon-search'
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>
           {Object.values(TextDirectionType).map(item => (
             <div
+              key={item}
               class={`button-group-item ${item === this.textDirection ? 'active' : ''}`}
               onClick={() => this.handleTextDirectionChange(item)}
             >
-              <i class={`icon-monitor icon-${item === TextDirectionType.Ltr ? 'AB' : 'YZ'}`}></i>
+              <i class={`icon-monitor icon-${item === TextDirectionType.Ltr ? 'AB' : 'YZ'}`} />
             </div>
           ))}
         </div>
@@ -127,7 +133,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         >
           <div slot='dropdown-trigger'>
             <div class='download-button'>
-              <i class='icon-monitor icon-xiazai1'></i>
+              <i class='icon-monitor icon-xiazai1' />
             </div>
           </div>
           <ul
@@ -136,6 +142,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           >
             {this.downloadTypeMaps.map(item => (
               <li
+                key={item}
                 class='profiling-view-download-menu-item'
                 onClick={() => this.handleDownload(item)}
               >

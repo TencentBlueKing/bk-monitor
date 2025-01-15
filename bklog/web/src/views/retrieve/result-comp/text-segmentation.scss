@@ -8,8 +8,8 @@
   }
 
   .event-box {
-    height: 32px;
     min-width: 240px;
+    height: 32px;
     padding: 0 10px;
     font-size: 12px;
     cursor: pointer;
@@ -54,11 +54,12 @@
   }
 
   .icon-minus-circle,
+  .bklog-trace-view,
   .icon-plus-circle {
     margin-right: 6px;
   }
 
-  .icon-copy {
+  .bklog-copy {
     margin-left: -4px;
     font-size: 24px;
   }
@@ -68,6 +69,7 @@
   word-break: break-all;
 
   .segment-content {
+    line-height: 20px;
     white-space: normal;
   }
 

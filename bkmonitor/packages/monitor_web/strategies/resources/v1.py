@@ -18,7 +18,7 @@ from django.conf import settings
 from django.db.models import Count, Q, QuerySet, Sum
 from django.db.models.functions import Length
 from django.forms import model_to_dict
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import (
@@ -299,11 +299,8 @@ class GetMetricListResource(Resource):
             ]
         elif metric["metric_field"] == "gse_custom_event":
             return [
-                _("【不推荐】"),
-                _(
-                    "通过蓝鲸Agent目录中的gsecmdline命令上报自定义字符型告警。"
-                    '用法：{}plugins/bin/gsecmdline -d {} -l "This service is offline."'
-                ).format(settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID),
+                _("【已废弃】"),
+                _("功能通过上报 自定义事件 覆盖").format(settings.LINUX_GSE_AGENT_PATH, settings.GSE_CUSTOM_EVENT_DATAID),
             ]
         elif metric["metric_field"] == "agent-gse":
             return [_("gse每隔60秒检查一次agent心跳数据。"), _("心跳数据持续未更新，24小时后将不再上报失联事件。")]
@@ -994,7 +991,7 @@ class StrategyConfigListResource(Resource):
             all_strategy = all_strategy.filter(bk_biz_id=bk_biz_id).order_by(order)
         else:
             all_strategy = all_strategy.filter(
-                bk_biz_id__in=[biz.id for biz in resource.cc.get_app_by_user(get_request().user)]
+                bk_biz_id__in=resource.space.get_bk_biz_ids_by_user(get_request().user)
             ).order_by(order)
 
         # 模糊搜索
@@ -1660,7 +1657,10 @@ class StrategyConfigResource(Resource):
             1. 直接走dataflow，根据策略配置的查询sql，创建好实时计算节点，在节点后配置好智能检测节点
         """
         from bkmonitor.models import AlgorithmModel
-        from monitor_web.tasks import access_aiops_by_strategy_id
+        from monitor_web.tasks import (
+            access_aiops_by_strategy_id,
+            access_host_anomaly_detect_by_strategy_id,
+        )
 
         # 未开启计算平台接入，则直接返回
         if not settings.IS_ACCESS_BK_DATA:
@@ -1668,6 +1668,11 @@ class StrategyConfigResource(Resource):
 
         has_intelligent_algorithm = False
         for algorithm in chain(*(item.algorithms for item in strategy.items)):
+            # 主机异常检测的接入逻辑跟其他智能检测不一样，因此单独接入
+            if algorithm.type == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
+                access_host_anomaly_detect_by_strategy_id.delay(strategy.id)
+                return
+
             if algorithm.type == AlgorithmModel.AlgorithmChoices.IntelligentDetect:
                 has_intelligent_algorithm = True
                 break
@@ -1979,35 +1984,16 @@ class GetDimensionListResource(Resource):
         return dimensions
 
 
-class PlainStrategyListResource(StrategyConfigListResource):
+class PlainStrategyListResource(Resource):
     """
     获取监控策略轻量列表，供告警屏蔽选择策略配置时使用
     """
 
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
     def perform_request(self, validated_request_data):
-        self.label_map = resource.commons.get_label()
-        all_strategy = StrategyModel.objects.all()
-        bk_biz_id = validated_request_data.get("bk_biz_id")
-        # bk_biz_id可以为空，为空则按用户拥有的业务查询。过滤掉停用的策略
-        if bk_biz_id:
-            all_strategy = all_strategy.filter(bk_biz_id=bk_biz_id, is_enabled=True).order_by("-update_time")
-        else:
-            all_strategy = all_strategy.filter(
-                bk_biz_id__in=[biz.id for biz in resource.cc.get_app_by_user(get_request().user)], is_enabled=True
-            ).order_by("-update_time")
-
-        strategy_list = []
-        for strategy_config in all_strategy.values(
-            "id",
-            "name",
-            "scenario",
-        ):
-            label_msg = self.get_label_msg(strategy_config["scenario"])
-            strategy_config.update(label_msg)
-            strategy_config["data_target"] = self.data_target(strategy_config["id"], strategy_config["scenario"])
-            strategy_list.append(strategy_config)
-
-        return strategy_list
+        return resource.strategies.plain_strategy_list_v2(**validated_request_data)
 
 
 class StrategyInfo(StrategyConfigDetailResource):

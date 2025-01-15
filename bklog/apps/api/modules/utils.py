@@ -175,7 +175,7 @@ else:
                 params["auth_info"] = json.dumps(auth_info)
             params.update({"blueking_language": translation.get_language()})
 
-            bk_username = req.user.bk_username if hasattr(req.user, "bk_username") else req.user.username
+            bk_username = getattr(req.user, "bk_username", None) or req.user.username
             if "bk_username" not in params:
                 params["bk_username"] = bk_username
 
@@ -190,10 +190,20 @@ else:
         req = get_request()
         skip_check = getattr(req, "skip_check", False)
         if settings.BKAPP_IS_BKLOG_API and not skip_check:
-            auth_info = EsquerySearchPermissions.get_auth_info(req)
-            if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
-                # 在白名单内的 app 使用超级权限
+            # 外部版请求转发 / 内嵌日志api页面 已通过日志saas鉴权逻辑，默认使用超级权限
+            if (
+                getattr(req, "external_user", None)
+                or req.headers.get("X-SOURCE-APP-CODE", "") in settings.ESQUERY_WHITE_LIST
+            ):
                 params = update_bkdata_auth_info(params)
+            else:
+                auth_info = EsquerySearchPermissions.get_auth_info(req)
+                if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
+                    # 在白名单内的 app 使用超级权限
+                    params = update_bkdata_auth_info(params)
+        elif not settings.BKAPP_IS_BKLOG_API:
+            # saas直查已通过日志鉴权逻辑，默认使用超级权限
+            params = update_bkdata_auth_info(params)
 
         params = add_esb_info_before_request(params)
         params = add_app_info_before_request(params)

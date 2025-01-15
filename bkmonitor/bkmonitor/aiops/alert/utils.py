@@ -13,14 +13,17 @@ import copy
 import json
 import logging
 import math
+import operator
 import re
 from collections import defaultdict
+from functools import reduce
 from itertools import chain
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import parse_qs
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.db.models import Q as DQ
+from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.utils import AiSetting, ReadOnlyAiSetting
 from bkmonitor.dataflow.constant import VisualType
@@ -53,6 +56,7 @@ class AIOPSManager(abc.ABC):
         (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.ALERT),
         (DataSourceLabel.BK_FTA, DataTypeLabel.ALERT),
         (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT),
     )
 
     def __init__(self, alert: AlertDocument, ai_settings: Optional[ReadOnlyAiSetting] = None):
@@ -78,7 +82,8 @@ class AIOPSManager(abc.ABC):
     def translate_custom_event_metric(cls, query_config, **kwargs):
         # 关键字的节点维度需要转换成实际的维度字段
         filter_dict = kwargs.get("filter_dict", {})
-        filter_dict["event_name"] = query_config["custom_event_name"]
+        if query_config["custom_event_name"]:
+            filter_dict["event_name"] = query_config["custom_event_name"]
         query_config["metric_field"] = "_index"
 
     @classmethod
@@ -92,13 +97,18 @@ class AIOPSManager(abc.ABC):
 
     @classmethod
     def get_graph_panel(
-        cls, alert: AlertDocument, compare_function: Optional[Dict] = None, use_raw_query_config: bool = False
+        cls,
+        alert: AlertDocument,
+        compare_function: Optional[Dict] = None,
+        use_raw_query_config: bool = False,
+        with_anomaly: bool = True,
     ):
         """
         获取图表配置
         :param alert: 告警对象
         :param compare_function:
         :param use_raw_query_config: 是否使用原始查询配置（适用于AIOps接入后要获取原始数据源的场景）
+        :param with_anomaly: 是否需要在返回图表中包含is_anomaly字段
         """
         if compare_function is None:
             compare_function = {"time_compare": ["1d", "1w"]}
@@ -130,7 +140,7 @@ class AIOPSManager(abc.ABC):
                             "function": compare_function,
                         },
                         "datasourceId": "time_series",
-                        "name": "时序数据",
+                        "name": _("时序数据"),
                         "alias": "$time_offset",
                     }
                 ],
@@ -151,17 +161,48 @@ class AIOPSManager(abc.ABC):
         }
 
         extra_unify_query_params = {
+            # AIOPS 额外图表
             "expression": item.get("expression", ""),
             "functions": item.get("functions", []),
             "query_configs": [],
             "function": compare_function,
         }
 
-        if (
-            query_config["data_source_label"],
-            query_config["data_type_label"],
-        ) in cls.AVAILABLE_DATA_LABEL:
+        data_source = (query_config["data_source_label"], query_config["data_type_label"])
+        if data_source in cls.AVAILABLE_DATA_LABEL:
             for query_config in item["query_configs"]:
+                # 系统事件需要特殊处理
+                if data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT):
+                    event_name_mapping = {
+                        "corefile-gse": "CoreFile",
+                        "disk-full-gse": "DiskFull",
+                        "disk-readonly-gse": "DiskReadonly",
+                        "oom-gse": "OOM",
+                        "agent-gse": "AgentLost",
+                    }
+                    if query_config.get("metric_field") not in event_name_mapping:
+                        return
+
+                    unify_query_params["query_configs"].append(
+                        {
+                            "data_source_label": DataSourceLabel.CUSTOM,
+                            "data_type_label": DataTypeLabel.EVENT,
+                            "table": "gse_system_event",
+                            "metrics": [{"field": "_index", "method": "SUM", "alias": "a"}],
+                            "filter_dict": {
+                                "event_name": event_name_mapping[query_config["metric_field"]],
+                                "ip": alert.event.ip,
+                                "bk_cloud_id": alert.event.bk_cloud_id,
+                            },
+                            "time_field": "time",
+                            "interval": 60,
+                            "where": [],
+                            "group_by": [],
+                        }
+                    )
+                    continue
+
+                # promql
                 if use_raw_query_config:
                     raw_query_config = query_config.get("raw_query_config", {})
                     query_config.update(raw_query_config)
@@ -199,7 +240,10 @@ class AIOPSManager(abc.ABC):
                     metrics = []
                     filter_dict = dimensions
                 else:
-                    where = cls.create_where_with_dimensions(query_config["agg_condition"], dimensions)
+                    where = cls.create_where_with_dimensions(
+                        query_config["agg_condition"],
+                        {key: value for key, value in dimensions.items() if key in query_config["agg_dimension"]},
+                    )
                     agg_dimension = list(set(query_config["agg_dimension"]) & set(dimensions.keys()))
                     if "le" in query_config["agg_dimension"]:
                         # 针对le做特殊处理
@@ -229,7 +273,7 @@ class AIOPSManager(abc.ABC):
                 extra_metrics = []
                 if not use_raw_query_config and intelligent_algorithm_list and intelligent_detect_accessed:
                     visual_type = intelligent_algorithm_list[0]["config"].get("visual_type")
-                    if visual_type != VisualType.FORECASTING:
+                    if visual_type != VisualType.FORECASTING and with_anomaly:
                         metrics.append(
                             {
                                 "field": "is_anomaly",
@@ -313,6 +357,7 @@ class AIOPSManager(abc.ABC):
                 if extra_metrics:
                     extra_query_config = copy.deepcopy(query_config)
                     extra_query_config["metrics"] = extra_metrics
+                    extra_unify_query_params["expression"] = extra_metrics[0].get("alias") or extra_metrics[0]["field"]
                     extra_unify_query_params["query_configs"].append(extra_query_config)
 
         if not unify_query_params["query_configs"]:
@@ -341,7 +386,7 @@ class AIOPSManager(abc.ABC):
                 {
                     "data": unify_query_params,
                     "datasourceId": "time_series",
-                    "name": "时序数据",
+                    "name": _("时序数据"),
                     "alias": "$metric_field-$time_offset" if is_composite else "$time_offset",
                 }
             ],
@@ -516,13 +561,11 @@ class DimensionDrillManager(AIOPSManager):
             base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
             base_graph_panel["targets"][0]["alias"] = ""
             base_graph_panel["targets"][0]["data"]["id"] = alert.id
-            base_graph_panel["targets"][0]["data"]["function"] = {}
 
             # 因为告警维度已经确认，所以这里查询需要清空原始维度聚合配置
             query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
             for query_config in query_configs:
                 query_config["group_by"] = []
-                query_config["functions"] = [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}]
 
             # 补充维度下钻的维度过滤条件
             dimension_keys = sorted(dimension["root"].keys())
@@ -559,7 +602,7 @@ class DimensionDrillManager(AIOPSManager):
                 ],
                 "normal_data": [                     # 异常分值不超过阈值的维度组合
                     [
-                        ("127.0.0.2"),
+                        ("127.0.0.1"),
                         "0.0",
                         "0.06"
                     ]
@@ -574,8 +617,8 @@ class DimensionDrillManager(AIOPSManager):
                     "is_anomaly": true
                 },
                 {
-                    "id": "bk_target_ip=127.0.0.2",
-                    "dimension_value": "127.0.0.2",
+                    "id": "bk_target_ip=127.0.0.1",
+                    "dimension_value": "127.0.0.1",
                     "anomaly_score": 0.06,
                     "is_anomaly": false
                 }
@@ -613,7 +656,7 @@ class DimensionDrillManager(AIOPSManager):
                 ],
                 "normal_data": [                     # 异常分值不超过阈值的维度组合
                     [
-                        ["127.0.0.2"],
+                        ["127.0.0.1"],
                         "0.0",
                         "0.06"
                     ]
@@ -744,6 +787,9 @@ class DimensionDrillManager(AIOPSManager):
             group_bys = []
             src_group_bys = query_config["group_by"]
 
+            if not metric:  # 如果指标不存在，则没有维度需要下钻
+                continue
+
             for dimension in metric.dimensions:
                 # 如果某个维度在过滤条件里，则不对该维度进行下钻
                 if dimension.get("is_dimension", True) and dimension["id"] not in chain(
@@ -766,7 +812,6 @@ class DimensionDrillManager(AIOPSManager):
         }
 
     def get_serving_output(self, metric: MetricListCache, graph_panel: Dict):
-
         processing_id = settings.BK_DATA_DIMENSION_DRILL_PROCESSING_ID
         query_configs = copy.deepcopy(graph_panel["targets"][0]["data"]["query_configs"])
 
@@ -794,9 +839,7 @@ class DimensionDrillManager(AIOPSManager):
         return response["data"]["data"][0]["output"][0]
 
     def fetch_aiops_result(self):
-
         if not self.is_enable():
-            # raise AIOpsDisableError({"func": _("维度下钻")})
             raise AIOpsFunctionAccessedError({"func": _("维度下钻")})
 
         graph_panel = AIOPSManager.get_graph_panel(self.alert, use_raw_query_config=True)
@@ -857,7 +900,6 @@ class RecommendMetricManager(AIOPSManager):
             return {}
 
         if not self.is_enable():
-            # raise AIOpsDisableError({"func": _("指标推荐")})
             raise AIOpsFunctionAccessedError({"func": _("指标推荐")})
 
         graph_panel = self.get_graph_panel(self.alert, use_raw_query_config=True)
@@ -919,77 +961,132 @@ class RecommendMetricManager(AIOPSManager):
         :return: 以graph_panel作为模板，基于指标推荐结果构建的panels配置列表
         """
         graph_panels = []
+        # 字段与目标值的映射
+        field_values_map = defaultdict(list)
+        # 过滤条件分组字典，过滤字段相同的为一个组
+        filter_conditions_group = defaultdict(list)
 
+        # 预定义定查询需要显示的字段集合
+        pre_field_set = {
+            "bk_biz_id",
+            "result_table_id",
+            "dimensions",
+            "metric_field",
+            "metric_field_name",
+            "data_type_label",
+            "data_source_label",
+            "result_table_label",
+            "result_table_label_name",
+        }
+
+        # 总的查询需要显示的字段集合
+        field_set = pre_field_set.copy()
         recommend_metrics = json.loads(recommended_results["recommend_metrics"])
 
-        for recommend_metric in recommend_metrics:
-            base_graph_panel = copy.deepcopy(graph_panel)
+        if len(recommend_metrics) == 0:
+            return []
 
+        for recommend_metric in recommend_metrics:
             # 获取当前推荐指标的详情
             metric_name, dimensions = cls.parse_recommend_metric(recommend_metric[0])
             metric_info = parse_metric_id(metric_name)
             if not metric_info:
                 continue
-            metric = MetricListCache.objects.filter(**metric_info).first()
-            if not metric:
-                continue
 
-            recommend_info = {
-                "reasons": recommend_metric[3],
-                "class": recommend_metric[2],
-                "src_metric_id": alert.event["metric"][0],
-                "anomaly_points": recommend_metric[4] if isinstance(recommend_metric[4], list) else [],
-            }
+            for key, value in metric_info.items():
+                field_values_map[key].append(value)
 
-            # 维度中文名映射
-            dim_mappings = {item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)}
-            dimension_keys = sorted(dimensions.keys())
-
-            base_graph_panel["id"] = recommend_metric[0]
-            base_graph_panel["type"] = "aiops-dimension-lint"
-            base_graph_panel["enable_threshold"] = False
-            base_graph_panel["title"] = "_".join(
-                map(lambda x: f"{dim_mappings.get(x, x)}: {dimensions[x]}", dimension_keys)
+            # 对过滤字段进行分组，并保存与当前metric_info相关的信息
+            filter_conditions_group[tuple(sorted(metric_info.keys()))].append(
+                (metric_info, metric_name, dimensions, recommend_metric)
             )
-            base_graph_panel["subTitle"] = metric_name
-            base_graph_panel["bk_biz_id"] = alert.event.bk_biz_id
-            base_graph_panel["recommend_info"] = recommend_info
-            base_graph_panel["result_table_label"] = metric.result_table_label
-            base_graph_panel["result_table_label_name"] = metric.result_table_label_name
-            base_graph_panel["metric_name_alias"] = metric.metric_field_name
+            # 更新查询需要显示的字段集合
+            field_set.update(set(metric_info.keys()))
 
-            base_graph_panel["targets"][0]["data"]["function"] = {}
-            base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
-            base_graph_panel["targets"][0]["alias"] = ""
-            base_graph_panel["targets"][0]["data"]["id"] = alert.id
+        # 生成过滤条件
+        filter_conditions = reduce(
+            operator.or_,
+            [
+                DQ(**{key + "__in": field_values_map[key] for key in key_tuple})
+                for key_tuple in filter_conditions_group.keys()
+            ],
+        )
 
-            # 补充维度过滤条件
-            where = []
-            dimension_keys = sorted(dimensions.keys())
-            for condition_key in dimension_keys:
-                condition_value = dimensions[condition_key]
-                condition = {
-                    "key": condition_key,
-                    "value": [condition_value] if not isinstance(condition_value, list) else condition_value,
-                    "method": "eq",
+        # 批量获取所有需要查询的指标
+        metric_data_set = MetricListCache.objects.filter(filter_conditions).values(*field_set)
+
+        for key_tuple, met_info_recommends in filter_conditions_group.items():
+            # 根据key_tuple组成新的key，用于查询
+            metric_dic = {tuple(data[key] for key in key_tuple): data for data in metric_data_set}
+
+            for metric_info, metric_name, dimensions, recommend_metric in met_info_recommends:
+                base_graph_panel = copy.deepcopy(graph_panel)
+                metric_data = metric_dic.get(tuple(metric_info[key] for key in key_tuple))
+
+                if not metric_data:
+                    # 没有获取到目标数据，跳过
+                    continue
+
+                metric = MetricListCache(**metric_data)
+
+                recommend_info = {
+                    "reasons": recommend_metric[3],
+                    "class": recommend_metric[2],
+                    "src_metric_id": alert.event["metric"][0],
+                    "anomaly_points": recommend_metric[4] if isinstance(recommend_metric[4], list) else [],
                 }
-                if len(where) > 0:
-                    condition["condition"] = "and"
-                where.append(condition)
 
-            # 因为推荐指标不一定具有告警相同的维度，因此这里不对维度进行任何聚合，只做指标的推荐
-            query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
-            for query_config in query_configs:
-                query_config["group_by"] = []
-                query_config["where"] = where
-                query_config["data_source_label"] = metric.data_source_label
-                query_config["data_type_label"] = metric.data_type_label
-                query_config["table"] = metric.result_table_id
-                query_config["functions"] = [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}]
-                for query_metric in query_config["metrics"]:
-                    query_metric["field"] = metric.metric_field
+                # 维度中文名映射
+                dim_mappings = {
+                    item["id"]: item["name"] for item in metric.dimensions if item.get("is_dimension", True)
+                }
+                dimension_keys = sorted(dimensions.keys())
 
-            graph_panels.append(base_graph_panel)
+                base_graph_panel["id"] = recommend_metric[0]
+                base_graph_panel["type"] = "aiops-dimension-lint"
+                base_graph_panel["enable_threshold"] = False
+                base_graph_panel["title"] = "_".join(
+                    map(lambda x: f"{dim_mappings.get(x, x)}: {dimensions[x]}", dimension_keys)
+                )
+                base_graph_panel["subTitle"] = metric_name
+                base_graph_panel["bk_biz_id"] = alert.event.bk_biz_id
+                base_graph_panel["recommend_info"] = recommend_info
+                base_graph_panel["result_table_label"] = metric.result_table_label
+                base_graph_panel["result_table_label_name"] = metric.result_table_label_name
+                base_graph_panel["metric_name_alias"] = metric.metric_field_name
+
+                base_graph_panel["targets"][0]["data"]["function"] = {}
+                base_graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
+                base_graph_panel["targets"][0]["alias"] = ""
+                base_graph_panel["targets"][0]["data"]["id"] = alert.id
+
+                # 补充维度过滤条件
+                where = []
+                dimension_keys = sorted(dimensions.keys())
+                for condition_key in dimension_keys:
+                    condition_value = dimensions[condition_key]
+                    condition = {
+                        "key": condition_key,
+                        "value": [condition_value] if not isinstance(condition_value, list) else condition_value,
+                        "method": "eq",
+                    }
+                    if len(where) > 0:
+                        condition["condition"] = "and"
+                    where.append(condition)
+
+                # 因为推荐指标不一定具有告警相同的维度，因此这里不对维度进行任何聚合，只做指标的推荐
+                query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
+                for query_config in query_configs:
+                    query_config["group_by"] = []
+                    query_config["where"] = where
+                    query_config["data_source_label"] = metric.data_source_label
+                    query_config["data_type_label"] = metric.data_type_label
+                    query_config["table"] = metric.result_table_id
+                    query_config["functions"] = [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}]
+                    for query_metric in query_config["metrics"]:
+                        query_metric["field"] = metric.metric_field
+
+                graph_panels.append(base_graph_panel)
 
         return graph_panels
 

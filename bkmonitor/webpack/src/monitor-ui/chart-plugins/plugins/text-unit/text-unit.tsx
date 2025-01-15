@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
@@ -37,9 +38,9 @@ import './text-unit.scss';
 
 interface ITextUnitSeriesItem {
   // 值
-  value: string | number;
+  value: number | string;
   // 单位
-  unit: string | number;
+  unit: number | string;
 }
 @Component
 export default class TextUnit extends CommonSimpleChart {
@@ -60,7 +61,7 @@ export default class TextUnit extends CommonSimpleChart {
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
         end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
-        bk_biz_id: this.bkBizId || window.cc_biz_id
+        bk_biz_id: this.bkBizId || window.cc_biz_id,
       };
       const variablesService = new VariablesService({
         ...this.scopedVars,
@@ -68,14 +69,14 @@ export default class TextUnit extends CommonSimpleChart {
           this.viewOptions.interval,
           params.end_time - params.start_time,
           this.panel.collect_interval
-        )
+        ),
       });
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
           [item.apiFunc](
             {
               ...variablesService.transformVariables(item.data),
-              ...params
+              ...params,
             },
             { needMessage: false }
           )
@@ -84,7 +85,7 @@ export default class TextUnit extends CommonSimpleChart {
             const formater = getValueFormat(unit || '')(+value);
             this.series = {
               value: +formater.text || '',
-              unit: formater.suffix
+              unit: formater.suffix,
             };
             this.clearErrorMsg();
             return true;
@@ -115,10 +116,10 @@ export default class TextUnit extends CommonSimpleChart {
       <div class='text-unit'>
         <ChartTitle
           class='draggable-handle text-header'
-          title={this.panel.title}
-          showMore={false}
           draging={this.panel.draging}
           isInstant={this.panel.instant}
+          showMore={false}
+          title={this.panel.title}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         <div class='text-wrapper'>

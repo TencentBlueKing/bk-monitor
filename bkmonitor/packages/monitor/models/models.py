@@ -14,12 +14,12 @@ import os
 import subprocess
 import traceback
 from functools import reduce
-from base64 import b64encode
+from typing import Tuple
 
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.utils.db.fields import ConfigDataField, JsonField, SymmetricJsonField
@@ -52,6 +52,10 @@ class RolePermission(OperateRecordModel):
 # key的格式: '[dashboard_view_config]:menu_id=1'
 class UserConfig(models.Model):
     """用户配置信息"""
+
+    class Keys:
+        FUNCTION_ACCESS_RECORD = "function_access_record"
+        DEFAULT_BIZ_ID = "default_biz_id"
 
     username = models.CharField("用户名", max_length=30)
     key = models.CharField("key", max_length=255)
@@ -283,8 +287,10 @@ class UptimeCheckTask(OperateRecordModel):
     permission_exempt = True
 
     bk_biz_id = models.IntegerField("业务ID", db_index=True)
-    name = models.CharField("任务名称", max_length=50, db_index=True)
+    name = models.CharField("任务名称", max_length=128, db_index=True)
     protocol = models.CharField("协议", choices=PROTOCOL_CHOICES, max_length=10)
+    labels = models.JSONField("自定义标签", default=dict, null=True, blank=True)
+    indepentent_dataid = models.BooleanField("独立业务数据ID", default=False)
     check_interval = models.PositiveIntegerField("拨测周期(分钟)", default=5)
     # 地点变为可选项
     location = JsonField("地区", default="{}")
@@ -328,6 +334,14 @@ class UptimeCheckTask(OperateRecordModel):
             filename = {bizid}_{pk}_uptimecheckbeat.yml
         """
         return "_".join([str(self.bk_biz_id), str(self.pk), "uptimecheckbeat.yml"])
+
+    def get_data_id(self) -> Tuple[bool, str]:
+        """
+        获取或创建数据ID
+        """
+        from monitor_web.commons.data_access import UptimecheckDataAccessor
+
+        return UptimecheckDataAccessor(self).get_data_id()
 
     def update_subscription(self):
         """
@@ -455,12 +469,6 @@ class UptimeCheckTask(OperateRecordModel):
         """
         pk = self.pk
         protocol = self.protocol.lower()
-        dataid_map = {
-            UptimeCheckProtocol.HTTP: settings.UPTIMECHECK_HTTP_DATAID,
-            UptimeCheckProtocol.TCP: settings.UPTIMECHECK_TCP_DATAID,
-            UptimeCheckProtocol.UDP: settings.UPTIMECHECK_UDP_DATAID,
-            UptimeCheckProtocol.ICMP: settings.UPTIMECHECK_ICMP_DATAID,
-        }
 
         biz_nodes = {}
         # 先遍历收集所有的节点信息，按业务id分组
@@ -477,7 +485,26 @@ class UptimeCheckTask(OperateRecordModel):
         else:
             timeout = settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT
 
+        try:
+            task = UptimeCheckTask.objects.get(pk=pk)
+            task_group_ids = list(task.groups.values_list("id", flat=True))
+            task_group_ids.sort()
+            if not task_group_ids:
+                task_group_id = "0"
+            else:
+                task_group_id = ",".join(map(str, task_group_ids))
+        except UptimeCheckTask.DoesNotExist:
+            task_group_id = "0"
+
         params_list = []
+        tasks = resource.uptime_check.generate_sub_config({"task_id": pk})
+        response_with_prefix = resource.uptime_check.generate_sub_config.encode_data_with_prefix(
+            self.config.get("response", "")
+        )
+        request_with_prefix = resource.uptime_check.generate_sub_config.encode_data_with_prefix(
+            self.config.get("request", "")
+        )
+        use_custom_report, data_id = self.get_data_id()
         for bk_biz_id in biz_nodes.keys():
             scope = {
                 "bk_biz_id": bk_biz_id,
@@ -500,9 +527,11 @@ class UptimeCheckTask(OperateRecordModel):
                 },
                 "params": {
                     "context": {
-                        "data_id": dataid_map[protocol.upper()],
-                        "max_timeout": str(settings.UPTIMECHECK_DEFAULT_MAX_TIMEOUT) + "ms",
-                        "tasks": resource.uptime_check.generate_sub_config({"task_id": pk}),
+                        "data_id": data_id,
+                        "max_timeout": "{}ms".format(timeout),
+                        "custom_report": "true" if use_custom_report else "false",
+                        "send_interval": self.config.get("send_interval"),
+                        "tasks": tasks,
                         "config_hosts": self.config.get("hosts", []),
                         # 针对动态节点的情况, 注意，业务ID必须拿当前task的业务ID：
                         "task_id": pk,
@@ -511,12 +540,8 @@ class UptimeCheckTask(OperateRecordModel):
                         "available_duration": "{}ms".format(available_duration),
                         "timeout": "{}ms".format(timeout),
                         "target_port": self.config.get("port"),
-                        "response": resource.uptime_check.generate_sub_config.encode_data_with_prefix(
-                            self.config.get("response", "")
-                        ),
-                        "request": resource.uptime_check.generate_sub_config.encode_data_with_prefix(
-                            self.config.get("request", "")
-                        ),
+                        "response": response_with_prefix,
+                        "request": request_with_prefix,
                         "response_format": self.config.get("response_format", "in"),
                         "size": self.config.get("size"),
                         "total_num": self.config.get("total_num"),
@@ -524,17 +549,21 @@ class UptimeCheckTask(OperateRecordModel):
                     }
                 },
             }
+            labels = {
+                "$for": "cmdb_instance.scope",
+                "$body": {
+                    "task_group_id": task_group_id,
+                },
+                "$item": "scope",
+            }
             # 这里由于历史原因，与其他协议相比，icmp漏掉了node_id,这里采用label注入的方式补充上
             if protocol.upper() == UptimeCheckProtocol.ICMP:
-                step["params"]["context"]["labels"] = {
-                    "$for": "cmdb_instance.scope",
-                    "$body": {
-                        "node_id": "{{ cmdb_instance.host.bk_cloud_id[0].id if cmdb_instance.host.bk_cloud_id "
-                        "is iterable and cmdb_instance.host.bk_cloud_id is not string else "
-                        "cmdb_instance.host.bk_cloud_id }}:{{ cmdb_instance.host.bk_host_innerip }}",
-                    },
-                    "$item": "scope",
-                }
+                labels["$body"]["node_id"] = (
+                    "{{ cmdb_instance.host.bk_cloud_id[0].id if cmdb_instance.host.bk_cloud_id is iterable and "
+                    "cmdb_instance.host.bk_cloud_id is not string "
+                    "else cmdb_instance.host.bk_cloud_id }}:{{ cmdb_instance.host.bk_host_innerip }}"
+                )
+            step["params"]["context"]["labels"] = labels
             params = {
                 "scope": scope,
                 "steps": [step],
@@ -572,7 +601,11 @@ class UptimeCheckTask(OperateRecordModel):
         如果当前拨测任务对象没有subscription_id，说明是新增任务流程
         如果已经有subscription_id，说明是更新任务流程
         """
-        create_strategy = True if (self.status == self.Status.NEW_DRAFT) else False
+        from monitor_web.commons.data_access import UptimecheckDataAccessor
+
+        # 数据接入
+        UptimecheckDataAccessor(self).access()
+
         self.status = self.Status.STARTING
         self.save()
         UptimeCheckTaskCollectorLog.objects.filter(task_id=self.id).update(is_deleted=True)
@@ -615,10 +648,8 @@ class UptimeCheckTask(OperateRecordModel):
             raise CustomException(_("重启采集器时部分IP失败: %s") % e)
         self.save()
         update_task_running_status.delay(self.pk)
-        # if create_strategy:
-        #     resource.uptime_check.generate_default_strategy({'task_id': self.pk})
 
-        if enable_strategy or create_strategy:
+        if enable_strategy:
             resource.uptime_check.switch_strategy_by_task_id(
                 {"bk_biz_id": self.bk_biz_id, "task_id": self.pk, "is_enabled": True}
             )
@@ -639,11 +670,10 @@ class UptimeCheckTask(OperateRecordModel):
                 "subscription_id", flat=1
             )
             if subscription_ids:
-                status_result = api.node_man.subscription_instance_status(subscription_id_list=subscription_ids)[0][
-                    "instances"
-                ]
-                for status in status_result:
-                    if status.get("running_task", None):
+                subscription_id = subscription_ids[0]
+                instance_list = api.node_man.batch_task_result(subscription_id=subscription_id)
+                for instance in instance_list:
+                    if instance.get("status", None) in ["PENDING", "RUNNING"]:
                         raise CustomException(_("拨测任务启用失败：存在运行中的启停任务，请稍后再试"))
         except BKAPIError as e:
             logger.error(_("拨测任务启停前置检查失败: {}").format(e))
@@ -677,12 +707,14 @@ class UptimeCheckTask(OperateRecordModel):
             subscription_ids = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk).values_list(
                 "subscription_id", flat=1
             )
-            status_result = api.node_man.subscription_instance_status(subscription_id_list=subscription_ids)[0][
-                "instances"
-            ]
-            for status in status_result:
-                if status.get("running_task", None):
-                    raise CustomException(_("拨测任务停用失败：存在运行中的启停任务，请稍后再试"))
+            if subscription_ids:
+                subscription_id = subscription_ids[0]
+                instance_list = api.node_man.batch_task_result(subscription_id=subscription_id)
+                for instance in instance_list:
+                    if instance.get("status", None) in ["PENDING", "RUNNING"]:
+                        raise CustomException(_("拨测任务停用失败：存在运行中的启停任务，请稍后再试"))
+            else:
+                raise CustomException(_("拨测任务对应订阅信息不存在"))
         except BKAPIError as e:
             logger.error(_("拨测任务启停前置检查失败: {}").format(e))
         self.status = self.Status.STOPING

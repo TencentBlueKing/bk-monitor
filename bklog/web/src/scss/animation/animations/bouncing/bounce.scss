@@ -5,12 +5,12 @@
   60%,
   80%,
   to {
-    animation-timing-function: cubic-bezier(.215, .610, .355, 1.000);
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
   }
 
   0% {
     opacity: 0;
-    transform: scale3d(.3, .3, .3);
+    transform: scale3d(0.3, 0.3, 0.3);
   }
 
   20% {
@@ -18,7 +18,7 @@
   }
 
   40% {
-    transform: scale3d(.9, .9, .9);
+    transform: scale3d(0.9, 0.9, 0.9);
   }
 
   60% {
@@ -27,7 +27,7 @@
   }
 
   80% {
-    transform: scale3d(.97, .97, .97);
+    transform: scale3d(0.97, 0.97, 0.97);
   }
 
   to {
@@ -38,7 +38,7 @@
 
 @keyframes bounceOut {
   20% {
-    transform: scale3d(.9, .9, .9);
+    transform: scale3d(0.9, 0.9, 0.9);
   }
 
   50%,
@@ -49,6 +49,6 @@
 
   to {
     opacity: 0;
-    transform: scale3d(.3, .3, .3);
+    transform: scale3d(0.3, 0.3, 0.3);
   }
 }

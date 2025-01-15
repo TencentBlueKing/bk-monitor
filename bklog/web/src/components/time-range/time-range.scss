@@ -7,11 +7,11 @@
 
   .time-range-trigger {
     display: flex;
+    align-items: center;
     height: 28px;
     padding: 0 10px;
     color: #63656e;
     cursor: pointer;
-    align-items: center;
 
     &.simple,
     &.border {
@@ -51,11 +51,11 @@
 
   .time-range-custom {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     height: 46px;
     padding: 0 150px 0 16px;
     border-bottom: 1px solid #dcdee5;
-    align-items: center;
-    justify-content: space-between;
 
     .custom-input {
       width: 200px;

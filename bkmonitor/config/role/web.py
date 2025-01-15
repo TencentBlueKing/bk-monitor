@@ -14,7 +14,6 @@ import os
 import six
 from blueapps.conf.log import get_logging_config_dict
 from blueapps.patch.log import get_paas_v2_logging_config_dict
-from celery.schedules import crontab
 
 from config.tools.rabbitmq import get_rabbitmq_settings
 
@@ -24,6 +23,7 @@ from ..tools.environment import (
     IS_CONTAINER_MODE,
     NEW_ENV,
     PAAS_VERSION,
+    ROLE,
 )
 
 # fmt: off
@@ -47,9 +47,10 @@ for _setting in dir(_module):
 
 ROOT_URLCONF = "urls"
 
-
 INSTALLED_APPS = locals().get("INSTALLED_APPS", tuple())
 INSTALLED_APPS += (
+    "django_celery_beat",
+    "django_celery_results",
     "django_elasticsearch_dsl",
     "rest_framework",
     "django_filters",
@@ -77,6 +78,11 @@ INSTALLED_APPS += (
     'bk_notice_sdk',
 )
 
+# 切换session的backend后， 需要设置该中间件，确保新的 csrftoken 被设置到新的session中
+ensure_csrf_cookie = "django.views.decorators.csrf._EnsureCsrfCookie"
+# 切换backend一段时候后， 再使用如下配置进行csrf保护
+csrf_protect = "django.middleware.csrf.CsrfViewMiddleware"
+
 MIDDLEWARE = (
     "bkmonitor.middlewares.pyinstrument.ProfilerMiddleware",
     "bkmonitor.middlewares.prometheus.MetricsBeforeMiddleware",  # 必须放到最前面
@@ -85,7 +91,8 @@ MIDDLEWARE = (
     "bkmonitor.middlewares.request_middlewares.RequestProvider",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
+    ensure_csrf_cookie,
     "weixin.core.middlewares.WeixinProxyPatchMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -99,7 +106,6 @@ MIDDLEWARE = (
     # 用户登录验证middleware
     "bkmonitor.middlewares.authentication.ApiTokenAuthenticationMiddleware",
     # 应用流控保护，放在用户登录验证之后
-    "bkmonitor.middlewares.application_protection.ProtectionMiddleware",
     "blueapps.middleware.xss.middlewares.CheckXssMiddleware",
     # APIGW JWT验证中间件
     "bkmonitor.middlewares.authentication.ApiGatewayJWTExternalMiddleware",
@@ -111,7 +117,6 @@ MIDDLEWARE = (
     "bkm_space.middleware.ParamInjectMiddleware",
     "bkmonitor.middlewares.prometheus.MetricsAfterMiddleware",  # 必须放到最后面
 )
-
 
 DATABASES = locals()["DATABASES"]
 # 未配置节点管理，默认和监控 SaaS 共用 DB
@@ -200,6 +205,15 @@ CACHES = {
     "login_db": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "account_cache"},
     "dummy": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"},
     "locmem": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "space": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "space",
+        'OPTIONS': {
+            # 5w空间支持
+            'MAX_ENTRIES': 50000,
+            'CULL_FREQUENCY': 0,
+        },
+    },
 }
 CACHES["default"] = CACHES["db"]
 
@@ -239,13 +253,16 @@ if USE_DJANGO_CACHE_REDIS:
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_PATH = SITE_URL
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
+if USE_DJANGO_CACHE_REDIS and ROLE == "web":
+    # 配置redis缓存后， 使用缓存存session
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "redis"
 SESSION_COOKIE_NAME = APP_CODE + "_sessionid"
 
 #
 # Authentication & Authorization
 #
 AUTH_USER_MODEL = "account.User"
-
 
 LOG_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
 
@@ -280,87 +297,6 @@ if IS_CONTAINER_MODE:
             LOGGING["loggers"][logger]["handlers"] = ["console"]
 
 #
-# CELERY 配置
-#
-IS_USE_CELERY = True
-INSTALLED_APPS += ("django_celery_beat", "django_celery_results")
-CELERYBEAT_SCHEDULER = "monitor.schedulers.MonitorDatabaseScheduler"
-CELERY_ENABLE_UTC = False
-
-CELERYBEAT_SCHEDULE = {
-    "monitor_web.tasks.update_config_status": {
-        "task": "monitor_web.tasks.update_config_status",
-        "schedule": crontab(),
-        "enabled": False,
-    },
-    "monitor_web.tasks.update_config_instance_count": {
-        "task": "monitor_web.tasks.update_config_instance_count",
-        "schedule": crontab(minute=0),  # todo 该任务的周期需建议和节点管理的自动执行的周期保持一致
-        "enabled": False,
-    },
-    "monitor_web.tasks.update_external_approval_status": {
-        "task": "monitor_web.tasks.update_external_approval_status",
-        "schedule": crontab(minute="*/10"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.update_metric_list": {
-        "task": "monitor_web.tasks.update_metric_list",
-        "schedule": crontab(),
-        "enabled": True,
-        "options": {"queue": "celery_resource"},
-    },
-    "monitor_web.tasks.access_pending_aiops_strategy": {
-        "task": "monitor_web.tasks.access_pending_aiops_strategy",
-        "schedule": crontab(minute="*/5"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.update_aiops_dataflow_status": {
-        "task": "monitor_web.tasks.update_aiops_dataflow_status",
-        "schedule": crontab(minute="*/10"),
-        "enabled": False,
-    },
-    "fta_web.tasks.update_home_statistics": {
-        "task": "fta_web.tasks.update_home_statistics",
-        "schedule": crontab(minute="*/5"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.update_report_receivers": {
-        "task": "monitor_web.tasks.update_report_receivers",
-        "schedule": crontab(minute=27, hour=2),
-        "enabled": True,
-    },
-    "apm_web.tasks.refresh_application": {
-        "task": "apm_web.tasks.refresh_application",
-        "schedule": crontab(minute="*/10"),
-        "enabled": True,
-    },
-    "apm_web.tasks.refresh_apm_application_metric": {
-        "task": "apm_web.tasks.refresh_apm_application_metric",
-        "schedule": crontab(minute="*/10"),
-        "enabled": True,
-    },
-    "monitor_web.tasks.keep_alive": {
-        "task": "monitor_web.tasks.keep_alive",
-        "schedule": crontab(),
-        "enabled": True,
-        "options": {"queue": "celery_resource"},
-    },
-    "monitor_web.tasks.update_statistics_data": {
-        "task": "monitor_web.tasks.update_statistics_data",
-        "schedule": crontab(),
-        "enabled": True,
-    },
-}
-
-*_, BROKER_URL = get_rabbitmq_settings(APP_CODE)
-
-CELERY_RESULT_BACKEND = "django_celery_results.backends.database:DatabaseBackend"
-
-CELERY_TASK_SERIALIZER = "pickle"
-CELERY_ACCEPT_CONTENT = ["pickle"]
-CELERY_RESULT_SERIALIZER = "pickle"
-
-#
 # Django Rest Framework Settings
 #
 
@@ -375,6 +311,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "monitor_api.pagination.MonitorAPIPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_PERMISSION_CLASSES": ("monitor_web.permissions.BusinessViewPermission",),
+    # CSRF 豁免期， drf同样豁免
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.BasicAuthentication",
+        "bkm_ipchooser.authentication.CsrfExemptSessionAuthentication",
+    ),
 }
 
 #
@@ -393,7 +334,7 @@ MONITOR_API_MODELS = (
 ###############################################################################
 
 # 水印字体素材路径
-SIGNATURE_FONT_PATH = os.path.join(PROJECT_ROOT, "static", "font", "arial.ttf")
+SIGNATURE_FONT_PATH = os.getenv("BKAPP_SIGNATURE_FONT_PATH", "/usr/share/fonts/truetype/SourceHanSerifSC-VF.ttf")
 
 # 重启服务器时清除缓存
 CLEAR_CACHE_ON_RESTART = False
@@ -495,7 +436,7 @@ var _wr = function(type) {
    history.replaceState = _wr('replaceState');
   ["popstate", "replaceState", "pushState"].forEach(function(eventName) {
     window.addEventListener(eventName, function() {
-      window.parent.postMessage({ pathname: this.location.pathname }, "*");
+      window.parent.postMessage({ pathname: this.location.pathname, search: this.location.search }, "*");
     });
   });
 </script>
@@ -504,7 +445,7 @@ var _wr = function(type) {
 }
 
 # 拨测任务最大超时限制(ms)
-MAX_AVAILABLE_DURATION_LIMIT = 60000
+MAX_AVAILABLE_DURATION_LIMIT = 180000
 
 # job平台在登录目标机器时，有时会遇到目标机器配置了登录时打印一些信息的情况
 # 该变量用于分割额外信息与真正的脚本执行结果
@@ -558,17 +499,6 @@ INGESTER_HOST = os.getenv("BKAPP_INGESTER_HOST", "http://ingester.bkfta.service.
 
 # CORS配置
 CORS_ALLOW_ALL_ORIGINS = True
-
-# BK-Repo
-if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
-    USE_CEPH = True
-    BKREPO_ENDPOINT_URL = os.getenv("BKAPP_BKREPO_ENDPOINT_URL") or os.environ["BKREPO_ENDPOINT_URL"]
-    BKREPO_USERNAME = os.getenv("BKAPP_BKREPO_USERNAME") or os.environ["BKREPO_USERNAME"]
-    BKREPO_PASSWORD = os.getenv("BKAPP_BKREPO_PASSWORD") or os.environ["BKREPO_PASSWORD"]
-    BKREPO_PROJECT = os.getenv("BKAPP_BKREPO_PROJECT") or os.environ["BKREPO_PROJECT"]
-    BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
-
-    DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
 
 CSRF_USE_SESSIONS = True
 

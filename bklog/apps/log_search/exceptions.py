@@ -478,6 +478,16 @@ class UserIndexSetSearchHistoryNotExistException(BaseException):
     MESSAGE = _("历史记录不存在")
 
 
+class GetMultiResultFailException(BaseException):
+    ERROR_CODE = "445"
+    MESSAGE = _("字段数量[{field_name}]查询失败 原因: {e}")
+
+
+class MultiFieldsErrorException(BaseSearchException):
+    ERROR_CODE = "446"
+    MESSAGE = _("跨集群获取字段结果处理异常")
+
+
 # =================================================
 # 导出
 # =================================================
@@ -531,3 +541,28 @@ class SettingMenuException(BasePermException):
 class FunctionGuideException(BaseException):
     ERROR_CODE = "1002"
     MESSAGE = _("不存在该功能引导")
+
+
+# =================================================
+# 图表分析
+# =================================================
+
+
+class IndexSetDorisQueryException(BaseException):
+    ERROR_CODE = "1004"
+    MESSAGE = _("该索引集不支持doris查询")
+
+
+class SQLQueryException(BaseException):
+    ERROR_CODE = "1005"
+    MESSAGE = _("SQL查询异常: {name}")
+
+
+# =================================================
+# 用户自定义配置
+# =================================================
+
+
+class UserCustomConfigNotExistException(BaseException):
+    ERROR_CODE = "1101"
+    MESSAGE = _("用户自定义配置不存在")

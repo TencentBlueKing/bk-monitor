@@ -35,9 +35,8 @@
             v-for="(item, index) in shieldCycle.list"
             :key="index"
             :value="item.value"
-          >{{
-            item.label
-          }}</bk-radio>
+            >{{ item.label }}</bk-radio
+          >
         </bk-radio-group>
       </div>
     </div>
@@ -53,25 +52,25 @@
         <template v-if="shieldCycle.value === 'single'">
           <div class="date-wrapper">
             <bk-date-picker
+              v-model="noticeDate.single.range"
               :editable="true"
               :options="datePicker.options"
-              v-model="noticeDate.single.range"
               type="datetimerange"
               format="yyyy-MM-dd HH:mm:ss"
               :clearable="false"
-              @change="validateDateRange"
               :placeholder="$t('选择时间范围')"
+              @change="validateDateRange"
             />
             <span
               v-if="shieldCycle.value === 'single' && !hasDateRange"
               class="error-message"
-            >{{
-              $t('选择时间范围')
-            }}</span>
+              >{{ $t('选择时间范围') }}</span
+            >
             <span
               v-else
               class="date-scope-desc"
-            >{{ $t('注意：最大值为6个月') }}</span>
+              >{{ $t('注意：最大值为6个月') }}</span
+            >
           </div>
         </template>
         <!-- 每天 -->
@@ -80,10 +79,10 @@
             <bk-time-picker
               v-model="noticeDate.day.range"
               type="timerange"
-              @change="validateScope"
               :placeholder="$t('选择时间范围')"
               allow-cross-day
               :clearable="false"
+              @change="validateScope"
             />
             <span
               v-show="shieldCycle.value !== 'single' && !hasTimeRange"
@@ -99,87 +98,98 @@
             <bk-select
               :multiple="true"
               :value="noticeDate.week.list"
-              @change="handleSelectWeek"
               :placeholder="$t('选择星期范围')"
               :clearable="false"
+              @change="handleSelectWeek"
             >
               <bk-option
                 v-for="(item, index) in week.list"
+                :id="item.id"
                 :key="index"
                 :name="item.name"
-                :id="item.id"
               />
             </bk-select>
             <span
               v-show="!hasWeekList"
               class="error-message"
-            > {{ $t('选择每星期范围') }} </span>
+            >
+              {{ $t('选择每星期范围') }}
+            </span>
           </div>
           <div class="date-wrapper">
             <bk-time-picker
-              class="time-picker"
               v-model="noticeDate.week.range"
+              class="time-picker"
               type="timerange"
-              @change="validateScope"
               :placeholder="$t('选择时间范围')"
               allow-cross-day
+              @change="validateScope"
             />
             <span
               v-show="!hasTimeRange"
               class="error-message"
-            > {{ $t('选择时间范围') }} </span>
+            >
+              {{ $t('选择时间范围') }}
+            </span>
           </div>
         </template>
         <!-- 每月 -->
         <template v-else-if="shieldCycle.value === 'month'">
           <div class="date-wrapper">
             <div
-              class="day-picker"
               ref="dayList"
+              class="day-picker"
               @click="handlePopover($event)"
             >
               <span
-                class="list"
                 v-if="noticeDate.month.list.length"
-              >{{ noticeDate.month.list.join('、') }}</span>
+                class="list"
+                >{{ noticeDate.month.list.join('、') }}</span
+              >
               <span
-                class="list placeholder"
                 v-else
-              > {{ $t('选择每月时间范围') }} </span>
+                class="list placeholder"
+              >
+                {{ $t('选择每月时间范围') }}
+              </span>
               <i
                 class="bk-icon icon-angle-down"
                 :class="{ 'up-arrow': !!popoverInstances }"
               />
               <i
                 v-if="noticeDate.month.list.length"
-                @click="handleClearMonthList"
                 class="bk-select-clear bk-icon icon-close"
+                @click="handleClearMonthList"
               />
             </div>
             <span
-              class="error-message"
               v-show="!hasMonthList"
-            > {{ $t('选择每月时间范围') }} </span>
+              class="error-message"
+            >
+              {{ $t('选择每月时间范围') }}
+            </span>
           </div>
           <div class="date-wrapper">
             <bk-time-picker
               v-model="noticeDate.month.range"
               type="timerange"
-              @change="validateScope"
               :placeholder="$t('选择时间范围')"
               allow-cross-day
+              @change="validateScope"
             />
             <span
               v-show="!hasTimeRange"
               class="error-message"
-            > {{ $t('选择时间范围') }} </span>
+            >
+              {{ $t('选择时间范围') }}
+            </span>
           </div>
         </template>
       </div>
     </div>
     <div
-      class="set-shield-config-item date-range verify-show"
       v-if="shieldCycle.value !== 'single'"
+      class="set-shield-config-item date-range verify-show"
     >
       <div class="item-label item-required">
         {{ $t('日期范围') }}
@@ -191,18 +201,22 @@
           :options="datePicker.options"
           type="daterange"
           format="yyyy-MM-dd"
-          @change="validateDateRange"
           :clearable="false"
           :placeholder="$t('选择日期范围')"
+          @change="validateDateRange"
         />
         <span
           v-if="!hasDateRange"
           class="error-message"
-        > {{ $t('选择日期范围') }} </span>
+        >
+          {{ $t('选择日期范围') }}
+        </span>
         <span
           v-else
           class="date-scope-desc"
-        > {{ $t('注意：最大值为6个月') }} </span>
+        >
+          {{ $t('注意：最大值为6个月') }}
+        </span>
       </div>
     </div>
     <!-- popover -->
@@ -212,11 +226,11 @@
         class="date-list-wrapper"
       >
         <li
+          v-for="(item, index) in datePicker.list"
+          :key="index"
           class="item"
           :class="{ active: item.active }"
           @click.stop="handleSelectDate(item)"
-          v-for="(item, index) in datePicker.list"
-          :key="index"
         >
           <span>{{ item.value }}</span>
         </li>
@@ -231,18 +245,18 @@ export default {
   name: 'AlarmShieldDate',
   model: {
     prop: 'commonDateData',
-    event: 'changeCommonDateData'
+    event: 'changeCommonDateData',
   },
   props: {
     isClone: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // 公共的时间数据，双向绑定至父组件，为确保每次切换tab栏后时间数据共享
     commonDateData: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     const defaultData = this.generationDefaultData();
@@ -257,9 +271,9 @@ export default {
           { name: this.$t('星期四'), id: 4 },
           { name: this.$t('星期五'), id: 5 },
           { name: this.$t('星期六'), id: 6 },
-          { name: this.$t('星期日'), id: 7 }
-        ]
-      }
+          { name: this.$t('星期日'), id: 7 },
+        ],
+      },
     };
   },
 
@@ -287,7 +301,7 @@ export default {
     },
     hasMonthList() {
       return this.commonDateData.hasMonthList;
-    }
+    },
   },
   watch: {
     shieldCycle: {
@@ -297,8 +311,8 @@ export default {
         this.commonDateData.hasWeekList = true;
         this.commonDateData.hasMonthList = true;
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   activated() {
     this.handleSetDefaultData();
@@ -316,7 +330,7 @@ export default {
       switch (type) {
         case 'single':
           if (new Date() > new Date(this.noticeDate.single.range[0])) this.noticeDate.single.range[0] = new Date();
-          if (new Date() >  new Date(this.noticeDate.single.range[1])) this.noticeDate.single.range = [];
+          if (new Date() > new Date(this.noticeDate.single.range[1])) this.noticeDate.single.range = [];
           break;
         default:
           if (nowDate > startDate) this.commonDateData.dateRange[0] = dayjs.tz().format();
@@ -332,9 +346,9 @@ export default {
           options: {
             disabledDate(date) {
               return date && (date.valueOf() < Date.now() - 8.64e7 || date.valueOf() > Date.now() + 8.64e7 * 181);
-            }
-          }
-        }
+            },
+          },
+        },
       };
     },
     handlePopover() {
@@ -357,7 +371,7 @@ export default {
             this.popoverInstances.hide(0);
             this.popoverInstances.destroy();
             this.popoverInstances = null;
-          }
+          },
         });
         this.popoverInstances.show();
       });
@@ -365,7 +379,7 @@ export default {
     handleClearMonthList() {
       this.noticeDate.month.list = [];
       this.datePicker.values = new Set();
-      this.datePicker.list.forEach((item) => {
+      this.datePicker.list.forEach(item => {
         item.active = false;
       });
     },
@@ -388,7 +402,7 @@ export default {
     // 初始化数据
     handleSetDefaultData() {
       const defaultData = this.generationDefaultData();
-      Object.keys(defaultData).forEach((key) => {
+      Object.keys(defaultData).forEach(key => {
         this[key] = defaultData[key];
       });
     },
@@ -444,15 +458,17 @@ export default {
         dateRange: [],
         type: cycleMap[this.shieldCycle.value],
         typeEn: this.shieldCycle.value,
-        ...this.noticeDate
+        ...this.noticeDate,
       };
       if (this.shieldCycle.value !== 'single') {
         params.dateRange[0] = `${dayjs.tz(this.commonDateData.dateRange[0]).format('YYYY-MM-DD')} 00:00:00`;
         params.dateRange[1] = `${dayjs.tz(this.commonDateData.dateRange[1]).format('YYYY-MM-DD')} 23:59:59`;
       }
-      Object.keys(this.noticeDate).forEach((key) => {
+      Object.keys(this.noticeDate).forEach(key => {
         if (key === 'single') {
-          this.noticeDate[key].range = this.noticeDate[key].range.map(item => dayjs.tz(item).format('YYYY-MM-DD HH:mm:ss'));
+          this.noticeDate[key].range = this.noticeDate[key].range.map(item =>
+            dayjs.tz(item).format('YYYY-MM-DD HH:mm:ss')
+          );
         }
       });
       return params;
@@ -469,7 +485,7 @@ export default {
       }
       if (type === 'month') {
         const { list } = v[type];
-        this.datePicker.list.forEach((item) => {
+        this.datePicker.list.forEach(item => {
           if (list.includes(item.value)) {
             item.active = true;
             this.datePicker.values.add(item.value);
@@ -478,9 +494,9 @@ export default {
       }
 
       // 如果是克隆操作则根据当前时间初始化起始和结束时间
-      this.isClone &&  this.handleInitStartDate(type);
-    }
-  }
+      this.isClone && this.handleInitStartDate(type);
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -564,7 +580,9 @@ export default {
           position: absolute;
           top: 8px;
           right: 12px;
-          transition: transform .3s cubic-bezier(.4, 0, .2, 1), -webkit-transform .3s cubic-bezier(.4, 0, .2, 1);
+          transition:
+            transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            -webkit-transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .bk-select-clear {
@@ -584,7 +602,7 @@ export default {
 
           &::before {
             display: block;
-            transform: scale(.7);
+            transform: scale(0.7);
           }
 
           &:hover {

@@ -25,10 +25,12 @@
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { queryLabels, queryLabelValues } from 'monitor-api/modules/apm_profile';
-import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+
+import { queryLabelValues, queryLabels } from 'monitor-api/modules/apm_profile';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { getPopoverWidth } from 'monitor-pc/utils';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './filter-select.scss';
 
@@ -52,6 +54,7 @@ interface IFilterSelectEvents {
   onFilterChange: Record<string, string>;
   onDiffChange: Record<string, string>;
   onDiffModeChange: boolean;
+  onDateDiffChange: boolean;
 }
 
 @Component
@@ -66,6 +69,8 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
 
   // 是否开启对比模式
   enableDiffMode = false;
+  // 是否开启时间对比
+  enableDateDiff = false;
   // 过滤key
   labelList: IListItem[] = [];
   // 新增 key 状态
@@ -91,12 +96,20 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
             this.isShowAddFilter = false;
             this.isShowAddDiff = false;
             return true;
-          }
+          },
         },
-        searchable: true
+        searchable: true,
       },
       this.$attrs
     );
+  }
+
+  get filterLabelList() {
+    return this.labelList.filter(val => !this.localFilterPanel.some(panel => panel.title === val.id));
+  }
+
+  get diffLabelList() {
+    return this.labelList.filter(val => !this.localDiffPanel.some(panel => panel.title === val.id));
   }
 
   @Watch('listenChange', { deep: true })
@@ -105,8 +118,8 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
     const params = {
       app_name: this.appName,
       service_name: this.serviceName,
-      start: startTime * Math.pow(10, 6),
-      end: endTime * Math.pow(10, 6)
+      start: startTime * 10 ** 6,
+      end: endTime * 10 ** 6,
     };
     const labels = await queryLabels(params).catch(() => ({ label_keys: [] }));
     this.labelList = (labels.label_keys || []).map(item => ({ id: item, name: item }));
@@ -129,7 +142,27 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
 
   @Emit('diffModeChange')
   handleDiffModeChange(val) {
+    if (!val) {
+      this.enableDateDiff = false;
+      this.handleDateDiffChange(false);
+    }
     return val;
+  }
+
+  @Emit('dateDiffChange')
+  handleDateDiffChange(val) {
+    return val;
+  }
+
+  // taginput黏贴格式处理
+  tagInputPasteFn(mode: string, str: string, title: string) {
+    const panel = mode === 'filter' ? this.localFilterPanel : this.localDiffPanel;
+    const item = panel.find(item => item.title === title && !item.value.includes(str));
+    if (item) {
+      item.value = [...item.value, str];
+      this.handleSelectValueChange(mode);
+    }
+    return [];
   }
 
   // 更新过滤条件
@@ -142,6 +175,19 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
       }
     });
     mode === 'filter' ? this.handleFilterChange(labelValues) : this.handleDiffChange(labelValues);
+  }
+
+  /**
+   * @desc 删除变量选择器
+   * @param { string } name
+   * @param { string } mode
+   */
+  handleDeleteVarSelector(title, mode) {
+    (mode === 'filter' ? this.localFilterPanel : this.localDiffPanel).splice(
+      (mode === 'filter' ? this.localFilterPanel : this.localDiffPanel).findIndex(panel => panel.title === title),
+      1
+    );
+    this.handleSelectValueChange(mode);
   }
 
   handleShowDropDown(mode) {
@@ -157,16 +203,16 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
     const params = {
       app_name: this.appName,
       service_name: this.serviceName,
-      start: startTime * Math.pow(10, 6),
-      end: endTime * Math.pow(10, 6),
-      label_key: val
+      start: startTime * 10 ** 6,
+      end: endTime * 10 ** 6,
+      label_key: val,
     };
     const data = await queryLabelValues(params).catch(() => ({ label_values: [] }));
     const options = (data.label_values || []).map(val => ({ id: val, name: val }));
     (mode === 'filter' ? this.localFilterPanel : this.localDiffPanel).push({
       title: val,
       options,
-      value: []
+      value: [],
     });
   }
 
@@ -175,41 +221,53 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
       const panel = mode === 'filter' ? this.localFilterPanel : this.localDiffPanel;
 
       return [
-        panel.map(item => (
-          <span class='filter-var-select-wrap'>
+        panel.map((item, ind) => (
+          <span
+            key={`${item.title}_${ind}`}
+            class='filter-var-select-wrap'
+          >
             <span class='filter-var-label'>{item.title}</span>
             <span class='filter-var-tag-input'>
               <bk-tag-input
                 v-model={item.value}
                 list={item.options}
-                trigger='focus'
-                has-delete-icon
-                clearable
-                allow-create
-                allow-auto-match
                 placeholder={this.$t('输入')}
+                trigger='focus'
+                allow-auto-match
+                allow-create
+                clearable
+                has-delete-icon
+                paste-fn={(str) => this.tagInputPasteFn(mode, str, item.title)}
                 on-change={() => this.handleSelectValueChange(mode)}
-              ></bk-tag-input>
+              />
             </span>
+            <i
+              class='icon-monitor icon-mc-minus-plus'
+              on-click={() => this.handleDeleteVarSelector(item.title, mode)}
+            />
           </span>
         )),
-        <span class={['filter-add-btn', { active: mode === 'filter' ? this.isShowAddFilter : this.isShowAddDiff }]}>
+        <span
+          key='filterAddBtn'
+          class={['filter-add-btn', { active: mode === 'filter' ? this.isShowAddFilter : this.isShowAddDiff }]}
+        >
           <i
             key={mode}
             class='icon-monitor icon-mc-add'
             onClick={() => this.handleShowDropDown(mode)}
-          ></i>
+          />
           <bk-select
-            class='bk-select-wrap'
             ref={`${mode}KeySelectRef`}
+            class='bk-select-wrap'
             onChange={val => this.handleAddFilterChange(val, mode)}
             {...{
-              props: this.addKeyprops
+              props: this.addKeyprops,
             }}
           >
-            {this.labelList.map(opt => (
+            {(mode === 'filter' ? this.filterLabelList : this.diffLabelList).map(opt => (
               <bk-option
                 id={opt.id}
+                key={opt.id}
                 name={opt.name}
               >
                 <span
@@ -218,7 +276,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
                     placement: 'right',
                     zIndex: 9999,
                     boundary: document.body,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   {opt.name}
@@ -226,7 +284,7 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
               </bk-option>
             ))}
           </bk-select>
-        </span>
+        </span>,
       ];
     };
 
@@ -238,19 +296,34 @@ export default class FilterSelect extends tsc<IFilterSelectProps, IFilterSelectE
           <div class='diff-mode-btn'>
             <span>{this.$t('对比模式')}</span>
             <bk-switcher
-              theme='primary'
-              size='small'
               v-model={this.enableDiffMode}
+              size='small'
+              theme='primary'
               onChange={this.handleDiffModeChange}
             />
+            {this.enableDiffMode && [
+              <span
+                key='dateDiffLabel'
+                style='margin-left: 5px'
+              >
+                {this.$t('时间对比')}
+              </span>,
+              <bk-switcher
+                key='dateDiffBtn'
+                v-model={this.enableDateDiff}
+                size='small'
+                theme='primary'
+                onChange={this.handleDateDiffChange}
+              />,
+            ]}
           </div>
         </div>
         {this.enableDiffMode ? (
           <div class='filter-var-select-group diff-select-group'>
             <span class='filter-var-select-group-label'>Comparison：</span>
             <div
-              class='filter-var-select-main'
               style='margin-left: -24px'
+              class='filter-var-select-main'
             >
               {getSelectorTpl('diff')}
             </div>

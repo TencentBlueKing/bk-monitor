@@ -35,7 +35,8 @@
           :key="item.id"
           class="item-content-name"
         >
-          {{ item.name }}<i
+          {{ item.name
+          }}<i
             class="icon-monitor icon-mc-wailian"
             @click="handleToStrategy(item.id)"
           />
@@ -52,9 +53,7 @@
                     <div class="item-label"> {{ $t('告警级别：') }} </div><div class="item-content">{{levelMap[dimension.level]}}</div>
                 </div> -->
         <div class="column-item">
-          <div class="item-label">
-            {{ $t('维度信息') }} :
-          </div>
+          <div class="item-label">{{ $t('维度信息') }} :</div>
           <div class="item-content">
             {{ dimension.dimensions }}
           </div>
@@ -63,9 +62,7 @@
           class="column-item"
           style="margin-bottom: 18px"
         >
-          <div class="item-label">
-            {{ $t('检测算法') }} :
-          </div>
+          <div class="item-label">{{ $t('检测算法') }} :</div>
           <div class="item-content">
             {{ dimension.eventMessage }}
           </div>
@@ -81,12 +78,12 @@ export default {
   props: {
     dimension: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
-      levelMap: ['', this.$t('致命'), this.$t('预警'), this.$t('提醒')]
+      levelMap: ['', this.$t('致命'), this.$t('预警'), this.$t('提醒')],
     };
   },
   methods: {
@@ -96,8 +93,8 @@ export default {
     },
     handleToStrategy(id) {
       this.$router.push({ name: 'strategy-config-detail', params: { id } });
-    }
-  }
+    },
+  },
 };
 </script>
 

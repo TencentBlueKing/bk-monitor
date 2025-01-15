@@ -30,13 +30,13 @@
     </div>
     <div class="custom-serious-content">
       <div
-        class="chart-item"
         v-for="(item, index) in alarm.abnormal_events"
         :key="index"
+        class="chart-item"
       >
         <business-alarm-card
-          :title="item.strategy_name"
           :id="item.event_id"
+          :title="item.strategy_name"
           :level="item.level"
           :alarm="item"
         />
@@ -51,14 +51,14 @@ import BusinessAlarmCard from '../components/business-alarm-card/business-alarm-
 export default {
   name: 'ServiceSerious',
   components: {
-    BusinessAlarmCard
+    BusinessAlarmCard,
   },
   props: {
     alarm: {
       type: Object,
-      required: true
-    }
-  }
+      required: true,
+    },
+  },
 };
 </script>
 

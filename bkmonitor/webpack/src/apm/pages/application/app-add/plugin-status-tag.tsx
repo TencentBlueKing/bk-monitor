@@ -47,8 +47,8 @@ export default class PluginStatusTag extends tsc<IProps> {
       <span class={['plugin-status-tag-item', { 'is-checked': this.checked }]}>
         <span class={['plugin-status-icon']}>
           <i
-            class={['icon-monitor', this.icon]}
             style={{ fontSize: `${this.iconFontSize}px` }}
+            class={['icon-monitor', this.icon]}
             v-bk-tooltips={{ content: this.tips, disabled: !this.tips, allowHTML: false }}
           />
         </span>

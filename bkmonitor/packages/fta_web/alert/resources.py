@@ -10,19 +10,24 @@ specific language governing permissions and limitations under the License.
 """
 import bisect
 import copy
+import csv
 import json
 import logging
 import time
 from abc import ABCMeta
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from typing import Dict, List
+from functools import reduce
+from io import StringIO
+from typing import Any, Dict, List, Tuple
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count
-from django.http import HttpResponseRedirect
-from django.utils.translation import ugettext as _
+from django.db.models import Q as DQ
+from django.http import HttpResponse, HttpResponseRedirect
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -80,9 +85,11 @@ from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.alert import AIOpsMultiAnomlayDetectError, AlertNotFoundError
 from core.unit import load_unit
+from fta_web import constants
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.alert_log import AlertLogHandler
+from fta_web.alert.handlers.base import BaseQueryHandler, query_cache
 from fta_web.alert.handlers.event import EventQueryHandler
 from fta_web.alert.handlers.translator import PluginTranslator
 from fta_web.alert.serializers import (
@@ -93,6 +100,13 @@ from fta_web.alert.serializers import (
     AlertSearchSerializer,
     AlertSuggestionSerializer,
     EventSearchSerializer,
+)
+from fta_web.alert.utils import (
+    generate_date_ranges,
+    get_day_range_unix,
+    get_previous_month_range_unix,
+    get_previous_week_range_unix,
+    slice_time_interval,
 )
 from fta_web.models.alert import (
     SEARCH_TYPE_CHOICES,
@@ -109,6 +123,250 @@ from monitor_web.constants import AlgorithmType
 from monitor_web.models import CustomEventGroup
 
 logger = logging.getLogger("root")
+
+
+class GetFourMetricsData(Resource):
+    """
+    4线策略告警统计
+    在线： 在线 或 online
+    登录： 登录 或 登陆 或 login
+    注册： 注册 或 registation 或 reg
+    对局： 对局 或 排队 或 battle 或 bat
+    """
+
+    def perform_request(self, validated_request_data):
+        results_format = validated_request_data.get("results", "json")
+        thedate = validated_request_data.get("thedate", None)
+        biz_ids = validated_request_data.get("biz_ids", "")
+        biz_list = api.cmdb.get_business()
+        target_biz_ids = [int(biz_id) for biz_id in biz_ids.split(",") if biz_id]
+        # 如果有预期的业务 id 则取预期的业务内容
+        if target_biz_ids:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
+        else:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list}
+
+        if not thedate:
+            # 获取日期
+            # 如果没有传入指定日期 则获取上一周的日期 四线以每周计
+            start_time, end_time = get_previous_week_range_unix()
+        else:
+            start_time, end_time = get_day_range_unix(thedate)
+
+        ret = []
+        scenario = constants.SCENARIO
+        # 日期为第一层 再分业务获取对应的告警数量
+        for day_start, day_end in generate_date_ranges(start_time, end_time):
+            # 初始化存储映射 告警名称/业务
+            scenario_totals = {scenario_name: {biz: 0 for biz in biz_info} for scenario_name in scenario.keys()}
+            for scenario_name, scenario_list in scenario.items():
+                page, page_size, fetched, total = 1, 1000, 0, 1
+                # 分页处理
+                conditions = ' OR '.join(f'告警名称 : "{item}"' for item in scenario_list)
+                # 将生成的条件括在括号内
+                query_string = f'({conditions})'
+                # 查询条件
+                while fetched < total:
+                    request_body = {
+                        "bk_biz_ids": list(biz_info.keys()),
+                        "status": [],
+                        "conditions": [],
+                        "query_string": query_string,
+                        "start_time": int(day_start.timestamp()),
+                        "end_time": int(day_end.timestamp()),
+                        "page": page,
+                        "page_size": page_size,
+                    }
+                    handler = AlertQueryHandler(**request_body)
+                    result = handler.search()
+                    total = result['total']
+                    fetched += len(result['alerts'])
+                    page += 1
+                    # 更新结果总数 供后面判断
+                    for alert in result['alerts']:
+                        scenario_totals[scenario_name][alert['bk_biz_id']] += 1
+                        # 日期 业务 告警指标
+            for biz_id, biz in biz_info.items():
+                # 最后按业务插入当天的告警数据统计
+                ret.append(
+                    {
+                        "日期": day_start.date(),
+                        "业务": biz.display_name,
+                        **{
+                            scenario_name: scenario_totals[scenario_name].get(biz_id, 0)
+                            for scenario_name in scenario.keys()
+                        },
+                    }
+                )
+        if results_format == "file":
+            timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            filename = f"data_{timestamp}.csv"
+            output = StringIO()
+            # 在内存读写文件 避免污染 Pod 的 OS 文件
+            output.write('\ufeff')
+            # 写入 utf-8 bom 避免纯文本乱码
+            fieldnames = ["日期", "业务"] + list(scenario.keys())
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in ret:
+                writer.writerow(row)
+            output.seek(0)
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            return ret
+
+
+class GetTmpData(Resource):
+    """
+    tmp来源告警占比统计
+    """
+
+    def perform_request(self, validated_request_data):
+        results_format = validated_request_data.get("results", "json")
+        start_time, end_time = validated_request_data.get("start_time", None), validated_request_data.get(
+            "end_time", None
+        )
+        biz_ids = validated_request_data.get("biz_ids", "")
+        thedate = validated_request_data.get("thedate", None)
+
+        # 如果都没未指定时间，则默认为上一个月 tmp 默认按月计
+        if not thedate:
+            start_time, end_time = get_previous_month_range_unix()
+        else:
+            start_time, end_time = get_day_range_unix(thedate)
+        biz_list = api.cmdb.get_business()
+        target_biz_ids = [int(biz_id) for biz_id in biz_ids.split(",") if biz_id]
+        # 检查是否有传入目标业务列表 如果没有 则走事件中心先查询有 tmp 告警来源的业务
+        if target_biz_ids:
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in target_biz_ids}
+        else:
+            tmp_biz_params = {
+                'bk_biz_ids': [-1],
+                'status': [],
+                'conditions': [],
+                'query_string': "",
+                'start_time': start_time,
+                'end_time': end_time,
+                'fields': ['bk_biz_id'],
+                'size': 100,
+                'bk_biz_id': -4228445,
+            }
+            biz_ids = [int(i["id"]) for i in resource.alert.alert_top_n(tmp_biz_params)["fields"][0]["buckets"]]
+            biz_info = {biz.bk_biz_id: biz for biz in biz_list if biz.bk_biz_id in biz_ids}
+            # 只取 top 100 基本上 100 个业务最后几个 出现的 tmp 告警次数为 1 或个位数
+            # 考虑到还要根据过滤条件 符合的其实更少
+
+        ret = {}
+        results = []
+        # 时间范围需要调整
+        for biz in biz_info:
+            params = {
+                'bk_biz_ids': [biz],
+                'status': [],
+                'conditions': constants.CONDITIONS_REQ,
+                'query_string': "",
+                'start_time': start_time,
+                'end_time': end_time,
+                'fields': ['plugin_id'],
+                'size': 10,
+                'bk_biz_id': biz,
+            }
+            ret[biz] = {i["id"]: i["count"] for i in resource.alert.alert_top_n(params)["fields"][0]["buckets"]}
+        for biz, alert in ret.items():
+            if biz not in biz_info or not alert:
+                continue
+            tmp = alert.get('"tnm"', 0)
+            bkmonitor = alert.get('"bkmonitor"', 0)
+            row = {
+                "biz": biz,
+                "biz_name": biz_info[biz].display_name,
+                "tmp": tmp,
+                "tmp_bk": bkmonitor + tmp,
+                "tmp_bk_ratio": tmp / (tmp + bkmonitor) if tmp != 0 else 0,
+            }
+            results.append(row)
+        if results_format == "file":
+            timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            filename = f"data_{timestamp}.csv"
+            output = StringIO()
+            # 在内存读写文件 避免污染 Pod 的 OS 文件
+            output.write('\ufeff')
+            # 写入 utf-8 bom 避免纯文本乱码
+            fieldnames = constants.TMP_HEADERS
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in results:
+                writer.writerow(row)
+            output.seek(0)
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            return results
+
+
+class GetFourMetricsStrategy(Resource):
+    """
+    游戏业务下四线统计 业务相关策略数据接口
+    """
+
+    def perform_request(self, validated_request_data):
+        """
+        在线： 在线 或 online
+        登录： 登录 或 登陆 或 login
+        注册： 注册 或 registation 或 reg
+        对局： 对局 或 排队 或 battle 或 bat
+        """
+        # 策略业务统计
+        results_format = validated_request_data.get("results", "json")
+        biz_list = api.cmdb.get_business()
+        scenario = constants.SCENARIO
+        to_be_deleted = set()
+        Biz = namedtuple("Biz", ["name", "info"])
+        biz_map = {biz.bk_biz_id: Biz(biz.display_name, defaultdict(int)) for biz in biz_list if biz.bk_biz_id > 0}
+
+        for sce, key_words in scenario.items():
+            query = StrategyModel.objects.filter(
+                reduce(lambda x, y: x | y, (DQ(name__icontains=key) for key in key_words))
+            )
+            query = query.filter(is_enabled=True)
+            # 使用 values 和 annotate 来按 bk_biz_id 分组，然后计算每组的数量
+            result = query.values("bk_biz_id").annotate(count=Count('id'))
+            # 整理结果
+            for item in result:
+                bk_biz_id = int(item["bk_biz_id"])
+                if bk_biz_id < 0:
+                    continue
+                if bk_biz_id not in biz_map:
+                    to_be_deleted.add(bk_biz_id)
+                    continue
+                biz_map[bk_biz_id].info[sce] = item["count"]
+        results = []
+        for biz in biz_map.values():
+            row = {"业务": biz.name}
+            for key in scenario.keys():
+                row[key] = biz.info.get(key, 0)
+            results.append(row)
+        if results_format == "file":
+            timestamp = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+            filename = f"data_{timestamp}.csv"
+            output = StringIO()
+            # 在内存读写文件 避免污染 Pod 的 OS 文件
+            output.write('\ufeff')
+            # 写入 utf-8 bom 避免纯文本乱码
+            fieldnames = ["业务"] + list(scenario.keys())
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for row in results:
+                writer.writerow(row)
+            output.seek(0)
+            response = HttpResponse(output.getvalue().encode("utf-8"), content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
+        else:
+            return results
 
 
 class AlertPermissionResource(Resource):
@@ -252,8 +510,8 @@ class ListAllowedBizResource(Resource):
 
     def perform_request(self, validated_request_data):
         permission = Permission()
-        biz_list = permission.filter_business_list_by_action(validated_request_data["action_id"])
-        return [{"id": biz.bk_biz_id, "name": biz.bk_biz_name} for biz in biz_list]
+        spaces = permission.filter_space_list_by_action(validated_request_data["action_id"])
+        return [{"id": s["bk_biz_id"], "name": s["bk_biz_name"]} for s in spaces]
 
 
 class ListSearchHistoryResource(Resource):
@@ -303,9 +561,40 @@ class AlertDateHistogramResource(Resource):
         interval = serializers.CharField(label="聚合周期", default="auto")
 
     def perform_request(self, validated_request_data):
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
         interval = validated_request_data.pop("interval")
-        handler = AlertQueryHandler(**validated_request_data)
-        data = list(handler.date_histogram(interval=interval).values())[0]
+        interval = BaseQueryHandler.calculate_agg_interval(start_time, end_time, interval)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+        results = resource.alert.alert_date_histogram_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    "interval": interval,
+                    **validated_request_data,
+                }
+                for sliced_start_time, sliced_end_time in slice_time_interval(start_time, end_time)
+            ]
+        )
+        query_cache.clear()
+
+        data = {status: {} for status in EVENT_STATUS_DICT}
+        for result in results:
+            for status, series in result.items():
+                if status == "default_time_series":
+                    interval = series["interval"]
+                    start_time = series["start_time"] // interval * interval
+                    end_time = series["end_time"] // interval * interval + interval
+                    default_time_series = {ts * 1000: 0 for ts in range(start_time, end_time, interval)}
+                    for sta in EVENT_STATUS_DICT:
+                        data[sta].update(default_time_series)
+                    continue
+
+                data[status].update(series)
         return {
             "series": [
                 {"data": list(series.items()), "name": status, "display_name": EVENT_STATUS_DICT[status]}
@@ -313,6 +602,19 @@ class AlertDateHistogramResource(Resource):
             ],
             "unit": "",
         }
+
+
+class AlertDateHistogramResultResource(Resource):
+    def perform_request(self, validated_request_data):
+        interval = validated_request_data.pop("interval")
+        start_time = validated_request_data.get("start_time")
+        end_time = validated_request_data.get("end_time")
+        handler = AlertQueryHandler(**validated_request_data)
+        datas = list(handler.date_histogram(interval=interval).values())
+        if not datas:
+            data = {"default_time_series": {"start_time": start_time, "end_time": end_time, "interval": interval}}
+            return data
+        return datas[0]
 
 
 class AlertDetailResource(Resource):
@@ -581,7 +883,13 @@ class AlertRelatedInfoResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        ids = serializers.ListField(label="告警ID", child=AlertIDField())
+        ids = serializers.ListField(label="告警ID", child=AlertIDField(), required=False)
+        alerts = serializers.ListField(label="告警文档", required=False)
+
+        def validate(self, attrs):
+            if "ids" not in attrs and "alerts" not in attrs:
+                raise serializers.ValidationError("Either 'ids' or 'alerts' must be provided.")
+            return attrs
 
     @staticmethod
     def get_cmdb_related_info(alerts: List[AlertDocument]) -> Dict[str, Dict]:
@@ -603,34 +911,42 @@ class AlertRelatedInfoResource(Resource):
         for alert in alerts:
             event = alert.event
             dimensions_dict = {d["key"]: d["value"] for d in alert.dimensions}
-            if event.target_type == EventTargetType.HOST:
-                if hasattr(event, "bk_host_id"):
-                    instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(event.bk_host_id)
-                else:
-                    instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
-                        "ip": event.ip,
-                        "bk_cloud_id": int(event.bk_cloud_id),
-                    }
-                related_infos[alert.id]["ip"] = event.ip
-                related_infos[alert.id]["bk_cloud_id"] = getattr(event, "bk_cloud_id", "")
-                related_infos[alert.id]["type"] = "host"
-            elif dimensions_dict.get("ip"):
-                bk_cloud_id = dimensions_dict.get("bk_cloud_id", 0)
-                if dimensions_dict.get("bk_host_id"):
-                    instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(dimensions_dict["bk_host_id"])
-                else:
-                    instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
-                        "ip": dimensions_dict["ip"],
-                        "bk_cloud_id": bk_cloud_id,
-                    }
+            if not dimensions_dict:
+                continue
+            try:
+                if event.target_type == EventTargetType.HOST:
+                    if hasattr(event, "bk_host_id"):
+                        instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(event.bk_host_id)
+                    else:
+                        instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
+                            "ip": event.ip,
+                            "bk_cloud_id": int(event.bk_cloud_id),
+                        }
+                    related_infos[alert.id]["ip"] = event.ip
+                    related_infos[alert.id]["bk_cloud_id"] = getattr(event, "bk_cloud_id", "")
+                    related_infos[alert.id]["type"] = "host"
+                elif dimensions_dict.get("ip"):
+                    bk_cloud_id = dimensions_dict.get("bk_cloud_id", 0)
+                    if dimensions_dict.get("bk_host_id"):
+                        instances_by_biz[event.bk_biz_id]["host_ids"][alert.id] = int(dimensions_dict["bk_host_id"])
+                    else:
+                        instances_by_biz[event.bk_biz_id]["ips"][alert.id] = {
+                            "ip": dimensions_dict["ip"],
+                            "bk_cloud_id": bk_cloud_id,
+                        }
 
-                related_infos[alert.id]["ip"] = dimensions_dict["ip"]
-                related_infos[alert.id]["bk_cloud_id"] = bk_cloud_id
-                related_infos[alert.id]["type"] = dimensions_dict.get("target_type", "")
-            elif event.target_type == EventTargetType.SERVICE:
-                instances_by_biz[event.bk_biz_id]["service_instance_ids"][alert.id] = event.bk_service_instance_id
+                    related_infos[alert.id]["ip"] = dimensions_dict["ip"]
+                    related_infos[alert.id]["bk_cloud_id"] = bk_cloud_id
+                    related_infos[alert.id]["type"] = dimensions_dict.get("target_type", "")
+                elif event.target_type == EventTargetType.SERVICE:
+                    instances_by_biz[event.bk_biz_id]["service_instance_ids"][alert.id] = event.bk_service_instance_id
+            except AttributeError:
+                continue
 
-        for bk_biz_id, instances in instances_by_biz.items():
+        set_template = _("集群({}) ")
+        module_template = _("模块({})")
+
+        def enrich_related_infos(bk_biz_id, instances):
             ips = instances["ips"]
             service_instance_ids = instances["service_instance_ids"]
             host_ids = instances["host_ids"]
@@ -687,16 +1003,20 @@ class AlertRelatedInfoResource(Resource):
                 ]
 
                 if bk_set_ids:
-                    topo_info += _("集群({}) ").format(
+                    topo_info += set_template.format(
                         ",".join([set_names[bk_set_id] for bk_set_id in bk_set_ids if bk_set_id in set_names])
                     )
 
-                topo_info += _("模块({})").format(
+                topo_info += module_template.format(
                     ",".join(
                         [module_names[bk_module_id] for bk_module_id in bk_module_ids if bk_module_id in module_names]
                     )
                 )
                 related_infos[alert_id]["topo_info"] = topo_info
+
+        # 多线程处理每个业务的主机和服务实例信息
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            executor.map(enrich_related_infos, instances_by_biz.keys(), instances_by_biz.values())
 
         return related_infos
 
@@ -825,7 +1145,11 @@ class AlertRelatedInfoResource(Resource):
         return related_infos
 
     def perform_request(self, validated_request_data):
-        alerts = AlertDocument.mget(validated_request_data["ids"])
+        if "ids" in validated_request_data:
+            alerts = AlertDocument.mget(validated_request_data["ids"])
+        else:
+            alerts = validated_request_data["alerts"]
+
         related_infos = defaultdict(dict)
 
         for func in [
@@ -995,6 +1319,9 @@ class AlertGraphQueryResource(ApiAuthResource):
         logger.info("alert graph query params %s", dict(params))
         result = resource.grafana.graph_unify_query(params)
 
+        # 返回信息加上数据查询的时间范围
+        result["date_range"] = [start_time, int(end_time)]
+
         result["trace_series"] = []
         if (
             query_config
@@ -1132,13 +1459,14 @@ class ExportAlertResource(Resource):
 
     def perform_request(self, validated_request_data):
         handler = AlertQueryHandler(**validated_request_data)
-        alerts = handler.export()
+        alert_docs, alerts = handler.export_with_docs()
+
+        related_infos = resource.alert.alert_related_info(alerts=alert_docs)
         id_key = AlertFieldDisplay.ID
-        ids = [item[id_key] for item in alerts]
-        related_infos = AlertRelatedInfoResource().perform_request({"ids": ids})
-        for alert_doc in alerts:
+        for alert in alerts:
             # 更新关联信息
-            alert_doc.update({AlertFieldDisplay.RELATED_INFO: related_infos.get(alert_doc[id_key], {})})
+            alert.update({AlertFieldDisplay.RELATED_INFO: related_infos.get(alert[id_key], {})})
+
         return resource.export_import.export_package(list_data=alerts)
 
 
@@ -1160,7 +1488,7 @@ class SearchEventResource(ApiAuthResource):
         for query_config in alert.strategy["items"][0]["query_configs"]:
             query_config["agg_dimension"] = ["dedupe_md5"]
             ds_cls = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-            ds = ds_cls.init_by_query_config(query_config)
+            ds = ds_cls.init_by_query_config(query_config, bk_biz_id=alert.event.bk_biz_id)
             ds.interval = interval
             records = ds.query_data(start_time=start_time * 1000, end_time=end_time * 1000, limit=10000)
             for record in records:
@@ -1210,7 +1538,7 @@ class SearchEventResource(ApiAuthResource):
 
     @classmethod
     def search_fta_alerts(cls, alert, validated_request_data, show_dsl=False):
-        # 如果是关联告警，需要找出其关联的告警内容，并将其适配为事件
+        # todo 如果是关联告警，需要找出其关联的告警内容，并将其适配为事件
         start_time = alert.begin_time
         end_time = alert.end_time if alert.end_time else int(time.time())
         interval = EventQueryHandler.calculate_agg_interval(start_time, end_time)
@@ -1289,6 +1617,10 @@ class SearchActionResource(ApiAuthResource):
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         record_history = validated_request_data.pop("record_history")
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
 
         handler = ActionQueryHandler(**validated_request_data)
 
@@ -1477,7 +1809,9 @@ class ValidateQueryString(Resource):
             SearchType.EVENT: EventQueryHandler.query_transformer,
         }
         search_type = validated_request_data["search_type"]
-        return transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
+        ret = transformer_cls[search_type].transform_query_string(query_string=validated_request_data["query_string"])
+        query_cache.clear()
+        return ret
 
 
 class BaseTopNResource(Resource):
@@ -1496,11 +1830,81 @@ class BaseTopNResource(Resource):
         return handler.top_n(fields=validated_request_data["fields"], size=validated_request_data["size"])
 
 
-class AlertTopNResource(BaseTopNResource):
+class AlertTopNResultResource(BaseTopNResource):
+    handler_cls = AlertQueryHandler
+
+    class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
+        is_time_partitioned = serializers.BooleanField(required=False, default=False, label="是否按时间分片")
+        is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
+        authorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+        unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+
+
+class AlertTopNResource(Resource):
     handler_cls = AlertQueryHandler
 
     class RequestSerializer(AlertSearchSerializer, BaseTopNResource.RequestSerializer):
         pass
+
+    def perform_request(self, validated_request_data):
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        slice_times = slice_time_interval(start_time, end_time)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = self.handler_cls.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
+        results = resource.alert.alert_top_n_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    "is_finaly_partition": True if index == len(slice_times) - 1 else False,
+                    "is_time_partitioned": True,
+                    **validated_request_data,
+                }
+                for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
+            ]
+        )
+        query_cache.clear()
+
+        result = {
+            "doc_count": 0,
+            "fields": [],
+        }
+
+        # 创建字段映射和ID映射
+        field_map = {}
+        id_map = {}
+
+        # 处理每个部分结果
+        for sliced_result in results:
+            result["doc_count"] += sliced_result["doc_count"]
+
+            for field in sliced_result["fields"]:
+                if field["field"] not in field_map:
+                    new_field = copy.deepcopy(field)
+                    new_field["buckets"] = []  # 清空buckets
+                    new_field["bucket_count"] = 0  # 初始化bucket_count
+                    result["fields"].append(new_field)
+                    field_index = len(result["fields"]) - 1
+                    field_map[field["field"]] = field_index
+                    id_map[field["field"]] = {}
+                else:
+                    field_index = field_map[field["field"]]
+
+                for bucket in field["buckets"]:
+                    if bucket["id"] not in id_map[field["field"]]:
+                        new_bucket = copy.deepcopy(bucket)
+                        result["fields"][field_index]["buckets"].append(new_bucket)
+                        bucket_index = len(result["fields"][field_index]["buckets"]) - 1
+                        id_map[field["field"]][bucket["id"]] = bucket_index
+                        result["fields"][field_index]["bucket_count"] += 1
+                    else:
+                        bucket_index = id_map[field["field"]][bucket["id"]]
+                        result["fields"][field_index]["buckets"][bucket_index]["count"] += bucket["count"]
+        return result
 
 
 class ActionTopNResource(BaseTopNResource):
@@ -1528,6 +1932,22 @@ class EventTopNResource(BaseTopNResource, ApiAuthResource):
         return handler.top_n(fields=validated_request_data["fields"], size=validated_request_data["size"])
 
 
+class ListAlertTagsResultResource(Resource):
+    """
+    获取告警标签
+    """
+
+    class RequestSerializer(AlertSearchSerializer):
+        is_time_partitioned = serializers.BooleanField(required=False, default=False, label="是否按时间分片")
+        is_finaly_partition = serializers.BooleanField(required=False, default=False, label="是否是最后一个分片")
+        authorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+        unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
+
+    def perform_request(self, validated_request_data):
+        handler = AlertQueryHandler(**validated_request_data)
+        return handler.list_tags()
+
+
 class ListAlertTagsResource(Resource):
     """
     获取告警标签
@@ -1537,8 +1957,38 @@ class ListAlertTagsResource(Resource):
         pass
 
     def perform_request(self, validated_request_data):
-        handler = AlertQueryHandler(**validated_request_data)
-        return handler.list_tags()
+        start_time = validated_request_data.pop("start_time")
+        end_time = validated_request_data.pop("end_time")
+        slice_times = slice_time_interval(start_time, end_time)
+        if validated_request_data["bk_biz_ids"] is not None:
+            authorized_bizs, unauthorized_bizs = AlertQueryHandler.parse_biz_item(validated_request_data["bk_biz_ids"])
+            validated_request_data["authorized_bizs"] = authorized_bizs
+            validated_request_data["unauthorized_bizs"] = unauthorized_bizs
+
+        results = resource.alert.list_alert_tags_result.bulk_request(
+            [
+                {
+                    "start_time": sliced_start_time,
+                    "end_time": sliced_end_time,
+                    "is_finaly_partition": True if index == len(slice_times) - 1 else False,
+                    "is_time_partitioned": True,
+                    **validated_request_data,
+                }
+                for index, (sliced_start_time, sliced_end_time) in enumerate(slice_times)
+            ]
+        )
+
+        result = []
+        id_map = {}
+        for sliced_result in results:
+            for tag in sliced_result:
+                if tag['id'] not in id_map:
+                    result.append(copy.deepcopy(tag))
+                    id_map[tag['id']] = len(result) - 1
+                else:
+                    index = id_map[tag["id"]]
+                    result[index]["count"] += tag["count"]
+        return result
 
 
 class StrategySnapshotResource(Resource):
@@ -1580,8 +2030,9 @@ class StrategySnapshotResource(Resource):
                 changed_status = self.ConfigChangedStatus.UPDATED
 
         if current_strategy and "intelligent_detect" in strategy_config["items"][0]["query_configs"][0]:
-            # AIOPS算法在告警检测时会对query_config本身进行修改导致查询配置无法还原，此时直接使用最新的query_config
-            strategy_config["items"][0]["query_configs"][0] = current_strategy.items[0].query_configs[0].to_dict()
+            if not strategy_config["items"][0]["query_configs"][0]["intelligent_detect"].get("use_sdk", False):
+                # AIOPS算法在告警检测时会对query_config本身进行修改导致查询配置无法还原，此时直接使用最新的query_config
+                strategy_config["items"][0]["query_configs"][0] = current_strategy.items[0].query_configs[0].to_dict()
 
         strategy_config.update(strategy_status=changed_status)
         strategy_config["create_time"] = utc2datetime(strategy_config["create_time"])
@@ -1655,9 +2106,9 @@ class SearchAlertByEventResource(Resource):
             "id": event.id,
             "event_id": event.event_id,
             "create_time": utc2localtime(event.create_time),
-            "ip": event.ip,
+            "ip": getattr(event, "ip", ""),
             "bk_biz_id": event.bk_biz_id,
-            "bk_cloud_id": event.bk_cloud_id,
+            "bk_cloud_id": getattr(event, "bk_cloud_id", ""),
             "target_type": event.target_type,
             "target": event.target,
         }
@@ -1869,6 +2320,16 @@ class MetricRecommendationResource(AIOpsBaseResource):
     def perform_request(self, validated_request_data):
         result = super(MetricRecommendationResource, self).perform_request(validated_request_data)
 
+        # 参数列表,每个列表同位置的元素一一对应，共同组成一对查询参数
+        alert_metric_ids = []
+        rec_metric_hashs = []
+        bk_biz_ids = []
+        usernames = []
+
+        username = get_request_username()
+
+        # 收集需要查询的参数
+        query_params = {}
         for label_info in result.get("recommended_metrics", []):
             for metric_info in label_info["metrics"]:
                 for recommend_panel in metric_info["panels"]:
@@ -1877,14 +2338,33 @@ class MetricRecommendationResource(AIOpsBaseResource):
                     recommendation_metric = recommend_panel["id"]
                     bk_biz_id = recommend_panel["bk_biz_id"]
 
-                    feedback = MetricRecommendationFeedbackResource.get_feedback(
-                        alert_metric_id=alert_metric_id,
-                        recommendation_metric=recommendation_metric,
-                        bk_biz_id=bk_biz_id,
-                        username=get_request_username(),
+                    # 将参数放入列表
+                    alert_metric_ids.append(alert_metric_id)
+                    rec_metric_hashs.append(
+                        MetricRecommendationFeedback.generate_recommendation_metric_hash(recommendation_metric)
                     )
+                    bk_biz_ids.append(bk_biz_id)
+                    usernames.append(username)
 
-                    recommend_panel["feedback"] = feedback
+                    # 收集查询参数,并保留对应的recommend_panel
+                    query_params[(alert_metric_id, recommendation_metric, bk_biz_id, username)] = recommend_panel
+
+        # 批量查询反馈信息
+        feedback_results = MetricRecommendationFeedbackResource.get_feedback_batch(
+            alert_metric_ids, rec_metric_hashs, bk_biz_ids, usernames
+        )
+
+        for (alert_metric_id, recommendation_metric, bk_biz_id, username), recommend_panel in query_params.items():
+            try:
+                recommend_panel["feedback"] = feedback_results[
+                    (alert_metric_id, recommendation_metric, bk_biz_id, username)
+                ]
+            except KeyError:
+                recommend_panel["feedback"] = {
+                    "good": 0,
+                    "bad": 0,
+                    "self": None,
+                }
 
         return result
 
@@ -1927,6 +2407,45 @@ class MetricRecommendationFeedbackResource(Resource):
                 bad_count = feedback_annotate_item["feedback__count"]
         return good_count, bad_count
 
+    @staticmethod
+    def get_feedback_count_batch(alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List) -> Dict:
+        """批量获取业务下，告警指标,被推荐指标关系下的点赞和点踩数
+        每个参数列表同位置的元素一一对应，共同组成一对查询参数。
+        非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
+        recommendation_metric_hash=rec_metric_hashs[0], bk_biz_id=bk_biz_ids[0])
+
+        :param alert_metric_ids: 告警指标名列表
+        :param rec_metric_hashs: 被推荐指标的hash列表
+        :param bk_biz_ids: 业务id列表
+        :return: {(alert_metric_id, recommendation_metric, bk_biz_id): (点赞数,点踩数), ...}
+        """
+        # 提取所有的参数组合
+        params = list(zip(alert_metric_ids, rec_metric_hashs, bk_biz_ids))
+
+        # 用于存储最终结果
+        result = {}
+        # 存储每个组合的具体点赞和点踩数
+        feedback_count = defaultdict(lambda: {"good_count": 0, "bad_count": 0})
+
+        # 一次性获取所有需要的数据
+        feedback_data = MetricRecommendationFeedback.objects.filter(
+            DQ(alert_metric_id__in=alert_metric_ids)
+            & DQ(bk_biz_id__in=bk_biz_ids)
+            & DQ(recommendation_metric_hash__in=rec_metric_hashs)
+        ).values_list('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'feedback')
+
+        # 统计每个组合的点赞和点踩数
+        for alert_id, rec_metric_hash, bk_biz_id, feedback in feedback_data:
+            feedback_count[(alert_id, rec_metric_hash, bk_biz_id)][feedback + "_count"] += 1
+
+        # 将最终统计结果存入result
+        for alert_id, rec_metric_hash, bk_biz_id in params:
+            result[(alert_id, rec_metric_hash, bk_biz_id)] = list(
+                feedback_count[(alert_id, rec_metric_hash, bk_biz_id)].values()
+            )
+
+        return result
+
     @classmethod
     def get_feedback(cls, alert_metric_id, recommendation_metric, bk_biz_id, username):
         """获取用户的反馈
@@ -1955,6 +2474,59 @@ class MetricRecommendationFeedbackResource(Resource):
         }
 
     @classmethod
+    def get_feedback_batch(
+        cls, alert_metric_ids: List, rec_metric_hashs: List, bk_biz_ids: List, usernames: List
+    ) -> Dict:
+        """批量获取用户的反馈
+        每个参数列表同位置的元素一一对应，共同组成一对查询参数。
+        非批量查询时，model.objects.filter(alert_metric_id=alert_metric_ids[0],
+        recommendation_metric_hash=rec_metric_hashs[0], bk_biz_id=bk_biz_ids[0], create_user=usernames[0])
+
+        :param alert_metric_ids: 告警指标名列表
+        :param rec_metric_hashs: 被推荐指标的hash列表
+        :param bk_biz_ids: 业务id列表
+        :param usernames: 用户名列表
+
+        :return: result: {(alert_metric_id, recommendation_metric, bk_biz_id, username): (点赞数,点踩数,用户反馈), ...}
+        """
+
+        # 批量查询点赞数和点踩数
+        feedback_counts = cls.get_feedback_count_batch(alert_metric_ids, rec_metric_hashs, bk_biz_ids)
+
+        # 批量查询用户反馈
+        feedback_objects = MetricRecommendationFeedback.objects.filter(
+            DQ(alert_metric_id__in=alert_metric_ids)
+            & DQ(recommendation_metric_hash__in=rec_metric_hashs)
+            & DQ(bk_biz_id__in=bk_biz_ids)
+            & DQ(create_user__in=usernames)
+        ).values('alert_metric_id', 'recommendation_metric_hash', 'bk_biz_id', 'create_user', 'feedback')
+
+        # 构建字典，用于快速查找反馈对象
+        feedback_dict = {
+            (fo['alert_metric_id'], fo['recommendation_metric_hash'], fo['bk_biz_id'], fo['create_user']): fo[
+                'feedback'
+            ]
+            for fo in feedback_objects
+        }
+
+        result = {}
+        params_list = list(zip(alert_metric_ids, rec_metric_hashs, bk_biz_ids, usernames))
+        for alert_metric_id, rec_metric_hash, bk_biz_id, username in params_list:
+            # 从之前获取的点赞数和点踩数字典中获取当前组合的点赞数和点踩数
+            good_count, bad_count = feedback_counts[(alert_metric_id, rec_metric_hash, bk_biz_id)]
+            # 从反馈字典中获取当前用户的反馈信息
+            feedback = feedback_dict.get((alert_metric_id, rec_metric_hash, bk_biz_id, username))
+
+            # 将获取到的点赞数、点踩数和用户反馈信息组合成一个新的字典项，并添加到结果字典中
+            result[(alert_metric_id, rec_metric_hash, bk_biz_id, username)] = {
+                "good": good_count,
+                "bad": bad_count,
+                "self": feedback,
+            }
+
+        return result
+
+    @staticmethod
     def get_recommend_metric_bkdata_rt_id(bk_biz_id):
         """获取被推荐指标的计算平台结果表id
 
@@ -2042,11 +2614,12 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
         graph_panels = []
         try:
             strategy_algorithm = alert.strategy["items"][0]["algorithms"][0]
-            if strategy_algorithm["type"] == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection:
+            if strategy_algorithm["type"] == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection:
                 anomaly_sort = alert.event.extra_info["origin_alarm"]["data"]["values"]["anomaly_sort"]
                 anomaly_metrics = parse_anomaly(anomaly_sort, strategy_algorithm["config"])
 
                 base_graph_panel = AIOPSManager.get_graph_panel(alert, use_raw_query_config=True)
+                base_graph_panel["type"] = "performance-chart"
                 for anomaly_metric in anomaly_metrics:
                     graph_panel = self.generate_metric_graph_panel(
                         copy.deepcopy(base_graph_panel),
@@ -2084,16 +2657,16 @@ class MultiAnomalyDetectGraphResource(AIOpsBaseResource):
             "anomaly_point": anomaly_metric[1],
             "anomaly_score": anomaly_metric[2],
             "anomaly_point_with_unit": anomaly_metric[3],
-            "metric_name": anomaly_metric[4],
+            "metric_name": _(anomaly_metric[4]),
         }
 
         graph_panel["id"] = anomaly_metric[0]
-        graph_panel["title"] = anomaly_metric[4]
+        graph_panel["title"] = _(anomaly_metric[4])
         graph_panel["subTitle"] = anomaly_metric[0]
         graph_panel["anomaly_info"] = anomaly_info
         graph_panel["result_table_label"] = metric.result_table_label
-        graph_panel["result_table_label_name"] = metric.result_table_label_name
-        graph_panel["metric_name_alias"] = metric.metric_field_name
+        graph_panel["result_table_label_name"] = _(metric.result_table_label_name)
+        graph_panel["metric_name_alias"] = _(metric.metric_field_name)
         graph_panel["targets"][0]["api"] = "alert.alertGraphQuery"
         graph_panel["targets"][0]["alias"] = ""
 
@@ -2183,3 +2756,164 @@ class QuickAlertAck(QuickActionTokenResource):
             alerts_already_ack=len(result["alerts_already_ack"]),
             alerts_not_abnormal=len(result["alerts_not_abnormal"]),
         )
+
+
+class GetAlertDataRetrievalResource(Resource):
+    """
+    获取告警数据检索配置
+    """
+
+    EVENT_DATASOURCES = [
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.EVENT),
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+        (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+    ]
+
+    METRIC_DATASOURCES = [
+        (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+    ]
+
+    class RequestSerializer(serializers.Serializer):
+        alert_id = AlertIDField(required=True, label="告警ID")
+
+    @classmethod
+    def metric_query_config_to_query(cls, query_config: Dict, filter_dict: Dict) -> Dict:
+        """
+        将query_config转换为图标查询配置
+        """
+        # 如果存在raw_query_config，直接使用
+        if query_config.get("raw_query_config"):
+            query_config = query_config["raw_query_config"]
+
+        query = {
+            "data_source_label": query_config["data_source_label"],
+            "data_type_label": query_config["data_type_label"],
+            "functions": query_config.get("functions", []),
+            "refId": query_config["alias"],
+            "index_set_id": query_config.get("index_set_id"),
+            "result_table_id": query_config.get("result_table_id", ""),
+            "data_label": query_config.get("data_label"),
+            "query_string": query_config.get("query_string", ""),
+            "metric_field": query_config.get("metric_field", ""),
+            "method": query_config.get("agg_method", "COUNT"),
+            "interval": query_config.get("agg_interval", 60),
+            "group_by": query_config.get("agg_dimension", []),
+            "where": query_config.get("agg_condition", []),
+            "time_field": query_config.get("time_field"),
+        }
+
+        if filter_dict:
+            # 条件中维度字段可能比单个 datasource 中的维度字段多，所以需要过滤。
+            # promql 的情况下，维度无法分辨，因此只能全部过滤
+            if query_config["data_source_label"] != DataSourceLabel.PROMETHEUS:
+                filter_dict = {key: value for key, value in filter_dict.items() if key in query["group_by"]}
+
+            where = AIOPSManager.create_where_with_dimensions(query_config["agg_condition"], filter_dict)
+            group_by = list(set(query["group_by"]) & set(filter_dict.keys()))
+            if "le" in query_config.get("agg_dimension", []):
+                # 针对le做特殊处理
+                group_by.append("le")
+            query["where"] = where
+            query["group_by"] = group_by
+
+        return query
+
+    @classmethod
+    def generate_event_query_params(cls, item: Dict, filter_dict: Dict) -> Dict:
+        """
+        TODO: 事件检索跳转参数
+        """
+        return {}
+
+    @classmethod
+    def generate_metric_query_params(cls, item: Dict, filter_dict: Dict) -> List[Dict]:
+        """
+        指标检索跳转参数
+        """
+        query_configs = item["query_configs"]
+        data_source = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+
+        # promql模式查询
+        if data_source == (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES):
+            query_config = query_configs[0]
+            return [
+                {
+                    "data": {
+                        "mode": "code",
+                        "source": query_config["promql"],
+                        "format": "time_series",
+                        "type": "range",
+                        "step": query_config["agg_interval"],
+                        "filter_dict": filter_dict,
+                    }
+                }
+            ]
+
+        # UI模式查询
+        # 查询配置处理
+        queries = []
+        for query_config in query_configs:
+            query = cls.metric_query_config_to_query(query_config, filter_dict)
+            queries.append(query)
+
+        # 表达式处理
+        expressions = []
+        expression = item["expression"] or "a"
+        functions = item.get("functions", [])
+        if expression != "a" or functions:
+            # 如果添加了表达式，需要将子查询隐藏
+            for query in queries:
+                query["display"] = False
+
+            expressions.append(
+                {
+                    "expression": expression,
+                    "functions": functions,
+                    "alias": chr(ord("a") + len(queries)),
+                    "active": True,
+                }
+            )
+
+        return [{"data": {"mode": "ui", "query_configs": queries, "expressionList": expressions}}]
+
+    def perform_request(self, params: Dict[str, Any]):
+        alert_id = params["alert_id"]
+        alert = AlertDocument.get(alert_id)
+        if not alert.strategy:
+            return []
+
+        item = alert.strategy["items"][0]
+        query_configs = item["query_configs"]
+        if not query_configs:
+            return []
+
+        data_source: Tuple[str, str] = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+
+        # 根据告警维度生成过滤条件
+        filter_dict = {}
+        try:
+            dimensions = alert.event.extra_info.origin_alarm.data.dimensions.to_dict()
+            dimension_fields = alert.event.extra_info.origin_alarm.data.dimension_fields
+            dimension_fields = [field for field in dimension_fields if not field.startswith("bk_task_index_")]
+            filter_dict = {
+                key: value
+                for key, value in dimensions.items()
+                if key in dimension_fields and not (key == "le" and value is None)
+            }
+        except Exception:  # noqa
+            pass
+
+        # 事件检索
+        if data_source in self.EVENT_DATASOURCES:
+            result = {"type": "event", "params": self.generate_event_query_params(item, filter_dict)}
+        # 指标检索
+        elif data_source in self.METRIC_DATASOURCES:
+            result = {"type": "metric", "params": self.generate_metric_query_params(item, filter_dict)}
+        else:
+            result = {}
+
+        return result

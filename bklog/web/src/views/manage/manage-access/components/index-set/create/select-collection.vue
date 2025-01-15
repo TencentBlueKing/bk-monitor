@@ -1,62 +1,67 @@
+<!-- eslint-disable vue/no-deprecated-slot-attribute -->
 <!--
-  - Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
-  - Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
-  - BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
-  -
-  - License for BK-LOG 蓝鲸日志平台:
-  - -------------------------------------------------------------------
-  -
-  - Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-  - documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-  - the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-  - and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-  - The above copyright notice and this permission notice shall be included in all copies or substantial
-  - portions of the Software.
-  -
-  - THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
-  - LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-  - NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-  - WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  - SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-  -->
+* Tencent is pleased to support the open source community by making
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+*
+* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+*
+* 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+*
+* License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+*
+* ---------------------------------------------------
+* Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+* documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+* the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+* to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+* the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+* THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+* IN THE SOFTWARE.
+-->
 
 <template>
   <bk-dialog
     v-model="showDialog"
-    header-position="left"
-    :title="$t('新增索引')"
-    :width="680"
     :mask-close="false"
     :show-footer="false"
+    :title="$t('新增索引')"
+    :width="680"
+    header-position="left"
   >
     <div
-      v-bkloading="{ isLoading: basicLoading }"
       class="slot-container"
+      v-bkloading="{ isLoading: basicLoading }"
     >
       <bk-form
         ref="formRef"
-        :model="formData"
         :label-width="100"
+        :model="formData"
         :rules="formRules"
       >
         <bk-form-item
           :label="$t('索引')"
-          required
           property="resultTableId"
+          required
         >
           <bk-select
             v-model="formData.resultTableId"
-            searchable
             :clearable="false"
             data-test-id="addIndex_select_selectIndex"
+            searchable
             @selected="val => handleCollectionSelected(val)"
           >
             <bk-option
               v-for="item in getShowCollectionList"
-              :id="item.result_table_id"
-              :key="item.result_table_id"
               class="custom-no-padding-option"
               :disabled="parentData.indexes.some(selectedItem => item.result_table_id === selectedItem.result_table_id)"
+              :id="item.result_table_id"
+              :key="item.result_table_id"
               :name="`${item.result_table_name_alias}(${item.result_table_id})`"
             >
               <div
@@ -90,45 +95,47 @@
           >
             <bk-table-column
               :label="$t('字段')"
-              prop="field_name"
               min-width="240"
+              prop="field_name"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <span
-                  v-bk-overflow-tips
                   class="overflow-tips"
+                  v-bk-overflow-tips
                   >{{ props.row.field_name }}</span
                 >
               </template>
             </bk-table-column>
             <bk-table-column
               :label="$t('类型')"
-              prop="field_type"
               min-width="250"
+              prop="field_type"
             >
-              <template slot-scope="props">
+              <template #default="props">
                 <span
-                  v-bk-overflow-tips
                   class="overflow-tips"
+                  v-bk-overflow-tips
                   >{{ props.row.field_type }}</span
                 >
               </template>
             </bk-table-column>
-            <div slot="empty">
-              <empty-status empty-type="empty" />
-            </div>
+            <template #empty>
+              <div>
+                <empty-status empty-type="empty" />
+              </div>
+            </template>
           </bk-table>
         </bk-form-item>
       </bk-form>
       <div
-        slot="footer"
         class="button-footer"
+        slot="footer"
       >
         <bk-button
           class="king-button"
-          theme="primary"
-          data-test-id="addIndex_button_confirm"
           :loading="confirmLoading"
+          data-test-id="addIndex_button_confirm"
+          theme="primary"
           @click="handleConfirm"
         >
           {{ $t('添加') }}
@@ -144,200 +151,201 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
-import * as authorityMap from '../../../../../../common/authority-map';
-import EmptyStatus from '@/components/empty-status';
+  import EmptyStatus from '@/components/empty-status';
+  import { mapState } from 'vuex';
 
-export default {
-  components: {
-    EmptyStatus
-  },
-  props: {
-    parentData: {
-      type: Object,
-      required: true
-    }
-  },
-  data() {
-    const scenarioId = this.$route.name.split('-')[0];
-    return {
-      scenarioId,
-      showDialog: false,
-      basicLoading: false,
-      tableLoading: false,
-      confirmLoading: false,
-      collectionList: [], // log bkdata 下拉列表
-      tableData: [], // log bkdata 表格
-      formData: {
-        resultTableId: ''
-      },
-      formRules: {
-        resultTableId: [
-          {
-            required: true,
-            trigger: 'blur'
-          }
-        ]
-      }
-    };
-  },
-  computed: {
-    ...mapState(['spaceUid', 'bkBizId']),
-    authorityMap() {
-      return authorityMap;
+  import * as authorityMap from '../../../../../../common/authority-map';
+
+  export default {
+    components: {
+      EmptyStatus,
     },
-    getShowCollectionList() {
-      if (this.parentData.storage_cluster_id && this.scenarioId === 'log') {
-        return this.collectionList.filter(item => item.storage_cluster_id === this.parentData.storage_cluster_id);
-      }
-      return this.collectionList;
-    }
-  },
-  mounted() {
-    this.fetchCollectionList();
-  },
-  methods: {
-    openDialog() {
-      this.showDialog = true;
-      this.emptyType = 'empty';
-      Object.assign(this, {
+    props: {
+      parentData: {
+        type: Object,
+        required: true,
+      },
+    },
+    data() {
+      const scenarioId = this.$route.name.split('-')[0];
+      return {
+        scenarioId,
+        showDialog: false,
         basicLoading: false,
         tableLoading: false,
         confirmLoading: false,
+        collectionList: [], // log bkdata 下拉列表
         tableData: [], // log bkdata 表格
         formData: {
-          resultTableId: ''
-        }
-      });
-    },
-    // 获取下拉列表
-    async fetchCollectionList() {
-      try {
-        this.basicLoading = true;
-        const res = await this.$http.request('/resultTables/list', {
-          query: {
-            scenario_id: this.scenarioId,
-            bk_biz_id: this.bkBizId
-          }
-        });
-        this.collectionList = res.data.map(item => {
-          // 后端要传这个值，虽然不太合理
-          item.bk_biz_id = this.bkBizId;
-          return item;
-        });
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        this.basicLoading = false;
-      }
-    },
-    // 选择采集项
-    async handleCollectionSelected(id, foreignParams) {
-      try {
-        this.tableLoading = true;
-        const res = await this.$http.request(
-          '/resultTables/info',
-          !!foreignParams
-            ? foreignParams
-            : {
-                params: {
-                  result_table_id: id
-                },
-                query: {
-                  scenario_id: this.scenarioId,
-                  bk_biz_id: this.bkBizId
-                }
-              }
-        );
-        if (foreignParams) return res;
-        this.tableData = res.data.fields;
-        this.tableLoading = false;
-      } catch (e) {
-        console.warn(e);
-      }
-    },
-    // 采集项-申请权限
-    async applyCollectorAccess(option) {
-      try {
-        this.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
-        this.basicLoading = true;
-        const res = await this.$store.dispatch('getApplyData', {
-          action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-          resources: [
+          resultTableId: '',
+        },
+        formRules: {
+          resultTableId: [
             {
-              type: 'collection',
-              id: option.collector_config_id
-            }
-          ]
+              required: true,
+              trigger: 'blur',
+            },
+          ],
+        },
+      };
+    },
+    computed: {
+      ...mapState(['spaceUid', 'bkBizId']),
+      authorityMap() {
+        return authorityMap;
+      },
+      getShowCollectionList() {
+        if (this.parentData.storage_cluster_id && this.scenarioId === 'log') {
+          return this.collectionList.filter(item => item.storage_cluster_id === this.parentData.storage_cluster_id);
+        }
+        return this.collectionList;
+      },
+    },
+    mounted() {
+      this.fetchCollectionList();
+    },
+    methods: {
+      openDialog() {
+        this.showDialog = true;
+        this.emptyType = 'empty';
+        Object.assign(this, {
+          basicLoading: false,
+          tableLoading: false,
+          confirmLoading: false,
+          tableData: [], // log bkdata 表格
+          formData: {
+            resultTableId: '',
+          },
         });
-        window.open(res.data.apply_url);
-      } catch (err) {
-        console.warn(err);
-      } finally {
-        this.basicLoading = false;
-      }
-    },
-    // 确认添加
-    async handleConfirm() {
-      try {
-        await this.$refs.formRef.validate();
-        this.confirmLoading = true;
-        const data = {
-          scenario_id: this.scenarioId,
-          basic_indices: this.parentData.indexes.map(item => ({
-            index: item.result_table_id
-          })),
-          append_index: {
-            index: this.formData.resultTableId
-          }
-        };
-        await this.$http.request('/resultTables/adapt', { data });
-        this.$emit(
-          'selected',
-          this.collectionList.find(item => item.result_table_id === this.formData.resultTableId)
-        );
+      },
+      // 获取下拉列表
+      async fetchCollectionList() {
+        try {
+          this.basicLoading = true;
+          const res = await this.$http.request('/resultTables/list', {
+            query: {
+              scenario_id: this.scenarioId,
+              bk_biz_id: this.bkBizId,
+            },
+          });
+          this.collectionList = res.data.map(item => {
+            // 后端要传这个值，虽然不太合理
+            item.bk_biz_id = this.bkBizId;
+            return item;
+          });
+        } catch (e) {
+          console.warn(e);
+        } finally {
+          this.basicLoading = false;
+        }
+      },
+      // 选择采集项
+      async handleCollectionSelected(id, foreignParams) {
+        try {
+          this.tableLoading = true;
+          const res = await this.$http.request(
+            '/resultTables/info',
+            !!foreignParams
+              ? foreignParams
+              : {
+                  params: {
+                    result_table_id: id,
+                  },
+                  query: {
+                    scenario_id: this.scenarioId,
+                    bk_biz_id: this.bkBizId,
+                  },
+                },
+          );
+          if (foreignParams) return res;
+          this.tableData = res.data.fields;
+          this.tableLoading = false;
+        } catch (e) {
+          console.warn(e);
+        }
+      },
+      // 采集项-申请权限
+      async applyCollectorAccess(option) {
+        try {
+          this.$el.click(); // 因为下拉在loading上面所以需要关闭下拉
+          this.basicLoading = true;
+          const res = await this.$store.dispatch('getApplyData', {
+            action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+            resources: [
+              {
+                type: 'collection',
+                id: option.collector_config_id,
+              },
+            ],
+          });
+          window.open(res.data.apply_url);
+        } catch (err) {
+          console.warn(err);
+        } finally {
+          this.basicLoading = false;
+        }
+      },
+      // 确认添加
+      async handleConfirm() {
+        try {
+          await this.$refs.formRef.validate();
+          this.confirmLoading = true;
+          const data = {
+            scenario_id: this.scenarioId,
+            basic_indices: this.parentData.indexes.map(item => ({
+              index: item.result_table_id,
+            })),
+            append_index: {
+              index: this.formData.resultTableId,
+            },
+          };
+          await this.$http.request('/resultTables/adapt', { data });
+          this.$emit(
+            'selected',
+            this.collectionList.find(item => item.result_table_id === this.formData.resultTableId),
+          );
+          this.showDialog = false;
+        } catch (e) {
+          console.warn(e);
+        } finally {
+          this.confirmLoading = false;
+        }
+      },
+      handleCancel() {
         this.showDialog = false;
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        this.confirmLoading = false;
-      }
+      },
     },
-    handleCancel() {
-      this.showDialog = false;
-    }
-  }
-};
+  };
 </script>
 
 <style scoped lang="scss">
-@import '@/scss/mixins/overflow-tips.scss';
+  @import '@/scss/mixins/overflow-tips.scss';
 
-.slot-container {
-  min-height: 363px;
-  padding-right: 40px;
+  .slot-container {
+    min-height: 363px;
+    padding-right: 40px;
 
-  :deep(.bk-form) {
-    .bk-label {
-      text-align: left;
+    :deep(.bk-form) {
+      .bk-label {
+        text-align: left;
+      }
     }
   }
-}
 
-.button-footer {
-  margin-top: 20px;
-  text-align: right;
+  .button-footer {
+    margin-top: 20px;
+    text-align: right;
 
-  .king-button {
-    width: 86px;
+    .king-button {
+      width: 86px;
 
-    &:first-child {
-      margin-right: 8px;
+      &:first-child {
+        margin-right: 8px;
+      }
     }
   }
-}
 
-.overflow-tips {
-  @include overflow-tips;
-}
+  .overflow-tips {
+    @include overflow-tips;
+  }
 </style>

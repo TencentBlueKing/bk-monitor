@@ -34,7 +34,7 @@ const state = {
   addMode: 'add',
   addData: {},
   objectType: '', // 采集对象类型 SERVICE 为 服务类
-  infoData: null // 缓存config-set组件的info
+  infoData: null, // 缓存config-set组件的info
 };
 
 const mutations = {
@@ -49,13 +49,13 @@ const mutations = {
   },
   [SET_INFO_DATA](state, data) {
     state.infoData = data;
-  }
+  },
 };
 const getters = {
   addParams(state) {
     return {
       mode: state.addMode,
-      data: JSON.parse(JSON.stringify(state.addData))
+      data: JSON.parse(JSON.stringify(state.addData)),
     };
   },
   getObjectType(state) {
@@ -63,17 +63,17 @@ const getters = {
   },
   infoData(state) {
     return state.infoData;
-  }
+  },
 };
 const actions = {
   getCollectorObject() {
     return getLabel({ include_admin_only: false });
-  }
+  },
 };
 export default {
   namespaced: true,
   state,
   actions,
   mutations,
-  getters
+  getters,
 };

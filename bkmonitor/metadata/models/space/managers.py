@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple
 from django.db import models
 from django.db.models.functions import Concat
 from django.db.models.query import QuerySet
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from . import constants
 
@@ -152,6 +152,17 @@ class SpaceManager(models.Manager):
             return {"space_type": "bkcc", "space_id": str(bk_biz_id)}
         else:
             raise ValueError("biz_id: %s not match space info", bk_biz_id)
+
+    def get_biz_id_by_space(self, space_type: str, space_id: str) -> Optional[int]:
+        """通过空间类型和空间ID获取业务ID"""
+        try:
+            obj = self.get(space_type_id=space_type, space_id=space_id)
+        except self.model.DoesNotExist:
+            return None
+        if space_type == constants.SpaceTypes.BKCC.value:
+            return int(obj.space_id)
+        # 非bkcc空间类型，返回负值
+        return -obj.id
 
 
 class SpaceResourceManager(models.Manager):

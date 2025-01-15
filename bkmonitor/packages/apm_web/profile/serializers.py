@@ -18,7 +18,11 @@ class QueryBaseSerializer(serializers.Serializer):
     app_name = serializers.CharField(label="应用名称", required=False)
     service_name = serializers.CharField(label="服务名称", required=False)
     global_query = serializers.BooleanField(label="全局查询", required=False, default=False)
-    data_type = serializers.CharField(label="Sample 数据类型", required=False, default=DEFAULT_PROFILE_DATA_TYPE)
+    data_type = serializers.CharField(
+        label="采样类型(sample_type,前端显示为 data_type )",
+        required=False,
+        default=DEFAULT_PROFILE_DATA_TYPE,
+    )
     start = serializers.IntegerField(label="开始时间", help_text="请使用 Microsecond", required=False)
     start_time = serializers.IntegerField(label="开始时间", help_text="请使用 Second", required=False)
     end = serializers.IntegerField(label="结束时间", help_text="请使用 Microsecond", required=False)
@@ -53,7 +57,7 @@ class QueryBaseSerializer(serializers.Serializer):
 class ProfileQuerySerializer(QueryBaseSerializer):
     """Query Samples"""
 
-    profile_id = serializers.CharField(label="profile ID", required=False, default="")
+    profile_id = serializers.CharField(label="profile ID", required=False, default="", allow_blank=True)
     offset = serializers.IntegerField(label="偏移量(秒)", required=False, default=0)
     diagram_types = serializers.ListField(
         child=serializers.CharField(), required=False, default=["flamegraph", "table"]
@@ -63,7 +67,7 @@ class ProfileQuerySerializer(QueryBaseSerializer):
 
     # only is_compared is true, the diff_* params is valid
     is_compared = serializers.BooleanField(label="是否开启对比模式", required=False, default=False)
-    diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="")
+    diff_profile_id = serializers.CharField(label="diff profile ID", required=False, default="", allow_blank=True)
     diff_filter_labels = serializers.DictField(label="标签过滤", default={}, required=False)
 
 

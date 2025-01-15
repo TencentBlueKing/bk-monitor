@@ -125,7 +125,7 @@ def build_merge_table_name():
 
     :return: 对应环境合流节点的表名
     """
-    return f"{settings.BK_DATA_RT_ID_PREFIX}_syestm_metric_merge"
+    return f"{settings.BK_DATA_RT_ID_PREFIX}_system_metric_merge"
 
 
 def build_result_table_name():

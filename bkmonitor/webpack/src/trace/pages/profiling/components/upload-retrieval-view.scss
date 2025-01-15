@@ -3,9 +3,13 @@
 @mixin fileStatus() {
   .status {
     display: flex;
-    align-items: center;
     flex-shrink: 0;
-    width: 68px;
+    align-items: center;
+    width: 74px;
+
+    &.en {
+      width: 135px;
+    }
 
     .loading {
       font-size: 14px;
@@ -179,8 +183,8 @@
 
     .left {
       display: flex;
-      align-items: center;
       flex: 1;
+      align-items: center;
       overflow: hidden;
       text-overflow: ellipsis;
 
@@ -195,14 +199,14 @@
 
       .name {
         overflow: hidden;
-        text-overflow: ellipsis;
         color: #63656e;
+        text-overflow: ellipsis;
       }
 
       .origin-name {
         overflow: hidden;
-        text-overflow: ellipsis;
         color: #979ba5;
+        text-overflow: ellipsis;
       }
     }
 

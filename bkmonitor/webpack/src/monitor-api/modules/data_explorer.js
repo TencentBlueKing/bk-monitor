@@ -9,5 +9,5 @@ export default {
   getGraphQueryConfig,
   getPromqlQueryConfig,
   getEventViewConfig,
-  getGroupByCount
+  getGroupByCount,
 };

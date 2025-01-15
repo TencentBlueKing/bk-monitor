@@ -9,16 +9,22 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
-import operator
 from abc import ABC
 from datetime import datetime
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.icon import get_icon
-from apm_web.utils import group_by
+
+# 导出 profiling 接口给 grafana 仪表盘使用
+from apm_web.profile.resources import (  # noqa
+    GrafanaQueryProfileLabelResource,
+    GrafanaQueryProfileLabelValuesResource,
+    GrafanaQueryProfileResource,
+    ListApplicationServicesResource,
+    QueryServicesDetailResource,
+)
 from bkmonitor.share.api_auth_resource import ApiAuthResource
-from core.drf_resource import api
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import OverviewDataTableFormat
 
@@ -46,9 +52,12 @@ class SidebarPageListResource(PageListResource):
     def get_status_filter(self):
         return []
 
-    def get_pagination_data(self, origin_data, params, column_type=None, skip_sorted=False):
+    def get_pagination_data(self, origin_data, params, column_type=None, skip_sorted=False, **kwargs):
         res = {}
-        data = copy.deepcopy(origin_data)
+        if not kwargs.get("in_place", False):
+            data = copy.deepcopy(origin_data)
+        else:
+            data = origin_data
 
         column_formats, column_format_map = self.get_columns_config(data, column_type)
         # 筛选
@@ -226,25 +235,40 @@ class AsyncColumnsListResource(ApiAuthResource, ABC):
 
     SyncResource = None
 
-    def get_async_column_item(self, data, column):
-        if column in data:
-            return {column: data[column]}
+    @classmethod
+    def get_async_column_item(cls, data, column, **kwargs):
+        multi_sub_columns = kwargs.get("multi_sub_columns", None)
+        default_value = kwargs.get("default_value", None)
+        items = {}
+        if column in data or default_value:
+            column_data = data.get(column, default_value)
+            if multi_sub_columns and isinstance(column_data, dict):
+                for sub_column in multi_sub_columns:
+                    if sub_column in column_data or default_value:
+                        items[f"{sub_column}_{column}"] = column_data.get(sub_column, default_value)
+            else:
+                items[column] = column_data
+        return items
 
-        return {}
+    def get_async_data(self, data, column, column_type=None, **kwargs):
+        multi_output_columns = kwargs.get("multi_output_columns")
+        columns = multi_output_columns or [column]
 
-    def get_async_data(self, data, column, column_type=None):
-        async_column = next((i for i in self.SyncResource.get_columns(column_type) if i.id == column), None)
-        if not async_column:
-            raise ValueError(_("不存在的列: {}").format(column))
-        if not async_column.asyncable:
-            raise ValueError(_("列: {} 不是异步列").format(column))
+        columns_mapping = {i.id: i for i in self.SyncResource.get_columns(column_type)}
+        for async_column_name in columns:
+            if async_column_name not in columns_mapping:
+                raise ValueError(_("不存在的列: {}").format(async_column_name))
+            if not columns_mapping[async_column_name].asyncable:
+                raise ValueError(_("列: {} 不是异步列").format(async_column_name))
 
         res = []
         for item in data:
             c_item = copy.deepcopy(item)
             try:
-                if async_column.id in c_item:
-                    c_item[async_column.id] = async_column.format(c_item)
+                for async_column_name in columns:
+                    async_column = columns_mapping[async_column_name]
+                    if async_column.id in c_item:
+                        c_item[async_column.id] = async_column.format(c_item)
 
                 res.append(c_item)
             except KeyError:
@@ -257,68 +281,14 @@ class ServiceAndComponentCompatibleResource(SidebarPageListResource):
     def get_pagination_data(self, origin_data, params, column_type=None):
         """
         特殊处理图表配置field参数(侧边栏图表配置selector_panel.target.fields会同步调整)
-        特殊处理侧边栏逻辑
-        侧边栏在以下场景会存在：
-        1. 应用接口/错误页面
-            不需要添加额外参数
-        2. 服务接口/错误页面
-            需要添加service_(kind/category/predicate_value)额外参数 用于前端点击侧边栏某项后保持url参数不变
-        3. 组件接口/错误页面
-            需要添加component_(kind/category/predicate_value)和service_(kind/category/predicate_value)额外参数
         """
-
-        if params.get("kind") == "component" or params.get("service_params", {}).get("kind") == "component":
-            add_data = {}
-            # 组件接口/错误页面
-            if params.get("service_params"):
-                component_extra_data = {
-                    "category": params["service_params"].get("category"),
-                    "kind": params["service_params"].get("kind"),
-                    "predicate_value": params["service_params"].get("predicate_value"),
-                }
-
-            else:
-                component_extra_data = {
-                    "category": params.get("category"),
-                    "kind": params.get("kind"),
-                    "predicate_value": params.get("predicate_value"),
-                }
-
-            if params.get("service_name"):
-                component_extra_data["service_name"] = params["service_name"]
-
-            for key, value in component_extra_data.items():
-                add_data[f"component_{key}"] = value
-
-            for i in origin_data:
-                i.update(add_data)
-                i.update({"_is_service": False})
-
-            topo_key = params["service_name"].rsplit("-", 1)[0]
-            nodes = api.apm_api.query_topo_node(
-                bk_biz_id=params["bk_biz_id"], app_name=params["app_name"], topo_key=topo_key
-            )
-
-        elif params.get("service_name"):
-            # 服务接口/错误页面
-            nodes = api.apm_api.query_topo_node(
-                bk_biz_id=params["bk_biz_id"], app_name=params["app_name"], topo_key=params["service_name"]
-            )
-        else:
-            # 应用接口 / 错误页面
-            nodes = api.apm_api.query_topo_node(bk_biz_id=params["bk_biz_id"], app_name=params["app_name"])
-        service_name_mapping = group_by(nodes, operator.itemgetter("topo_key"))
-
+        # 补充 service_name 防止点击侧边栏跳转失败
         for i in origin_data:
-            service_info = service_name_mapping.get(i["service"])
-            if service_info:
-                i.update(
-                    {
-                        "service_category": service_info[0].get("extra_data", {}).get("category"),
-                        "service_kind": service_info[0].get("extra_data", {}).get("kind"),
-                        "service_predicate_value": service_info[0].get("extra_data", {}).get("predicate_value"),
-                        "service_name": i["service"],
-                    }
-                )
-
-        return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(origin_data, params, column_type)
+            i.update(
+                {
+                    "service_name": i["service"],
+                }
+            )
+        return super(ServiceAndComponentCompatibleResource, self).get_pagination_data(
+            origin_data, params, column_type, in_place=True
+        )

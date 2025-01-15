@@ -68,7 +68,7 @@
 <script lang="ts">
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import { IFieldConfig, ISelectedValues } from '../performance-type';
+import type { IFieldConfig, ISelectedValues } from '../performance-type';
 
 @Component({ name: 'condition-panel' })
 export default class ConditionPanel extends Vue {
@@ -80,7 +80,7 @@ export default class ConditionPanel extends Vue {
   private data = [];
   private selectedValues: ISelectedValues = {
     selectedGroup: [],
-    unSelectedGroup: []
+    unSelectedGroup: [],
   };
   private loadingFieldIds = [
     'status',
@@ -90,7 +90,7 @@ export default class ConditionPanel extends Vue {
     'io_util',
     'mem_usage',
     'psc_mem_usage',
-    'display_name'
+    'display_name',
   ];
 
   private get groupList() {
@@ -98,13 +98,13 @@ export default class ConditionPanel extends Vue {
       {
         id: 'selectedGroup',
         name: window.i18n.t('已选条件'),
-        data: this.checkedData
+        data: this.checkedData,
       },
       {
         id: 'unSelectedGroup',
         name: window.i18n.t('可选条件'),
-        data: this.unCheckedData
-      }
+        data: this.unCheckedData,
+      },
     ];
   }
 

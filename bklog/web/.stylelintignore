@@ -1,0 +1,8 @@
+*.min.css
+
+*.js
+*.jpg
+*.woff
+
+static/style.css
+

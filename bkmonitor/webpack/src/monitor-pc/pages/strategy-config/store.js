@@ -1,3 +1,5 @@
+import { xssFilter } from 'monitor-common/utils/xss';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,13 +25,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { RecoveryConfigStatusSetter } from './strategy-config-set-new/judging-condition/judging-condition';
 import { intervalModeNames } from './strategy-config-set-new/notice-config/notice-config';
 
 const dataTypeLabelNames = {
   time_series: window.i18n.t('监控指标'),
   event: window.i18n.t('事件'),
   log: window.i18n.t('日志关键字'),
-  alert: window.i18n.t('关联告警')
+  alert: window.i18n.t('关联告警'),
 };
 
 const signalNames = {
@@ -39,13 +42,13 @@ const signalNames = {
   execute: window.i18n.t('执行前'),
   execute_success: window.i18n.t('执行成功'),
   execute_failed: window.i18n.t('执行失败'),
-  no_data: window.i18n.t('无数据时')
+  no_data: window.i18n.t('无数据时'),
 };
 
 const levelMap = {
   1: window.i18n.t('致命'),
   2: window.i18n.t('预警'),
-  3: window.i18n.t('提醒')
+  3: window.i18n.t('提醒'),
 };
 
 const detectionTypeMap = {
@@ -63,7 +66,7 @@ const detectionTypeMap = {
   ProcPort: window.i18n.t('进程端口'),
   PingUnreachable: window.i18n.t('Ping不可达算法'),
   TimeSeriesForecasting: window.i18n.t('时序预测'),
-  AbnormalCluster: window.i18n.t('离群检测')
+  AbnormalCluster: window.i18n.t('离群检测'),
 };
 
 export const invalidTypeMap = {
@@ -72,12 +75,12 @@ export const invalidTypeMap = {
   invalid_biz: window.i18n.t('策略所属空间不存在'),
   invalid_target: window.i18n.t('监控目标全部失效'),
   invalid_related_strategy: window.i18n.t('关联的策略已失效'),
-  deleted_related_strategy: window.i18n.t('关联的策略已删除')
+  deleted_related_strategy: window.i18n.t('关联的策略已删除'),
 };
 
 const dataModeNames = {
   converge: window.i18n.t('汇聚'),
-  realtime: window.i18n.t('实时')
+  realtime: window.i18n.t('实时'),
 };
 
 export default class TableStore {
@@ -93,9 +96,10 @@ export default class TableStore {
       const nodeType = item.target_node_type;
       const biz = bizList.find(v => v.id === item.bk_biz_id) || { text: '' };
       const noticeGroupList = item.notice.user_groups;
-      const noticeGroupNameList = item.notice.user_group_list.map(item => item?.name);
+      const noticeGroupNameList = item.notice.user_group_list.map(item => ({ name: item?.name, id: item?.id }));
       const intervalNotifyMode = intervalModeNames[item.notice.config.interval_notify_mode] || '';
-      const queryConfig = item.items[0].query_configs[0];
+      const queryConfigs = item.items[0].query_configs;
+      const queryConfig = queryConfigs[0];
       const dataTypeLabelName = dataTypeLabelNames[queryConfig.data_type_label];
       const dataMode =
         dataModeNames[
@@ -149,7 +153,12 @@ export default class TableStore {
         totalInstanceCount: item.total_instance_count,
         target: targetString,
         noticeGroupList: Array.from(new Set(noticeGroupList)), // 告警组id
-        noticeGroupNameList: Array.from(new Set(noticeGroupNameList)), // 告警组名
+        noticeGroupNameList: noticeGroupNameList.reduce((pre, cur) => {
+          if (!pre.find(item => item.id === cur.id)) {
+            pre.push(cur);
+          }
+          return pre;
+        }, []), // 告警组名
         labels: item.labels,
         categoryList: Array.isArray(item.service_category_data) ? item.service_category_data : [],
         updator: item.update_user,
@@ -170,6 +179,7 @@ export default class TableStore {
         shieldInfo: item.shield_info,
         abnormalAlertCount: item.alert_count || 0,
         metricDescriptionList: item.metric_description_list,
+        queryConfigs,
         itemDescription: this.getItemDescription(item.items[0].query_configs),
         intervalNotifyMode,
         dataTypeLabelName,
@@ -178,6 +188,7 @@ export default class TableStore {
         trigger,
         triggerConfig,
         recovery: item.detects[0]?.recovery_config?.check_window || '--',
+        recoveryStatusSetter: item.detects[0]?.recovery_config?.status_setter || RecoveryConfigStatusSetter.RECOVERY,
         needPoll: item.notice.options.converge_config.need_biz_converge,
         noDataEnabled: item.items[0]?.no_data_config?.is_enabled || false,
         signals,
@@ -188,54 +199,34 @@ export default class TableStore {
         configSource: item.config_source,
         app: item.app,
         shieldAlertCount: item.shield_alert_count || 0,
-        editAllowed: !!item?.edit_allowed
+        editAllowed: !!item?.edit_allowed,
       });
       i += 1;
     }
     // this.data = originData
   }
 
-  getTableData() {
-    // let ret = this.data
-    // if (this.keyword.length) {
-    //     const keyword = this.keyword.toLocaleLowerCase()
-    //     ret = ret.filter(item => item.strategyName.toLocaleLowerCase().includes(keyword))
-    // }
-    // this.total = ret.length
-    return this.data.slice(0, this.pageSize);
-  }
-
-  setDefaultStore() {
-    this.keyword = '';
-    this.page = 1;
-    this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
-    this.pageList = [10, 20, 50, 100];
-  }
-  getItemDescription(itemlist) {
-    if (!itemlist) {
+  getItemDescription(items) {
+    if (!items) {
       return {
         tip: {
           content: '--',
-          delay: 200
+          delay: 200,
         },
-        val: '--'
+        val: '--',
       };
     }
     const res = [];
-    itemlist.forEach(item => {
-      const metricField = item.metric_field || '';
-      const metricFieldName = item.metric_field_name || '';
+    for (const item of items) {
+      const metricField = xssFilter(item.metric_field || '');
+      const metricFieldName = xssFilter(item.metric_field_name || '');
       const resultTableId = item.result_table_id || '';
-      const itemName = item.name || '';
+      const itemName = xssFilter(item.name || '');
       const queryString = item.query_string || ''; // 日志关键字才有这字段
       const metricMetaId = `${item.data_source_label}|${item.data_type_label}`;
       let tmp = '';
       let tips = '';
       switch (metricMetaId) {
-        case 'bk_monitor|time_series':
-        default:
-          tmp = `${itemName}(${item.data_label || resultTableId}.${metricField})`;
-          break;
         case 'bk_monitor|event':
         case 'bk_monitor|log':
           tmp = itemName;
@@ -254,7 +245,7 @@ export default class TableStore {
           break;
         case 'bk_log_search|log':
           tmp = `${queryString}(${window.i18n.t('索引集')}:${itemName})`;
-          tips = `<div>${queryString}
+          tips = `<div>${xssFilter(queryString)}
             <span style="color:#c4c6cc;margin-left:12px">(${window.i18n.t('索引集')}:${itemName})</span></div>`;
           break;
         case 'custom|event':
@@ -270,12 +261,31 @@ export default class TableStore {
         case 'prometheus|time_series':
           tmp = item.promql || '';
           break;
+        default:
+          tmp = `${itemName}(${item.data_label || resultTableId}.${metricField})`;
+          break;
       }
       res.push({
         tip: tips || tmp,
-        val: tmp
+        val: tmp,
       });
-    });
+    }
     return res;
+  }
+
+  getTableData() {
+    // let ret = this.data
+    // if (this.keyword.length) {
+    //     const keyword = this.keyword.toLocaleLowerCase()
+    //     ret = ret.filter(item => item.strategyName.toLocaleLowerCase().includes(keyword))
+    // }
+    // this.total = ret.length
+    return this.data.slice(0, this.pageSize);
+  }
+  setDefaultStore() {
+    this.keyword = '';
+    this.page = 1;
+    this.pageSize = +localStorage.getItem('__common_page_size__') || 10;
+    this.pageList = [10, 20, 50, 100];
   }
 }

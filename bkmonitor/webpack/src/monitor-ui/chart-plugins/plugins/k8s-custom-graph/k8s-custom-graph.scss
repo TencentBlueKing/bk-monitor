@@ -1,0 +1,132 @@
+/* stylelint-disable declaration-no-important */
+.k8s-custom-graph {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+
+  .time-series-header {
+    display: flex;
+    flex: 0 0 46px;
+    align-items: center;
+    width: 100%;
+    height: 46px;
+  }
+
+  .time-series-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    height: calc(100% - 46px);
+    padding-bottom: 6px;
+
+    &.right-legend {
+      position: relative;
+      flex-direction: row;
+    }
+
+    .chart-instance {
+      display: flex;
+      flex: 1;
+      flex-grow: 2;
+
+      &.is-table-legend {
+        // min-width: 50%;
+        // max-width: calc(100% - 320px);
+        width: 50%;
+      }
+    }
+
+    .chart-legend {
+      position: relative;
+      max-width: 100%;
+      height: auto;
+      min-height: 32px;
+      max-height: 40%;
+      overflow: auto;
+
+      &.right-legend {
+        width: 50%;
+        height: 100%;
+        max-height: 100%;
+
+        .table-legend {
+          display: grid;
+          grid-template-rows: repeat(auto-fill, 26px); /* 表头自动高度，表体占满剩余空间 */
+          grid-template-columns: minmax(0, 1fr) minmax(80px, auto) minmax(80px, auto); /* 第一列沾满宽度，其他列自适应 */
+          width: 100%;
+          height: 100%;
+          overflow-y: auto;
+
+          &::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+          }
+
+          &::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 20px;
+            box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
+          }
+
+          colgroup {
+            display: none;
+          }
+
+          thead,
+          tbody,
+          tr {
+            display: contents; /* 避免额外的容器影响布局 */
+          }
+
+          th {
+            position: sticky;
+            top: 0;
+            background-color: #f5f6fa;
+
+            &:hover {
+              cursor: pointer;
+              background-color: #f0f1f5;
+            }
+          }
+
+          .k8s-legend-name {
+            overflow: hidden;
+          }
+        }
+      }
+    }
+  }
+
+  .k8s-legend-name {
+    display: flex;
+    align-items: center;
+
+    .metric-name {
+      color: #ccc;
+
+      &.is-show {
+        color: #63656e;
+      }
+
+      &.can-show-detail {
+        text-decoration: underline;
+
+        &:hover {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  .empty-chart {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+}

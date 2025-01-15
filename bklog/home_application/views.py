@@ -21,11 +21,11 @@ the project delivered to anyone in the future.
 """
 
 
-from django.conf import settings
-from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
-from django.utils.translation import ugettext as _
 from blueapps.account.decorators import login_exempt
+from django.conf import settings
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.utils.translation import ugettext as _
 
 # 开发框架中通过中间件默认是需要登录态的，如有不需要登录的，可添加装饰器login_exempt
 # 装饰器引入 from blueapps.account.decorators import login_exempt
@@ -38,7 +38,7 @@ def home(request):
     """
     首页
     """
-    return render(request, settings.VUE_INDEX, get_toggle_data())
+    return render(request, settings.VUE_INDEX, get_toggle_data(request))
 
 
 def bkdata_auth(request):
@@ -93,6 +93,7 @@ def healthz(request):
 @login_exempt
 def metrics(request):
     from django_prometheus import exports
+
     from settings import PROMETHEUS_METRICS_TOKEN
 
     token = request.GET.get("token")

@@ -32,12 +32,12 @@ export default defineComponent({
   props: {
     title: {
       type: String,
-      default: ''
+      default: '',
     },
     desc: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   render() {
     return (
@@ -47,5 +47,5 @@ export default defineComponent({
         <div class='empty-card-img'>{this.$slots.img?.()}</div>
       </div>
     );
-  }
+  },
 });

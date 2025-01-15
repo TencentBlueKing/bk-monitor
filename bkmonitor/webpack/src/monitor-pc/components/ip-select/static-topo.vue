@@ -49,37 +49,37 @@ export default {
   data() {
     return {
       watchKeword: null,
-      defaultExpanded: []
+      defaultExpanded: [],
     };
   },
   watch: {
     treeData: {
       handler(v) {
         this.$refs.tree?.setData(v || []);
-      }
+      },
     },
     checkedData: {
       handler(v, old) {
         const { difference } = this.handlerGetInterOrDiff(v, old);
         this.$refs.tree?.setChecked(v, {
-          checked: true
+          checked: true,
         });
         this.$refs.tree?.setChecked(difference, {
-          checked: old.length === 0
+          checked: old.length === 0,
         });
-      }
+      },
     },
     disabledData: {
       handler(v, old) {
         const { difference } = this.handlerGetInterOrDiff(v, old);
         this.$refs.tree?.setDisabled(v, {
-          disabled: true
+          disabled: true,
         });
         this.$refs.tree?.setDisabled(difference, {
-          disabled: old.length === 0
+          disabled: old.length === 0,
         });
-      }
-    }
+      },
+    },
   },
   created() {
     this.watchKeword = this.$watch('keyword', debounce(300, this.handleFilter));
@@ -95,13 +95,10 @@ export default {
   },
   methods: {
     handleTreeCheck(checkedList, node) {
-      this.$emit(
-        'node-check',
-        'static-topo', {
-          data: node.data,
-          checked: node.state.checked
-        }
-      );
+      this.$emit('node-check', 'static-topo', {
+        data: node.data,
+        checked: node.state.checked,
+      });
     },
     handleFilter(v) {
       this.$emit('update:isSearchNoData', !this.$refs.tree.filter(v).length);
@@ -111,9 +108,7 @@ export default {
     },
     handlerGetInterOrDiff(v, old) {
       const intersection = v.filter(item => old.includes(item));
-      let difference = v
-        .filter(item => !old.includes(item))
-        .concat(old.filter(item => !v.includes(item)));
+      let difference = v.filter(item => !old.includes(item)).concat(old.filter(item => !v.includes(item)));
       difference = difference.filter(set => !~v.indexOf(set));
       return { intersection, difference };
     },
@@ -130,8 +125,8 @@ export default {
         this.defaultExpanded = this.handleGetExpandNodeByDeep(this.defaultExpandNode, this.treeData);
       }
       // this.defaultExpanded.push(this.treeData[0].id)
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

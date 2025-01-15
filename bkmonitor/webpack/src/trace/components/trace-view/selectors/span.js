@@ -62,7 +62,7 @@ export const filterSpansForTimestamps = createSelector(
   ({ spans }) => spans,
   ({ leftBound }) => leftBound,
   ({ rightBound }) => rightBound,
-  // eslint-disable-next-line max-len
+
   (spans, leftBound, rightBound) =>
     spans.filter(span => getSpanTimestamp(span) >= leftBound && getSpanTimestamp(span) <= rightBound)
 );
@@ -73,7 +73,7 @@ export const filterSpansForText = createSelector(
   (spans, text) =>
     fuzzy
       .filter(text, spans, {
-        extract: span => `${getSpanServiceName(span)} ${getSpanName(span)}`
+        extract: span => `${getSpanServiceName(span)} ${getSpanName(span)}`,
       })
       .map(({ original }) => original)
 );
@@ -82,7 +82,7 @@ const getTextFilterdSpansAsMap = createSelector(filterSpansForText, matchingSpan
   matchingSpans.reduce(
     (obj, span) => ({
       ...obj,
-      [getSpanId(span)]: span
+      [getSpanId(span)]: span,
     }),
     {}
   )
@@ -94,6 +94,6 @@ export const highlightSpansForTextFilter = createSelector(
   (spans, textFilteredSpansMap) =>
     spans.map(span => ({
       ...span,
-      muted: !textFilteredSpansMap[getSpanId(span)]
+      muted: !textFilteredSpansMap[getSpanId(span)],
     }))
 );

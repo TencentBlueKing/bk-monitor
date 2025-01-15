@@ -33,11 +33,11 @@ export const setTraceTooltip = ($el: Element, appName = '') => {
       const chartRect = $el.getBoundingClientRect();
       const posRect = {
         x: chartRect.x + +pos[0],
-        y: chartRect.y + +pos[1]
+        y: chartRect.y + +pos[1],
       };
       const position = {
         left: 0,
-        top: 0
+        top: 0,
       };
       const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
       if (canSetBootom > 0) {
@@ -81,6 +81,6 @@ export const setTraceTooltip = ($el: Element, appName = '') => {
             </tbody>
           </table>
         </div>`;
-    }
+    },
   };
 };

@@ -38,7 +38,7 @@ const actions = {
   async frontendShieldCloneInfo(store, params) {
     const obj = await frontendCloneInfo(params).catch(() => ({}));
     return transformDataKey(obj);
-  }
+  },
 };
 
 export default {
@@ -46,5 +46,5 @@ export default {
   state,
   getters,
   mutations,
-  actions
+  actions,
 };

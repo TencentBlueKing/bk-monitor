@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from constants.aiops import MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD, SceneSet
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -140,5 +140,6 @@ GRAPH_STATUS_LIST = "status-list"
 GRAPH_COLUMN_BAR = "column-bar"
 GRAPH_STATUS_LIST = "status-list"
 
-AIOPS_ACCESS_MAX_RETRIES = 5
+AIOPS_ACCESS_MAX_RETRIES = 3
 AIOPS_ACCESS_RETRY_INTERVAL = 5 * 60
+AIOPS_ACCESS_STATUS_POLLING_INTERVAL = 30

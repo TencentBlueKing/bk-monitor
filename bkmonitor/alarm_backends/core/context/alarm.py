@@ -17,7 +17,7 @@ from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict
 
 from bkmonitor.aiops.alert.utils import (
@@ -25,7 +25,7 @@ from bkmonitor.aiops.alert.utils import (
     RecommendMetricManager,
 )
 from bkmonitor.aiops.utils import ReadOnlyAiSetting
-from bkmonitor.documents import AlertLog
+from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.event_related_info import get_alert_relation_info
@@ -228,7 +228,7 @@ class Alarm(BaseContextObject):
         # 拓扑维度特殊处理
         display_dimensions = copy.deepcopy(self.display_dimensions)
 
-        dimension_string_list = []
+        dimension_lists = []
         if self.parent.alert.agg_dimensions:
             # 当存在agg_dimensions的顺序列表是，直接使用
             for dimension_key in self.parent.alert.agg_dimensions:
@@ -236,19 +236,29 @@ class Alarm(BaseContextObject):
                 dimension = display_dimensions.pop(dimension_key, None)
                 if not dimension:
                     continue
-                dimension_string_list.append(
-                    "{}={}".format(dimension.display_key or dimension_key, dimension.display_value or dimension.value)
+                dimension_lists.append(
+                    [dimension.display_key or dimension_key, dimension.display_value or dimension.value]
                 )
-            # 如果维度不在agg dimensions中，直接添加在最后
-            for dimension_key, dimension in display_dimensions.items():
-                dimension_string_list.append(
-                    "{}={}".format(dimension.display_key or dimension_key, dimension.display_value or dimension.value)
-                )
-        else:
-            # 兼容不存在这一属性的值
-            for d in self.display_dimensions.values():
-                dimension_string_list.append("{}={}".format(d.display_key or d.key, d.display_value or d.value))
-        return dimension_string_list
+
+        # 如果维度不在agg dimensions中，直接添加在最后
+        for dimension_key, dimension in display_dimensions.items():
+            dimension_lists.append([dimension.display_key or dimension_key, dimension.display_value or dimension.value])
+
+        # 如果是 markdown 类型的通知方式，维度值是url，需要转换为链接格式
+        if self.parent.notice_way in settings.MD_SUPPORTED_NOTICE_WAYS:
+            for dimension_list in dimension_lists:
+                value: str = str(dimension_list[1]).strip()
+                if value.startswith("http://") or value.startswith("https://"):
+                    dimension_list[1] = f"[{value}]({value})"
+
+        try:
+            dimension_str = [
+                "{}={}".format(*dimension_list) for dimension_list in sorted(dimension_lists, key=lambda x: x[0])
+            ]
+        except Exception:
+            dimension_str = ["{}={}".format(*dimension_list) for dimension_list in dimension_lists]
+
+        return dimension_str
 
     @cached_property
     def chart_image(self):
@@ -295,9 +305,11 @@ class Alarm(BaseContextObject):
         try:
             # 数据维度过滤
             for data_source in unify_query.data_sources:
-                try:
+                # 数据维度的字段可能比单个 datasource 中的维度字段多，所以需要过滤。
+                # promql 的情况下，维度无法分辨，因此只能使用 origin_alarm 中的数据维度
+                if data_source.data_source_label == DataSourceLabel.PROMETHEUS:
                     dimension_fields = alert.extra_info.origin_alarm.data.dimension_fields
-                except AttributeError:
+                else:
                     dimension_fields = data_source.group_by
 
                 for key in self.origin_dimensions:
@@ -365,6 +377,10 @@ class Alarm(BaseContextObject):
     @cached_property
     def begin_time(self):
         return time_tools.utc2localtime(self.parent.alert.begin_time) if self.parent.alert else "--"
+
+    @cached_property
+    def begin_timestamp(self):
+        return self.parent.alert.begin_time if self.parent.alert else 0
 
     @cached_property
     def duration(self):
@@ -533,7 +549,15 @@ class Alarm(BaseContextObject):
         try:
             return get_alert_relation_info(self.parent.alert)
         except Exception as err:
-            logger.exception("Get anomaly content err, msg is {}".format(err))
+            logger.exception("Get alert relation info err, msg is %s", err)
+        return ""
+
+    @cached_property
+    def log_raw_related_info(self):
+        try:
+            return get_alert_relation_info(self.parent.alert, length_limit=False)
+        except Exception as err:
+            logger.exception("Get alert relation info err, msg is %s", err)
         return ""
 
     @cached_property
@@ -865,3 +889,28 @@ class Alarm(BaseContextObject):
     def link_layouts(self):
         # 模块链接，先回退
         return []
+
+    @cached_property
+    def query_url(self):
+        alert: AlertDocument = self.parent.alert
+
+        if not alert.strategy:
+            return None
+
+        item = alert.strategy["items"][0]
+        query_configs = item["query_configs"]
+        if not query_configs:
+            return None
+
+        data_source = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+        if data_source not in [
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+        ]:
+            return None
+
+        url = self.detail_url
+        return f"{url}&type=query"

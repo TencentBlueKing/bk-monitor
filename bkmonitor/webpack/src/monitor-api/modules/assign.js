@@ -9,5 +9,5 @@ export default {
   batchUpdate,
   matchDebug,
   getAssignConditionKeys,
-  searchObjectAttribute
+  searchObjectAttribute,
 };

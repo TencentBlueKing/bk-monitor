@@ -32,7 +32,7 @@ export const colorList = [
   '#f0ad69',
   '#d66f6b',
   '#e0abc9',
-  '#a596eb'
+  '#a596eb',
 ];
 
 export const randomColor = (index: number) => {

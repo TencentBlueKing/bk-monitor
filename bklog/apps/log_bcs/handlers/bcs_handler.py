@@ -18,18 +18,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 from apps.utils.log import logger
-from apps.api import BcsCcApi, BcsApi
+from apps.api import BcsApi
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 
 
 class BcsHandler:
     @classmethod
-    def list_bcs_shared_cluster_namespace(cls, bcs_cluster_id):
-        namespaces = BcsCcApi.list_shared_clusters_ns({"cluster_id": bcs_cluster_id, "desire_all_data": "1"})
+    def list_bcs_shared_cluster_namespace(cls, bcs_cluster_id: str) -> dict:
+        namespaces = BcsApi.list_namespaces({"project_code": "-", "cluster_id": bcs_cluster_id.upper()})
         project_id_to_ns = {}
-        for ns in namespaces.get("results", []):
-            project_id_to_ns.setdefault(ns["project_id"], []).append(ns["name"])
+        for ns in namespaces:
+            project_id_to_ns.setdefault(ns["projectID"], []).append(ns["name"])
         return project_id_to_ns
 
     @classmethod

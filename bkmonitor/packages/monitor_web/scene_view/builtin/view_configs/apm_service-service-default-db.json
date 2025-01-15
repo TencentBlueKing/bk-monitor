@@ -34,9 +34,7 @@
           "data": {
             "app_name": "$app_name",
             "service_name": "$service_name",
-            "category": [
-              "db"
-            ]
+            "category": "db"
           },
           "fields": {
             "id": "bk_instance_id"
@@ -61,13 +59,47 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -111,14 +143,15 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
     {
       "id": 2,
       "title": "错误数",
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
         "y": 0,
@@ -130,14 +163,47 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误数",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -155,31 +221,14 @@
                     }
                   ],
                   "group_by": [
-                    "http_status_code"
                   ],
                   "display": true,
                   "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
                     {
                       "key": "status_code",
                       "method": "eq",
                       "value": [
                         "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
                       ],
                       "condition": "and"
                     }
@@ -195,49 +244,97 @@
                 }
               ]
             }
-          }
+          },
+          "yAxisIndex": 0
         },
         {
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误率",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "unit": "percentunit",
+            "expression": "b / c",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "c"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
-              "type": "range",
-              "stack": "all",
-              "expression": "A",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
                   "data_type_label": "time_series",
-                  "table": "${table_id}",
                   "metrics": [
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "A"
+                      "alias": "b"
                     }
                   ],
-                  "group_by": [
-                    "rpc_grpc_status_code"
-                  ],
-                  "display": true,
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
                   "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
                     {
                       "key": "status_code",
                       "method": "eq",
@@ -245,97 +342,36 @@
                         "2"
                       ],
                       "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
                     }
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
-                    "service_name": "${service_name}",
+                    "service_name": "$service_name",
                     "span_name": "$endpoint_name",
                     "db_system": "$db_system"
                   },
                   "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "OTHER",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
-            "component_instance_id": "$bk_instance_id",
-            "unify_query_param": {
-              "stack": "all",
-              "expression": "A",
-              "query_configs": [
+                },
                 {
                   "data_source_label": "custom",
                   "data_type_label": "time_series",
-                  "table": "${table_id}",
                   "metrics": [
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "A"
+                      "alias": "c"
                     }
                   ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "status_code",
-                      "method": "eq",
-                      "value": [
-                        "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "eq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "eq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [],
                   "interval_unit": "s",
-                  "time_field": "time",
+                  "time_field": null,
                   "filter_dict": {
-                    "service_name": "${service_name}",
+                    "service_name": "$service_name",
                     "span_name": "$endpoint_name",
                     "db_system": "$db_system"
                   },
@@ -343,18 +379,20 @@
                 }
               ]
             }
-          }
+          },
+          "yAxisIndex": 1
         }
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
     {
       "id": 3,
-      "title": "响应耗时",
+      "title": "耗时",
       "gridPos": {
         "x": 16,
         "y": 0,
@@ -367,14 +405,224 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "AVG",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "a / b",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_sum",
+                    "method": "SUM",
+                    "alias": "a"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_total",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "unify_query_param": {
+              "expression": "a / b",
+              "query_configs": [
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_duration_sum",
+                      "method": "SUM",
+                      "alias": "a"
+                    }
+                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [],
+                  "interval_unit": "s",
+                  "time_field": "time",
+                  "filter_dict": {
+                    "service_name": "${service_name}",
+                    "span_name": "$endpoint_name",
+                    "db_system": "$db_system"
+                  },
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_total",
+                      "method": "SUM",
+                      "alias": "b"
+                    }
+                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [],
+                  "interval_unit": "s",
+                  "time_field": null,
+                  "filter_dict": {
+                    "service_name": "${service_name}",
+                    "span_name": "$endpoint_name",
+                    "db_system": "$db_system"
+                  },
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "apm_metric.dynamicUnifyQuery",
+          "datasource": "time_series",
           "alias": "P50",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -385,7 +633,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
@@ -411,6 +659,15 @@
                     "db_system": "$db_system"
                   },
                   "functions": [
+                    {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -434,10 +691,64 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "table": "${table_id}",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.95
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -448,7 +759,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
@@ -475,6 +786,15 @@
                   },
                   "functions": [
                     {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
+                    {
                       "id": "histogram_quantile",
                       "params": [
                         {
@@ -497,10 +817,64 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "B",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "B"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.99
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "B",
               "query_configs": [
@@ -511,7 +885,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "B"
                     }
                   ],
@@ -538,6 +912,15 @@
                   },
                   "functions": [
                     {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
+                    {
                       "id": "histogram_quantile",
                       "params": [
                         {
@@ -551,112 +934,13 @@
               ]
             }
           }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MAX",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
-            "component_instance_id": "$bk_instance_id",
-            "unify_query_param": {
-              "expression": "C",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_max",
-                      "method": "MAX",
-                      "alias": "C"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name",
-                    "db_system": "$db_system"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MIN",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
-            "component_instance_id": "$bk_instance_id",
-            "unify_query_param": {
-              "expression": "C",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_min",
-                      "method": "MIN",
-                      "alias": "C"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name",
-                    "db_system": "$db_system"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
         }
-      ]
+      ],
+      "options": {
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     },
     {
       "id": 4,
@@ -680,11 +964,6 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
-            },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
             },
             "component_instance_id": "$bk_instance_id"
           }
@@ -718,11 +997,6 @@
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
             },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
-            },
             "component_instance_id": "$bk_instance_id"
           },
           "dataType": "table",
@@ -747,7 +1021,7 @@
     },
     {
       "id": 6,
-      "title": "异常",
+      "title": "异常事件",
       "type": "api_message",
       "targets": [
         {
@@ -758,12 +1032,8 @@
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
             },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
-            },
-            "component_instance_id": "$bk_instance_id"
+            "component_instance_id": "$bk_instance_id",
+            "category": "db"
           },
           "dataType": "table",
           "api": "apm_meta.queryExceptionEvent"
@@ -800,13 +1070,47 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "总数量",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -850,14 +1154,15 @@
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
     {
       "id": 2,
       "title": "错误数",
-      "type": "graph",
+      "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
         "y": 0,
@@ -869,14 +1174,47 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误数",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
               "type": "range",
               "stack": "all",
@@ -894,31 +1232,14 @@
                     }
                   ],
                   "group_by": [
-                    "http_status_code"
                   ],
                   "display": true,
                   "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
                     {
                       "key": "status_code",
                       "method": "eq",
                       "value": [
                         "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
                       ],
                       "condition": "and"
                     }
@@ -934,49 +1255,96 @@
                 }
               ]
             }
-          }
+          },
+          "yAxisIndex": 0,
+          "chart_type": "bar"
         },
         {
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": null,
+          "alias": "错误率",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "unit": "percentunit",
+            "expression": "b / c",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [
+                  {
+                    "key": "status_code",
+                    "method": "eq",
+                    "value": [
+                      "2"
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_count",
+                    "method": "SUM",
+                    "alias": "c"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                  "service_name": "$service_name",
+                  "db_system": "$db_system"
+                },
+                "functions": []
+              }
+            ],
             "unify_query_param": {
-              "type": "range",
-              "stack": "all",
-              "expression": "A",
+              "expression": "b / c",
               "query_configs": [
                 {
                   "data_source_label": "custom",
                   "data_type_label": "time_series",
-                  "table": "${table_id}",
                   "metrics": [
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "A"
+                      "alias": "b"
                     }
                   ],
-                  "group_by": [
-                    "rpc_grpc_status_code"
-                  ],
-                  "display": true,
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
                   "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
                     {
                       "key": "status_code",
                       "method": "eq",
@@ -984,116 +1352,56 @@
                         "2"
                       ],
                       "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
                     }
                   ],
                   "interval_unit": "s",
                   "time_field": "time",
                   "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name",
+                    "service_name": "$service_name",
                     "db_system": "$db_system"
                   },
                   "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "OTHER",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
-            "component_instance_id": "$bk_instance_id",
-            "unify_query_param": {
-              "stack": "all",
-              "expression": "A",
-              "query_configs": [
+                },
                 {
                   "data_source_label": "custom",
                   "data_type_label": "time_series",
-                  "table": "${table_id}",
                   "metrics": [
                     {
                       "field": "bk_apm_count",
                       "method": "SUM",
-                      "alias": "A"
+                      "alias": "c"
                     }
                   ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "status_code",
-                      "method": "eq",
-                      "value": [
-                        "2"
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "http_status_code",
-                      "method": "eq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    },
-                    {
-                      "key": "rpc_grpc_status_code",
-                      "method": "eq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [],
                   "interval_unit": "s",
-                  "time_field": "time",
+                  "time_field": null,
                   "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name",
+                    "service_name": "$service_name",
                     "db_system": "$db_system"
                   },
                   "functions": []
                 }
               ]
             }
-          }
+          },
+          "yAxisIndex": 1,
+          "chart_type": "line"
         }
       ],
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
     {
       "id": 3,
-      "title": "响应耗时",
+      "title": "耗时",
       "gridPos": {
         "x": 16,
         "y": 0,
@@ -1106,14 +1414,242 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
+          "alias": "AVG",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "a / b",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_sum",
+                    "method": "SUM",
+                    "alias": "a"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_total",
+                    "method": "SUM",
+                    "alias": "b"
+                  }
+                ],
+                "table": "${table_id}",
+                "data_label": "",
+                "index_set_id": null,
+                "group_by": [],
+                "where": [],
+                "interval_unit": "s",
+                "time_field": null,
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "increase",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "unify_query_param": {
+              "expression": "a / b",
+              "query_configs": [
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_duration_sum",
+                      "method": "SUM",
+                      "alias": "a"
+                    }
+                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [
+                    {
+                      "key": "db_system",
+                      "method": "neq",
+                      "value": [
+                        ""
+                      ],
+                      "condition": "and"
+                    }
+                  ],
+                  "interval_unit": "s",
+                  "time_field": "time",
+                  "filter_dict": {
+                    "service_name": "${service_name}",
+                    "span_name": "$endpoint_name",
+                    "db_system": "$db_system"
+                  },
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "data_source_label": "custom",
+                  "data_type_label": "time_series",
+                  "metrics": [
+                    {
+                      "field": "bk_apm_total",
+                      "method": "SUM",
+                      "alias": "b"
+                    }
+                  ],
+                  "table": "${table_id}",
+                  "data_label": "",
+                  "index_set_id": null,
+                  "group_by": [],
+                  "where": [],
+                  "interval_unit": "s",
+                  "time_field": null,
+                  "filter_dict": {
+                    "service_name": "${service_name}",
+                    "span_name": "$endpoint_name",
+                    "db_system": "$db_system"
+                  },
+                  "functions": [
+                    {
+                      "id": "increase",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "data_type": "time_series",
+          "api": "apm_metric.dynamicUnifyQuery",
+          "datasource": "time_series",
           "alias": "P50",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -1124,7 +1660,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
@@ -1150,6 +1686,15 @@
                     "db_system": "$db_system"
                   },
                   "functions": [
+                    {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
                     {
                       "id": "histogram_quantile",
                       "params": [
@@ -1173,10 +1718,64 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "A",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "table": "${table_id}",
+                "data_type_label": "time_series",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "A"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.95
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "A",
               "query_configs": [
@@ -1187,7 +1786,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "A"
                     }
                   ],
@@ -1214,6 +1813,15 @@
                   },
                   "functions": [
                     {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
+                    {
                       "id": "histogram_quantile",
                       "params": [
                         {
@@ -1236,10 +1844,64 @@
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
             "component_instance_id": "$bk_instance_id",
+            "unit": "ns",
+            "expression": "B",
+            "query_configs": [
+              {
+                "data_source_label": "custom",
+                "data_type_label": "time_series",
+                "table": "${table_id}",
+                "metrics": [
+                  {
+                    "field": "bk_apm_duration_bucket",
+                    "method": "SUM",
+                    "alias": "B"
+                  }
+                ],
+                "group_by": [
+                  "le"
+                ],
+                "display": true,
+                "where": [
+                  {
+                    "key": "db_system",
+                    "method": "neq",
+                    "value": [
+                      ""
+                    ],
+                    "condition": "and"
+                  }
+                ],
+                "interval_unit": "s",
+                "time_field": "time",
+                "filter_dict": {
+                  "service_name": "${service_name}",
+                  "span_name": "$endpoint_name",
+                  "db_system": "$db_system"
+                },
+                "functions": [
+                  {
+                    "id": "rate",
+                    "params": [
+                      {
+                        "id": "window",
+                        "value": "2m"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "histogram_quantile",
+                    "params": [
+                      {
+                        "id": "scalar",
+                        "value": 0.99
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
             "unify_query_param": {
               "expression": "B",
               "query_configs": [
@@ -1250,7 +1912,7 @@
                   "metrics": [
                     {
                       "field": "bk_apm_duration_bucket",
-                      "method": "AVG",
+                      "method": "SUM",
                       "alias": "B"
                     }
                   ],
@@ -1277,6 +1939,15 @@
                   },
                   "functions": [
                     {
+                      "id": "rate",
+                      "params": [
+                        {
+                          "id": "window",
+                          "value": "2m"
+                        }
+                      ]
+                    },
+                    {
                       "id": "histogram_quantile",
                       "params": [
                         {
@@ -1290,112 +1961,13 @@
               ]
             }
           }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MAX",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
-            "component_instance_id": "$bk_instance_id",
-            "unify_query_param": {
-              "expression": "C",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_max",
-                      "method": "MAX",
-                      "alias": "C"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name",
-                    "db_system": "$db_system"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
-        },
-        {
-          "data_type": "time_series",
-          "api": "apm_metric.dynamicUnifyQuery",
-          "datasource": "time_series",
-          "alias": "MIN",
-          "data": {
-            "app_name": "${app_name}",
-            "service_name": "${service_name}",
-            "category": "db",
-            "kind": "component",
-            "predicate_value": "",
-            "component_instance_id": "$bk_instance_id",
-            "unify_query_param": {
-              "expression": "C",
-              "query_configs": [
-                {
-                  "data_source_label": "custom",
-                  "data_type_label": "time_series",
-                  "table": "${table_id}",
-                  "metrics": [
-                    {
-                      "field": "bk_apm_duration_min",
-                      "method": "MIN",
-                      "alias": "C"
-                    }
-                  ],
-                  "group_by": [
-                  ],
-                  "display": true,
-                  "where": [
-                    {
-                      "key": "db_system",
-                      "method": "neq",
-                      "value": [
-                        ""
-                      ],
-                      "condition": "and"
-                    }
-                  ],
-                  "interval_unit": "s",
-                  "time_field": "time",
-                  "filter_dict": {
-                    "service_name": "${service_name}",
-                    "span_name": "$endpoint_name",
-                    "db_system": "$db_system"
-                  },
-                  "functions": []
-                }
-              ]
-            }
-          }
         }
-      ]
+      ],
+      "options": {
+        "time_series": {
+          "hoverAllTooltips": true
+        }
+      }
     },
     {
       "id": 4,
@@ -1419,11 +1991,6 @@
               "resource.service.name": "$service_name",
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
-            },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
             },
             "component_instance_id": "$bk_instance_id"
           }
@@ -1457,11 +2024,6 @@
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
             },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
-            },
             "component_instance_id": "$bk_instance_id"
           },
           "dataType": "table",
@@ -1486,7 +2048,7 @@
     },
     {
       "id": 6,
-      "title": "异常",
+      "title": "异常事件",
       "type": "api_message",
       "targets": [
         {
@@ -1497,12 +2059,8 @@
               "span_name": "$endpoint_name",
               "attributes.db.system": "$db_system"
             },
-            "service_params": {
-              "category": "db",
-              "kind": "component",
-              "predicate_value": ""
-            },
-            "component_instance_id": "$bk_instance_id"
+            "component_instance_id": "$bk_instance_id",
+            "category": "db"
           },
           "dataType": "table",
           "api": "apm_meta.queryExceptionEvent"
@@ -1530,6 +2088,7 @@
       "compare_select": false,
       "columns_toggle": false,
       "interval_select": false,
+      "full_table": true,
       "split_switcher": false
     },
     "selector_panel": {
@@ -1554,11 +2113,7 @@
           },
           "fields": {
             "endpoint_name": "endpoint_name",
-            "app_name": "app_name",
-            "service_name": "service_name",
-            "category": "service_category",
-            "kind": "service_kind",
-            "predicate_value": "service_predicate_value"
+            "app_name": "app_name"
           }
         }
       ]

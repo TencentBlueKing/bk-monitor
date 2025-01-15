@@ -1,0 +1,65 @@
+.group-compare-select___compare-time {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  // .time-tips {
+  //   background: #f0f1f5;
+  //   border-radius: 3px;
+  //   padding: 3px 4px 3px 8px;
+  //   margin-left: 8px;
+  // }
+
+  .custom-title {
+    margin-left: 24px;
+    line-height: 18px;
+  }
+
+  .bk-form-checkbox {
+    margin-left: 24px;
+
+    .bk-checkbox-text {
+      font-size: 12px;
+    }
+
+    &:last-child {
+      margin-right: 0;
+    }
+  }
+
+  .contrast-view-checkbox-group {
+    width: auto;
+  }
+
+  .contrast-custom {
+    display: flex;
+    align-items: center;
+    text-align: left;
+  }
+
+  .contrast-custom-add {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    margin-left: 8px;
+    line-height: 20px;
+    color: #979ba5;
+    text-align: center;
+    cursor: pointer;
+    background: #ffffff;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    &.disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+      background-color: #faf9fd;
+      border-color: #dcdee5;
+    }
+  }
+
+  .custom-date-picker {
+    margin-left: 8px;
+  }
+}

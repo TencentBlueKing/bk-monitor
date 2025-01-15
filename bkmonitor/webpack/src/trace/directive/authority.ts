@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -38,7 +37,7 @@ interface IOptions {
 const DEFAULT_OPTIONS: IOptions = {
   active: true,
   offset: [12, 0],
-  cls: 'cursor-element'
+  cls: 'cursor-element',
 };
 
 function init(el: IElement, options: IOptions) {
@@ -91,5 +90,5 @@ export default {
   },
   unmounted(el: IElement) {
     destroy(el);
-  }
+  },
 };

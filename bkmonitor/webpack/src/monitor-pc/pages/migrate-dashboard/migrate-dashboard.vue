@@ -266,17 +266,23 @@
 </template>
 
 <script lang="ts">
-import { Component, Mixins, Watch } from 'vue-property-decorator';
 import { customTimeSeriesList } from 'monitor-api/modules/custom_report';
 import { listCollectorPlugin } from 'monitor-api/modules/model';
-import { createMappingConfig, deleteMappingConfig, getMappingConfig, importAlertRule, importGrafanaDashboard } from 'monitor-api/modules/promql_import';
+import {
+  createMappingConfig,
+  deleteMappingConfig,
+  getMappingConfig,
+  importAlertRule,
+  importGrafanaDashboard,
+} from 'monitor-api/modules/promql_import';
 import { getCookie, random } from 'monitor-common/utils/utils';
+import { Component, Mixins, Watch } from 'vue-property-decorator';
 
 import BizSelect from '../../components/biz-select/biz-select';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import commonPageSizeMixin from '../../mixins/commonPageSizeMixin';
 import documentLinkMixin from '../../mixins/documentLinkMixin';
-import MonitorVue from '../../types/index';
+import type MonitorVue from '../../types/index';
 
 import * as migrageAuth from './authority-map';
 
@@ -285,8 +291,8 @@ const COMMON_ZINDEX = 2500;
 @Component({
   name: 'migrate-dashboard',
   components: {
-    BizSelect
-  }
+    BizSelect,
+  },
 })
 export default class MigrateDashboard extends Mixins(
   commonPageSizeMixin,
@@ -301,7 +307,7 @@ export default class MigrateDashboard extends Mixins(
   totalData = {
     data: [],
     page: 1,
-    pageSize: this.handleGetCommonPageSize()
+    pageSize: this.handleGetCommonPageSize(),
   };
   tableList = [];
   file: any = null;
@@ -310,7 +316,7 @@ export default class MigrateDashboard extends Mixins(
   uploadHeader = [
     { name: 'X-CSRFToken', value: window.csrf_token || getCookie(window.csrf_cookie_name) },
     { name: 'X-Requested-With', value: 'XMLHttpRequest' },
-    { name: 'Source-App', value: window.source_app }
+    { name: 'Source-App', value: window.source_app },
   ];
   fileResult = {};
   isDialogShow = false;
@@ -324,13 +330,12 @@ export default class MigrateDashboard extends Mixins(
   docUrl = window.migrate_guide_url;
 
   get tableData(): Array<any> {
-    return this.totalData.data.slice(
-      this.totalData.pageSize * (this.totalData.page - 1),
-      this.totalData.pageSize * this.totalData.page
-    ).map(item => ({
-      ...item,
-      checked: false
-    }));
+    return this.totalData.data
+      .slice(this.totalData.pageSize * (this.totalData.page - 1), this.totalData.pageSize * this.totalData.page)
+      .map(item => ({
+        ...item,
+        checked: false,
+      }));
   }
 
   /** 业务id, 本业组件所有接口使用此业务id，非全局的业务id */
@@ -355,15 +360,17 @@ export default class MigrateDashboard extends Mixins(
         search_key: '',
         page: 1,
         page_size: 10,
-        bk_biz_id: this.bizId
+        bk_biz_id: this.bizId,
       };
       this.isLoading = true;
-      const originData = await customTimeSeriesList(params).catch(() => ({ list: [], total: 0 }))
+      const originData = await customTimeSeriesList(params)
+        .catch(() => ({ list: [], total: 0 }))
         .finally(() => {
           this.isLoading = false;
         });
       params.page_size = originData.total;
-      const totalData = await customTimeSeriesList(params).catch(() => ({ list: [], total: 0 }))
+      const totalData = await customTimeSeriesList(params)
+        .catch(() => ({ list: [], total: 0 }))
         .finally(() => {
           this.isLoading = false;
         });
@@ -376,22 +383,22 @@ export default class MigrateDashboard extends Mixins(
         page: -1,
         order: '-update_time',
         status: 'release',
-        bk_biz_id: this.bizId
+        bk_biz_id: this.bizId,
       };
       this.isLoading = true;
-      const data = await listCollectorPlugin(params).catch(() => ({ list: [], total: 0 }))
+      const data = await listCollectorPlugin(params)
+        .catch(() => ({ list: [], total: 0 }))
         .finally(() => {
           this.isLoading = false;
         });
       this.tableList = data.list.map(plugin => ({
         table_id: plugin.plugin_id,
-        name: plugin.plugin_display_name
+        name: plugin.plugin_display_name,
       }));
     }
   }
 
-
-  get isDisabled(): Boolean {
+  get isDisabled(): boolean {
     if (this.file && this.tableIds.length !== 0 && this.configField) {
       return false;
     }
@@ -420,7 +427,7 @@ export default class MigrateDashboard extends Mixins(
 
   async getTableData() {
     this.tableLoading = true;
-    const data = await getMappingConfig({ bk_biz_id: this.bizId }).catch(() => ([]));
+    const data = await getMappingConfig({ bk_biz_id: this.bizId }).catch(() => []);
     this.totalData.data = data;
     this.tableLoading = false;
   }
@@ -431,26 +438,26 @@ export default class MigrateDashboard extends Mixins(
       subTitle: this.$t('自定义上报指标和插件采集指标请勾选映射规则，K8S系统指标可以不勾选。'),
       zIndex: this.commonZIndex,
       extCls: 'custom-info-dialog',
-      confirmFn: async (vm) => {
+      confirmFn: async vm => {
         vm.close();
         this.loading = true;
         const formData = new FormData();
         formData.append('bk_biz_id', `${this.bizId}`);
-        this.fileList.forEach((file) => {
+        this.fileList.forEach(file => {
           formData.append('file_list', file.origin);
         });
         if (this.currentField) formData.append('config_field', this.currentField);
-        const data = await importGrafanaDashboard(formData).catch((e) => {
+        const data = await importGrafanaDashboard(formData).catch(e => {
           this.$bkMessage({
             theme: 'error',
-            message: e
+            message: e,
           });
         });
         if (data) {
           this.fileResult = data;
           for (const file in data) {
             const results = data[file];
-            results.forEach((result) => {
+            results.forEach(result => {
               if (result.json) {
                 this.downloadFile(result.json, file);
               }
@@ -458,7 +465,7 @@ export default class MigrateDashboard extends Mixins(
           }
         }
         this.loading = false;
-      }
+      },
     });
   }
 
@@ -469,26 +476,26 @@ export default class MigrateDashboard extends Mixins(
       zIndex: this.commonZIndex,
       extCls: 'custom-info-dialog',
       width: '500px',
-      confirmFn: async (vm) => {
+      confirmFn: async vm => {
         vm.close();
         this.loading = true;
         const formData = new FormData();
         formData.append('bk_biz_id', `${this.bizId}`);
-        this.fileList.forEach((file) => {
+        this.fileList.forEach(file => {
           formData.append('file_list', file.origin);
         });
         if (this.currentField) formData.append('config_field', this.currentField);
-        const data = await importAlertRule(formData).catch((e) => {
+        const data = await importAlertRule(formData).catch(e => {
           this.$bkMessage({
             theme: 'error',
-            message: e
+            message: e,
           });
         });
         if (data) {
           this.fileResult = data;
           for (const file in data) {
             const results = data[file];
-            results.forEach((result) => {
+            results.forEach(result => {
               if (result.json) {
                 this.downloadFile(result.json, file);
               }
@@ -499,11 +506,11 @@ export default class MigrateDashboard extends Mixins(
           }
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('迁移策略完成')
+            message: this.$t('迁移策略完成'),
           });
         }
         this.loading = false;
-      }
+      },
     });
   }
 
@@ -529,7 +536,7 @@ export default class MigrateDashboard extends Mixins(
   handleRadioChange(row) {
     const { checked } = row;
     this.currentField = checked ? '' : row.config_field;
-    this.tableData.forEach((item) => {
+    this.tableData.forEach(item => {
       if (checked) {
         item.checked = false;
       } else {
@@ -550,7 +557,6 @@ export default class MigrateDashboard extends Mixins(
     this.uploadKey = random(8);
     this.handleDeleteFile();
   }
-
 
   clearTableIds() {
     this.tableIds = [];
@@ -580,7 +586,8 @@ export default class MigrateDashboard extends Mixins(
     if (this.file) {
       formData.append('file_data', this.file.origin);
     }
-    await createMappingConfig(formData).catch(e => (console.log(e)))
+    await createMappingConfig(formData)
+      .catch(e => console.log(e))
       .then(() => {
         this.getTableData();
         this.clearData();
@@ -602,16 +609,17 @@ export default class MigrateDashboard extends Mixins(
     this.loading = true;
     const params = {
       bk_biz_id: this.bizId,
-      config_field: row.config_field
+      config_field: row.config_field,
     };
-    deleteMappingConfig(params).catch(() => ([]))
+    deleteMappingConfig(params)
+      .catch(() => [])
       .then(() => {
         /** 删除成功，更新表格数据 */
         this.getTableData();
       })
-      .finally(() => this.loading = false);
+      .finally(() => (this.loading = false));
   }
-};
+}
 </script>
 <style lang="scss">
 .custom-info-dialog .bk-info-box .bk-dialog-sub-header .bk-dialog-header-inner {

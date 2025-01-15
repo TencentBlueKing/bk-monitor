@@ -26,21 +26,21 @@
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IDragStatus, processColor } from '../uptime-check-data';
+import { type IDragStatus, processColor } from '../uptime-check-data';
 
 import './group-card.scss';
 
 const logoIconStyle = (logo: string) => ({
   'background-image': logo ? `url(${logo})` : 'none',
   'background-color': logo ? '' : '#B6CAEC',
-  'border-radius': logo ? '0' : '100%'
+  'border-radius': logo ? '0' : '100%',
 });
 
-export type IOptionType = 'edit' | 'delete';
+export type IOptionType = 'delete' | 'edit';
 
 const options: { id: IOptionType; name: string }[] = [
   { id: 'edit', name: window.i18n.tc('编辑') },
-  { id: 'delete', name: window.i18n.tc('解散任务组') }
+  { id: 'delete', name: window.i18n.tc('解散任务组') },
 ];
 
 export interface ITaskItem {
@@ -72,7 +72,7 @@ interface IGroupCardEvents {
   onCardClick?: number;
 }
 @Component({
-  name: 'GroupCard'
+  name: 'GroupCard',
 })
 export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
   @Inject('authority') authority;
@@ -89,9 +89,9 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
       logo: '',
       name: '',
       protocol_num: [{ name: '', val: 0 }],
-      top_three_tasks: [{ available: 0, name: '', status: '', task_id: '' }]
+      top_three_tasks: [{ available: 0, name: '', status: '', task_id: '' }],
     }),
-    type: Object
+    type: Object,
   })
   data: IData;
   // 拖拽状态
@@ -112,7 +112,7 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
       theme: 'light task-card',
       maxWidth: 520,
       duration: [200, 0],
-      appendTo: () => this.$el
+      appendTo: () => this.$el,
     });
     this.popoverInstance?.show(100);
   }
@@ -140,7 +140,7 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
     if (this.dragStatus.dragging && this.dragStatus.taskId) {
       this.handleDropItem({
         taskId: this.dragStatus.taskId,
-        groupId: this.data.id
+        groupId: this.data.id,
       });
     }
   }
@@ -161,21 +161,21 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
     return (
       <div
         class={['uptime-check-group-card', { active: this.dragStatus.dragging && this.hover }]}
-        onMouseleave={this.handleMouseleave}
-        onDragover={(e: Event) => this.handleDragOver(e)}
+        onClick={this.handleGroupClick}
         onDragenter={() => {
           this.hover = true;
         }}
         onDragleave={() => {
           this.hover = false;
         }}
+        onDragover={(e: Event) => this.handleDragOver(e)}
         onDrop={this.handleDrop}
-        onClick={this.handleGroupClick}
+        onMouseleave={this.handleMouseleave}
       >
         <div class='card-desc'>
           <span
-            class='desc-icon'
             style={logoIconStyle(this.data.logo)}
+            class='desc-icon'
           >
             {!this.data.logo ? this.data.name.slice(0, 1).toLocaleUpperCase() : ''}
           </span>
@@ -189,7 +189,10 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
             </div>
             <div class='desc-right-label'>
               {this.data.protocol_num.map(item => (
-                <span class='right-label'>{`${item.name}(${item.val})`}</span>
+                <span
+                  key={item.name}
+                  class='right-label'
+                >{`${item.name}(${item.val})`}</span>
               ))}
               {!this.data.protocol_num?.length ? <span>{this.$t('空任务组')}</span> : undefined}
             </div>
@@ -206,13 +209,16 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
               }
             }}
           >
-            <i class='icon-monitor icon-mc-more'></i>
+            <i class='icon-monitor icon-mc-more' />
           </span>
         </div>
         {this.data.top_three_tasks?.length ? (
           <div class='card-list'>
             {this.data.top_three_tasks.map(item => (
-              <div class='card-list-progress'>
+              <div
+                key={item.name}
+                class='card-list-progress'
+              >
                 <div class='progress-desc'>
                   <span
                     class='desc-name'
@@ -224,10 +230,11 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
                 </div>
                 <bk-progress
                   class='progress-item'
+                  color={processColor(item.available)}
                   percent={+(item.available * 0.01).toFixed(2) || 0}
                   showText={false}
-                  color={processColor(item.available)}
-                ></bk-progress>
+                  size='small'
+                />
               </div>
             ))}
           </div>
@@ -239,11 +246,12 @@ export default class GroupCard extends tsc<IGroupCardProps, IGroupCardEvents> {
         )}
         <div style={{ display: 'none' }}>
           <div
-            class='popover-desc'
             ref='popoverContent'
+            class='popover-desc'
           >
             {options.map(item => (
               <div
+                key={item.name}
                 class='popover-desc-btn'
                 onClick={(e: Event) => this.handleOptionsClick(e, item)}
               >

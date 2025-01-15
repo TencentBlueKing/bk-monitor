@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IOption } from '../../typings';
+import type { IOption } from '../../typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './filter-var-select-simple.scss';
 
@@ -74,15 +74,16 @@ export default class FilterVarSelectSimple extends tsc<IProps, IEvents> {
         {this.label && <span class='filter-var-label'>{this.label}</span>}
         <bk-select
           class='bk-select-simplicity filter-var-select'
+          v-model={this.localValue}
           behavior='simplicity'
           clearable={false}
           multiple={this.multiple}
-          v-model={this.localValue}
           onSelected={this.handleSelectChange}
         >
           {this.options.map(item => (
             <bk-option
               id={item.id}
+              key={item.id}
               name={item.name}
             />
           ))}

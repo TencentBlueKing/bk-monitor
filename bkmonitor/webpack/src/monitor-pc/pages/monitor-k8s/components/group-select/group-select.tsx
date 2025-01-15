@@ -25,11 +25,15 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import CustomSelect from '../../../../components/custom-select/custom-select';
-import { IOption } from '../../typings';
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IOption } from '../../typings';
+import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './group-select.scss';
 
@@ -58,6 +62,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
   @Prop({ type: Array }) value: string[];
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   /** 选中的groups */
   localValue: string[] = [];
 
@@ -75,13 +80,15 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
             scene_id: this.scencId,
             type: this.sceneType,
             id: this.pageId,
-            bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId
+            bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
+            start_time: '$start_time',
+            end_time: '$end_time',
           },
           field: {
-            id: VALUE_KEY
-          }
-        }
-      ]
+            id: VALUE_KEY,
+          },
+        },
+      ],
     };
   }
 
@@ -103,8 +110,11 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
   handleGetOptionsData() {
     const target = this.currentPanel?.targets[0];
     const api = target?.api;
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     const variablesService = new VariablesService({
-      ...this.viewOptions.filters
+      ...this.viewOptions.filters,
+      start_time: startTime,
+      end_time: endTime,
     });
     const params: Record<string, any> = variablesService.transformVariables(target.data);
     this.handleGetApi(api)?.(params).then(data => {
@@ -137,31 +147,33 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
         <span class='group-select-main'>
           {this.localValue.map((item, index) => (
             <span
+              key={index}
               class='group-item'
               v-bk-tooltips={{
                 content: item,
                 zIndex: 9999,
                 boundary: document.body,
-                allowHTML: false
+                allowHTML: false,
               }}
             >
               {this.handleDisplayName(item)}
               <i
                 class='icon-monitor icon-mc-close'
                 onClick={() => this.handleDeleteItem(index)}
-              ></i>
+              />
             </span>
           ))}
           <CustomSelect
             class='group-add-btn'
+            options={this.options}
             value={this.localValue}
             multiple
-            options={this.options}
             onSelected={this.handleAddGroups}
           >
             {this.options.map(opt => (
               <bk-option
                 id={opt.id}
+                key={opt.id}
                 name={opt.name}
               >
                 <span
@@ -170,7 +182,7 @@ export default class GroupSelect extends tsc<IProps, IEvents> {
                     placement: 'right',
                     zIndex: 9999,
                     boundary: document.body,
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   {opt.name}

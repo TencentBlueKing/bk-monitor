@@ -24,22 +24,35 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, onMounted, PropType, reactive, Ref, ref, watch } from 'vue';
+import {
+  type PropType,
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onMounted,
+  shallowReadonly,
+  ref,
+  toRef,
+  unref,
+  watch,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Switcher } from 'bkui-vue';
 import { Plus } from 'bkui-vue/lib/icon';
 import { listApplicationServices, queryLabels } from 'monitor-api/modules/apm_profile';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import {
-  ApplicationList,
+  type ApplicationList,
   ConditionType,
-  IConditionItem,
-  RetrievalFormData,
+  type IConditionItem,
+  type RetrievalFormData,
+  type SearchState,
   SearchType,
-  ToolsFormData
+  type ToolsFormData,
 } from '../typings';
-
 import ApplicationCascade from './application-cascade';
 import ConditionItem from './condition-item';
 
@@ -50,8 +63,8 @@ export default defineComponent({
   props: {
     formData: {
       type: Object as PropType<RetrievalFormData>,
-      default: () => null
-    }
+      default: () => null,
+    },
   },
   emits: ['change', 'typeChange', 'appServiceChange', 'showDetail'],
   setup(props, { emit }) {
@@ -61,43 +74,26 @@ export default defineComponent({
     const retrievalType = [
       {
         label: t('持续 Profiling'),
-        value: SearchType.Profiling
+        value: SearchType.Profiling,
       },
       {
         label: t('上传 Profiling'),
-        value: SearchType.Upload
-      }
+        value: SearchType.Upload,
+      },
     ];
     /** 应用/服务可选列表 */
     const applicationList = ref<ApplicationList>({
       normal: [],
-      no_data: []
+      no_data: [],
     });
-    const localFormData = reactive<RetrievalFormData>({
-      type: SearchType.Profiling,
-      server: {
-        app_name: '',
-        service_name: ''
-      },
-      isComparison: false,
-      where: [],
-      comparisonWhere: []
-    });
+    const applicationListLoading = ref(false);
+    const localFormData = shallowReadonly(unref(toRef(props, 'formData')));
 
-    watch(
-      () => props.formData,
-      newVal => {
-        newVal && Object.assign(localFormData, newVal);
-      },
-      {
-        immediate: true
-      }
-    );
     watch(
       () => toolsFormData.value.timeRange,
       () => {
-        getLabelList();
         getApplicationList();
+        getLabelList();
       }
     );
 
@@ -107,9 +103,8 @@ export default defineComponent({
      */
     function handleTypeChange(type: SearchType) {
       if (localFormData.type === type) return;
-      localFormData.type = type;
-      getLabelList();
       emit('typeChange', type);
+      getLabelList();
     }
 
     /**
@@ -120,10 +115,8 @@ export default defineComponent({
       if (!val.length) return;
       const [appName, serviceName] = val;
       if (localFormData.server.app_name === appName && localFormData.server.service_name === serviceName) return;
-      localFormData.server.app_name = appName;
-      localFormData.server.service_name = serviceName;
-      getLabelList();
       emit('appServiceChange', appName, serviceName);
+      getLabelList();
     }
 
     /** 查看详情 */
@@ -137,8 +130,22 @@ export default defineComponent({
      * @param val 开关状态
      */
     function handleComparisonChange(val: boolean) {
-      localFormData.isComparison = val;
-      handleEmitChange(true);
+      const updateItem: Partial<SearchState['formData']> = {};
+      updateItem.isComparison = val;
+      if (!val) {
+        updateItem.dateComparisonEnable = false;
+      }
+      handleEmitChange(updateItem, true);
+    }
+
+    /**
+     * 时间对比开关
+     * @param val 开关状态
+     */
+    function handleDataComparisonChange(val: boolean) {
+      const updateItem: Partial<SearchState['formData']> = {};
+      updateItem.dateComparisonEnable = val;
+      handleEmitChange(updateItem, false);
     }
 
     const labelList = ref<string[]>([]);
@@ -147,20 +154,19 @@ export default defineComponent({
      * @param type 条件类型
      */
     function addCondition(type: ConditionType) {
-      if (type === ConditionType.Where) {
-        localFormData.where.push({
-          key: '',
-          method: 'eq',
-          value: ''
-        });
-      } else {
-        localFormData.comparisonWhere.push({
-          key: '',
-          method: 'eq',
-          value: ''
-        });
-      }
-      handleEmitChange(false);
+      const conditionKey: 'comparisonWhere' | 'where' = type === ConditionType.Where ? 'where' : 'comparisonWhere';
+      const updateItem: Partial<SearchState['formData']> = {
+        [conditionKey]: [
+          ...(localFormData?.[conditionKey] || []),
+          {
+            key: '',
+            method: 'eq',
+            value: '',
+          },
+        ],
+      };
+
+      handleEmitChange(updateItem, false);
     }
 
     /**
@@ -169,13 +175,15 @@ export default defineComponent({
      * @param type 条件类型
      */
     function deleteCondition(index: number, type: ConditionType) {
-      let deleteItem: IConditionItem[];
-      if (type === ConditionType.Where) {
-        deleteItem = localFormData.where.splice(index, 1);
-      } else {
-        deleteItem = localFormData.comparisonWhere.splice(index, 1);
-      }
-      handleEmitChange(deleteItem[0].value !== '');
+      const conditionKey: 'comparisonWhere' | 'where' = type === ConditionType.Where ? 'where' : 'comparisonWhere';
+      const conditionItem: IConditionItem[] = [...(localFormData?.[conditionKey] || [])];
+      const deleteItem = conditionItem.splice(index, 1);
+      handleEmitChange(
+        {
+          [conditionKey]: [...(conditionItem || [])],
+        },
+        deleteItem[0].value !== ''
+      );
     }
 
     /**
@@ -185,16 +193,16 @@ export default defineComponent({
      * @param type 条件类型
      */
     function handleConditionChange(val: IConditionItem, index: number, type: ConditionType) {
-      let oldVal: IConditionItem;
-      if (type === ConditionType.Where) {
-        oldVal = localFormData.where[index];
-        localFormData.where[index] = val;
-      } else {
-        oldVal = localFormData.comparisonWhere[index];
-        localFormData.comparisonWhere[index] = val;
-      }
+      const conditionKey: 'comparisonWhere' | 'where' = type === ConditionType.Where ? 'where' : 'comparisonWhere';
+      const oldVal: IConditionItem = localFormData[conditionKey][index];
+      localFormData[conditionKey][index] = val;
       // 如果旧数据有值或者新数据有值，需要根据新条件查询
-      handleEmitChange(Boolean(oldVal.value || val.value));
+      handleEmitChange(
+        {
+          [conditionKey]: [...localFormData[conditionKey]],
+        },
+        Boolean(oldVal.value || val.value)
+      );
     }
 
     onMounted(() => {
@@ -204,14 +212,16 @@ export default defineComponent({
 
     /** 获取应用/服务列表 */
     async function getApplicationList() {
+      applicationListLoading.value = true;
       const [start, end] = handleTransformToTimestamp(toolsFormData.value.timeRange);
       applicationList.value = await listApplicationServices({
         start_time: start,
-        end_time: end
+        end_time: end,
       }).catch(() => ({
         normal: [],
-        no_data: []
+        no_data: [],
       }));
+      applicationListLoading.value = false;
     }
 
     /** 查询项公共参数 */
@@ -224,32 +234,46 @@ export default defineComponent({
       return {
         ...params,
         start: start * 1000 * 1000,
-        end: end * 1000 * 1000
+        end: end * 1000 * 1000,
       };
     });
 
     /** 获取过滤项列表 */
     async function getLabelList() {
-      localFormData.where = localFormData.where.filter(item => !item.key);
-      localFormData.comparisonWhere = localFormData.comparisonWhere.filter(item => !item.key);
       labelList.value = [];
-      if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) return;
-      const labels = await queryLabels({
-        ...labelCommonParams.value
-      }).catch(() => ({ label_keys: [] }));
+      const updateItem: Partial<SearchState['formData']> = {
+        where: [],
+        comparisonWhere: [],
+      };
+
+      if (localFormData.type === SearchType.Profiling && !localFormData.server.app_name) {
+        handleEmitChange(updateItem, true);
+        return;
+      }
+      const labels = await queryLabels(
+        {
+          ...labelCommonParams.value,
+        },
+        { needMessage: false }
+      ).catch(() => ({ label_keys: [] }));
+      // 获取label列表后，移除不在列表中的选项
+      updateItem.where = localFormData.where.filter(item => labels.label_keys.includes(item.key));
+      updateItem.comparisonWhere = localFormData.comparisonWhere.filter(item => labels.label_keys.includes(item.key));
+      handleEmitChange(updateItem, true);
       labelList.value = labels.label_keys;
     }
 
     /**
      * @param hasQuery 是否查询
      */
-    function handleEmitChange(hasQuery: boolean) {
-      emit('change', localFormData, hasQuery);
+    function handleEmitChange(updateItem: Partial<SearchState['formData']>, hasQuery: boolean) {
+      emit('change', updateItem, hasQuery);
     }
 
     return {
       t,
       applicationList,
+      applicationListLoading,
       localFormData,
       retrievalType,
       labelList,
@@ -258,9 +282,10 @@ export default defineComponent({
       handleApplicationChange,
       handleDetailClick,
       handleComparisonChange,
+      handleDataComparisonChange,
       addCondition,
       deleteCondition,
-      handleConditionChange
+      handleConditionChange,
     };
   },
   render() {
@@ -271,6 +296,7 @@ export default defineComponent({
           <Button.ButtonGroup class='type-button-group'>
             {this.retrievalType.map(item => (
               <Button
+                key={item.value}
                 class='button-item'
                 selected={item.value === this.localFormData.type}
                 onClick={() => this.handleTypeChange(item.value)}
@@ -282,39 +308,62 @@ export default defineComponent({
 
           <div class='form-wrap'>
             {this.localFormData.type === SearchType.Profiling && [
-              <div class='service form-item'>
+              <div
+                key='service'
+                class='service form-item'
+              >
                 <div class='label'>{this.t('应用/服务')}</div>
                 <div class='content'>
                   <ApplicationCascade
                     list={this.applicationList}
+                    loading={this.applicationListLoading}
                     value={[this.localFormData.server.app_name, this.localFormData.server.service_name]}
                     onChange={this.handleApplicationChange}
-                  ></ApplicationCascade>
+                  />
                   <div
                     class='detail-btn'
                     onClick={this.handleDetailClick}
                   >
-                    <i class='icon-monitor icon-mc-detail'></i>
+                    <i class='icon-monitor icon-mc-detail' />
                   </div>
                 </div>
               </div>,
-              <div class='comparison form-item'>
-                <div class='label'>{this.t('对比模式')}</div>
-                <div class='content'>
-                  <Switcher
-                    modelValue={this.localFormData.isComparison}
-                    theme='primary'
-                    size='small'
-                    onChange={this.handleComparisonChange}
-                  />
+              <div
+                key='comparison'
+                class='comparison form-item'
+              >
+                <div class='comparison-item'>
+                  <div class='label'>{this.t('对比模式')}</div>
+                  <div class='content'>
+                    <Switcher
+                      modelValue={this.localFormData.isComparison}
+                      size='small'
+                      theme='primary'
+                      onChange={this.handleComparisonChange}
+                    />
+                  </div>
                 </div>
-              </div>
+                {this.localFormData.isComparison && (
+                  <div class='comparison-item'>
+                    <div class='label'>{this.t('时间对比')}</div>
+                    <div class='content'>
+                      <Switcher
+                        modelValue={this.localFormData.dateComparisonEnable}
+                        size='small'
+                        theme='primary'
+                        onChange={this.handleDataComparisonChange}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>,
             ]}
 
             <div class='search-panel'>
               <div class='search-title'>{this.t('查询项')}</div>
               {this.localFormData.where.map((item, index) => (
                 <ConditionItem
+                  key={item.key}
                   class='condition-item'
                   data={item}
                   labelList={this.labelList}
@@ -336,6 +385,7 @@ export default defineComponent({
                 <div class='search-title'>{this.t('对比项')}</div>
                 {this.localFormData.comparisonWhere.map((item, index) => (
                   <ConditionItem
+                    key={item.key}
                     class='condition-item'
                     data={item}
                     labelList={this.labelList}
@@ -359,5 +409,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

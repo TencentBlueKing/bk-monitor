@@ -1,0 +1,12 @@
+.k8s-left-panel {
+  height: 100%;
+
+  .k8s-left-panel-content {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    user-select: none;
+    border-radius: 2px 0 0 0;
+    box-shadow: 1px 0 0 0 #dcdee5;
+  }
+}

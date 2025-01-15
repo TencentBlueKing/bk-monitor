@@ -1,3 +1,29 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
 export default {
   新增: 'Add',
   添加: 'Add',
@@ -23,7 +49,7 @@ export default {
   分享: 'Share',
   启用: 'Enable',
   表格: 'Table',
-  取消: 'CANCEL',
+  取消: 'Cancel',
   创建: 'Create',
   删除: 'Delete',
   详情: 'Detail',
@@ -163,5 +189,26 @@ export default {
   确认收藏: 'Confirm',
   取消收藏: 'Cancel',
   查看配置: 'View Configuration',
-  测试发送: 'Test Send'
+  测试发送: 'Test Send',
+  分隔符: 'Separator',
+  字段配置: 'Field Config',
+  查询语法: 'Query Syntax',
+  接入日志聚类: 'Access Log Cluster',
+  按annotation选择: 'According To Annotation',
+  单独授权: 'Separate authorization',
+  批量授权: 'Batch authorization',
+  新增告警组: 'Add New Alarm Group',
+  字段配置模板: 'Field Configuration Template',
+  管理配置: 'Management Configuration',
+  模板: 'Template',
+  补齐: 'Make up for',
+  新建模板: 'Create template',
+  索引集配置: 'Index set configuration',
+  中止: 'Abort',
+  同步查询条件到SQL: 'Sync Query Condition To SQL',
+  格式化: 'Format',
+  取消全屏: 'Exit Full Screen',
+  展示字段名: 'Show Field Name',
+  展示别名: 'Show Alias Name',
+  定位到当前行: 'Locate the current row',
 };

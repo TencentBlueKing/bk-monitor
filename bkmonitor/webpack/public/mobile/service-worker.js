@@ -1,5 +1,3 @@
-/* eslint-disable max-len */
-/* eslint-disable prefer-template */
 const cacheVersion = '__cache_version___';
 const cacheJsName = 'monitor-cache-js-' + cacheVersion;
 const cacheCssName = 'monitor-cache-css-' + cacheVersion;
@@ -12,35 +10,41 @@ const staticUrl = '${STATIC_URL}';
 //     '/rest/',
 //     '/api/'
 // ]
-const setCache = (cacheName, request) => caches.open(cacheName).then(cache => cache
-  .match(request)
-  .then(res => res
-          || fetch(request).then((res) => {
+const setCache = (cacheName, request) =>
+  caches.open(cacheName).then(cache =>
+    cache
+      .match(request)
+      .then(
+        res =>
+          res ||
+          fetch(request).then(res => {
             cache.put(request.url, res.clone());
             return res;
-          }))
-  .catch((err) => {
-    console.error(err);
-    return fetch(request)
-      .then((res) => {
-        cache.put(request.url, res.clone());
-        return res;
-      })
-      .catch((err) => {
-        throw err;
-      });
-  }));
+          }),
+      )
+      .catch(err => {
+        console.error(err);
+        return fetch(request)
+          .then(res => {
+            cache.put(request.url, res.clone());
+            return res;
+          })
+          .catch(err => {
+            throw err;
+          });
+      }),
+  );
 if (self.importScripts) {
   self.importScripts(staticUrl + 'asset-manifest.js');
   if (self.assetData) {
     self.assetData = self.assetData.map(url => url.replace('__STATIC_URL__', staticUrl));
   }
 }
-self.addEventListener('error', (e) => {
+self.addEventListener('error', e => {
   console.log(e);
 });
 
-self.addEventListener('install', (e) => {
+self.addEventListener('install', e => {
   const promiseList = [];
   const cacheJsUtil = caches
     .open(cacheJsName)
@@ -58,22 +62,25 @@ self.addEventListener('install', (e) => {
     .open(cacheImgName)
     .then(cache => cache.addAll(self.assetData.filter(url => url.match(/\.(png|jpe?g|gif|svg)$/))));
   promiseList.push(cacheImgUtil);
-  caches.keys().then((keys) => {
-    keys.forEach((key) => {
+  caches.keys().then(keys => {
+    keys.forEach(key => {
       if (!cacheList.includes(key) && key !== cacheApiName) {
         promiseList.push(caches.delete(key));
       }
     });
   });
-  e.waitUntil(Promise.all(promiseList).then(() => {
-    self.skipWaiting();
-  }));
+  e.waitUntil(
+    Promise.all(promiseList).then(() => {
+      self.skipWaiting();
+    }),
+  );
 });
 
-self.addEventListener('fetch', (e) => {
+self.addEventListener('fetch', e => {
   const requestUrl = e.request.url;
-  const needCache =    requestUrl.match(/\.(css|js|ttf|woff|eot|png|jpe?g|gif|svg)$/)
-    && self.assetData.some(url => requestUrl.includes(url));
+  const needCache =
+    requestUrl.match(/\.(css|js|ttf|woff|eot|png|jpe?g|gif|svg)$/) &&
+    self.assetData.some(url => requestUrl.includes(url));
   if (needCache) {
     if (requestUrl.match(/\.css$/)) {
       e.respondWith(setCache(cacheCssName, e.request));
@@ -97,19 +104,21 @@ self.addEventListener('fetch', (e) => {
   // }
 });
 
-self.addEventListener('activate', (e) => {
-  const cacheUtil = caches.keys().then((keys) => {
+self.addEventListener('activate', e => {
+  const cacheUtil = caches.keys().then(keys => {
     const promiseList = [];
-    keys.forEach((key) => {
+    keys.forEach(key => {
       if (!cacheList.includes(key) && key !== cacheApiName) {
         promiseList.push(caches.delete(key));
       }
     });
     return Promise.all(promiseList);
   });
-  e.waitUntil(cacheUtil.then(() => {
-    self.clients.claim();
-  }));
+  e.waitUntil(
+    cacheUtil.then(() => {
+      self.clients.claim();
+    }),
+  );
 });
 
 self.addEventListener('redundant', () => {

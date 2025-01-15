@@ -30,6 +30,10 @@
       margin-right: 6px;
     }
 
+    .mt-16 {
+      margin-top: 16px;
+    }
+
     &.pd0 {
       padding: 0;
     }
@@ -42,7 +46,7 @@
       }
 
       .tool-search {
-        width: 360px;
+        max-width: 360px;
         background: #fff;
       }
     }

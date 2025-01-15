@@ -27,8 +27,8 @@
   <div class="loading-done">
     <div class="loading-done-body">
       <div
-        class="loading-container"
         v-if="config.isLoading"
+        class="loading-container"
       >
         <svg
           class="loading-done-svg loading-svg"
@@ -58,19 +58,21 @@
             {{ config.loadingTitle }}
           </h4>
           <p
-            class="message-text"
             v-if="config.loadingText"
-          >{{ config.loadingText }}</p>
+            class="message-text"
+          >
+            {{ config.loadingText }}
+          </p>
         </div>
       </div>
       <div
-        class="result-container"
         v-else
+        class="result-container"
       >
         <svg
+          v-if="config.status"
           class="loading-done-svg success-svg"
           viewBox="0 0 64 64"
-          v-if="config.status"
         >
           <path
             d="M32,4c15.5,0,28,12.5,28,28S47.5,60,32,60S4,47.5,4,32S16.5,4,32,4z M32,8C18.7,8,8,18.7,8,32c0,13.3,10.7,24,23.9,24.1c6.4,0,12.5-2.5,17.1-7.1c9.4-9.4,9.4-24.6,0.1-33.9c0,0,0,0-0.1-0.1C44.5,10.5,38.4,8,32,8z"
@@ -78,9 +80,9 @@
           <polygon points="44,22 47,25 28,44 17,33 20,30 28,38" />
         </svg>
         <svg
+          v-else
           class="loading-done-svg fail-svg"
           viewBox="0 0 64 64"
-          v-else
         >
           <g>
             <path
@@ -96,28 +98,30 @@
             {{ config.statusTitle }}
           </h4>
           <p
-            class="message-text"
             v-if="config.statusText"
-          >{{ config.statusText }}</p>
+            class="message-text"
+          >
+            {{ config.statusText }}
+          </p>
         </div>
       </div>
     </div>
     <div
-      class="loading-done-footer"
       v-if="!config.isLoading"
+      class="loading-done-footer"
     >
       <bk-button
-        class="button-cancel"
         v-if="config.isShowCancel"
+        class="button-cancel"
         @click="handleCancel"
-      >{{
-        config.cancelText
-      }}</bk-button>
+        >{{ config.cancelText }}</bk-button
+      >
       <bk-button
-        theme="primary"
         v-if="config.isShowConfirm"
+        theme="primary"
         @click="handleConfirm"
-      >{{ config.confirmText }}</bk-button>
+        >{{ config.confirmText }}</bk-button
+      >
     </div>
   </div>
 </template>
@@ -128,8 +132,8 @@ export default {
   props: {
     options: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -143,8 +147,8 @@ export default {
         isShowCancel: true,
         isShowConfirm: true,
         cancelText: this.$t('取消'),
-        confirmText: this.$t('确定')
-      }
+        confirmText: this.$t('确定'),
+      },
     };
   },
   watch: {
@@ -153,8 +157,8 @@ export default {
         this.config = { ...this.config, ...val };
       },
       deep: true,
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     handleCancel() {
@@ -162,11 +166,11 @@ export default {
     },
     handleConfirm() {
       this.$router.push({
-        name: 'uptime-check-task-add'
+        name: 'uptime-check-task-add',
       });
       // window.location.href = `${window.site_url}${this.$store.getters.bizId}/uptime_check/summary/`
-    }
-  }
+    },
+  },
 };
 </script>
 

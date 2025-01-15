@@ -1,0 +1,82 @@
+/* stylelint-disable declaration-no-important */
+.apm-caller-line-chart {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+
+  .enable-select {
+    width: 72px;
+
+    .bk-select-name {
+      padding: 0 0px 0 0;
+      font-size: 14px;
+      font-weight: 400;
+      color: #313238;
+    }
+  }
+
+  .time-series-header {
+    display: flex;
+    flex: 0 0 46px;
+    align-items: center;
+    width: 100%;
+    height: 46px;
+  }
+
+  .time-series-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    height: calc(100% - 46px);
+    padding-bottom: 6px;
+
+    &.right-legend {
+      flex-direction: row;
+    }
+
+    .chart-instance {
+      display: flex;
+      flex: 1;
+      flex-grow: 2;
+
+      .chart-base {
+        & > div {
+          cursor: pointer !important;
+        }
+      }
+
+      &.is-table-legend {
+        width: calc(100% - 320px);
+        max-width: calc(100% - 320px);
+      }
+    }
+
+    .chart-legend {
+      position: relative;
+      max-width: 100%;
+      height: auto;
+      min-height: 32px;
+      max-height: 40%;
+      overflow: auto;
+
+      &.right-legend {
+        width: 320px;
+        min-width: 320px;
+        max-width: 320px;
+        max-height: 100%;
+      }
+    }
+  }
+
+  .empty-chart {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+}

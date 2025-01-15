@@ -2,47 +2,21 @@
   "include": [
     "./**/*.ts",
     "./**/*.vue",
-    "./**/*.tsx"
+    "./**/*.tsx",
+    "./**/*.js",
+    "../monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown.tsx"
   ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ],
+  "exclude": ["node_modules"],
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "importHelpers": true,
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "module": "esnext",
-    "target": "esnext",
-    "outDir": "dist",
-    "moduleResolution": "node",
-    "sourceMap": true,
-    "pretty": true,
-    "jsx": "preserve",
     "jsxFactory": "VueTsxSupport",
-    "lib": [
-      "es2018",
-      "dom"
-    ],
-    "removeComments": false,
+    "outDir": "./dist",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@router/*": [
-        "./router/*"
-      ],
-      "@store/*": [
-        "./store/*"
-      ],
-      "@page/*": [
-        "./page/*"
-      ],
-      "@static/*": [
-        "./static/*"
-      ]
+      "@/*": ["./*"],
+      "@router/*": ["./router/*"],
+      "@store/*": ["./store/*"],
+      "@page/*": ["./page/*"],
+      "@static/*": ["./static/*"]
     }
   }
 }

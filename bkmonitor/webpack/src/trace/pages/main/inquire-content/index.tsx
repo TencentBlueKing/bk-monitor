@@ -23,20 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { Span } from '../../../components/trace-view/typings';
-import { IPanelModel } from '../../../plugins/typings';
 import PreciseQueryImg from '../../../static/img/precise-query.png';
 import RangeQueryImg from '../../../static/img/range-query.png';
 import { useTraceStore } from '../../../store/modules/trace';
-import { IAppItem } from '../../../typings';
 import SpanDetails from '../span-details';
-
 import TraceDetail from './trace-detail';
 import TraceList from './trace-list';
+
+import type { Span } from '../../../components/trace-view/typings';
+import type { IPanelModel } from '../../../plugins/typings';
+import type { IAppItem } from '../../../typings';
 
 import './index.scss';
 
@@ -45,45 +45,49 @@ export default defineComponent({
   props: {
     isAlreadyAccurateQuery: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isAlreadyScopeQuery: {
       type: Boolean,
-      default: false
+      default: false,
     },
     queryType: {
       type: String as PropType<'accurate' | 'scope'>,
-      default: 'accurate'
+      default: 'accurate',
     },
     // 视图列表
     chartList: {
       type: Array as PropType<IPanelModel[]>,
-      default: () => []
+      default: () => [],
     },
     traceListTabelLoading: {
       type: Boolean,
-      default: false
+      default: false,
     },
     appName: {
       type: String,
-      default: ''
+      default: '',
     },
     emptyApp: {
       type: Boolean,
-      default: false
+      default: false,
     },
     appList: {
       type: Array as PropType<IAppItem[]>,
-      default: () => []
+      default: () => [],
     },
     searchIdType: {
       type: String,
-      default: 'traceID'
+      default: 'traceID',
     },
     spanDetails: {
       type: Object as PropType<Span>,
-      default: () => null
-    }
+      default: () => null,
+    },
+    traceColumnFilters: {
+      type: Object as PropType<Record<string, string[]>>,
+      default: () => {},
+    },
   },
   emits: [
     'changeQuery',
@@ -96,12 +100,12 @@ export default defineComponent({
     'traceTypeChange',
     'spanTypeChange',
     'interfaceStatisticsChange',
-    'serviceStatisticsChange'
+    'serviceStatisticsChange',
   ],
   setup(props, { emit }) {
     const { t } = useI18n();
     const emptyTextMap = {
-      'empty-app': t('暂无应用')
+      'empty-app': t('暂无应用'),
     };
 
     const store = useTraceStore();
@@ -144,9 +148,9 @@ export default defineComponent({
 
     function handleSourceData() {
       const { appList, appName } = props;
-      const appId = appList.find(app => app.app_name === appName)?.application_id || '';
-      if (appId) {
-        const hash = `#/apm/application/config/${appId}?active=dataStatus`;
+      const name = appList.find(app => app.app_name === appName)?.app_name || '';
+      if (name) {
+        const hash = `#/apm/application/config/${name}?active=dataStatus`;
         const url = location.href.replace(location.hash, hash);
         window.open(url, '_blank');
       }
@@ -181,7 +185,7 @@ export default defineComponent({
       handleSpanTypeChange,
       handleInterfaceStatisticsChange,
       handleServiceStatisticsChange,
-      handleTraceTypeChange
+      handleTraceTypeChange,
     };
   },
   render() {
@@ -193,7 +197,8 @@ export default defineComponent({
       isAlreadyScopeQuery,
       appList,
       searchIdType,
-      spanDetails
+      spanDetails,
+      traceColumnFilters,
     } = this.$props;
 
     /** 精确查询结果 traceInfo or spanDetails */
@@ -204,8 +209,8 @@ export default defineComponent({
         spanDetails && (
           <SpanDetails
             show={true}
-            withSideSlider={false}
             spanDetails={spanDetails}
+            withSideSlider={false}
           />
         )
       );
@@ -217,19 +222,20 @@ export default defineComponent({
           accurateContent
         ) : (
           <TraceList
-            appName={this.appName}
             appList={appList}
+            appName={this.appName}
             tableLoading={traceListTabelLoading}
-            onScrollBottom={() => this.handleScrollBottom()}
-            onStatusChange={id => this.handleStatusChange(id)}
-            onSortChange={sortKey => this.handleSortChange(sortKey)}
+            traceColumnFilters={traceColumnFilters}
             onColumnFilterChange={val => this.handleColumnFilterChange(val)}
+            onColumnSortChange={value => this.$emit('traceListColumnSortChange', value)}
+            onInterfaceStatisticsChange={this.handleInterfaceStatisticsChange}
             // TODO：这里不应该逐层冒泡 onQuery 事件。后续优化
             onListTypeChange={() => this.$emit('listTypeChange')}
-            onColumnSortChange={value => this.$emit('traceListColumnSortChange', value)}
-            onSpanTypeChange={this.handleSpanTypeChange}
-            onInterfaceStatisticsChange={this.handleInterfaceStatisticsChange}
+            onScrollBottom={() => this.handleScrollBottom()}
             onServiceStatisticsChange={this.handleServiceStatisticsChange}
+            onSortChange={sortKey => this.handleSortChange(sortKey)}
+            onSpanTypeChange={this.handleSpanTypeChange}
+            onStatusChange={id => this.handleStatusChange(id)}
             onTraceTypeChange={this.handleTraceTypeChange}
           />
         );
@@ -278,8 +284,8 @@ export default defineComponent({
             </i18n-t>
           </p>
           <img
-            src={PreciseQueryImg}
             alt=''
+            src={PreciseQueryImg}
           />
         </div>
         <div
@@ -293,8 +299,8 @@ export default defineComponent({
             </i18n-t>
           </p>
           <img
-            src={RangeQueryImg}
             alt=''
+            src={RangeQueryImg}
           />
         </div>
       </div>
@@ -305,8 +311,8 @@ export default defineComponent({
         {emptyApp ? (
           <div class='create-app-guide'>
             <EmptyStatus
-              type='empty-app'
               textMap={this.emptyTextMap}
+              type='empty-app'
             >
               <p class='subTitle'>
                 <i18n-t keypath='无法查询调用链，请先 {0}'>
@@ -320,5 +326,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

@@ -4,15 +4,15 @@
  * iconfont.* 目前只需要 'css', 'ttf', 'woff', 'woff2' 四种格式文件
  * 2、执行npm run iconfont
  */
-const fs = require('fs');
-const path = require('path');
-const updateFont = function () {
+const fs = require('node:fs');
+const path = require('node:path');
+const updateFont = () => {
   try {
     const sourcePreFix = 'src/monitor-static/icons';
     // const reg = new RegExp('^@font-face[\\s\\S]*\\.icon-monitor[\\s\\S]*?\\}')
     // 拷贝文件
     const fileMap = ['css', 'ttf', 'woff', 'woff2'];
-    fileMap.forEach((item) => {
+    fileMap.forEach(item => {
       const sourceFile = path.resolve(`${sourcePreFix}/iconfont/iconfont.${item}`);
       const targetFile = path.resolve(`${sourcePreFix}/monitor-icons.${item}`);
       fs.renameSync(sourceFile, targetFile);
@@ -22,7 +22,7 @@ const updateFont = function () {
     const targetCssFile = path.resolve(`${sourcePreFix}/monitor-icons.css`);
     let targetCss = fs.readFileSync(targetCssFile, 'utf-8');
     targetCss = targetCss.replace(/iconfont\./g, 'monitor-icons.');
-    fs.writeFile(targetCssFile, targetCss, 'utf8', (err) => {
+    fs.writeFile(targetCssFile, targetCss, 'utf8', err => {
       if (err) {
         console.log(err);
       } else {

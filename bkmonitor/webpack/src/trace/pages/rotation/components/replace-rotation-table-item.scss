@@ -21,8 +21,9 @@
 
     .tab-list {
       .tab-list-item {
-        width: 64px;
+        width: auto;
         height: 26px;
+        padding: 0 7px;
         line-height: 26px;
         background: #fff;
         border: 1px solid #c4c6cc;
@@ -75,7 +76,7 @@
   }
 
   .flip-list-move {
-    transition: transform .5s;
+    transition: transform 0.5s;
   }
 
   .specified-group-wrap {
@@ -120,8 +121,8 @@
 
       .item {
         box-sizing: content-box;
-        width: 62px;
         height: 24px;
+        padding: 0 7px;
         line-height: 26px;
         text-align: center;
         cursor: pointer;

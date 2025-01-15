@@ -61,9 +61,9 @@
 </template>
 
 <script lang="ts">
-import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
 import { listFunction } from 'monitor-api/modules/function_switch.js';
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
 
@@ -72,7 +72,7 @@ import FunctionItem from './function-item.vue';
 
 @Component({
   name: 'function-switch',
-  components: { FunctionItem }
+  components: { FunctionItem },
 } as any)
 export default class FunctionSwitch extends Mixins(authorityMixinCreate(funcAuth)) {
   // 功能列表数据
@@ -91,7 +91,7 @@ export default class FunctionSwitch extends Mixins(authorityMixinCreate(funcAuth
   getFunctionList() {
     this.loading = true;
     listFunction()
-      .then((data) => {
+      .then(data => {
         this.dataList = transformDataKey(data);
         this.isAbnormal = false;
       })

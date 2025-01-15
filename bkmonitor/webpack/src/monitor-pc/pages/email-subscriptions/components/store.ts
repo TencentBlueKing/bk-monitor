@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { IDefaultRadioList } from '../types';
+import type { IDefaultRadioList } from '../types';
 
 export const defaultRadioList: IDefaultRadioList[] = [
   { id: 'all', text: window.i18n.tc('有权限的业务(最大20个)'), title: window.i18n.tc('有权限的业务') },
   { id: 'settings', text: window.i18n.tc('配置管理业务'), title: window.i18n.tc('配置管理业务') },
-  { id: 'notify', text: window.i18n.tc('告警接收业务'), title: window.i18n.tc('告警接收业务') }
+  { id: 'notify', text: window.i18n.tc('告警接收业务'), title: window.i18n.tc('告警接收业务') },
 ];
 export default {};

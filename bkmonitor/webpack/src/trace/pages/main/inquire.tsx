@@ -1,3 +1,4 @@
+/* eslint-disable vue/multi-word-component-names */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -33,13 +34,15 @@ import {
   provide,
   reactive,
   ref,
-  shallowRef
+  shallowRef,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 // import TemporaryShare from '../../components/temporary-share/temporary-share';
 import * as authorityMap from 'apm/pages/home/authority-map';
-import { Button, Cascader, Dialog, Input, Loading, Popover, Radio } from 'bkui-vue';
+import axios from 'axios';
+import { Button, Cascader, Dialog, Input, Popover, Radio } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import {
   getFieldOptionValues,
@@ -50,48 +53,51 @@ import {
   listTrace,
   spanDetail,
   traceDetail,
-  traceOptions
+  traceOptions,
 } from 'monitor-api/modules/apm_trace';
 import { createQueryHistory, destroyQueryHistory, listQueryHistory } from 'monitor-api/modules/model';
-import { debounce, deepClone, random } from 'monitor-common/utils/utils';
-import { type IEventRetrieval, type IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
+import { skipToDocsLink } from 'monitor-common/utils/docs';
+import { deepClone, random } from 'monitor-common/utils/utils';
+import { debounce } from 'throttle-debounce';
 
 import Condition from '../../components/condition/condition';
 import DeleteDialogContent from '../../components/delete-dialog-content/delete-dialog-content';
-import { ISelectMenuOption } from '../../components/select-menu/select-menu';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, TimeRangeType } from '../../components/time-range/utils';
+import { DEFAULT_TIME_RANGE, type TimeRangeType, handleTransformToTimestamp } from '../../components/time-range/utils';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
-import { type Span } from '../../components/trace-view/typings';
 import VerifyInput from '../../components/verify-input/verify-input';
-import { destroyTimezone, getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { destroyTimezone, getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import {
   REFLESH_IMMEDIATE_KEY,
   REFLESH_INTERVAL_KEY,
+  TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
-  TIMEZONE_KEY,
-  VIEWOPTIONS_KEY
+  VIEWOPTIONS_KEY,
+  useIsEnabledProfilingProvider,
 } from '../../plugins/hooks';
-import { IViewOptions } from '../../plugins/typings';
-import { DEFAULT_TRACE_DATA } from '../../store/constant';
+import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP } from '../../store/constant';
 import { useSearchStore } from '../../store/modules/search';
-import { IServiceStatisticsType, ListType, useTraceStore } from '../../store/modules/trace';
-import {
+import { type IServiceStatisticsType, type ListType, useTraceStore } from '../../store/modules/trace';
+import { monitorDrag } from '../../utils/drag-directive';
+import DurationFilter from './duration-filter/duration-filter';
+import HandleBtn from './handle-btn/handle-btn';
+import InquireContent from './inquire-content';
+import SearchHeader from './search-header/search-header';
+import SearchLeft, { formItem } from './search-left/search-left';
+
+import type { ISelectMenuOption } from '../../components/select-menu/select-menu';
+import type { Span } from '../../components/trace-view/typings';
+import type { IViewOptions } from '../../plugins/typings';
+import type {
   IAppItem,
   IFavoriteItem,
   IScopeSelect,
   ISearchSelectItem,
   ISearchSelectValue,
   ITraceData,
-  SearchType
+  SearchType,
 } from '../../typings';
-import { monitorDrag } from '../../utils/drag-directive';
-
-import DurationFilter from './duration-filter/duration-filter';
-import HandleBtn from './handle-btn/handle-btn';
-import SearchHeader from './search-header/search-header';
-import SearchLeft, { formItem } from './search-left/search-left';
-import InquireContent from './inquire-content';
+import type { IEventRetrieval, IFilterCondition } from 'monitor-pc/pages/data-retrieval/typings';
 
 import './inquire.scss';
 
@@ -106,10 +112,17 @@ interface IState {
   cacheQueryAppName: string;
 }
 
+interface Params {
+  bk_biz_id: number | string;
+  app_name: string;
+  trace_id?: number | string;
+  span_id?: number | string;
+  query_trace_relation_app?: boolean;
+}
+
 /** 头部工具栏高度 */
 const HEADER_HEIGHT = 48;
 export default defineComponent({
-  // eslint-disable-next-line vue/multi-word-component-names
   name: 'Inquire',
   directives: { monitorDrag },
   setup(props, { expose }) {
@@ -132,7 +145,7 @@ export default defineComponent({
       isAlreadyAccurateQuery: false,
       isAlreadyScopeQuery: false,
       /** 最近一次检索的应用 */
-      cacheQueryAppName: localStorage.getItem('trace_query_app') || ''
+      cacheQueryAppName: localStorage.getItem('trace_query_app') || '',
     });
     // 自定义筛选列表
     const conditionFilter = [];
@@ -146,11 +159,10 @@ export default defineComponent({
       const listData = await listApplicationInfo().catch(() => []);
       appList.value = listData;
       isEmptyApp.value = !listData.length;
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       setTimeout(async () => {
         // 初始赋值自定义回显内容 组件需做优化处理 暂时使用 setTimeout 定时器
         if (appList.value.length && state.app === '') {
-          // eslint-disable-next-line max-len
           if (
             state.cacheQueryAppName &&
             appList.value.find(
@@ -162,14 +174,17 @@ export default defineComponent({
             const defaultApp = appList.value.find(app => app.permission?.[authorityMap.VIEW_AUTH])?.app_name;
             state.app = defaultApp || '';
           }
-
           handleAppSelectChange(state.app);
         }
       }, 100);
     };
     getAppList();
     const timeRange = ref<TimeRangeType>(DEFAULT_TIME_RANGE);
-    const timezone = ref<string>(getDefautTimezone());
+    const cacheTimeRange = ref('');
+    const enableSelectionRestoreAll = ref(true);
+    const showRestore = ref(false);
+    let cancelTokenSource = null;
+    const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     /* 此时间下拉加载时不变 */
     const curTimestamp = ref<number[]>(handleTransformToTimestamp(timeRange.value));
@@ -183,10 +198,26 @@ export default defineComponent({
       { label: t('字段名模糊匹配:'), value: ['vers\\*on:(quick brown)'] },
       { label: t('通配符匹配:'), value: ['qu?ck bro*'] },
       { label: t('正则匹配:'), value: ['name:/joh?n(ath[oa]n/'] },
-      { label: t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] }
+      { label: t('范围匹配:'), value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'] },
     ];
     const headerToolMenuList: ISelectMenuOption[] = [{ id: 'config', name: t('应用设置') }];
 
+    function handleChartDataZoom(value) {
+      if (JSON.stringify(timeRange.value) !== JSON.stringify(value)) {
+        cacheTimeRange.value = JSON.parse(JSON.stringify(timeRange.value));
+        timeRange.value = value;
+        showRestore.value = true;
+      }
+    }
+    function handleRestoreEvent() {
+      timeRange.value = JSON.parse(JSON.stringify(cacheTimeRange.value));
+      showRestore.value = false;
+    }
+    // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
+    provide('showRestore', showRestore);
+    provide('enableSelectionRestoreAll', enableSelectionRestoreAll);
+    provide('handleChartDataZoom', handleChartDataZoom);
+    provide('handleRestoreEvent', handleRestoreEvent);
     provide(TIME_RANGE_KEY, timeRange);
     provide(TIMEZONE_KEY, timezone);
     provide(REFLESH_INTERVAL_KEY, refleshInterval);
@@ -205,7 +236,7 @@ export default defineComponent({
     /* trace_list 分页 */
     const traceListPagination = reactive({
       offset: 0,
-      limit: 30
+      limit: 30,
     });
     /* trace_list 下拉加载loading */
     const traceListTabelLoading = ref(false);
@@ -221,20 +252,28 @@ export default defineComponent({
       show: false,
       loading: false,
       name: '',
-      id: 0
+      id: 0,
     });
     const isEmptyApp = ref<boolean>(false);
     const searchSelectData = shallowRef<ISearchSelectItem[]>([]);
     const searchSelectValue = ref<ISearchSelectValue[]>([]);
-    const durantionRange = ref<number[] | null>(null);
+    const durantionRange = ref<null | number[]>(null);
     const traceColumnFilters = ref<Record<string, string[]>>({});
+    const cacheTraceColumnFilters = ref<Record<string, string[]>>({});
     const interfaceListCanLoadMore = ref<boolean>(false);
     const serviceListCanLoadMore = ref<boolean>(false);
-    const spanDetails = ref<Span | null>(null);
+    const spanDetails = ref<null | Span>(null);
 
     const isLoading = computed<boolean>(() => store.loading);
     const isPreCalculationMode = computed(() => store.traceListMode === 'pre_calculation');
     const collectCheckValue = ref(queryScopeParams());
+
+    const enableProfiling = computed(
+      () => !!appList.value.find(item => item.app_name === state.app)?.is_enabled_profiling
+    );
+
+    const traceViewFilters = computed(() => store.traceViewFilters);
+
     const setSelectedTypeByRoute = () => {
       const listType = (route.query.listType as ListType) || 'trace';
       const selectedType = JSON.parse((route.query.selectedType as string) || '[]');
@@ -253,12 +292,14 @@ export default defineComponent({
           if (selectedType.length || selectedInterfaceType.length)
             store.setServiceStatisticsType({
               contain: selectedType,
-              interfaceType: selectedInterfaceType
+              interfaceType: selectedInterfaceType,
             });
           break;
       }
     };
     setSelectedTypeByRoute();
+
+    useIsEnabledProfilingProvider(enableProfiling);
 
     const handleLeftHiddenAndShow = (val: boolean) => {
       state.showLeft = val;
@@ -281,7 +322,7 @@ export default defineComponent({
       localStorage.setItem('bk_monitor_auto_query_enable', `${val}`);
       state.autoQuery = val;
     };
-    async function handleAppSelectChange(val: string) {
+    async function handleAppSelectChange(val: string, isClickQueryBtn = false) {
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
@@ -289,13 +330,12 @@ export default defineComponent({
         if (!Object.keys(scopeSelects.value).length) {
           await getQueryOptions();
         }
-        if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery)) {
-          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
-          handleQueryScopeDebounce();
-        }
-
         // 获取图表配置列表
         searchStore.getPanelList(state.app);
+        if (state.searchType === 'scope' && (state.autoQuery || !state.isAlreadyScopeQuery || isClickQueryBtn)) {
+          if (state.isAlreadyScopeQuery) reGetFieldOptionValues();
+          handleQueryScopeDebounce(true);
+        }
       }
     }
     /** 获取范围查询条件 */
@@ -305,31 +345,6 @@ export default defineComponent({
       options.forEach((item: IScopeSelect) => {
         scopeSelects.value[item.id] = { ...item, key: random(8), value: [] };
       });
-    };
-    /** 获取范围查询条件候选值 */
-    const getQueryOptionsValues = async (queryOptionValue: any) => {
-      setTimeout(() => {
-        /** 重新获取候选值时 需要清空原来所选项 */
-        Object.keys(scopeSelects.value).forEach(key => {
-          // queryOptionValue 路由带条件查询
-          if (queryOptionValue?.[key]) {
-            if (key === 'service') {
-              scopeSelects.value[key].value = queryOptionValue[key];
-            } else {
-              const curOptions = searchSelectData.value.find(item => item.id === key);
-              if (curOptions) {
-                searchSelectValue.value.push({
-                  id: key,
-                  name: curOptions.name,
-                  values: curOptions.children.filter(val => queryOptionValue[key].includes(val.id))
-                });
-              }
-            }
-          } else {
-            scopeSelects.value[key].value = [];
-          }
-        });
-      }, 100);
     };
     /** 切换ID精确查询类型 */
     const handleChangeSearchIdType = () => {
@@ -347,8 +362,8 @@ export default defineComponent({
           app_name: state.app,
           search_type: state.searchType,
           search_id: searchIdType.value,
-          trace_id: traceIDSearchValue.value
-        }
+          trace_id: traceIDSearchValue.value,
+        },
       });
       store.setPageLoaidng(true);
       /** 记录当前搜索的应用 */
@@ -356,11 +371,14 @@ export default defineComponent({
 
       const isTraceIDSearch = searchIdType.value === 'traceID';
       const requestFn = isTraceIDSearch ? traceDetail : spanDetail;
-      const params = {
+      const params: Params = {
         bk_biz_id: window.bk_biz_id,
         app_name: state.app,
-        [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value
+        [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value,
       };
+      if (isTraceIDSearch && (!store.selectedTraceViewFilterTab || store.selectedTraceViewFilterTab === 'timeline')) {
+        params[QUERY_TRACE_RELATION_APP] = traceViewFilters.value.includes(QUERY_TRACE_RELATION_APP);
+      }
       const resultData = await requestFn(params).catch(() => null);
       searchResultIdType.value = searchIdType.value;
       if (isTraceIDSearch) {
@@ -390,9 +408,9 @@ export default defineComponent({
       type IFilterItem = {
         key: string;
         value: Array<any>;
-        operator: 'equal' | 'between' | 'not_equal' | 'logic';
+        operator: 'between' | 'equal' | 'logic' | 'not_equal';
       };
-      const filters: IFilterItem[] = [];
+      let filters: IFilterItem[] = [];
 
       // 收集 Trace 列表 表头的查询信息
       Object.keys(traceColumnFilters.value || {}).forEach(key => {
@@ -401,7 +419,7 @@ export default defineComponent({
         filters.push({
           key: isOriginStatusCodeFilter ? 'status_code' : key,
           operator: isOriginStatusCodeFilter ? 'logic' : 'equal',
-          value: traceColumnFilters.value?.[key]
+          value: traceColumnFilters.value?.[key],
         });
       });
       // 收集 耗时 区间信息
@@ -409,16 +427,33 @@ export default defineComponent({
         filters.push({
           key: 'duration',
           value: durantionRange?.value,
-          operator: 'between'
+          operator: 'between',
         });
       }
+
+      const cacheFilter = cacheTraceColumnFilters.value[selectedListType.value] || [];
+      const updatedCacheFilter = filters.reduce((acc, item) => {
+        const index = acc.findIndex(filter => filter.key === item.key);
+        if (index !== -1) {
+          acc[index].value = item.value;
+        } else {
+          acc.push(item);
+        }
+        return acc;
+      }, cacheFilter);
+      // 过滤出有值的项
+      const filterData = updatedCacheFilter.filter(ele => (ele.value || []).length > 0);
+      // 更新缓存和 filters
+      cacheTraceColumnFilters.value[selectedListType.value] = updatedCacheFilter;
+      filters = filterData;
+
       // 收集 侧边栏：服务
       Object.keys(scopeSelects.value).forEach(key => {
         if (key === 'service' && scopeSelects.value[key].value.length) {
           filters.push({
             key: scopeSelects.value[key].trace_key,
             value: scopeSelects.value[key].value,
-            operator: 'equal'
+            operator: 'equal',
           });
         }
       });
@@ -429,7 +464,7 @@ export default defineComponent({
           filters.push({
             key: scopeSelects.value[item.id].trace_key,
             value: item.values.map(value => value.id),
-            operator: 'equal'
+            operator: 'equal',
           });
         }
       });
@@ -437,6 +472,20 @@ export default defineComponent({
         conditionFilter.forEach(item => {
           if (item.value.length) filters.push(item);
         });
+      } else {
+        const { conditionList: conditionListStringify } = route.query;
+        if (conditionListStringify) {
+          const result = JSON.parse(conditionListStringify as string);
+          for (const key in result) {
+            if (result[key]?.selectedConditionValue?.length) {
+              filters.push({
+                key,
+                operator: result[key].selectedCondition.value,
+                value: result[key].selectedConditionValue,
+              });
+            }
+          }
+        }
       }
 
       if (selectedListType.value === 'trace') {
@@ -444,8 +493,8 @@ export default defineComponent({
           error: {
             key: 'error',
             operator: 'logic',
-            value: []
-          }
+            value: [],
+          },
         };
         store.traceType.forEach(item => filters.push(filterTypeMapping[item]));
       }
@@ -455,7 +504,7 @@ export default defineComponent({
         const filterMapSpanType = {
           root_span: { key: 'parent_span_id', operator: 'equal', value: [''] },
           entry_span: { key: 'kind', operator: 'equal', value: ['2', '5'] },
-          error: { key: 'status.code', operator: 'equal', value: ['2'] }
+          error: { key: 'status.code', operator: 'equal', value: ['2'] },
         };
         const result = store.spanType.map(item => filterMapSpanType[item]);
         filters.push(...result);
@@ -465,7 +514,7 @@ export default defineComponent({
         const filterMapSpanType = {
           root_span: { key: 'root_span', operator: 'logic', value: [] },
           root_service_span: { key: 'root_service_span', operator: 'logic', value: [] },
-          'status.code': { key: 'status.code', operator: 'equal', value: ['2'] }
+          'status.code': { key: 'status.code', operator: 'equal', value: ['2'] },
         };
         const result = store.interfaceStatisticsType.map(item => filterMapSpanType[item]);
         filters.push(...result);
@@ -480,33 +529,32 @@ export default defineComponent({
           error: {
             key: 'status.code',
             operator: 'equal',
-            value: ['2']
+            value: ['2'],
           },
           sync: {
             key: 'kind',
             operator: 'equal',
-            value: ['2', '3']
+            value: ['2', '3'],
           },
           async: {
             key: 'kind',
             operator: 'equal',
-            value: ['4', '5']
+            value: ['4', '5'],
           },
           internal: {
             key: 'kind',
             operator: 'equal',
-            value: ['1']
+            value: ['1'],
           },
           unknown: {
             key: 'kind',
             operator: 'equal',
-            value: ['0']
-          }
+            value: ['0'],
+          },
         };
         store.serviceStatisticsType.contain.forEach(item => filters.push(filterTypeMapping[item]));
         store.serviceStatisticsType.interfaceType.forEach(item => filters.push(filterTypeMapping[item]));
       }
-
       const params = {
         app_name: state.app,
         // 改 key
@@ -525,7 +573,7 @@ export default defineComponent({
         // sort: traceSortKey.value,
         sort: sortList,
         // 去掉，统一合并到 filter 上。
-        duration: durantionRange?.value ?? undefined
+        duration: durantionRange?.value ?? undefined,
         // 合并到 filters
         // trace_filter: traceColumnFilters?.value
       };
@@ -550,7 +598,6 @@ export default defineComponent({
         store.setTraceDetail(false);
         store.setFilterTraceList([]);
       }
-
       const params = queryScopeParams();
       // 查询语句 的字段检查，非标准要换成 span 视角
       // if (selectedListType.value === 'trace') {
@@ -572,65 +619,89 @@ export default defineComponent({
       collectCheckValue.value = params;
       // Trace List 查询相关
       if (selectedListType.value === 'trace') {
-        const listData = await listTrace(params).catch(() => []);
-        const { total, data, type = 'pre_calculation' } = listData;
-        store.setTraceListMode(type);
-        store.setTraceTotalCount(total);
-        if (traceListPagination.offset > 1) {
-          // 两个区间可能会包含同一个trace的span 这里需要去重
-          const list = [...store.traceList];
-          data.forEach((trace: ITraceData) => {
-            if (list.every(val => val.trace_id !== trace.trace_id)) {
-              list.push(trace);
-            }
-          });
-          store.setTraceList(list);
-        } else {
-          store.setTraceList(data);
+        store.setTraceLoading(true);
+        try {
+          const listData = await listTrace(params, { cancelToken: cancelTokenSource?.token }).catch(() => []);
+          const { total, data, type = 'pre_calculation' } = listData;
+          store.setTraceListMode(type);
+          store.setTraceTotalCount(total);
+          if (traceListPagination.offset > 1) {
+            // 两个区间可能会包含同一个trace的span 这里需要去重
+            const list = [...store.traceList];
+            data.forEach((trace: ITraceData) => {
+              if (list.every(val => val.trace_id !== trace.trace_id)) {
+                list.push(trace);
+              }
+            });
+            store.setTraceList(list);
+          } else {
+            store.setTraceList(data);
+          }
+        } catch {
+        } finally {
+          store.setTraceLoading(false);
         }
       }
       // Span List 查询相关
       if (selectedListType.value === 'span') {
-        const spanListData = await listSpan(params).catch(() => []);
-        const { total, data } = spanListData;
-        store.setTraceTotalCount(total);
+        store.setTraceLoading(true);
+        try {
+          const spanListData = await listSpan(params).catch(() => []);
+          const { total, data } = spanListData;
+          store.setTraceTotalCount(total);
 
-        if (traceListPagination.offset > 1) {
-          // TODO：这里可能会有重复的 span ID ，需要去重。
-          store.setSpanList(store.spanList.concat(data));
-        } else {
-          store.setSpanList(data);
+          if (traceListPagination.offset > 1) {
+            // TODO：这里可能会有重复的 span ID ，需要去重。
+            store.setSpanList(store.spanList.concat(data));
+          } else {
+            store.setSpanList(data);
+          }
+        } catch {
+        } finally {
+          store.setTraceLoading(false);
         }
       }
       // 接口统计 查询相关
       if (selectedListType.value === 'interfaceStatistics') {
-        interfaceListCanLoadMore.value = true;
-        // 请求接口
-        // store 设置相关 list
-        const interfaceStatisticsList = await listSpanStatistics(params).catch(() => []);
-        if (interfaceStatisticsList.length < traceListPagination.limit) {
-          // 当前页返回不足一页数量则说明请求完所有数据
-          interfaceListCanLoadMore.value = false;
+        store.setTraceLoading(true);
+        try {
+          interfaceListCanLoadMore.value = true;
+          // 请求接口
+          // store 设置相关 list
+          const interfaceStatisticsList = await listSpanStatistics(params).catch(() => []);
+          if (interfaceStatisticsList.length < traceListPagination.limit) {
+            // 当前页返回不足一页数量则说明请求完所有数据
+            interfaceListCanLoadMore.value = false;
+          }
+          if (traceListPagination.offset > 1) {
+            store.setInterfaceStatisticsList(store.interfaceStatisticsList.concat(interfaceStatisticsList));
+          } else {
+            store.setInterfaceStatisticsList(interfaceStatisticsList);
+          }
+          // store.setTraceTotalCount(store.interfaceStatisticsList.length);
+        } catch {
+        } finally {
+          store.setTraceLoading(false);
         }
-        if (traceListPagination.offset > 1) {
-          store.setInterfaceStatisticsList(store.interfaceStatisticsList.concat(interfaceStatisticsList));
-        } else {
-          store.setInterfaceStatisticsList(interfaceStatisticsList);
-        }
-        // store.setTraceTotalCount(store.interfaceStatisticsList.length);
       }
       // 服务统计 查询相关
       if (selectedListType.value === 'serviceStatistics') {
-        serviceListCanLoadMore.value = true;
-        const serviceStatisticList = await listServiceStatistics(params).catch(() => []);
-        if (serviceStatisticList.length < traceListPagination.limit) {
-          // 当前页返回不足一页数量则说明请求完所有数据
-          serviceListCanLoadMore.value = false;
-        }
-        if (traceListPagination.offset > 1) {
-          store.setServiceStatisticsList(store.serviceStatisticsList.concat(serviceStatisticList));
-        } else {
-          store.setServiceStatisticsList(serviceStatisticList);
+        store.setTraceLoading(true);
+        try {
+          serviceListCanLoadMore.value = true;
+          const serviceStatisticList = await listServiceStatistics(params).catch(() => []);
+          if (serviceStatisticList.length < traceListPagination.limit) {
+            // 当前页返回不足一页数量则说明请求完所有数据
+            serviceListCanLoadMore.value = false;
+          }
+          if (traceListPagination.offset > 1) {
+            store.setServiceStatisticsList(store.serviceStatisticsList.concat(serviceStatisticList));
+          } else {
+            store.setServiceStatisticsList(serviceStatisticList);
+          }
+        } catch {
+        } finally {
+          store.setTraceLoading(false);
         }
       }
 
@@ -648,11 +719,16 @@ export default defineComponent({
         app_name: params.app_name,
         search_type: state.searchType,
         search_id: searchIdType.value,
-        start_tiem: timeRange.value[0],
-        end_tiem: timeRange.value[1],
-        refleshInterval: refleshInterval.value
+        start_time: timeRange.value[0],
+        end_time: timeRange.value[1],
+        refleshInterval: refleshInterval.value,
       };
-
+      // 来自故障根因跳转到span中需要额外使用的参数
+      if (route.query?.incident_query) {
+        try {
+          query.incident_query = route.query?.incident_query;
+        } catch {}
+      }
       Object.keys(scopeSelects.value).forEach(key => {
         if (key === 'service') {
           if (scopeSelects.value[key].value.length) {
@@ -685,7 +761,7 @@ export default defineComponent({
             filterConditionList[item.labelValue] = {
               selectedCondition: item.selectedCondition,
               isInclude: item.isInclude,
-              selectedConditionValue: item.selectedConditionValue
+              selectedConditionValue: item.selectedConditionValue,
             };
           }
         });
@@ -718,15 +794,15 @@ export default defineComponent({
 
       router.replace({
         name: route.name || 'home',
-        query
+        query,
       });
     };
-    const handleQueryScopeDebounce = debounce(handleQueryScope, 300, false);
+    const handleQueryScopeDebounce = debounce(300, handleQueryScope);
     /* 范围查询动态参数更新 */
-    function handleScopeQueryChange() {
+    function handleScopeQueryChange(isClickQueryBtn = false) {
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
-      handleQueryScopeDebounce();
+      handleQueryScopeDebounce(isClickQueryBtn);
     }
     /** 更新耗时过滤条件 */
     function handleDurationChange(range: number[]) {
@@ -736,9 +812,14 @@ export default defineComponent({
     /* 切换查询方式 */
     async function handleSearchTypeChange(id: string) {
       store.setTraceDetail(false);
+      cancelTokenSource?.cancel?.();
+      cancelTokenSource = axios.CancelToken.source();
       if (id === 'scope') {
+        if (!state.isAlreadyScopeQuery) {
+          state.isAlreadyScopeQuery = true;
+        }
         traceKind.value = 'all';
-        handleScopeQueryChange();
+        handleScopeQueryChange(true);
         // 点击 范围查询 在这里做一些准备请求
         // 以免出现重复默认项
         conditionList.length = 0;
@@ -755,11 +836,11 @@ export default defineComponent({
       }
     }
     /* 收藏  */
-    // eslint-disable-next-line max-len
+
     async function handleAddCollect({
       value,
       hideCallback,
-      favLoadingCallBack
+      favLoadingCallBack,
     }: {
       value: string;
       hideCallback: () => void;
@@ -779,9 +860,9 @@ export default defineComponent({
           componentData: {
             scopeSelects: scopeSelects.value,
             queryString: queryString.value,
-            app: state.app
-          }
-        }
+            app: state.app,
+          },
+        },
       };
       favLoadingCallBack(true);
       await createQueryHistory(params)
@@ -796,7 +877,7 @@ export default defineComponent({
     function handleSelectCollect(id: number) {
       state.searchType = 'scope';
       const collectItem = collectList.value.find(item => String(item.id) === String(id));
-      const { componentData } = collectItem?.config;
+      const { componentData } = collectItem.config;
       state.app = componentData.app;
       if (componentData.scopeSelects) {
         Object.keys(componentData.scopeSelects).forEach(key => {
@@ -822,7 +903,7 @@ export default defineComponent({
             historySearchSelectValue.push({
               id: key,
               name: curOptions.name,
-              values: optionValue
+              values: optionValue,
             });
           }
         }
@@ -831,12 +912,14 @@ export default defineComponent({
       queryString.value = componentData.queryString;
       traceListPagination.offset = 0;
       curTimestamp.value = handleTransformToTimestamp(timeRange.value);
+      // 获取图表配置列表
+      searchStore.getPanelList(state.app);
       handleQueryScope();
     }
     /* 收藏列表 */
     async function getCollectList() {
       collectList.value = await listQueryHistory({
-        type: 'trace'
+        type: 'trace',
       }).catch(() => []);
     }
     /* 点击查询 */
@@ -873,7 +956,6 @@ export default defineComponent({
       durantionRange.value = null;
       // 清空条件列表
       conditionList.forEach(item => {
-        // eslint-disable-next-line no-param-reassign
         item.selectedConditionValue.length = 0;
       });
       handleScopeQueryChange();
@@ -933,16 +1015,12 @@ export default defineComponent({
     /* 时间切换 */
     function handleTimeRangeChange(value: TimeRangeType) {
       timeRange.value = value;
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
     function handleTimezoneChange(v: string) {
       timezone.value = v;
       window.timezone = v;
       updateTimezone(v);
-      getQueryOptionsValues({});
-      reGetFieldOptionValues();
       handleScopeQueryChange();
     }
 
@@ -955,22 +1033,22 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields
+        fields,
       };
       if (!fields.length) return;
       // 在查询前，把 候选项 和 选中项 先清空
       conditionList.forEach((item: any) => {
-        // eslint-disable-next-line no-param-reassign
         item.conditionValueList.length = 0;
-        // eslint-disable-next-line no-param-reassign
+
         item.selectedConditionValue.length = 0;
       });
+      // 无应用时不调用getFieldOptionValues API
+      if (!params.app_name) return;
       const result = await getFieldOptionValues(params)
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
       // 请求成功后，将 候选项 补上。
       conditionList.forEach((item: any) => {
-        // eslint-disable-next-line no-param-reassign
         item.conditionValueList = result[item.labelValue];
       });
     }
@@ -1015,9 +1093,9 @@ export default defineComponent({
     }
     /** 更多操作 */
     function handleMenuSelectChange() {
-      const appId = appList.value?.find(app => app.app_name === state.app)?.application_id || '';
-      if (appId) {
-        const url = location.href.replace(location.hash, `#/apm/application/config/${appId}`);
+      const appName = appList.value?.find(app => app.app_name === state.app)?.app_name || '';
+      if (appName) {
+        const url = location.href.replace(location.hash, `#/apm/application/config/${appName}`);
         window.open(url, '_blank');
       }
     }
@@ -1040,16 +1118,16 @@ export default defineComponent({
         const {
           app_name: appName,
           refleshInterval: interval,
-          start_tiem: startTiem,
-          end_tiem: endTiem,
+          start_time: startTime,
+          end_time: endTime,
           query: keyword,
           duration,
           listType,
-          conditionList: conditionListStringify
+          conditionList: conditionListStringify,
         } = route.query;
         state.app = appName as string;
-        if (startTiem && endTiem) {
-          timeRange.value = [startTiem, endTiem] as [string, string];
+        if (startTime && endTime) {
+          timeRange.value = [startTime, endTime] as [string, string];
           curTimestamp.value = handleTransformToTimestamp(timeRange.value);
         }
         if (interval) {
@@ -1075,7 +1153,7 @@ export default defineComponent({
               conditionFilter.push({
                 key,
                 operator: result[key].selectedCondition.value,
-                value: result[key].selectedConditionValue
+                value: result[key].selectedConditionValue,
               });
             }
           });
@@ -1138,21 +1216,28 @@ export default defineComponent({
       >
         <div class='tips-content-title'>
           {t('可输入SQL语句进行快速查询')}
-          <a
+          <span
             class='link'
-            target='_blank'
-            href='/'
+            onClick={() => skipToDocsLink('bkLogQueryString')}
           >
             {t('查看语法')}
-            <i class='icon-monitor icon-mc-link'></i>
-          </a>
+            <i class='icon-monitor icon-mc-link' />
+          </span>
         </div>
         <ul class='tips-content-list'>
-          {tipsContentList.map(item => (
-            <li class='tips-content-item'>
+          {tipsContentList.map((item, index) => (
+            <li
+              key={index}
+              class='tips-content-item'
+            >
               <div class='tips-content-item-label'>{item.label}</div>
-              {item.value.map(val => (
-                <div class='tips-content-item-val'>{val}</div>
+              {item.value.map((val, vIndex) => (
+                <div
+                  key={vIndex}
+                  class='tips-content-item-val'
+                >
+                  {val}
+                </div>
               ))}
             </li>
           ))}
@@ -1174,14 +1259,14 @@ export default defineComponent({
           (
             <VerifyInput>
               <Input
-                type='search'
-                clearable
-                show-clear-only-hover
                 ref={traceIdInput}
                 v-model={traceIDSearchValue.value}
                 placeholder={t('输入 ID 可精准查询')}
-                onEnter={handleQueryTraceId}
+                type='search'
+                clearable
+                show-clear-only-hover
                 onBlur={handleQueryIDInputBlur}
+                onEnter={handleQueryTraceId}
               />
             </VerifyInput>
           ) as any
@@ -1190,9 +1275,9 @@ export default defineComponent({
           accurateQuery={true}
           autoQuery={state.autoQuery}
           canQuery={true}
-          onQuery={handleQueryTraceId}
-          onClear={() => (traceIDSearchValue.value = '')}
           onChangeAutoQuery={handleAutoQueryChange}
+          onClear={() => (traceIDSearchValue.value = '')}
+          onQuery={handleQueryTraceId}
         />
       </div>
     );
@@ -1223,10 +1308,11 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields: [LAST_ELEMENT]
+        fields: [LAST_ELEMENT],
       };
       conditionList[index].conditionValueList.length = 0;
       isAddConditionButtonLoading.value = true;
+      if (!params.app_name) return; // 无应用时不调用getFieldOptionValues API
       const result = await getFieldOptionValues(params)
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
@@ -1268,9 +1354,9 @@ export default defineComponent({
 
     const standardFieldList = ref([]);
     const getStandardFields = async () => {
-      const result = await listStandardFilterFields().catch(() => {});
-      // eslint-disable-next-line no-param-reassign
-      result.map(item => (item.disabled = false));
+      const result = await listStandardFilterFields({}, { cancelToken: cancelTokenSource?.token }).catch(() => {});
+
+      result?.map(item => (item.disabled = false));
       standardFieldList.value = result;
       setDefaultConditionList();
     };
@@ -1290,7 +1376,7 @@ export default defineComponent({
       selectedConditions.value = defaultShowCondition;
       // 初始化条件要置灰
       selectedConditions.value.forEach(targetID => {
-        standardFieldList.value.forEach(item => {
+        standardFieldList.value?.forEach(item => {
           traverseIds(item, targetID, true);
         });
       });
@@ -1312,7 +1398,6 @@ export default defineComponent({
     // 递归遍历置灰
     const traverseIds = (obj: any, targetID: string, disableType: boolean) => {
       if (obj.id === targetID) {
-        // eslint-disable-next-line no-param-reassign
         obj.disabled = disableType;
       }
       if (obj.children) {
@@ -1325,7 +1410,7 @@ export default defineComponent({
     const handleConditionBlur = async () => {
       // 置灰
       const targetID = selectedConditions.value[0];
-      standardFieldList.value.forEach(item => {
+      standardFieldList.value?.forEach(item => {
         traverseIds(item, targetID, true);
       });
       // 需要把已选过的置灰，然后放在最底部。
@@ -1338,22 +1423,22 @@ export default defineComponent({
         start_time: time[0],
         end_time: time[1],
         bk_biz_id: window.bk_biz_id,
-        fields: selectedConditions.value
+        fields: selectedConditions.value,
       };
-      // 没有选择或配置正确的筛选项就不应该发生请求。
-      if (params.fields.length === 0) return;
+      // 没有选择或配置正确的筛选项就不应该发生请求 || 无应用时不调用getFieldOptionValues API。
+      if (params.fields.length === 0 || !params.app_name) return;
       isAddConditionButtonLoading.value = true;
-      const result = await getFieldOptionValues(params)
+      const result = await getFieldOptionValues(params, { cancelToken: cancelTokenSource?.token })
         .catch(() => {})
         .finally(() => (isAddConditionButtonLoading.value = false));
       selectedConditions.value.length = 0;
 
       // 添加条件列表
-      Object.keys(result).forEach(key => {
+      for (const key of Object.keys(result || {})) {
         const singleCondition = {
           selectedCondition: {
             label: '=',
-            value: 'equal'
+            value: 'equal',
           },
           isInclude: true,
           labelValue: key,
@@ -1362,27 +1447,27 @@ export default defineComponent({
           conditionList: [
             {
               label: '=',
-              value: 'equal'
+              value: 'equal',
             },
             {
               label: '!=',
-              value: 'not_equal'
+              value: 'not_equal',
             },
             {
               label: 'exists',
-              value: 'exists'
+              value: 'exists',
             },
             {
               label: 'not exists',
-              value: 'not exists'
-            }
+              value: 'not exists',
+            },
           ],
           selectedConditionValue: [],
-          conditionValueList: result[key]
+          conditionValueList: result[key],
         };
         if (conditionListInQuery[key]) Object.assign(singleCondition, conditionListInQuery[key]);
         conditionList.push(singleCondition);
-      });
+      }
     };
 
     const handleConditionValueChange = (index, v) => {
@@ -1410,7 +1495,7 @@ export default defineComponent({
     };
 
     // 上次请求的所带上的 条件 ，用作对比前后的条件是否都相等，如相等就不应该再发起请求。
-    let lastCollectConditionFilter: null | any[] = null;
+    let lastCollectConditionFilter: any[] | null = null;
     // 重新收集左侧条件列表
     const collectConditionFilter = () => {
       // 先保存一份旧的条件列表。
@@ -1424,7 +1509,7 @@ export default defineComponent({
           conditionFilter.push({
             key: item.labelValue,
             operator: item.selectedCondition?.value,
-            value: item.selectedConditionValue
+            value: item.selectedConditionValue,
           });
         }
       });
@@ -1456,14 +1541,14 @@ export default defineComponent({
               <span>{t('查询语句')}</span>
               <Popover
                 width='256'
+                v-slots={{
+                  content: () => tipsContentTpl(),
+                }}
+                placement='bottom-start'
                 theme='light'
                 trigger='click'
-                placement='bottom-start'
-                v-slots={{
-                  content: () => tipsContentTpl()
-                }}
               >
-                <span class='icon-monitor icon-mc-help-fill'></span>
+                <span class='icon-monitor icon-mc-help-fill' />
               </Popover>
             </div>
           ) as any,
@@ -1471,9 +1556,9 @@ export default defineComponent({
             <VerifyInput>
               <Input
                 v-model={queryString.value}
-                type='textarea'
-                rows={3}
                 placeholder={t('输入')}
+                rows={3}
+                type='textarea'
                 onBlur={handleScopeQueryChange}
               />
             </VerifyInput>
@@ -1483,7 +1568,7 @@ export default defineComponent({
           (
             <span>
               {t('耗时')}
-              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s）`}</span>
+              <span class='label-tips'>{`（${t('支持')} ns, μs, ms, s, m, h, d）`}</span>
             </span>
           ) as any,
           (
@@ -1496,55 +1581,56 @@ export default defineComponent({
         {/* 这里插入 condition 组件 */}
         {conditionList.map((item, index) => (
           <Condition
-            isInclude={item.isInclude}
-            labelValue={item.labelValue}
-            labelList={item.labelList}
-            selectedCondition={item.selectedCondition}
-            conditionType={item.conditionType}
+            key={index}
+            style='margin-bottom: 16px;'
             conditionList={item.conditionList}
+            conditionType={item.conditionType}
             conditionValueList={item.conditionValueList}
             durantionRange={item.durantionRange}
+            isInclude={item.isInclude}
+            labelList={item.labelList}
+            labelValue={item.labelValue}
+            selectedCondition={item.selectedCondition}
             selectedConditionValue={item.selectedConditionValue}
-            onItemConditionChange={v => handleItemConditionChange(index, v)}
-            onDelete={id => handleConditionDelete(index, id)}
-            onIncludeChange={() => handleIncludeChange(index)}
             onConditionChange={v => handleConditionChange(index, v)}
-            onConditionValueClear={() => handleConditionValueClear(index)}
-            onDurationRangeChange={v => handleDurationRangeChange(index, v)}
             onConditionValueChange={v => handleConditionValueChange(index, v)}
+            onConditionValueClear={() => handleConditionValueClear(index)}
+            onDelete={id => handleConditionDelete(index, id)}
+            onDurationRangeChange={v => handleDurationRangeChange(index, v)}
+            onIncludeChange={() => handleIncludeChange(index)}
+            onItemConditionChange={v => handleItemConditionChange(index, v)}
             onSelectComplete={() => handleSelectComplete(true)}
-            style='margin-bottom: 16px;'
           />
         ))}
         {/* 这里是 添加条件 按钮 */}
         <div class='inquire-cascader-container'>
           <Button
             class='add-condition'
-            theme='primary'
             loading={isAddConditionButtonLoading.value}
+            theme='primary'
           >
             <i
-              class='icon-monitor icon-plus-line'
               style='margin-right: 6px;'
-            ></i>
+              class='icon-monitor icon-plus-line'
+            />
             <span>{t('添加条件')}</span>
           </Button>
 
           <Cascader
-            v-model={cascaderSelectedValue.value}
-            list={standardFieldList.value}
-            disabled={isAddConditionButtonLoading.value}
-            onChange={handleCascaderChange}
             class='inquire-cascader'
-          ></Cascader>
+            v-model={cascaderSelectedValue.value}
+            disabled={isAddConditionButtonLoading.value}
+            list={standardFieldList.value}
+            onChange={handleCascaderChange}
+          />
         </div>
         <HandleBtn
           autoQuery={state.autoQuery}
           canQuery={true}
           onAdd={handleAddCollect}
-          onQuery={handleClickQuery}
-          onClear={handleClearQuery}
           onChangeAutoQuery={handleAutoQueryChange}
+          onClear={handleClearQuery}
+          onQuery={handleClickQuery}
         />
       </div>
     );
@@ -1561,17 +1647,17 @@ export default defineComponent({
             autoHidden: true,
             isShow: state.showLeft,
             onHidden: () => handleLeftHiddenAndShow(false),
-            onWidthChange: (width: number) => (state.leftWidth = width)
+            onWidthChange: (width: number) => (state.leftWidth = width),
           }}
         >
           <div class={['inquire-left-main', { 'scope-inquire': state.searchType === 'scope' }]}>
             <div class='left-top'>
-              <div class='left-title'>{t('新检索')}</div>
+              <div class='left-title'>{t('route-Tracing 检索')}</div>
               <div class='left-title-operate'>
                 <span
                   class='icon-monitor icon-double-down'
                   onClick={() => handleLeftHiddenAndShow(false)}
-                ></span>
+                />
               </div>
             </div>
             {/* 查询操作表单 */}
@@ -1579,98 +1665,99 @@ export default defineComponent({
               <SearchLeft
                 v-models={[
                   [state.app, 'app'],
-                  [state.searchType, 'searchType']
+                  [state.searchType, 'searchType'],
                 ]}
-                onAppChange={handleAppSelectChange}
-                onSearchTypeChange={handleSearchTypeChange}
+                v-slots={{
+                  query: () => (state.searchType === 'accurate' ? accurateQueryShow() : scopeQueryShow()),
+                }}
                 appList={appList.value}
                 showBottom={state.searchType === 'scope'}
-                v-slots={{
-                  query: () => (state.searchType === 'accurate' ? accurateQueryShow() : scopeQueryShow())
-                }}
                 onAddCondition={handleAddCondition}
+                onAppChange={val => handleAppSelectChange(val, true)}
+                onSearchTypeChange={handleSearchTypeChange}
               />
             </div>
           </div>
         </div>
         <div
-          class='inquire-right'
           style={{ flex: 1, width: `calc(100% - ${state.leftWidth}px)` }}
+          class='inquire-right'
         >
-          <Loading
-            loading={isLoading.value}
+          {/* <Loading
             class='inquire-page-loading'
+            loading={isLoading.value}
+          > */}
+          {/* 头部工具栏 */}
+          <SearchHeader
+            style={{ height: `${HEADER_HEIGHT}px` }}
+            class='inquire-right-header'
+            v-models={[
+              [state.showLeft, 'showLeft'],
+              [refleshInterval.value, 'refleshInterval'],
+              [timeRange.value, 'timeRange'],
+              [timezone.value, 'timezone'],
+            ]}
+            checkedValue={collectCheckValue.value}
+            favoritesList={collectList.value}
+            menuList={headerToolMenuList}
+            onDeleteCollect={handleDeleteCollect}
+            onImmediateReflesh={handleImmediateReflesh}
+            onMenuSelectChange={handleMenuSelectChange}
+            onRefleshIntervalChange={handleRefleshIntervalChange}
+            onSelectCollect={handleSelectCollect}
+            onTimeRangeChange={handleTimeRangeChange}
+            onTimezoneChange={handleTimezoneChange}
+          />
+          <div
+            style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
+            class='inquire-right-main'
           >
-            {/* 头部工具栏 */}
-            <SearchHeader
-              style={{ height: `${HEADER_HEIGHT}px` }}
-              class='inquire-right-header'
-              favoritesList={collectList.value}
-              checkedValue={collectCheckValue.value}
-              menuList={headerToolMenuList}
-              v-models={[
-                [state.showLeft, 'showLeft'],
-                [refleshInterval.value, 'refleshInterval'],
-                [timeRange.value, 'timeRange'],
-                [timezone.value, 'timezone']
-              ]}
-              onDeleteCollect={handleDeleteCollect}
-              onSelectCollect={handleSelectCollect}
-              onTimeRangeChange={handleTimeRangeChange}
-              onTimezoneChange={handleTimezoneChange}
-              onRefleshIntervalChange={handleRefleshIntervalChange}
-              onImmediateReflesh={handleImmediateReflesh}
-              onMenuSelectChange={handleMenuSelectChange}
-            ></SearchHeader>
-            <div
-              style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }}
-              class='inquire-right-main'
-            >
-              <InquireContent
-                appName={state.app}
-                appList={appList.value}
-                queryType={state.searchType}
-                searchIdType={searchResultIdType.value}
-                spanDetails={spanDetails.value}
-                emptyApp={isEmptyApp.value}
-                isAlreadyAccurateQuery={state.isAlreadyAccurateQuery}
-                isAlreadyScopeQuery={state.isAlreadyScopeQuery}
-                traceListTabelLoading={traceListTabelLoading.value}
-                onChangeQuery={val => handleChangeQuery(val)}
-                onTraceListScrollBottom={handleTraceListScrollBottom}
-                onTraceListStatusChange={handleTraceListStatusChange}
-                onTraceListSortChange={handleTraceListSortChange}
-                onTraceListColumuFilter={handleTraceListColumuFilter}
-                onListTypeChange={handleListTypeChange}
-                onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
-                onTraceTypeChange={handleTraceTypeChange}
-                onSpanTypeChange={handleSpanTypeChange}
-                onInterfaceStatisticsChange={handleInterfaceStatisticsChange}
-                onServiceStatisticsChange={handleServiceStatisticsChange}
-              />
-            </div>
-          </Loading>
+            <InquireContent
+              appList={appList.value}
+              appName={state.app}
+              emptyApp={isEmptyApp.value}
+              isAlreadyAccurateQuery={state.isAlreadyAccurateQuery}
+              isAlreadyScopeQuery={state.isAlreadyScopeQuery}
+              queryType={state.searchType}
+              searchIdType={searchResultIdType.value}
+              spanDetails={spanDetails.value}
+              traceColumnFilters={cacheTraceColumnFilters.value}
+              traceListTabelLoading={traceListTabelLoading.value}
+              onChangeQuery={val => handleChangeQuery(val)}
+              onInterfaceStatisticsChange={handleInterfaceStatisticsChange}
+              onListTypeChange={handleListTypeChange}
+              onServiceStatisticsChange={handleServiceStatisticsChange}
+              onSpanTypeChange={handleSpanTypeChange}
+              onTraceListColumnSortChange={value => handleTraceListColumnSort(value)}
+              onTraceListColumuFilter={handleTraceListColumuFilter}
+              onTraceListScrollBottom={handleTraceListScrollBottom}
+              onTraceListSortChange={handleTraceListSortChange}
+              onTraceListStatusChange={handleTraceListStatusChange}
+              onTraceTypeChange={handleTraceTypeChange}
+            />
+          </div>
+          {/* </Loading> */}
         </div>
         <Dialog
-          isShow={collectDialog.show}
-          title={''}
           height={300}
-          footerAlign={'center'}
-          isLoading={collectDialog.loading}
-          onConfirm={() => deleteCollect()}
-          onClosed={() => {
-            collectDialog.show = false;
-          }}
           v-slots={{
             default: () => (
               <DeleteDialogContent
-                title={t('确认删除该收藏？')}
-                subtitle={t('收藏名')}
                 name={collectDialog.name}
-              ></DeleteDialogContent>
-            )
+                subtitle={t('收藏名')}
+                title={t('确认删除该收藏？')}
+              />
+            ),
           }}
-        ></Dialog>
+          footerAlign={'center'}
+          isLoading={collectDialog.loading}
+          isShow={collectDialog.show}
+          title={''}
+          onClosed={() => {
+            collectDialog.show = false;
+          }}
+          onConfirm={() => deleteCollect()}
+        />
       </div>
     );
     return {
@@ -1678,10 +1765,10 @@ export default defineComponent({
       renderFn,
       selectedConditions,
       standardFieldList,
-      conditionList
+      conditionList,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

@@ -130,6 +130,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      min-height: 64px;
       padding: 7px 16px;
       margin-right: 12px;
       cursor: pointer;
@@ -146,9 +147,9 @@
         align-items: center;
 
         .plugin-name {
-          margin-left: 16px;
           display: flex;
           flex-direction: column;
+          margin-left: 16px;
           font-size: 14px;
           line-height: 24px;
 
@@ -166,9 +167,9 @@
     }
 
     .log2Trace-container {
-      margin: 8px 0 32px 104px;
-      padding: 24px 0;
       width: 800px;
+      padding: 24px 0;
+      margin: 8px 0 32px 104px;
       background-color: #f5f7fa;
 
       .bk-select {

@@ -19,8 +19,7 @@ router.register(r"query", views.ProfileQueryViewSet, basename="query")
 router.register(r"upload", views.ProfileUploadViewSet, basename="upload")
 
 resource_router = ResourceRouter()
-resource_router.register(r"query", views.ResourceQueryViewSet, basename="query")
-
+resource_router.register(r"query", views.ResourceQueryViewSet, basename="resource_query")
 
 urlpatterns = [
     path("", include(router.urls)),

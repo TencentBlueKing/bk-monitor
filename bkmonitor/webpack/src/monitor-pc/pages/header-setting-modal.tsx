@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import UserConfigMixin from '../mixins/userStoreConfig';
@@ -32,8 +33,8 @@ import {
   COMMON_ROUTE_LIST,
   COMMON_ROUTE_STORE_KEY,
   DEFAULT_ROUTE_LIST,
+  type IRouteConfigItem,
   getLocalStoreRoute,
-  IRouteConfigItem
 } from '../router/router-config';
 
 import './header-setting-modal.scss';
@@ -152,8 +153,8 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
             .slice(-6)
             .map(item => (
               <li
-                class='latest-item'
                 key={item.id}
+                class='latest-item'
               >
                 {this.$t(`route-${item.name}`)}
               </li>
@@ -167,8 +168,8 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
       <div class='content-routes'>
         {this.flatRoutes.map(item => (
           <div
-            class='route-content'
             key={item.id}
+            class='route-content'
           >
             <span class='route-title'>
               {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
@@ -184,7 +185,7 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
                     class={`icon-monitor route-check ${
                       this.isStoredRoute(child.id) ? 'icon-mc-check-fill' : 'icon-check'
                     }`}
-                  ></i>
+                  />
                 </li>
               ))}
             </ul>
@@ -203,16 +204,16 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
         <ul class='route-list'>
           {this.storeRoutes.map((item, index) => (
             <li
-              draggable={true}
-              class={`route-list-item ${this.dragoverId === item.id ? 'is-dragover' : ''}`}
               key={item.id}
-              onDragstart={() => this.handleDragstart(item)}
-              onDragover={e => this.handleDragover(item, e)}
+              class={`route-list-item ${this.dragoverId === item.id ? 'is-dragover' : ''}`}
+              draggable={true}
               onDragleave={this.handleDragleave}
+              onDragover={e => this.handleDragover(item, e)}
+              onDragstart={() => this.handleDragstart(item)}
               onDrop={this.handleDrop}
             >
               <i class={`${item.icon} item-icon`} />
-              <span class='icon-monitor icon-mc-tuozhuai item-drag'></span>
+              <span class='icon-monitor icon-mc-tuozhuai item-drag' />
               {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
               <span
                 class='icon-monitor icon-mc-close item-close'
@@ -228,11 +229,11 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
     return (
       <MonitorDialog
         class='header-setting-modal'
-        value={this.show}
         fullScreen={true}
+        maskClose={true}
         needFooter={false}
         needHeader={false}
-        maskClose={true}
+        value={this.show}
         zIndex={2000}
         onChange={this.handleShow}
       >

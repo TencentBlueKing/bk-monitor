@@ -26,6 +26,7 @@
 let staticVersion = ''; // 静态资源版本号
 let intervalId = null; // 定时器ID
 let hasShownConfirm = false; // 是否已经弹出过提示
+import Vue from 'vue';
 
 // 使用箭头函数简化代码，并添加注释来提高可读性
 export const checkForNewVersion = (checkInterval = 5 * 60 * 1000) => {
@@ -33,9 +34,9 @@ export const checkForNewVersion = (checkInterval = 5 * 60 * 1000) => {
   intervalId = setTimeout(async () => {
     try {
       const recheck = await fetchStaticVersion(false);
-      if (recheck) checkForNewVersion(checkInterval);
+      if (recheck) await checkForNewVersion(checkInterval);
     } catch {
-      checkForNewVersion(checkInterval);
+      await checkForNewVersion(checkInterval);
     }
   }, checkInterval);
 };
@@ -54,32 +55,58 @@ const fetchStaticVersion = async (clearInterval = true) => {
     return true;
   }
   if (staticVersion !== newVersion) {
-    return promptForReload();
+    return await promptForReload();
   }
-
   return true;
 };
 
 // 将确认框和刷新页面逻辑抽出单独的函数
-const promptForReload = () => {
+const promptForReload = async () => {
   if (hasShownConfirm) return false;
   removeVisibilityChangeListener();
   hasShownConfirm = true;
-
-  if (confirm(window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面'))) {
-    window.location.reload();
-    return false;
-  }
-  hasShownConfirm = false;
-  window.requestIdleCallback(() => {
-    addVisibilityChangeListener();
+  return await new Promise(resolve => {
+    Vue.prototype.$bkInfo({
+      title: window.i18n.tc('检测到蓝鲸监控版本更新'),
+      subTitle: window.i18n.tc('请点击“确定”刷新页面，保证数据准确性。'),
+      maskClose: false,
+      extCls: 'check-version-wrapper',
+      width: '480px',
+      confirmFn: () => {
+        window.location.reload();
+      },
+      cancelFn: () => {
+        hasShownConfirm = false;
+        addVisibilityChangeListener();
+        resolve(true);
+      },
+      closeFn: () => {
+        hasShownConfirm = false;
+        addVisibilityChangeListener();
+        resolve(true);
+      },
+    });
   });
-  return true;
+  // return true;
+  // if (confirm(window.i18n.tc('检测到监控平台有新版本更新，点击确定刷新页面'))) {
+  //   window.location.reload();
+  //   return false;
+  // }
+  // hasShownConfirm = false;
+  // window.requestIdleCallback(() => {
+  //   addVisibilityChangeListener();
+  // });
+  // return true;
 };
 
 const handleVisibilityChange = () => {
+  console.info(Date.now(), hasShownConfirm, document.visibilityState);
   if (!hasShownConfirm && document.visibilityState === 'visible') {
-    fetchStaticVersion(false);
+    fetchStaticVersion()
+      .catch(() => false)
+      .finally(() => checkForNewVersion());
+  } else {
+    clearInterval(intervalId);
   }
 };
 

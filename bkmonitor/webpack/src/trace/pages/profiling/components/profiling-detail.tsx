@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Form, Loading, Sideslider } from 'bkui-vue';
 
 import { useDocumentLink } from '../../../hooks';
 import { transformByte } from '../../../utils';
-import { DetailType, FileDetail, ServicesDetail } from '../typings';
+import { DetailType, type FileDetail, type ServicesDetail } from '../typings';
 
 import './profiling-detail.scss';
 
@@ -37,16 +38,16 @@ export default defineComponent({
   props: {
     detailType: {
       type: String as PropType<DetailType>,
-      default: DetailType.Application
+      default: DetailType.Application,
     },
     detailData: {
-      type: Object as PropType<ServicesDetail | FileDetail>,
-      default: () => null
+      type: Object as PropType<FileDetail | ServicesDetail>,
+      default: () => null,
     },
     show: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['showChange'],
   setup(props, { emit }) {
@@ -55,24 +56,24 @@ export default defineComponent({
     const statusMap = {
       uploaded: {
         type: 'success',
-        name: t('已上传')
+        name: t('已上传'),
       },
       parsing_failed: {
         type: 'error',
-        name: t('解析失败')
+        name: t('解析失败'),
       },
       parsing_succeed: {
         type: 'success',
-        name: t('解析成功')
+        name: t('解析成功'),
       },
       store_succeed: {
         type: 'success',
-        name: t('已存储')
+        name: t('已存储'),
       },
       store_failed: {
         type: 'error',
-        name: t('存储失败')
-      }
+        name: t('存储失败'),
+      },
     };
 
     const { handleGotoLink } = useDocumentLink();
@@ -92,7 +93,7 @@ export default defineComponent({
       statusMap,
       handleShowChange,
       handleViewAppDetail,
-      handleGotoLink
+      handleGotoLink,
     };
   },
   render() {
@@ -110,7 +111,7 @@ export default defineComponent({
                 onClick={this.handleViewAppDetail}
               >
                 {this.t('应用详情')}
-                <i class='icon-monitor icon-fenxiang'></i>
+                <i class='icon-monitor icon-fenxiang' />
               </span>
             </Form.FormItem>
             {/* <Form.FormItem label={`${this.t('采样频率')}:`}>{data.frequency || '-'}</Form.FormItem> */}
@@ -132,13 +133,14 @@ export default defineComponent({
           <Form.FormItem label={`${this.t('协议类型')}:`}>{data.file_type || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('解析状态')}:`}>
             <div class='status'>
-              <div class={['circle', this.statusMap[data.status].type]}></div>
+              <div class={['circle', this.statusMap[data.status].type]} />
               <span class='label'>{this.statusMap[data.status].name}</span>
             </div>
           </Form.FormItem>
           <Form.FormItem label={`${this.t('文件md5')}:`}>{data.file_md5 || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('上传人')}:`}>{data.operator || '-'}</Form.FormItem>
           <Form.FormItem label={`${this.t('上传时间')}:`}>{data.uploaded_time || '-'}</Form.FormItem>
+          <Form.FormItem label={`${this.t('pprof文件时间')}:`}>{data.data_time || '-'}</Form.FormItem>
           {['parsing_failed', 'store_failed'].includes(data.status) && (
             <Form.FormItem label={`${this.t('错误信息')}:`}>{data.content || '-'}</Form.FormItem>
           )}
@@ -149,25 +151,22 @@ export default defineComponent({
     return (
       <>
         <Sideslider
-          isShow={this.show}
-          onUpdate:isShow={this.handleShowChange}
-          quick-close
           width={400}
           ext-cls='profiling-detail-sideslider'
+          isShow={this.show}
+          quick-close
+          onUpdate:isShow={this.handleShowChange}
         >
           {{
             header: () => (
               <div class='profiling-detail-header'>
                 <span class='title'>{this.t('基础信息')}</span>
-                <span class='jump-link'>
-                  <a
-                    class='link'
-                    target='_blank'
-                    onClick={() => this.handleGotoLink('profiling_docs')}
-                  >
-                    {this.t('Profile 接入指引')}
-                  </a>
-                  <i class='icon-monitor icon-fenxiang'></i>
+                <span
+                  class='jump-link'
+                  onClick={() => this.handleGotoLink('profiling_docs')}
+                >
+                  <span class='link'>{this.t('Profile 接入指引')}</span>
+                  <i class='icon-monitor icon-fenxiang' />
                 </span>
               </div>
             ),
@@ -175,10 +174,10 @@ export default defineComponent({
               <Loading loading={!this.detailData}>
                 <div class='profiling-detail-content'>{renderContent()}</div>
               </Loading>
-            )
+            ),
           }}
         </Sideslider>
       </>
     );
-  }
+  },
 });

@@ -329,12 +329,6 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
     BcsStorageClusterConfig.objects.update_or_create(
         bcs_cluster_id=bcs_cluster_id, bk_biz_id=bk_biz_id, defaults={"storage_cluster_id": storage_cluster_id}
     )
-    # 存量索引集存储集群更新
-    CollectorHandler().update_bcs_project_index_set_storage(
-        bcs_cluster_id=bcs_cluster_id,
-        bk_biz_id=bk_biz_id,
-        storage_cluster_id=storage_cluster_id,
-    )
 
     # 存量bcs采集存储集群更新
     from apps.log_databus.handlers.etl import EtlHandler
@@ -359,7 +353,7 @@ def switch_bcs_collector_storage(bk_biz_id, bcs_cluster_id, storage_cluster_id, 
                 "etl_config": collect_config["etl_config"],
                 "fields": [field for field in collect_config["fields"] if not field["is_built_in"]],
             }
-            etl_handler = EtlHandler(collector.collector_config_id)
+            etl_handler = EtlHandler.get_instance(collector.collector_config_id)
             etl_handler.update_or_create(**etl_params)
             logger.info(
                 "switch collector->[{}] storage cluster success: {} -> {}".format(

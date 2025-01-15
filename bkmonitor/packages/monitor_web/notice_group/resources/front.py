@@ -13,7 +13,7 @@ from typing import Dict, List
 
 from django.conf import settings
 from django.db import models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import Action, ActionNoticeMapping, StrategyModel
 from bkmonitor.utils.request import get_request
@@ -50,7 +50,7 @@ class GetReceiverResource(Resource):
             all_members.update(members)
 
         user_list = api.bk_login.get_all_user(
-            page_size=500, fields="username,display_name", exact_lookups=",".join(all_members)
+            page_size=500, fields="username,display_name", exact_lookups=",".join(sorted(all_members))
         )["results"]
 
         display_name = {user["username"]: user["display_name"] for user in user_list}
@@ -105,7 +105,7 @@ class NoticeGroupDetailResource(Resource):
         user_info_dict = {}
         try:
             for user in api.bk_login.get_all_user(
-                fields="username,display_name,logo", exact_lookups=",".join(usernames)
+                fields="username,display_name,logo", exact_lookups=",".join(sorted(usernames))
             )["results"]:
                 user_info_dict[user["username"]] = user
         except Exception as e:
@@ -162,7 +162,7 @@ class NoticeGroupListResource(NoticeGroupDetailResource):
         if bk_biz_id:
             bk_biz_ids = [0, bk_biz_id]
         else:
-            bk_biz_ids = [biz.id for biz in resource.cc.get_app_by_user(get_request().user)]
+            bk_biz_ids: List[int] = resource.space.get_bk_biz_ids_by_user(get_request().user)
 
         notice_groups = resource.notice_group.backend_search_notice_group(bk_biz_ids=bk_biz_ids)
         strategy_ids = StrategyModel.objects.filter(bk_biz_id__in=bk_biz_ids).values_list("id", flat=True)

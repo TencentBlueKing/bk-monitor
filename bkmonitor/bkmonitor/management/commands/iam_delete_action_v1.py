@@ -22,9 +22,9 @@ the project delivered to anyone in the future.
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from iam.api.http import http_delete
 
 from bkmonitor.iam import ActionEnum, Permission
-from iam.api.http import http_delete
 
 ACTIONS_TO_UPGRADE = [
     ActionEnum.VIEW_BUSINESS,
@@ -56,6 +56,8 @@ ACTIONS_TO_UPGRADE = [
     ActionEnum.IMPORT_CONFIG,
     ActionEnum.VIEW_APM_APPLICATION,
     ActionEnum.MANAGE_APM_APPLICATION,
+    ActionEnum.VIEW_INCIDENT,
+    ActionEnum.MANAGE_INCIDENT,
 ]
 
 

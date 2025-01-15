@@ -1,0 +1,74 @@
+.aiops-correlation-metrics {
+  width: 100%;
+
+  .correlation-metrics-collapse {
+    width: 100%;
+
+    .correlation-metrics-collapse-head {
+      align-items: center;
+      height: 32px;
+      padding: 0px 15px;
+      background: #f0f1f5;
+
+      .collapse-icon {
+        display: flex;
+        align-items: center;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .icon-err {
+        font-size: 16px;
+        color: red;
+      }
+
+      .correlation-metrics-title {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        margin-left: 5px;
+        font-size: 14px;
+        line-height: 22px;
+        color: #313238;
+        cursor: pointer;
+
+        .num {
+          font-size: 12px;
+          color: #979ba5;
+        }
+      }
+
+      .correlation-metrics-right {
+        width: 100px;
+        text-align: right;
+        visibility: hidden;
+
+        &.correlation-metrics-right-show {
+          visibility: visible;
+        }
+      }
+
+      &:hover {
+        .correlation-metrics-right {
+          visibility: visible;
+        }
+      }
+    }
+
+    .correlation-metrics-collapse-head-hide {
+      display: none;
+    }
+
+    .correlation-metrics-collapse-head-show {
+      display: flex;
+    }
+  }
+
+  .metrics-collapse-show {
+    display: block;
+  }
+
+  .metrics-collapse-hide {
+    display: none;
+  }
+}

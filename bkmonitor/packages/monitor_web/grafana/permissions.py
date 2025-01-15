@@ -65,19 +65,18 @@ class DashboardPermission(BasePermission):
                 continue
             filtered_uids.add(split_result[-1])
 
-        return uids
+        return filtered_uids
 
     @classmethod
-    def get_user_role(cls, request, org_name: str) -> GrafanaRole:
+    def get_user_role(cls, username: str, org_name: str, force_check: bool = False) -> GrafanaRole:
         """
         获取仪表盘角色
         """
         role = GrafanaRole.Anonymous
-        if request.user.is_superuser:
-            return GrafanaRole.Admin
-
         bk_biz_id = int(org_name)
-        permission = Permission(username=request.user.username)
+        permission = Permission(username=username)
+        if force_check:
+            permission.skip_check = False
 
         if permission.is_allowed_by_biz(bk_biz_id, ActionEnum.MANAGE_DATASOURCE):
             return GrafanaRole.Admin
@@ -93,16 +92,14 @@ class DashboardPermission(BasePermission):
         return role
 
     @classmethod
-    def get_user_permission(cls, request, org_name: str) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
-        role = cls.get_user_role(request, org_name)
+    def get_user_permission(
+        cls, username: str, org_name: str, force_check: bool = False
+    ) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
+        role = GrafanaRole.Anonymous
+        p = Permission(username=username)
+        if force_check:
+            p.skip_check = False
 
-        # 如果用户拥有编辑以上权限, 则不需要再同步仪表盘权限
-        if role >= GrafanaRole.Editor:
-            return True, role, {}
-
-        p = Permission(username=request.user.username)
-        if getattr(request, "skip_check", False):
-            p.skip_check = True
         if p.skip_check:
             return True, GrafanaRole.Admin, {}
 
@@ -139,14 +136,24 @@ class DashboardPermission(BasePermission):
         return True, role, dashboard_permissions
 
     @classmethod
-    def has_permission(cls, request, view, org_name: str) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
+    def has_permission(
+        cls, request, view, org_name: str, force_check: bool = False
+    ) -> Tuple[bool, GrafanaRole, Dict[str, GrafanaPermission]]:
         """
         仪表盘权限校验
         """
         # 内部用户权限处理
-        _, role, dashboard_permissions = cls.get_user_permission(request, org_name)
-
-        logger.info(f"user_permission: {role}, {dashboard_permissions}")
+        if getattr(request, "skip_check", False) or request.user.is_superuser:
+            role, dashboard_permissions = GrafanaRole.Admin, {}
+        else:
+            role = cls.get_user_role(request.user.username, org_name, force_check)
+            dashboard_permissions = {}
+            if role < GrafanaRole.Editor:
+                _, new_role, dashboard_permissions = cls.get_user_permission(
+                    request.user.username, org_name, force_check
+                )
+                if new_role >= role:
+                    role = new_role
 
         # 外部用户权限处理
         if getattr(request, "external_user", None):

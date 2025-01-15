@@ -25,6 +25,7 @@
  */
 import { Component, Inject, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
 import { templateSignalName } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
@@ -37,44 +38,43 @@ import {
   getScenarioList,
   getStrategyV2,
   getTargetDetail,
-  strategyLabelList
+  strategyLabelList,
 } from 'monitor-api/modules/strategies';
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
-// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
-import PromqlMonacoEditor from '../../../components/promql-editor/promql-editor';
-import { ISpaceItem } from '../../../types';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
-import { handleSetTargetDesc } from '../common';
+import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
 import StrategyTemplatePreview from '../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
-import { IValue as IAlarmItem } from '../strategy-config-set-new/alarm-handling/alarm-handling';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
-import { ChartType } from '../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
-import { IModelData } from '../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
+import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
-import { IFunctionsValue } from '../strategy-config-set-new/monitor-data/function-select';
 import {
+  type INoticeValue,
   hasExcludeNoticeWayOptions,
-  INoticeValue,
-  intervalModeNames
+  intervalModeNames,
 } from '../strategy-config-set-new/notice-config/notice-config';
 import { levelList, noticeMethod } from '../strategy-config-set-new/type';
 import {
-  dataModeType,
-  IDetectionConfig,
-  IScenarioItem,
+  type IDetectionConfig,
+  type IScenarioItem,
   MetricDetail,
-  MetricType
+  MetricType,
+  type dataModeType,
 } from '../strategy-config-set-new/typings';
-
 import DetectionRulesDisplay from './components/detection-rules-display';
 import MetricListItem from './components/metric-list-item';
 import StrategyTargetTable from './strategy-config-detail-table.vue';
 import { transformLogMetricId } from './utils';
+
+import type { ISpaceItem } from '../../../types';
+import type { IValue as IAlarmItem } from '../strategy-config-set-new/alarm-handling/alarm-handling';
+import type { ChartType } from '../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
+import type { IModelData } from '../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
+import type { IFunctionsValue } from '../strategy-config-set-new/monitor-data/function-select';
 
 import './strategy-config-detail-common.scss';
 
@@ -86,6 +86,7 @@ interface IAnalyzingConditions {
   };
   recoveryConfig: {
     checkWindow: number;
+    statusSetter: RecoveryConfigStatusSetter;
   };
   noDataConfig: {
     continuous: number;
@@ -102,49 +103,52 @@ interface IBaseInfo {
   enabled: string; // 是否启用
   scenario: string; // 监控对象
   labels: string[]; // 标签
-  priority: number | null | string; // 优先级
+  priority: null | number | string; // 优先级
 }
 type BaseInfoRequire = {
   name: string;
   key: keyof Omit<IBaseInfo, 'labels'>;
 };
 
-type EditModeType = 'Source' | 'Edit';
+type EditModeType = 'Edit' | 'Source';
 
 @Component({
   components: {
-    StrategyTargetTable
-  }
+    StrategyTargetTable,
+    PromqlMonacoEditor: () =>
+      import(/* webpackChunkName: 'PromqlMonacoEditor' */ '../../../components/promql-editor/promql-editor'),
+  },
 })
-export default class StrategyConfigDetailCommon extends tsc<{}> {
+export default class StrategyConfigDetailCommon extends tsc<object> {
   // 策略Id
-  @Prop({ type: [String, Number] }) readonly id: string | number;
+  @Prop({ type: [String, Number] }) readonly id: number | string;
 
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Inject('authorityMap') authorityMap;
   @ProvideReactive('strategyId') strategyId = 0;
 
-  strategyView: { rightWidth: string | number; range: number[]; isActive: boolean; show: boolean } = {
+  strategyView: { rightWidth: number | string; range: number[]; isActive: boolean; show: boolean } = {
     rightWidth: '33%',
     range: [300, 1200],
     isActive: false,
-    show: true
+    show: true,
   };
 
   /** 导航面包屑 */
   routeList = [
     {
       id: 'strategy-config',
-      name: window.i18n.tc('策略配置')
+      name: window.i18n.tc('策略配置'),
     },
     {
       id: '',
-      name: 'loading...'
-    }
+      name: 'loading...',
+    },
   ];
   /* 告警组 */
   alarmGroupList = [];
+  alarmGroupLoading = false;
   /* 面包屑 */
   navName = 'loading...';
   /** 详情信息 */
@@ -160,7 +164,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   /** 监控目标数据 */
   targetsDesc = {
     message: '',
-    subMessage: ''
+    subMessage: '',
   };
 
   /** 告警等级 */
@@ -169,7 +173,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   levelList = [
     { id: 1, name: window.i18n.tc('致命'), icon: 'icon-danger' },
     { id: 2, name: window.i18n.tc('预警'), icon: 'icon-mind-fill' },
-    { id: 3, name: window.i18n.tc('提醒'), icon: 'icon-tips' }
+    { id: 3, name: window.i18n.tc('提醒'), icon: 'icon-tips' },
   ];
 
   /** 基本信息 */
@@ -179,31 +183,31 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     enabled: '',
     scenario: '',
     labels: [],
-    priority: null
+    priority: null,
   };
   /** 自定义标签数据 */
   customLabelsList: string[] = [];
   baseInfoRequireList: BaseInfoRequire[] = [
     {
       key: 'bizName',
-      name: window.i18n.tc('所属')
+      name: window.i18n.tc('所属'),
     },
     {
       key: 'scenario',
-      name: window.i18n.tc('监控对象')
+      name: window.i18n.tc('监控对象'),
     },
     {
       key: 'name',
-      name: window.i18n.tc('策略名称')
+      name: window.i18n.tc('策略名称'),
     },
     {
       key: 'priority',
-      name: window.i18n.tc('优先级')
+      name: window.i18n.tc('优先级'),
     },
     {
       key: 'enabled',
-      name: window.i18n.tc('是否启用')
-    }
+      name: window.i18n.tc('是否启用'),
+    },
   ];
   /** 监控对象列表 */
   scenarioList: IScenarioItem[] = [];
@@ -221,7 +225,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     unitType: '', // 单位类型
     unitList: [],
     connector: 'and',
-    data: []
+    data: [],
   };
   // 判断条件数据
   analyzingConditions: IAnalyzingConditions = {
@@ -229,19 +233,20 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       // 触发条件
       count: 1,
       checkWindow: 5,
-      checkType: 'total'
+      checkType: 'total',
     },
     recoveryConfig: {
       // 恢复条件
-      checkWindow: 5
+      checkWindow: 5,
+      statusSetter: RecoveryConfigStatusSetter.RECOVERY,
     },
     noDataConfig: {
       continuous: 10,
       isEnabled: true,
       dimensions: [],
-      level: 2
+      level: 2,
     },
-    timeRange: ['00:00:00', '23:59:59']
+    timeRange: ['00:00:00', '23:59:59'],
   };
   // 告警处理
   actionsData: IAlarmItem[] = [];
@@ -252,13 +257,13 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     signal: ['abnormal'], // 触发信号
     options: {
       converge_config: {
-        need_biz_converge: true // 告警风暴开关
+        need_biz_converge: true, // 告警风暴开关
       },
       noise_reduce_config: {
         dimensions: [],
         count: 0,
-        is_enabled: false
-      }
+        is_enabled: false,
+      },
     },
     config: {
       // 高级配置
@@ -269,9 +274,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
         { signal: 'abnormal', message_tmpl: '', title_tmpl: '' },
         { signal: 'recovered', message_tmpl: '', title_tmpl: '' },
         { signal: 'closed', message_tmpl: '', title_tmpl: '' },
-        { signal: 'ack', message_tmpl: '', title_tmpl: '' }
-      ]
-    }
+        { signal: 'ack', message_tmpl: '', title_tmpl: '' },
+      ],
+    },
   };
 
   localExpress = '';
@@ -280,11 +285,11 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   strategyStatusMap = {
     UPDATED: window.i18n.t('（已修改）'),
     DELETED: window.i18n.t('（已删除）'),
-    UNCHANGED: ''
+    UNCHANGED: '',
   };
   strategyStatus = '';
   // 套餐列表
-  actionConfigMap: { [propName: string | number]: { name?: string; plugin_name?: string } } = {};
+  actionConfigMap: { [propName: number | string]: { name?: string; plugin_name?: string } } = {};
   actionsKey = random(8);
   defenseMap: { [propName: string]: { key: string; name: string } } = {};
   templateActive = '';
@@ -297,7 +302,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   // 告警组想详情
   alarmGroupDetail: { id: number; show: boolean } = {
     id: 0,
-    show: false
+    show: false,
   };
   variateListShow = false;
   isShowTemplate = false;
@@ -330,24 +335,30 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     /* promql */
     sourceCode: '',
     /* agg_interval */
-    step: 'auto'
+    step: 'auto',
   };
   editMode: EditModeType = 'Edit';
   /* 是否为场景智能检测 */
   isMultivariateAnomalyDetection = false;
+  multivariateAnomalyDetectionParams = {
+    metrics: [],
+    refleshKey: '',
+  };
+
+  targetDetailLoading = false;
 
   /** 预览图描述文档  智能检测算法 | 时序预测 需要展示算法说明 */
   get aiopsModelDescMdGetter() {
     const needMdDesc = this.detectionConfig.data.some(item =>
-      ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster'].includes(item.type)
+      ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster', 'HostAnomalyDetection'].includes(item.type)
     );
     return needMdDesc
       ? [
           {
             name: this.aiopsModelName,
             instruction: this.aiopsModelDescMd,
-            document: this.aiopsModelDocMd
-          }
+            document: this.aiopsModelDocMd,
+          },
         ]
       : [];
   }
@@ -371,7 +382,6 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     );
   }
   get rightWidth() {
-    // eslint-disable-next-line no-nested-ternary
     return this.strategyView.show
       ? typeof this.strategyView.rightWidth === 'string'
         ? this.strategyView.rightWidth
@@ -384,7 +394,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       { label: this.$t('创建人'), value: this.detailData.create_user || '--' },
       { label: this.$t('创建时间'), value: this.detailData.create_time || '--' },
       { label: this.$t('最近更新人'), value: this.detailData.update_user || '--' },
-      { label: this.$t('修改时间'), value: this.detailData.update_time || '--' }
+      { label: this.$t('修改时间'), value: this.detailData.update_time || '--' },
     ];
   }
 
@@ -393,7 +403,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     return (
       this.noticeData.config.template?.map(item => ({
         key: item.signal,
-        label: templateSignalName[item.signal]
+        label: templateSignalName[item.signal],
       })) || []
     );
   }
@@ -438,6 +448,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     Promise.all(promiseList)
       .then(() => {
         this.handleDisplaybackDetail();
+        this.getTargetsTableData();
       })
       .catch(err => {
         console.log(err);
@@ -450,12 +461,14 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   }
   // 获取告警组数据
   async getAlarmGroupList() {
+    this.alarmGroupLoading = true;
     const data = await listUserGroup().catch(() => []);
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
-      receiver: item.users?.map(rec => rec.display_name) || []
+      receiver: item.users?.map(rec => rec.display_name) || [],
     }));
+    this.alarmGroupLoading = false;
   }
 
   /** 获取告警组名 */
@@ -484,13 +497,13 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   async getCalendarList() {
     const params = {
       page: 1,
-      page_size: 1000
+      page_size: 1000,
     };
     const data = await listCalendar(params).catch(() => null);
     if (data) {
       this.calendarList = data.data.map(item => ({
         id: item.id,
-        name: item.name
+        name: item.name,
       }));
     }
     return data;
@@ -502,18 +515,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   handleDisplaybackDetail() {
     /** 基本信息 */
     this.getBaseInfo(this.detailData);
-    this.targetsDesc = handleSetTargetDesc(
-      this.targetDetail.target_detail,
-      this.metricData[0]?.targetType || this.targetDetail?.node_type || '',
-      this.metricData[0]?.objectType || this.targetDetail?.instance_type || '',
-      this.checkedTarget.node_count,
-      this.checkedTarget.instance_count
-    );
-    /** 监控目标数据 */
-    this.targetsTableData = !!this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;
     /** 同级别算法关系 */
     const {
-      detects: [{ connector, level }]
+      detects: [{ connector, level }],
     } = this.detailData;
     this.detectionConfig.connector = connector;
     /** 告警等级 */
@@ -523,7 +527,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   /** 获取标签列表数据 */
   getLabelListApi() {
     const params = {
-      strategy_id: 0
+      strategy_id: 0,
     };
     strategyLabelList(params).then(res => {
       this.customLabelsList = res.custom.map(item => item.id.replace(/\//g, ''));
@@ -537,14 +541,17 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
    */
   async handleQueryConfigData(srcData = this.detailData) {
     const [{ expression, query_configs: queryConfigs, functions = [], algorithms }] = srcData.items;
-    if (algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection) {
+    if (
+      algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection ||
+      algorithms?.[0]?.type === MetricType.HostAnomalyDetection
+    ) {
       const curMetricData = new MetricDetail({
         targetType: this.targetDetail?.node_type,
         objectType: this.targetDetail?.instance_type,
         sceneConfig: {
           algorithms,
-          query_configs: queryConfigs
-        }
+          query_configs: queryConfigs,
+        },
       } as any);
       this.metricData.push(curMetricData);
       this.isMultivariateAnomalyDetection = true;
@@ -564,7 +571,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     const { metric_list: metricList = [] } = await getMetricListV2({
       // page: 1,
       // page_size: queryConfigs.length,
-      conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }]
+      conditions: [{ key: 'metric_id', value: queryConfigs.map(item => transformLogMetricId(item)) }],
     }).catch(() => ({}));
     this.metricData = queryConfigs.map(
       ({
@@ -575,7 +582,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
         index_set_id,
         functions,
         intelligent_detect,
-        // eslint-disable-next-line camelcase
+
         metric_field,
         metric_id,
         agg_method,
@@ -585,9 +592,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
         alias,
         query_string,
         custom_event_name,
-        bkmonitor_strategy_id
+        bkmonitor_strategy_id,
       }) => {
-        // eslint-disable-next-line camelcase
         const curMetric = metricList?.find(set => set.metric_id === metric_id) || {
           data_source_label,
           data_type_label,
@@ -600,9 +606,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
           query_string,
           custom_event_name,
           bkmonitor_strategy_id,
-          dimensions: []
+          dimensions: [],
         };
-        // eslint-disable-next-line camelcase
+
         this.dataMode =
           agg_method === 'REAL_TIME' || (data_type_label === 'event' && data_source_label === 'bk_monitor')
             ? 'realtime'
@@ -621,7 +627,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
           functions: functions || [],
           intelligent_detect,
           metric_type,
-          logMetricList: metricList
+          logMetricList: metricList,
         });
       }
     );
@@ -636,7 +642,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
   // 获取套餐数据
   async getActionConfigList() {
     const data = await listActionConfig({
-      with_advance_fields: 'no'
+      with_advance_fields: 'no',
     }).catch(() => []);
     data.forEach(item => {
       this.actionConfigMap[item.id] = item;
@@ -658,6 +664,58 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       this.scenarioList = data;
     });
   }
+
+  async getTargetsTableData() {
+    // 获取策略目标详情
+    this.targetDetailLoading = true;
+    const targetDetail =
+      (await getTargetDetail({ strategy_ids: [this.strategyId] }).finally(() => {
+        this.targetDetailLoading = false;
+      })) || {};
+    const strategyTarget = targetDetail[this.strategyId] || {};
+
+    // 提取目标列表和字段名称，提供默认值
+    let targetList = this.detailData?.items?.[0]?.target?.[0]?.[0]?.value || [];
+    const field = this.detailData?.items?.[0]?.target?.[0]?.[0]?.field || '';
+    const targetType = strategyTarget.node_type || '';
+
+    // 对旧版策略的特殊处理
+    if (targetType === 'INSTANCE' && field === 'bk_target_ip') {
+      targetList = targetList.map(item => ({
+        ...item,
+        ip: item.bk_target_ip,
+        bk_cloud_id: item.bk_target_cloud_id,
+      }));
+    }
+
+    // 设置第一个目标的实例计数
+    if (targetList.length) {
+      targetList[0].instances_count = strategyTarget.instance_count || 0;
+    }
+
+    // 更新目标详情
+    this.targetDetail = {
+      ...strategyTarget,
+      detail: strategyTarget.target_detail || [],
+      target_detail: targetList,
+    };
+
+    // 更新目标描述
+    this.targetsDesc = handleSetTargetDesc(
+      this.targetDetail.target_detail,
+      this.targetDetail.node_type || '',
+      this.targetDetail.instance_type || '',
+      this.targetDetail.node_count || this.checkedTarget.node_count,
+      this.targetDetail.instance_count || this.checkedTarget.instance_count
+    );
+    for (const item of this.metricData || []) {
+      item.objectType = this.targetDetail.instance_type;
+      item.targetType = this.targetDetail.node_type;
+    }
+    /** 监控目标数据 */
+    this.targetsTableData = this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;
+  }
+
   /**
    * @description 策略详情数据获取
    * @param id
@@ -676,27 +734,18 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     }
     this.strategyId = snapshotRes?.id || id;
     // 策略快照end
-    const targetDetail = await getTargetDetail({ strategy_ids: [this.strategyId] }).catch(() => ({}));
     const strategyDetail = snapshotRes.name
       ? snapshotRes
       : await getStrategyV2({ id: this.strategyId }).catch(() => ({}));
     this.detailData = strategyDetail;
     this.detectionConfig.data = strategyDetail?.items?.[0]?.algorithms?.filter(item => !!item.type) || [];
     this.detectionConfig.unit = strategyDetail?.items?.[0]?.algorithms?.[0]?.unit_prefix || '';
-    const strategyTarget = targetDetail?.[this.strategyId];
-    const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
-    const targetType = strategyTarget?.node_type || '';
-    let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
-    // 对旧版的策略target进行特殊处理
-    if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
-      targetList = targetList.map(item => ({ ...item, ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }));
-    }
-    targetList.length && (targetList[0].instances_count = strategyTarget?.instance_count || 0);
-    this.targetDetail = { ...strategyTarget, detail: strategyTarget?.target_detail, target_detail: targetList };
+    // const targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
+    // this.targetDetail = { target_detail: targetList };
     await this.handleQueryConfigData();
     await this.handleProcessData({
       ...strategyDetail,
-      targetDetail: this.targetDetail
+      targetDetail: this.targetDetail,
     });
   }
 
@@ -718,7 +767,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       enabled: this.$tc(data.is_enabled ? '是' : '否'),
       labels: data.labels.map(item => item.replace(/\//g, ' : ')),
       scenario: this.findTreeItem(this.scenarioList, data.scenario)?.name ?? '',
-      priority: data.priority ?? null
+      priority: data.priority ?? null,
     };
     if (!this.strategyStatus) {
       this.navName = `${this.$t('策略名')}: ${this.baseInfo.name}`;
@@ -738,9 +787,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     const fn = data => {
       for (const item of data) {
         if (item.id === id) return item;
-        if (!!item.children?.length) {
+        if (item.children?.length) {
           const res = fn(item.children);
-          if (!!res) return res;
+          if (res) return res;
         }
       }
     };
@@ -760,16 +809,17 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.analyzingConditions.triggerConfig = {
       ...this.analyzingConditions.triggerConfig,
       count: detect.trigger_config.count || 0,
-      checkWindow: detect.trigger_config.check_window || 0
+      checkWindow: detect.trigger_config.check_window || 0,
     };
     this.analyzingConditions.recoveryConfig = {
-      checkWindow: detect.recovery_config.check_window || 0
+      checkWindow: detect.recovery_config.check_window || 0,
+      statusSetter: detect.recovery_config.status_setter || RecoveryConfigStatusSetter.RECOVERY,
     };
     this.analyzingConditions.noDataConfig = {
       continuous: item.no_data_config.continuous || 0,
       isEnabled: item.no_data_config.is_enabled || false,
       dimensions: item.no_data_config.agg_dimension || [],
-      level: item.no_data_config.level || 2
+      level: item.no_data_config.level || 2,
     };
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const { time_ranges, calendars } = detect.trigger_config.uptime || {};
@@ -787,9 +837,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       options: {
         converge_config: {
           ...item.options.converge_config,
-          timedelta: item.options.converge_config.timedelta / 60
-        }
-      }
+          timedelta: item.options.converge_config.timedelta / 60,
+        },
+      },
     }));
   }
 
@@ -800,25 +850,25 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       ...notice,
       config: {
         ...notice.config,
-        notify_interval: notice.config.notify_interval / 60
+        notify_interval: notice.config.notify_interval / 60,
       },
       options: {
         ...notice.options,
         converge_config: {
-          need_biz_converge: notice.options.converge_config.need_biz_converge
+          need_biz_converge: notice.options.converge_config.need_biz_converge,
         },
         exclude_notice_ways: {
           closed: [],
           recovered: [],
-          ...notice.options?.exclude_notice_ways
+          ...notice.options?.exclude_notice_ways,
         },
         noise_reduce_config: {
           dimensions: notice.options?.noise_reduce_config?.dimensions || [],
           is_enabled: notice.options?.noise_reduce_config?.is_enabled || false,
-          count: notice.options?.noise_reduce_config?.count || 10
+          count: notice.options?.noise_reduce_config?.count || 10,
         },
-        chart_image_enabled: !!notice.options?.chart_image_enabled
-      }
+        chart_image_enabled: !!notice.options?.chart_image_enabled,
+      },
     };
     this.templateActive = this.noticeData.config.template[0].signal;
     this.templateData = deepClone(this.noticeData.config.template[0]);
@@ -881,8 +931,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       name: 'alarm-group-edit',
       params: {
         id,
-        strategyId: `${this.strategyId}`
-      }
+        strategyId: `${this.strategyId}`,
+      },
     });
   }
 
@@ -897,8 +947,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.$router.push({
       name: 'strategy-config-edit',
       params: {
-        id: String(this.strategyId || this.id)
-      }
+        id: String(this.strategyId || this.id),
+      },
     });
   }
 
@@ -918,11 +968,19 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
     this.localAiopsChartType = type;
   }
 
+  handleSceneConfigMetricChange(metrics) {
+    this.multivariateAnomalyDetectionParams.metrics = metrics;
+  }
+  handleMultivariateAnomalyRefreshView() {
+    /* refleshKey用于控制图表数据刷新 */
+    this.multivariateAnomalyDetectionParams.refleshKey = random(8);
+  }
+
   render() {
     const panelItem = (title: string, content: any, style = {}, titleRight?: any) => (
       <div
-        class='panel'
         style={style}
+        class='panel'
       >
         <div class='panel-title'>
           <span class='title'>{title}</span>
@@ -934,18 +992,18 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
 
     const commonItem = (title: any = '', content: any = '', style = {}, contentStyle = {}) => (
       <div
-        class='comm-item'
         style={style}
+        class='comm-item'
       >
         <div
-          class='comm-item-title'
           v-en-style='min-width: 130px'
+          class='comm-item-title'
         >
           {title}:
         </div>
         <div
-          class='comm-item-content'
           style={contentStyle}
+          class='comm-item-content'
         >
           {content}
         </div>
@@ -960,31 +1018,31 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
       abnormal: window.i18n.t('当告警触发时'),
       recovered: window.i18n.t('当告警恢复时'),
       closed: window.i18n.t('当告警关闭时'),
-      ack: window.i18n.t('告警确认时')
+      ack: window.i18n.t('告警确认时'),
     };
     const actionOptions = {
       execute: window.i18n.t('执行前'),
       execute_success: window.i18n.t('执行成功'),
-      execute_failed: window.i18n.t('执行失败')
+      execute_failed: window.i18n.t('执行失败'),
     };
 
     return (
       <div class='strategy-config-detail'>
         <CommonNavBar
           class='strategy-config-nav'
+          navMode='copy'
+          position-text={this.navName}
           routeList={this.routeList}
           needCopyLink
-          position-text={this.navName}
-          navMode='copy'
         >
           <span slot='custom'>{this.$t('策略详情')}</span>
           <span
-            slot='append'
             class={['icon-monitor icon-audit', { active: this.strategyView.show }]}
+            slot='append'
             v-bk-tooltips={{
               content: this.$t(this.strategyView.show ? '收起' : '展开'),
               delay: 200,
-              appendTo: () => document.body
+              appendTo: () => document.body,
             }}
             onClick={() => (this.strategyView.show = !this.strategyView.show)}
           />
@@ -1000,7 +1058,10 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                 <div class='base-info-main'>
                   <div class='base-info-row'>
                     {this.baseInfoRequireList.map(item => (
-                      <span class='base-info-item'>
+                      <span
+                        key={item.name}
+                        class='base-info-item'
+                      >
                         <span class='base-info-label'>{item.name} :</span>
                         <span class='base-info-value'>{this.baseInfo[item.key] ?? '--'}</span>
                       </span>
@@ -1010,9 +1071,12 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     <span class='base-info-item labels'>
                       <span class='base-info-label'>{this.$t('标签')} :</span>
                       <span class='labels-list'>
-                        {!!this.baseInfo.labels.length
+                        {this.baseInfo.labels.length
                           ? this.baseInfo.labels.map(item => (
-                              <span class={['labels-item', { 'custom-label': this.customLabelsList.includes(item) }]}>
+                              <span
+                                key={item}
+                                class={['labels-item', { 'custom-label': this.customLabelsList.includes(item) }]}
+                              >
                                 {item}
                               </span>
                             ))
@@ -1024,11 +1088,12 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                 { marginTop: 0 },
                 [
                   <bk-button
-                    theme={'primary'}
-                    outline
+                    key='button'
                     style={{ width: '88px', margin: '0 8px 0 24px' }}
                     v-authority={{ active: !this.authority.MANAGE_AUTH }}
                     disabled={!this.detailData?.edit_allowed}
+                    theme={'primary'}
+                    outline
                     onClick={() =>
                       this.authority.MANAGE_AUTH
                         ? !!this.detailData?.edit_allowed && this.handleToEdit()
@@ -1037,40 +1102,51 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                   >
                     {this.$t('编辑')}
                   </bk-button>,
-                  <HistoryDialog list={this.historyList} />
+                  <HistoryDialog
+                    key='HistoryDialog'
+                    list={this.historyList}
+                  />,
                 ]
               )}
               {panelItem(
                 this.$tc('数据查询'),
                 this.isMultivariateAnomalyDetection ? (
                   <AiopsMonitorData
+                    defaultCheckedTarget={this.targetDetail || { target_detail: [] }}
                     metricData={this.metricData}
                     readonly={true}
-                    defaultCheckedTarget={this.targetDetail || { target_detail: [] }}
-                  ></AiopsMonitorData>
+                    onMetricChange={this.handleSceneConfigMetricChange}
+                    onModelChange={val => this.handleModelChange(val[0])}
+                  />
                 ) : (
                   <div class='query-configs-main'>
                     <div>
                       {(() => {
                         if (this.editMode === 'Edit') {
                           return [
-                            this.metricData.map(metricItem => <MetricListItem metric={metricItem} />),
-                            this.metricData.length > 1 ? (
+                            this.metricData.map((metricItem, index) => (
                               <MetricListItem
-                                expression={this.expression}
-                                expFunctions={this.expFunctions}
+                                key={index}
+                                metric={metricItem}
                               />
-                            ) : undefined
+                            )),
+                            this.expression?.trim()?.length > 2 ? (
+                              <MetricListItem
+                                key='expression'
+                                expFunctions={this.expFunctions}
+                                expression={this.expression}
+                              />
+                            ) : undefined,
                           ];
                         }
                         return (
                           <div class='promql-content'>
                             <div class='edit-wrap'>
-                              <PromqlMonacoEditor
+                              <promql-monaco-editor
                                 minHeight={160}
-                                value={this.sourceData.sourceCode}
                                 readonly={true}
-                              ></PromqlMonacoEditor>
+                                value={this.sourceData.sourceCode}
+                              />
                               {/* <PromqlEditor
                                 class='promql-editor'
                                 readonly={true}
@@ -1080,23 +1156,23 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                             <div class='step-wrap'>
                               <bk-input
                                 class='step-input'
-                                type='number'
                                 min={10}
+                                type='number'
                                 value={this.sourceData.step}
                                 disabled
                               >
                                 <div
-                                  slot='prepend'
                                   class='step-input-prepend'
+                                  slot='prepend'
                                 >
                                   <span>{'Step'}</span>
                                   <span
                                     class='icon-monitor icon-hint'
                                     v-bk-tooltips={{
                                       content: this.$t('数据步长'),
-                                      placements: ['top']
+                                      placements: ['top'],
                                     }}
-                                  ></span>
+                                  />
                                 </div>
                               </bk-input>
                             </div>
@@ -1104,10 +1180,12 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         );
                       })()}
                     </div>
-                    {this.targetsDesc.message || this.targetsDesc.subMessage ? (
+                    {this.targetDetailLoading ? (
+                      <div class='targets-desc skeleton-element' />
+                    ) : this.targetsDesc.message || this.targetsDesc.subMessage ? (
                       <div class='targets-desc'>
                         <span onClick={this.handleShowTargetTable}>
-                          <i class='icon-monitor icon-mc-tv'></i>
+                          <i class='icon-monitor icon-mc-tv' />
                           <span class='targets-desc-text'>
                             {this.targetsDesc.message}
                             {this.targetsDesc.subMessage}
@@ -1115,7 +1193,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         </span>
                       </div>
                     ) : undefined}
-                    {!!this.metricData
+                    {this.metricData
                       .slice(0, 1)
                       .find(item => item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert') ? (
                       <div class='event-alert-level'>
@@ -1125,9 +1203,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                             class={[
                               'icon-monitor',
                               this.currentAlertLevel.icon,
-                              `level-icon-${this.currentAlertLevel.id}`
+                              `level-icon-${this.currentAlertLevel.id}`,
                             ]}
-                          ></i>
+                          />
                           <span class='level-text'>{this.currentAlertLevel.name}</span>
                         </span>
                       </div>
@@ -1144,13 +1222,14 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                           {this.detectionConfig.connector === 'and' ? this.$tc('且') : this.$tc('或')}
                         </i18n>
                       </div>
-                      {this.detectionConfig.data.map(item => (
+                      {this.detectionConfig.data.map((item, index) => (
                         <DetectionRulesDisplay
+                          key={index}
                           class='detection-rules-item'
-                          value={item}
                           metricData={this.metricData}
-                          onModelChange={this.handleModelChange}
+                          value={item}
                           onAiopsTypeChange={this.handleAiopsChartType}
+                          onModelChange={this.handleModelChange}
                         />
                       ))}
                     </div>
@@ -1170,10 +1249,14 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                   {commonItem(
                     this.$t('恢复条件'),
                     <i18n
-                      path='连续{0}个周期内不满足条件表示恢复'
                       class='i18n-path'
+                      path='连续{0}个周期内不满足触发条件{1}'
                     >
                       <span class='bold-span'>{recoveryConfig.checkWindow}</span>
+                      {!isRecoveryDisable(this.metricData) &&
+                      isStatusSetterNoData(this.analyzingConditions?.recoveryConfig?.statusSetter) ? (
+                        <span class='bold-span bold-span-no-left-margin'>{this.$t('或无数据')}</span>
+                      ) : null}
                     </i18n>
                   )}
                   {commonItem(
@@ -1181,12 +1264,12 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     noDataConfig.isEnabled ? (
                       <i18n
                         path={
-                          !!noDataConfig.dimensions.length
+                          noDataConfig.dimensions.length
                             ? '{0}当数据连续丢失{1}个周期时，触发告警通知基于以下维度{2}进行判断，告警级别{3}'
                             : '{0}当数据连续丢失{1}个周期时，触发告警通知，告警级别{2}'
                         }
                       >
-                        <span></span>
+                        <span />
                         <span class='bold-span'>{noDataConfig.continuous}</span>
                         {noDataConfig.dimensions.length ? (
                           <span class='bold-span'>
@@ -1205,22 +1288,18 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     this.$t('生效时间段'),
                     this.timeRanges.length
                       ? this.timeRanges.reduce((str, timeRange, index) => {
-                          // eslint-disable-next-line no-param-reassign
-                          str += `${timeRange.start}~${timeRange.end}${
+                          return `${str}${timeRange.start}~${timeRange.end}${
                             index !== this.timeRanges.length - 1 ? ', ' : ''
                           }`;
-                          return str;
                         }, '')
                       : '--'
                   )}
                   {commonItem(
                     this.$t('关联日历'),
-                    !!this.calendars.length
+                    this.calendars.length
                       ? this.calendars.reduce((str, item, index) => {
                           const target = this.calendarList.find(set => set.id === item);
-                          // eslint-disable-next-line no-param-reassign
-                          str += `${target?.name || item}${index !== this.calendars.length - 1 ? ', ' : ''}`;
-                          return str;
+                          return `${str}${target?.name || item}${index !== this.calendars.length - 1 ? ', ' : ''}`;
                         }, '')
                       : '--'
                   )}
@@ -1229,14 +1308,14 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
               {panelItem(
                 this.$tc('告警处理'),
                 <div
-                  class='actions-list'
                   key={this.actionsKey}
+                  class='actions-list'
                 >
                   {this.actionsData.length ? (
                     this.actionsData.map((item, index) => (
                       <div
-                        class='action-item'
                         key={index}
+                        class='action-item'
                       >
                         <div class='item-head'>{item.signal.map(key => signalNames[key]).join(',')}</div>
                         <div class='item-content'>
@@ -1299,7 +1378,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                           );
                         }
                         return (
-                          <span>
+                          <span key={index}>
                             {index === 0 ? '' : ', '}
                             {noticeOptions[key]}
                           </span>
@@ -1330,8 +1409,9 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         <div class='user-notice-item'>
                           <span class='groups-title-warp'>{this.$t('告警组')}：</span>
                           <span>
-                            {this.noticeData?.user_group_list?.map(item => (
+                            {this.noticeData?.user_group_list?.map((item, index) => (
                               <span
+                                key={index}
                                 class='user-group'
                                 onClick={(e: Event) => {
                                   e.stopPropagation();
@@ -1346,29 +1426,40 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         <div class='user-notice-item'>
                           <span class='groups-title-warp'>{this.$t('通知升级')}：</span>
                           {this.noticeData?.options?.upgrade_config?.is_enabled ? (
-                            <span>
-                              <span>
+                            [
+                              <span key='1'>
                                 <i18n
                                   class='text'
                                   path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
                                 >
                                   <span>{this.noticeData?.options?.upgrade_config?.upgrade_interval || 0}</span>
                                 </i18n>
-                              </span>
-                              <span class='ml10'>
-                                {this.noticeData?.options?.upgrade_config?.user_groups?.map(alarm => (
-                                  <span
-                                    class='user-group'
-                                    onClick={(e: Event) => {
-                                      e.stopPropagation();
-                                      this.handleSelcetAlarmGroup(alarm);
-                                    }}
-                                  >
-                                    {this.getAlarmGroupByID(alarm)}
-                                  </span>
-                                ))}
-                              </span>
-                            </span>
+                              </span>,
+                              <div
+                                key='2'
+                                class='ml10 notice-user-list'
+                              >
+                                {this.noticeData?.options?.upgrade_config?.user_groups?.map((alarm, index) =>
+                                  !this.alarmGroupLoading ? (
+                                    <span
+                                      key={index}
+                                      class='user-group'
+                                      onClick={(e: Event) => {
+                                        e.stopPropagation();
+                                        this.handleSelcetAlarmGroup(alarm);
+                                      }}
+                                    >
+                                      {this.getAlarmGroupByID(alarm)}
+                                    </span>
+                                  ) : (
+                                    <div
+                                      key={index}
+                                      class='skeleton-element alarm-group-skeleton'
+                                    />
+                                  )
+                                )}
+                              </div>,
+                            ]
                           ) : (
                             <span>{this.$t('关闭')}</span>
                           )}
@@ -1407,7 +1498,7 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                                       .map(id => this.dimensionsMap?.[id]?.name || id)
                                       .join(',')
                                   : '--',
-                                this.noticeData.options.noise_reduce_config.count
+                                this.noticeData.options.noise_reduce_config.count,
                               ])}
                             </span>
                           ) : (
@@ -1419,11 +1510,11 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                   <div class='content-wraper'>
                     <div class='wrap-top'>
                       <CustomTab
-                        panels={this.templateTypes}
                         active={this.templateActive}
+                        panels={this.templateTypes}
                         type={'text'}
                         onChange={this.handleChangeTemplate}
-                      ></CustomTab>
+                      />
                     </div>
                     <div class='wrap-bottom'>
                       <div class='template-title'>
@@ -1431,8 +1522,8 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         <span class='content'>{this.templateData.title_tmpl}</span>
                       </div>
                       <div
-                        class='label-wrap'
                         style={{ marginTop: '7px' }}
+                        class='label-wrap'
                       >
                         <span class='label'>
                           <span>{this.$t('告警通知模板')}</span>
@@ -1447,14 +1538,14 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                             class={'template-btn-wrap'}
                             onClick={this.handleShowVariateList}
                           >
-                            <i class='icon-monitor icon-audit'></i>
+                            <i class='icon-monitor icon-audit' />
                             <span class='template-btn-text'>{this.$t('变量列表')}</span>
                           </div>
                           <div
                             class={['template-btn-wrap', { 'template-btn-disabled': !this.templateData.message_tmpl }]}
                             onClick={this.handleShowTemplate}
                           >
-                            <i class='icon-monitor icon-audit'></i>
+                            <i class='icon-monitor icon-audit' />
                             <span class='template-btn-text'>{this.$t('模板预览')}</span>
                           </div>
                         </div>
@@ -1466,12 +1557,12 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                         dialogShow={this.isShowTemplate}
                         template={this.templateData.message_tmpl}
                         {...{ on: { 'update:dialogShow': v => (this.isShowTemplate = v) } }}
-                      ></StrategyTemplatePreview>
+                      />
                       <StrategyVariateList
                         dialogShow={this.variateListShow}
                         {...{ on: { 'update:dialogShow': val => (this.variateListShow = val) } }}
                         variate-list={this.variateList}
-                      ></StrategyVariateList>
+                      />
                     </div>
                   </div>
                   <AlarmGroupDetail
@@ -1480,55 +1571,58 @@ export default class StrategyConfigDetailCommon extends tsc<{}> {
                     customEdit
                     onEditGroup={this.handleEditAlarmGroup}
                     onShowChange={val => !val && (this.alarmGroupDetail.id = 0)}
-                  ></AlarmGroupDetail>
+                  />
                 </div>
               )}
             </div>
-            <div style='padding-top: 16px;'></div>
+            <div style='padding-top: 16px;' />
           </div>
           <div
-            class='detail-content-right'
             style={{ width: this.rightWidth }}
+            class='detail-content-right'
           >
             <div
-              class='right-wrapper'
               style={{ width: this.rightWidth }}
+              class='right-wrapper'
             >
               <div
                 class={['drag', { active: this.strategyView.isActive }]}
                 on-mousedown={this.handleMouseDown}
-              ></div>
+              />
               <StrategyView
-                metricData={this.metricData}
-                sourceData={this.sourceData}
-                detectionConfig={this.detectionConfig}
-                expression={this.expression}
-                editMode={this.editMode}
-                expFunctions={this.expFunctions}
-                legalDimensionList={this.legalDimensionList}
-                dataMode={this.dataMode}
                 aiopsChartType={this.localAiopsChartType}
                 aiopsModelMdList={this.aiopsModelDescMdGetter}
+                dataMode={this.dataMode}
+                detectionConfig={this.detectionConfig}
+                editMode={this.editMode}
+                expFunctions={this.expFunctions}
+                expression={this.expression}
+                isMultivariateAnomalyDetection={this.isMultivariateAnomalyDetection}
+                legalDimensionList={this.legalDimensionList}
+                metricData={this.metricData}
+                multivariateAnomalyDetectionParams={this.multivariateAnomalyDetectionParams}
+                sourceData={this.sourceData}
                 strategyTarget={this.detailData?.items?.[0]?.target || []}
+                onMultivariateAnomalyRefreshView={this.handleMultivariateAnomalyRefreshView}
               />
             </div>
           </div>
         </div>
-        {!!this.targetsTableData ? (
+        {this.targetsTableData ? (
           <bk-dialog
+            width='1100'
+            ext-cls='target-table-wrap'
             v-model={this.showTargetTable}
-            on-change={v => (this.showTargetTable = v)}
-            show-footer={false}
             header-position='left'
             need-footer={false}
-            width='1100'
+            show-footer={false}
             title={this.$t('监控目标')}
-            ext-cls='target-table-wrap'
+            on-change={v => (this.showTargetTable = v)}
           >
             <strategy-target-table
+              objType={this.metricData[0]?.objectType || this.targetDetail?.instance_type || ''}
               tableData={this.targetsTableData}
               targetType={this.metricData[0]?.targetType || this.targetDetail?.node_type || ''}
-              objType={this.metricData[0]?.objectType || this.targetDetail?.instance_type || ''}
             />
           </bk-dialog>
         ) : undefined}

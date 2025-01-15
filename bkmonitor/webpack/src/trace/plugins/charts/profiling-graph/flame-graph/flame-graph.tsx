@@ -23,22 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, Teleport, toRaw, watch } from 'vue';
+import { Teleport, computed, defineComponent, nextTick, onBeforeUnmount, ref, shallowRef, toRaw, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Popover, ResizeLayout } from 'bkui-vue';
-import { HierarchyNode } from 'd3-hierarchy';
+import { Exception, Popover, Message } from 'bkui-vue';
 import { query } from 'monitor-api/modules/apm_profile';
+import { copyText } from 'monitor-common/utils/utils';
 import { FlameChart } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/use-flame';
 import {
-  BaseDataType,
+  type ProfileDataUnit,
+  parseProfileDataTypeValue,
+} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import {
+  type BaseDataType,
   CommonMenuList,
-  IAxisRect,
-  ICommonMenuItem,
-  IContextMenuRect,
-  IOtherData,
-  ITipsDetail,
-  IZoomRect,
-  RootId
+  type IAxisRect,
+  type ICommonMenuItem,
+  type IContextMenuRect,
+  type IOtherData,
+  type ITipsDetail,
+  type IZoomRect,
+  RootId,
 } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { debounce } from 'throttle-debounce';
@@ -46,6 +52,8 @@ import { debounce } from 'throttle-debounce';
 import { COMPARE_DIFF_COLOR_LIST, getSingleDiffColor } from '../../../../utils/compare';
 import GraphTools from '../../flame-graph/graph-tools/graph-tools';
 import ViewLegend from '../../view-legend/view-legend';
+
+import type { HierarchyNode } from 'd3-hierarchy';
 
 import '../../flame-graph-v2/flame-graph.scss';
 import './flame-graph.scss';
@@ -62,59 +70,68 @@ export default defineComponent({
   props: {
     data: {
       type: Object as () => BaseDataType,
-      default: () => {}
+      default: () => {},
     },
     appName: {
       type: String,
-      default: ''
+      default: '',
     },
     serviceName: {
       type: String,
-      default: ''
+      default: '',
     },
     diffTraceId: {
       type: String,
-      default: ''
+      default: '',
     },
     filterKeywords: {
       type: Array as () => string[],
-      default: () => [] as string[]
+      default: () => [] as string[],
     },
     textDirection: {
       type: String as () => 'ltr' | 'rtl',
-      default: 'ltr'
+      default: 'ltr',
     },
     profileId: {
       type: String,
-      default: ''
+      default: '',
     },
     start: {
       type: Number,
-      default: 0
+      default: 0,
     },
     end: {
       type: Number,
-      default: 0
+      default: 0,
     },
     bizId: {
       type: [Number, String],
-      default: ''
+      default: '',
     },
     showGraphTools: {
       type: Boolean,
-      default: true
+      default: true,
     },
     highlightId: {
       type: Number,
-      default: -1
+      default: -1,
+    },
+    highlightName: {
+      type: String,
+      default: '',
     },
     isCompared: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
+    unit: {
+      type: String as () => ProfileDataUnit,
+      default: 'nanoseconds',
+    },
   },
-  emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId'],
+  emits: ['update:loading', 'showSpanDetail', 'diffTraceSuccess', 'updateHighlightId', 'updateHighlightName'],
   setup(props, { emit, expose }) {
+    const { t } = useI18n();
     const chartRef = ref<HTMLElement>(null);
     const wrapperRef = ref<HTMLElement>(null);
     const flameToolsPopoverContent = ref<HTMLElement>(null);
@@ -124,7 +141,7 @@ export default defineComponent({
       left: 0,
       top: 0,
       spanId: '',
-      spanName: ''
+      spanName: '',
     });
     const axisRect = shallowRef<IAxisRect>({ left: 0, bottom: 0, title: '', visibility: 'hidden' });
     const zoomRect = ref<IZoomRect>({ left: 0, width: 0 });
@@ -137,7 +154,9 @@ export default defineComponent({
     const scaleValue = ref(100);
     const localIsCompared = ref(false);
 
-    const diffPercentList = computed(() => COMPARE_DIFF_COLOR_LIST.map(val => `${val.value}%`));
+    const diffPercentList = computed(() =>
+      COMPARE_DIFF_COLOR_LIST.map(val => `${val.value > 0 ? '+' : ''}${val.value}%`)
+    );
 
     watch(
       () => props.textDirection,
@@ -153,9 +172,9 @@ export default defineComponent({
         showException.value = false;
         try {
           const { bizId, appName, serviceName, start, end, profileId } = props;
-          const data = !!props.data
+          const data = props.data
             ? props.data
-            : (
+            : ((
                 await query(
                   {
                     bk_biz_id: bizId,
@@ -164,13 +183,13 @@ export default defineComponent({
                     start,
                     end,
                     profile_id: profileId,
-                    diagram_types: ['flamegraph']
+                    diagram_types: ['flamegraph'],
                   },
                   {
-                    needCancel: true
+                    needCancel: true,
                   }
                 ).catch(() => false)
-              )?.diagrams?.flame_data ?? false;
+              )?.flame_data ?? false);
 
           if (data) {
             if (props.diffTraceId) {
@@ -182,7 +201,7 @@ export default defineComponent({
             if (!chartRef.value?.clientWidth) return;
             localIsCompared.value = props.isCompared;
             graphInstance = new FlameChart(
-              initGraphData(!!props.data ? toRaw(data) : data),
+              initGraphData(props.data ? toRaw(data) : data),
               {
                 w: chartRef.value.clientWidth - paddingLeft * 2,
                 c: 20,
@@ -190,6 +209,7 @@ export default defineComponent({
                 minHeight: wrapperRef.value?.getBoundingClientRect().height - 40,
                 direction: props.textDirection,
                 keywords: props.filterKeywords,
+                unit: props.unit,
                 getFillColor: (d: BaseDataType) => {
                   if (d.id === RootId) return 'rgb(223,133,32)';
                   return props.isCompared && d?.diff_info ? getSingleDiffColor(d.diff_info) : '';
@@ -199,31 +219,42 @@ export default defineComponent({
                     tipDetail.value = {};
                     return;
                   }
-                  const { text, suffix } = usFormat(d.data.value / 1000);
-                  let diffDuration = '';
+                  let detailsData = undefined;
+                  let dataText = undefined;
+                  const { value: dataValue, text: profileText } = parseProfileDataTypeValue(
+                    d.data.value,
+                    props.unit,
+                    true
+                  );
+                  detailsData = dataValue;
+                  dataText = profileText;
+
+                  let diffData = undefined;
                   let diffValue = 0;
                   if (props.isCompared && d.data?.diff_info) {
-                    const { text: diffText, suffix: diffSuffix } = usFormat(d.data.diff_info.comparison);
-                    diffDuration = diffText + diffSuffix;
+                    const { value: diffProfileValue } = parseProfileDataTypeValue(
+                      d.data.diff_info.comparison,
+                      props.unit
+                    );
+                    diffData = diffProfileValue;
                     diffValue =
                       d.data.diff_info.comparison === 0 || d.data.diff_info.mark === 'unchanged'
                         ? 0
-                        : +(
-                            ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
-                            d.data.diff_info.comparison
-                          ).toFixed(2);
+                        : d.data.diff_info.diff;
+                    // +(
+                    //     ((d.data.diff_info.baseline - d.data.diff_info.comparison) * 100) /
+                    //     d.data.diff_info.comparison
+                    //   ).toFixed(2);
                   }
                   let axisLeft = e.pageX - (boundryBody ? 0 : svgRect.left);
                   let axisTop = e.pageY - (boundryBody ? 0 : svgRect.top);
-                  if (axisLeft + 240 > window.innerWidth) {
-                    axisLeft = axisLeft - 220 - 16;
+                  if (axisLeft + 360 > window.innerWidth) {
+                    axisLeft = axisLeft - 340 - 16;
                   } else {
                     axisLeft = axisLeft + 16;
                   }
-                  if (axisTop + 120 > window.innerHeight) {
-                    axisTop = axisTop - 120;
-                  } else {
-                    axisTop = axisTop;
+                  if (axisTop + 180 > window.innerHeight) {
+                    axisTop = axisTop - 180;
                   }
                   tipDetail.value = {
                     left: axisLeft,
@@ -231,10 +262,11 @@ export default defineComponent({
                     id: d.data.id,
                     title: d.data.name,
                     proportion: ((d.data.value * 100) / c.rootValue).toFixed(4).replace(/[0]+$/g, ''),
-                    duration: text + suffix,
-                    diffDuration,
+                    data: detailsData,
+                    dataText,
+                    diffData,
                     diffValue,
-                    mark: d.data.diff_info?.mark
+                    mark: d.data.diff_info?.mark,
                   };
                 },
                 onContextMenu: (e: MouseEvent, d: HierarchyNode<BaseDataType>) => {
@@ -256,7 +288,7 @@ export default defineComponent({
                     top: svgRect.top - paddingLeft,
                     bottom: svgRect.bottom + paddingLeft,
                     title: text + suffix,
-                    visibility: axisLeft < svgRect.x || axisLeft > svgRect.width + svgRect.x ? 'hidden' : 'visible'
+                    visibility: axisLeft < svgRect.x || axisLeft > svgRect.width + svgRect.x ? 'hidden' : 'visible',
                   };
                 },
                 onMouseOut: () => {
@@ -290,7 +322,7 @@ export default defineComponent({
                   // }
                   // document.addEventListener('mousemove', mousemove);
                   // document.addEventListener('mouseup', mouseup);
-                }
+                },
               },
               chartRef.value
             );
@@ -312,7 +344,7 @@ export default defineComponent({
           showException.value = true;
         }
       }),
-      { immediate: true, deep: true }
+      { immediate: true }
     );
     watch(
       () => props.filterKeywords,
@@ -324,6 +356,12 @@ export default defineComponent({
       () => props.highlightId,
       () => {
         graphInstance?.highlightNodeId(props.highlightId);
+      }
+    );
+    watch(
+      () => props.highlightName,
+      () => {
+        graphInstance?.highlightNode(props.highlightName);
       }
     );
 
@@ -342,7 +380,7 @@ export default defineComponent({
       const threads = [];
       return {
         main,
-        threads
+        threads,
       };
     }
     /**
@@ -351,7 +389,7 @@ export default defineComponent({
     function setSvgRect() {
       svgRect = chartRef.value.querySelector('svg').getBoundingClientRect();
       graphToolsRect.value = {
-        left: svgRect.x + 4
+        left: svgRect.x + 4,
       };
     }
     /**
@@ -372,8 +410,18 @@ export default defineComponent({
      */
     function handleContextMenuClick(item: ICommonMenuItem) {
       contextMenuRect.value.left = -1;
-      if (item.id === 'span') {
-        return contextMenuRect.value.spanId && emit('showSpanDetail', contextMenuRect.value.spanId);
+      if (item.id === 'copy') {
+        let hasErr = false;
+        copyText(contextMenuRect.value.spanName, (errMsg: string) => {
+          Message({
+            message: errMsg,
+            theme: 'error',
+          });
+          hasErr = !!errMsg;
+        });
+        if (!hasErr) Message({ theme: 'success', message: t('复制成功') });
+
+        return;
       }
       if (item.id === 'reset') {
         initScale();
@@ -382,6 +430,7 @@ export default defineComponent({
       }
       if (item.id === 'highlight') {
         graphInstance.highlightNode(contextMenuRect.value.spanName);
+        emit('updateHighlightName', contextMenuRect.value.spanName);
       }
     }
     /**
@@ -434,7 +483,7 @@ export default defineComponent({
       const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
 
       // 加载SVG图像
-      img.onload = function () {
+      img.onload = () => {
         // 在canvas上绘制SVG图像
         ctx.drawImage(img, 0, 0, width, height);
 
@@ -469,7 +518,7 @@ export default defineComponent({
     };
 
     expose({
-      handleStoreImg
+      handleStoreImg,
     });
 
     return {
@@ -490,206 +539,200 @@ export default defineComponent({
       showLegend,
       handleShowLegend,
       diffPercentList,
-      localIsCompared
+      localIsCompared,
     };
   },
   render() {
     if (this.showException)
       return (
         <Exception
-          type='empty'
+          style='flex: 1'
           description={this.$t('暂无数据')}
+          type='empty'
         />
       );
     return (
-      <ResizeLayout
-        placement='right'
-        style='height: 100%'
-        class={'hide-aside'}
-        initialDivide={'0px'}
-      >
-        {{
-          main: () => [
-            this.localIsCompared && (
-              <div class='profiling-compare-legend'>
-                <span class='tag tag-new'>added</span>
-                <div class='percent-queue'>
-                  {this.diffPercentList.map((item, index) => (
-                    <span class={`percent-tag tag-${index + 1}`}>{item}</span>
-                  ))}
-                </div>
-                <span class='tag tag-removed'>removed</span>
-              </div>
-            ),
-            <div
-              class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
-              tabindex={1}
-              onBlur={this.handleClickWrapper}
-              onClick={this.handleClickWrapper}
-              ref='wrapperRef'
-            >
-              <div
-                ref='chartRef'
-                class='flame-graph'
-              />
-              <Teleport to='body'>
-                <div
-                  class='flame-graph-tips'
-                  style={{
-                    left: `${this.tipDetail.left}px`,
-                    top: `${this.tipDetail.top + 16}px`,
-                    display: this.tipDetail.title ? 'block' : 'none'
-                  }}
+      <div style='height: fit-content; flex: 1'>
+        {this.localIsCompared && (
+          <div class='profiling-compare-legend'>
+            <span class='tag tag-new'>added</span>
+            <div class='percent-queue'>
+              {this.diffPercentList.map((item, index) => (
+                <span
+                  key={index}
+                  class={`percent-tag tag-${index + 1}`}
                 >
-                  {this.tipDetail.title && [
-                    <div class='funtion-name'>{this.tipDetail.title}</div>,
-                    <table class='tips-table'>
-                      {this.localIsCompared && (
-                        <thead>
-                          <th></th>
-                          <th>{window.i18n.t('当前')}</th>
-                          {this.tipDetail.id !== RootId && [
-                            <th>{window.i18n.t('参照')}</th>,
-                            <th>{window.i18n.t('差异')}</th>
-                          ]}
-                        </thead>
-                      )}
-                      <tbody>
-                        {!this.localIsCompared && (
-                          <tr>
-                            <td>{window.i18n.t('占比')}</td>
-                            <td>{this.tipDetail.proportion}%</td>
-                          </tr>
-                        )}
-                        <tr>
-                          <td>{window.i18n.t('耗时')}</td>
-                          <td>{this.tipDetail.duration}</td>
-                          {this.localIsCompared &&
-                            this.tipDetail.id !== RootId && [
-                              <td>{this.tipDetail.diffDuration ?? '--'}</td>,
-                              <td>
-                                {this.tipDetail.mark === 'added' ? (
-                                  <span class='tips-added'>{this.tipDetail.mark}</span>
-                                ) : (
-                                  `${this.tipDetail.diffValue}%`
-                                )}
-                              </td>
-                            ]}
-                        </tr>
-                      </tbody>
-                    </table>,
-                    <div class='tips-info'>
-                      <span class='icon-monitor icon-mc-mouse tips-info-icon'></span>
-                      {window.i18n.t('鼠标右键有更多菜单')}
-                    </div>
-                  ]}
-                </div>
-              </Teleport>
-              <ul
-                class='flame-graph-menu'
-                style={{
-                  left: `${this.contextMenuRect.left}px`,
-                  top: `${this.contextMenuRect.top}px`,
-                  visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden'
-                }}
-              >
-                {CommonMenuList.map(item => (
-                  <li
-                    class='menu-item'
-                    key={item.id}
-                    onClick={() => this.handleContextMenuClick(item)}
-                  >
-                    <i class={`menu-item-icon icon-monitor ${item.icon}`} />
-                    <span class='menu-item-text'>{item.name}</span>
-                  </li>
-                ))}
-              </ul>
-              <Teleport to='body'>
-                <div
-                  class='flame-graph-axis'
-                  style={{
-                    left: `${this.axisRect.left || 0}px`,
-                    top: `${this.axisRect.top || 0}px`,
-                    bottom: `${this.axisRect.bottom || 0}px`,
-                    visibility: this.axisRect.visibility
-                  }}
-                >
-                  <span class='axis-label'>{this.axisRect.title}</span>
-                </div>
-              </Teleport>
-              <div
-                class='flame-graph-zoom'
-                style={{
-                  left: `${this.zoomRect?.left || 0}px`,
-                  width: `${this.zoomRect?.width || 0}px`
-                }}
-              ></div>
-              {/* <GraphTools
-                style={{
-                  left: `${this.graphToolsRect.left}px`,
-                  display: this.graphToolsRect.left > 0 ? 'flex' : 'none'
-                }}
-                scaleValue={this.scaleValue}
-                maxScale={MaxScale}
-                minScale={MinScale}
-                scaleStep={scaleStep}
-                showThumbnail={false}
-                onStoreImg={this.handleStoreImg}
-                onScaleChange={this.handlesSaleValueChange}
-              /> */}
-              {this.showGraphTools ? (
-                <Popover
-                  trigger='manual'
-                  isShow={this.showLegend}
-                  theme='light'
-                  placement='top-start'
-                  allowHtml={false}
-                  arrow={false}
-                  zIndex={1001}
-                  extCls='flame-graph-tools-popover'
-                  width={this.graphToolsRect.width}
-                  height={this.graphToolsRect.height}
-                  content={this.flameToolsPopoverContent}
-                  boundary={'parent'}
-                  renderType='auto'
-                >
-                  {{
-                    default: () => (
-                      <GraphTools
-                        style={{
-                          left: `${this.graphToolsRect.left}px`,
-                          display: this.graphToolsRect.left > 0 ? 'flex' : 'none'
-                        }}
-                        class='topo-graph-tools'
-                        scaleValue={this.scaleValue}
-                        maxScale={MaxScale}
-                        minScale={MinScale}
-                        showThumbnail={false}
-                        showLegend={false}
-                        scaleStep={scaleStep}
-                        legendActive={this.showLegend}
-                        onStoreImg={this.handleStoreImg}
-                        onScaleChange={this.handlesSaleValueChange}
-                        onShowLegend={this.handleShowLegend}
-                      />
-                    ),
-                    content: () => (
-                      <div
-                        class='flame-tools-popover-content'
-                        ref='flameToolsPopoverContent'
-                      >
-                        <ViewLegend />
-                      </div>
-                    )
-                  }}
-                </Popover>
-              ) : (
-                ''
-              )}
+                  {item}
+                </span>
+              ))}
             </div>
-          ]
-        }}
-      </ResizeLayout>
+            <span class='tag tag-removed'>removed</span>
+          </div>
+        )}
+        <div
+          key='wrapperRef'
+          ref='wrapperRef'
+          class={`flame-graph-wrapper profiling-flame-graph ${this.localIsCompared ? 'has-diff-legend' : ''}`}
+          tabindex={1}
+          onBlur={this.handleClickWrapper}
+          onClick={this.handleClickWrapper}
+        >
+          <div
+            ref='chartRef'
+            class='flame-graph'
+          />
+          <Teleport to='body'>
+            <div
+              style={{
+                left: `${this.tipDetail.left}px`,
+                top: `${this.tipDetail.top + 16}px`,
+                display: this.tipDetail.title ? 'block' : 'none',
+              }}
+              class='flame-graph-tips'
+            >
+              {this.tipDetail.title && [
+                <div
+                  key='funtion-name'
+                  class='funtion-name'
+                >
+                  {this.tipDetail.title}
+                </div>,
+                <table
+                  key='tips-table'
+                  class='tips-table'
+                >
+                  {this.localIsCompared && (
+                    <thead>
+                      <th />
+                      <th>{window.i18n.t('当前')}</th>
+                      {this.tipDetail.id !== RootId && [
+                        <th key='参照'>{window.i18n.t('参照')}</th>,
+                        <th key='差异'>{window.i18n.t('差异')}</th>,
+                      ]}
+                    </thead>
+                  )}
+                  <tbody>
+                    {!this.localIsCompared && (
+                      <tr>
+                        <td>{window.i18n.t('占比')}</td>
+                        <td>{this.tipDetail.proportion}%</td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td>{this.tipDetail.dataText}</td>
+                      <td>{this.tipDetail.data}</td>
+                      {this.localIsCompared &&
+                        this.tipDetail.id !== RootId && [
+                          <td key={1}>{this.tipDetail.diffData ?? '--'}</td>,
+                          <td key={2}>
+                            {this.tipDetail.mark === 'added' ? (
+                              <span class='tips-added'>{this.tipDetail.mark}</span>
+                            ) : (
+                              `${((this.tipDetail.diffValue as number) * 100).toFixed(2)}%`
+                            )}
+                          </td>,
+                        ]}
+                    </tr>
+                  </tbody>
+                </table>,
+                <div
+                  key='tips-info'
+                  class='tips-info'
+                >
+                  <span class='icon-monitor icon-mc-mouse tips-info-icon' />
+                  {window.i18n.t('鼠标右键有更多菜单')}
+                </div>,
+              ]}
+            </div>
+          </Teleport>
+          <ul
+            style={{
+              left: `${this.contextMenuRect.left}px`,
+              top: `${this.contextMenuRect.top}px`,
+              visibility: this.contextMenuRect.left > 0 ? 'visible' : 'hidden',
+            }}
+            class='flame-graph-menu'
+          >
+            {CommonMenuList.map(item => (
+              <li
+                key={item.id}
+                class='menu-item'
+                onClick={() => this.handleContextMenuClick(item)}
+              >
+                <i class={`menu-item-icon icon-monitor ${item.icon}`} />
+                <span class='menu-item-text'>{item.name}</span>
+              </li>
+            ))}
+          </ul>
+          <Teleport to='body'>
+            <div
+              style={{
+                left: `${this.axisRect.left || 0}px`,
+                top: `${this.axisRect.top || 0}px`,
+                bottom: `${this.axisRect.bottom || 0}px`,
+                visibility: this.axisRect.visibility,
+              }}
+              class='flame-graph-axis'
+            >
+              <span class='axis-label'>{this.axisRect.title}</span>
+            </div>
+          </Teleport>
+          <div
+            style={{
+              left: `${this.zoomRect?.left || 0}px`,
+              width: `${this.zoomRect?.width || 0}px`,
+            }}
+            class='flame-graph-zoom'
+          />
+          {this.showGraphTools && (
+            <Popover
+              width={this.graphToolsRect.width}
+              height={this.graphToolsRect.height}
+              extCls='flame-graph-tools-popover'
+              allowHtml={false}
+              arrow={false}
+              boundary={'parent'}
+              content={this.flameToolsPopoverContent}
+              isShow={this.showLegend}
+              placement='top-start'
+              renderType='auto'
+              theme='light'
+              trigger='manual'
+              zIndex={1001}
+            >
+              {{
+                default: () => (
+                  <GraphTools
+                    style={{
+                      left: `${this.graphToolsRect.left}px`,
+                      display: this.graphToolsRect.left > 0 ? 'flex' : 'none',
+                    }}
+                    class='topo-graph-tools'
+                    legendActive={this.showLegend}
+                    maxScale={MaxScale}
+                    minScale={MinScale}
+                    scaleStep={scaleStep}
+                    scaleValue={this.scaleValue}
+                    showLegend={false}
+                    showThumbnail={false}
+                    onScaleChange={this.handlesSaleValueChange}
+                    onShowLegend={this.handleShowLegend}
+                    onStoreImg={this.handleStoreImg}
+                  />
+                ),
+                content: () => (
+                  <div
+                    ref='flameToolsPopoverContent'
+                    class='flame-tools-popover-content'
+                  >
+                    <ViewLegend />
+                  </div>
+                ),
+              }}
+            </Popover>
+          )}
+        </div>
+      </div>
     );
-  }
+  },
 });

@@ -1,0 +1,248 @@
+.handle-search {
+  width: 56%;
+  height: 100%;
+
+  .handle-search-top {
+    width: 100%;
+    padding: 16px 12px 8px;
+
+    .top-select {
+      margin-bottom: 4px;
+
+      .bk-input--text {
+        padding: 0 5px;
+        background: #fff3e2;
+      }
+    }
+
+    .suffix-slot,
+    .prefix-slot {
+      height: 31px;
+      padding: 0 6px;
+      font-size: 12px;
+      line-height: 31px;
+      color: #63656e;
+      border-left: 1px solid #c4c6cc;
+    }
+
+    .suffix-slot {
+      cursor: pointer;
+    }
+
+    .suffix-icon {
+      margin-right: 4px;
+      font-size: 14px;
+    }
+
+    .prefix-slot {
+      padding-right: 0;
+      padding-left: 5px;
+      font-size: 14px;
+      color: #979ba5;
+      border: none;
+    }
+  }
+
+  .handle-search-list {
+    width: 100%;
+    height: calc(100% - 92px);
+    padding: 0 12px;
+
+    .search-head {
+      position: relative;
+      width: 100%;
+      height: 32px;
+      padding-left: 20px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #313238;
+      background: #f5f7fa;
+      border-bottom: 1px solid #eaebf0;
+    }
+
+    .search-head-icon {
+      position: absolute;
+      right: 0px;
+      display: inline-block;
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+      color: #c4c6cc;
+      text-align: center;
+      border-left: 1px solid #eaebf0;
+    }
+
+    .aggregate-dropdown {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 32px;
+      height: 32px;
+    }
+
+    .search-tree-loading {
+      height: 100%;
+    }
+
+    .search-tree {
+      height: calc(100% - 40px);
+
+      .bk-node-row {
+        &:nth-child(2n) {
+          background: #fafbfd;
+        }
+      }
+
+      .search-tree-list {
+        .bk-node-row.is-selected {
+          /* stylelint-disable-next-line declaration-no-important */
+          background-color: #ebf2ff !important;
+        }
+      }
+
+      .node-root,
+      .node-root-feed {
+        display: inline-block;
+        height: 13px;
+        padding: 0 5px;
+        margin-right: 2px;
+        font-size: 9px;
+        line-height: 13px;
+        color: #fff;
+        background: #f55555;
+        border-radius: 8px;
+      }
+
+      .node-root-feed {
+        background: #ff9c01;
+      }
+
+      .node-append {
+        display: inline-block;
+        height: 15px;
+        padding: 0 6px;
+        margin-right: 2px;
+        font-size: 12px;
+        line-height: 15px;
+        color: #979ba5;
+        background: #f0f1f5;
+        border-radius: 8px;
+      }
+
+      .bk-node-prefix {
+        color: #c4c6cc;
+      }
+
+      .bk-node-text {
+        font-size: 12px;
+        color: #63656e;
+      }
+
+      .open-node {
+        transform: rotate(-90deg);
+      }
+
+      .feed {
+        color: #ff9c01;
+      }
+
+      .root {
+        color: #ea3636;
+      }
+
+      .tree-icon {
+        margin: -2px 4px 0 -3px;
+        font-size: 16px;
+        color: #a3b1cc;
+
+        &.status {
+          color: #979ba5;
+        }
+
+        &.ABNORMAL {
+          color: #ea3636;
+        }
+
+        &.RECOVERED {
+          color: #1cab88;
+        }
+
+        &.mc-solved,
+        &.mc-expired {
+          color: #979ba5;
+        }
+      }
+    }
+  }
+
+  .tree-empty {
+    .bk-exception-img {
+      height: 180px;
+    }
+
+    .bk-exception-footer {
+      margin-top: 0;
+
+      .text-tips {
+        font-size: 14px;
+        color: #63656e;
+      }
+
+      .text-wrap {
+        margin-top: 8px;
+        color: #979ba5;
+      }
+    }
+  }
+}
+
+.aggregate-btn-drop {
+  .bk-dropdown-item {
+    position: relative;
+    padding-right: 44px;
+
+    &:hover {
+      color: #3a84ff;
+      background: #e1ecff;
+    }
+
+    &.active {
+      color: #3a84ff;
+
+      .active-icon {
+        position: absolute;
+        top: 0;
+        right: 5px;
+        font-size: 24px;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+.drop-main {
+  .drop-main-title {
+    margin-top: 5px;
+    font-size: 16px;
+    color: #313238;
+  }
+
+  .drop-main-list {
+    display: block;
+    margin: 6px 0 12px;
+
+    .drop-item {
+      height: 26px;
+      line-height: 26px;
+      color: #63656e;
+      width: 120px;
+    }
+
+    .drop-item-checkbox {
+      display: block;
+      margin-left: 2px;
+      font-size: 12px;
+    }
+  }
+}

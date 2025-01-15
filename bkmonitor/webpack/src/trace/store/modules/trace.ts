@@ -25,11 +25,11 @@
  */
 
 import { ref, shallowRef } from 'vue';
+
 import { deepClone } from 'monitor-common/utils';
 import { defineStore } from 'pinia';
 
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
-import { Span, TraceData } from '../../components/trace-view/typings';
 import { formatDuration } from '../../components/trace-view/utils/date';
 import { handleToggleCollapse, handleTraceTreeGroup } from '../../components/trace-view/utils/group';
 import { mergeTraceTree, transformTraceInfo } from '../../components/trace-view/utils/info';
@@ -37,20 +37,23 @@ import {
   interfaceStatisticsSetting,
   serviceStatisticsSetting,
   spanListSetting,
-  traceListSetting
+  traceListSetting,
 } from '../../pages/main/inquire-content/table-settings';
-import {
+import { DEFAULT_TRACE_DATA } from '../constant';
+
+import type { Span, TraceData } from '../../components/trace-view/typings';
+import type {
   DirectionType,
+  IServiceSpanListItem,
   ISpanDetail,
   ISpanListItem,
   ITraceData,
   ITraceListItem,
   ITraceTree,
-  OriginCrossAppSpanMap
+  OriginCrossAppSpanMap,
 } from '../../typings';
-import { DEFAULT_TRACE_DATA } from '../constant';
 
-export type ListType = 'trace' | 'span' | 'interfaceStatistics' | 'serviceStatistics' | string;
+export type ListType = 'interfaceStatistics' | 'serviceStatistics' | 'span' | 'trace' | string;
 export type TraceListMode = 'origin' | 'pre_calculation';
 
 export type IInterfaceStatisticsType = {
@@ -85,6 +88,7 @@ export const useTraceStore = defineStore('trace', () => {
   // Trace / Span list 切换标志
   const listType = ref<ListType>('trace');
   const traceType = ref([]);
+  const isTraceLoading = ref(false);
   const spanType = ref([]);
   const selectedTraceViewFilterTab = ref('');
   const traceListMode = ref<TraceListMode>('pre_calculation');
@@ -93,8 +97,9 @@ export const useTraceStore = defineStore('trace', () => {
     trace: traceListSetting,
     span: spanListSetting,
     interfaceStatistics: interfaceStatisticsSetting,
-    serviceStatistics: serviceStatisticsSetting
+    serviceStatistics: serviceStatisticsSetting,
   });
+  const serviceSpanList = shallowRef<IServiceSpanListItem[]>([]);
 
   /** 更新页面 loading */
   function setPageLoaidng(v: boolean) {
@@ -111,6 +116,12 @@ export const useTraceStore = defineStore('trace', () => {
   /** 更新当前展示的 trace 数据 */
   function setTraceData(data: ITraceData) {
     const { trace_tree: tree, ...rest } = data;
+
+    const { nodes, edges } = rest?.streamline_service_topo || { nodes: [], edges: [] };
+    const rootNode = nodes.find(item => item.is_root);
+    const firstEdge = edges.find(item => item.source === rootNode?.key);
+    setServiceSpanList(firstEdge?.spans || []);
+
     if (data.appName) {
       originCrossAppSpanMaps.value[data.appName] = rest.original_data;
     } else {
@@ -121,9 +132,9 @@ export const useTraceStore = defineStore('trace', () => {
       span_classify: rest.span_classify?.length
         ? rest.span_classify.map(val => ({
             ...val,
-            app_name: data.appName
+            app_name: data.appName,
           }))
-        : []
+        : [],
     };
     originTraceTree.value = { ...(tree as ITraceTree) };
     traceTree.value = tree
@@ -161,12 +172,21 @@ export const useTraceStore = defineStore('trace', () => {
         status: item.root_status_code?.type,
         // 修改结构、key
         // type: item.trace_info.category
-        type: item.root_category
+        type: item.root_category,
       })) || [];
   }
 
   function setTraceType(v) {
     traceType.value = v;
+  }
+
+  /** 四个表格的 loading 状态，使用骨架屏 */
+  function setTraceLoading(v) {
+    isTraceLoading.value = v;
+  }
+
+  function setServiceSpanList(spanList: IServiceSpanListItem[]) {
+    serviceSpanList.value = spanList;
   }
 
   /** 更新 trace 过滤列表 */
@@ -199,7 +219,7 @@ export const useTraceStore = defineStore('trace', () => {
     const newTree = mergeTraceTree(originTraceTree.value, tree as ITraceTree);
     const {
       original_data: originalData,
-      trace_info: { app_name: appName = 'd' }
+      trace_info: { app_name: appName = 'd' },
     } = rest;
 
     // 生成跨应用span 原始数据的 appName 映射
@@ -274,7 +294,7 @@ export const useTraceStore = defineStore('trace', () => {
 
   // TODO：这里是东凑西凑出来的数据，代码并不严谨，后期需要调整。
   function setSpanDetailData(v: ISpanDetail) {
-    traceData.value.original_data.length = 0;
+    traceData.value.original_data = [];
     traceData.value.original_data.push(v.origin_data);
     traceData.value.appName = v?.trace_tree?.spans?.[0]?.app_name;
   }
@@ -309,6 +329,19 @@ export const useTraceStore = defineStore('trace', () => {
     tableSettings[key].checked = checked;
   }
 
+  /** Trace、Span 列表表头设置固定记住用户的选择 */
+  function setTableSetting() {
+    const traceCheckedSettings = window.localStorage.getItem('traceCheckedSettings');
+    const spanCheckedSettings = window.localStorage.getItem('spanCheckedSettings');
+    if (traceCheckedSettings) {
+      tableSettings.value.trace.checked = JSON.parse(traceCheckedSettings);
+    }
+    if (spanCheckedSettings) {
+      tableSettings.value.span.checked = JSON.parse(spanCheckedSettings);
+    }
+  }
+  setTableSetting();
+
   return {
     loading,
     traceLoading,
@@ -320,6 +353,8 @@ export const useTraceStore = defineStore('trace', () => {
     traceTree,
     originTraceTree,
     originCrossAppSpanMaps,
+    serviceSpanList,
+    setServiceSpanList,
     setPageLoaidng,
     setTraceLoaidng,
     setTraceDetail,
@@ -362,6 +397,8 @@ export const useTraceStore = defineStore('trace', () => {
     compareTraceOriginalData,
     updateCompareTraceOriginalData,
     tableSettings,
-    updateTableCheckedSettings
+    updateTableCheckedSettings,
+    isTraceLoading,
+    setTraceLoading,
   };
 });

@@ -23,7 +23,7 @@ from django.core.paginator import Paginator
 from django.db import models, transaction
 from django.db.models import Q
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -189,10 +189,11 @@ class ValidateCustomTsGroupLabel(Resource):
         data_label_filter_params = {"data_label": data_label}
         data_label_unique_qs = CustomTSTable.objects
         # 获取插件类型前缀列表，自定义指标data_label前缀不可与插件类型data_label前缀重名
+        # process采集 复用自定义创建逻辑
         plugin_type_list = [
             f"{getattr(PluginType, attr).lower()}_"
             for attr in dir(PluginType)
-            if not callable(getattr(PluginType, attr)) and not attr.startswith("__")
+            if not callable(getattr(PluginType, attr)) and not attr.startswith("__") and attr != "PROCESS"
         ]
         label_pattern = re.compile(r'^(?!' + '|'.join(plugin_type_list) + r')[a-zA-Z][a-zA-Z0-9_]*$')
         if data_label == "":
@@ -306,10 +307,12 @@ class GetCustomEventGroup(Resource):
         time_range = serializers.CharField(required=True, label="时间范围")
         need_refresh = serializers.BooleanField(required=False, label="是否需要实时刷新", default=False)
         bk_biz_id = serializers.IntegerField(required=True)
+        event_infos_limit = serializers.IntegerField(required=False, default=1000, label="事件信息列表上限")
 
     def perform_request(self, validated_request_data):
         event_group_id = validated_request_data["bk_event_group_id"]
         need_refresh = validated_request_data["need_refresh"]
+        event_infos_limit = validated_request_data["event_infos_limit"]
         # 用户页面主动请求相关逻辑，不应该插入耗时过长的逻辑。
         # append_event_metric_list_cache(event_group_id)
         config = CustomEventGroup.objects.prefetch_related("event_info_list").get(pk=event_group_id)
@@ -318,9 +321,17 @@ class GetCustomEventGroup(Resource):
         )
         data = serializer.data
         event_info_list = api.metadata.get_event_group.request.refresh(
-            event_group_id=event_group_id, need_refresh=need_refresh
+            event_group_id=event_group_id, need_refresh=need_refresh, event_infos_limit=event_infos_limit
         )
         data["event_info_list"] = list()
+
+        # 如果自定义事件有人访问，则结束休眠策略
+        username = get_request_username()
+        if event_info_list.get("status") == "sleep":
+            try:
+                api.metadata.modify_event_group({"event_group_id": event_group_id, "operator": username})
+            except BKAPIError:
+                pass
 
         # 查询事件关联策略ID
         related_query_configs = (
@@ -766,10 +777,16 @@ class ModifyCustomTimeSeries(Resource):
     @atomic()
     def perform_request(self, validated_request_data):
         operator = get_request_username() or validated_request_data["operator"]
-        table = CustomTSTable.objects.get(
+        table = CustomTSTable.objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"],
             time_series_group_id=validated_request_data["time_series_group_id"],
-        )
+        ).first()
+        if not table:
+            raise ValidationError(
+                f"custom time series table not found, bk_biz_id: {validated_request_data['bk_biz_id']},"
+                f" time_series_group_id: {validated_request_data['time_series_group_id']}"
+            )
+
         fields = []
         metric_labels = {}
         for field in validated_request_data["metric_json"][0]["fields"]:
@@ -805,6 +822,37 @@ class ModifyCustomTimeSeries(Resource):
         )
 
 
+class ModifyCustomTimeSeriesDesc(Resource):
+    """
+    修改自定义时序描述信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        desc = serializers.CharField(max_length=1024, default="", label="描述信息")
+
+    class ResponseSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = CustomTSTable
+            fields = "__all__"
+
+    @atomic()
+    def perform_request(self, validated_request_data):
+        time_series_obj = CustomTSTable.objects.filter(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        ).first()
+        if not time_series_obj:
+            raise ValidationError(
+                "custom time series table not found, "
+                f"time_series_group_id: {validated_request_data['time_series_group_id']}"
+            )
+
+        time_series_obj.desc = validated_request_data["desc"]
+        time_series_obj.save()
+        return time_series_obj
+
+
 class DeleteCustomTimeSeries(Resource):
     """
     删除自定义时序
@@ -815,7 +863,14 @@ class DeleteCustomTimeSeries(Resource):
 
     @atomic()
     def perform_request(self, validated_request_data):
-        table = CustomTSTable.objects.get(time_series_group_id=validated_request_data["time_series_group_id"])
+        table = CustomTSTable.objects.filter(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        ).first()
+        if not table:
+            raise ValidationError(
+                "custom time series table not found, "
+                f"time_series_group_id: {validated_request_data['time_series_group_id']}"
+            )
         operator = get_request_username()
         params = {"operator": operator, "time_series_group_id": table.time_series_group_id}
         api.metadata.delete_time_series_group(params)
@@ -921,7 +976,13 @@ class CustomTimeSeriesDetail(Resource):
         with_target = serializers.BooleanField(required=False, default=False)
 
     def perform_request(self, params):
-        config = CustomTSTable.objects.get(pk=params["time_series_group_id"])
+        config = CustomTSTable.objects.filter(pk=params["time_series_group_id"]).first()
+        if not config:
+            raise ValidationError(
+                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
+            )
+        if not config.is_platform and config.bk_biz_id != params["bk_biz_id"]:
+            raise ValidationError(f"custom time series not found, bk_biz_id: {params['bk_biz_id']}")
         serializer = CustomTSTableSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
         if params.get("model_only"):
@@ -1154,7 +1215,9 @@ class AddCustomMetricResource(Resource):
         # 查询该任务是否已有执行任务
         table = CustomTSTable.objects.filter(table_id__startswith=validated_request_data['result_table_id'])
         if not table.exists():
-            raise ValidationError(f"结果表({validated_request_data['result_table_id']})不存在")
+            table = CustomTSTable.objects.filter(data_label=validated_request_data['result_table_id'])
+            if not table.exists():
+                raise ValidationError(f"结果表或datalabel({validated_request_data['result_table_id']})不存在")
         # 手动添加的自定义指标metric_md5特殊处理为0
         filter_params = {
             "data_source_label": DataSourceLabel.CUSTOM,
@@ -1171,6 +1234,7 @@ class AddCustomMetricResource(Resource):
             "metric_field": validated_request_data["metric_field"],
             "metric_field_name": validated_request_data["metric_field"],
             "metric_md5": "0",
+            "data_label": table.first().data_label,
             **filter_params,
         }
         if metric_list.first():

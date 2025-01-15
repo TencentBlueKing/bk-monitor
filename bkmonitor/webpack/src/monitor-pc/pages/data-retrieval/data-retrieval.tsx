@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -26,11 +24,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-nested-ternary */
+
 // import { Component as tsc } from 'vue-tsx-support'
 import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
-import { Route } from 'vue-router';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import { getMainlineObjectTopo } from 'monitor-api/modules/commons';
 import { getGraphQueryConfig } from 'monitor-api/modules/data_explorer';
@@ -42,57 +40,59 @@ import {
   destroyFavoriteGroup,
   listByGroupFavorite,
   updateFavorite,
-  updateFavoriteGroup
+  updateFavoriteGroup,
 } from 'monitor-api/modules/model';
 import {
   getMetricListV2,
   getScenarioList,
   promqlToQueryConfig,
-  queryConfigToPromql
+  queryConfigToPromql,
 } from 'monitor-api/modules/strategies';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
-import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
+import { Debounce, copyText, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
 
-// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
-import { EmptyStatusType } from '../../components/empty-status/types';
 import MetricSelector from '../../components/metric-selector/metric-selector';
-import { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import PromqlEditor from '../../components/promql-editor/promql-editor';
-import type { TimeRangeType } from '../../components/time-range/time-range';
 import {
   DEFAULT_TIME_RANGE,
   handleTransformToTimestamp,
-  timestampTransformStr
+  timestampTransformStr,
 } from '../../components/time-range/utils';
-import { getDefautTimezone, updateTimezone } from '../../i18n/dayjs';
+import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import { MetricDetail, MetricType } from '../../pages/strategy-config/strategy-config-set-new/typings';
+import { validateExpression } from '../../utils/index';
 import LogRetrieval from '../log-retrieval/log-retrieval.vue';
 import PanelHeader from '../monitor-k8s/components/panel-header/panel-header';
-import { PanelToolsType } from '../monitor-k8s/typings';
 import StrategyIpv6 from '../strategy-config/strategy-ipv6/strategy-ipv6';
-
 import DataRetrievalItem from './data-retrieval-item/data-retrieval-item';
 import DataRetrievalView from './data-retrieval-view/data-retrieval-view';
 import EventRetrieval from './event-retrieval/event-retrieval';
 import ExpressionItem from './expression-item/expression-item';
 import AddCollectDialog from './favorite-container/add-collect-dialog';
 import FavoriteIndex from './favorite-container/collect-index';
+import FilterDict from './filter-dict';
 import HandleBtn from './handle-btn/handle-btn';
-import { IIndexListItem } from './index-list/index-list';
 import {
   DataRetrievalPromqlItem,
   DataRetrievalQueryItem,
-  EventRetrievalViewType,
-  IDataRetrieval,
-  IDataRetrievalItem,
-  IDataRetrievalView,
-  IFavList,
-  IFilterCondition,
-  TEditMode
+  type EventRetrievalViewType,
+  type IDataRetrieval,
+  type IDataRetrievalItem,
+  type IDataRetrievalView,
+  type IFavList,
+  type IFilterCondition,
+  type TEditMode,
 } from './typings';
+// import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
+import type { EmptyStatusType } from '../../components/empty-status/types';
+import type { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
+import type { TimeRangeType } from '../../components/time-range/time-range';
+import type { PanelToolsType } from '../monitor-k8s/typings';
+import type { IIndexListItem } from './index-list/index-list';
+import type { RawLocation, Route } from 'vue-router';
 
 import './data-retrieval.scss';
 
@@ -102,17 +102,17 @@ const NAME_CHAR = 'abcdefghijklmnopqrstuvwxyz';
 Component.registerHooks(['beforeRouteEnter']);
 @Component({
   directives: {
-    monitorDrag
-  }
+    monitorDrag,
+  },
 })
-export default class DataRetrieval extends tsc<{}> {
+export default class DataRetrieval extends tsc<object> {
   /** 指标方法数据 */
   @ProvideReactive('metricFunctions') metricFunctions = [];
   // 控制是否显示 收藏 和 展开检索栏 仅展示视图图表
   @ProvideReactive('onlyShowView') onlyShowView = false;
   // 是否展示复位
   @ProvideReactive('showRestore') showRestore = false;
-  @Ref('favPopover') favPopoverRef: Popover;
+  @Ref('favPopover') favPopoverRef: any;
   @Ref() eventRetrievalRef: EventRetrieval;
   @Ref('favoriteIndex') favoriteIndexRef: FavoriteIndex;
 
@@ -140,7 +140,7 @@ export default class DataRetrieval extends tsc<{}> {
     source: 'icon-mc-sorce',
     enable: 'icon-mc-visual',
     copy: 'icon-mc-copy',
-    delete: 'icon-mc-delete-line'
+    delete: 'icon-mc-delete-line',
   };
 
   /** 控制指标选择器 */
@@ -173,7 +173,7 @@ export default class DataRetrieval extends tsc<{}> {
   tabList: IDataRetrieval.ITabList[] = [
     { id: 'monitor', name: i18n.t('route-指标检索') },
     { id: 'log', name: i18n.t('route-日志检索') },
-    { id: 'event', name: i18n.t('route-事件检索') }
+    { id: 'event', name: i18n.t('route-事件检索') },
   ];
   /** 默认选中的数据检索 */
   tabActive: IDataRetrieval.tabId = 'monitor';
@@ -181,13 +181,13 @@ export default class DataRetrieval extends tsc<{}> {
   initDataIsReady: { [key in IDataRetrieval.tabId]: boolean } = {
     monitor: false,
     log: false,
-    event: false
+    event: false,
   };
   /** 收藏列表数据 */
   favList: { [key in IDataRetrieval.tabId]: any[] } = {
     monitor: [],
     log: [],
-    event: []
+    event: [],
   };
   // 所有收藏的收藏名
   favStrList: string[];
@@ -203,13 +203,13 @@ export default class DataRetrieval extends tsc<{}> {
   compareValue: IDataRetrievalView.ICompareValue = {
     compare: {
       type: 'none',
-      value: true
+      value: true,
     },
     tools: {
       refleshInterval: -1,
       timeRange: DEFAULT_TIME_RANGE,
-      timezone: getDefautTimezone()
-    }
+      timezone: getDefaultTimezone(),
+    },
   };
 
   /** 监控目标选择器数据 */
@@ -219,7 +219,7 @@ export default class DataRetrieval extends tsc<{}> {
     targetType: 'INSTANCE',
     value: [],
     desc: '',
-    mainlineObjectTopoList: []
+    mainlineObjectTopoList: [],
   };
 
   /** 收藏描述 */
@@ -234,7 +234,7 @@ export default class DataRetrieval extends tsc<{}> {
   /** 拖拽数据 */
   dragData: { from: number; to: number } = {
     from: null,
-    to: null
+    to: null,
   };
 
   /** 表达式输入缓存 用作输入diff */
@@ -308,16 +308,23 @@ export default class DataRetrieval extends tsc<{}> {
   cacheTimeRange = [];
   cancelFn = null; // 取消查询接口
 
+  // 自动刷新
+  refreshInstance = null;
+
   // 是否开启（框选/复位）全部操作
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   // 框选图表事件范围触发（触发后缓存之前的时间，且展示复位按钮）
   @Debounce(200)
   @Provide('handleChartDataZoom')
-  handleChartDataZoom(value: TimeRangeType) {
+  handleChartDataZoom(value: TimeRangeType, immediateQuery = false) {
     if (JSON.stringify(this.compareValue.tools.timeRange) !== JSON.stringify(value)) {
       this.cacheTimeRange = JSON.parse(JSON.stringify(this.compareValue.tools.timeRange));
       this.compareValue.tools.timeRange = value;
       this.showRestore = true;
+      if (immediateQuery) {
+        this.handleQuery();
+        return;
+      }
       this.handleQueryProxy();
     }
   }
@@ -336,7 +343,9 @@ export default class DataRetrieval extends tsc<{}> {
 
   @Watch('loading')
   loadingChange(val: boolean) {
-    setTimeout(() => (this.delayLoading = val ? this.loading : false), 200);
+    setTimeout(() => {
+      this.delayLoading = val ? this.loading : false;
+    }, 200);
   }
 
   @Watch('queryResult')
@@ -375,9 +384,9 @@ export default class DataRetrieval extends tsc<{}> {
   // 是否可以添加多指标
   get canAddStrategy(): boolean {
     const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
-    const leng = metricList.length;
-    if (!leng) return false;
-    if (leng === 1) return true;
+    const lens = metricList.length;
+    if (!lens) return false;
+    if (lens === 1) return true;
     return metricList.every(item => item.canSetMulitpeMetric);
   }
 
@@ -402,14 +411,14 @@ export default class DataRetrieval extends tsc<{}> {
   get indexLists(): IIndexListItem[] {
     const indexList: IIndexListItem[] = [];
     if (this.filterQueryResult.length < 2) return [];
-    this.filterQueryResult.forEach(item => {
-      const leng = item.targets.length;
-      if (leng && item.group && item.index) {
+    for (const item of this.filterQueryResult) {
+      const lens = item.targets.length;
+      if (lens && item.group && item.index) {
         // 存在分组
         const group = indexList.find(group => group.id === item.group);
         const child = {
           id: `${item.group}-${item.index}`,
-          name: item.index
+          name: item.index,
         };
         if (group) {
           group.children.push(child);
@@ -417,21 +426,21 @@ export default class DataRetrieval extends tsc<{}> {
           indexList.push({
             id: item.group,
             name: item.group,
-            children: [child]
+            children: [child],
           });
         }
-      } else if (leng && item.group && !item.index) {
+      } else if (lens && item.group && !item.index) {
         indexList.push({
           id: item.group,
-          name: item.group
+          name: item.group,
         });
-      } else if (leng && !item.group && item.index) {
+      } else if (lens && !item.group && item.index) {
         indexList.push({
           id: item.index,
-          name: item.index
+          name: item.index,
         });
       }
-    });
+    }
     /** 只有一个组情况下 平铺数据 */
     if (indexList.length === 1 && indexList[0].children) return indexList[0].children;
     return indexList;
@@ -440,15 +449,21 @@ export default class DataRetrieval extends tsc<{}> {
   get scenarioAllList() {
     const list = deepClone(this.scenarioList);
     const res = list.reduce((total, cur) => {
-      const child = cur.children || [];
-      total = total.concat(child);
-      return total;
+      const child = Array.isArray(cur.children) ? cur.children : [];
+      return total.concat(child);
     }, []);
     return res;
   }
 
   get isFavoriteNewSearch() {
     return this.favCheckedValue === null;
+  }
+
+  get tabActiveName() {
+    return {
+      monitor: 'route-指标检索',
+      event: 'route-事件检索',
+    };
   }
 
   get selectFavoriteName() {
@@ -474,17 +489,36 @@ export default class DataRetrieval extends tsc<{}> {
     return JSON.stringify(favParams) !== JSON.stringify(localParams);
   }
 
+  /** 获取表达式中的变量名 */
+  get expressionVars() {
+    return this.localValue.reduce((pre, cur) => {
+      if (!cur.isMetric && cur.value) {
+        const { variables } = validateExpression(cur.value);
+        for (const varName of variables) {
+          pre[varName] = true;
+        }
+      }
+      return pre;
+    }, {});
+  }
+
+  /** 是否填写了表达式 */
+  get useExpression() {
+    return this.localValue.some(item => !item.isMetric);
+  }
+
   /* 当前是否允许转为promql */
   get canToPromql() {
     if (this.editMode === 'UI') {
+      if (this.useExpression) return false;
       return this.localValue
-        .filter(item => !!item.metric_id)
+        .filter(item => item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
     return true;
   }
 
-  beforeRouteEnter(to: Route, from: Route, next: Function) {
+  beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | false | RawLocation) => void) {
     next((vm: DataRetrieval) => {
       const { targets, type } = vm.$route.query.targets ? vm.$route.query : vm.$route.params;
       let targetsList = [];
@@ -538,17 +572,12 @@ export default class DataRetrieval extends tsc<{}> {
   }
   /** 非路由组件无法触发 BeforeRouteEnter 钩子 在其父组件触发后跳用此方法 */
   handleBeforeRouteEnter(to: Route, from: Route) {
-    const {
-      targets,
-      type,
-      from: fromTime,
-      to: toTime,
-      timezone
-    } = this.$route.query.targets ? this.$route.query : this.$route.params;
+    const { targets, type, timezone } = this.$route.query.targets ? this.$route.query : this.$route.params;
+    const { from: fromTime, to: toTime } = this.$route.query.from ? this.$route.query : this.$route.params;
     let targetsList = [];
     if (fromTime && toTime) this.compareValue.tools.timeRange = [fromTime as string, toTime as string];
-    this.compareValue.tools.timezone = getDefautTimezone();
-    if (timezone) {
+    this.compareValue.tools.timezone = getDefaultTimezone();
+    if (timezone && timezone !== 'undefined') {
       this.compareValue.tools.timezone = timezone as string;
       updateTimezone(timezone as string);
     }
@@ -580,7 +609,7 @@ export default class DataRetrieval extends tsc<{}> {
   async handleRouterOfMetricId(metricId: string) {
     this.loading = true;
     const metricList = await getMetricListV2({
-      conditions: [{ key: 'metric_id', value: metricId }]
+      conditions: [{ key: 'metric_id', value: metricId }],
     })
       .then(data => data.metric_list || [])
       .catch(() => []);
@@ -600,7 +629,7 @@ export default class DataRetrieval extends tsc<{}> {
     const eventKey = evt.data;
     const tapActiveMap = {
       'datarieval-click': 'monitor',
-      'event-click': 'event'
+      'event-click': 'event',
     };
     if (tapActiveMap[eventKey]) {
       this.logShow = false;
@@ -629,7 +658,7 @@ export default class DataRetrieval extends tsc<{}> {
       promiseList = [
         this.getScenarioList(), // 监控对象数据
         this.handleGetMetricFunctions(), //  函数列表
-        this.getMainlineObjectTopo() // 获取监控目标名字数据
+        this.getMainlineObjectTopo(), // 获取监控目标名字数据
       ];
     } else if (this.tabActive === 'event') {
       // 事件检索初始化所需数据接口
@@ -664,15 +693,14 @@ export default class DataRetrieval extends tsc<{}> {
         this.favList[this.tabActive] = sortAfterList;
         this.favStrList = res.reduce((pre, cur) => {
           // 获取所有收藏的名字新增时判断是否重命名
-          pre = pre.concat(cur.favorites.map(item => item.name));
-          return pre;
+          return pre.concat(cur.favorites.map(item => item.name));
         }, []);
         if (this.isHaveFavoriteInit) {
           // 判断是否是分享初始化
           const urlFavoriteID = this.$route.query.favorite_id;
           for (const gItem of res) {
             const favorite = gItem.favorites.find(item => String(item.id) === urlFavoriteID);
-            if (!!favorite) {
+            if (favorite) {
               this.handleSelectFavProxy(favorite);
               break;
             }
@@ -690,7 +718,7 @@ export default class DataRetrieval extends tsc<{}> {
           let isFindCheckValue = false; // 是否从列表中找到匹配当前收藏的id
           for (const gItem of this.favList[this.tabActive]) {
             const findFavorites = gItem.favorites.find(item => item.id === this.favCheckedValue.id);
-            if (!!findFavorites) {
+            if (findFavorites) {
               isFindCheckValue = true; // 找到 中断循环
               break;
             }
@@ -714,7 +742,7 @@ export default class DataRetrieval extends tsc<{}> {
   async getMainlineObjectTopo() {
     const list = await getMainlineObjectTopo().catch(() => []);
     this.target.mainlineObjectTopoList = list;
-    this.target.desc = this.gettargetDes();
+    this.target.desc = this.getTargetDes();
   }
 
   /**
@@ -727,16 +755,16 @@ export default class DataRetrieval extends tsc<{}> {
   /** 图表查询结果 过滤隐藏的查询 */
   handleFilterQueryResult() {
     const hiddenAliasList = [];
-    this.localValue.forEach(item => {
+    for (const item of this.localValue) {
       !item.enable && hiddenAliasList.push(item.alias);
-    });
+    }
     let isExist = false;
     const result = this.queryResult.map(item => {
       const targets = item.targets.filter(set => !hiddenAliasList.includes(set.source));
       !!targets?.length && (isExist = !!targets?.length);
       return {
         ...item,
-        targets
+        targets,
       };
     });
     this.filterQueryResult = isExist ? result : [];
@@ -791,11 +819,11 @@ export default class DataRetrieval extends tsc<{}> {
    */
   handleOptionProxy(evt: Event, opt: IDataRetrieval.IOption, item: IDataRetrieval.ILocalValue, index: number) {
     evt.stopPropagation();
-    const fnMap: { [key in IDataRetrieval.IOption]: Function } = {
+    const fnMap: { [key in IDataRetrieval.IOption]: () => void } = {
       source: () => this.handleSwitchSource(item as DataRetrievalQueryItem, index),
       enable: () => this.handleSwitchEnable(item),
       copy: () => this.handleCopyItem(item),
-      delete: () => this.handleDeleteItem(index)
+      delete: () => this.handleDeleteItem(item, index),
     };
     fnMap[opt]?.();
   }
@@ -811,6 +839,15 @@ export default class DataRetrieval extends tsc<{}> {
     } else if (opt === 'delete') {
       if (this.promqlData.length > 1) {
         this.promqlData.splice(index, 1);
+        const promqlExpandedData = [];
+        for (const item of this.promqlData) {
+          const key = random(8);
+          if (this.promqlExpandedData.includes(item.key)) {
+            promqlExpandedData.push(key);
+          }
+          item.key = key;
+        }
+        this.promqlExpandedData = promqlExpandedData;
       } else if (this.promqlData.length === 1) {
         this.promqlData[0].code = '';
       }
@@ -866,10 +903,10 @@ export default class DataRetrieval extends tsc<{}> {
   /** 检查该查询项的结果是否存在 */
   handleCheckExit(alias) {
     let isExist = false;
-    this.queryResult.forEach(item => {
+    for (const item of this.queryResult) {
       const targets = item.targets.filter(set => set.source === alias);
       !!targets?.length && (isExist = !!targets?.length);
-    });
+    }
     return isExist;
   }
   /**
@@ -889,12 +926,8 @@ export default class DataRetrieval extends tsc<{}> {
    * @description: 删除操作
    * @param {number} index
    */
-  handleDeleteItem(index: number) {
-    const item = this.localValue[index];
-    if (item.isMetric) {
-      const child = item as DataRetrievalQueryItem;
-      if (this.localValue.length === 1 && child.isNullMetric) return;
-    }
+  handleDeleteItem(item: IDataRetrieval.ILocalValue, index: number) {
+    if (this.handleDelIconDisabled(item).disabled) return;
     this.localValue.splice(index, 1);
     if (!this.localValue.length) {
       this.handleAddQuery();
@@ -975,7 +1008,7 @@ export default class DataRetrieval extends tsc<{}> {
   handleShowMetricSelector(val: boolean, index?: number) {
     if (val) {
       const curItem = this.localValue[index] as DataRetrievalQueryItem;
-      this.metricData = !!curItem.metric_id ? [curItem] : [];
+      this.metricData = curItem.metric_id ? [curItem] : [];
       this.curLocalValueIndex = index;
       this.metricSelectorMetricId = curItem.metric_id;
     }
@@ -1034,7 +1067,7 @@ export default class DataRetrieval extends tsc<{}> {
       isMetric: false,
       enable: true,
       value: '',
-      functions: []
+      functions: [],
     });
   }
 
@@ -1048,6 +1081,7 @@ export default class DataRetrieval extends tsc<{}> {
     this.filterQueryResult = [];
     this.promqlData = [];
     this.promqlExpandedData = [];
+    this.routeParamsReset();
     this.handleAddQuery();
     this.handleAddCode();
   }
@@ -1065,7 +1099,7 @@ export default class DataRetrieval extends tsc<{}> {
 
   handleCompareValueChange(data: PanelToolsType.Compare) {
     this.compareValue.compare = data;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
 
   /**
@@ -1074,7 +1108,7 @@ export default class DataRetrieval extends tsc<{}> {
    */
   handleToolsTimeRangeChange(timeRange: TimeRangeType) {
     this.compareValue.tools.timeRange = timeRange;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
   /**
    * @description: 变更时区
@@ -1082,7 +1116,7 @@ export default class DataRetrieval extends tsc<{}> {
    */
   handleTimezoneChange(timezone: string) {
     this.compareValue.tools.timezone = timezone;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
   /**
    * @description: 合并视图
@@ -1090,7 +1124,7 @@ export default class DataRetrieval extends tsc<{}> {
    */
   handleSplitChange(val: boolean) {
     this.compareValue.compare.value = val;
-    this.handleQueryProxy();
+    this.handleQuery();
   }
 
   /**
@@ -1115,14 +1149,14 @@ export default class DataRetrieval extends tsc<{}> {
     const value = transformValueToMonitor(data.value, data.nodeType);
     this.target.value = value;
     this.target.targetType = data.nodeType;
-    this.target.desc = this.gettargetDes();
+    this.target.desc = this.getTargetDes();
     this.handleQueryProxy();
   }
 
   /**
    * @description: 获取监控目标描述
    */
-  gettargetDes(): string {
+  getTargetDes(): string {
     const cloneTarget = JSON.parse(JSON.stringify(this.target.value || []));
     const nameList = this.target.mainlineObjectTopoList;
     let targetDes = '';
@@ -1136,7 +1170,9 @@ export default class DataRetrieval extends tsc<{}> {
       // 统计数量
       list = list.map(item => {
         const count = list.reduce((pre, set) => {
-          if (item.bk_obj_id === set.bk_obj_id) pre += 1;
+          if (item.bk_obj_id === set.bk_obj_id) {
+            return pre + 1;
+          }
           return pre;
         }, 0);
         item.count = count;
@@ -1150,7 +1186,7 @@ export default class DataRetrieval extends tsc<{}> {
             temp.push(item.name);
             return {
               name: item.name,
-              count: item.count
+              count: item.count,
             };
           }
           return null;
@@ -1158,6 +1194,8 @@ export default class DataRetrieval extends tsc<{}> {
         .filter(item => item);
       const str = list.map(item => `${item.count} ${item.name}`).join('、');
       targetDes = this.$t('已选择 {n}', { n: str }) as string;
+    } else if ('dynamic_group_id' in cloneTarget[0]) {
+      targetDes = this.$t('已选择 {n} 个动态分组', { n: cloneTarget.length }) as string;
     } else {
       // 静态目标
       targetDes = this.$t('已选择 {n} 个主机', { n: cloneTarget.length }) as string;
@@ -1184,17 +1222,17 @@ export default class DataRetrieval extends tsc<{}> {
         metricField: 'metric_field',
         resultTableId: 'result_table_id',
         dataSourceLabel: 'data_source_label',
-        dataTypeLabel: 'dataTypeLabel'
+        dataTypeLabel: 'dataTypeLabel',
       };
       const params = {
         page: 1,
         page_size: 1,
         conditions: Object.keys(metricFieldsMap).map(field => ({
           key: metricFieldsMap[field],
-          value: item[field]
+          value: item[field],
         })),
         search_value: '',
-        tag: ''
+        tag: '',
       };
       return getMetricListV2(params)
         .then(res => {
@@ -1208,7 +1246,7 @@ export default class DataRetrieval extends tsc<{}> {
             agg_dimension: item.groupBy || [],
             agg_interval: item.interval,
             agg_method: item.method,
-            functions: item.functions || []
+            functions: item.functions || [],
           });
         })
         .catch(err => {
@@ -1225,23 +1263,23 @@ export default class DataRetrieval extends tsc<{}> {
       tools.TimeRange = DEFAULT_TIME_RANGE;
     }
     data.tools && (this.compareValue.tools = data.tools);
-    const compareMap: { [key in IDataRetrievalView.compareType]: Function } = {
+    const compareMap: { [key in IDataRetrievalView.compareType]: (params: any) => any } = {
       none: ({ type, split }: { type: IDataRetrievalView.compareType; split: boolean }) => ({ type, value: split }),
       target: ({ type }: { type: IDataRetrievalView.compareType }) => ({ type }),
       time: ({ type, timeOffset }: { type: IDataRetrievalView.compareType; timeOffset: string[] }) => ({
         type,
-        value: timeOffset
+        value: timeOffset,
       }),
-      metric: ({ type }: { type: IDataRetrievalView.compareType }) => ({ type })
+      metric: ({ type }: { type: IDataRetrievalView.compareType }) => ({ type }),
     };
     this.compareValue.compare = compareMap[data.compareConfig?.type]?.(data.compareConfig) || {
       type: 'none',
-      value: true
+      value: true,
     };
     // 监控目标
     this.target.value = config.target;
     this.target.targetType = config.targetType;
-    this.target.desc = this.gettargetDes();
+    this.target.desc = this.getTargetDes();
     // 刷新查询结果
     this.queryResult = [];
     this.handleQuery();
@@ -1261,7 +1299,7 @@ export default class DataRetrieval extends tsc<{}> {
     const { metric_list: metricList = [] } = await getMetricListV2({
       page: 1,
       page_size: data.localValue.length,
-      conditions: [{ key: 'metric_id', value: metricDataList.map(item => item.metric_id) }]
+      conditions: [{ key: 'metric_id', value: metricDataList.map(item => item.metric_id) }],
     }).catch(err => {
       console.log(err);
       return { metric_list: [] };
@@ -1274,12 +1312,12 @@ export default class DataRetrieval extends tsc<{}> {
           ...(metricData || {}),
           alias,
           enable: item.enable,
-          agg_condition: item.agg_condition || [],
+          agg_condition: item.agg_condition || item._agg_condition || [],
           agg_dimension: item.agg_dimension || [],
           agg_interval: item.agg_interval,
           agg_method: item.agg_method,
           functions: item.functions,
-          dimensions: item.dimensions
+          dimensions: item.dimensions,
         });
       }
       item.alias = alias;
@@ -1319,7 +1357,7 @@ export default class DataRetrieval extends tsc<{}> {
       const submitValue = {
         value: this.favCheckedValue,
         hideCallback: () => {},
-        isEdit: true
+        isEdit: true,
       };
       this.handleSubmitFavorite(submitValue);
       return;
@@ -1344,21 +1382,21 @@ export default class DataRetrieval extends tsc<{}> {
         createFavoriteGroup({
           bk_biz_id: this.bizId,
           type: this.favoriteSearchType,
-          name: value
+          name: value,
         }).then(() => this.getListByGroupFavorite());
         break;
       case 'reset-group-name': // 重命名
         updateFavoriteGroup(value.group_id, {
           bk_biz_id: this.bizId,
           type: this.favoriteSearchType,
-          name: value.group_new_name
+          name: value.group_new_name,
         }).then(() => this.getListByGroupFavorite());
         break;
       case 'move-favorite': // 移动收藏
       case 'remove-group': // 从组中移除收藏（移动至未分组）
         updateFavorite(value.id, {
           ...value,
-          type: this.favoriteSearchType
+          type: this.favoriteSearchType,
         }).then(() => this.getListByGroupFavorite());
         break;
       case 'edit-favorite': // 编辑收藏
@@ -1372,7 +1410,7 @@ export default class DataRetrieval extends tsc<{}> {
           type: 'warning',
           confirmFn: async () => {
             destroyFavorite(value.id, { type: this.favoriteSearchType }).then(() => this.getListByGroupFavorite());
-          }
+          },
         });
         break;
       case 'dismiss-group': // 解散分组
@@ -1382,7 +1420,7 @@ export default class DataRetrieval extends tsc<{}> {
           type: 'warning',
           confirmFn: async () => {
             destroyFavoriteGroup(value.id, { type: this.favoriteSearchType }).then(() => this.getListByGroupFavorite());
-          }
+          },
         });
         break;
       case 'share': {
@@ -1391,13 +1429,13 @@ export default class DataRetrieval extends tsc<{}> {
         copyText(`${href}?favorite_id=${value.id}`, msg => {
           this.$bkMessage({
             message: msg,
-            theme: 'error'
+            theme: 'error',
           });
           return;
         });
         this.$bkMessage({
           message: this.$t('复制成功'),
-          theme: 'success'
+          theme: 'success',
         });
         break;
       }
@@ -1415,7 +1453,7 @@ export default class DataRetrieval extends tsc<{}> {
           if (this.favStrList.includes(copyName)) {
             this.$bkMessage({
               message: this.$t('已存在该副本'),
-              theme: 'warning'
+              theme: 'warning',
             });
             return;
           }
@@ -1425,7 +1463,7 @@ export default class DataRetrieval extends tsc<{}> {
           const submitValue = {
             value: copyBaseParams,
             hideCallback: () => {},
-            isEdit: false
+            isEdit: false,
           };
           this.handleSubmitFavorite(submitValue);
         }
@@ -1449,12 +1487,12 @@ export default class DataRetrieval extends tsc<{}> {
             agg_method: item?.agg_method,
             agg_interval: item?.agg_interval,
             agg_dimension: item?.agg_dimension,
-            agg_condition: item?.agg_condition,
-            functions: item?.functions
+            agg_condition: item?.agg_condition || [],
+            functions: item?.functions,
           }
         : {
             value: item?.value,
-            functions: item?.functions
+            functions: item?.functions,
           }
     );
   }
@@ -1463,7 +1501,7 @@ export default class DataRetrieval extends tsc<{}> {
   getComparedPromQLParams(comparedQLParams = []) {
     return comparedQLParams.map(item => ({
       step: item?.step,
-      code: item?.code
+      code: item?.code,
     }));
   }
 
@@ -1471,24 +1509,24 @@ export default class DataRetrieval extends tsc<{}> {
   async handleSubmitFavorite({ value, hideCallback, isEdit }) {
     const type = this.tabActive === 'event' ? 'event' : 'metric';
     const { group_id, name, id } = value;
-    let config;
+    let config = undefined;
     // 若是当前是编辑收藏, 且非更新收藏config的情况下 不改变config
     if (this.isUpdateFavoriteConfig) {
       if (this.tabActive === 'event') {
         config = {
           queryConfig: deepClone(this.eventRetrievalRef.currentGroupByVarPramas),
-          compareValue: deepClone(this.compareValue)
+          compareValue: deepClone(this.compareValue),
         };
       } else {
         if (this.editMode === 'PromQL') {
           config = {
-            promqlData: this.promqlData
+            promqlData: this.promqlData,
           };
         } else {
           config = {
             localValue: this.localValue,
             target: this.target,
-            compareValue: this.compareValue
+            compareValue: this.compareValue,
           };
         }
       }
@@ -1500,7 +1538,7 @@ export default class DataRetrieval extends tsc<{}> {
       group_id,
       name,
       type,
-      config
+      config,
     };
     if (!isEdit) {
       // 新增收藏
@@ -1532,24 +1570,24 @@ export default class DataRetrieval extends tsc<{}> {
    */
   getFavoriteDialogKeywords(replaceData?: any) {
     let currentFavoriteKeywordsData: any;
-    if (!!replaceData) {
+    if (replaceData) {
       currentFavoriteKeywordsData = replaceData;
     } else {
       if (this.tabActive === 'event') {
         currentFavoriteKeywordsData = {
           queryConfig: deepClone(this.eventRetrievalRef.currentGroupByVarPramas),
-          compareValue: deepClone(this.compareValue)
+          compareValue: deepClone(this.compareValue),
         };
       } else {
         if (this.editMode === 'PromQL') {
           currentFavoriteKeywordsData = {
-            promqlData: this.promqlData
+            promqlData: this.promqlData,
           };
         } else {
           currentFavoriteKeywordsData = {
             localValue: this.localValue,
             target: this.target,
-            compareValue: this.compareValue
+            compareValue: this.compareValue,
           };
         }
       }
@@ -1586,7 +1624,7 @@ export default class DataRetrieval extends tsc<{}> {
       if (metricItem.consistency || metricItem.sourceCodeError) return undefined;
       const params = {
         promql: metricItem.sourceCode,
-        step: 1
+        step: 1,
       };
       // 转换promsql语法
       return promqlToQueryConfig(params)
@@ -1620,6 +1658,19 @@ export default class DataRetrieval extends tsc<{}> {
     //   this.loading = false
     //   console.error(err)
     // })
+    if (this.tabActive === 'event') {
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          ...(this.$route.query || {}),
+          from: this.compareValue.tools.timeRange[0],
+          to: this.compareValue.tools.timeRange[1],
+          timezone: this.compareValue.tools.timezone,
+          type: 'event',
+          key: random(10),
+        },
+      });
+    }
     let params = this.getQueryParams();
     // 过滤无效查询
     if (!params) {
@@ -1635,8 +1686,8 @@ export default class DataRetrieval extends tsc<{}> {
         ...params,
         compare_config: {
           ...params.compare_config,
-          split: false
-        }
+          split: false,
+        },
       };
     }
     this.cancelFn?.();
@@ -1650,8 +1701,111 @@ export default class DataRetrieval extends tsc<{}> {
         this.queryResult = [];
         this.emptyStatus = '500';
       })
-      .finally(() => (this.loading = false));
+      .finally(() => {
+        this.loading = false;
+        this.routerParamsUpdate();
+      });
     this.isHandleQuery = false;
+  }
+
+  /**
+   * @description 更新路由参数（检索的任何更改都需要记录到路由上）
+   * @param panels
+   */
+  routerParamsUpdate() {
+    const targets = [];
+    if (this.editMode === 'UI') {
+      for (const item of this.localValue as DataRetrievalQueryItem[]) {
+        // 指标
+        if (item.isMetric && !item.isNullMetric && !item.sourceCodeError) {
+          const queryConfigItem: any | IDataRetrieval.queryConfigsParams = {
+            metric: item.metric_field,
+            method: item.agg_method,
+            alias: item.alias,
+            interval: item.agg_interval,
+            table: item.result_table_id,
+            data_source_label: item.data_source_label,
+            data_type_label: item.data_type_label,
+            group_by: item.agg_dimension,
+            where: item.agg_condition.filter(item => item.value.length).filter(item => item.key),
+            functions: item.functions,
+            metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }],
+          };
+          item.index_set_id && (queryConfigItem.index_set_id = item.index_set_id);
+          item.data_label && (queryConfigItem.data_label = item.data_label);
+          const temp = {
+            alias: item.alias,
+            data: {
+              query_configs: [queryConfigItem],
+              expression: item.alias,
+              alias: item.alias,
+            },
+          };
+          targets.push(temp);
+        } else if (!!item?.value || item?.functions?.length) {
+          const temp = {
+            alias: item.alias,
+            data: {
+              query_configs: [],
+              expression: item.value,
+              functions: item?.functions,
+              alias: item.alias,
+            },
+          };
+          targets.push(temp);
+        }
+      }
+    } else if (this.editMode === 'PromQL') {
+      for (const promqlItem of this.promqlData) {
+        if (!!promqlItem.code && promqlItem.enable) {
+          const temp = {
+            data: {
+              query_configs: [
+                {
+                  data_source_label: 'prometheus',
+                  data_type_label: 'time_series',
+                  promql: promqlItem.code,
+                  interval: promqlItem.step || 'auto',
+                  alias: promqlItem.alias,
+                },
+              ],
+            },
+          };
+          targets.push(temp);
+        }
+      }
+    }
+
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: targets.length ? JSON.stringify(targets) : undefined,
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
+  }
+
+  /**
+   * @description 重置路由参数
+   */
+  routeParamsReset() {
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: undefined,
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
   }
 
   /**
@@ -1681,7 +1835,7 @@ export default class DataRetrieval extends tsc<{}> {
       compare_config: this.getCompare(), // 操作栏对比配置
       target: this.getTargets(), // 监控目标
       start_time: startTime, // 起始时间
-      end_time: endTime // 终止时间
+      end_time: endTime, // 终止时间
     };
     return params;
   }
@@ -1718,7 +1872,7 @@ export default class DataRetrieval extends tsc<{}> {
             agg_dimension: groupBy,
             functions,
             index_set_id: indexSetId,
-            data_label
+            data_label,
           } = item;
           const queryConfigItem: IDataRetrieval.queryConfigsParams = {
             metric,
@@ -1730,7 +1884,7 @@ export default class DataRetrieval extends tsc<{}> {
             data_type_label: dataTypeLabel,
             group_by: groupBy,
             where: (allowNullWhere ? where : where.filter(item => item.value.length)).filter(item => item.key),
-            functions
+            functions,
           };
           indexSetId && (queryConfigItem.index_set_id = indexSetId);
           data_label && (queryConfigItem.data_label = data_label);
@@ -1742,17 +1896,18 @@ export default class DataRetrieval extends tsc<{}> {
     }
     if (this.editMode === 'PromQL') {
       const promqlQuery = [];
-      this.promqlData.forEach(promqlItem => {
+      for (const promqlItem of this.promqlData) {
         if (!!promqlItem.code && promqlItem.enable) {
           promqlQuery.push({
             data_source_label: 'prometheus',
             data_type_label: 'time_series',
             promql: promqlItem.code,
             interval: promqlItem.step || 'auto',
-            alias: promqlItem.alias
+            alias: promqlItem.alias,
+            filter_dict: promqlItem.filter_dict || undefined,
           });
         }
-      });
+      }
       return promqlQuery;
     }
   }
@@ -1800,29 +1955,37 @@ export default class DataRetrieval extends tsc<{}> {
       INSTANCE: 'ip',
       TOPO: 'host_topo_node',
       SERVICE_TEMPLATE: 'host_template_node',
-      SET_TEMPLATE: 'host_template_node'
+      SET_TEMPLATE: 'host_template_node',
+      DYNAMIC_GROUP: 'dynamic_group',
     };
-    const value =
-      this.target.targetType === 'INSTANCE'
-        ? this.target.value.map((item: any) => ({
-            ip: item.ip,
-            bk_cloud_id: item.bk_cloud_id,
-            bk_host_id: item.bk_host_id,
-            bk_supplier_id: item.bk_supplier_id
-          }))
-        : this.target.value.map((item: any) => ({
-            bk_inst_id: item.bk_inst_id,
-            bk_obj_id: item.bk_obj_id
-          }));
+    let value = [];
+    if (this.target.targetType === 'DYNAMIC_GROUP') {
+      value = this.target.value.map((item: any) => ({
+        dynamic_group_id: item.dynamic_group_id || item.id,
+      }));
+    } else {
+      value =
+        this.target.targetType === 'INSTANCE'
+          ? this.target.value.map((item: any) => ({
+              ip: item.ip,
+              bk_cloud_id: item.bk_cloud_id,
+              bk_host_id: item.bk_host_id,
+              bk_supplier_id: item.bk_supplier_id,
+            }))
+          : this.target.value.map((item: any) => ({
+              bk_inst_id: item.bk_inst_id,
+              bk_obj_id: item.bk_obj_id,
+            }));
+    }
     // 监控目标格式转换
     const targets = [
       [
         {
           field: targetFieldMap[this.target.targetType],
           method: 'eq',
-          value
-        }
-      ]
+          value,
+        },
+      ],
     ];
     if (this.editMode === 'PromQL') {
       return [];
@@ -1835,11 +1998,16 @@ export default class DataRetrieval extends tsc<{}> {
    */
   getCompare() {
     type type = IDataRetrievalView.compareType;
-    const compareMap: { [key in type]: Function } = {
+    type CompareFunction = (compare: { type: type; value?: boolean | string[] }) => {
+      type: type;
+      split?: boolean;
+      time_offset?: string[];
+    };
+    const compareMap: { [key in type]: CompareFunction } = {
       none: ({ type, value }: { type: type; value: boolean }) => ({ type, split: value }),
       target: ({ type }: { type: type }) => ({ type }),
       time: ({ type, value }: { type: type; value: string[] }) => ({ type, time_offset: value }),
-      metric: ({ type }: { type: type }) => ({ type })
+      metric: ({ type }: { type: type }) => ({ type }),
     };
     const { compare } = this.compareValue;
     compareMap[compare.type]?.(compare);
@@ -1884,11 +2052,11 @@ export default class DataRetrieval extends tsc<{}> {
               group_by: groupBy,
               method,
               metric_field,
-              filter_dict: filterDict
-            }
-          ]
-        }
-      }
+              filter_dict: filterDict,
+            },
+          ],
+        },
+      },
     ] = targetsList;
     this.eventQueryConfig = {
       data_type_label,
@@ -1899,7 +2067,7 @@ export default class DataRetrieval extends tsc<{}> {
       group_by: groupBy || [],
       filter_dict: filterDict || {},
       method,
-      metric_field
+      metric_field,
     };
   }
 
@@ -1936,7 +2104,7 @@ export default class DataRetrieval extends tsc<{}> {
                 'result_table_id',
                 'data_source_label',
                 'data_type_label',
-                'data_label'
+                'data_label',
               ];
               /** 是否带有原始指标 */
               const hasOriginMetricData = !!query.originMetricData?.metricField;
@@ -1953,7 +2121,7 @@ export default class DataRetrieval extends tsc<{}> {
                   .map((field, index) => {
                     const res = {
                       key: field,
-                      value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field]
+                      value: hasOriginMetricData ? query.originMetricData[metricFieldsValIds[index]] : query[field],
                     };
                     if (field === 'data_label' && !res.value) {
                       return undefined;
@@ -1969,7 +2137,7 @@ export default class DataRetrieval extends tsc<{}> {
                   })
                   .filter(Boolean),
                 search_value: '',
-                tag: ''
+                tag: '',
               })
                 .then(res => resolve(res))
                 .catch(err => {
@@ -1994,7 +2162,7 @@ export default class DataRetrieval extends tsc<{}> {
           const filterKeys = Object.keys(curQuery.filter_dict || {});
           if (filterKeys.length) {
             const where = [];
-            filterKeys.forEach(key => {
+            for (const key of filterKeys) {
               const filterVal = curQuery.filter_dict[key];
               if (key === 'variables' && !!filterVal) {
                 where.push(
@@ -2004,14 +2172,14 @@ export default class DataRetrieval extends tsc<{}> {
                       key,
                       condition: 'and',
                       method: 'eq',
-                      value: Array.isArray(value) ? value : [value]
+                      value: Array.isArray(value) ? value : [value],
                     };
                   })
                 );
               } else if (key === 'targets' && !!filterVal) {
                 /** 目标主机、主机对比数据将添加到where */
                 const firstItem = filterVal?.[0];
-                if (!!firstItem) {
+                if (firstItem) {
                   const res = Object.entries(firstItem).map(item => {
                     const [key] = item;
                     return {
@@ -2022,7 +2190,7 @@ export default class DataRetrieval extends tsc<{}> {
                         const val = `${obj[key]}`;
                         !total.includes(val) && total.push(val);
                         return total;
-                      }, [])
+                      }, []),
                     };
                   });
                   where.push(...res);
@@ -2032,10 +2200,10 @@ export default class DataRetrieval extends tsc<{}> {
                   key,
                   condition: 'and',
                   method: 'eq',
-                  value: Array.isArray(filterVal) ? filterVal : [filterVal]
+                  value: Array.isArray(filterVal) ? filterVal : [filterVal],
                 });
               }
-            });
+            }
             totalWhere = totalWhere.concat(where);
           }
           let { method } = curQuery;
@@ -2054,14 +2222,14 @@ export default class DataRetrieval extends tsc<{}> {
                   const dimensions = JSON.parse(JSON.stringify(metricData?.dimensions || []));
                   const dimensionName = dimensions.find(d => d.id === set.key)?.name;
                   return dimensionName || set.key;
-                })()
+                })(),
               })),
               agg_dimension: curQuery.group_by || [],
               agg_interval: this.handleInterval(curQuery.interval, curQuery.interval_unit?.toLocaleLowerCase?.()),
               agg_method: method,
               functions: curQuery.functions,
               enable: curQuery.display,
-              filter_dict: curQuery.filter_dict
+              filter_dict: curQuery.filter_dict,
             })
           );
           // 更新表达值的别名信息
@@ -2070,32 +2238,32 @@ export default class DataRetrieval extends tsc<{}> {
         /** 去除单指标时重复的表达式a查询 */
         if (expression) {
           // display为grafana的隐藏展示参数 如果为单指标跳转不展示表达式的图
-          const enable = isMultipleMetric ? targets[index].data.display ?? true : false;
+          const enable = isMultipleMetric ? (targets[index].data.display ?? true) : expression !== 'a';
           const expItem: IDataRetrieval.IExpressionItem = {
             alias: '',
             enable,
             isMetric: false,
             key: random(8),
             value: expression.toLocaleLowerCase?.(),
-            functions
+            functions,
           };
           // 添加表达式
           localValue.push(expItem);
         }
         /** 多表达式带有functions */
-        if (!!expressionList.length) {
-          expressionList.forEach(exp => {
+        if (expressionList.length) {
+          for (const exp of expressionList) {
             const expItem: IDataRetrieval.IExpressionItem = {
               alias: '',
               enable: exp.active,
               isMetric: false,
               key: random(8),
               value: exp.expression,
-              functions: exp.functions
+              functions: exp.functions,
             };
             // 添加表达式
             localValue.push(expItem);
-          });
+          }
         }
       });
       this.localValue = this.handleFilterExpression(localValue);
@@ -2110,38 +2278,40 @@ export default class DataRetrieval extends tsc<{}> {
   getRoutePromqlData(targets: any) {
     const promqlData = [];
     if (['code', 'source'].includes(targets?.[0]?.data?.mode)) {
-      targets.forEach(t => {
+      for (const t of targets) {
         const temp = {
           code: t.data.source,
           alias: t.data.promqlAlias,
-          step: t.data.step
+          step: t.data.step,
+          filter_dict: t.data.filter_dict,
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
-      });
+      }
       return promqlData;
     }
-    if (targets?.[0]?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
-      targets[0].data.query_configs.forEach(q => {
+    for (const target of targets) {
+      if (target?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
+        const q = target.data.query_configs[0];
         const temp = {
           code: q.promql,
-          step: q.interval || q.agg_interval || 'auto'
+          filter_dict: q.filter_dict,
+          step: q.interval || q.agg_interval || 'auto',
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
-      });
-      return promqlData;
+      }
     }
     return promqlData;
   }
   handleRoutePromqlData(promqlData: any[], from?: string, to?: string) {
     const result = [];
     const resultKey = [];
-    promqlData.forEach(item => {
+    for (const item of promqlData) {
       const tempItem = deepClone(item);
       tempItem.key = random(8);
       tempItem.alias = item.alias || this.getCurItemAlias(result as any);
       result.push(tempItem);
       resultKey.push(tempItem.key);
-    });
+    }
     this.editMode = 'PromQL';
     localStorage.setItem('bk_monitor_edit_mode_str', this.editMode);
     this.compareValue.tools.timeRange = from && to ? [from, to] : DEFAULT_TIME_RANGE;
@@ -2170,7 +2340,7 @@ export default class DataRetrieval extends tsc<{}> {
    * @param unit 单位
    * @returns number 单位：秒 | auto
    */
-  handleInterval(interval: string | number, unit: 's' | 'm' | 'h' = 's'): number | 'auto' {
+  handleInterval(interval: number | string, unit: 'h' | 'm' | 's' = 's'): 'auto' | number {
     if (interval === 'auto') return interval;
     const intervalUnitMap: IDataRetrieval.IntervalUnitMap = {
       s: 1,
@@ -2178,7 +2348,7 @@ export default class DataRetrieval extends tsc<{}> {
       h: 3600,
       d: 86400,
       M: 2592000,
-      y: 31104000
+      y: 31104000,
     };
     if (typeof interval === 'number') {
       return interval * intervalUnitMap[unit];
@@ -2197,13 +2367,33 @@ export default class DataRetrieval extends tsc<{}> {
     this.compareValue = {
       compare: {
         type: 'none',
-        value: true
+        value: true,
       },
       tools: {
         ...this.compareValue.tools,
-        refleshInterval: -1
-      }
+        refleshInterval: -1,
+      },
     };
+  }
+
+  /**
+   * 判断删除Icon是否禁用
+   * @param item
+   * @returns
+   */
+  handleDelIconDisabled(item: IDataRetrieval.ILocalValue) {
+    const result = {
+      disabled: false,
+      tips: '',
+    };
+    if (this.localValue.length === 1) {
+      result.disabled = true;
+    } else if (item.isMetric) {
+      const disabled = this.expressionVars[item.alias];
+      result.disabled = disabled;
+      result.tips = disabled ? this.$tc('存在表达式依赖，不能删除') : '';
+    }
+    return result;
   }
 
   /**
@@ -2216,9 +2406,9 @@ export default class DataRetrieval extends tsc<{}> {
     const metricItem = item as DataRetrievalQueryItem;
     const tipsMap: { [key in IDataRetrieval.IOption]: string } = {
       copy: `${this.$t('拷贝')}`,
-      delete: `${this.$t('删除')}`,
-      enable: `${this.$t(item.enable ? '隐藏' : '展示')}`,
-      source: `${metricItem.showSource ? 'UI' : this.$t('源码')}`
+      delete: this.handleDelIconDisabled(item).tips || `${this.$t('删除')}`,
+      enable: `${this.$t(item.enable ? '不看此项' : '显示此项')}`,
+      source: `${metricItem.showSource ? 'UI' : this.$t('源码')}`,
     };
     return tipsMap[opt] || '';
   }
@@ -2235,21 +2425,21 @@ export default class DataRetrieval extends tsc<{}> {
   /**
    * @description: 更新收藏高亮提示数据
    */
-  updateFavCheckValue(data?: any, type: 'time_series' | 'event' = 'time_series') {
+  updateFavCheckValue(data?: any, type: 'event' | 'time_series' = 'time_series') {
     let config: any = {
       localValue: this.localValue,
       target: this.target,
-      compareValue: this.compareValue
+      compareValue: this.compareValue,
     };
     if (this.editMode === 'PromQL') {
       config = {
-        promqlData: this.promqlData
+        promqlData: this.promqlData,
       };
     }
     if (type === 'event') {
       config = {
         queryConfig: deepClone(this.eventRetrievalRef.currentGroupByVarPramas),
-        compareValue: this.compareValue
+        compareValue: this.compareValue,
       };
     }
     this.favCheckedValue = data || config;
@@ -2309,8 +2499,8 @@ export default class DataRetrieval extends tsc<{}> {
         mode: 'code',
         data: this.promqlData.map(item => ({
           promql: item.code,
-          step: item.step
-        }))
+          step: item.step,
+        })),
       };
     } else {
       const metricList = this.localValue.filter(item => item.isMetric) as DataRetrievalQueryItem[];
@@ -2326,11 +2516,11 @@ export default class DataRetrieval extends tsc<{}> {
         table: item.result_table_id,
         item: item.time_field,
         where: item.agg_condition,
-        metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }]
+        metrics: [{ alias: item.alias, field: item.metric_field, method: item.agg_method }],
       }));
       queryData = {
         expression: epxList?.[0]?.value?.toLocaleLowerCase?.(),
-        query_configs: queryConfigs
+        query_configs: queryConfigs,
       };
     }
     window.open(
@@ -2359,7 +2549,7 @@ export default class DataRetrieval extends tsc<{}> {
   async handlePromqlQuery(item: DataRetrievalQueryItem, index: number): Promise<boolean | undefined> {
     const params = {
       promql: item.sourceCode,
-      step: 1
+      step: 1,
     };
     // 转换promsql语法
     const res = await promqlToQueryConfig(params).catch(err => {
@@ -2372,7 +2562,7 @@ export default class DataRetrieval extends tsc<{}> {
       isMutiple &&
         this.$bkMessage({
           theme: 'warning',
-          message: this.$t('输入单个指标')
+          message: this.$t('输入单个指标'),
         });
       return;
     }
@@ -2396,7 +2586,7 @@ export default class DataRetrieval extends tsc<{}> {
     const { metric_list: metricList = [] } = await getMetricListV2({
       page: 1,
       page_size: 1,
-      conditions: [{ key: 'metric_id', value: [result.metric_id] }]
+      conditions: [{ key: 'metric_id', value: [result.metric_id] }],
     }).catch(err => {
       console.error(err);
     });
@@ -2408,14 +2598,14 @@ export default class DataRetrieval extends tsc<{}> {
       functions,
       data_source_label,
       result_table_id,
-      metric_field
+      metric_field,
     } = result;
     const resultTableIdList = result_table_id.split('.');
     const metircData = metricList[0] || {
       result_table_label_name: data_source_label,
       related_name: resultTableIdList[0],
       result_table_name: resultTableIdList[1],
-      metric_field_name: metric_field
+      metric_field_name: metric_field,
     };
     // 实例化一条指标
     const newData = new DataRetrievalQueryItem({
@@ -2431,7 +2621,7 @@ export default class DataRetrieval extends tsc<{}> {
       agg_dimension,
       agg_interval,
       alias: item.alias || 'a',
-      functions: functions || []
+      functions: functions || [],
     });
     return newData;
   }
@@ -2490,7 +2680,7 @@ export default class DataRetrieval extends tsc<{}> {
     const params = {
       query_config_format: 'graph',
       expression: queryConfigs[0].alias || 'a',
-      query_configs: queryConfigs
+      query_configs: queryConfigs,
     };
     const res = await queryConfigToPromql(params)
       .catch(err => {
@@ -2526,8 +2716,57 @@ export default class DataRetrieval extends tsc<{}> {
     // 事件检索初始化时会检索一次 判断当前是否有数据ID 有则检索次数+1
     this.eventMetricParams = {
       method: 'SUM',
-      ...(params || deepClone(this.eventRetrievalRef.currentGroupByVarPramas))
+      ...(params || deepClone(this.eventRetrievalRef.currentGroupByVarPramas)),
     };
+  }
+
+  /**
+   * @description 事件检索路由参数
+   * @param data
+   */
+  handleEventDataChange(data) {
+    const targets = [
+      {
+        data: {
+          query_configs: [
+            {
+              ...(() => {
+                const obj = {
+                  data_type_label: '',
+                  data_source_label: '',
+                };
+                if (data.eventType === 'custom_event') {
+                  obj.data_type_label = 'event';
+                  obj.data_source_label = 'custom';
+                } else if (data.eventType === 'bk_monitor_log') {
+                  obj.data_type_label = 'log';
+                  obj.data_source_label = 'bk_monitor';
+                }
+                return obj;
+              })(),
+              result_table_id: data.result_table_id || '',
+              where: data.where || [],
+              query_string: data.query_string || '',
+              group_by: [],
+              filter_dict: {},
+            },
+          ],
+        },
+      },
+    ];
+    const routeParams = {
+      name: this.$route.name,
+      query: {
+        ...(this.$route.query || {}),
+        targets: JSON.stringify(targets),
+        from: this.compareValue.tools.timeRange[0],
+        to: this.compareValue.tools.timeRange[1],
+        timezone: this.compareValue.tools.timezone,
+        type: 'event',
+        key: random(10),
+      },
+    };
+    this.$router.replace(routeParams);
   }
 
   /**
@@ -2566,7 +2805,7 @@ export default class DataRetrieval extends tsc<{}> {
    */
   handleTimeRangeChange(timeRange: EventRetrievalViewType.IEvent['onTimeRangeChange']) {
     timeRange && (this.eventChartTimeRange = timeRange);
-    if (!!timeRange) {
+    if (timeRange) {
       const targetTime = timestampTransformStr(timeRange);
       this.eventSelectTimeRange = targetTime;
     }
@@ -2597,12 +2836,12 @@ export default class DataRetrieval extends tsc<{}> {
         table: result_table_id,
         item: '',
         where,
-        metrics: [{ alias: 'a', field: metric_field_cache, method: 'COUNT' }]
-      }
+        metrics: [{ alias: 'a', field: metric_field_cache, method: 'COUNT' }],
+      },
     ];
     const queryData = {
       expression: 'a',
-      query_configs: queryConfigs
+      query_configs: queryConfigs,
     };
     window.open(
       `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(
@@ -2658,13 +2897,13 @@ export default class DataRetrieval extends tsc<{}> {
       const promqlData = [];
       const promiseList = [];
       const localValueFilter = this.localValue.filter((item: DataRetrievalQueryItem) => !!item.metric_id);
-      localValueFilter.forEach((item: DataRetrievalQueryItem) => {
+      for (const item of localValueFilter as DataRetrievalQueryItem[]) {
         const promiseItem = new Promise((resolve, reject) => {
           const queryConfigs = this.getQueryConfgs(undefined, item);
           const params = {
             query_config_format: 'graph',
             expression: queryConfigs[0].alias || 'a',
-            query_configs: queryConfigs
+            query_configs: queryConfigs,
           };
           queryConfigToPromql('', params, { needMessage: false })
             .then(res => {
@@ -2679,7 +2918,7 @@ export default class DataRetrieval extends tsc<{}> {
             });
         });
         promiseList.push(promiseItem);
-      });
+      }
       const dataList = await Promise.all(promiseList);
       /* 报错不提供转换 */
       if (isErr) return;
@@ -2687,7 +2926,7 @@ export default class DataRetrieval extends tsc<{}> {
         promqlData.push(
           new DataRetrievalPromqlItem({
             alias: this.createItemName(index),
-            code: sql
+            code: sql,
           } as any)
         );
       });
@@ -2701,11 +2940,11 @@ export default class DataRetrieval extends tsc<{}> {
       const metricQueryData = [];
       const promiseList = [];
       const promqlDataFilter = this.promqlData.filter(item => !!item.code);
-      promqlDataFilter.forEach((item: DataRetrievalPromqlItem) => {
+      for (const item of promqlDataFilter as DataRetrievalPromqlItem[]) {
         const promiseItem = new Promise((resolve, reject) => {
           const params = {
             promql: item.code,
-            step: item.step
+            step: item.step,
           };
           promqlToQueryConfig('', params, { needMessage: false })
             .then(async res => {
@@ -2718,14 +2957,14 @@ export default class DataRetrieval extends tsc<{}> {
             })
             .catch(err => {
               isErr = true;
-              errMsg = err.data.message || '';
+              errMsg = err.data?.message || err.message || '';
               const promqlItem = this.promqlData.find(p => p.key === item.key);
               promqlItem.errMsg = errMsg;
               reject(err);
             });
         });
         promiseList.push(promiseItem);
-      });
+      }
       await Promise.all(promiseList);
       if (isErr) return;
       if (metricQueryData.length) {
@@ -2738,7 +2977,7 @@ export default class DataRetrieval extends tsc<{}> {
     this.handleQueryProxy();
   }
 
-  handleSourceStepChange(value: string | number, index: number) {
+  handleSourceStepChange(value: number | string, index: number) {
     this.promqlData[index].step = value as any;
   }
 
@@ -2779,13 +3018,13 @@ export default class DataRetrieval extends tsc<{}> {
     copyText(copyStr, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -2813,13 +3052,33 @@ export default class DataRetrieval extends tsc<{}> {
       this.handleFavoriteHiddenAndShow(false);
     }
   }
+  handleDeletePromqlFilterDict(index: number) {
+    const promqlItem = this.promqlData[index];
+    if (Object.keys(promqlItem?.filter_dict || {}).length <= 0) return;
+    promqlItem.filter_dict = {};
+    this.handleQueryProxy();
+  }
+
+  handleRefreshChange(v: number) {
+    window.clearInterval(this.refreshInstance);
+    this.refreshInstance = null;
+    if (v <= 0) return;
+    this.refreshInstance = setInterval(() => {
+      this.refleshNumber += 1;
+    }, v);
+  }
+
+  destroyed() {
+    window.clearInterval(this.refreshInstance);
+    this.refreshInstance = null;
+  }
 
   render() {
     // 查询项/表达式头部区域
     const titleSlot = (item: IDataRetrieval.ILocalValue, index: number) => (
       <div class='collapse-item-title'>
         <span class='title-left'>
-          <i class={['bk-icon', 'icon-play-shape', { acitve: this.expandedData.includes(item.key) }]}></i>
+          <i class={['bk-icon', 'icon-play-shape', { acitve: this.expandedData.includes(item.key) }]} />
           <span class='title-name'>{item.alias}</span>
           <span class='title-desc'>{item.isMetric ? this.$t('（查询项）') : this.$t('（表达式）')}</span>
         </span>
@@ -2840,8 +3099,14 @@ export default class DataRetrieval extends tsc<{}> {
             return (
               <i
                 key={opt}
+                class={[
+                  'icon-monitor',
+                  { disabled: opt === 'delete' ? this.handleDelIconDisabled(item).disabled : false },
+                  iconName,
+                  sourceAcitve,
+                  display,
+                ]}
                 v-bk-tooltips_top={this.handleTitleTips(opt, item)}
-                class={['icon-monitor', iconName, sourceAcitve, display]}
                 onClick={evt => evt.stopPropagation()}
                 onMousedown={evt => this.handleOptionProxy(evt, opt, item, index)}
               />
@@ -2856,47 +3121,44 @@ export default class DataRetrieval extends tsc<{}> {
       const expItem = item as IDataRetrieval.IExpressionItem;
       return (
         <div class={['collapse-item-content', { 'is-metric': item.isMetric }]}>
-          {
-            // eslint-disable-next-line no-nested-ternary
-            item.isMetric ? (
-              // 查询项配置
-              metricItem.showSource ? (
-                // 源码模式编辑
-                <div class='source-mode-wrap'>
-                  {metricItem.loading ? undefined : (
-                    <PromqlEditor
-                      ref={`promql-editor-${index}`}
-                      value={metricItem.sourceCode}
-                      isError={metricItem.sourceCodeError}
-                      executeQuery={(hasError: boolean) => this.handlePromqlError(hasError, 'enter', metricItem, index)}
-                      onBlur={(val, hasError: boolean) => this.handlePromqlError(hasError, 'blur', metricItem, index)}
-                      onFocus={() => this.handlePromqlFocus(metricItem)}
-                      onChange={val => this.handlePromsqlChange(metricItem, val)}
-                    />
-                  )}
-                </div>
-              ) : (
-                <DataRetrievalItem
-                  key={metricItem.key}
-                  value={metricItem}
-                  index={index}
-                  compareValue={this.compareValue}
-                  scenarioList={this.scenarioList}
-                  onLoadingChange={loading => (metricItem.loading = loading)}
-                  onClearMetric={() => this.handleClearMetric(index)}
-                  onShowMetricSelector={() => this.handleShowMetricSelector(true, index)}
-                  onChange={data => this.handleQueryItemValueChange(data, index)}
-                />
-              )
+          {item.isMetric ? (
+            // 查询项配置
+            metricItem.showSource ? (
+              // 源码模式编辑
+              <div class='source-mode-wrap'>
+                {metricItem.loading ? undefined : (
+                  <PromqlEditor
+                    ref={`promql-editor-${index}`}
+                    executeQuery={(hasError: boolean) => this.handlePromqlError(hasError, 'enter', metricItem, index)}
+                    isError={metricItem.sourceCodeError}
+                    value={metricItem.sourceCode}
+                    onBlur={(val, hasError: boolean) => this.handlePromqlError(hasError, 'blur', metricItem, index)}
+                    onChange={val => this.handlePromsqlChange(metricItem, val)}
+                    onFocus={() => this.handlePromqlFocus(metricItem)}
+                  />
+                )}
+              </div>
             ) : (
-              // 表达式输入
-              <ExpressionItem
-                value={expItem}
-                onChange={data => this.handleExpressionValueChange(data, index)}
+              <DataRetrievalItem
+                key={metricItem.key}
+                compareValue={this.compareValue}
+                index={index}
+                scenarioList={this.scenarioList}
+                value={metricItem}
+                onChange={data => this.handleQueryItemValueChange(data, index)}
+                onClearMetric={() => this.handleClearMetric(index)}
+                onLoadingChange={loading => (metricItem.loading = loading)}
+                onShowMetricSelector={() => this.handleShowMetricSelector(true, index)}
               />
             )
-          }
-          {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+          ) : (
+            // 表达式输入
+            <ExpressionItem
+              value={expItem}
+              onChange={data => this.handleExpressionValueChange(data, index)}
+            />
+          )}
+          {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
         </div>
       );
     };
@@ -2911,12 +3173,14 @@ export default class DataRetrieval extends tsc<{}> {
           onChange={this.handleChangeBizId} /> */}
         <div class='title-main'>
           <div class='title-edit'>
-            <span class='title-text'>{this.isFavoriteNewSearch ? this.$t('新检索') : this.selectFavoriteName}</span>
+            <span class='title-text'>
+              {this.isFavoriteNewSearch ? this.$t(this.tabActiveName[this.tabActive]) : this.selectFavoriteName}
+            </span>
             {!this.isFavoriteNewSearch ? (
               <span
                 class='edit icon-monitor icon-bianji'
                 onClick={() => this.handleClickEditFav()}
-              ></span>
+              />
             ) : undefined}
           </div>
           <div class='title-operate'>
@@ -2924,23 +3188,25 @@ export default class DataRetrieval extends tsc<{}> {
               <span
                 class={['edit-mode-btn', { 'mode-disable': !this.canToPromql }]}
                 v-bk-tooltips={{
-                  content: this.$t('目前仅支持{0}切换PromQL', [
-                    `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`
-                  ]),
-                  disabled: this.canToPromql
+                  content: this.useExpression
+                    ? this.$t('存在表达式,暂不支持转换')
+                    : this.$t('目前仅支持{0}切换PromQL', [
+                        `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
+                      ]),
+                  disabled: this.canToPromql,
                 }}
                 onClick={this.handleEditModeChange}
               >
-                <span class='icon-monitor icon-switch'></span>
-                <span>{this.editMode === 'PromQL' ? 'UI' : 'PromQL'}</span>
+                <span class='icon-monitor icon-switch' />
+                <span>{this.editMode === 'PromQL' ? this.$t('表单') : 'PromQL'}</span>
               </span>
             )}
             {this.tabActive === 'monitor' && (
               <i
+                style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
                 class='icon-monitor icon-mc-expand expand-icon'
                 onClick={this.handleExpandAll}
-                style={{ transform: this.isExpandAll ? 'rotate(0deg)' : 'rotate(-180deg)' }}
-              ></i>
+              />
             )}
             {/* <bk-popover
               ref="autoQueryPopover"
@@ -2968,7 +3234,15 @@ export default class DataRetrieval extends tsc<{}> {
               class='target-add-btn-content'
               onClick={this.handleShowTargetSelector}
             >
-              {this.target.desc ? this.target.desc : [<i class='icon-monitor icon-plus-line' />, this.$t('IP目标')]}
+              {this.target.desc
+                ? this.target.desc
+                : [
+                    <i
+                      key={1}
+                      class='icon-monitor icon-plus-line'
+                    />,
+                    this.$t('IP目标'),
+                  ]}
             </span>
           </div>
         )}
@@ -2976,6 +3250,7 @@ export default class DataRetrieval extends tsc<{}> {
     );
     const metricRetrieval = () => [
       <bk-collapse
+        key={1}
         class='collapse-wrap collapse-wrap-data'
         vModel={this.expandedData}
       >
@@ -2985,29 +3260,32 @@ export default class DataRetrieval extends tsc<{}> {
         >
           {this.localValue.map((item, index) => (
             <li
-              class='drag-item'
               key={item.key}
+              class='drag-item'
               draggable={true}
-              onDragstart={evt => this.handleDragStart(evt, index)}
               onDragend={this.handleDragend}
-              onDrop={this.handleDrop}
               onDragenter={() => this.handleDragEnter(index)}
               onDragover={evt => this.handleDragOver(evt)}
+              onDragstart={evt => this.handleDragStart(evt, index)}
+              onDrop={this.handleDrop}
             >
               <bk-collapse-item
-                v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 class='collapse-item'
-                name={item.key}
+                v-bkloading={{ isLoading: (item as DataRetrievalQueryItem).loading }}
                 scopedSlots={{
                   default: () => titleSlot(item, index),
-                  content: () => contentSlot(item, index)
+                  content: () => contentSlot(item, index),
                 }}
-              ></bk-collapse-item>
+                name={item.key}
+              />
             </li>
           ))}
         </transition-group>
       </bk-collapse>,
-      <div class='query-add-btn-wrap'>
+      <div
+        key={2}
+        class='query-add-btn-wrap'
+      >
         <span
           class='query-add-btn'
           onClick={this.handleAddQuery}
@@ -3024,55 +3302,55 @@ export default class DataRetrieval extends tsc<{}> {
         </span>
       </div>,
       <HandleBtn
+        key={3}
         class='search-group'
-        canQuery={this.canQuery && !this.loading}
         autoQuery={this.autoQuery}
-        queryLoading={this.loading}
-        isFavoriteUpdate={this.isFavoriteUpdate}
+        canQuery={this.canQuery && !this.loading}
         favCheckedValue={this.favCheckedValue}
-        onQueryTypeChange={this.handleAutoQueryChange}
-        onQuery={this.handleQuery}
-        onClear={this.handleClearAll}
+        isFavoriteUpdate={this.isFavoriteUpdate}
+        queryLoading={this.loading}
         onAddFav={this.handleClickAddOrUpdateFav}
-      />
+        onClear={this.handleClearAll}
+        onQuery={this.handleQuery}
+        onQueryTypeChange={this.handleAutoQueryChange}
+      />,
     ];
     const promQLContent = () => (
       <div class='promql-data-content'>
         <div
-          class='metric-copy-btn'
           id='data-retrieval-metric-copy-btn-select-id'
+          class='metric-copy-btn'
           onClick={() => this.handleMetricSelectShow(true)}
         >
           <span>{this.$t('指标选择')}</span>
-          <span class='icon-monitor icon-arrow-down'></span>
+          <span class='icon-monitor icon-arrow-down' />
         </div>
         <MetricSelector
-          show={this.metricSelectorShow}
-          type={MetricType.TimeSeries}
-          targetId={'#data-retrieval-metric-copy-btn-select-id'}
           isPromql={true}
-          onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
+          show={this.metricSelectorShow}
+          targetId={'#data-retrieval-metric-copy-btn-select-id'}
+          type={MetricType.TimeSeries}
           onSelected={this.handleSelectMetric}
-        ></MetricSelector>
+          onShowChange={(v: boolean) => this.handleMetricSelectShow(v)}
+        />
         <bk-collapse
           class='collapse-wrap collapse-wrap-data'
           v-model={this.promqlExpandedData}
         >
           {this.promqlData.map((item, index) => (
             <li
-              class='drag-item'
               key={item.key}
+              class='drag-item'
             >
               <bk-collapse-item
                 class='collapse-item'
-                name={item.key}
                 scopedSlots={{
                   default: () => (
                     <div class='collapse-item-title'>
                       <span class='title-left'>
                         <i
                           class={['bk-icon', 'icon-play-shape', { acitve: this.promqlExpandedData.includes(item.key) }]}
-                        ></i>
+                        />
                         <span class='title-name'>{item.alias}</span>
                         <span class='title-desc'>{this.$t('（查询项）')}</span>
                       </span>
@@ -3103,42 +3381,49 @@ export default class DataRetrieval extends tsc<{}> {
                       <div class='source-mode-wrap'>
                         <PromqlEditor
                           ref={'promql-mode-editor'}
-                          value={item.code}
-                          minHeight={80}
-                          onChange={val => this.handlePromqlDataCodeChange(val, index)}
                           executeQuery={this.handlePromqlDataEnter}
-                          onFocus={() => this.handlePromqlDataFocus(index)}
+                          minHeight={80}
+                          value={item.code}
                           onBlur={(val, hasError: boolean) => this.handlePromqlDataBlur(hasError, index)}
+                          onChange={val => this.handlePromqlDataCodeChange(val, index)}
+                          onFocus={() => this.handlePromqlDataFocus(index)}
                         />
                       </div>
+                      {Object.keys(item.filter_dict || {}).length > 0 && (
+                        <FilterDict
+                          filterDict={item.filter_dict}
+                          onDelete={() => this.handleDeletePromqlFilterDict(index)}
+                        />
+                      )}
                       <span class='step-content'>
                         <bk-input
                           class='step-input'
                           value={item.step}
+                          onBlur={this.handleSourceStepBlur}
                           onChange={value => this.handleSourceStepChange(value, index)}
                           onFocus={() => this.handlePromqlDataFocus(index)}
-                          onBlur={this.handleSourceStepBlur}
                         >
                           <div
-                            slot='prepend'
                             class='step-input-prepend'
+                            slot='prepend'
                           >
                             <span>{'Step'}</span>
                             <span
                               class='icon-monitor icon-hint'
                               v-bk-tooltips={{
                                 content: this.$t('数据步长'),
-                                placements: ['top']
+                                placements: ['top'],
                               }}
-                            ></span>
+                            />
                           </div>
                         </bk-input>
                       </span>
-                      {!!item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
+                      {item.errMsg ? <div class='err-msg'>{item.errMsg}</div> : undefined}
                     </div>
-                  )
+                  ),
                 }}
-              ></bk-collapse-item>
+                name={item.key}
+              />
             </li>
           ))}
         </bk-collapse>
@@ -3153,15 +3438,15 @@ export default class DataRetrieval extends tsc<{}> {
         </div>
         <HandleBtn
           class='search-group'
-          canQuery={this.canQuery && !this.loading}
           autoQuery={this.autoQuery}
-          queryLoading={this.loading}
-          isFavoriteUpdate={this.isFavoriteUpdate}
+          canQuery={this.canQuery && !this.loading}
           favCheckedValue={this.favCheckedValue}
-          onQueryTypeChange={this.handleAutoQueryChange}
-          onQuery={this.handleQuery}
-          onClear={this.handleClearAll}
+          isFavoriteUpdate={this.isFavoriteUpdate}
+          queryLoading={this.loading}
           onAddFav={this.handleClickAddOrUpdateFav}
+          onClear={this.handleClearAll}
+          onQuery={this.handleQuery}
+          onQueryTypeChange={this.handleAutoQueryChange}
         />
       </div>
     );
@@ -3170,55 +3455,56 @@ export default class DataRetrieval extends tsc<{}> {
         {
           // 日志检索
           this.logShow ? (
-            <LogRetrieval></LogRetrieval>
+            <LogRetrieval />
           ) : (
             <div class='data-retrieval-container'>
               {!this.onlyShowView && (
                 <PanelHeader
-                  timeRange={this.compareValue.tools?.timeRange}
-                  timezone={this.compareValue.tools?.timezone}
+                  eventSelectTimeRange={this.eventSelectTimeRange}
                   refleshInterval={this.compareValue.tools.refleshInterval}
                   showDownSample={false}
-                  eventSelectTimeRange={this.eventSelectTimeRange}
-                  onTimeRangeChange={this.handleToolsTimeRangeChange}
+                  timeRange={this.compareValue.tools?.timeRange}
+                  timezone={this.compareValue.tools?.timezone}
                   onImmediateReflesh={() => (this.refleshNumber += 1)}
+                  onRefleshIntervalChange={v => this.handleRefreshChange(v)}
+                  onTimeRangeChange={this.handleToolsTimeRangeChange}
                   onTimezoneChange={this.handleTimezoneChange}
                 >
                   {
                     // url 带有 onlyShowView=false 的时候，不显示该按钮
                     <div
-                      slot='pre'
                       class='left-show-icon-container'
+                      slot='pre'
                     >
                       <div class='icon-container'>
                         <div
-                          v-bk-tooltips={{
-                            content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
-                            placements: ['bottom'],
-                            delay: 200,
-                            disabled: this.needUseCollectGuide
-                          }}
                           class={[
                             'result-icon-box',
                             {
                               'light-icon': !this.isShowFavorite,
-                              'disable-icon': this.needUseCollectGuide
-                            }
+                              'disable-icon': this.needUseCollectGuide,
+                            },
                           ]}
+                          v-bk-tooltips={{
+                            content: this.isShowFavorite ? this.$t('点击收起收藏') : this.$t('点击展开收藏'),
+                            placements: ['bottom'],
+                            delay: 200,
+                            disabled: this.needUseCollectGuide,
+                          }}
                           onClick={() => this.handleClickResultIcon('favorite')}
                         >
-                          <span class='bk-icon icon-star'></span>
+                          <span class='bk-icon icon-star' />
                         </div>
                         <div
+                          class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
                           v-bk-tooltips={{
                             content: this.isShowLeft ? this.$t('点击收起检索') : this.$t('点击展开检索'),
                             placements: ['bottom'],
-                            delay: 200
+                            delay: 200,
                           }}
-                          class={['result-icon-box', { 'light-icon': !this.isShowLeft }]}
                           onClick={() => this.handleClickResultIcon('search')}
                         >
-                          <span class='bk-icon icon-monitor icon-mc-search-favorites'></span>
+                          <span class='bk-icon icon-monitor icon-mc-search-favorites' />
                         </div>
                       </div>
                     </div>
@@ -3237,19 +3523,21 @@ export default class DataRetrieval extends tsc<{}> {
                     theme: 'line',
                     isShow: this.isShowFavorite,
                     onHidden: () => this.handleFavoriteHiddenAndShow(false),
-                    onWidthChange: width => (this.favoriteWidth = width)
+                    onWidthChange: width => {
+                      this.favoriteWidth = width;
+                    },
                   }}
                 >
                   <FavoriteIndex
                     ref='favoriteIndex'
+                    favCheckedValue={this.favCheckedValue}
+                    favoriteLoading={this.favoriteLoading}
                     favoriteSearchType={this.favoriteSearchType}
                     favoritesList={this.curFavList}
-                    favoriteLoading={this.favoriteLoading}
-                    favCheckedValue={this.favCheckedValue}
                     isShowFavorite={this.isShowFavorite}
-                    onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
                     onGetFavoritesList={this.getListByGroupFavorite}
-                  ></FavoriteIndex>
+                    onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
+                  />
                 </div>
                 {/* 监控数据检索 */}
                 <div
@@ -3262,7 +3550,7 @@ export default class DataRetrieval extends tsc<{}> {
                     theme: 'dotted',
                     isShow: this.isShowLeft,
                     onHidden: () => this.handleLeftHiddenAndShow(false),
-                    onWidthChange: width => (this.leftWidth = width)
+                    onWidthChange: width => (this.leftWidth = width),
                   }}
                 >
                   {/* 检索切换按钮 */}
@@ -3290,22 +3578,23 @@ export default class DataRetrieval extends tsc<{}> {
                       this.tabActive === 'event' ? (
                         <EventRetrieval
                           ref='eventRetrievalRef'
-                          where={this.eventWhere}
                           autoQuery={this.autoQuery}
+                          chartTimeRange={this.eventChartTimeRange}
                           compareValue={this.compareValue}
+                          drillKeywords={this.drillKeywords}
+                          eventInterval={this.eventInterval}
                           favCheckedValue={this.favCheckedValue}
                           isFavoriteUpdate={this.isFavoriteUpdate}
                           queryConfig={this.eventQueryConfig}
-                          eventInterval={this.eventInterval}
-                          chartTimeRange={this.eventChartTimeRange}
-                          drillKeywords={this.drillKeywords}
+                          where={this.eventWhere}
+                          onAddFav={this.handleClickAddOrUpdateFav}
                           onAutoQueryChange={this.handleAutoQueryOfEventChange}
+                          onChange={this.handleEventDataChange}
                           onChartTitleChange={this.eventChartTitleChange}
                           onCountChange={count => (this.eventCount = count)}
-                          onQuery={this.handleEventQuery}
-                          onAddFav={this.handleClickAddOrUpdateFav}
-                          onWhereChange={this.eventWhereChange}
                           onEmptyStatusChange={this.handleEmptyStatusChange}
+                          onQuery={this.handleEventQuery}
+                          onWhereChange={this.eventWhereChange}
                         />
                       ) : undefined
                     }
@@ -3314,47 +3603,47 @@ export default class DataRetrieval extends tsc<{}> {
                 </div>
                 {/* 右侧视图部分 */}
                 <div
-                  class='data-retrieval-right'
                   style={{ flex: 1, width: `calc(100% - ${this.allLeftWidth}px)` }}
+                  class='data-retrieval-right'
                 >
                   <DataRetrievalView
                     v-bkloading={{ isLoading: this.delayLoading, zIndex: 500 }}
-                    leftShow={this.isShowLeft}
-                    refleshNumber={this.refleshNumber}
-                    compareValue={this.compareValue}
-                    queryResult={this.filterQueryResult}
-                    queryTimeRange={this.queryTimeRange}
                     canAddStrategy={this.canAddStrategy}
-                    retrievalType={this.tabActive}
-                    eventMetricParams={this.eventMetricParams}
-                    eventCount={this.eventCount}
+                    compareValue={this.compareValue}
+                    emptyStatus={this.emptyStatus}
+                    eventChartInterval={this.eventInterval}
                     eventChartTitle={this.eventChartTitle}
+                    eventCount={this.eventCount}
+                    eventMetricParams={this.eventMetricParams}
                     indexList={this.indexLists}
+                    leftShow={this.isShowLeft}
                     needCompare={this.editMode !== 'PromQL'}
                     queryLoading={this.loading}
-                    onTimeRangeChangeEvent={this.handleTimeRangeChange}
-                    onShowLeft={this.handleLeftHiddenAndShow}
-                    onCompareChange={this.handleCompareChange}
-                    onTimeRangeChange={this.handleToolsTimeRangeChange}
-                    onCompareValueChange={this.handleCompareValueChange}
-                    onSplitChange={this.handleSplitChange}
-                    eventChartInterval={this.eventInterval}
-                    onEventIntervalChange={this.handleEventIntervalChange}
+                    queryResult={this.filterQueryResult}
+                    queryTimeRange={this.queryTimeRange}
+                    refleshNumber={this.refleshNumber}
+                    retrievalType={this.tabActive}
                     onAddEventStrategy={this.handleAddEventStrategy}
                     onAddStrategy={this.handleAddStrategy}
+                    onCompareChange={this.handleCompareChange}
+                    onCompareValueChange={this.handleCompareValueChange}
                     onDrillKeywordsSearch={val => (this.drillKeywords = val)}
-                    emptyStatus={this.emptyStatus}
+                    onEventIntervalChange={this.handleEventIntervalChange}
+                    onShowLeft={this.handleLeftHiddenAndShow}
+                    onSplitChange={this.handleSplitChange}
+                    onTimeRangeChange={this.handleToolsTimeRangeChange}
+                    onTimeRangeChangeEvent={this.handleTimeRangeChange}
                   />
                 </div>
                 {/* 指标选择器 */}
                 <MetricSelector
+                  metricId={this.metricSelectorMetricId}
+                  scenarioList={this.scenarioAllList}
                   show={this.isShowMetricSelector}
                   targetId={this.metricSelectorTargetId}
-                  metricId={this.metricSelectorMetricId}
                   type={MetricType.TimeSeries}
-                  scenarioList={this.scenarioAllList}
-                  onShowChange={val => (this.isShowMetricSelector = val)}
                   onSelected={this.handleAddMetricData}
+                  onShowChange={val => (this.isShowMetricSelector = val)}
                 />
                 {/* <MetricSelector
                 show={this.metricSelector.show}
@@ -3374,34 +3663,38 @@ export default class DataRetrieval extends tsc<{}> {
               /> */}
                 {/* 监控目标选择器 */}
                 <StrategyIpv6
-                  showDialog={this.target.show}
-                  objectType={this.target.objectType}
-                  nodeType={this.target.targetType}
                   checkedNodes={this.target.value}
+                  nodeType={this.target.targetType}
+                  objectType={this.target.objectType}
+                  showDialog={this.target.show}
                   onChange={this.handleTargetChange}
-                  onCloseDialog={() => (this.target.show = false)}
+                  onCloseDialog={() => {
+                    this.target.show = false;
+                  }}
                 />
               </div>
               <AddCollectDialog
                 v-model={this.isShowAddFavoriteDialog}
-                keyword={this.favoriteKeywordsData}
+                editFavoriteData={this.editFavoriteData}
                 favoriteSearchType={this.favoriteSearchType}
                 favStrList={this.favStrList}
-                editFavoriteData={this.editFavoriteData}
+                keyword={this.favoriteKeywordsData}
+                onCancel={() => {
+                  this.editFavoriteData = null;
+                }}
                 onSubmit={value => this.handleSubmitFavorite(value)}
-                onCancel={() => (this.editFavoriteData = null)}
               />
             </div>
           )
         }
         {this.needUseCollectGuide && (
           <NotifyBox
-            placement={'bottom'}
-            hasBorder
             tipStyles={{
               top: '50px',
-              left: '14px'
+              left: '14px',
             }}
+            placement={'bottom'}
+            hasBorder
           >
             <div slot='title'>{this.$t('检索收藏功能支持分组和管理')}</div>
             <div slot='action'>

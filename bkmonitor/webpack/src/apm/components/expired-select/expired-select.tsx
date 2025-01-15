@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './expired-select.scss';
 
 export interface IOptionsItem {
   id: IProps['value'];
-  name: string | TranslateResult;
+  name: TranslateResult | string;
 }
 interface IProps {
   value?: number;
@@ -48,20 +49,20 @@ interface IEvents {
 const DEFAULT_OPTIONS: IOptionsItem[] = [
   {
     id: 1,
-    name: window.i18n.t(' {n} 天', { n: 1 })
+    name: window.i18n.t(' {n} 天', { n: 1 }),
   },
   {
     id: 3,
-    name: window.i18n.t(' {n} 天', { n: 3 })
+    name: window.i18n.t(' {n} 天', { n: 3 }),
   },
   {
     id: 7,
-    name: window.i18n.t(' {n} 天', { n: 7 })
+    name: window.i18n.t(' {n} 天', { n: 7 }),
   },
   {
     id: 14,
-    name: window.i18n.t(' {n} 天', { n: 14 })
-  }
+    name: window.i18n.t(' {n} 天', { n: 14 }),
+  },
 ];
 
 @Component
@@ -76,7 +77,7 @@ export default class ExpiredSelect extends tsc<IProps, IEvents> {
   /** 组件宽度 */
   @Prop({ type: Number }) width: number;
   /** 最大值 */
-  @Prop({ type: Number, default: Infinity }) max: number;
+  @Prop({ type: Number, default: Number.POSITIVE_INFINITY }) max: number;
 
   @Ref() selectRef: any;
 
@@ -138,7 +139,7 @@ export default class ExpiredSelect extends tsc<IProps, IEvents> {
   addCustomOptions(val: IProps['value']) {
     this.customOptions.push({
       id: val,
-      name: `${val}${this.unit}`
+      name: `${val}${this.unit}`,
     });
   }
 
@@ -153,8 +154,8 @@ export default class ExpiredSelect extends tsc<IProps, IEvents> {
         key={JSON.stringify(this.localOptions)}
         ref='selectRef'
         style={{ width: `${this.width}px` }}
-        value={this.value}
         clearable={false}
+        value={this.value}
         onChange={this.valueChange}
         onToggle={this.handleToggle}
       >
@@ -165,15 +166,15 @@ export default class ExpiredSelect extends tsc<IProps, IEvents> {
           />
         ))}
         <div
-          slot='extension'
           class='expired-select-custom-input-wrap'
+          slot='extension'
         >
           <bk-input
-            placeholder={this.placeholder}
             v-model={this.customInput}
+            placeholder={this.placeholder}
+            show-controls={false}
             size='small'
             type='number'
-            show-controls={false}
             onEnter={this.handleEnter}
           />
         </div>

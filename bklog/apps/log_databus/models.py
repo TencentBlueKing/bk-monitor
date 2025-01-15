@@ -172,6 +172,7 @@ class CollectorConfig(CollectorBase):
     bcs_cluster_id = models.CharField(_("bcs集群id"), max_length=128, null=True, blank=True)
     extra_labels = models.JSONField(_("额外字段添加"), null=True, blank=True)
     add_pod_label = models.BooleanField(_("是否自动添加pod中的labels"), default=False)
+    add_pod_annotation = models.BooleanField(_("是否自动添加pod中的annotations"), default=False)
 
     yaml_config_enabled = models.BooleanField(_("是否使用yaml配置模式"), default=False)
     yaml_config = models.TextField(_("yaml配置内容"), default="")
@@ -190,7 +191,7 @@ class CollectorConfig(CollectorBase):
         from apps.log_clustering.models import ClusteringConfig
 
         return ClusteringConfig.objects.filter(
-            collector_config_id=self.collector_config_id, signature_enable=True
+            collector_config_id=self.collector_config_id, signature_enable=True, access_finished=True
         ).exists()
 
     def get_etl_config(self):
@@ -383,6 +384,7 @@ class ContainerCollectorConfig(SoftDeleteModel):
     container_name = models.TextField(_("容器名称"), null=True, blank=True, default="")
     container_name_exclude = models.TextField(_("容器名称选择排除"), null=True, blank=True, default="")
     match_labels = models.JSONField(_("匹配标签"), null=True, blank=True)
+    match_annotations = models.JSONField(_("匹配注解"), null=True, blank=True)
     match_expressions = models.JSONField(_("匹配表达式"), null=True, blank=True)
     all_container = models.BooleanField(_("所有容器"), default=False)
     status = models.CharField(
@@ -728,3 +730,46 @@ class CollectorPlugin(CollectorBase):
         if collector is None:
             raise CollectorPluginNotImplemented()
         return collector.collector_config_id
+
+
+class FieldDateFormat(OperateRecordModel):
+    id = models.CharField(max_length=64, primary_key=True, verbose_name="transfer格式")
+    name = models.CharField(max_length=64, verbose_name="web校验格式（python）")
+    description = models.CharField(max_length=64, verbose_name="传递给清洗模块的值")
+    es_format = models.CharField(
+        max_length=32,
+        choices=[
+            ('epoch_millis', 'epoch_millis'),
+            ('strict_date_optional_time_nanos', 'strict_date_optional_time_nanos'),
+        ],
+        verbose_name="ES数据格式",
+    )
+    es_type = models.CharField(
+        max_length=32, choices=[('date', 'date'), ('date_nanos', 'date_nanos')], verbose_name="ES数据类型"
+    )
+    timestamp_unit = models.CharField(
+        max_length=32,
+        choices=[('s', 'seconds'), ('ms', 'milliseconds'), ('µs', 'microseconds'), ('ns', 'nanoseconds')],
+        verbose_name="时间格式精度",
+    )
+
+    class Meta:
+        verbose_name = _("字段时间格式")
+        verbose_name_plural = _("字段时间格式")
+        ordering = ("-updated_at",)
+
+    @classmethod
+    def get_field_date_format(cls) -> list:
+        objs = cls.objects.values("id", "name", "description", "es_format", "es_type", "timestamp_unit")
+        return [
+            {
+                "id": obj["id"],
+                "name": obj["name"],
+                "description": obj["description"],
+                "es_format": obj["es_format"],
+                "es_type": obj["es_type"],
+                "timestamp_unit": obj["timestamp_unit"],
+                "is_custom": True,
+            }
+            for obj in objs
+        ]

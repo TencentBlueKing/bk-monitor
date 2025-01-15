@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import VueI18n, { IVueI18n } from 'vue-i18n';
-import VueRouter, { Route } from 'vue-router/types';
-
 import 'vue-loader';
+
+import VueRouter, { Route } from 'vue-router/types';
 
 declare module 'vue/types/vue' {
   interface Vue {

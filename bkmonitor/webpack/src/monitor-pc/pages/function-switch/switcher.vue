@@ -37,7 +37,7 @@
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
 @Component({
-  name: 'switcher'
+  name: 'switcher',
 })
 export default class Switcher extends Vue {
   // checkbox的状态
@@ -58,46 +58,51 @@ export default class Switcher extends Vue {
   display: inline-block;
   width: 24px;
   height: 10px;
+
   &::before {
     position: absolute;
-    content: "";
     top: 50%;
     left: 0;
     width: 100%;
     height: 4px;
-    transform: translate3D(0, -50%, 0);
-    border-radius: 2px;
+    content: "";
     background-color: $slightFontColor;
-    will-change: background-color;
+    border-radius: 2px;
     transition: all .4s ease;
+    transform: translate3D(0, -50%, 0);
+    will-change: background-color;
   }
+
   &::after {
     position: absolute;
-    content: "";
     top: 0;
     left: 3px;
     width: 10px;
     height: 10px;
-    border-radius: 50%;
+    content: "";
     background-color: $defaultFontColor;
-    will-change: background-color, left;
+    border-radius: 50%;
     transition: all .4s ease;
+    will-change: background-color, left;
   }
+
   input[type="checkbox"] {
     position: absolute;
-    opacity: 0;
-    left: 0;
     top: 0;
+    left: 0;
+    z-index: 1;
     width: 100%;
     height: 100%;
-    z-index: 1;
     cursor: pointer;
+    opacity: 0;
   }
 }
+
 .switch-acitve {
   &::before {
     background-color: #a3c5fd;
   }
+
   &::after {
     left: 11px;
     background-color: $primaryFontColor;

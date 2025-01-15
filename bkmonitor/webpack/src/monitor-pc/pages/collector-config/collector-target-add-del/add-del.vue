@@ -30,8 +30,8 @@
   />
   <div
     v-else
-    class="add-del-wrapper"
     v-bkloading="{ isLoading: pageLoading }"
+    class="add-del-wrapper"
   >
     <div class="add-del">
       <div class="add-del-steps">
@@ -40,8 +40,8 @@
             v-for="(item, index) in left.stepsMap"
             :key="index"
             class="step-list-item"
-            @click="item.done && handleSetStep(index)"
             :class="['step-list-item-' + (index + 1), { 'is-current': left.step === index, 'is-ok': item.done }]"
+            @click="item.done && handleSetStep(index)"
           >
             <div
               class="step-list-item-content"
@@ -53,24 +53,24 @@
         </ul>
       </div>
       <div
-        class="add-del-contaner"
         ref="pluginContaner"
+        class="add-del-contaner"
       >
         <keep-alive>
           <component
-            @refresh="handleRefresh"
-            @step-change="handleStepChange"
-            @target="targetUpdata"
             :data="data"
             :page-loading.sync="pageLoading"
             :hosts.sync="hosts"
             :step.sync="left.step"
             :type.sync="componentType"
-            :need-rollback.sync="needRollback"
             :is="curStep.component"
+            :need-rollback.sync="needRollback"
             :config="config"
+            @refresh="handleRefresh"
             :diff-data.sync="diffData"
+            @step-change="handleStepChange"
             :target="target"
+            @target="targetUpdata"
           />
         </keep-alive>
       </div>
@@ -84,7 +84,6 @@ import { collectConfigDetail } from 'monitor-api/modules/collecting';
 import introduce from '../../../common/introduce';
 import GuidePage from '../../../components/guide-page/guide-page';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
-
 import Done from './add-del-done/add-del-done';
 import BkHost from './bk-host/bk-host';
 import TargetTable from './target-table/target-table';
@@ -95,7 +94,7 @@ export default {
     BkHost,
     TargetTable,
     Done,
-    GuidePage
+    GuidePage,
   },
   data() {
     return {
@@ -104,8 +103,8 @@ export default {
         params: {},
         set: {
           data: {},
-          others: {}
-        }
+          others: {},
+        },
       },
       hosts: {},
       diffData: {},
@@ -114,20 +113,20 @@ export default {
           {
             name: this.$t('选择目标'),
             done: false,
-            component: 'bk-host'
+            component: 'bk-host',
           },
           {
             name: this.$t('采集下发'),
             done: false,
-            component: 'TargetTable'
+            component: 'TargetTable',
           },
           {
             name: this.$t('完成'),
             done: false,
-            component: 'done'
-          }
+            component: 'done',
+          },
         ],
-        step: 0
+        step: 0,
       },
       pageLoading: true,
       ipLoading: true,
@@ -135,7 +134,7 @@ export default {
       needRollback: true,
       target: {},
       id: '',
-      data: {}
+      data: {},
     };
   },
   computed: {
@@ -148,7 +147,7 @@ export default {
     // 是否显示引导页
     showGuidePage() {
       return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
-    }
+    },
   },
   created() {
     this.id = this.$route.params.id;
@@ -164,7 +163,7 @@ export default {
       const routeList = [];
       routeList.push({
         name: `${this.$t('增删目标')} ${name}`,
-        id: 'collect-config'
+        id: 'collect-config',
       });
       this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
     },
@@ -204,7 +203,8 @@ export default {
       this.config.mode = 'edit';
       this.config.set.data.objectType = data.target_object_type;
       this.config.set.others.targetNodeType = data.target_node_type;
-      this.config.set.others.targetNodes = data.collect_type === 'SNMP' ? data.target_nodes : data.target || data.target_nodes;
+      this.config.set.others.targetNodes =
+        data.collect_type === 'SNMP' ? data.target_nodes : data.target || data.target_nodes;
       this.config.set.others.remoteCollectingHost = data.remote_collecting_host;
       this.config.supportRemote = data.plugin_info.is_support_remote;
       this.config.params = {
@@ -216,7 +216,7 @@ export default {
         target_nodes: data.target || data.target_nodes,
         params: data.params,
         label: data.label,
-        remote_collecting_host: data.remote_collecting_host
+        remote_collecting_host: data.remote_collecting_host,
       };
       this.config.config_json = data.plugin_info.config_json;
       this.$store.commit(
@@ -227,15 +227,15 @@ export default {
     },
     getCollectorConfigDetail() {
       this.pageLoading = true;
-      collectConfigDetail({ id: this.id }).then((data) => {
+      collectConfigDetail({ id: this.id }).then(data => {
         this.updateNav(data.name);
         this.getConfigParams(data);
       });
     },
     targetUpdata(v) {
       this.target = v;
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -247,7 +247,7 @@ export default {
     display: flex;
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, .05);
+    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
 
     @include border-1px();
 

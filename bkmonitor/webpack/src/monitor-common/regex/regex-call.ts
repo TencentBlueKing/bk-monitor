@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 export default class RegexCall {
-  regex = '';
-  flags = '';
   eval = '';
+  flags = '';
+  regex = '';
   constructor(regex?: RegexCall | string, flags?: string) {
     if (!(this instanceof RegexCall)) {
       return new RegexCall(regex);
@@ -40,21 +40,6 @@ export default class RegexCall {
       this.regex = regex;
     }
   }
-  e(str?: string) {
-    if (typeof str === 'string') {
-      this.eval = str;
-      return this;
-    }
-    return new RegExp(this.regex, this.flags);
-  }
-  opt(opts?: string) {
-    if (/^[img]+$/i.test(opts)) {
-      this.flags = opts || '';
-    } else {
-      this.flags = opts || '';
-    }
-    return this;
-  }
   a(re: RegexCall | string, m?: number, n?: number) {
     if (re instanceof RegexCall) {
       this.regex += re.regex;
@@ -63,25 +48,25 @@ export default class RegexCall {
     }
     return this.n(m, n);
   }
-  or(re?: RegexCall | string, m?: number, n?: number) {
-    if (re instanceof RegexCall) {
-      this.regex += `|${re.regex}`;
-    } else if (typeof re === 'string' && re !== '') {
-      this.regex += `|${re}`;
-    } else {
-      this.regex += '|';
-    }
-    return this.n(m, n);
+  contain(str: string) {
+    return new RegExp(this.regex, `${this.flags}g`).test(typeof str === 'string' ? str : this.eval);
   }
-  p(regex?: RegexCall | string | number, m?: number | string, n?: number) {
-    if (regex instanceof RegexCall) {
-      this.regex += `(?:${regex.regex})`;
-    } else if (typeof regex === 'string' && regex !== '') {
-      this.regex += `(?:${regex})`;
-    } else {
-      this.regex = `(?:${this.regex})`;
+  e(str?: string) {
+    if (typeof str === 'string') {
+      this.eval = str;
+      return this;
     }
-    return this.n(m, n);
+    return new RegExp(this.regex, this.flags);
+  }
+  exact() {
+    this.regex = `(?:^${this.regex}$)`;
+    return this;
+  }
+  is(str: string) {
+    return new RegExp(`(?:^${this.regex}$)`, this.flags).test(typeof str === 'string' ? str : this.eval);
+  }
+  match(str: string) {
+    return (typeof str === 'string' ? str : this.eval).match(new RegExp(this.regex, `${this.flags}g`));
   }
   n(m?: number | string, n?: number) {
     if (typeof m === 'number' && typeof n === 'number') {
@@ -95,18 +80,33 @@ export default class RegexCall {
     }
     return this;
   }
-  exact() {
-    this.regex = `(?:^${this.regex}$)`;
+  opt(opts?: string) {
+    if (/^[img]+$/i.test(opts)) {
+      this.flags = opts || '';
+    } else {
+      this.flags = opts || '';
+    }
     return this;
   }
-  is(str: string) {
-    return new RegExp(`(?:^${this.regex}$)`, this.flags).test(typeof str === 'string' ? str : this.eval);
+  or(re?: RegexCall | string, m?: number, n?: number) {
+    if (re instanceof RegexCall) {
+      this.regex += `|${re.regex}`;
+    } else if (typeof re === 'string' && re !== '') {
+      this.regex += `|${re}`;
+    } else {
+      this.regex += '|';
+    }
+    return this.n(m, n);
   }
-  contain(str: string) {
-    return new RegExp(this.regex, `${this.flags}g`).test(typeof str === 'string' ? str : this.eval);
-  }
-  match(str: string) {
-    return (typeof str === 'string' ? str : this.eval).match(new RegExp(this.regex, `${this.flags}g`));
+  p(regex?: RegexCall | number | string, m?: number | string, n?: number) {
+    if (regex instanceof RegexCall) {
+      this.regex += `(?:${regex.regex})`;
+    } else if (typeof regex === 'string' && regex !== '') {
+      this.regex += `(?:${regex})`;
+    } else {
+      this.regex = `(?:${this.regex})`;
+    }
+    return this.n(m, n);
   }
 }
 

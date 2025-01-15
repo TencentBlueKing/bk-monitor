@@ -53,7 +53,7 @@ import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
 import { Debounce } from '../../../../components/ip-selector/common/util';
 
-import SelectMenu, { IMenu } from './select-menu.vue';
+import SelectMenu, { type IMenu } from './select-menu.vue';
 
 interface IDimensionOption {
   id: string;
@@ -125,7 +125,7 @@ export default class DimensionsPanel extends Vue {
       onHidden: () => {
         this.handlePopHidden();
         this.currentItem = null;
-      }
+      },
     });
     this.popoverInstance?.show?.();
   }
@@ -147,13 +147,14 @@ export default class DimensionsPanel extends Vue {
     } else {
       filterList = item.list.filter(l => l.id.toString().indexOf(value) > -1 || l.name.toString().indexOf(value) > -1);
     }
-    this.menuInstance.$props.list =  !!value ? filterList : item.list;
+    this.menuInstance.$props.list = !!value ? filterList : item.list;
     this.handleShowPop(event);
   }
   @Debounce(300)
   private handleInputChange(value: string, item, event?) {
-    const filterList = item.list.filter(l => l.id.toString().indexOf(value) > -1
-    || l.name.toString().indexOf(value) > -1);
+    const filterList = item.list.filter(
+      l => l.id.toString().indexOf(value) > -1 || l.name.toString().indexOf(value) > -1
+    );
     this.menuInstance.$props.list = filterList;
     this.currentItem = item;
     if (filterList.length) {

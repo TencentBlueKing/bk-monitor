@@ -25,19 +25,23 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
+
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
 import IntegratedModule from '../../store/modules/integrated';
 import MonitorDrag from '../event/monitor-drag';
-
+import CheckboxTree, { type ICheckedData } from './checkbox-tree';
+import ContentGroupItem, { type IPluginDetail, type OperateType } from './content-group-item';
 import EventSourceDetail from './event-source-detail/event-source-detail';
-import CheckboxTree, { ICheckedData } from './checkbox-tree';
-import ContentGroupItem, { IPluginDetail, OperateType } from './content-group-item';
-import Group, { IGroupData } from './group';
-import Header, { ViewType } from './header';
-import InstallPluginDialog, { IData as ICurrentPluginData } from './install-plugin-dialog';
+import Group, { type IGroupData } from './group';
+import Header, { type ViewType } from './header';
+import InstallPluginDialog, { type IData as ICurrentPluginData } from './install-plugin-dialog';
 import List from './list';
-import { MapType } from './status-tips';
+import IntegratedCardSkeleton from './skeleton/integrated-card-skeleton';
+import IntegratedFilterSkeleton from './skeleton/integrated-filter-skeleton';
+
+import type { MapType } from './status-tips';
+import type { EmptyStatusOperationType, EmptyStatusType } from 'monitor-pc/components/empty-status/types';
 
 import './integrated.scss';
 
@@ -60,10 +64,10 @@ export default class Integrated extends tsc<IIntegratedProps> {
   showInstallDialog = false;
   currentPluginData: ICurrentPluginData = null;
   searchKey = '';
-  checkedData: MapType<'main_type' | 'status' | 'scenario' | 'tags'> = {};
+  checkedData: MapType<'main_type' | 'scenario' | 'status' | 'tags'> = {};
   listPluginData: IGroupData[] = [];
   filterWidth = 250;
-  emptyType: EmptyStatusType = 'empty';
+  emptyType: EmptyStatusType = 'search-empty';
   created() {
     this.getData();
   }
@@ -77,18 +81,18 @@ export default class Integrated extends tsc<IIntegratedProps> {
       {
         id: 'INSTALLED',
         name: this.$t('已安装'),
-        data: []
+        data: [],
       },
       {
         id: 'DISABLED',
         name: this.$t('已停用'),
-        data: []
+        data: [],
       },
       {
         id: 'AVAILABLE',
         name: this.$t('可用'),
-        data: []
-      }
+        data: [],
+      },
     ];
   }
   async getData() {
@@ -98,18 +102,18 @@ export default class Integrated extends tsc<IIntegratedProps> {
     const params = {
       page: 1,
       page_size: -1,
-      search_key: this.searchKey
+      search_key: this.searchKey,
       // plugin_type: this.checkedData?.['plugin_type']?.length ? this.checkedData.plugin_type.join(',') : '',
       // status: this.checkedData?.['status']?.length ? this.checkedData.status.join(',') : ''
     };
     const { list, count, emptyType } = await IntegratedModule.getPluginEvent(params);
-    this.emptyType = emptyType ? emptyType : this.emptyType;
+    this.emptyType = emptyType ? emptyType : list?.length ? 'search-empty' : 'empty';
     // 统计数据
     const keyMap = {
       main_type: this.$t('方式'),
       status: this.$t('状态'),
       tags: this.$t('标签'),
-      scenario: this.$t('分类')
+      scenario: this.$t('分类'),
     };
     Object.keys(count).forEach(key => {
       const groupData = this.filterPanelData.find(item => item.id === key);
@@ -118,7 +122,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
         this.filterPanelData.push({
           id: key,
           name: keyMap[key],
-          data: [...item]
+          data: [...item],
         });
       } else {
         groupData.data.push(...item);
@@ -127,7 +131,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
 
     const pluginTypeMap = {
       event: this.$t('事件插件'),
-      service: this.$t('周边服务')
+      service: this.$t('周边服务'),
     };
     // 插件数据
     list.forEach(item => {
@@ -145,7 +149,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
         categoryData.data.push({
           id: item.category,
           name: pluginTypeMap[item.category],
-          data: [{ ...item, show: true }]
+          data: [{ ...item, show: true }],
         });
       }
     });
@@ -170,8 +174,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
       )
     );
     this.listPluginData = list.filter(
-      item =>
-        (item.data.length && item.data.some(set => set?.data?.some(child => child.show))) || item.id === 'AVAILABLE'
+      item => item.data.length && item.data.some(set => set?.data?.some(child => child.show))
     );
   }
   // 关键字匹配
@@ -184,7 +187,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
       'plugin_id',
       'update_user',
       'create_user',
-      'author'
+      'author',
     ];
     return matchParams.some(
       key => String(data[key]).toLocaleLowerCase().indexOf(this.searchKey.toLocaleLowerCase()) > -1
@@ -200,25 +203,30 @@ export default class Integrated extends tsc<IIntegratedProps> {
         ref={`checkboxtree${item.id}`}
         data={item.data}
         onChange={v => this.handleCheckedChange(item.id, v)}
-      ></CheckboxTree>
+      />
     );
   }
 
   // 勾选事件变更（清空也会触发）
-  handleCheckedChange(id: string | number, data: ICheckedData[]) {
+  handleCheckedChange(id: number | string, data: ICheckedData[]) {
     this.checkedData[id] = data.reduce((pre, cur) => [...pre, ...cur.values], []);
     this.filterPluginData();
   }
 
+  /** 空状态处理 */
   handleEmptyOperate(type: EmptyStatusOperationType) {
     if (type === 'clear-filter') {
       this.searchKey = '';
       this.handleSearchValueChange('');
+      for (const checkboxRefKey of Object.keys(this.$refs)) {
+        if (checkboxRefKey.match(/^checkboxtree(\w+)/)) {
+          (this.$refs[checkboxRefKey] as CheckboxTree)?.clearChecked?.();
+        }
+      }
       return;
     }
 
     if (type === 'refresh') {
-      this.emptyType = 'empty';
       this.getData();
       return;
     }
@@ -234,14 +242,14 @@ export default class Integrated extends tsc<IIntegratedProps> {
       <ContentGroupItem
         data={item}
         onOperate={this.handlePluginOperate}
-      ></ContentGroupItem>
+      />
     ) : (
       <List
         data={item}
-        onOperate={this.handlePluginOperate}
-        onEmptyOperate={this.handleEmptyOperate}
         emptyType={this.emptyType}
-      ></List>
+        onEmptyOperate={this.handleEmptyOperate}
+        onOperate={this.handlePluginOperate}
+      />
     );
   }
 
@@ -261,7 +269,7 @@ export default class Integrated extends tsc<IIntegratedProps> {
           version: item.version,
           pluginId: item.plugin_id,
           paramsSchema: null,
-          pluginDisplayName: item.plugin_display_name
+          pluginDisplayName: item.plugin_display_name,
         };
         this.showInstallDialog = true;
         break;
@@ -287,7 +295,6 @@ export default class Integrated extends tsc<IIntegratedProps> {
    */
   handleSearchValueChange(value: string) {
     this.searchKey = value;
-    this.emptyType = value ? 'search-empty' : 'empty';
     this.filterPluginData();
   }
 
@@ -324,74 +331,81 @@ export default class Integrated extends tsc<IIntegratedProps> {
     return (
       <section
         class='integrated'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         {/* 筛选条件 */}
         <div
-          class='integrated-filter'
           style={{
             width: `${this.filterWidth}px`,
             flexBasis: `${this.filterWidth}px`,
-            display: this.filterWidth > 200 ? 'flex' : 'none'
+            display: this.filterWidth > 200 ? 'flex' : 'none',
           }}
+          class='integrated-filter'
         >
-          <Group
-            data={this.filterPanelData}
-            defaultActiveName={this.defaultActiveFilterGroup}
-            onActiveChange={v => (this.defaultActiveFilterGroup = v)}
-            scopedSlots={{
-              default: ({ item }) => this.filterGroupSlot(item)
-            }}
-            theme='filter'
-            onClear={this.handleClearChecked}
-          ></Group>
+          {this.loading ? (
+            <IntegratedFilterSkeleton />
+          ) : (
+            <Group
+              scopedSlots={{
+                default: ({ item }) => this.filterGroupSlot(item),
+              }}
+              data={this.filterPanelData}
+              defaultActiveName={this.defaultActiveFilterGroup}
+              theme='filter'
+              onActiveChange={v => (this.defaultActiveFilterGroup = v)}
+              onClear={this.handleClearChecked}
+            />
+          )}
           <MonitorDrag on-move={this.handleDragFilter} />
         </div>
         {/* 插件内容 */}
         <div class='integrated-content'>
           <Header
-            searchValue={this.searchKey}
             filterWidth={this.filterWidth}
+            searchValue={this.searchKey}
             on-set-filter={() => (this.filterWidth = 250)}
-            onViewChange={this.handleViewTypeChange}
-            onSearchValueChange={this.handleSearchValueChange}
             onImportSuccess={this.handleImportSuccess}
-          ></Header>
+            onSearchValueChange={this.handleSearchValueChange}
+            onViewChange={this.handleViewTypeChange}
+          />
           {/* 过滤空组 */}
-          {this.listPluginData?.length ? (
-            <Group
-              data={this.listPluginData}
-              defaultActiveName={this.defaultActiveContentGroup}
-              onActiveChange={v => (this.defaultActiveContentGroup = v)}
-              scopedSlots={{
-                default: ({ item }) => this.contentGroupSlot(item)
-              }}
-              theme='bold'
-            />
-          ) : (
-            <div class='integrated-content-empty'>
-              {!this.loading ? (
-                <bk-exception
-                  type='empty'
-                  scene='page'
-                >
-                  {this.$t('暂无数据')}
-                </bk-exception>
-              ) : undefined}
-            </div>
-          )}
+          {(() => {
+            if (this.loading) {
+              return <IntegratedCardSkeleton />;
+            }
+            return this.listPluginData?.length ? (
+              <Group
+                scopedSlots={{
+                  default: ({ item }) => this.contentGroupSlot(item),
+                }}
+                data={this.listPluginData}
+                defaultActiveName={this.defaultActiveContentGroup}
+                theme='bold'
+                onActiveChange={v => (this.defaultActiveContentGroup = v)}
+              />
+            ) : (
+              <div class='integrated-content-empty'>
+                {!this.loading ? (
+                  <EmptyStatus
+                    type={this.emptyType}
+                    onOperation={this.handleEmptyOperate}
+                  />
+                ) : undefined}
+              </div>
+            );
+          })()}
         </div>
         <EventSourceDetail
-          v-model={this.isShowDetail}
           id={this.curDetailId}
+          v-model={this.isShowDetail}
           version={this.curDetailVersion}
           onInstall={data => this.handleInstall(data)}
-        ></EventSourceDetail>
+        />
         <InstallPluginDialog
           v-model={this.showInstallDialog}
           data={this.currentPluginData}
           onSuccess={this.handleInstallSuccess}
-        ></InstallPluginDialog>
+        />
       </section>
     );
   }

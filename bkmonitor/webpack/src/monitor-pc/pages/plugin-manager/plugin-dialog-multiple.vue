@@ -25,13 +25,13 @@
 -->
 <template>
   <bk-dialog
-    :value="show"
-    :show-footer="false"
-    :mask-close="false"
+    width="640"
     ext-cls="plugin-dialog-multiple"
+    :mask-close="false"
+    :show-footer="false"
+    :value="show"
     header-position="left"
     @cancel="handleDialogClose"
-    width="640"
   >
     <template slot="header">
       <div class="dialog-title">
@@ -40,10 +40,10 @@
     </template>
     <div class="dilog-container">
       <div
-        class="dialog-content"
         v-for="(item, index) in files"
-        :key="index"
         ref="content"
+        class="dialog-content"
+        :key="index"
       >
         <span class="icon-monitor icon-CPU dialog-content-icon" />
         <div class="dialog-content-desc">
@@ -51,16 +51,20 @@
             <div
               class="item-name"
               v-bk-overflow-tips
-            >{{ item.name }}</div>
+            >
+              {{ item.name }}
+            </div>
             <div
               v-if="item.versonShow"
               class="item-verson"
-            >（{{ $t('版本') }}{{ item.verson }}）</div>
+            >
+              （{{ $t('版本') }}{{ item.verson }}）
+            </div>
             <div
-              class="item-status"
               :style="{ color: statusMap[item.status] }"
-              @mouseleave="handleMouseLeave"
+              class="item-status"
               @mouseenter="handleMouseEnter($event, item.text)"
+              @mouseleave="handleMouseLeave"
             >
               {{ item.status }}
             </div>
@@ -70,15 +74,15 @@
             class="desc-process"
             :percent="item.percent"
             :show-text="false"
-            size="small"
             color="#3A84FF"
+            size="small"
           />
         </div>
       </div>
       <div class="dialog-footer">
         <bk-button
-          v-show="isSuccess"
           class="dialog-footer-btn"
+          v-show="isSuccess"
           theme="primary"
           @click="handleDialogClose"
         >
@@ -97,8 +101,8 @@ export default {
     show: Boolean,
     files: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   data() {
     return {
@@ -111,15 +115,15 @@ export default {
         [this.$t('插件包不完整')]: '#EA3636',
         [this.$t('上传中...')]: '#3A84FF',
         [this.$t('解析中...')]: '#3A84FF',
-        [this.$t('解析失败')]: '#EA3636'
+        [this.$t('解析失败')]: '#EA3636',
       },
-      popoverInstance: null
+      popoverInstance: null,
     };
   },
   computed: {
     isSuccess() {
       return this.files.every(item => item.isOk);
-    }
+    },
   },
   methods: {
     handleDialogClose() {
@@ -134,7 +138,7 @@ export default {
           maxWidth: 382,
           showOnInit: true,
           distance: 22,
-          offset: -120
+          offset: -120,
         });
         this.popoverInstance.show(100);
       }
@@ -145,8 +149,8 @@ export default {
         this.popoverInstance.destroy();
         this.popoverInstance = null;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -226,6 +230,4 @@ export default {
     }
   }
 }
-
-
 </style>

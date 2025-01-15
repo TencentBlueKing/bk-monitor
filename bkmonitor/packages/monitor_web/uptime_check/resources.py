@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import re
+import threading
 import time
 import urllib.parse
 from base64 import b64encode
@@ -24,10 +25,11 @@ import yaml
 from django.conf import settings
 from django.db.models import Q
 from django.forms.models import model_to_dict
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from requests.auth import to_native_string
 from yaml import SafeDumper
 
+from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
@@ -192,11 +194,12 @@ class UptimeCheckTaskListResource(Resource):
         """获取任务分组信息"""
         return [model_to_dict(node) for node in obj.nodes.all()]
 
-    def query_available_or_duration(self, metric, bk_biz_id, table_name, where, period, end_time, ret=None):
+    def query_available_or_duration(self, metric, bk_biz_id, data_label, where, period, end_time, ret=None):
         ret = ret or {}
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
-            table=table_name,
+            data_label=data_label,
+            table="",
             metrics=[
                 {"field": "available", "method": "AVG", "alias": "a"}
                 if metric == "available"
@@ -246,7 +249,7 @@ class UptimeCheckTaskListResource(Resource):
         th_list = []
         end = arrow.utcnow().timestamp
         for protocol, data in query_group.items():
-            table_name = "{}.{}".format(UPTIME_CHECK_DB, protocol.lower())
+            data_label = "{}_{}".format(UPTIME_CHECK_DB, protocol.lower())
             for period, task_id_list in data.items():
                 where = [{"key": "task_id", "method": "contains", "value": task_id_list}]
 
@@ -254,7 +257,7 @@ class UptimeCheckTaskListResource(Resource):
                     th_list.append(
                         InheritParentThread(
                             target=self.query_available_or_duration,
-                            args=("available", bk_biz_id, table_name, where, period, end, task_data_mapping),
+                            args=("available", bk_biz_id, data_label, where, period, end, task_data_mapping),
                         )
                     )
 
@@ -262,7 +265,7 @@ class UptimeCheckTaskListResource(Resource):
                     th_list.append(
                         InheritParentThread(
                             target=self.query_available_or_duration,
-                            args=("task_duration", bk_biz_id, table_name, where, period, end, task_data_mapping),
+                            args=("task_duration", bk_biz_id, data_label, where, period, end, task_data_mapping),
                         )
                     )
 
@@ -591,6 +594,7 @@ class GenerateSubConfigResource(Resource):
         test = serializers.BooleanField(required=False, default=False)
         config = serializers.DictField(required=False, default={}, label=(_("拨测任务配置")))
         protocol = serializers.ChoiceField(choices=("HTTP", "TCP", "UDP", "ICMP"), required=False)
+        labels = serializers.DictField(required=False, default={}, label=_("自定义标签"))
 
     # 外层增加双引号，内层对有双引号的数据增加转义字符
     def add_escape(self, input_string):
@@ -623,21 +627,22 @@ class GenerateSubConfigResource(Resource):
         task_id = data.get("task_id")
         config = data.get("config")
         protocol = data.get("protocol")
+        labels = data.get("labels") or {}
         bk_biz_id = 0
 
         # 兼容测试和正式下发两种情况,测试需要传入config和protocol,正式下发只需传入task_id
         if task_id:
             try:
                 # 若有task_id则取数据库数据作为参数，否则依赖外部传入
-                task = UptimeCheckTask.objects.get(pk=data["task_id"])
-                bk_biz_id = task.bk_biz_id
+                t = UptimeCheckTask.objects.get(pk=data["task_id"])
             except UptimeCheckNode.DoesNotExist:
                 raise CustomException(_("不存在的任务id:%s") % data["task_id"])
-            protocol = task.protocol
-            config = task.config
+            bk_biz_id = t.bk_biz_id
+            protocol = t.protocol
+            config = t.config
+            labels = t.labels or {}
         if not config:
             raise CustomException(_("任务配置为空，请检查任务参数是否正确"))
-        tasks = []
 
         available_duration = int(config.get("timeout", config["period"] * 1000))
         # 当子任务配置的available_duration超过该值时
@@ -653,47 +658,44 @@ class GenerateSubConfigResource(Resource):
         target_host_list = ip_list + url_list
 
         # 根据不同协议提取不同的参数
+        task = None
         if protocol == UptimeCheckTask.Protocol.TCP:
-            tasks = [
-                {
-                    "task_id": 0 if data["test"] else task_id,
-                    "bk_biz_id": 0 if data["test"] else bk_biz_id,
-                    "period": "{}s".format(config["period"]),
-                    "available_duration": "{}ms".format(available_duration),
-                    "timeout": "{}ms".format(timeout),
-                    "target_host_list": target_host_list,
-                    "target_port": config["port"],
-                    "response": self.encode_data_with_prefix(config.get("response", "")),
-                    "response_format": config.get("response_format", "in"),
-                    "node_list": config.get("node_list", []),
-                    "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
-                    "dns_check_mode": config.get("dns_check_mode", "single"),
-                    "target_ip_type": config.get("target_ip_type", 0),
-                }
-            ]
-
+            task = {
+                "task_id": 0 if data["test"] else task_id,
+                "labels": labels,
+                "bk_biz_id": 0 if data["test"] else bk_biz_id,
+                "period": "{}s".format(config["period"]),
+                "available_duration": "{}ms".format(available_duration),
+                "timeout": "{}ms".format(timeout),
+                "target_host_list": target_host_list,
+                "target_port": config["port"],
+                "response": self.encode_data_with_prefix(config.get("response", "")),
+                "response_format": config.get("response_format", "in"),
+                "node_list": config.get("node_list", []),
+                "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
+                "dns_check_mode": config.get("dns_check_mode", "single"),
+                "target_ip_type": config.get("target_ip_type", 0),
+            }
         elif protocol == UptimeCheckTask.Protocol.UDP:
-            tasks = [
-                {
-                    "task_id": 0 if data["test"] else task_id,
-                    "bk_biz_id": 0 if data["test"] else bk_biz_id,
-                    "period": "{}s".format(config["period"]),
-                    "available_duration": "{}ms".format(available_duration),
-                    "timeout": "{}ms".format(timeout),
-                    "target_host_list": target_host_list,
-                    "target_port": config["port"],
-                    "request_format": config.get("request_format", "hex"),
-                    "response_format": config.get("response_format", "hex|eq"),
-                    "wait_empty_response": "true" if config.get("wait_empty_response", True) else "false",
-                    "request": self.encode_data_with_prefix(config.get("request", "")),
-                    "response": self.encode_data_with_prefix(config.get("response", "")),
-                    "node_list": config.get("node_list", []),
-                    "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
-                    "dns_check_mode": config.get("dns_check_mode", "single"),
-                    "target_ip_type": config.get("target_ip_type", 0),
-                }
-            ]
-
+            task = {
+                "task_id": 0 if data["test"] else task_id,
+                "labels": labels,
+                "bk_biz_id": 0 if data["test"] else bk_biz_id,
+                "period": "{}s".format(config["period"]),
+                "available_duration": "{}ms".format(available_duration),
+                "timeout": "{}ms".format(timeout),
+                "target_host_list": target_host_list,
+                "target_port": config["port"],
+                "request_format": config.get("request_format", "hex"),
+                "response_format": config.get("response_format", "hex|eq"),
+                "wait_empty_response": "true" if config.get("wait_empty_response", True) else "false",
+                "request": self.encode_data_with_prefix(config.get("request", "")),
+                "response": self.encode_data_with_prefix(config.get("response", "")),
+                "node_list": config.get("node_list", []),
+                "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
+                "dns_check_mode": config.get("dns_check_mode", "single"),
+                "target_ip_type": config.get("target_ip_type", 0),
+            }
         elif protocol == UptimeCheckTask.Protocol.HTTP:
             header_dict = {
                 item["key"]: self.encode_data_with_prefix(item["value"])
@@ -714,60 +716,67 @@ class GenerateSubConfigResource(Resource):
                 }
                 url_list = url_join_args(url_list, fields)
 
-            tasks = [
-                {
-                    "task_id": 0 if data["test"] else task_id,
-                    "bk_biz_id": 0 if data["test"] else bk_biz_id,
-                    "period": "{}s".format(config["period"]),
-                    "proxy": "",
-                    # 是否进行证书校验
-                    "insecure_skip_verify": not auth.get("insecure_skip_verify", False),
-                    "disable_keep_alives": False,
-                    "available_duration": "{}ms".format(available_duration),
-                    "timeout": "{}ms".format(timeout),
-                    "dns_check_mode": config.get("dns_check_mode", "single"),
-                    "target_ip_type": config.get("target_ip_type", 0),
-                    "steps": [
-                        {
-                            "url_list": url_list,
-                            "method": config["method"],
-                            "response_format": config.get("response_format", "in"),
-                            "headers": header_dict if header_dict else {},
-                            "request": self.encode_data_with_prefix(body),
-                            "response": self.encode_data_with_prefix(config.get("response", "")),
-                            "response_code": config.get("response_code", ""),
-                            # available_duration 参数在step下(样例配置文件)
-                            # 但从采集器代码看，还是在上层
-                            "available_duration": "{}ms".format(available_duration),
-                        }
-                    ],
-                }
-            ]
-
+            task = {
+                "task_id": 0 if data["test"] else task_id,
+                "labels": labels,
+                "bk_biz_id": 0 if data["test"] else bk_biz_id,
+                "period": "{}s".format(config["period"]),
+                "proxy": "",
+                # 是否进行证书校验
+                "insecure_skip_verify": not auth.get("insecure_skip_verify", False),
+                "disable_keep_alives": False,
+                "available_duration": "{}ms".format(available_duration),
+                "timeout": "{}ms".format(timeout),
+                "dns_check_mode": config.get("dns_check_mode", "single"),
+                "target_ip_type": config.get("target_ip_type", 0),
+                "steps": [
+                    {
+                        "url_list": url_list,
+                        "method": config["method"],
+                        "response_format": config.get("response_format", "in"),
+                        "headers": header_dict if header_dict else {},
+                        "request": self.encode_data_with_prefix(body),
+                        "response": self.encode_data_with_prefix(config.get("response", "")),
+                        "response_code": config.get("response_code", ""),
+                        # available_duration 参数在step下(样例配置文件)
+                        # 但从采集器代码看，还是在上层
+                        "available_duration": "{}ms".format(available_duration),
+                    }
+                ],
+            }
         elif protocol == UptimeCheckTask.Protocol.ICMP:
             target_url_list = [{"target": url, "target_type": "domain"} for url in url_list]
             target_ip_list = [{"target": ip, "target_type": "ip"} for ip in config.get("ip_list", [])]
             target_host_list = target_url_list + target_ip_list
-            tasks = [
-                {
-                    "task_id": 0 if data["test"] else task_id,
-                    "bk_biz_id": 0 if data["test"] else bk_biz_id,
-                    "period": "{}s".format(config["period"]),
-                    # 测试时减小测试参数，以保证前端不会等待太久
-                    "max_rtt": "3000ms" if data["test"] else "{}ms".format(config["max_rtt"]),
-                    "total_num": 1 if data["test"] else config["total_num"],
-                    "size": config["size"],
-                    "available_duration": "{}ms".format(available_duration),
-                    "timeout": "{}ms".format(timeout),
-                    "target_host_list": target_host_list,
-                    "node_list": config.get("node_list", []),
-                    "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
-                    "dns_check_mode": config.get("dns_check_mode", "single"),
-                    "target_ip_type": config.get("target_ip_type", 0),
-                }
-            ]
 
-        return tasks
+            # 注入目标主机标签
+            target_labels = config.get("target_labels", {})
+            for target in target_host_list:
+                if target["target"] in target_labels:
+                    target["labels"] = target_labels[target["target"]]
+
+            task = {
+                "task_id": 0 if data["test"] else task_id,
+                "labels": labels,
+                "bk_biz_id": 0 if data["test"] else bk_biz_id,
+                "period": "{}s".format(config["period"]),
+                # 测试时减小测试参数，以保证前端不会等待太久
+                "max_rtt": "3000ms" if data["test"] else "{}ms".format(config["max_rtt"]),
+                "total_num": 1 if data["test"] else config["total_num"],
+                "size": config["size"],
+                "available_duration": "{}ms".format(available_duration),
+                "timeout": "{}ms".format(timeout),
+                "target_host_list": target_host_list,
+                "node_list": config.get("node_list", []),
+                "output_fields": config.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS),
+                "dns_check_mode": config.get("dns_check_mode", "single"),
+                "target_ip_type": config.get("target_ip_type", 0),
+            }
+
+        if not task:
+            return []
+
+        return [task]
 
 
 class TaskDataResource(Resource):
@@ -1165,117 +1174,60 @@ class TaskGraphAndMapResource(Resource):
         return []
 
 
+def get_node_host_dict(nodes):
+    # 配置hostid的节点
+    bk_host_ids = []
+    # 配置ip的节点
+    ips = []
+    # 所有节点
+    hosts = []
+    for node in nodes:
+        if node.bk_host_id:
+            bk_host_ids.append(node.bk_host_id)
+        else:
+            ips.append(node.ip)
+    if bk_host_ids:
+        hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        # 兼容bk_host_id不存在的拨测节点
+    if ips:
+        hosts += api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+
+    # 按id 和 host_key 记录节点主机信息
+    node_to_host = {host.bk_host_id: host for host in hosts}
+    node_to_host.update(
+        {
+            host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
+            for host in hosts
+            if host.bk_host_innerip
+        }
+    )
+    return node_to_host
+
+
 class UptimeCheckBeatResource(Resource):
     """
     采集器相关信息获取
     """
 
     class RequestSerializer(serializers.Serializer):
+        class HostObjectField(serializers.Field):
+            def to_internal_value(self, data):
+                if isinstance(data, Host):
+                    return data
+                else:
+                    raise serializers.ValidationError("Expected a Host object.")
+
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+        hosts = serializers.ListSerializer(child=HostObjectField(allow_null=True, required=False), required=False)
 
     @classmethod
-    def node_to_host(cls, node, ip_to_host, id_to_host):
+    def node_to_host(cls, node, node_host_info):
         if node.bk_host_id:
-            return id_to_host.get(node.bk_host_id, None)
+            return node_host_info.get(node.bk_host_id, None)
         else:
-            return ip_to_host.get(host_key(ip=node.ip, bk_cloud_id=str(node.plat_id)), None)
+            return node_host_info.get(host_key(ip=node.ip, bk_cloud_id=str(node.plat_id)), None)
 
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data.get("bk_biz_id")
-
-        if bk_biz_id:
-            # 过滤业务下所有节点时，同时还应该加上通用节点
-            biz_nodes = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id)
-            common_nodes = UptimeCheckNode.objects.filter(is_common=True)
-            nodes = biz_nodes | common_nodes
-        else:
-            nodes = UptimeCheckNode.objects.all()
-        result = {}
-
-        # 按是否开启IPV6划分节点列表
-        biz_to_node = defaultdict(list)
-        biz_to_host = defaultdict(list)
-        heartbeats = []
-        ip_to_host = {}
-        id_to_host = {}
-        for node in nodes:
-            biz_to_node[node.bk_biz_id].append(node)
-
-        for biz, node_list in biz_to_node.items():
-            bk_host_ids = [node.bk_host_id for node in node_list if node.bk_host_id]
-            origin_ips = [node.ip for node in node_list if not node.bk_host_id]
-            ip_hosts = api.cmdb.get_host_without_biz(ips=origin_ips)["hosts"]
-            hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
-            all_hosts = ip_hosts + hosts
-            ip_to_host.update(
-                {
-                    host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
-                    for host in all_hosts
-                    if host.bk_host_innerip
-                }
-            )
-            id_to_host.update({host.bk_host_id: host for host in all_hosts})
-            if is_ipv6_biz(biz):
-                ips = [{"bk_host_id": str(host.bk_host_id), "bk_biz_id": biz} for host in all_hosts]
-            else:
-                ips = [
-                    {"ip": host.bk_host_innerip, "bk_cloud_id": str(host.bk_cloud_id), "bk_biz_id": biz}
-                    for host in all_hosts
-                ]
-            # 批量获取采集器信息
-            heartbeats.extend(resource.uptime_check.get_beat_data.bulk_request(ips))
-
-        for i in heartbeats:
-            if not i:
-                continue
-            if i[0].get("bk_host_id"):
-                node_status = {
-                    i[0]["bk_host_id"]: {
-                        "bk_host_id": safe_int(i[0]["bk_host_id"]),
-                        "status": i[0].get("status"),
-                        "version": i[0].get("version"),
-                        "gse_status": BEAT_STATUS["RUNNING"],
-                    }
-                }
-            else:
-                bk_host_id = ip_to_host[host_key(ip=i[0]["ip"], bk_cloud_id=i[0]["bk_cloud_id"])].bk_host_id
-                node_status = {
-                    host_key(ip=i[0]["ip"], bk_cloud_id=i[0]["bk_cloud_id"]): {
-                        "bk_host_id": bk_host_id,
-                        "ip": i[0]["ip"],
-                        "bk_cloud_id": safe_int(i[0]["bk_cloud_id"]),
-                        "status": i[0].get("status"),
-                        "version": i[0].get("version"),
-                        "gse_status": BEAT_STATUS["RUNNING"],
-                    }
-                }
-            result.update(node_status)
-
-        for node in nodes:
-            node_host = self.node_to_host(node, ip_to_host, id_to_host)
-            if not node_host:
-                continue
-            if is_ipv6_biz(node.bk_biz_id):
-                host_name = str(node_host.bk_host_id)
-                host_dict = {"bk_host_id": node_host.bk_host_id}
-            else:
-                host_name = host_key(ip=node_host.bk_host_innerip, bk_cloud_id=str(node_host.bk_cloud_id))
-                host_dict = {
-                    "ip": node_host.bk_host_innerip,
-                    "bk_cloud_id": node_host.bk_cloud_id,
-                    "bk_host_id": node_host.bk_host_id,
-                }
-            if host_name not in result:
-                result[host_name] = {
-                    "status": BEAT_STATUS["DOWN"],
-                    "version": "",
-                    "gse_status": BEAT_STATUS["RUNNING"],
-                    **host_dict,
-                }
-            biz_to_host[node.bk_biz_id].append(node_host)
-
-        result = list(result.values())
-
+    def get_bad_agent(self, biz_to_host):
         # 分业务获取gse agent信息
         params_list = [(biz_id, hosts) for biz_id, hosts in list(biz_to_host.items())]
         pool = ThreadPool()
@@ -1285,20 +1237,129 @@ class UptimeCheckBeatResource(Resource):
         gse_status = {}
         for item in gse_status_list:
             gse_status.update(item)
+        bad_agent = [host_id for (host_id, status) in gse_status.items() if status != 0]
+        return bad_agent
 
-        bad_agent = [host for (host, status) in gse_status.items() if status != 0]
+    def get_beat_data(self, biz_hosts, bk_biz_id, heartbeats, lock):
+        if is_ipv6_biz(bk_biz_id):
+            bk_host_ids = [str(host.bk_host_id) for host in biz_hosts]
+            beat_data = resource.uptime_check.get_beat_data({"bk_host_ids": bk_host_ids, "bk_biz_id": bk_biz_id})
+        else:
+            ips = [{"ip": host.bk_host_innerip, "bk_cloud_id": str(host.bk_cloud_id)} for host in biz_hosts]
+            beat_data = resource.uptime_check.get_beat_data({"ips": ips, "bk_biz_id": bk_biz_id})
 
-        for r in result:
-            if not r.get("bk_host_id"):
-                r_host = ip_to_host.get(host_key(ip=r["ip"], plat_id=r["bk_cloud_id"]), None)
-                if not r_host:
-                    continue
-                host_name = r_host.bk_host_id
+        lock.acquire()
+        try:
+            heartbeats.extend(beat_data)
+        finally:
+            lock.release()
+
+    def perform_request(self, validated_request_data):
+        result = self.return_with_dict(**validated_request_data)
+        beat_status_list = []
+        for key, host_status in result.items():
+            # 取bk_host_id的数据返回即可
+            if isinstance(key, int):
+                beat_status_list.append(host_status)
+        return beat_status_list
+
+    def return_with_dict(self, **request_data):
+        validated_request_data = self.validate_request_data(request_data)
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        hosts = validated_request_data.get("hosts", None)
+
+        # nodes -> hosts
+        if not hosts:
+            if bk_biz_id:
+                # 过滤业务下所有节点时，同时还应该加上通用节点
+                biz_nodes = UptimeCheckNode.objects.filter(bk_biz_id=bk_biz_id)
+                common_nodes = UptimeCheckNode.objects.filter(is_common=True)
+                nodes = biz_nodes | common_nodes
             else:
-                host_name = int(r["bk_host_id"])
-            if host_name in bad_agent:
-                r["gse_status"] = BEAT_STATUS["DOWN"]
+                nodes = UptimeCheckNode.objects.all()
 
+            node_to_host_dict = resource.uptime_check.get_node_host_dict(nodes)
+            bk_host_ids = {host.bk_host_id for host in node_to_host_dict.values()}
+            hosts = [node_to_host_dict[host_id] for host_id in bk_host_ids]
+
+        else:
+            node_to_host_dict = {host.bk_host_id: host for host in hosts}
+            node_to_host_dict.update(
+                {
+                    host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id)): host
+                    for host in hosts
+                    if host.bk_host_innerip
+                }
+            )
+
+        result = {}
+        # 按业务分组 cmdb主机列表
+        biz_hosts_dict = defaultdict(list)
+        heartbeats = []
+        heartbeats_lock = threading.Lock()
+
+        for host in hosts:
+            biz_hosts_dict[host.bk_biz_id].append(host)
+
+        pool = ThreadPool()
+        for bk_biz_id, biz_hosts in biz_hosts_dict.items():
+            pool.apply_async(
+                self.get_beat_data,
+                kwds={
+                    "biz_hosts": biz_hosts,
+                    "bk_biz_id": bk_biz_id,
+                    "heartbeats": heartbeats,
+                    "lock": heartbeats_lock,
+                },
+            )
+        bad_agent_task = pool.apply_async(self.get_bad_agent, kwds={"biz_to_host": biz_hosts_dict})
+        pool.close()
+        pool.join()
+        bad_agent = bad_agent_task.get()
+
+        for i in heartbeats:
+            if not i:
+                continue
+
+            host_ip_key = host_key(ip=i["ip"], bk_cloud_id=i["bk_cloud_id"])
+            if host_ip_key not in node_to_host_dict:
+                continue
+
+            bk_host_id = i.get("bk_host_id")
+            if not bk_host_id:
+                # 上报数据未带上bk_host_id， 则从cmdb数据中补充
+                bk_host_id = node_to_host_dict[host_ip_key].bk_host_id
+            bk_host_id = int(bk_host_id)
+            node_status = {
+                "bk_host_id": bk_host_id,
+                "ip": i["ip"],
+                "bk_cloud_id": safe_int(i["bk_cloud_id"]),
+                "status": i.get("status"),
+                "version": i.get("version"),
+                "gse_status": BEAT_STATUS["RUNNING"],
+            }
+
+            result[bk_host_id] = node_status
+            result[host_ip_key] = node_status
+
+        for host in hosts:
+            # 补充缺省数据
+            bk_host_id = host.bk_host_id
+            host_ip_key = host_key(ip=host.bk_host_innerip, bk_cloud_id=str(host.bk_cloud_id))
+
+            if bk_host_id not in result:
+                # 未上报数据， 走缺省补充
+                host_dict = {"ip": host.bk_host_innerip, "bk_cloud_id": host.bk_cloud_id, "bk_host_id": bk_host_id}
+                # 机器没上报心跳
+                default_status = {"gse_status": BEAT_STATUS["RUNNING"], "status": BEAT_STATUS["DOWN"]}
+                host_dict.update(default_status)
+                result[bk_host_id] = host_dict
+                result[host_ip_key] = host_dict
+
+            # 处理 bad_agent
+            if bk_host_id in bad_agent:
+                result[bk_host_id]["gse_status"] = BEAT_STATUS["DOWN"]
+                result[host_ip_key]["gse_status"] = BEAT_STATUS["DOWN"]
         return result
 
 
@@ -1308,19 +1369,57 @@ class GetBeatDataResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_host_id = serializers.CharField(required=False, label="节点主机ID")
-        ip = serializers.CharField(required=False, label="节点IP")
-        bk_cloud_id = serializers.CharField(required=False, label="节点云区域ID")
+        class IpCloudIdSerializer(serializers.Serializer):
+            ip = serializers.CharField(required=False, label="节点IP")
+            bk_cloud_id = serializers.CharField(required=False, label="节点云区域ID")
+
+        bk_host_ids = serializers.ListField(required=False, label="节点主机ID列表")
+        ips = serializers.ListField(required=False, child=IpCloudIdSerializer(), label="节点IP和节点云区域ID列表")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
+
+        def validate(self, attrs):
+            bk_host_ids = attrs.get('bk_host_ids', None)
+            ips = attrs.get('ips', None)
+            if bk_host_ids is None and ips is None:
+                raise serializers.ValidationError("bk_host_ids 和 ips 至少存在一个")
+            return attrs
+
+    @staticmethod
+    def transform_ips(ips: list) -> list:
+        cloud_ips = defaultdict(list)
+
+        for ip_info in ips:
+            cloud_id = ip_info['bk_cloud_id']
+            ip = ip_info['ip']
+            cloud_ips[cloud_id].append(ip)
+
+        transformd_ips = []
+        for cloud_id, ip_list in cloud_ips.items():
+            transformd_ips.append({"ips": ip_list, "bk_cloud_id": cloud_id})
+
+        return transformd_ips
 
     def perform_request(self, data):
         end = arrow.utcnow().timestamp
         start = end - 180
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
-        condition_statement = []
-        for field in ["bk_host_id"] if data.get("bk_host_id") else ["ip", "bk_cloud_id"]:
-            condition_statement.append("{}='{}'".format(field, data.get(field, "")))
-        promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{','.join(condition_statement)}}}[1m]"
+        if data.get("bk_host_ids"):
+            condition_statement = f'''bk_host_id=~"{'|'.join(data.get('bk_host_ids'))}"'''
+            promql_statement = f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}"
+        else:
+            ips = data.get("ips")
+            transformd_ips = self.transform_ips(ips)
+            promql_statement_list = []
+            for ips_info in transformd_ips:
+                ips = ips_info["ips"]
+                bk_cloud_id = ips_info["bk_cloud_id"]
+                if len(ips) == 1:
+                    condition_statement = f'ip="{ips[0]}", bk_cloud_id="{bk_cloud_id}"'
+                else:
+                    condition_statement = f'''ip=~"{'$|'.join(ips)}$", bk_cloud_id="{bk_cloud_id}"'''
+                promql_statement_list.append(f"bkmonitor:beat_monitor:heartbeat_total:uptime{{{condition_statement}}}")
+            promql_statement = "(" + " or ".join(promql_statement_list) + ")"
+
         query_config = {
             "data_source_label": DataSourceLabel.PROMETHEUS,
             "data_type_label": DataTypeLabel.TIME_SERIES,
@@ -1331,11 +1430,27 @@ class GetBeatDataResource(Resource):
         data_source = data_source_class(int(data["bk_biz_id"]), **query_config)
         query = UnifyQuery(bk_biz_id=int(data["bk_biz_id"]), data_sources=[data_source], expression="")
         records = query.query_data(start_time=start * 1000, end_time=end * 1000, limit=5)
-        # 如果非 ipv6 业务，要把 bk_host_id 字段去掉，以免影响后面的判断
-        if not data.get("bk_host_id"):
+
+        results = []
+        cloud_id_and_ip = []
+        bk_cloud_id_list = []
+        if not data.get("bk_host_ids"):
             for record in records:
+                # 如果非 ipv6 业务，要把 bk_host_id 字段去掉，以免影响后面的判断
                 record.pop("bk_host_id", None)
-        return records
+                ip = record["ip"]
+                bk_cloud_id = record["bk_cloud_id"]
+                if (bk_cloud_id, ip) not in cloud_id_and_ip:
+                    results.append(record)
+                    cloud_id_and_ip.append((bk_cloud_id, ip))
+        else:
+            for record in records:
+                bk_host_id = record["bk_host_id"]
+                if bk_host_id not in bk_cloud_id_list:
+                    results.append(record)
+                    bk_cloud_id_list.append(bk_host_id)
+
+        return results
 
 
 class GetStrategyStatusResource(Resource):
@@ -1416,14 +1531,16 @@ class UpdateTaskRunningStatusResource(Resource):
             time.sleep(3)
             error_count = 0
             try:
-                status_result = api.node_man.subscription_instance_status(subscription_id_list=[subscription_id])[0][
-                    "instances"
-                ]
+                status_result = api.node_man.batch_task_result(subscription_id=subscription_id)
             except BKAPIError as e:
-                logger.error("请求节点管理任务执行结果接口失败: {}".format(e))
+                logger.error("请求节点管理任务{}执行结果接口:batch_task_result失败: {}".format(subscription_id, e))
                 return
             log = []
             nodeman_task_id = ""
+            if len(status_result) == 0:
+                logger.info("celery period task: 订阅任务%s正在启用中" % subscription_id)
+                logger.info("error_log: %s" % log)
+                return UptimeCheckTask.Status.STARTING, log, nodeman_task_id
             for item in status_result:
                 if item["status"] in [CollectStatus.RUNNING, CollectStatus.PENDING]:
                     break
@@ -1445,7 +1562,7 @@ class UpdateTaskRunningStatusResource(Resource):
                     return UptimeCheckTask.Status.RUNNING, log, nodeman_task_id
                 else:
                     logger.info("celery period task: 订阅任务%s启动失败" % subscription_id)
-                    logger.info("error_log: %s") % log
+                    logger.info("error_log: %s" % log)
                     return UptimeCheckTask.Status.START_FAILED, log, nodeman_task_id
 
     def perform_request(self, task_id):
@@ -1472,6 +1589,82 @@ class UpdateTaskRunningStatusResource(Resource):
             task.status = UptimeCheckTask.Status.RUNNING
 
         task.save()
+
+
+class BatchUpdateTaskRunningStatusResource(Resource):
+    """周期更新任务状态，用于celery周期任务"""
+
+    def __init__(self):
+        super(BatchUpdateTaskRunningStatusResource, self).__init__()
+
+    @staticmethod
+    def check_task_status(subscription_id_list):
+        def chunks(lst, n):
+            """
+            切割数组
+            :param lst: 数组
+            :param n: 每组多少份
+            """
+            for i in range(0, len(lst), n):
+                yield lst[i : i + n]
+
+        result = {}
+        for subscription_ids in chunks(subscription_id_list, 20):
+            try:
+                status_result = api.node_man.batch_task_result.bulk_request(
+                    [{"subscription_id": s_id} for s_id in subscription_ids]
+                )
+            except BKAPIError as e:
+                logger.error("请求节点管理任务执行结果接口失败: {}".format(e))
+                return
+            for index, subscription_id in enumerate(subscription_ids):
+                result[subscription_id] = status_result[index][0].get("status")
+        return result
+
+    @staticmethod
+    def judge_task_status(subscription_ids, subscription_status):
+        """通过从节点管理获取的订阅的状态，来判断当前的任务应该是什么状态"""
+        for subscription_id in subscription_ids:
+            status = subscription_status.get(subscription_id)
+            # 如果没有获取到状态，则跳过
+            if not status:
+                logger.info("celery period task: 订阅任务%s未能获取状态" % subscription_id)
+                return None
+            if status in [CollectStatus.RUNNING, CollectStatus.PENDING]:
+                return UptimeCheckTask.Status.STARTING
+            if status == CollectStatus.FAILED:
+                return UptimeCheckTask.Status.START_FAILED
+        return UptimeCheckTask.Status.RUNNING
+
+    def perform_request(self, task_id_list):
+        logger.info("start celery period task: period update uptime check task running status")
+        # 拨测任务的当前状态关系
+        task_list = UptimeCheckTask.objects.filter(id__in=task_id_list)
+        # 所有的订阅ID 和 任务与订阅ID的关系
+        subscription_id_list = []
+        task_subscription_dict = {}
+        for task_id, subscription_id in UptimeCheckTaskSubscription.objects.filter(
+            uptimecheck_id__in=task_id_list
+        ).values_list("uptimecheck_id", "subscription_id"):
+            task_subscription_dict.setdefault(task_id, []).append(subscription_id)
+            subscription_id_list.append(subscription_id)
+
+        # 获取所有订阅ID的节点管理状态
+        subscription_status = self.check_task_status(subscription_id_list)
+        need_update_task = []
+
+        for task in task_list:
+            # 获取该 task_id 下的所有订阅 ID
+            s_id = task_subscription_dict.get(task.id)
+            if not s_id:
+                continue
+            new_status = self.judge_task_status(s_id, subscription_status)
+            if task.status == new_status:
+                continue
+            task.status = new_status
+            need_update_task.append(task)
+
+        UptimeCheckTask.objects.bulk_update(need_update_task, ["status"], batch_size=500)
 
 
 class FrontPageDataResource(Resource):
@@ -2527,15 +2720,16 @@ class ImportUptimeCheckTaskResource(Resource):
         task_create_data["bk_biz_id"] = bk_biz_id
         del task_create_data["groups"]
 
-        # 先测试任务，确定可用后才可保存
-        resource.uptime_check.test_task(
-            {
-                "bk_biz_id": bk_biz_id,
-                "config": task_create_data["config"],
-                "protocol": task_create_data["protocol"],
-                "node_id_list": node_id_list,
-            }
-        )
+        # 当开启拨测联通性测试，则先测试任务，确定可用后才可保存
+        if settings.ENABLE_UPTIMECHECK_TEST:
+            resource.uptime_check.test_task(
+                {
+                    "bk_biz_id": bk_biz_id,
+                    "config": task_create_data["config"],
+                    "protocol": task_create_data["protocol"],
+                    "node_id_list": node_id_list,
+                }
+            )
 
         tasks = UptimeCheckTask.objects.filter(name=task_create_data["name"])
         if tasks:

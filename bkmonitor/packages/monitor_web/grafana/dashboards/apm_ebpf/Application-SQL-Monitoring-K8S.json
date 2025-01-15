@@ -2064,7 +2064,7 @@
               "links": [
                 {
                   "title": "Open in current dashboard",
-                  "url": "/d/Application_SQL_Monitoring/application-sql-monitoring?\ufefforgId=1&var-deepflow_tracing_id=${__data.fields._id}&${client_workload:queryparam}&${db_cluster:queryparam}&${db_service:queryparam}&${tap_side:queryparam}&${client_for_SQL_Analysis:queryparam}&from=${__from}&to=${__to}"
+                  "url": "/d/Application_SQL_Monitoring_K8S/application-sql-monitoring-k8s?\ufefforgId=1&var-deepflow_tracing_id=${__data.fields._id}&${client_workload:queryparam}&${db_cluster:queryparam}&${db_service:queryparam}&${tap_side:queryparam}&${client_for_SQL_Analysis:queryparam}&from=${__from}&to=${__to}"
                 }
               ],
               "mappings": [],
@@ -2490,7 +2490,7 @@
           ]
         },
         "datasource": "$datasource",
-        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
         "hide": 0,
         "includeAll": true,
         "label": "DB Cluster",
@@ -2499,7 +2499,7 @@
         "options": [],
         "query": {
           "database": "flow_metrics",
-          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
+          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
           "useAny": true,
           "useDisabled": false
         },
@@ -2656,6 +2656,5 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ],
-  "__path": "dashboards/DeepFlow-Templates/Application-SQL-Monitoring-K8S.json"
+  ]
 }

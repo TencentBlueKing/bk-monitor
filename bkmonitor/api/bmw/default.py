@@ -39,3 +39,30 @@ class CreateTaskResource(MonitorWorkerAPIGWResource):
 
     action = "/task/"
     method = "POST"
+
+
+class ReloadDaemonTaskResource(MonitorWorkerAPIGWResource):
+    """
+    重载常驻任务
+    """
+
+    action = "/task/daemon/reload"
+    method = "POST"
+
+
+class ListTaskResource(MonitorWorkerAPIGWResource):
+    """
+    获取正在运行的任务列表
+    """
+
+    action = "/task/"
+    method = "GET"
+
+
+class RemoveTaskResource(MonitorWorkerAPIGWResource):
+    """
+    删除任务
+    """
+
+    action = "/task/"
+    method = "DELETE"

@@ -25,11 +25,13 @@
  */
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import { PanelModel } from '../../typings';
 import CommonSimpleChart from '../common-simple-chart';
+
+import type { PanelModel } from '../../typings';
 
 import './icon-chart.scss';
 
@@ -38,15 +40,14 @@ interface IIconChartProps {
 }
 
 enum StatusIconEnum {
+  FAILD = 'minus-line',
   SUCCESS = 'check-line',
   WARNING = 'close-line-2',
-  FAILD = 'minus-line'
 }
 
-type StatusType = 'SUCCESS' | 'WARNING' | 'FAILD';
+type StatusType = 'FAILD' | 'SUCCESS' | 'WARNING';
 
 @Component
-// eslint-disable-next-line max-len
 class IconChart extends CommonSimpleChart {
   /** 图表数据 */
   chartDataList: any[] = [];
@@ -72,31 +73,30 @@ class IconChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const viewOptions = {
-        ...this.viewOptions
+        ...this.viewOptions,
       };
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc]?.(
-              {
-                ...item.data,
-                ...params,
-                view_options: {
-                  ...viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc]?.(
+            {
+              ...item.data,
+              ...params,
+              view_options: {
+                ...viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              this.clearErrorMsg();
-              return res;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false }
+          )
+          .then(res => {
+            this.clearErrorMsg();
+            return res;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          })
       );
       const data = await Promise.all(promiseList);
       data && this.updateChartData(data);
@@ -137,7 +137,7 @@ class IconChart extends CommonSimpleChart {
               <li class='icon-item'>
                 <div class='icon-wrap'>
                   <div class={`icon-box box-${item.status}`}>
-                    <i class={`bk-icon icon-${getIcon(item.status)}`}></i>
+                    <i class={`bk-icon icon-${getIcon(item.status)}`} />
                   </div>
                   <div
                     class='icon-item-label'
@@ -148,15 +148,15 @@ class IconChart extends CommonSimpleChart {
                 </div>
                 {!!this.panel.instant && (
                   <img
-                    alt=''
                     class='instant-icon'
-                    // eslint-disable-next-line @typescript-eslint/no-require-imports
-                    src={require(`../../../../fta-solutions/static/img/home/icon_mttr.svg`)}
                     v-bk-tooltips={{
                       content: 'lgnores selected time',
                       boundary: 'window',
-                      placements: ['top']
+                      placements: ['top'],
                     }}
+                    alt=''
+                    // eslint-disable-next-line @typescript-eslint/no-require-imports
+                    src={require('../../../../fta-solutions/static/img/home/icon_mttr.svg')}
                   />
                 )}
               </li>
@@ -165,7 +165,7 @@ class IconChart extends CommonSimpleChart {
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
         )}
-        <div class='draggable-handle draggable-handle-bar'></div>
+        <div class='draggable-handle draggable-handle-bar' />
       </div>
     );
   }

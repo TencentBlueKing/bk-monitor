@@ -1,0 +1,152 @@
+.common-nav-bar.navigation-bar {
+  display: flex;
+  align-items: center;
+  box-shadow: 0 3px 4px 0 rgba(64, 112, 203, 0.06);
+
+  &.detail-bar {
+    box-shadow: none;
+  }
+
+  .nav-append-wrap {
+    margin-left: auto;
+  }
+
+  .navigation-bar-list {
+    flex: initial;
+    line-height: 21px;
+    white-space: nowrap;
+  }
+
+  .bar-item {
+    display: flex;
+    align-items: center;
+    height: 21px;
+    line-height: 21px;
+
+    .item-split {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #c4c6cc;
+    }
+
+    .item-name {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      color: #313238;
+      cursor: initial;
+
+      &.only-title {
+        font-size: 16px;
+      }
+
+      &.parent-nav {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .item-name-text {
+        display: inline-block;
+        height: 20px;
+        line-height: 20px;
+      }
+
+      .item-sub-name {
+        margin-left: 8px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+      }
+    }
+
+    .bk-select {
+      border: none;
+
+      &.is-focus {
+        box-shadow: none;
+      }
+    }
+
+    .select-trigger {
+      display: flex;
+      cursor: pointer;
+      border-radius: 2px;
+
+      .item-name {
+        padding-left: 5px;
+        cursor: pointer;
+      }
+
+      &:hover {
+        background-color: #f0f1f5;
+      }
+
+      &.active {
+
+        background-color: #e1ecff;
+
+        .arrow-wrap {
+          color: #3a84ff;
+          transform: rotateZ(180deg);
+        }
+
+        .item-name {
+          color: #3a84ff;
+        }
+      }
+    }
+
+    .arrow-wrap {
+      width: 26px;
+      height: 26px;
+      font-size: 12px;
+      line-height: 26px;
+      color: #979ba5;
+      text-align: center;
+      background-color: transparent;
+      border-radius: 2px;
+    }
+
+    .skeleton-element {
+      width: 100px;
+      height: 21px;
+    }
+  }
+}
+
+.nav-bar-select-popover.bk-select-dropdown-content {
+  .bk-option {
+    width: 100%;
+    height: 32px;
+    padding: 0 12px;
+    line-height: 32px;
+
+    &:first-child {
+      margin-top: 4px;
+    }
+
+    &:hover {
+      color: #63656e;
+      background-color: #f5f7fa;
+    }
+
+    &.active {
+      color: #3a84ff;
+      background: #e1ecff;
+    }
+
+    .name {
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .bk-option-content {
+      padding: 0;
+    }
+  }
+}

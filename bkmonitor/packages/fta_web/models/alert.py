@@ -12,7 +12,7 @@ import time
 from contextlib import contextmanager
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db import JsonField
@@ -23,12 +23,14 @@ class SearchType:
     ALERT = "alert"
     EVENT = "event"
     ACTION = "action"
+    INCIDENT = "incident"
 
 
 SEARCH_TYPE_CHOICES = (
     (SearchType.ALERT, _("告警")),
     (SearchType.EVENT, _("事件")),
     (SearchType.ACTION, _("处理动作")),
+    (SearchType.INCIDENT, _("故障")),
 )
 
 

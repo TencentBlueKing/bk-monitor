@@ -37,36 +37,41 @@
           <div class="business-container">
             <verify-input :show-validate.sync="rules.bk_biz_id.validate">
               <bk-select
-                class="business-select"
                 :style="{ background: canSelectBusiness ? '#fafafa' : '#FFFFFF' }"
-                :placeholder="$t('选择业务')"
+                class="business-select"
                 v-model="node.bk_biz_id"
                 :clearable="false"
                 :disabled="canSelectBusiness"
+                :list="businessList"
+                :placeholder="$t('选择业务')"
+                display-key="text"
+                id-key="id"
+                enable-virtual-scroll
+                @change="handleBusinessOptClick"
                 @toggle="handleBusinessToggle"
               >
-                <bk-option
+                <!-- <bk-option
                   v-for="item in businessList"
-                  :key="item.id"
                   :id="item.id"
+                  :key="item.id"
                   :name="item.text"
                 >
                   <div @click="handleBusinessOptClick(item.id)">
                     {{ item.text }}
                   </div>
-                </bk-option>
+                </bk-option> -->
               </bk-select>
             </verify-input>
             <bk-checkbox
+              v-model="node.is_common"
               v-authority="{ active: !authority.MANAGE_NODE_AUTH }"
-              :disabled="!authority.MANAGE_NODE_AUTH"
               :class="[
                 'business-checkbox',
                 {
-                  'auth-disabled': !authority.MANAGE_NODE_AUTH
-                }
+                  'auth-disabled': !authority.MANAGE_NODE_AUTH,
+                },
               ]"
-              v-model="node.is_common"
+              :disabled="!authority.MANAGE_NODE_AUTH"
               @click.native="!authority.MANAGE_NODE_AUTH && handleShowAuthorityDetail(uptimeAuth.MANAGE_NODE_AUTH)"
             >
               {{ $t('设为公共节点') }}
@@ -86,8 +91,8 @@
             >
               <node-target
                 v-if="node.host_list"
-                :target="node"
                 :disable-host-method="disableHostMethod"
+                :target="node"
                 @change="handleTargetChange"
               />
             </verify-input>
@@ -102,15 +107,15 @@
           <div class="area-container">
             <bk-select
               class="area-select"
-              :placeholder="$t('选择国家')"
               v-model="node.country"
+              :placeholder="$t('选择国家')"
               searchable
               @change="handleCountryChange"
             >
               <bk-option
                 v-for="item in countryList"
-                :key="item.code"
                 :id="item.cn"
+                :key="item.code"
                 :name="isEn ? item.en : item.cn"
               >
                 <div @click="handleCountryOptClick(item)">
@@ -120,28 +125,28 @@
             </bk-select>
             <bk-select
               class="area-select"
-              :placeholder="$t('选择省份')"
               v-model="node.city"
+              :placeholder="$t('选择省份')"
               searchable
             >
               <bk-option
                 v-for="item in cityList"
-                :key="item.code"
                 :id="item.cn"
+                :key="item.code"
                 :name="isEn ? item.en : item.cn"
               />
             </bk-select>
             <svg
               class="hint-icon"
-              viewBox="0 0 64 64"
               v-bk-tooltips.right="$t('从配置平台过滤地区和运营商')"
+              viewBox="0 0 64 64"
             >
               <g>
                 <circle
                   cx="32"
                   cy="32"
-                  r="25"
                   fill="#63656E"
+                  r="25"
                 />
               </g>
               <g>
@@ -172,8 +177,8 @@
               @change="handleOpearatorChange"
             >
               <bk-radio
-                class="operator-radio"
                 v-for="(item, index) in operatorList"
+                class="operator-radio"
                 :key="index"
                 :value="item.cn"
               >
@@ -191,11 +196,11 @@
                     :validator="{ content: rules.carrieroperator.message }"
                   >
                     <bk-input
-                      class="operator-input"
                       ref="operatorInput"
+                      class="operator-input"
                       v-model.trim="customCarrieroperator"
-                      @focus="handleOperatorFocus(...arguments, $event)"
                       @blur="validateField(node.carrieroperator, rules.carrieroperator)"
+                      @focus="handleOperatorFocus(...arguments, $event)"
                       @input="handleOperatorInput"
                     />
                   </verify-input>
@@ -234,15 +239,14 @@
             <!-- eslint-disable-next-line vue/camelcase -->
             <bk-checkbox-group
               v-model="node.ip_type"
-              @change="() => rules.ip_type.validate = false"
+              @change="() => (rules.ip_type.validate = false)"
             >
               <bk-checkbox
+                style="margin-right: 48px"
                 value="IPv4"
-                style="margin-right: 48px;"
-              >IPv4</bk-checkbox>
-              <bk-checkbox value="IPv6">
-                IPv6
-              </bk-checkbox>
+                >IPv4</bk-checkbox
+              >
+              <bk-checkbox value="IPv6"> IPv6 </bk-checkbox>
             </bk-checkbox-group>
           </verify-input>
         </div>
@@ -251,11 +255,11 @@
         <div class="item-label" />
         <div class="item-container">
           <bk-button
-            v-authority="{ active: !authority.MANAGE_AUTH }"
             class="button-submit"
-            theme="primary"
-            :icon="isSubmitLoading ? 'loading' : ''"
+            v-authority="{ active: !authority.MANAGE_AUTH }"
             :disabled="isSubmitLoading"
+            :icon="isSubmitLoading ? 'loading' : ''"
+            theme="primary"
             @click="authority.MANAGE_AUTH ? handleSubmit() : handleShowAuthorityDetail(uptimeAuth.MANAGE_AUTH)"
           >
             {{ submitBtnText }}
@@ -267,24 +271,24 @@
       </div>
     </div>
     <uptime-check-node-done
+      v-else
       class="uptime-check-node-done"
       :options="options"
-      v-else
       @cancel="handleCancel"
       @confirm="handleBack"
     />
     <div v-show="false">
       <div
-        class="operator-popover-container"
         ref="operatorPopoverContent"
+        class="operator-popover-container"
       >
         <ul
           class="operator-popover"
           v-show="filterCustomOperatorList.length"
         >
           <li
-            class="operator-popover-item"
             v-for="item in filterCustomOperatorList"
+            class="operator-popover-item"
             :key="item"
             @click.stop="handleOperatorOptClick(item)"
           >
@@ -294,7 +298,9 @@
         <div
           class="no-data"
           v-show="!filterCustomOperatorList.length"
-        >{{ $t('无匹配选项') }}</div>
+        >
+          {{ $t('无匹配选项') }}
+        </div>
       </div>
     </div>
   </div>
@@ -308,7 +314,8 @@ import {
   fixNameConflictUptimeCheckNode,
   isExistUptimeCheckNode,
   retrieveUptimeCheckNode,
-  updateUptimeCheckNode } from 'monitor-api/modules/model';
+  updateUptimeCheckNode,
+} from 'monitor-api/modules/model';
 import { selectCarrierOperator, selectUptimeCheckNode } from 'monitor-api/modules/uptime_check';
 import { debounce } from 'throttle-debounce';
 
@@ -317,7 +324,6 @@ import authorityMixinCreate from '../../../mixins/authorityMixin';
 import formLabelMixin from '../../../mixins/formLabelMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import * as uptimeAuth from '../authority-map';
-
 import NodeTarget from './node-target';
 import UptimeCheckNodeDone from './uptime-check-node-done';
 
@@ -326,11 +332,18 @@ export default {
   components: {
     VerifyInput,
     UptimeCheckNodeDone,
-    NodeTarget
+    NodeTarget,
   },
   mixins: [formLabelMixin, authorityMixinCreate(uptimeAuth)],
+  beforeRouteEnter(to, from, next) {
+    next(vm => {
+      if (from.name === 'uptime-check-task-add' || from.name === 'uptime-check-task-edit') {
+        vm.isFromTask = true;
+      }
+    });
+  },
   props: {
-    id: [String, Number]
+    id: [String, Number],
   },
   data() {
     return {
@@ -348,35 +361,31 @@ export default {
         is_common: false,
         plat_id: '',
         ip_type: ['IPv4'],
-        host_list: null
+        host_list: null,
       },
       rules: {
         bk_biz_id: {
           validate: false,
           message: this.$t('必填项'),
-          rule: [{ required: true }]
+          rule: [{ required: true }],
         },
         host_list: {
           validate: false,
           message: this.$t('选择IP目标'),
-          rule: [
-            { required: true, message: this.$t('选择IP目标'), validator: this.validateHostList }
-          ]
+          rule: [{ required: true, message: this.$t('选择IP目标'), validator: this.validateHostList }],
         },
         name: {
           validate: false,
           message: this.$t('必填项'),
           rule: [
             { required: true, message: this.$t('输入节点名称') },
-            { required: true, message: this.$t('注意: 名字冲突'), validator: this.validateNameIsExist }
-          ]
+            { required: true, message: this.$t('注意: 名字冲突'), validator: this.validateNameIsExist },
+          ],
         },
         ip_type: {
           validate: false,
           message: this.$t('选择节点类型'),
-          rule: [
-            { required: true, message: this.$t('选择节点类型'), validator: this.validateIpType }
-          ]
+          rule: [{ required: true, message: this.$t('选择节点类型'), validator: this.validateIpType }],
         },
         carrieroperator: {
           validate: false,
@@ -387,10 +396,10 @@ export default {
             {
               required: true,
               message: `${this.$t('不允许包含如下特殊字符：')}" / \\ [ ] ' : ; | = , + * ? < > { }${this.$t('空格')}`,
-              validator: this.validateOperatorFormat
-            }
-          ]
-        }
+              validator: this.validateOperatorFormat,
+            },
+          ],
+        },
       },
       countryList: [],
       cityList: [],
@@ -406,16 +415,16 @@ export default {
         status: true,
         statusTitle: this.$t('创建拨测节点成功'),
         cancelText: this.$t('返回列表'),
-        confirmText: this.$t('添加拨测任务')
+        confirmText: this.$t('添加拨测任务'),
       },
       operatorPopover: {
-        instance: null
+        instance: null,
       },
       handleIpInput: null,
       handleOperatorInput: null,
       customCarrieroperator: '',
       isFromTask: false,
-      isEn: false
+      isEn: false,
     };
   },
   computed: {
@@ -426,7 +435,7 @@ export default {
       },
       set(newValue) {
         this.isEdit = newValue;
-      }
+      },
     },
     isSuperUser() {
       return this.$store.getters.isSuperUser;
@@ -439,7 +448,7 @@ export default {
     submitBtnText() {
       const res = this.isEdit ? this.$t('执行中...') : this.$t('创建中...');
       return this.isSubmitLoading ? res : this.$t('提交');
-    }
+    },
   },
   created() {
     this.isEn = window.i18n.locale === 'enUS';
@@ -453,9 +462,9 @@ export default {
         this.getAreaList(),
         this.getNodeDetail(this.id, bizId),
         this.getOperatorList(),
-        this.getHostRegionIspList(bizId)
+        this.getHostRegionIspList(bizId),
       ])
-        .then((res) => {
+        .then(res => {
           if (res[1]) {
             this.handleNodeInfo(res[1]);
           }
@@ -466,13 +475,12 @@ export default {
         });
     } else {
       this.updateNavData(this.$t('新建拨测节点'));
-      Promise.all([this.getAreaList(), this.getOperatorList(),
-        this.getHostRegionIspList(bizId)]).finally(() => {
+      Promise.all([this.getAreaList(), this.getOperatorList(), this.getHostRegionIspList(bizId)]).finally(() => {
         this.isInitLoading = false;
       });
       this.node.host_list = [];
     }
-    this.handleOperatorInput = debounce(300, (v) => {
+    this.handleOperatorInput = debounce(300, v => {
       this.filterCustomOperatorList = this.customOperatorList.filter(item => item.indexOf(v) > -1);
     });
   },
@@ -482,13 +490,6 @@ export default {
   beforeDestroy() {
     this.operatorPopover.instance?.destroy();
   },
-  beforeRouteEnter(to, from, next) {
-    next((vm) => {
-      if (from.name === 'uptime-check-task-add' || from.name === 'uptime-check-task-edit') {
-        vm.isFromTask = true;
-      }
-    });
-  },
   methods: {
     handleTargetChange(v) {
       this.node.host_list = v?.host_list || [];
@@ -496,14 +497,15 @@ export default {
       this.handleIpOptClick(v?.host_list[0]);
     },
     disableHostMethod(host) {
-      return this.ipList.some(item => item.is_built
-      && (
-        (item.bk_host_id && item.bk_host_id.toString() === host.host_id.toString())
-       || (item.ip && item.plat_id === host.cloud_id && item.ip === host.ip)
-      ));
+      return this.ipList.some(
+        item =>
+          item.is_built &&
+          ((item.bk_host_id && item.bk_host_id.toString() === host.host_id.toString()) ||
+            (item.ip && item.plat_id === host.cloud_id && item.ip === host.ip))
+      );
     },
     validateHostList(hostList) {
-      return hostList.length  === 1;
+      return hostList.length === 1;
     },
     validateIpType(val) {
       return val.length > 0;
@@ -618,7 +620,7 @@ export default {
       return {
         location: {
           country: node.country,
-          city: node.city
+          city: node.city,
         },
         bk_biz_id: node.bk_biz_id,
         carrieroperator:
@@ -628,13 +630,13 @@ export default {
         name: node.name,
         plat_id: node.plat_id,
         ip: node.ip || node.ipv6,
-        ip_type: ipType
+        ip_type: ipType,
       };
     },
     create(params) {
       this.isSubmitLoading = true;
       return createUptimeCheckNode(params)
-        .then((data) => {
+        .then(data => {
           this.node.id = data.id;
         })
         .finally(() => {
@@ -657,8 +659,8 @@ export default {
         this.$router.push({
           name: 'uptime-check',
           query: {
-            dashboardId: 'uptime-check-node'
-          }
+            dashboardId: 'uptime-check-node',
+          },
         });
       }
     },
@@ -666,24 +668,24 @@ export default {
       this.handleBack();
     },
     getAreaList() {
-      return countryList().then((data) => {
+      return countryList().then(data => {
         this.countryList = data;
       });
     },
     getOperatorList() {
-      return ispList().then((data) => {
+      return ispList().then(data => {
         this.operatorList = data;
       });
     },
     getHostRegionIspList(id) {
-      return selectUptimeCheckNode({ bk_biz_id: id }).then((data) => {
+      return selectUptimeCheckNode({ bk_biz_id: id }).then(data => {
         this.ipList = data;
       });
     },
 
     handleNodeInfo(info) {
       const { node } = this;
-      Object.keys(node).forEach((key) => {
+      Object.keys(node).forEach(key => {
         if (key === 'ip_type') {
           let ipType = ['IPv4'];
           if (info[key] === 0) {
@@ -737,7 +739,10 @@ export default {
       host.country && (node.country = host.country);
       host.city && (node.city = host.city);
       if (host.carrieroperator) {
-        if (host.carrieroperator && ![this.$t('移动'), this.$t('电信'), this.$t('联通')].includes(host.carrieroperator)) {
+        if (
+          host.carrieroperator &&
+          ![this.$t('移动'), this.$t('电信'), this.$t('联通')].includes(host.carrieroperator)
+        ) {
           this.customCarrieroperator = host.carrieroperator;
           node.carrieroperator = this.$t('自定义');
         } else {
@@ -760,8 +765,8 @@ export default {
       return fixNameConflictUptimeCheckNode({
         bk_biz_id: node.bk_biz_id,
         id: node.id,
-        name: node.name
-      }).then((data) => {
+        name: node.name,
+      }).then(data => {
         node.name = data.name;
       });
     },
@@ -795,7 +800,7 @@ export default {
           maxWidth: 120,
           theme: 'light edit-operator-node',
           duration: [275, 0],
-          appendTo: () => customCarrieroperator
+          appendTo: () => customCarrieroperator,
         });
         // .instances[0]
       } else {
@@ -808,12 +813,12 @@ export default {
       this.customCarrieroperator = opreator;
     },
     getCustomOperatorList() {
-      return selectCarrierOperator().then((data) => {
+      return selectCarrierOperator().then(data => {
         this.filterCustomOperatorList = data.filter(item => !!item);
         this.customOperatorList = data.filter(item => !!item);
       });
-    }
-  }
+    },
+  },
 };
 </script>
 

@@ -77,7 +77,7 @@ export default class AppSelect extends tsc<IProps, IEvents> {
         /** 切换为demo业务 */
         AppStore.handleChangeBizId({
           bizId: this.demoBiz.id,
-          ctx: this
+          ctx: this,
         });
       }
     }
@@ -87,20 +87,20 @@ export default class AppSelect extends tsc<IProps, IEvents> {
     return (
       <bk-popover
         ref='popoverInstance'
-        theme='light common-monitor app-select'
-        placement={this.placement}
-        offset={-1}
-        distance={16}
-        animation='slide-toggle'
         tippy-options={{
           arrow: false,
-          trigger: 'click'
+          trigger: 'click',
         }}
+        animation='slide-toggle'
+        distance={16}
+        offset={-1}
+        placement={this.placement}
+        theme='light common-monitor app-select'
       >
         {this.$slots.default ?? <bk-button theme='primary'>{this.$t('新建应用')}</bk-button>}
         <div
-          slot='content'
           class='app-select-main'
+          slot='content'
         >
           <div class='app-select-title'>{this.$t('插件选择')}</div>
           <ul class='app-select-list'>
@@ -111,9 +111,9 @@ export default class AppSelect extends tsc<IProps, IEvents> {
               >
                 <span class={['app-select-item-icon']}>
                   <img
-                    src={opt.icon}
                     alt=''
-                  ></img>
+                    src={opt.icon}
+                  />
                 </span>
                 <span class='app-select-content'>
                   <span class='app-select-name'>{opt.name}</span>

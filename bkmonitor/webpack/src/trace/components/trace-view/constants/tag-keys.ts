@@ -24,6 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-export const HTTP_METHOD = 'http.method' as 'http.method';
-export const PEER_SERVICE = 'peer.service' as 'peer.service';
-export const SPAN_KIND = 'span.kind' as 'span.kind';
+export const HTTP_METHOD = 'http.method' as const;
+export const PEER_SERVICE = 'peer.service' as const;
+export const SPAN_KIND = 'span.kind' as const;

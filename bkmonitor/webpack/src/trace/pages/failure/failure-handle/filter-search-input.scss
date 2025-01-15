@@ -1,0 +1,234 @@
+/* stylelint-disable declaration-no-important */
+@import '../scss/mixin.scss';
+
+.filter-input-wrap {
+  display: flex;
+  flex: 1;
+  align-items: center;
+
+  .filter-search {
+    position: relative;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 32px;
+    color: #63656e;
+    background-color: white;
+    // border: 1px solid #c4c6cc;
+    border-radius: 2px;
+    &.error {
+      .bk-input {
+        border: 1px solid #ff5656;
+      }
+    }
+
+    &.error {
+      .bk-input {
+        border: 1px solid #ff5656;
+      }
+    }
+
+    .filter-icon {
+      width: 24px !important;
+      height: 30px !important;
+      margin-left: 4px;
+      line-height: 18px !important;
+      color: #979ba5;
+
+      @include icon-size(16px, false);
+    }
+
+    .search-input {
+      z-index: 2;
+      display: flex;
+      flex: 1;
+      height: 100%;
+      // padding: 0 8px;
+      border: 0;
+      // &.is-focused:not(.is-readonly) {
+      //   border-color: #3a84ff;
+      //   outline: 0;
+      //   box-shadow: 0 0 3px #a3c5fd;
+      // }
+      &::placeholder {
+        color: #c4c6cc;
+      }
+    }
+
+    .pre-text {
+      position: absolute;
+      z-index: -1;
+      visibility: hidden;
+    }
+
+    .filter-clear {
+      color: #979ba5;
+
+      @include icon-size(16px, true);
+
+      &:hover {
+        color: #ea3636;
+      }
+    }
+  }
+
+  .filter-favorites {
+    position: relative;
+    display: inline-block;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 30px;
+    padding-left: 24px;
+    line-height: 30px;
+    color: #63656E;
+    border-left: 1px solid #c4c6cc;
+    border-radius: 0 2px 2px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    &.en-lang {
+      width: 86px;
+      padding: 0 6px
+    }
+
+    .favorite-icon {
+      position: absolute;
+      left: 5px;
+      margin-right: 4px;
+      @include icon-size(14px)
+    }
+
+    &.is-disable {
+      color: #c4c6cc;
+      cursor: not-allowed;
+      background-color: #f5f6fa;
+
+      &:hover {
+        color: #c4c6cc;
+        cursor: not-allowed;
+        background-color: #f5f6fa;
+      }
+    }
+
+    &:hover {
+      color: #3a84ff;
+      cursor: pointer;
+      background-color: white;
+    }
+  }
+}
+
+.filter-search-input-popover {
+    padding: 0 !important;
+}
+
+.filter-input-panel {
+  z-index: 9999;
+  display: flex;
+
+  width: 70% !important;
+  height: 280px; 
+  overflow: auto;
+  font-size: 12px;
+  background-color: white;
+//   border: 1px solid #dcdee5;
+  border-radius: 2px;
+  box-shadow: 0px 2px 6px 0px rgba(0,0,0,.10);
+
+  .flex {
+    display: flex;
+    align-items: center;
+  }
+
+  .common-panel {
+    display: flex;
+    flex-direction: column;
+    padding-left: 16px;
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      height: 28px;
+      padding-left: 8px;
+      margin-top: 8px;
+      font-weight: bold;
+      color: #313238;
+      background-color: #f5f6fa;
+      border-radius: 2px;
+    }
+
+    .panel-list {
+      @include common-list(240px);
+
+      .item-id {
+        margin-left: 5px;
+      }
+
+      &-item {
+        .edit-icon,
+        .close-icon {
+          display: none !important;
+          color: #63656e;
+          
+          @include icon-size(22px, true);
+        }
+
+        .edit-icon {
+          margin-left: auto;
+        }
+
+        .check-icon {
+          color: #979ba5;
+
+          @include icon-size(32px, true);
+
+          &.is-diabled {
+            &:hover {
+              color: #979ba5;
+              cursor: not-allowed;
+            }
+          }
+        }
+
+        .favorite-input {
+          width: 260px;
+        }
+
+        &:hover {
+          .icon-monitor {
+            display: flex !important;
+          }
+        }
+      }
+    }
+
+    .panel-empty {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      color: #c4c6cc;
+    }
+  }
+
+  .field-panel,
+  .search-panel,
+  .favorite-panel {
+    flex: 1;
+    min-width: 200px;
+
+    span {
+      @include text-ellipsis;
+    }
+  }
+
+  .favorite-panel {
+    background-color: #fbfbfd;
+  }
+}
+
+.condition-list {
+  @include common-list(240px)
+}

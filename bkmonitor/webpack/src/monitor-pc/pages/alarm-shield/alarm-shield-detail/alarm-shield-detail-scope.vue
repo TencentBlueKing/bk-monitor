@@ -44,20 +44,20 @@ export default {
   props: {
     dimension: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
-      target: ''
+      target: '',
     };
   },
   watch: {
     dimension: {
       handler: 'handleDimension',
       immediate: true,
-      deep: true
-    }
+      deep: true,
+    },
   },
   methods: {
     // 目前的解决方案是把数组转化成字符串，缺点是展示条数过多会现得密密麻麻，看不清楚 （展示待更改）
@@ -65,8 +65,8 @@ export default {
       if (Object.keys(v).length) {
         this.target = v.target.join(',');
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -74,21 +74,25 @@ export default {
 .alarm-shield-detail-scope {
   font-size: 14px;
   color: #63656e;
+
   .scope-item {
     display: flex;
     align-items: flex-start;
     margin-bottom: 20px;
+
     .item-label {
       min-width: 90px;
+      margin-right: 24px;
       color: #979ba5;
       text-align: right;
-      margin-right: 24px;
     }
+
     .item-content {
       min-height: 16px;
+
       &-target {
-        word-break: break-all;
         max-width: calc(100vw - 306px);
+        word-break: break-all;
       }
     }
   }

@@ -24,21 +24,25 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, inject, PropType, Ref, ref, watch } from 'vue';
+import { type PropType, type Ref, computed, defineComponent, inject, ref, watch, watchEffect } from 'vue';
+import { shallowRef } from 'vue';
+
 import { Exception, Loading } from 'bkui-vue';
+import { CancelToken } from 'monitor-api/index';
 import { query } from 'monitor-api/modules/apm_profile';
 import { typeTools } from 'monitor-common/utils';
-import { BaseDataType, ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
-import { debounce } from 'throttle-debounce';
+import { type BaseDataType, type ProfilingTableItem, ViewModeType } from 'monitor-ui/chart-plugins/typings';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
-import { SearchType, ToolsFormData } from '../../../pages/profiling/typings';
-import { DirectionType, IQueryParams } from '../../../typings';
-
+import { SearchType, type ToolsFormData } from '../../../pages/profiling/typings';
+import { assignUniqueIds } from '../../../utils/utils';
 import ChartTitle from './chart-title/chart-title';
 import FrameGraph from './flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
+
+import type { DirectionType, IQueryParams } from '../../../typings';
+import type { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
 
 import './profiling-graph.scss';
 
@@ -50,50 +54,65 @@ export default defineComponent({
       default: () => ({
         app_name: '',
         service_name: '',
-        data_type: ''
-      })
-    }
+        data_type: '',
+      }),
+    },
   },
   setup(props) {
     // 自动刷新定时任务
     let refleshIntervalInstance = null; // 自动刷新定时任务
 
+    /** 取消请求方法 */
+    let cancelTableFlameFn = () => {};
+    let cancelTopoFn = () => {};
+
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
     const searchType = inject<Ref<SearchType>>('profilingSearchType');
-
+    const grahWrapperRef = ref<HTMLDivElement>();
     const frameGraphRef = ref(FrameGraph);
     const empty = ref(true);
     // 当前视图模式
     const activeMode = ref<ViewModeType>(ViewModeType.Combine);
     const textDirection = ref<DirectionType>('ltr');
     const isLoading = ref(false);
-    const tableData = ref<ProfilingTableItem[]>([]);
-    const flameData = ref<BaseDataType>({
+    const tableData = shallowRef<ProfilingTableItem[]>([]);
+    const flameData = shallowRef<BaseDataType>({
       name: '',
       children: undefined,
-      id: ''
+      id: '',
     });
-    const unit = ref('');
+    const unit = ref<ProfileDataUnit>('nanoseconds');
     const highlightId = ref(-1);
+    const highlightName = ref('');
     const filterKeyword = ref('');
     const topoSrc = ref('');
 
     const flameFilterKeywords = computed(() => (filterKeyword.value?.trim?.().length ? [filterKeyword.value] : []));
     const isCompared = computed(() => (props.queryParams as IQueryParams)?.is_compared ?? false);
-
-    watch(
-      () => props.queryParams,
-      debounce(16, async () => handleQuery()),
-      {
-        immediate: true,
-        deep: true
+    function initQueryData() {
+      if (isCompared.value) {
+        // 对比模式下不展示拓扑图
+        if (activeMode.value === ViewModeType.Topo) {
+          activeMode.value = ViewModeType.Combine;
+        }
       }
-    );
+      tableData.value = [];
+      flameData.value = {
+        name: '',
+        children: undefined,
+        id: '',
+      };
+      unit.value = 'nanoseconds';
+      topoSrc.value = '';
+    }
+    watch(() => props.queryParams, initQueryData, {
+      deep: true,
+    });
     watch(
       () => toolsFormData.value.timeRange,
       () => {
         if (searchType.value === SearchType.Profiling) {
-          handleQuery();
+          initQueryData();
         }
       },
       { deep: true }
@@ -106,10 +125,14 @@ export default defineComponent({
         }
         if (v <= 0) return;
         refleshIntervalInstance = window.setInterval(() => {
-          handleQuery();
+          initQueryData();
         }, toolsFormData.value.refreshInterval);
       }
     );
+
+    const isObject = (data: unknown) => {
+      return Object.prototype.toString.call(data) === '[object Object]';
+    };
 
     const getParams = (args: Record<string, any> = {}) => {
       const { queryParams } = props;
@@ -119,62 +142,81 @@ export default defineComponent({
         ...queryParams,
         ...(searchType.value === SearchType.Profiling
           ? {
-              start: start * Math.pow(10, 6),
-              end: end * Math.pow(10, 6)
+              start: start * 10 ** 6,
+              end: end * 10 ** 6,
             }
-          : {})
+          : {}),
       };
-    };
-    const handleQuery = async () => {
-      getTableFlameData();
-      if (isCompared.value) {
-        // 对比模式下不展示拓扑图
-        if (activeMode.value === ViewModeType.Topo) {
-          activeMode.value = ViewModeType.Combine;
-        }
-      } else {
-        getTopoSrc();
-      }
     };
     /** 获取表格和火焰图 */
     const getTableFlameData = async () => {
-      try {
-        isLoading.value = true;
-        highlightId.value = -1;
-        const params = getParams({ diagram_types: ['table', 'flamegraph'] });
-        const data = await query(params).catch(() => false);
-        if (data) {
-          unit.value = data.unit || '';
-          tableData.value = data.table_data?.items ?? [];
-          flameData.value = data.flame_data;
-          empty.value = false;
-        } else {
-          empty.value = true;
-        }
-        isLoading.value = false;
-      } catch (e) {
-        console.error(e);
-        isLoading.value = false;
-        empty.value = true;
-      }
+      isLoading.value = true;
+      highlightId.value = -1;
+      cancelTableFlameFn();
+      const params = getParams({
+        diagram_types:
+          activeMode.value === ViewModeType.Combine
+            ? ['table', 'flamegraph']
+            : [activeMode.value === ViewModeType.Flame ? 'flamegraph' : activeMode.value],
+      });
+      await query(params, {
+        cancelToken: new CancelToken((c: () => void) => {
+          cancelTableFlameFn = c;
+        }),
+      })
+        .then(data => {
+          // 为数据节点及其子节点分配唯一 ID
+          data.flame_data?.children && assignUniqueIds(data.flame_data.children);
+          if (isObject(data) && Object.keys(data)?.length) {
+            unit.value = data.unit || '';
+            if (activeMode.value === ViewModeType.Combine) {
+              tableData.value = data.table_data?.items ?? [];
+              flameData.value = data.flame_data || [];
+            } else if (activeMode.value === ViewModeType.Flame) {
+              flameData.value = data.flame_data || [];
+            } else {
+              tableData.value = data.table_data?.items ?? [];
+            }
+            empty.value = false;
+          } else {
+            empty.value = true;
+          }
+          isLoading.value = false;
+        })
+        .catch(e => {
+          if (e.message) {
+            isLoading.value = false;
+          }
+        });
     };
     /** 获取拓扑图 */
     const getTopoSrc = async () => {
-      try {
-        if (ViewModeType.Topo === activeMode.value) {
-          isLoading.value = true;
-        }
+      cancelTopoFn();
 
-        const params = getParams({ diagram_types: ['callgraph'] });
-        const data = await query(params).catch(() => false);
-        if (data) {
-          topoSrc.value = data.call_graph_data || '';
-        }
-        isLoading.value = false;
-      } catch (e) {
-        console.error(e);
-        isLoading.value = false;
+      if (ViewModeType.Topo === activeMode.value) {
+        isLoading.value = true;
       }
+
+      const params = getParams({ diagram_types: ['callgraph'] });
+      await query(params, {
+        cancelToken: new CancelToken((c: () => void) => {
+          cancelTopoFn = c;
+        }),
+      })
+        .then(data => {
+          if (isObject(data) && Object.keys(data)?.length) {
+            topoSrc.value = data.call_graph_data || '';
+            empty.value = false;
+          } else {
+            empty.value = true;
+          }
+          isLoading.value = false;
+        })
+        .catch(e => {
+          if (e.message) {
+            isLoading.value = false;
+          }
+        });
     };
     /** 切换视图模式 */
     const handleModeChange = async (val: ViewModeType) => {
@@ -187,16 +229,17 @@ export default defineComponent({
       textDirection.value = val;
     };
     /** 表格排序 */
-    const handleSortChange = async (sortKey: string) => {
-      const params = getParams({
-        diagram_types: ['table'],
-        sort: sortKey
-      });
-      const data = await query(params).catch(() => false);
-      if (data) {
-        highlightId.value = -1;
-        tableData.value = data.table_data?.items ?? [];
-      }
+    const handleSortChange = () => {
+      // const params = getParams({
+      //   diagram_types: ['table'],
+      //   sort: sortKey
+      // });
+      // const data = await query(params).catch(() => false);
+      // if (data) {
+      //   highlightId.value = -1;
+      //   tableData.value = data.table_data?.items ?? [];
+      // }
+      highlightId.value = -1;
     };
     /** 下载 */
     const handleDownload = async (type: string) => {
@@ -238,7 +281,31 @@ export default defineComponent({
       if (str.length) return `&${str}`;
       return '';
     }
-
+    function handleKeywordChange(v: string) {
+      filterKeyword.value = v;
+      grahWrapperRef.value?.scrollTo({
+        top: 0,
+        behavior: 'instant',
+      });
+    }
+    const needQuery = computed(() => {
+      if (activeMode.value === ViewModeType.Flame && flameData.value?.value) return false;
+      if (activeMode.value === ViewModeType.Table && tableData.value?.length) return false;
+      if (activeMode.value === ViewModeType.Combine && flameData.value?.value && tableData.value?.length) return false;
+      if (activeMode.value === ViewModeType.Topo && topoSrc.value) return false;
+      return true;
+    });
+    watchEffect(() => {
+      if (!needQuery.value) return;
+      if ([ViewModeType.Combine, ViewModeType.Flame, ViewModeType.Table].includes(activeMode.value)) {
+        getTableFlameData();
+        return;
+      }
+      if (activeMode.value === ViewModeType.Topo) {
+        getTopoSrc();
+        return;
+      }
+    });
     return {
       frameGraphRef,
       empty,
@@ -251,60 +318,81 @@ export default defineComponent({
       handleModeChange,
       handleTextDirectionChange,
       highlightId,
+      highlightName,
       filterKeyword,
       flameFilterKeywords,
       handleSortChange,
       handleDownload,
+      handleKeywordChange,
       topoSrc,
-      isCompared
+      isCompared,
+      grahWrapperRef,
     };
   },
   render() {
     return (
       <Loading
-        loading={this.isLoading}
         class='profiling-graph'
+        loading={this.isLoading}
       >
         <ChartTitle
           activeMode={this.activeMode}
-          textDirection={this.textDirection}
           isCompared={this.isCompared}
+          textDirection={this.textDirection}
+          onDownload={this.handleDownload}
+          onKeywordChange={this.handleKeywordChange}
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
-          onKeywordChange={val => (this.filterKeyword = val)}
-          onDownload={this.handleDownload}
         />
         {this.empty ? (
           <Exception
-            type='empty'
             description={this.$t('暂无数据')}
+            type='empty'
           />
         ) : (
-          <div class='profiling-graph-content'>
+          <div
+            ref='grahWrapperRef'
+            class='profiling-graph-content'
+          >
             {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
               <TableGraph
+                style={{
+                  width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
+                }}
                 data={this.tableData}
-                unit={this.unit}
-                textDirection={this.textDirection}
-                highlightId={this.highlightId}
-                filterKeyword={this.filterKeyword}
-                isCompared={this.isCompared}
                 dataType={this.queryParams.data_type}
-                onUpdateHighlightId={id => (this.highlightId = id)}
+                filterKeyword={this.filterKeyword}
+                highlightName={this.highlightName}
+                isCompared={this.isCompared}
+                textDirection={this.textDirection}
+                unit={this.unit}
                 onSortChange={this.handleSortChange}
+                onUpdateHighlightName={name => {
+                  this.highlightName = name;
+                }}
               />
             )}
             {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
               <FrameGraph
                 ref='frameGraphRef'
-                appName={this.$props.queryParams.app_name}
-                textDirection={this.textDirection}
-                showGraphTools={false}
+                style={{
+                  width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
+                }}
+                appName={this.queryParams.app_name}
                 data={this.flameData}
-                highlightId={this.highlightId}
-                isCompared={this.isCompared}
                 filterKeywords={this.flameFilterKeywords}
-                onUpdateHighlightId={id => (this.highlightId = id)}
+                highlightId={this.highlightId}
+                highlightName={this.highlightName}
+                isCompared={this.isCompared}
+                showGraphTools={false}
+                textDirection={this.textDirection}
+                unit={this.unit}
+                onUpdateHighlightId={id => {
+                  this.highlightId = id;
+                }}
+                onUpdateHighlightName={name => {
+                  this.highlightName = name;
+                }}
               />
             )}
             {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}
@@ -312,5 +400,5 @@ export default defineComponent({
         )}
       </Loading>
     );
-  }
+  },
 });

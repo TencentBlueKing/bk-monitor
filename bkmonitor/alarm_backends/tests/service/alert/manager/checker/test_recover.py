@@ -20,7 +20,6 @@ from six.moves import range
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.adapter import MonitorEventAdapter
 from alarm_backends.core.cache.key import (
-    ALERT_CONTENT_KEY,
     CHECK_RESULT_CACHE_KEY,
     LAST_CHECKPOINTS_CACHE_KEY,
 )
@@ -59,7 +58,6 @@ def _set_recovery_with_event_id(event_id, timedelta=1000):
 
 
 class TestRecoverStatusChecker(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def clear_data(self):
@@ -78,9 +76,6 @@ class TestRecoverStatusChecker(TestCase):
         event = MonitorEventAdapter(event or ANOMALY_EVENT, strategy or STRATEGY).adapt()
         event["extra_info"]["strategy"] = strategy or STRATEGY
         alert = Alert.from_event(Event(event))
-        ALERT_CONTENT_KEY.client.set(
-            ALERT_CONTENT_KEY.get_key(dedupe_md5=alert.dedupe_md5), json.dumps(alert.to_dict())
-        )
         return alert
 
     def test_set_recovered(self):
@@ -505,6 +500,7 @@ class TestRecoverStatusChecker(TestCase):
     def test_event_type_big_window_unit_false(self):
         strategy = copy.deepcopy(STRATEGY)
         strategy["items"][0]["query_configs"][0]["data_type_label"] = "event"
+        strategy["items"][0]["query_configs"][0]["data_source_label"] = "custom"
         strategy["items"][0]["query_configs"][0]["agg_interval"] = 300
         strategy["detects"][1] = {
             "expression": "",
@@ -605,6 +601,21 @@ class TestRecoverStatusChecker(TestCase):
 
         alert = self.get_alert(event=new_event)
         self.assertTrue(alert.is_no_data())
+        checker = RecoverStatusChecker([alert])
+        checker.check_all()
+        self.assertEqual(alert.status, EventStatus.RECOVERED)
+
+    def test_strategy_recovered_by_status_setter(self):
+        new_strategy = copy.deepcopy(STRATEGY)
+        for detect in new_strategy["detects"]:
+            detect["recovery_config"]["status_setter"] = "recovery-nodata"
+        StrategyCacheManager.cache.set(
+            StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=STRATEGY["id"]), json.dumps(new_strategy)
+        )
+        new_event = copy.deepcopy(ANOMALY_EVENT)
+
+        alert = self.get_alert(event=new_event)
+        self.assertFalse(alert.is_no_data())
         checker = RecoverStatusChecker([alert])
         checker.check_all()
         self.assertEqual(alert.status, EventStatus.RECOVERED)

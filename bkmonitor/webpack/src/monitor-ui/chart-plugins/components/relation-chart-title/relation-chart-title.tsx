@@ -25,12 +25,16 @@
  */
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce } from 'monitor-common/utils/utils';
-import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import StatusTab from '../../plugins/table-chart/status-tab';
 
+import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
+
 import './relation-chart-title.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface IRelationChartTitleProps {
   filterList?: ITableFilterItem[];
@@ -80,12 +84,13 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
   /** search select组件搜索 */
   @Debounce(300)
   @Emit('conditionChange')
-  handleConditionChange() {
+  handleConditionChange(v) {
+    this.conditionList = v;
     return this.conditionList;
   }
   @Debounce(300)
   @Emit('searchChange')
-  handleSearchChange(value: string | number) {
+  handleSearchChange(value: number | string) {
     return value;
   }
   @Debounce(300)
@@ -124,31 +129,31 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
               <div class='empty-node-switcher'>
                 <bk-switcher
                   v-model={this.showEmptyNode}
-                  theme='primary'
                   size='small'
+                  theme='primary'
                   onChange={(v: boolean) => this.handleShowNodata(v)}
-                ></bk-switcher>
+                />
                 <span class='switcher-text'>{window.i18n.t('无数据节点')}</span>
               </div>
             )}
             {this.searchType === 'search_select' ? (
-              <bk-search-select
-                value={this.conditionList}
-                class='search-wrapper-input'
-                behavior='simplicity'
-                show-condition={false}
-                data={this.conditionOptions}
-                onChange={this.handleConditionChange}
-              />
+              <div class='search-wrapper-input'>
+                <SearchSelect
+                  clearable={false}
+                  data={this.conditionOptions}
+                  modelValue={this.conditionList}
+                  onChange={this.handleConditionChange}
+                />
+              </div>
             ) : (
               <bk-input
                 class='search-wrapper-input'
+                v-model={this.keyword}
                 behavior='simplicity'
                 placeholder='搜索'
-                v-model={this.keyword}
-                onEnter={this.handleSearchChange}
-                onBlur={this.handleSearchChange}
                 right-icon='bk-icon icon-search'
+                onBlur={this.handleSearchChange}
+                onEnter={this.handleSearchChange}
               />
             )}
           </div>
@@ -158,13 +163,13 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
                 class={['overview', { active: this.isOverview }]}
                 onClick={() => this.handleOverview(true)}
               >
-                <i class='icon-monitor icon-mc-overview option-icon'></i>
+                <i class='icon-monitor icon-mc-overview option-icon' />
               </span>
               <span
                 class={['list', { active: !this.isOverview }]}
                 onClick={() => this.handleOverview(false)}
               >
-                <i class='icon-monitor icon-mc-list option-icon'></i>
+                <i class='icon-monitor icon-mc-list option-icon' />
               </span>
               {this.isOverview && (
                 <span
@@ -172,7 +177,7 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
                   v-bk-tooltips={window.i18n.t('回中')}
                   onClick={this.handlebackToCenter}
                 >
-                  <i class='bk-icon icon-circle'></i>
+                  <i class='bk-icon icon-circle' />
                 </span>
               )}
               <span
@@ -180,7 +185,7 @@ export default class ChartTitle extends tsc<IRelationChartTitleProps, IRelationC
                 v-bk-tooltips={this.isFullScreen ? window.i18n.t('缩小') : window.i18n.t('全屏')}
                 onClick={this.handleFullScreen}
               >
-                <i class='bk-icon icon-full-screen'></i>
+                <i class='bk-icon icon-full-screen' />
               </span>
             </span>
           </div>

@@ -25,9 +25,10 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { IFavList } from '../typings';
+import type { IFavList } from '../typings';
 
 import './favorites-list.scss';
 
@@ -68,7 +69,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
   emitSelectFav(data: IFavList.favList) {
     return {
       config: data.config,
-      name: data.name
+      name: data.name,
     };
   }
 
@@ -138,10 +139,10 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
     return (
       <div class={['favorites-list-wrap', { 'is-expand': this.isExpand }]}>
         <div
-          class='fav-main'
           ref='favMain'
+          class='fav-main'
         >
-          <div class='box-shadow'></div>
+          <div class='box-shadow' />
           <span class='fav-label'>{this.$t('收藏')}</span>
           <div
             ref='scroll'
@@ -158,7 +159,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
                   <i
                     class='icon-monitor icon-mc-close'
                     onClick={e => this.handleDeleteItem(item.id, e)}
-                  ></i>
+                  />
                 </li>
               ))}
             </ul>
@@ -167,7 +168,7 @@ export default class FavoritesList extends tsc<IFavList.IProps, IFavList.IEvent>
             <i
               class={['icon-monitor', 'icon-arrow-down', { 'is-expand': this.isExpand }]}
               onClick={() => this.handleExpandMore()}
-            ></i>
+            />
           </span>
         </div>
       </div>

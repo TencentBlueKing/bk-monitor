@@ -25,18 +25,20 @@
  */
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { copyText, random } from 'monitor-common/utils/utils';
 
 import Collapse from '../../../../components/collapse/collapse';
-import { ITableItem } from '../../typings';
-import { IDetailItem, IDetailValItem } from '../../typings/common-detail';
 import CommonStatus from '../common-status/common-status';
 import CommonTagList from '../common-tag-list/common-tag-list';
 
+import type { ITableItem } from '../../typings';
+import type { IDetailItem, IDetailValItem } from '../../typings/common-detail';
+
 interface IProps {
   data: IDetailItem[];
-  width: string | number;
+  width: number | string;
 }
 
 interface IEvents {
@@ -46,7 +48,7 @@ interface IEvents {
 interface IStatusData {
   name: string;
   type: string;
-  value: string | IStatusDataSubValue;
+  value: IStatusDataSubValue | string;
 }
 
 interface IStatusDataSubValue {
@@ -62,14 +64,14 @@ const textMapping = {
   运营状态: '运营状态',
   'Operation Status': '运营状态',
   所属模块: '所属模块',
-  Modules: '所属模块'
+  Modules: '所属模块',
 };
 
 @Component
 export default class HostDetailView extends tsc<IProps, IEvents> {
   @InjectReactive('readonly') readonly readonly: boolean;
   @Prop({ type: Array, default: () => [] }) data: IDetailItem[];
-  @Prop({ type: [String, Number] }) width: string | number;
+  @Prop({ type: [String, Number] }) width: number | string;
   activeCollapseName: [] = [];
   targetStatusName = ['运营状态', '采集状态'];
   targetListName = ['所属模块'];
@@ -112,15 +114,13 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
       <div id={key}>
         <Collapse
           defaultHeight={110} // 超过五条显示展开按钮
-          maxHeight={300}
           expand={item.isExpand}
+          maxHeight={300}
           needCloseButton={false}
           onExpandChange={val => {
-            // eslint-disable-next-line no-param-reassign
             item.isExpand = val;
           }}
           onOverflow={val => {
-            // eslint-disable-next-line no-param-reassign
             item.isOverflow = val;
           }}
         >
@@ -128,12 +128,12 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
             {val.length
               ? val.map((item, index) => [
                   <div
-                    v-bk-overflow-tips
                     key={index}
                     class='list-type-item'
+                    v-bk-overflow-tips
                   >
                     {item}
-                  </div>
+                  </div>,
                 ])
               : '--'}
           </div>
@@ -142,7 +142,6 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           <span
             class='expand-btn'
             onClick={() => {
-              // eslint-disable-next-line no-param-reassign
               item.isExpand = !item.isExpand;
             }}
           >
@@ -154,15 +153,15 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   }
   // tag类型格式化
   tagFormatter(val: ITableItem<'tag'>) {
-    return <CommonTagList value={val}></CommonTagList>;
+    return <CommonTagList value={val} />;
   }
   // key-value数据
   kvFormatter(val: ITableItem<'kv'>) {
     const key = random(10);
     return (
       <div
-        class='tag-column'
         id={key}
+        class='tag-column'
       >
         {val?.length
           ? val.map((item, index) => (
@@ -172,15 +171,15 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 v-bk-overflow-tips
               >
                 <span
-                  class='tag-item-key'
                   key={`key__${index}`}
+                  class='tag-item-key'
                 >
                   {item.key}
                 </span>
                 &nbsp;:&nbsp;
                 <span
-                  class='tag-item-val'
                   key={`val__${index}`}
+                  class='tag-item-val'
                 >
                   {item.value}
                 </span>
@@ -214,7 +213,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
               e.stopPropagation();
               this.handleCopyText(val.value);
             }}
-          ></i>
+          />
         )}
       </div>
     );
@@ -224,14 +223,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
     if (!item.url || this.readonly) return;
     if (item.target === 'self') {
       const route = this.$router.resolve({
-        path: item.url
+        path: item.url,
       });
       if (route.resolved.name === this.$route.name) {
         location.href = route.href;
         location.reload();
       } else {
         this.$router.push({
-          path: item.url
+          path: item.url,
         });
       }
       return;
@@ -250,8 +249,8 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
   statusFormatter(val: ITableItem<'status'>) {
     return (
       <CommonStatus
-        type={val.type}
         text={val.text}
+        type={val.type}
       />
     );
   }
@@ -262,14 +261,15 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
         {<div>{val.label}</div>}
         <bk-progress
           class={['common-progress-color', `color-${val.status}`]}
-          showText={false}
           percent={Number((val.value * 0.01).toFixed(2)) || 0}
-        ></bk-progress>
+          showText={false}
+          size='small'
+        />
       </div>
     );
   }
   // 常用值格式化
-  commonFormatter(val: IDetailValItem<'string'> | IDetailValItem<'number'>, item: IDetailItem) {
+  commonFormatter(val: IDetailValItem<'number'> | IDetailValItem<'string'>, item: IDetailItem) {
     const text = `${val ?? ''}`;
     return (
       <div class='common-detail-text'>
@@ -288,7 +288,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
               e.stopPropagation();
               this.handleCopyText(text);
             }}
-          ></i>
+          />
         )}
       </div>
     );
@@ -383,14 +383,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           {/* 运营状态 */}
           {this.statusData[this.targetStatusName[0]] && (
             <div
-              class={['status-item', `bg-failed`]}
+              class={['status-item', 'bg-failed']}
               v-bk-tooltips={{
                 content: this.$t('主机当前状态'),
                 delay: 200,
-                boundary: 'window'
+                boundary: 'window',
               }}
             >
-              <i class={`icon-monitor ${this.maintainStatusIcon}`}></i>
+              <i class={`icon-monitor ${this.maintainStatusIcon}`} />
               <span class='text'>{this.maintainStatusText}</span>
             </div>
           )}
@@ -399,12 +399,12 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
             <div
               class={[
                 'status-item',
-                `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`
+                `bg-${(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type}`,
               ]}
               v-bk-tooltips={{
                 content: this.$t('采集状态'),
                 delay: 200,
-                boundary: 'window'
+                boundary: 'window',
               }}
             >
               <span class={['common-status-wrap', 'status-wrap-flex']}>
@@ -413,9 +413,9 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                     'status-icon',
                     `status-${
                       (this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.type || 'disabled'
-                    }`
+                    }`,
                   ]}
-                ></span>
+                />
                 <span class='common-status-name'>
                   {(this.statusData[this.targetStatusName[1]]?.value as IStatusDataSubValue)?.text}
                 </span>
@@ -424,19 +424,19 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           )}
         </div>
         <bk-collapse
-          v-model={this.activeCollapseName}
           class='detail-collapse-title'
+          v-model={this.activeCollapseName}
         >
           {this.labelListData.map(item => (
-            <div>
+            <div key={item.name}>
               <bk-collapse-item
-                name={item.name}
                 hide-arrow={!item?.children?.length}
+                name={item.name}
               >
                 <div
-                  class='panel-item'
-                  style={{ maxWidth: `${this.width}px` }}
                   key={item.name}
+                  style={{ maxWidth: `${this.width}px` }}
+                  class='panel-item'
                 >
                   <span class={['item-title', { 'title-middle': ['progress'].includes(item.type) }]}>{item.name}</span>
                   <span class='item-value'>{this.handleTransformVal(item)}</span>
@@ -448,11 +448,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                 </div>
                 {item?.count > 0 && (
                   <div
-                    slot='content'
                     class='detail-collapse-content'
+                    slot='content'
                   >
                     {item?.children?.map?.(child => (
-                      <div class='row'>
+                      <div
+                        key={child.name}
+                        class='row'
+                      >
                         <div class='label-container'>
                           <span class='label'>{child.name}</span>
                           <span>&nbsp;:</span>
@@ -461,7 +464,14 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
                           {child.type === 'string' && <div class='value'>{child.value}</div>}
                           {child.type === 'list' &&
                             Array.isArray(child?.value) &&
-                            child?.value?.map?.(s => <div class='value'>{s}</div>)}
+                            child?.value?.map?.(s => (
+                              <div
+                                key={s}
+                                class='value'
+                              >
+                                {s}
+                              </div>
+                            ))}
                         </div>
                       </div>
                     ))}
@@ -474,7 +484,7 @@ export default class HostDetailView extends tsc<IProps, IEvents> {
           {/* 所属模块 */}
           {(this.moduleData as IDetailItem[]).map(item => (
             <div key={item.name}>
-              {this.targetListName.includes(textMapping[item.name]) && <div class='divider'></div>}
+              {this.targetListName.includes(textMapping[item.name]) && <div class='divider' />}
               <div class='module-data-panel-item'>
                 <div class={['module-data-item-title']}>{item.name}</div>
                 <div class='module-data-item-value'>{this.handleTransformVal(item)}</div>

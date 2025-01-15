@@ -26,6 +26,7 @@ import operator
 import typing
 from collections import defaultdict
 
+from django.conf import settings
 from elasticsearch_dsl import A, Search
 
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
@@ -89,7 +90,7 @@ class AggsHandlers(AggsBase):
         )
         s = s.extra(size=0)
         query_data.update(s.to_dict())
-        return SearchHandlerEsquery(index_set_id, query_data).search(search_type=None)
+        return SearchHandlerEsquery(index_set_id, query_data, only_for_agg=True).search(search_type=None)
 
     @classmethod
     def _build_terms_aggs(cls, s: Search, fields: list, size: int, order: dict) -> Search:
@@ -172,7 +173,7 @@ class AggsHandlers(AggsBase):
         interval = query_data.get("interval")
 
         # 生成起止时间
-        time_zone = get_local_param("time_zone")
+        time_zone = get_local_param("time_zone", settings.TIME_ZONE)
         start_time, end_time = generate_time_range(
             query_data.get("time_range"), query_data.get("start_time"), query_data.get("end_time"), time_zone
         )
@@ -219,7 +220,7 @@ class AggsHandlers(AggsBase):
         query_data.update(s.to_dict())
         logger.info(query_data)
 
-        result = SearchHandlerEsquery(index_set_id, query_data).search(search_type=None)
+        result = SearchHandlerEsquery(index_set_id, query_data, only_for_agg=True).search(search_type=None)
         if time_field_type != TimeFieldTypeEnum.DATE.value:
             buckets = result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
             time_multiplicator = 1 / (10**3)

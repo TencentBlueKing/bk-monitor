@@ -22,16 +22,18 @@ the project delivered to anyone in the future.
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 
-from apps.exceptions import ValidationError
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFULT_FILTER_NOT_CLUSTERING_OPERATOR,
-    ActionEnum,
     OwnerConfigEnum,
     PatternEnum,
+    RegexRuleTypeEnum,
     RemarkConfigEnum,
+    StrategiesAlarmLevelEnum,
+    StrategiesType,
 )
 from apps.utils.drf import DateTimeFieldWithEpoch
+from bkm_space.serializers import SpaceUIDField
 
 
 class PatternSearchSerlaizer(serializers.Serializer):
@@ -42,7 +44,7 @@ class PatternSearchSerlaizer(serializers.Serializer):
     time_range = serializers.CharField(required=False, default="customized")
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     size = serializers.IntegerField(required=False, default=10000)
-    pattern_level = serializers.ChoiceField(required=True, choices=PatternEnum.get_choices())
+    pattern_level = serializers.CharField(default=PatternEnum.LEVEL_05)
     show_new_pattern = serializers.BooleanField(required=True)
     year_on_year_hour = serializers.IntegerField(required=False, default=0, min_value=0)
     group_by = serializers.ListField(required=False, default=[])
@@ -73,34 +75,25 @@ class FilerRuleSerializer(serializers.Serializer):
 
 
 class ClusteringConfigSerializer(serializers.Serializer):
-    collector_config_id = serializers.IntegerField(required=False, allow_null=True, default=0)
-    collector_config_name_en = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    index_set_id = serializers.IntegerField()
-    min_members = serializers.IntegerField(required=False, default=1, allow_null=True)
-    max_dist_list = serializers.CharField(max_length=128, required=False, allow_null=True, allow_blank=True)
-    predefined_varibles = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    delimeter = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    max_log_length = serializers.IntegerField(required=False, allow_null=True, default=100)
-    is_case_sensitive = serializers.IntegerField(required=False, allow_null=True, default=1)
-    clustering_fields = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     bk_biz_id = serializers.IntegerField()
-    filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False, default=[])
-    signature_enable = serializers.BooleanField(default=False)
+    clustering_fields = serializers.CharField()
+    filter_rules = serializers.ListField(child=FilerRuleSerializer(), required=False)
+    min_members = serializers.IntegerField(required=False)
+    predefined_varibles = serializers.CharField(required=False, allow_blank=True)
+    delimeter = serializers.CharField(required=False, allow_blank=True)
+    max_log_length = serializers.IntegerField(required=False)
+    is_case_sensitive = serializers.IntegerField(required=False)
+    new_cls_strategy_enable = serializers.BooleanField(default=False)
+    normal_strategy_enable = serializers.BooleanField(default=False)
+    regex_rule_type = serializers.ChoiceField(
+        choices=RegexRuleTypeEnum.get_choices(), default=RegexRuleTypeEnum.CUSTOMIZE.value
+    )
+    regex_template_id = serializers.IntegerField(default=0)
 
 
-class InputDataSerializer(serializers.Serializer):
-    dtEventTimeStamp = serializers.IntegerField()
-    log = serializers.CharField()
-
-
-class ClusteringPreviewSerializer(serializers.Serializer):
-    input_data = serializers.ListField(child=InputDataSerializer())
-    min_members = serializers.IntegerField()
-    max_dist_list = serializers.CharField()
+class ClusteringDebugSerializer(serializers.Serializer):
+    input_data = serializers.CharField()
     predefined_varibles = serializers.CharField()
-    delimeter = serializers.CharField()
-    max_log_length = serializers.IntegerField()
-    is_case_sensitive = serializers.IntegerField()
 
 
 class SetRemarkSerializer(serializers.Serializer):
@@ -138,34 +131,29 @@ class UpdateGroupFieldsSerializer(serializers.Serializer):
     group_fields = serializers.ListField(child=serializers.CharField(), allow_empty=True, default=list)
 
 
-class UpdateStrategyAction(serializers.Serializer):
-    signature = serializers.CharField()
-    pattern = serializers.CharField(allow_blank=True, allow_null=True)
-    strategy_id = serializers.IntegerField(required=False)
-    action = serializers.ChoiceField(required=True, choices=ActionEnum.get_choices())
-    operator = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
+class UserGroupsSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    ids = serializers.ListField(child=serializers.IntegerField(), label=_("用户组ID"), required=False, default=[])
 
 
-class UpdateStrategiesSerializer(serializers.Serializer):
-    pattern_level = serializers.ChoiceField(required=True, choices=PatternEnum.get_choices())
-    bk_biz_id = serializers.IntegerField()
-    actions = serializers.ListField(child=UpdateStrategyAction())
+class StrategySerializer(serializers.Serializer):
+    level = serializers.ChoiceField(label=_("告警级别"), choices=StrategiesAlarmLevelEnum.get_choices())
+    user_groups = serializers.ListField(child=serializers.IntegerField(), label=_("告警组"))
 
 
-class UpdateNewClsStrategySerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField()
-    action = serializers.ChoiceField(required=True, choices=ActionEnum.get_choices())
-    operator = serializers.CharField(required=False)
-    value = serializers.CharField(required=False)
-    strategy_id = serializers.IntegerField(required=False)
+class NewClsStrategySerializer(StrategySerializer):
+    interval = serializers.IntegerField(label=_("告警间隔"))
+    threshold = serializers.IntegerField(label=_("告警阈值"))
 
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
 
-        if attrs["action"] == ActionEnum.DELETE.value and not attrs.get("strategy_id"):
-            raise ValidationError(_("删除操作时需要提供对应strategy_id"))
-        return attrs
+class StrategyTypeSerializer(serializers.Serializer):
+    strategy_type = serializers.ChoiceField(
+        label=_("告警策略"), choices=[StrategiesType.NEW_CLS_strategy, StrategiesType.NORMAL_STRATEGY]
+    )
+
+
+class NormalStrategySerializer(StrategySerializer):
+    sensitivity = serializers.IntegerField(label=_("敏感度"))
 
 
 class SubscriberSerializer(serializers.Serializer):
@@ -250,3 +238,12 @@ class SendReportSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(label="结束时间", required=False, default=None, allow_null=True)
     is_manager_created = serializers.BooleanField(required=False, default=False)
     is_enabled = serializers.BooleanField(required=False, default=True)
+
+
+class CreateRegexTemplateSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    template_name = serializers.CharField(required=True)
+
+
+class UpdateRegexTemplateSerializer(serializers.Serializer):
+    template_name = serializers.CharField(required=True)

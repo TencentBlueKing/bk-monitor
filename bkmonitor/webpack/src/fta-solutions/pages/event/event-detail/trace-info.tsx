@@ -25,18 +25,19 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { errorListByTraceIds } from 'monitor-api/modules/apm_metric';
 import { traceListById } from 'monitor-api/modules/apm_trace';
 import bus from 'monitor-common/utils/event-bus';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import { IFilterDict, ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
 import { formatDuration } from '../../../../trace/components/trace-view/utils/date';
-
 import { createAutoTimerange } from './aiops-chart';
-import { IDetail } from './type';
+
+import type { IDetail } from './type';
+import type { IFilterDict, ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './trace-info.scss';
 
@@ -45,7 +46,7 @@ const traceTableColumns: ITableColumn[] = [
   { id: 'span_id', name: 'spanid', type: 'string' },
   { id: 'status_code', name: window.i18n.tc('状态'), type: 'scoped_slots' },
   { id: 'elapsed_time', name: window.i18n.tc('耗时'), type: 'string', sortable: 'custom' },
-  { id: 'url', name: window.i18n.tc('操作'), type: 'scoped_slots' }
+  { id: 'url', name: window.i18n.tc('操作'), type: 'scoped_slots' },
 ];
 
 interface IProps {
@@ -68,7 +69,7 @@ export default class TraceInfo extends tsc<IProps> {
   traceTablePagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
 
   /* 错误列表数据 */
@@ -77,12 +78,12 @@ export default class TraceInfo extends tsc<IProps> {
     data: [],
     filter: [],
     check_filter: [],
-    total: 0
+    total: 0,
   };
   errDataPagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   errDataParams: {
     filterDict: IFilterDict;
@@ -91,7 +92,7 @@ export default class TraceInfo extends tsc<IProps> {
   } = {
     filterDict: {},
     sortKey: '',
-    filter: 'all'
+    filter: 'all',
   };
   errLoading = false;
 
@@ -132,7 +133,7 @@ export default class TraceInfo extends tsc<IProps> {
       bk_biz_id: this.detail.bk_biz_id,
       trace_ids: this.traceIds,
       start_time: this.startTime,
-      end_time: this.endTime
+      end_time: this.endTime,
     })
       .then(data => {
         this.alltraceIdTable = data.map(item => ({
@@ -141,7 +142,7 @@ export default class TraceInfo extends tsc<IProps> {
           status_code: item.status_code,
           url: item.url,
           elapsedTime: item.root_span.elapsed_time,
-          elapsed_time: formatDuration(item.root_span.elapsed_time)
+          elapsed_time: formatDuration(item.root_span.elapsed_time),
         }));
         this.traceIdSortTable = [...this.alltraceIdTable];
         this.traceTablePagination.count = this.alltraceIdTable.length;
@@ -206,13 +207,13 @@ export default class TraceInfo extends tsc<IProps> {
       keyword: '',
       page: this.errDataPagination.current,
       page_size: this.errDataPagination.limit,
-      sort: this.errDataParams.sortKey
+      sort: this.errDataParams.sortKey,
     }).catch(() => ({
       columns: [],
       data: [],
       filter: [],
       check_filter: [],
-      total: 0
+      total: 0,
     }));
     /* 将type: link target: self 数据个更改为target: target */
     const linkSlefColumns = [];
@@ -232,7 +233,7 @@ export default class TraceInfo extends tsc<IProps> {
           obj[key] = {
             ...targetItem,
             target: 'target',
-            url: `${location.origin}${location.pathname}${location.search}#/apm${targetItem.url}`
+            url: `${location.origin}${location.pathname}${location.search}#/apm${targetItem.url}`,
           };
         } else {
           obj[key] = targetItem;
@@ -242,7 +243,7 @@ export default class TraceInfo extends tsc<IProps> {
     });
     this.errData = {
       ...errData,
-      data: curData
+      data: curData,
     };
     this.errDataPagination.count = errData.total;
     if (!isInit) this.errLoading = false;
@@ -295,13 +296,6 @@ export default class TraceInfo extends tsc<IProps> {
           <div class='info-title'>{`Traceid ${this.$t('列表')}`}</div>
           <CommonTable
             class='trace-table'
-            columns={traceTableColumns}
-            checkable={false}
-            data={this.traceIdTable}
-            pagination={this.traceTablePagination}
-            onSortChange={this.handleSortChange}
-            onPageChange={this.handletTracePageChange}
-            onLimitChange={this.handletTraceLimitChange}
             scopedSlots={{
               trace_id: row => (
                 <span
@@ -324,9 +318,16 @@ export default class TraceInfo extends tsc<IProps> {
                 >
                   {this.$t('检索')}
                 </span>
-              )
+              ),
             }}
-          ></CommonTable>
+            checkable={false}
+            columns={traceTableColumns}
+            data={this.traceIdTable}
+            pagination={this.traceTablePagination}
+            onLimitChange={this.handletTraceLimitChange}
+            onPageChange={this.handletTracePageChange}
+            onSortChange={this.handleSortChange}
+          />
         </div>
         <div
           class='err-info'
@@ -339,21 +340,21 @@ export default class TraceInfo extends tsc<IProps> {
               needAll={false}
               statusList={this.errData.filter}
               onChange={this.handleErrDataStatusChange}
-            ></StatusTab>
+            />
           </div>
           <CommonTable
             class='err-table'
             checkable={false}
-            data={this.errData.data}
             columns={this.errData.columns}
+            data={this.errData.data}
             defaultSize='small'
-            paginationType='simple'
             pagination={this.errDataPagination}
-            onSortChange={this.handleErrDataSortChange}
+            paginationType='simple'
+            onFilterChange={this.handleErrDataFilterChange}
             onLimitChange={this.handleErrDataLimitChange}
             onPageChange={this.handleErrDataPageChange}
-            onFilterChange={this.handleErrDataFilterChange}
-          ></CommonTable>
+            onSortChange={this.handleErrDataSortChange}
+          />
           {/* <div class="info-bottom">
           <span>当前仅显示5条数据</span>
           <span class="link">

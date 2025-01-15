@@ -25,7 +25,7 @@ from django.db import models
 from django.db.models import Count, Q
 from django.db.models.query import QuerySet
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from humanize import naturaldelta
 
 from bkmonitor.models.bcs_label import BCSLabel
@@ -182,6 +182,7 @@ class BCSBase(models.Model):
                 "checked": True,
                 "sortable": True,
                 "sortable_type": "progress",
+                "header_pre_icon": "icon-avg",
             },
             {
                 "id": "request_memory_usage_ratio",
@@ -200,6 +201,7 @@ class BCSBase(models.Model):
                 "checked": True,
                 "sortable": True,
                 "sortable_type": "progress",
+                "header_pre_icon": "icon-avg",
             },
         ]
 
@@ -249,9 +251,17 @@ class BCSBase(models.Model):
         """获得资源的标签hash_id ."""
         has_ids = []
         for item in items:
-            if not item.id:
+            if isinstance(item, dict):
+                item_id = item.get("id")
+                item_labels = item.get("api_labels", {})
+            else:
+                item_id = item.id
+                item_labels = item.api_labels
+
+            if not item_id:
                 continue
-            for k, v in item.api_labels.items():
+
+            for k, v in item_labels.items():
                 if k in IGNORE_LABEL_KEYS:
                     continue
                 hash_id = cls.md5str(k + ":" + v)
@@ -278,15 +288,25 @@ class BCSBase(models.Model):
 
         # 批量添加标签
         for item in items:
-            if not item.id:
+            if isinstance(item, dict):
+                item_id = item.get("id")
+                item_labels = item.get("api_labels", {})
+                bcs_cluster_id = item.get("bcs_cluster_id")
+            else:
+                item_id = item.id
+                item_labels = item.api_labels
+                bcs_cluster_id = item.bcs_cluster_id
+
+            if not item_id:
                 continue
-            for k, v in item.api_labels.items():
+
+            for k, v in item_labels.items():
                 if k in IGNORE_LABEL_KEYS:
                     continue
-                bcs_cluster_id_list.append(item.bcs_cluster_id)
+                bcs_cluster_id_list.append(bcs_cluster_id)
                 # 获得标签hash值
                 hash_id = cls.md5str(k + ":" + v)
-                resource_id_map_hash_ids.setdefault((item.id, item.bcs_cluster_id), []).append(hash_id)
+                resource_id_map_hash_ids.setdefault((item_id, bcs_cluster_id), []).append(hash_id)
                 # 需要新增的标签
                 if hash_id in hash_id_created:
                     bulk_create_label_list.append(BCSLabel(hash_id=hash_id, key=k, value=v))
@@ -294,7 +314,7 @@ class BCSBase(models.Model):
             try:
                 BCSLabel.objects.bulk_create(bulk_create_label_list, 200)
             except Exception as exc_info:
-                logger.exception(exc_info)
+                logger.warning(f"bulk_create_label_list, exc_info: {exc_info}")
 
         # 获得中间表远程唯一性数据
         new_resource_label_hash_set = {
@@ -553,11 +573,11 @@ class BCSBase(models.Model):
             )
         return label_list
 
-    def render_age(self, bk_biz_id, render_type="list"):
+    def render_age(self, bk_biz_id, render_type="list") -> Optional[str]:
         if isinstance(self.created_at, timezone.datetime):
             return naturaldelta(datetime.utcnow().replace(tzinfo=timezone.utc) - self.created_at)
 
-    def render_labels(self, bk_biz_id, render_type="list"):
+    def render_labels(self, bk_biz_id, render_type="list") -> Dict:
         if self.api_labels:
             return self.api_labels
         elif self.id:
@@ -568,7 +588,7 @@ class BCSBase(models.Model):
     def render_label_list(self, bk_biz_id, render_type="list"):
         return self.get_label_list()
 
-    def render_monitor_status(self, bk_biz_id, render_type="list"):
+    def render_monitor_status(self, bk_biz_id, render_type="list") -> Dict:
         if self.monitor_status == self.METRICS_STATE_STATE_SUCCESS:
             result = {
                 "type": self.METRICS_STATE_STATE_SUCCESS,
@@ -713,8 +733,17 @@ class BCSBase(models.Model):
             usage_data = usage["data"]
             usage_key = "resource_usage_" + usage_type
             for item in usage_data:
-                key = ".".join([item[group_key] for group_key in group_by])
-                keys = {group_key: item[group_key] for group_key in group_by}
+                keys = {}
+                for group_key in group_by:
+                    if group_key not in item:
+                        break
+                    keys[group_key] = item[group_key]
+
+                # 如果缺少某个分组字段，跳过
+                if len(keys) != len(group_by):
+                    continue
+
+                key = ".".join(keys.values())
                 # 获得旧的值
                 data_item = data.get(
                     key,
@@ -816,17 +845,20 @@ class BCSBase(models.Model):
 
     @classmethod
     def convert_up_code_to_monitor_status(cls, code_list: List) -> str:
+        Code = BkmMetricbeatEndpointUpStatus
         code_set = set(code_list)
-        if code_set == {BkmMetricbeatEndpointUpStatus.statusOK}:
+        if code_set.issubset(
+            {
+                Code.BeatErrCodeOK,
+                Code.BeatScriptPromFormatOuterError,
+                Code.BeatMetricBeatPromFormatOuterError,
+            }
+        ):
             # 全部成功
             monitor_status = cls.METRICS_STATE_STATE_SUCCESS
-        elif BkmMetricbeatEndpointUpStatus.statusOK in code_set:
-            # 部分成功
-            monitor_status = cls.METRICS_STATE_FAILURE
         else:
-            # 全部失败
-            monitor_status = cls.METRICS_STATE_DISABLED
-
+            # 有失败的状态码
+            monitor_status = cls.METRICS_STATE_FAILURE
         return monitor_status
 
     @classmethod

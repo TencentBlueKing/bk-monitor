@@ -36,24 +36,26 @@
     <div
       v-else
       class="text-chart-empty"
-    >--</div>
+    >
+      --
+    </div>
   </div>
 </template>
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
-import { ITextSeries } from '../options/type-interface';
+import type { ITextSeries } from '../options/type-interface';
 
 @Component({
-  name: 'TextChart'
+  name: 'TextChart',
 })
 export default class TextChart extends Vue {
   @Prop({
     default() {
       return {};
-    }
+    },
   })
-    series: ITextSeries;
+  series: ITextSeries;
 }
 </script>
 <style lang="scss" scoped>

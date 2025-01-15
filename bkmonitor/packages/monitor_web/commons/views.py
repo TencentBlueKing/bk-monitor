@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 from bkm_ipchooser.views import (  # noqa
     IpChooserConfigViewSet,
+    IpChooserDynamicGroupViewSet,
     IpChooserHostViewSet,
     IpChooserServiceInstanceViewSet,
     IpChooserTemplateViewSet,

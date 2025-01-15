@@ -1,3 +1,33 @@
+.chart-base-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+
+  .chart-restore {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 20px;
+    font-size: 12px;
+    border: 1px solid #c4c6cc;
+    border-radius: 2px;
+
+    &:hover {
+      color: #63656e;
+      cursor: pointer;
+      border-color: #979ba5;
+    }
+  }
+}
+
 .chart-base {
   display: flex;
   width: 100%;

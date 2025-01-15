@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { inject, InjectionKey, provide } from 'vue';
+import { type InjectionKey, inject, provide } from 'vue';
 
 export const APP_READONLY_KEY: InjectionKey<boolean> = Symbol('APP_READONLY_KEY');
 export const useAppReadonlyProvider = (data: boolean) => {

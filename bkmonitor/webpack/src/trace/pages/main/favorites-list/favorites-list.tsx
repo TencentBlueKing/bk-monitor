@@ -23,10 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, onBeforeUnmount, onMounted, PropType, reactive, ref, toRefs, watch } from 'vue';
+import {
+  type PropType,
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  toRefs,
+  watch,
+} from 'vue';
+
 import { debounce, deepClone } from 'monitor-common/utils/utils';
 
-import { IFavList, IFavoriteItem } from '../../../typings';
+import type { IFavList, IFavoriteItem } from '../../../typings';
 
 import './favorites-list.scss';
 
@@ -39,12 +50,12 @@ interface IState {
 const IProps = {
   value: {
     type: Array as PropType<IFavoriteItem[]>,
-    default: () => []
+    default: () => [],
   },
   checkedValue: {
     type: Object,
-    defalut: () => ({})
-  }
+    defalut: () => ({}),
+  },
 };
 
 export default defineComponent({
@@ -58,7 +69,7 @@ export default defineComponent({
       /** 展开更多 */
       isExpand: false,
       /** 允许过多滚动 */
-      allowScroll: false
+      allowScroll: false,
     });
     const favMain = ref<HTMLDivElement>();
     const scroll = ref<HTMLDivElement>();
@@ -155,7 +166,7 @@ export default defineComponent({
       const listWidth = list.offsetWidth;
       let totalWidth = 0;
       await nextTick();
-      // eslint-disable-next-line no-restricted-syntax
+
       for (const i in childs) {
         const item = childs[i] as HTMLDivElement;
         if (!item.className || item.className.indexOf('fav-list-item') === -1) continue;
@@ -199,7 +210,7 @@ export default defineComponent({
       favoritesList,
       handleSelectFav,
       handleDeleteItem,
-      favListRef
+      favListRef,
     };
   },
 
@@ -207,24 +218,24 @@ export default defineComponent({
     return (
       <div
         ref='favoritesList'
-        tabindex={-1}
         class={['favorites-list-wrap', { 'is-expand': this.isExpand }]}
+        tabindex={-1}
         onBlur={() => this.handleFavoriteBlur()}
         onClick={() => this.handleExpandMore()}
       >
         <div
-          class='fav-main'
           ref='favMain'
+          class='fav-main'
         >
-          <div class='box-shadow'></div>
+          <div class='box-shadow' />
           <span class='fav-label'>{this.$t('收藏')}</span>
           <div
             ref='scroll'
             class={['fav-list-wrap', { 'allow-scroll': this.allowScroll && this.isExpand }]}
           >
             <ul
-              class='fav-list'
               ref='favListRef'
+              class='fav-list'
             >
               {this.localValue.map((item, index) => (
                 <li
@@ -247,5 +258,5 @@ export default defineComponent({
         </div>
       </div>
     );
-  }
+  },
 });

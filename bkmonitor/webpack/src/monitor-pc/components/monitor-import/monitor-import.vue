@@ -31,10 +31,10 @@
     <slot>{{ $t('导入') }}</slot>
     <input
       ref="fileInput"
-      type="file"
       :accept="accept"
+      type="file"
       @input="handleInput"
-    >
+    />
   </span>
 </template>
 <script lang="ts">
@@ -63,7 +63,7 @@ export default class MonitorExport extends Vue {
     const [file] = Array.from(event.target.files);
     const fileName = file.name;
     let contents = {};
-    await new Promise((resolve) => {
+    await new Promise(resolve => {
       const reader = new FileReader();
       reader.onload = (e: { target: any }) => {
         try {
@@ -71,7 +71,7 @@ export default class MonitorExport extends Vue {
             contents = {
               name: fileName,
               fileStr: e.target.result,
-              size: file.size
+              size: file.size,
             };
           } else {
             contents = e.target.result;
@@ -97,13 +97,14 @@ export default class MonitorExport extends Vue {
 .monitor-import {
   position: relative;
   cursor: pointer;
+
   input[type='file'] {
+    position: absolute;
+    top: 0;
+    left: 0;
     display: none;
     width: 100%;
     height: 100%;
-    position: absolute;
-    left: 0;
-    top: 0;
     cursor: pointer;
     opacity: 0;
   }

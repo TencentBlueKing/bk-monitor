@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 from urllib import parse
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from blueapps.account import ConfFixture
 from blueapps.account.decorators import login_exempt
@@ -25,7 +25,7 @@ from django.test import RequestFactory
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 from django.utils.decorators import method_decorator
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
@@ -35,17 +35,25 @@ from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
 from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
+from core.drf_resource import resource
 from core.errors.api import BKAPIError
+from fta_web.alert.handlers.alert import ActionInstance
+from fta_web.alert.serializers import ActionInstanceDocument
 from monitor.models import GlobalConfig
 from monitor_web.iam.resources import CallbackResource
 from packages.monitor_web.new_report.resources import ReportCallbackResource
 
 
 def user_exit(request):
+    def add_logout_slug():
+        return {"is_from_logout": "1"}
+
+    # 退出登录
     logout(request)
     # 验证不通过，需要跳转至统一登录平台
     request.path = request.path.replace("logout", "")
     handler = ResponseHandler(ConfFixture, settings)
+    handler._build_extra_args = add_logout_slug
     return handler.build_401_response(request)
 
 
@@ -64,9 +72,28 @@ def event_center_proxy(request):
     pc_url = "/?bizId={bk_biz_id}&routeHash=event-center/?collectId={collect_id}"
     collect_id = request.GET.get("collectId")
     bk_biz_id = request.GET.get("bizId")
+    proxy_type = request.GET.get("type", "event")
     batch_action = request.GET.get("batchAction")
     if not (collect_id and bk_biz_id):
         return HttpResponseNotFound(_("无效的告警事件链接"))
+
+    if proxy_type == "query" and not request.is_mobile():
+        # 提取告警ID
+        action = ActionInstanceDocument.get(collect_id)
+        if action:
+            alert_ids = action.alert_id
+        else:
+            alert_ids = ActionInstance.objects.get(id=str(collect_id)[10:]).alerts
+
+        # 如果没有告警ID，直接跳转到数据检索页
+        if alert_ids:
+            params = resource.alert.get_alert_data_retrieval(alert_id=alert_ids[0])
+            if params:
+                if params["type"] == "metric":
+                    params_str = urlencode({"targets": json.dumps(params["params"], ensure_ascii=False)})
+                    query_url = f"/?bizId={bk_biz_id}#/data-retrieval?{params_str}"
+                    return redirect(query_url)
+
     redirect_url = rio_url if request.is_mobile() else pc_url
     if batch_action:
         redirect_url = f"{redirect_url}&batchAction={batch_action}"
@@ -108,8 +135,6 @@ def external(request):
             cc_biz_id = space.bk_biz_id
         except BKAPIError as e:
             logger.exception(f"获取空间信息({request.GET['space_uid']})失败：{e}")
-            if settings.DEMO_BIZ_ID:
-                cc_biz_id = settings.DEMO_BIZ_ID
     else:
         cc_biz_id = request.GET.get("bizId") or request.session.get("bk_biz_id") or request.COOKIES.get("bk_biz_id")
         if not cc_biz_id:
@@ -141,7 +166,7 @@ def external(request):
     response = render(
         request,
         "external/index.html",
-        {"cc_biz_id": cc_biz_id, "external_user": external_user, "BK_BIZ_IDS": biz_id_list},
+        {"cc_biz_id": cc_biz_id, "external_user": external_user, "BK_BIZ_IDS": list(biz_id_list)},
     )
     response.set_cookie("bk_biz_id", str(cc_biz_id))
     return response
@@ -212,9 +237,13 @@ def dispatch_external_proxy(request):
             f"dispatch_plugin_query: request:{request}, user:{request.user},"
             f" external_user: {external_user}, bk_biz_id: {bk_biz_id}"
         )
-        # 处理grafana接口请求头携带组织ID
-        if request.META.get("HTTP_X_GRAFANA_ORG_ID"):
-            fake_request.META["HTTP_X_GRAFANA_ORG_ID"] = request.META["HTTP_X_GRAFANA_ORG_ID"]
+        # 处理grafana接口请求头，TC适配腾讯云数据源，DS适配数据源鉴权参数
+        meta_prefixs = ["HTTP_X_TC", "HTTP_X_DS", "HTTP_X_GRAFANA"]
+        for key, value in request.META.items():
+            key = key.upper()
+            if any(key.startswith(prefix) for prefix in meta_prefixs):
+                fake_request.META[key] = value
+
         # 绕过csrf鉴权
         setattr(fake_request, "csrf_processing_done", True)
         setattr(request, "csrf_processing_done", True)

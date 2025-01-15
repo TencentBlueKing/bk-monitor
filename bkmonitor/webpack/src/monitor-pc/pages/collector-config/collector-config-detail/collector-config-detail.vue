@@ -27,13 +27,13 @@
   <bk-sideslider
     class="collector-config-detail"
     :is-show="sideShow"
-    @update:isShow="handleHidden"
-    :width="900"
     :quick-close="true"
+    :width="900"
+    @update:isShow="handleHidden"
   >
     <div
-      slot="header"
       class="detail-header"
+      slot="header"
     >
       <span
         v-if="!loading && basicInfo"
@@ -56,21 +56,21 @@
       </span>
       <span v-else>{{ $t('加载中...') }}</span>
       <div
-        class="operation"
         v-if="sideData && Object.keys(sideData).length"
+        class="operation"
       >
         <bk-button
           v-if="basicInfo && basicInfo.bk_biz_id === $store.getters.bizId"
-          v-authority="{ active: !authority.MANAGE_AUTH && sideData.status !== 'STOPPED' }"
-          theme="primary"
-          :outline="true"
           style="width: 88px; margin-right: 8px"
+          v-authority="{ active: !authority.MANAGE_AUTH && sideData.status !== 'STOPPED' }"
+          :disabled="sideData.status === 'STOPPED'"
+          :outline="true"
+          theme="primary"
           @click="
             authority.MANAGE_AUTH || sideData.status === 'STOPPED'
               ? sideData.status !== 'STOPPED' && handleToEdit()
               : handleShowAuthorityDetail()
           "
-          :disabled="sideData.status === 'STOPPED'"
         >
           {{ $t('button-编辑') }}
         </bk-button>
@@ -89,16 +89,16 @@
         <span
           v-en-style="'min-width: 120px'"
           class="tab-item"
-          @click="active = 0"
           :class="{ 'tab-active': active === 0 }"
+          @click="active = 0"
         >
           {{ $t('基本信息') }}
         </span>
         <span
           v-en-style="'min-width: 120px'"
           class="tab-item"
-          @click="active = 1"
           :class="{ 'tab-active': active === 1 }"
+          @click="active = 1"
         >
           {{ $t('采集目标') }}
         </span>
@@ -109,26 +109,26 @@
           v-show="active === 0"
         >
           <ul
-            class="basic-info-detail"
             v-if="basicInfo"
+            class="basic-info-detail"
           >
             <li
-              class="detail-item"
               v-for="(item, key) in basicInfoMap"
+              class="detail-item"
               :key="key"
             >
               <div
-                class="detail-item-label"
                 v-en-style="'width: 120px'"
+                class="detail-item-label"
                 :class="{ 'detail-item-name': key === 'name' }"
               >
                 {{ item }}：
               </div>
               <span
                 v-if="key === 'name'"
-                v-authority="{ active: !authority.MANAGE_AUTH }"
-                class="detail-item-val"
                 style="line-height: 32px"
+                class="detail-item-val"
+                v-authority="{ active: !authority.MANAGE_AUTH }"
                 @click="authority.MANAGE_AUTH ? handleEditLabel(key) : handleShowAuthorityDetail()"
               >
                 <span
@@ -138,21 +138,21 @@
                   <span
                     class="config-name"
                     v-bk-tooltips.top="basicInfo[key]"
-                  >{{ basicInfo[key] }}
+                    >{{ basicInfo[key] }}
                   </span>
                   <i
-                    class="icon-monitor icon-bianji col-name-icon"
                     v-if="!input.show"
+                    class="icon-monitor icon-bianji col-name-icon"
                   />
                 </span>
                 <bk-input
                   v-if="input.show"
-                  :ref="'input' + key"
                   style="width: 150px"
-                  :maxlength="50"
                   v-model="input.copyName"
-                  @keydown="handleLabelKey"
                   v-bk-clickoutside="handleTagClickout"
+                  :maxlength="50"
+                  :ref="'input' + key"
+                  @keydown="handleLabelKey"
                 />
               </span>
               <span
@@ -182,10 +182,10 @@
                     {{ basicInfo['plugin_id'] + '(' + basicInfo[key] + ')' }}
                   </span>
                   <i
-                    v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
-                    class="icon-monitor icon-bianji col-name-icon"
-                    style="margin-top: -4px"
                     v-if="!input.show"
+                    style="margin-top: -4px"
+                    class="icon-monitor icon-bianji col-name-icon"
+                    v-authority="{ active: !authority.PLUGIN_MANAGE_AUTH }"
                     @click="handleToEditPlugin"
                   />
                 </template>
@@ -262,6 +262,10 @@
                         <span class="item-name">{{ $t('排除') }}</span>
                         <span class="item-content">{{ basicInfo.exclude_pattern }}</span>
                       </li>
+                      <li class="param-list-item">
+                        <span class="item-name">{{ $t('维度提取') }}</span>
+                        <span class="item-content">{{ basicInfo.extract_pattern }}</span>
+                      </li>
                     </ul>
                   </template>
                   <template v-else>
@@ -285,53 +289,53 @@
             </li>
           </ul>
           <div
-            class="param-label"
             v-if="runtimeParams.length"
+            class="param-label"
           >
             {{ $t('运行参数') }} :
           </div>
           <ul
-            class="param-list"
             v-if="runtimeParams.length"
+            class="param-list"
           >
             <li
-              class="param-list-item"
               v-for="(item, index) in runtimeParams"
+              class="param-list-item"
               :key="index"
             >
               <span class="item-name">{{ item.name }}</span>
               <span
-                class="item-content"
                 v-if="['password', 'encrypt'].includes(item.type)"
+                class="item-content"
               >
                 ******
               </span>
               <span
-                class="item-content"
                 v-else
+                class="item-content"
               >
                 {{ (item.type === 'file' ? item.value.filename : item.value) || '--' }}
               </span>
             </li>
           </ul>
           <div
-            class="metric-label"
             :style="{ marginTop: runtimeParams.length ? '24px' : '14px' }"
+            class="metric-label"
           >
             {{ $t('预览') }} :
           </div>
           <right-panel
-            class="metric-wrap"
-            need-border
             v-for="(table, index) in metricList"
-            @change="handleCollapseChange(index)"
-            :key="index"
+            class="metric-wrap"
             :class="{ 'no-bottom': table.collapse }"
             :collapse="table.collapse"
+            :key="index"
+            need-border
+            @change="handleCollapseChange(index)"
           >
             <div
-              slot="title"
               class="metric-wrap-title"
+              slot="title"
             >
               {{ getTitle(table) }}
             </div>
@@ -341,8 +345,8 @@
               :empty-text="$t('无数据')"
             >
               <bk-table-column
-                :label="$t('指标/维度')"
                 width="150"
+                :label="$t('指标/维度')"
               >
                 <template slot-scope="scope">
                   {{ scope.row.metric === 'metric' ? $t('指标（Metric）') : $t('维度（Dimension）') }}
@@ -365,16 +369,16 @@
                 </template>
               </bk-table-column>
               <bk-table-column
-                :label="$t('类型')"
                 width="80"
+                :label="$t('类型')"
               >
                 <template slot-scope="scope">
                   <span :title="scope.row.type">{{ scope.row.type || '--' }}</span>
                 </template>
               </bk-table-column>
               <bk-table-column
-                :label="$t('单位')"
                 width="100"
+                :label="$t('单位')"
               >
                 <template slot-scope="scope">
                   <span :title="scope.row.unit">{{ scope.row.unit || '--' }}</span>
@@ -390,31 +394,32 @@
           <!-- <right-panel need-border> -->
           <!-- 复制目标 -->
           <div
-            class="copy-target"
             v-if="targetInfo.table_data && targetInfo.table_data.length"
+            class="copy-target"
           >
             <bk-button
               :text="true"
-              theme="primary"
               size="small"
+              theme="primary"
               @click="handleCopyTarget"
-            >{{ $t('复制目标') }}</bk-button>
+              >{{ $t('复制目标') }}</bk-button
+            >
           </div>
           <bk-table
+            v-if="['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(targetInfo.target_node_type)"
             :data="targetInfo.table_data"
             :empty-text="$t('无数据')"
-            v-if="['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(targetInfo.target_node_type)"
           >
             <bk-table-column
-              :label="$t('节点名称')"
               width="140"
+              :label="$t('节点名称')"
               prop="bk_inst_name"
             />
             <bk-table-column
-              :label="basicInfo.target_object_type === 'SERVICE' ? $t('实例数') : $t('主机数')"
-              prop="count"
               width="100"
+              :label="basicInfo.target_object_type === 'SERVICE' ? $t('实例数') : $t('主机数')"
               align="right"
+              prop="count"
             >
               <template slot-scope="scope">
                 <div style="padding-right: 10px">
@@ -430,8 +435,8 @@
                 <template v-if="scope.row.labels.length">
                   <span
                     v-for="(item, index) in scope.row.labels"
-                    :key="index"
                     class="classifiy-label"
+                    :key="index"
                   >
                     <span class="label-name">{{ item.first }}</span>
                     <span class="label-name">{{ item.second }}</span>
@@ -442,20 +447,20 @@
             </bk-table-column>
           </bk-table>
           <bk-table
+            v-else-if="targetInfo.target_node_type === 'INSTANCE'"
             :data="targetInfo.table_data"
             :empty-text="$t('无数据')"
-            v-else-if="targetInfo.target_node_type === 'INSTANCE'"
           >
             <bk-table-column
-              label="IP"
               width="320"
+              label="IP"
               prop="display_name"
               show-overflow-tooltip
             />
             <bk-table-column
+              width="100"
               :label="$t('Agent状态')"
               prop="agent_status"
-              width="100"
             >
               <template slot-scope="scope">
                 <span :style="{ color: scope.row.agent_status === 'normal' ? '#2DCB56' : '#EA3636' }">
@@ -490,18 +495,18 @@ export default {
   name: 'CollectorConfigDetail',
   components: {
     RightPanel,
-    HistoryDialog
+    HistoryDialog,
   },
+  inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
     sideData: {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
-    sideShow: Boolean
+    sideShow: Boolean,
   },
-  inject: ['authority', 'handleShowAuthorityDetail'],
   data() {
     return {
       active: 0,
@@ -519,17 +524,17 @@ export default {
         period: this.$t('采集周期'),
         update_user: this.$t('操作者'),
         update_time: this.$t('最近更新时间'),
-        bk_biz_id: this.$t('所属')
+        bk_biz_id: this.$t('所属'),
       },
       input: {
         show: false,
-        copyName: ''
+        copyName: '',
       },
       name: '',
       matchType: {
         command: this.$t('命令行匹配'),
-        pid: this.$t('PID文件')
-      }
+        pid: this.$t('PID文件'),
+      },
     };
   },
   computed: {
@@ -542,14 +547,14 @@ export default {
         { label: this.$t('创建人'), value: this.basicInfo.create_user || '--' },
         { label: this.$t('创建时间'), value: this.basicInfo.create_time || '--' },
         { label: this.$t('最近更新人'), value: this.basicInfo.update_user || '--' },
-        { label: this.$t('修改时间'), value: this.basicInfo.update_time || '--' }
+        { label: this.$t('修改时间'), value: this.basicInfo.update_time || '--' },
       ];
-    }
+    },
   },
   watch: {
     sideShow(v) {
       v ? this.getDetailData() : this.handleHidden();
-    }
+    },
   },
   created() {
     // this.getDetailData();
@@ -565,8 +570,8 @@ export default {
     getDetailData() {
       if (!this.sideShow) return;
       this.loading = true;
-      frontendCollectConfigDetail({ id: this.sideData.id }, { needMessage: true })
-        .then((data) => {
+      frontendCollectConfigDetail({ id: this.sideData.id })
+        .then(data => {
           const sideDataId = { id: this.sideData.id };
           this.basicInfo = { ...data.basic_info, ...sideDataId };
           if (data.extend_info.log) {
@@ -577,16 +582,16 @@ export default {
               log_path: this.$t('日志路径'),
               filter_patterns: this.$t('排除规则'),
               rules: this.$t('关键字规则'),
-              charset: this.$t('日志字符集')
+              charset: this.$t('日志字符集'),
             };
           }
           if (data.extend_info.process) {
-            const { process } = data.extend_info;
+            const { process: processInfo } = data.extend_info;
             this.basicInfoMap = {
               ...this.basicInfoMap,
               match: this.$t('进程匹配'),
               process_name: this.$t('进程名'),
-              port_detect: this.$t('端口探测')
+              port_detect: this.$t('端口探测'),
             };
             const {
               match_type: matchType,
@@ -594,16 +599,18 @@ export default {
               port_detect: portDetect,
               match_pattern: matchPattern,
               exclude_pattern: excludePattern,
-              pid_path: pidPath
-            } = process;
+              extract_pattern: extractPattern,
+              pid_path: pidPath,
+            } = processInfo;
             this.basicInfo = {
               ...this.basicInfo,
               match: matchType,
               match_pattern: matchPattern,
               exclude_pattern: excludePattern,
+              extract_pattern: extractPattern,
               pid_path: pidPath,
               process_name: processName || '--',
-              port_detect: `${portDetect}`
+              port_detect: `${portDetect}`,
             };
           }
           data.metric_list.forEach((item, index) => {
@@ -615,10 +622,10 @@ export default {
           this.input.copyName = data.basic_info.name;
           this.name = data.basic_info.name;
         })
-        .catch((err) => {
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message || this.$t('获取数据出错了')
+            message: err.message || this.$t('获取数据出错了'),
           });
           this.$emit('set-hide', false);
         })
@@ -669,13 +676,13 @@ export default {
           this.$emit('update-name', data.id, copyName);
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('修改成功')
+            message: this.$t('修改成功'),
           });
         })
-        .catch((err) => {
+        .catch(err => {
           this.$bkMessage({
             theme: 'error',
-            message: err.message || this.$t('发生错误了')
+            message: err.message || this.$t('发生错误了'),
           });
         })
         .finally(() => {
@@ -702,24 +709,24 @@ export default {
     handleCopyTarget() {
       let copyStr = '';
       if (['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo.target_node_type)) {
-        this.targetInfo.table_data.forEach((item) => {
+        this.targetInfo.table_data.forEach(item => {
           copyStr += `${item.bk_inst_name}\n`;
         });
       } else if (this.targetInfo.target_node_type === 'INSTANCE') {
-        this.targetInfo.table_data.forEach((item) => {
+        this.targetInfo.table_data.forEach(item => {
           copyStr += `${item.display_name || item.ip}\n`;
         });
       }
-      copyText(copyStr, (msg) => {
+      copyText(copyStr, msg => {
         this.$bkMessage({
           message: msg,
-          theme: 'error'
+          theme: 'error',
         });
         return;
       });
       this.$bkMessage({
         message: this.$t('复制成功'),
-        theme: 'success'
+        theme: 'success',
       });
     },
     handleJump() {
@@ -727,24 +734,21 @@ export default {
         name: 'collect-config-view',
         params: {
           id: this.basicInfo.id,
-          title: this.basicInfo.name
+          title: this.basicInfo.name,
         },
         query: {
           name: this.basicInfo.name,
           customQuery: JSON.stringify({
             pluginId: this.basicInfo.pluginId,
-            bizId: this.basicInfo.bk_biz_id
-          })
-        }
+            bizId: this.basicInfo.bk_biz_id,
+          }),
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
-<style
-  lang="scss"
-  scoped
->
+<style lang="scss" scoped>
 .collector-config-detail {
   .detail-header {
     display: flex;

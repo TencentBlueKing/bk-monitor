@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 export default function (miliseconds = 100, timeoutPropertyName = 'timeoutFn'): MethodDecorator {
-  return function (
-    target: Object,
+  return (
+    target: object,
     propertyKey: string | symbol,
     descriptor: TypedPropertyDescriptor<any>
-  ): TypedPropertyDescriptor<any> {
+  ): TypedPropertyDescriptor<any> => {
     Object.defineProperty(target, timeoutPropertyName, {
       value: 0,
-      writable: true
+      writable: true,
     });
-    const originalMethod: Function = descriptor.value;
+    const originalMethod: (...args: any[]) => any = descriptor.value;
 
     descriptor.value = function (...args) {
       if (this[timeoutPropertyName]) clearTimeout(this[timeoutPropertyName]);

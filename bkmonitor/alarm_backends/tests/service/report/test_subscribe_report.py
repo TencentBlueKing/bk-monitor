@@ -3,7 +3,7 @@ import base64
 
 import pytest
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from api.cmdb.define import Business
 from bkmonitor.models import ReportContents
@@ -59,7 +59,7 @@ def report_handler():
 @pytest.fixture()
 def biz_mock(mocker):
     return mocker.patch(
-        "bkmonitor.iam.permission.Permission.filter_business_list_by_action", return_value=[Business(bk_biz_id=2)]
+        "bkmonitor.iam.permission.Permission.filter_space_list_by_action", return_value=[dict(bk_biz_id=2)]
     )
 
 

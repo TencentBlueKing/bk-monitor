@@ -25,6 +25,7 @@
  */
 import { defineComponent, ref, toRefs } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button, Input, Loading, Popover } from 'bkui-vue';
 import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
@@ -33,23 +34,23 @@ import './handle-btn.scss';
 const IProps = {
   loading: {
     type: Boolean,
-    default: false
+    default: false,
   },
   hasFavorite: {
     // 是否需要收藏功能
     type: Boolean,
-    default: false
+    default: false,
   },
   canQuery: {
     // 查询按钮是否可用
     type: Boolean,
-    default: false
+    default: false,
   },
   autoQuery: {
     // 是否开启自动查询
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 };
 
 export default defineComponent({
@@ -81,7 +82,7 @@ export default defineComponent({
       emit('add', {
         value: favDescInput.value,
         hideCallback: handleCancelFav,
-        favLoadingCallBack: (val: boolean) => (favLoading.value = val)
+        favLoadingCallBack: (val: boolean) => (favLoading.value = val),
       });
     };
 
@@ -113,7 +114,7 @@ export default defineComponent({
       favLoading,
       handleCancelFav,
       favDescInput,
-      handleChangeAutoQuery
+      handleChangeAutoQuery,
     };
   },
 
@@ -131,18 +132,18 @@ export default defineComponent({
             >
               {this.loading ? (
                 <img
-                  src={loadingImg}
                   class='status-loading'
+                  src={loadingImg}
                 />
               ) : (
-                <span class={`icon-monitor icon-${this.autoQuery ? 'weibiaoti519' : 'kaishi11'}`}></span>
+                <span class={`icon-monitor icon-${this.autoQuery ? 'weibiaoti519' : 'kaishi11'}`} />
               )}
             </Button>
           </Popover>
           <Button
             class='query-button'
-            theme='primary'
             disabled={!this.canQuery || this.loading}
+            theme='primary'
             onClick={this.handleQuery}
           >
             {`${this.autoQuery ? this.t('自动查询') : this.t('查询')}`}
@@ -151,9 +152,6 @@ export default defineComponent({
         {this.hasFavorite && (
           <Popover
             ref='favPopover'
-            theme='light'
-            trigger='click'
-            autoVisibility={false}
             v-slots={{
               content: () => (
                 <div
@@ -173,38 +171,41 @@ export default defineComponent({
                         class='fav-btn'
                         onClick={this.handleAddFav}
                       >
-                        <i class='icon-monitor icon-mc-check-small'></i>
+                        <i class='icon-monitor icon-mc-check-small' />
                       </span>
                       <span
                         class='fav-btn'
                         onClick={this.handleCancelFav}
                       >
-                        <i class='icon-monitor icon-mc-close'></i>
+                        <i class='icon-monitor icon-mc-close' />
                       </span>
                     </div>
                   </Loading>
                 </div>
-              )
+              ),
             }}
+            autoVisibility={false}
+            theme='light'
+            trigger='click'
           >
             <Button>
-              <i class='icon-monitor icon-mc-uncollect'></i>
+              <i class='icon-monitor icon-mc-uncollect' />
               {this.t('收藏')}
             </Button>
           </Popover>
         )}
         <Popover
-          content={this.t('清空')}
           autoVisibility={false}
+          content={this.t('清空')}
         >
           <Button
             class='clear-button'
             onClick={this.handleClearAll}
           >
-            <i class='icon-monitor icon-mc-clear-query'></i>
+            <i class='icon-monitor icon-mc-clear-query' />
           </Button>
         </Popover>
       </div>
     );
-  }
+  },
 });

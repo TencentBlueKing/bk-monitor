@@ -37,8 +37,8 @@
     </div>
     <slot />
     <div
-      class="footer"
       v-if="log"
+      class="footer"
     >
       <h4 class="footer-title">
         {{ $t('操作日志') }}
@@ -58,16 +58,16 @@ export default {
   props: {
     title: {
       type: String,
-      default: ''
+      default: '',
     },
     icon: {
       type: String,
-      default: 'normal'
+      default: 'normal',
     },
     log: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   computed: {
     iconClass() {
@@ -78,13 +78,13 @@ export default {
         return 'icon-tixing';
       }
       return '';
-    }
-  }
+    },
+  },
 };
 </script>
 
 <style scoped lang="scss">
-@import "../../common/mixins";
+@import '../../common/mixins';
 
 .business-panel {
   margin: 35px 0 0 40px;

@@ -25,14 +25,9 @@ from alarm_backends.tests.service.fta_action.test_notice_execute import (
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
 from bkmonitor.models import ActionInstance, DutyPlan, UserGroup
 from bkmonitor.utils import time_tools
-from bkmonitor.utils.elasticsearch.fake_elasticsearch import FakeElasticsearchBucket
 from constants.action import ActionSignal, ActionStatus
 from constants.alert import EventStatus
-from monitor_web.tests import mock
 
-_mock.patch(
-    "elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()
-).start()
 _mock.patch("alarm_backends.service.fta_action.tasks.run_webhook_action.apply_async", return_value=11111).start()
 _mock.patch("alarm_backends.service.fta_action.tasks.run_action.apply_async", return_value=11111).start()
 
@@ -84,7 +79,7 @@ class TestActionFakeESProcessor(TestCase):
             {
                 "duty_rule_id": 1,
                 "start_time": time_tools.datetime2str(datetime.now(tz=local_timezone)),
-                "finished_time": "",
+                "finished_time": time_tools.datetime2str(datetime.now(tz=local_timezone) + timedelta(hours=1)),
                 "is_effective": 1,
                 "order": 2,
                 "work_times": [{'start_time': today_begin, 'end_time': today_end}],
@@ -189,18 +184,15 @@ class TestActionFakeESProcessor(TestCase):
         job_alert = AlertDocument(**alert_info)
         AlertDocument.bulk_create([job_alert])
 
-        action_config_patch = patch(
+        with patch(
             "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id",
             MagicMock(return_value=job_config),
-        )
+        ):
+            actions = create_actions(1, "abnormal", alerts=[job_alert])
+            self.assertEqual(len(actions), 1)
 
-        action_config_patch.start()
-        actions = create_actions(1, "abnormal", alerts=[job_alert])
-        self.assertEqual(len(actions), 1)
-
-        # assignee一定是一个有序的列表
-        self.assertEqual(["admin", "lisa"], ActionInstance.objects.get(id=actions[0]).assignee)
-        action_config_patch.stop()
+            # assignee一定是一个有序的列表
+            self.assertEqual(["admin", "lisa"], ActionInstance.objects.get(id=actions[0]).assignee)
 
     def test_shield_config_dimension_match_and(self):
         config = {

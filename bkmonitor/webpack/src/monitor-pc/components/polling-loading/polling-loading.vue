@@ -33,14 +33,14 @@
   >
     <div class="register-dialog">
       <div
-        class="loading"
         v-if="!status.failMsg"
+        class="loading"
       >
         <svg-loading-icon />
       </div>
       <div
-        class="fail"
         v-else
+        class="fail"
       >
         <span class="bk-icon icon-exclamation-circle-shape" />
       </div>
@@ -49,21 +49,27 @@
           {{ status.msg }}
         </div>
         <div
-          class="wait"
           v-if="!status.failMsg"
-        >{{ $t('等待中') }}</div>
+          class="wait"
+        >
+          {{ $t('等待中') }}
+        </div>
         <div
-          class="fail-msg"
           v-else
-        >{{ $t('原因:') }} {{ status.failMsg }}</div>
+          class="fail-msg"
+        >
+          {{ $t('原因:') }} {{ status.failMsg }}
+        </div>
         <div
-          class="close-dialog"
           v-show="status.failMsg"
+          class="close-dialog"
         >
           <bk-button
             :text="true"
             @click="close"
-          > {{ $t('关闭窗口') }} </bk-button>
+          >
+            {{ $t('关闭窗口') }}
+          </bk-button>
         </div>
       </div>
     </div>
@@ -74,21 +80,21 @@ import SvgLoadingIcon from '../svg-loading-icon/svg-loading-icon';
 
 export default {
   components: {
-    SvgLoadingIcon
+    SvgLoadingIcon,
   },
   props: {
     status: {
-      type: Object
+      type: Object,
     },
     show: {
-      type: Boolean
-    }
+      type: Boolean,
+    },
   },
   methods: {
     close() {
       this.$emit('update:show', false);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

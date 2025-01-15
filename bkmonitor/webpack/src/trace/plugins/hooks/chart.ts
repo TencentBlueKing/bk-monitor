@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { inject, onBeforeUnmount, provide, Ref, watch, WatchStopHandle } from 'vue';
-import { type PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
+import { type ComputedRef, type Ref, type WatchStopHandle, inject, onBeforeUnmount, provide, watch } from 'vue';
 
-import { TimeRangeType } from '../../components/time-range/utils';
 import { SearchType } from '../../pages/profiling/typings';
 import { isShadowEqual } from '../../utils';
-import { IViewOptions } from '../typings';
+
+import type { TimeRangeType } from '../../components/time-range/utils';
+import type { IPanelModel, IViewOptions } from '../typings';
+import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 export const TIME_RANGE_KEY = 'timeRange';
 export const TIMEZONE_KEY = 'timezone';
@@ -41,6 +42,7 @@ export const CHART_PROVIDER_KEY = 'CHART_PROVIDER_KEY';
 export const QUERY_DATA_KEY = 'queryData';
 export const COMPARE_TYPE = 'compareType';
 export const READONLY = 'readonly';
+export const IS_ENABLED_PROFILING = 'IS_ENABLED_PROFILING';
 
 export interface IChartProvider {
   // 数据时间间隔
@@ -54,7 +56,7 @@ export interface IChartProvider {
   // 图表是否立即刷新
   readonly refleshImmediate: Ref<number | string>;
   // 图表对比数据
-  readonly timeOffset: Ref<string[] | number[]>;
+  readonly timeOffset: Ref<number[] | string[]>;
 }
 
 // 通用视图注入数据
@@ -153,7 +155,7 @@ export const useCommonChartWatch = (getPanelData: () => Promise<void>) => {
     unWatchTimeOffset,
     unWatchTimezone,
     refleshIntervalTimer,
-    beforeUnmount
+    beforeUnmount,
   };
 };
 
@@ -182,17 +184,17 @@ export const useRefleshImmediateProvider = (refleshImmediate: boolean) => {
 };
 export const useRefleshImmediateInject = () => inject<Ref<boolean>>(REFLESH_IMMEDIATE_KEY);
 
-export const useTimeOffsetProvider = (timeOffset: string | number) => {
+export const useTimeOffsetProvider = (timeOffset: number | string) => {
   provide(TIME_OFFSET_KEY, timeOffset);
 };
-export const useTimeOffsetInject = () => inject<Ref<string[] | number[]>>(TIME_OFFSET_KEY);
+export const useTimeOffsetInject = () => inject<Ref<number[] | string[]>>(TIME_OFFSET_KEY);
 
 // 好像用不着
-export const useQueryDataProvider = (queryData: Ref<Object>) => {
+export const useQueryDataProvider = (queryData: Ref<object>) => {
   provide(QUERY_DATA_KEY, queryData);
 };
 // 好像用不着
-export const useQueryDataInject = () => inject<Ref<Object>>(QUERY_DATA_KEY);
+export const useQueryDataInject = () => inject<Ref<object>>(QUERY_DATA_KEY);
 
 export const useCompareTypeProvider = (compareType: PanelToolsType.CompareId) => {
   provide(COMPARE_TYPE, compareType);
@@ -203,3 +205,12 @@ export const useReadonlyProvider = (v: boolean) => {
   provide(READONLY, v);
 };
 export const useReadonlyInject = () => inject<Ref<boolean>>(READONLY);
+
+export const chartDetailProvideKey = Symbol('chart-detail-provide-key');
+export const useChartInfoInject = () => inject<IPanelModel>(chartDetailProvideKey);
+
+// 是否开启 profiling
+export const useIsEnabledProfilingProvider = (enableProfiling: ComputedRef<boolean>) => {
+  provide(IS_ENABLED_PROFILING, enableProfiling);
+};
+export const useIsEnabledProfilingInject = () => inject<ComputedRef<boolean>>(IS_ENABLED_PROFILING);

@@ -25,10 +25,10 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import SetMealAddModule from '../../../../../store/modules/set-meal-add';
-
 import VariableList from './variable-list/variable-list';
 
 import './meal-desc.scss';
@@ -43,7 +43,7 @@ interface IMealDescEvent {
 }
 
 @Component({
-  name: 'MealDesc'
+  name: 'MealDesc',
 })
 export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
   @Prop({ default: true }) show: boolean;
@@ -80,9 +80,9 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
           <div class='desc-content'>
             {!this.pluginTypeId && [
               <div class='detail'>
-                <i18n path='套餐是业务运维设计制作的一套恢复故障的方案，可以复用于不同的告警，也可作为原子套餐用于制作组合套餐'></i18n>
+                <i18n path='套餐是业务运维设计制作的一套恢复故障的方案，可以复用于不同的告警，也可作为原子套餐用于制作组合套餐' />
                 。
-              </div>
+              </div>,
               // <div class="see-detail">
               //   <i18n path="更多详情查看"></i18n>
               //   <span class="see-detail-btn">
@@ -93,7 +93,7 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
             <div class='format-desc'>
               {this.pluginDescription?.[this.pluginTypeId] && (
                 <div class='view-content'>
-                  <Viewer value={this.pluginDescription[this.pluginTypeId]}></Viewer>
+                  <Viewer value={this.pluginDescription[this.pluginTypeId]} />
                 </div>
               )}
               {/* <div class="format-title">
@@ -103,12 +103,12 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
               <div class='variable'>
                 <div class='variable-title'>
                   <i18n
-                    path='变量列表'
                     class='variable-title-left'
-                  ></i18n>
+                    path='变量列表'
+                  />
                   <span class='variable-title-right'>{/* {this.$t('帮助文档')} <span>{'>'}</span> */}</span>
                 </div>
-                <VariableList pluginType={this.pluginType}></VariableList>
+                <VariableList pluginType={this.pluginType} />
               </div>
             </div>
           </div>
@@ -117,7 +117,7 @@ export default class MealDesc extends tsc<IMealDescProps, IMealDescEvent> {
           class='slider-btn'
           onClick={this.handleDescShow}
         >
-          <i class='icon-monitor icon-double-down'></i>
+          <i class='icon-monitor icon-double-down' />
         </div>
       </div>
     );

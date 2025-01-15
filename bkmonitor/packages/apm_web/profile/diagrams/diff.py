@@ -1,10 +1,19 @@
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
-from apm_web.profile.converter import Converter
 from apm_web.profile.diagrams.base import FunctionNode, FunctionTree
+from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 logger = logging.getLogger(__name__)
 
@@ -17,31 +26,40 @@ class ProfileDiffer:
     @classmethod
     def from_raw(
         cls,
-        base_doris_converter: Converter,
-        diff_doris_converter: Converter,
+        base_tree_converter: TreeConverter,
+        diff_tree_converter: TreeConverter,
     ) -> "ProfileDiffer":
-        baseline_tree = FunctionTree.load_from_profile(base_doris_converter)
-        comparison_tree = FunctionTree.load_from_profile(diff_doris_converter)
-        return ProfileDiffer(baseline_tree, comparison_tree)
+        return ProfileDiffer(base_tree_converter.tree, diff_tree_converter.tree)
 
-    def _diff_node(self, diff_tree: "DiffTree", base: "FunctionNode", comp: "FunctionNode") -> "DiffNode":
+    def _process_add_or_remove(self, base: "FunctionNode", mark: "DiffMark"):
+        if not base:
+            return
+
+        diff_node = DiffNode(base, None, mark) if mark == DiffMark.ADDED else DiffNode(None, base, mark)
+
+        for child in base.children.values():
+            diff_child_node = self._process_add_or_remove(child, mark)
+            diff_node.add_child(diff_child_node)
+
+        return diff_node
+
+    def _diff_func_node(self, base: "FunctionNode", comp: "FunctionNode") -> "DiffNode":
         """Diff a node."""
-        # If the root node is different, the whole tree is different
-        if base.unique_together != comp.unique_together:
-            # we don't need to diff the rest of the tree
-            return DiffNode(base, comp, DiffMark.ADDED)
-
-        # this node exists
         diff_node = DiffNode(base, comp, DiffMark.CHANGED if base.value != comp.value else DiffMark.UNCHANGED)
 
-        for base_child in base.children:
-            similar = self.comparison.find_similar_child(base_child)
+        for base_child in base.children.values():
+            comp_child = comp.children.get(base_child.id)
+            if comp_child is None:
+                diff_child_node = self._process_add_or_remove(base_child, DiffMark.ADDED)
+                diff_node.add_child(diff_child_node)
+            else:
+                diff_child_node = self._diff_func_node(base_child, comp_child)
+                diff_node.add_child(diff_child_node)
 
-            if similar is None:
-                diff_tree.add_node(diff_node, DiffNode(base_child, None, DiffMark.ADDED))
-                continue
-
-            diff_tree.add_node(diff_node, self._diff_node(diff_tree, base_child, similar))
+        for comp_child in comp.children.values():
+            if comp_child.id not in base.children:
+                diff_child_node = self._process_add_or_remove(comp_child, DiffMark.REMOVED)
+                diff_node.add_child(diff_child_node)
 
         return diff_node
 
@@ -51,8 +69,27 @@ class ProfileDiffer:
         diff_tree = DiffTree()
 
         if self.baseline.root and self.comparison.root:
-            diff_tree.add_root(self._diff_node(diff_tree, self.baseline.root, self.comparison.root))
+            diff_root = self._diff_func_node(self.baseline.root, self.comparison.root)
+            diff_tree.root = diff_root
 
+        return diff_tree
+
+    def diff_table(self) -> "DiffTree":
+        diff_tree = DiffTree()
+        for node_id, base_node in self.baseline.function_node_map.items():
+            comp_node = self.comparison.function_node_map.get(node_id)
+            if comp_node is None:
+                diff_node = DiffNode(base_node, None, DiffMark.ADDED)
+            else:
+                if base_node.value != comp_node.value:
+                    diff_node = DiffNode(base_node, comp_node, DiffMark.CHANGED)
+                else:
+                    diff_node = DiffNode(base_node, comp_node, DiffMark.UNCHANGED)
+            diff_tree.diff_node_map[node_id] = diff_node
+
+        for node_id, comp_node in self.comparison.function_node_map.items():
+            if node_id not in self.baseline.function_node_map:
+                diff_tree.diff_node_map[node_id] = DiffNode(None, comp_node, DiffMark.REMOVED)
         return diff_tree
 
 
@@ -78,7 +115,10 @@ class DiffNode:
     def delta(self) -> Optional[float]:
         """Node delta as percentage."""
         if self.mark == DiffMark.CHANGED:
-            return (self.comparison.value - self.baseline.value) / self.baseline.value * 100
+            if self.comparison.value > self.baseline.value:
+                return -round(((self.comparison.value - self.baseline.value) / self.comparison.value), 4)
+            else:
+                return round(((self.baseline.value - self.comparison.value) / self.baseline.value), 4)
         elif self.mark == DiffMark.UNCHANGED:
             return 0
 
@@ -99,6 +139,7 @@ class DiffNode:
             diff_info["baseline"] = self.baseline.value
             diff_info["comparison"] = self.comparison.value
 
+        diff_info["diff"] = self.delta
         return diff_info
 
     @property
@@ -117,15 +158,6 @@ class DiffNode:
 
 @dataclass
 class DiffTree:
-    roots: List[DiffNode] = field(default_factory=list)
+    root: Optional[DiffNode] = None
 
-    # id -> DiffNode, quick access for DiffNode
-    children_map: Dict[int, DiffNode] = field(default_factory=dict)
-
-    def add_root(self, root: DiffNode):
-        self.roots.append(root)
-        self.children_map[root.default.id] = root
-
-    def add_node(self, parent: DiffNode, node: DiffNode):
-        parent.add_child(node)
-        self.children_map[node.default.id] = node
+    diff_node_map: Dict[str, DiffNode] = field(default_factory=dict)

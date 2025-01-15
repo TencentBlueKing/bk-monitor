@@ -25,12 +25,12 @@
 -->
 <template>
   <div
+    v-bkloading="{ isLoading: selector.loading }"
     class="topo-selector"
     v-bind="$attrs"
-    v-bkloading="{ isLoading: selector.loading }"
   >
     <ip-select
-      v-if="typeof defaultActive !== 'undefined'"
+      v-if="defaultActive !== undefined"
       ref="ipSelect"
       :default-active="selector.defaultActive"
       :tab-disabled="selector.tabDisabled"
@@ -52,7 +52,7 @@
         <slot
           name="static-ip-panel"
           v-bind="{
-            data: selector.staticTableData
+            data: selector.staticTableData,
           }"
         >
           <bk-table
@@ -76,8 +76,8 @@
                     {
                       success: scope.row.agentStatus === 'normal',
                       error: scope.row.agentStatus === 'abnormal',
-                      'not-exist': scope.row.agentStatus === 'not_exist'
-                    }
+                      'not-exist': scope.row.agentStatus === 'not_exist',
+                    },
                   ]"
                 >
                   {{ agentStatusMap[scope.row.agentStatus] }}
@@ -97,7 +97,9 @@
                 <bk-button
                   text
                   @click="handleDeleteStaticIp(scope.row, scope.$index)"
-                > {{ $t('移除') }} </bk-button>
+                >
+                  {{ $t('移除') }}
+                </bk-button>
               </template>
             </bk-table-column>
           </bk-table>
@@ -107,7 +109,7 @@
         <slot
           name="dynamic-topo-panel"
           v-bind="{
-            data: selector.dynamicTopoTableData
+            data: selector.dynamicTopoTableData,
           }"
         >
           <bk-table
@@ -142,9 +144,13 @@
                     <span v-if="scope.row.agentErrorCount !== 0">（<span style="font-weight: bold;color: #EA3636;"> {{scope.row.agentErrorCount}} </span>{{isInstance ? $t('个实例异常') : $t('台Agent异常')}}）</span>
                 </div> -->
                 <div>
-                  <span :class="[scope.row.agentErrorCount ? 'error' : 'not-exist']">{{
-                    scope.row.agentErrorCount
-                  }}</span>/<span>{{ scope.row.count }}</span>
+                  <span :class="[scope.row.agentErrorCount ? 'error' : 'not-exist']">
+                    {{ scope.row.agentErrorCount }}
+                  </span>
+                  /
+                  <span>
+                    {{ scope.row.count }}
+                  </span>
                 </div>
               </template>
             </bk-table-column>
@@ -155,9 +161,9 @@
               <template slot-scope="scope">
                 <div class="col-label">
                   <div
-                    class="col-label-container"
                     v-for="(item, index) in scope.row.labels"
                     :key="index"
+                    class="col-label-container"
                   >
                     {{ item.first }}：{{ item.second }}
                   </div>
@@ -173,7 +179,9 @@
                 <bk-button
                   text
                   @click="handleDeleteDynamicTopo(scope.row, scope.$index)"
-                > {{ $t('移除') }} </bk-button>
+                >
+                  {{ $t('移除') }}
+                </bk-button>
               </template>
             </bk-table-column>
           </bk-table>
@@ -218,7 +226,9 @@
                 <bk-button
                   text
                   @click="handleDeleteExtranetIp(scope.row, scope.$index)"
-                > {{ $t('移除') }} </bk-button>
+                >
+                  {{ $t('移除') }}
+                </bk-button>
               </template>
             </bk-table-column>
           </bk-table>
@@ -233,7 +243,8 @@ import {
   getHostInstanceByIp,
   getHostInstanceByNode,
   getServiceInstanceByNode,
-  getTopoTree } from 'monitor-api/modules/commons';
+  getTopoTree,
+} from 'monitor-api/modules/commons';
 
 import IpSelect from '../../../../components/ip-select/ip-select';
 
@@ -242,58 +253,58 @@ const EVENT_ACTIVESELECTCHANGE = 'active-select-change';
 export default {
   name: 'TopoSelector',
   components: {
-    IpSelect
+    IpSelect,
   },
   props: {
     mode: {
       type: String,
       default: 'add',
-      validator: v => ['add', 'edit', 'clone'].includes(v)
+      validator: v => ['add', 'edit', 'clone'].includes(v),
     },
     // 是否是实例
     isInstance: {
-      type: Boolean
+      type: Boolean,
     },
     idKey: {
       type: String,
-      default: 'id'
+      default: 'id',
     },
     instanceType: String,
     // 默认选择下拉框
     defaultActive: {
       type: Number,
-      required: true
+      required: true,
     },
     // 0 静态 1 动态 -1 都可以
     tabDisabled: {
       type: Number,
-      default: -1
+      default: -1,
     },
     // 默认选中项（编辑）
     checkedData: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     // 默认的表单数据，clone回写
     tableData: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     minWidth: {
       type: [Number, String],
-      default: 850
+      default: 850,
     },
     maxWidth: {
       type: [Number, String],
-      default: 9999
+      default: 9999,
     },
     height: {
       type: [Number, String],
-      default: 460
+      default: 460,
     },
     isExtranet: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // 非编辑状态下默认展开树节点
     defaultExpandNode: {
@@ -306,12 +317,12 @@ export default {
           return value > 0;
         }
         return true;
-      }
+      },
     },
     topoHeight: {
       type: Number,
-      default: 310
-    }
+      default: 310,
+    },
   },
   data() {
     return {
@@ -323,7 +334,7 @@ export default {
         apiMap: {
           'static-topo': 'host',
           'static-ip': 'host',
-          'dynamic-topo': ''
+          'dynamic-topo': '',
         },
         treeData: [],
         checkedData: [],
@@ -337,17 +348,17 @@ export default {
         dynamicTopoTableData: [],
         staticMap: new Map(),
         dynamicTopoMap: new Map(),
-        defaultExpandNode: 1
+        defaultExpandNode: 1,
       },
       agentStatusMap: {
         normal: `Agent ${this.$t('正常')}`,
         abnormal: `Agent ${this.$t('异常')}`,
-        not_exist: `Agent ${this.$t('未安装')}`
+        not_exist: `Agent ${this.$t('未安装')}`,
       },
       changeInput: false,
       has: [],
       isRigthIp: false,
-      isRigthIpExtranet: false
+      isRigthIpExtranet: false,
     };
   },
   computed: {
@@ -359,29 +370,29 @@ export default {
   watch: {
     defaultActive: {
       handler: 'handleDefaultActiveChange',
-      immediate: true
+      immediate: true,
     },
     tabDisabled: {
       handler: 'handleTabDisabled',
-      immediate: true
+      immediate: true,
     },
     'selector.checkedData': {
       handler: 'handleCheckedChange',
       immediate: true,
-      deep: true
+      deep: true,
     },
     changeInput: {
-      handler: 'handleInputValueChange'
+      handler: 'handleInputValueChange',
     },
     'selector.tableData': {
       handler: 'handletTableDataChange',
       // immediate: true,
-      deep: true
+      deep: true,
     },
     defaultExpandNode: {
       handler: 'handleDefaultExpandNodeChange',
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     handleInputValueChange() {
@@ -411,11 +422,11 @@ export default {
       const isNeedGetSelectorData = this.mode === 'edit' && ['static-topo', 'dynamic-topo'].includes(type);
       if ((type === 'static-topo' || type === 'static-ip') && !selector.staticTreeData.length) {
         await this.getTopoTree(selector.apiMap[type])
-          .then((data) => {
+          .then(data => {
             selector.treeData = data;
             selector.staticTreeData = data;
           })
-          .catch((err) => {
+          .catch(err => {
             throw err.message || err.data.message;
           })
           .finally(() => {
@@ -424,11 +435,11 @@ export default {
           });
       } else if (type === 'dynamic-topo' && !selector.dynamicTopoTreeData.length) {
         await this.getTopoTree(selector.apiMap[type])
-          .then((data) => {
+          .then(data => {
             selector.treeData = data;
             selector.dynamicTopoTreeData = data;
           })
-          .catch((err) => {
+          .catch(err => {
             throw err.message || err.data.message;
           })
           .finally(() => {
@@ -443,7 +454,7 @@ export default {
           let ipArr = this.getAllIpByTree(selector.treeData);
           ipArr = Array.from(new Set(ipArr));
           const extranetIp = [];
-          this.checkedData.forEach((item) => {
+          this.checkedData.forEach(item => {
             const res = ipArr.find(id => id === this.handleGetId(item));
             if (!res) {
               extranetIp.push(item.ip);
@@ -470,13 +481,13 @@ export default {
         checkedData: selector.checkedData,
         disabledData: selector.disabledData,
         tableData: selector.tableData,
-        defaultExpandNode: selector.defaultExpandNode
+        defaultExpandNode: selector.defaultExpandNode,
       };
     },
     async handleBackDisplayData() {
       const { selector } = this;
       await this.getSelectorData(selector.type, this.checkedData, selector.treeData)
-        .then((data) => {
+        .then(data => {
           const { ipSelect } = this.$refs;
           if (selector.type === 'static-topo') {
             selector.checkedData = data.staticCheckedData;
@@ -519,11 +530,11 @@ export default {
         this.$emit('type-change', type);
         if (type === 'static-topo' && !selector.staticTreeData.length) {
           await this.getTopoTree(selector.apiMap[type])
-            .then((data) => {
+            .then(data => {
               selector.staticTreeData = data;
               selector.staticMap.clear();
             })
-            .catch((err) => {
+            .catch(err => {
               throw err.message || err.data.message;
             })
             .finally(() => {
@@ -531,11 +542,11 @@ export default {
             });
         } else if (type === 'dynamic-topo' && !selector.dynamicTopoTreeData.length) {
           await this.getTopoTree(selector.apiMap[type])
-            .then((data) => {
+            .then(data => {
               selector.dynamicTopoTreeData = data;
               selector.dynamicTopoMap.clear();
             })
-            .catch((err) => {
+            .catch(err => {
               throw err.message || err.data.message;
             })
             .finally(() => {
@@ -556,7 +567,7 @@ export default {
           // 非 IP 节点
           if (node.children?.length) {
             const tmp = this.getIpNodes(node.children, statciNodeKey); // 将子节点中有 IP 的节点筛选出来
-            tmp.forEach((item) => {
+            tmp.forEach(item => {
               // 将有相同 IP 的节点筛选出来
               nodes = isService
                 ? nodes.concat(this.getSameIpNodesByIp(this.handleGetId(item), selector.staticTreeData))
@@ -578,7 +589,7 @@ export default {
           // 父子去重，若某个节点其父节点被选中，
           // 则将该节点从 dynamicTopoMap 中删除，只保留父节点
           const children = this.findChildren(node);
-          children.forEach((item) => {
+          children.forEach(item => {
             selector.dynamicTopoMap.has(item.id) && selector.dynamicTopoMap.delete(item.id);
           });
           !selector.dynamicTopoMap.has(node.id) && selector.dynamicTopoMap.set(node.id, node);
@@ -587,13 +598,13 @@ export default {
           selector.dynamicTopoMap.has(node.id) && selector.dynamicTopoMap.delete(node.id);
         }
       } else if (type === 'static-ip') {
-        staticTableData.forEach((item) => {
+        staticTableData.forEach(item => {
           ipList.push({ ip: item.ip, bkCloudId: item.bkCloudId });
         });
         const rightIpList = node.goodList;
         const errorIpList = node.errList;
         if (rightIpList.length) {
-          rightIpList.forEach((rightIpItem) => {
+          rightIpList.forEach(rightIpItem => {
             if (staticTableData.find(item => item.ip === rightIpItem)) {
               // 右边的表格存在IP
               has.push(rightIpItem);
@@ -606,7 +617,7 @@ export default {
           this.isRigthIp = true;
         }
         let ipMap = [];
-        ipList.forEach((item) => {
+        ipList.forEach(item => {
           const onlyIp = typeof item.bkCloudId === 'undefined';
           const ipArr = this.getSameIpNodesByIp(this.handleGetId(item, onlyIp), selector.staticTreeData, [], onlyIp);
           ipMap = ipMap.concat(ipArr);
@@ -614,7 +625,7 @@ export default {
         ipMap.forEach(item => !selector.staticMap.has(item.id) && selector.staticMap.set(item.id, item));
       } else if (type === 'static-extranet') {
         const data = [];
-        node.goodList.forEach((item) => {
+        node.goodList.forEach(item => {
           const ipMap = this.getSameIpNodesByIp(item, selector.staticTreeData);
           if (ipMap.length) {
             // node.goodList.splice(index, 1)
@@ -640,12 +651,12 @@ export default {
           this.$emit('loading-change', true);
           const ip = type === 'static-ip' ? ipList : selector.staticMap;
           await this.getSelectorTableData(type, ip)
-            .then((data) => {
+            .then(data => {
               if (data.length) {
                 selector.tableData = data;
                 selector.staticTableData = data;
                 if (type === 'static-ip') {
-                  node.goodList.forEach((ip) => {
+                  node.goodList.forEach(ip => {
                     if (!selector.staticTableData.some(item => item.ip === ip)) {
                       node.errList.push(ip);
                       this.isRigthIp = true;
@@ -667,7 +678,7 @@ export default {
         } else if (this.instanceType === 'service') {
           const serviceTableData = [...this.selector.staticMap.values()].filter(item => !item.children);
           selector.tableData = [];
-          serviceTableData.forEach((item) => {
+          serviceTableData.forEach(item => {
             if (!selector.tableData.find(instance => instance.service_instance_id === item.service_instance_id)) {
               selector.tableData.push(item);
             }
@@ -684,7 +695,7 @@ export default {
           // selector.loading = true
           this.$emit('loading-change', true);
           await this.getSelectorTableData(type, selector.dynamicTopoMap)
-            .then((data) => {
+            .then(data => {
               selector.tableData = data;
               selector.dynamicTopoTableData = data;
             })
@@ -701,13 +712,13 @@ export default {
       this.$emit('checked-change', selector.checkedData);
       return {
         checkedData: selector.checkedData,
-        tableData: selector.tableData
+        tableData: selector.tableData,
       };
     },
     getTopoTree(type, id) {
       const bizId = id || this.$store.getters.bizId;
       const params = {
-        bk_biz_id: bizId
+        bk_biz_id: bizId,
       };
       if (type) {
         params.instance_type = type;
@@ -729,7 +740,7 @@ export default {
       return getServiceInstanceByNode({ node_list: nodes });
     },
     getSameIpNodesByIp(ip, treeData, nodes = [], onlyIp = false) {
-      treeData.forEach((item) => {
+      treeData.forEach(item => {
         if (Object.prototype.hasOwnProperty.call(item, 'ip') && this.handleGetId(item, onlyIp) === ip) {
           nodes.push(item);
         } else if (item.children?.length) {
@@ -739,10 +750,10 @@ export default {
       return nodes;
     },
     getSameServiceInstance(serviceInstId, treeData, nodes = []) {
-      treeData.forEach((item) => {
+      treeData.forEach(item => {
         if (
-          Object.prototype.hasOwnProperty.call(item, 'service_instance_id')
-          && item.service_instance_id === serviceInstId
+          Object.prototype.hasOwnProperty.call(item, 'service_instance_id') &&
+          item.service_instance_id === serviceInstId
         ) {
           nodes.push(item);
         } else if (item.children?.length) {
@@ -752,7 +763,7 @@ export default {
       return nodes;
     },
     getNodesByInstId(instId, objId, treeData, nodes = []) {
-      treeData.forEach((item) => {
+      treeData.forEach(item => {
         if (item.bk_inst_id === instId && item.bk_obj_id === objId) {
           nodes.push(item);
         } else if (item.children?.length) {
@@ -765,29 +776,35 @@ export default {
       const res = [];
       if (type === 'static-topo') {
         // 静态拓扑
-        nodesMap.forEach(item => !res.find(v => v.ip === item.ip && v.bk_cloud_id === item.bk_cloud_id)
-            && res.push({ ip: item.ip, bk_cloud_id: item.bk_cloud_id, bk_supplier_id: item.bk_supplier_id }));
+        nodesMap.forEach(
+          item =>
+            !res.find(v => v.ip === item.ip && v.bk_cloud_id === item.bk_cloud_id) &&
+            res.push({ ip: item.ip, bk_cloud_id: item.bk_cloud_id, bk_supplier_id: item.bk_supplier_id })
+        );
       } else if (type === 'static-ip') {
         // 静态 IP
         nodesMap.forEach(item => !res.find(v => v.ip === item.ip) && res.push({ ip: item.ip }));
       } else if (type === 'dynamic-topo') {
         // 动态拓扑
-        nodesMap.forEach(item => res.push({
-          bk_inst_id: item.bk_inst_id,
-          bk_inst_name: item.bk_inst_name,
-          bk_obj_id: item.bk_obj_id,
-          bk_obj_name: item.bk_obj_name,
-          bk_biz_id: item.bk_biz_id
-        }));
+        nodesMap.forEach(item =>
+          res.push({
+            bk_inst_id: item.bk_inst_id,
+            bk_inst_name: item.bk_inst_name,
+            bk_obj_id: item.bk_obj_id,
+            bk_obj_name: item.bk_obj_name,
+            bk_biz_id: item.bk_biz_id,
+          })
+        );
       }
       return res;
     },
     handleDeleteStaticIp(row, index) {
       const { staticTreeData, staticTableData, staticMap } = this.selector;
       // 将 `staticTreeData` 中有相同 IP 的节点筛选出来，并从 `staticMap` 中删除
-      const nodes =        this.instanceType !== 'service'
-        ? this.getSameIpNodesByIp(this.handleGetId(row), staticTreeData)
-        : this.getSameServiceInstance(row.service_instance_id, staticTreeData);
+      const nodes =
+        this.instanceType !== 'service'
+          ? this.getSameIpNodesByIp(this.handleGetId(row), staticTreeData)
+          : this.getSameServiceInstance(row.service_instance_id, staticTreeData);
       nodes.forEach(item => staticMap.has(item.id) && staticMap.delete(item.id));
       // 重新赋值选中数据
       const checkedData = [...staticMap.keys()];
@@ -815,8 +832,8 @@ export default {
     },
     handleIpData(data) {
       const res = [];
-      Array.isArray(data)
-        && data.forEach((item) => {
+      Array.isArray(data) &&
+        data.forEach(item => {
           res.push({
             ip: item.ip,
             agentStatus: item.agent_status,
@@ -824,15 +841,15 @@ export default {
             cloudName: item.bk_cloud_name,
             osType: item.bk_os_type,
             bkSupplierId: item.bk_supplier_id,
-            nodePath: item.node_path
+            nodePath: item.node_path,
           });
         });
       return res;
     },
     handleNodeData(data) {
       const res = [];
-      Array.isArray(data)
-        && data.forEach((item) => {
+      Array.isArray(data) &&
+        data.forEach(item => {
           res.push({
             bkInstId: item.bk_inst_id,
             bkObjId: item.bk_obj_id,
@@ -840,13 +857,13 @@ export default {
             nodePath: item.node_path,
             count: item.count,
             labels: item.labels,
-            agentErrorCount: item.agent_error_count || item.instance_error_count || 0
+            agentErrorCount: item.agent_error_count || item.instance_error_count || 0,
           });
         });
       return res;
     },
     getIpNodes(data, key, nodes = []) {
-      data.forEach((item) => {
+      data.forEach(item => {
         if (Object.prototype.hasOwnProperty.call(item, key) && item[key]) {
           nodes.push(item);
         } else if (item.children?.length) {
@@ -861,7 +878,7 @@ export default {
       if (['static-ip', 'static-topo'].includes(type)) {
         const params = type === 'static-ip' ? nodesMap : this.getNodesByMap(type, nodesMap);
         await this.getHostInstanceByIp(params)
-          .then((data) => {
+          .then(data => {
             this.handleErrIp(type, params, data);
             tableData = this.handleIpData(data);
           })
@@ -869,13 +886,13 @@ export default {
       } else {
         if (!this.isInstance) {
           await this.getHostInstanceByNode(this.getNodesByMap(type, nodesMap))
-            .then((data) => {
+            .then(data => {
               tableData = this.handleNodeData(data);
             })
             .catch(() => {});
         } else {
           await this.getServiceInstanceByNode(this.getNodesByMap(type, nodesMap))
-            .then((data) => {
+            .then(data => {
               tableData = this.handleNodeData(data);
             })
             .catch(() => {});
@@ -885,7 +902,7 @@ export default {
     },
     handleErrIp(type, params, data) {
       if (type === 'static-ip' && params.length !== data.length) {
-        params.forEach((item) => {
+        params.forEach(item => {
           this.isRigthIp = !data.find(el => item.ip === el.ip);
         });
       }
@@ -904,21 +921,20 @@ export default {
         dynamicTopoCheckedData: [],
         tableData: [],
         staticTableData: [],
-        dynamicTopoTableData: []
+        dynamicTopoTableData: [],
       };
       if (['static-ip', 'static-topo'].includes(type)) {
-        checkedData.forEach((item) => {
+        checkedData.forEach(item => {
           nodes = nodes.concat(this.getSameIpNodesByIp(this.handleGetId(item), treeData));
         });
       } else {
         let tmpNodes = [];
-        checkedData.forEach((item) => {
+        checkedData.forEach(item => {
           tmpNodes = tmpNodes.concat(this.getNodesByInstId(item.bk_inst_id, item.bk_obj_id, treeData));
         });
         // 排除重复
-        tmpNodes.forEach((item) => {
-          checkedData.find(v => v.bk_inst_id === item.bk_inst_id && v.bk_obj_id === item.bk_obj_id)
-            && nodes.push(item);
+        tmpNodes.forEach(item => {
+          checkedData.find(v => v.bk_inst_id === item.bk_inst_id && v.bk_obj_id === item.bk_obj_id) && nodes.push(item);
         });
       }
       if (['static-ip', 'static-topo'].includes(type)) {
@@ -926,7 +942,7 @@ export default {
         nodes.forEach(item => !staticMap.has(item.id) && staticMap.set(item.id, item));
         selector.staticCheckedData = [...staticMap.keys()];
         await this.getSelectorTableData(this.selector.type, staticMap)
-          .then((data) => {
+          .then(data => {
             selector.staticTableData = data;
           })
           .catch(() => {});
@@ -935,7 +951,7 @@ export default {
         nodes.forEach(item => !dynamicTopoMap.has(item.id) && dynamicTopoMap.set(item.id, item));
         selector.dynamicTopoCheckedData = [...dynamicTopoMap.keys()];
         await this.getSelectorTableData(this.selector.type, dynamicTopoMap)
-          .then((data) => {
+          .then(data => {
             selector.dynamicTopoTableData = data;
           })
           .catch(() => {});
@@ -963,7 +979,7 @@ export default {
     handleActiveSelectChange({ newValue, oldValue }) {
       this.$emit(EVENT_ACTIVESELECTCHANGE, {
         newValue,
-        oldValue
+        oldValue,
       });
     },
     handleGetId(item, onlyIp = false) {
@@ -978,7 +994,7 @@ export default {
       this.$emit('extranet-data-change', row.ip, 'del');
     },
     getAllIpByTree(treeData, nodes = []) {
-      treeData.forEach((item) => {
+      treeData.forEach(item => {
         if (Object.prototype.hasOwnProperty.call(item, 'ip')) {
           nodes.push(this.handleGetId(item));
         } else if (item.children?.length) {
@@ -1012,8 +1028,8 @@ export default {
     // 重置虚拟滚动
     resize() {
       this.$refs?.ipSelect?.resize?.();
-    }
-  }
+    },
+  },
 };
 </script>
 

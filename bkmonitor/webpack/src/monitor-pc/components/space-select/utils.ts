@@ -28,31 +28,31 @@ export const SPACE_TYPE_MAP = {
   bkcc: {
     name: window.i18n.tc('业务'),
     color: '#3A84FF',
-    backgroundColor: '#EDF4FF'
+    backgroundColor: '#EDF4FF',
   },
   default: {
     name: window.i18n.tc('监控空间'),
     color: '#63656E',
-    backgroundColor: '#F0F1F5'
+    backgroundColor: '#F0F1F5',
   },
   bkci: {
     name: window.i18n.tc('研发项目'),
     color: '#EA3536',
-    backgroundColor: '#FEEBEA'
+    backgroundColor: '#FEEBEA',
   },
   bcs: {
     name: window.i18n.tc('容器项目'),
     color: '#FE9C00',
-    backgroundColor: '#FFF1DB'
+    backgroundColor: '#FFF1DB',
   },
   paas: {
     name: window.i18n.tc('蓝鲸应用'),
     color: '#14A568',
-    backgroundColor: '#E4FAF0'
+    backgroundColor: '#E4FAF0',
   },
   bksaas: {
     name: window.i18n.tc('蓝鲸应用'),
     color: '#14A568',
-    backgroundColor: '#E4FAF0'
-  }
+    backgroundColor: '#E4FAF0',
+  },
 };

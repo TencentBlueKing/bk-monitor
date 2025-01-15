@@ -122,13 +122,13 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Emit, Inject, Prop, Vue } from 'vue-property-decorator';
 import { debounce } from 'throttle-debounce';
+import { Component, Emit, Inject, Prop, Vue } from 'vue-property-decorator';
 
-import { DEFAULT_TIME_RANGE_LIST, DEFAULT_TIMESHIFT_LIST } from '../../../common/constant';
+import { DEFAULT_TIMESHIFT_LIST, DEFAULT_TIME_RANGE_LIST } from '../../../common/constant';
 import DropDownMenu from '../../../components/monitor-dropdown/dropdown-menu.vue';
-import PerformanceModule, { ICurNode } from '../../../store/modules/performance';
-import { ICompareOption, IHostGroup, IOption, IToolsOption, ViewType } from '../performance-type';
+import PerformanceModule, { type ICurNode } from '../../../store/modules/performance';
+import type { ICompareOption, IHostGroup, IOption, IToolsOption, ViewType } from '../performance-type';
 
 import ComparePanel from './compare-panel.vue';
 import SortPanel from './sort-panel.vue';
@@ -138,8 +138,8 @@ import SortPanel from './sort-panel.vue';
   components: {
     SortPanel,
     ComparePanel,
-    DropDownMenu
-  }
+    DropDownMenu,
+  },
 })
 export default class ChartFilterTool extends Vue {
   @Prop({ default: () => [], type: Array }) readonly groupsData: IHostGroup[];
@@ -165,20 +165,20 @@ export default class ChartFilterTool extends Vue {
   private aggMethods: IOption[] = [
     {
       id: 'AVG',
-      name: 'AVG'
+      name: 'AVG',
     },
     {
       id: 'SUM',
-      name: 'SUM'
+      name: 'SUM',
     },
     {
       id: 'MIN',
-      name: 'MIN'
+      name: 'MIN',
     },
     {
       id: 'MAX',
-      name: 'MAX'
-    }
+      name: 'MAX',
+    },
   ];
   private method = this.defaultMethod;
   // 主机IP列表
@@ -198,18 +198,18 @@ export default class ChartFilterTool extends Vue {
     const list = [
       {
         id: 'none',
-        name: this.$t('不对比')
+        name: this.$t('不对比'),
       },
       {
         id: 'time',
-        name: this.$t('时间对比')
-      }
+        name: this.$t('时间对比'),
+      },
     ];
 
     if (this.curNode?.type === 'host') {
       list.push({
         id: 'target',
-        name: this.$t('目标对比')
+        name: this.$t('目标对比'),
       });
     }
     // if (this.viewType === 'host') {
@@ -250,7 +250,7 @@ export default class ChartFilterTool extends Vue {
     this.sortLoading = true;
     const success = await PerformanceModule.saveDashboardOrder({
       order: data,
-      id: this.viewType
+      id: this.viewType,
     });
     this.sortLoading = false;
     if (success) {
@@ -274,11 +274,11 @@ export default class ChartFilterTool extends Vue {
   }
   // 添加自定义时间对比
   handleAddTimeshifOption(v: string) {
-    v.trim().length
-      && !this.timeshiftList.some(item => item.id === v)
-      && this.timeshiftList.push({
+    v.trim().length &&
+      !this.timeshiftList.some(item => item.id === v) &&
+      this.timeshiftList.push({
         id: v,
-        name: v
+        name: v,
       });
   }
   handleAddTimeRangeOption(option: IOption) {

@@ -1,31 +1,33 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 /**
  * @file 按需引入 bk-magic-vue 组件
  * @author <>
  */
-
-/* eslint-disable import/no-duplicates */
 
 import Vue from 'vue';
 
@@ -59,6 +61,7 @@ import {
   bkOptionGroup,
   bkPagination,
   bkPopover,
+  bkPopconfirm,
   bkProcess,
   bkProgress,
   bkRadio,
@@ -92,12 +95,13 @@ import {
   bkVirtualScroll,
   bkOverflowTips,
   bkDivider,
-  bkSpin
+  bkSpin,
+  bkResizeLayout,
 } from 'bk-magic-vue';
 
 // bkDiff 组件体积较大且不是很常用，因此注释掉。如果需要，打开注释即可
 // import { bkDiff } from 'bk-magic-vue'
-
+Vue.prototype.$BK_EL = { zIndex: 3000 };
 // components use
 Vue.use(bkAlert);
 Vue.use(bkBadge);
@@ -124,6 +128,7 @@ Vue.use(bkOption);
 Vue.use(bkOptionGroup);
 Vue.use(bkPagination);
 Vue.use(bkPopover);
+Vue.use(bkPopconfirm);
 Vue.use(bkProcess);
 Vue.use(bkProgress);
 Vue.use(bkRadio);
@@ -162,12 +167,13 @@ Vue.use(bkClickoutside);
 Vue.use(bkTooltips);
 Vue.use(bkLoading);
 Vue.use(bkDivider);
+Vue.use(bkResizeLayout);
 bkOverflowTips.setDefaultProps({
-  delay: [400, 0]
+  delay: [400, 0],
 });
 Vue.use(bkOverflowTips);
 
 // Vue prototype mount
 Vue.prototype.$bkInfo = bkInfoBox;
-Vue.prototype.$bkMessage = bkMessage;
+Vue.prototype.$bkMessage = args => bkMessage({ ...args, zIndex: 5000 });
 Vue.prototype.$bkNotify = bkNotify;

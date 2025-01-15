@@ -15,5 +15,5 @@ export default {
   historyDetail,
   uploadPackage,
   importConfig,
-  addMonitorTarget
+  addMonitorTarget,
 };

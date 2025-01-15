@@ -14,12 +14,7 @@
           "api": "apm_metric.instanceList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            }
+            "service_name": "$service_name"
           },
           "fields": {
             "id": "bk_instance_id"
@@ -31,7 +26,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
@@ -39,11 +34,6 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name"
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -61,6 +51,9 @@
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": true
+        },
+        "header": {
+          "tips": "此表格展示状态为异常的 span，同时异常信息来自于 span 的 status.message 以及 events 字段。"
         }
       }
     },
@@ -78,12 +71,7 @@
             "app_name": "${app_name}",
             "bk_biz_id": "${bk_biz_id}",
             "filter_params": {
-              "resource.service.name": "$service_name",
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
+              "resource.service.name": "$service_name"
             },
             "component_instance_id": "$bk_instance_id"
           }
@@ -97,7 +85,8 @@
       },
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -110,12 +99,7 @@
           "data": {
             "app_name": "$app_name",
             "filter_params": {
-              "resource.service.name": "$service_name",
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
+              "resource.service.name": "$service_name"
             },
             "component_instance_id": "$bk_instance_id"
           },
@@ -137,21 +121,17 @@
   "panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
           "data": {
             "app_name": "$app_name",
             "filter_params": {
-              "resource.service.name": "$service_name"
+              "resource.service.name": "$service_name",
+              "span_name": "$endpoint"
             },
             "exception_type": "$exception_type",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            },
             "component_instance_id": "$bk_instance_id"
           },
           "dataType": "table",
@@ -168,6 +148,9 @@
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": true
+        },
+        "header": {
+          "tips": "此表格展示状态为异常的 span，同时异常信息来自于 span 的 status.message 以及 events 字段。"
         }
       }
     },
@@ -187,11 +170,7 @@
             "exception_type": "$exception_type",
             "filter_params": {
               "resource.service.name": "$service_name",
-            },
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
+              "span_name": "$endpoint"
             },
             "component_instance_id": "$bk_instance_id"
           }
@@ -205,7 +184,8 @@
       },
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -219,13 +199,9 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name",
+              "span_name": "$endpoint"
             },
             "exception_type": "$exception_type",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            },
             "component_instance_id": "$bk_instance_id"
           },
           "dataType": "list",
@@ -250,6 +226,7 @@
       "compare_select": false,
       "columns_toggle": false,
       "interval_select": false,
+      "full_table": true,
       "split_switcher": false
     },
     "selector_panel": {
@@ -269,21 +246,12 @@
           "api": "apm_metric.errorList",
           "data": {
             "app_name": "$app_name",
-            "service_name": "$service_name",
-            "service_params": {
-              "category": "${category}",
-              "kind": "${kind}",
-              "predicate_value": "${predicate_value}"
-            }
+            "service_name": "$service_name"
           },
           "fields": {
-            "endpoint_name": "endpoint",
+            "endpoint": "endpoint",
             "app_name": "app_name",
-            "exception_type": "exception_type",
-            "service_name": "component_service_name",
-            "category": "component_category",
-            "kind": "component_kind",
-            "predicate_value": "component_predicate_value"
+            "exception_type": "exception_type"
           }
         }
       ]

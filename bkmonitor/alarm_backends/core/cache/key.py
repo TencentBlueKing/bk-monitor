@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 from django.conf import settings
 
 from alarm_backends.constants import (
+    CONST_HALF_MINUTE,
     CONST_MINUTES,
     CONST_ONE_DAY,
     CONST_ONE_HOUR,
@@ -378,7 +379,7 @@ CHECK_RESULT_CACHE_KEY = register_key_with_config(
         # 这里的key_tpl修改后，需要同步修改LAST_CHECKPOINTS_CACHE_KEY的field_tpl
         "key_tpl": "{prefix}.detect.result.{{strategy_id}}.{{item_id}}."
         "{{dimensions_md5}}.{{level}}".format(prefix=KEY_PREFIX),
-        "ttl": CONST_ONE_HOUR,
+        "ttl": int(settings.CHECK_RESULT_TTL_HOURS) * CONST_ONE_HOUR,
         "backend": "service",
     }
 )
@@ -473,6 +474,16 @@ SERVICE_LOCK_PULL_TRIGGER = register_key_with_config(
     }
 )
 
+SERVICE_LOCK_PREPARATION = register_key_with_config(
+    {
+        "label": "preparation.lock.strategy_{strategy_id}",
+        "key_type": "string",
+        "key_tpl": "preparation.lock.{strategy_id}",
+        "ttl": CONST_ONE_HOUR * 12,
+        "backend": "service",
+    }
+)
+
 ACCESS_END_TIME_KEY = register_key_with_config(
     {
         "label": "[access]数据拉取的结束时间",
@@ -527,16 +538,6 @@ ALERT_FIRST_HANDLE_RECORD = register_key_with_config(
     }
 )
 
-ALERT_CONTENT_KEY = register_key_with_config(
-    {
-        "label": "[alert]当前正在产生的告警内容",
-        "key_type": "string",
-        "key_tpl": "alert.builder.{dedupe_md5}.content",
-        "ttl": 2 * CONST_ONE_HOUR,
-        "backend": "service",
-    }
-)
-
 ALERT_DEDUPE_CONTENT_KEY = register_key_with_config(
     {
         "label": "[alert]当前正在产生的告警内容",
@@ -583,6 +584,16 @@ ALERT_UUID_SEQUENCE = register_key_with_config(
         "key_type": "string",
         "key_tpl": "alert.uuid_sequence",
         "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+ALERT_SHIELD_SNAPSHOT = register_key_with_config(
+    {
+        "label": "[alert] 告警对应当前业务的屏蔽匹配结果",
+        "key_type": "string",
+        "key_tpl": "alert.shield.result.{strategy_id}.{alert_id}",
+        "ttl": CONST_HALF_MINUTE,
         "backend": "service",
     }
 )
@@ -740,7 +751,7 @@ TIMEOUT_ACTION_KEY_LOCK = register_key_with_config(
         "label": "[action]超时设置周期任务",
         "key_type": "string",
         "key_tpl": "fta_action.timeout.process.lock",
-        "ttl": 2 * CONST_MINUTES,
+        "ttl": 60 * CONST_MINUTES,
         "backend": "service",
     }
 )
@@ -920,6 +931,16 @@ APM_TOPO_DISCOVER_LOCK = register_key_with_config(
     }
 )
 
+APM_DATASOURCE_DISCOVER_LOCK = register_key_with_config(
+    {
+        "label": "[apm]数据源自动发现周期锁",
+        "key_type": "string",
+        "key_tpl": "apm.tasks.topo.discover.{app_id}",
+        "ttl": CONST_MINUTES * 10,
+        "backend": "service",
+    }
+)
+
 APM_EBPF_DISCOVER_LOCK = register_key_with_config(
     {
         "label": "[apm_ebpf]自动发现周期锁",
@@ -936,6 +957,26 @@ APM_PROFILE_DISCOVER_LOCK = register_key_with_config(
         "key_type": "string",
         "key_tpl": "apm_profile.tasks.discover.{bk_biz_id}:{app_name}",
         "ttl": CONST_MINUTES * 10,
+        "backend": "service",
+    }
+)
+
+ACCESS_BATCH_DATA_KEY = register_key_with_config(
+    {
+        "label": "[access]分批数据key",
+        "key_type": "list",
+        "key_tpl": "access.batch.{strategy_group_key}.{sub_task_id}",
+        "ttl": 300,
+        "backend": "service",
+    }
+)
+
+ACCESS_BATCH_DATA_RESULT_KEY = register_key_with_config(
+    {
+        "label": "[access]分批数据处理结果key",
+        "key_type": "list",
+        "key_tpl": "access.batch.result.{strategy_group_key}.{timestamp}",
+        "ttl": 300,
         "backend": "service",
     }
 )

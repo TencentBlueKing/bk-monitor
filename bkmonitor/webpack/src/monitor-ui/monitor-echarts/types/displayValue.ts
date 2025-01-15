@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { FormattedValue } from '../valueFormats';
+import type { FormattedValue } from '../valueFormats';
 
 export type DisplayProcessor = (value: any) => DisplayValue;
 
@@ -42,7 +42,7 @@ export interface DisplayValueAlignmentFactors extends FormattedValue {
   title: string;
 }
 
-export type DecimalCount = number | null | undefined;
+export type DecimalCount = null | number | undefined;
 
 export interface DecimalInfo {
   decimals: DecimalCount;

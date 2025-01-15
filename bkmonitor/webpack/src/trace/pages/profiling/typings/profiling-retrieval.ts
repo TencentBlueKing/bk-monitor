@@ -26,20 +26,28 @@
 
 export enum SearchType {
   Profiling = 'profiling',
-  Upload = 'upload'
+  Upload = 'upload',
 }
 
 export enum ConditionType {
+  /** 对比项 */
+  Comparison = 'comparison',
   /** 查询项 */
   Where = 'where',
-  /** 对比项 */
-  Comparison = 'comparison'
 }
 
 export interface IConditionItem {
   key: string;
   method: 'eq';
   value: string | string[];
+}
+
+/** 时间对比 */
+export interface DateComparison {
+  start?: number;
+  end?: number;
+  diffStart?: number;
+  diffEnd?: number;
 }
 export interface RetrievalFormData {
   /** 查询类型 */
@@ -51,6 +59,8 @@ export interface RetrievalFormData {
     app_name: string;
     service_name: string;
   };
+  /** 时间对比开关 */
+  dateComparisonEnable: boolean;
   /** 查询项条件 */
   where: IConditionItem[];
   /** 对比项条件 */

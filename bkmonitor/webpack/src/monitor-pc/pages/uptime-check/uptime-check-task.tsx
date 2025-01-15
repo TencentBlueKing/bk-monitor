@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,6 +25,7 @@
  */
 import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import {
   addTaskUptimeCheckGroup,
   changeStatusUptimeCheckTask,
@@ -34,35 +34,33 @@ import {
   destroyUptimeCheckGroup,
   destroyUptimeCheckTask,
   listUptimeCheckTask,
-  updateUptimeCheckGroup
+  updateUptimeCheckGroup,
 } from 'monitor-api/modules/model';
+import { commonPageSizeSet } from 'monitor-common/utils';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import { UPTIME_CHECK_LIST } from '../monitor-k8s//typings/tools';
 import CommonTable from '../monitor-k8s/components/common-table';
 import DeleteSubtitle from '../strategy-config/strategy-config-common/delete-subtitle';
-
 import CardsContainer from './components/cards-container';
-import GroupCard, { IOptionType as IGroupCardOperate } from './components/group-card';
-import HeaderTools, { IClickType } from './components/header-tools';
+import GroupCard, { type IOptionType as IGroupCardOperate } from './components/group-card';
+import HeaderTools, { type IClickType } from './components/header-tools';
 import OperateOptions from './components/operate-options';
-import TaskCard, { IData as ItaskItem, IOptionTypes as ITaskCardOperate } from './components/task-card';
+import TaskCard, { type IData as ItaskItem, type IOptionTypes as ITaskCardOperate } from './components/task-card';
 import UploadContent from './components/upload-content';
-import UptimeCheckEmpty from './uptime-check-task/uptime-check-empty/uptime-check-empty.vue';
-import UptimeCheckImport from './uptime-check-task/uptime-check-import/uptime-check-import.vue';
-import { IActive as IUptimeCheckType } from './uptime-check';
+import TaskCardSkeleton from './skeleton/task-card-skeleton';
 import {
+  type IDragStatus,
+  type IGroupDataTask,
+  type ITaskData,
+  type ITaskTableData,
   getGroupToTaskData,
   groupDataTaskInit,
   groupDialogDataInit,
   groupNameValidate,
-  IDragStatus,
-  IGroupDataTask,
   isTaskDisable,
-  ITaskData,
-  ITaskTableData,
   paginationUtil,
   searchGroupData,
   searchTaskData,
@@ -74,8 +72,13 @@ import {
   taskStatusTextColor,
   taskSwitch,
   taskSwitchDisabled,
-  taskTableDataInit
+  taskTableDataInit,
 } from './uptime-check-data';
+import UptimeCheckEmpty from './uptime-check-task/uptime-check-empty/uptime-check-empty.vue';
+import UptimeCheckImport from './uptime-check-task/uptime-check-import/uptime-check-import.vue';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { IActive as IUptimeCheckType } from './uptime-check';
 
 import './uptime-check-task.scss';
 
@@ -93,7 +96,7 @@ interface IUptimeCheckTaskEvents {
 }
 
 @Component({
-  name: 'UptimeCheckTask'
+  name: 'UptimeCheckTask',
 })
 export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeCheckTaskEvents> {
   @Prop({ type: Boolean, default: true }) isCard: boolean;
@@ -108,7 +111,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   // 拖拽状态管理
   dragStatus: IDragStatus = {
     taskId: 0, // 拖拽中的拨测任务id
-    dragging: false // 是否拖拽中
+    dragging: false, // 是否拖拽中
   };
 
   // 点击任务组展开的任务数据
@@ -128,6 +131,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   sortTableData = [];
 
   emptyStatusType: EmptyStatusType = 'empty';
+
+  loading = false;
 
   // 搜索数据
   get searchTaskData(): ITaskData['task_data'] {
@@ -161,7 +166,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
       get_available: true,
       get_task_duration: true,
       get_groups: true,
-      ordering: '-id'
+      ordering: '-id',
     });
     this.handleLoading(false);
     this.data = data;
@@ -216,7 +221,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
         available: curTask.available,
         name: curTask.name,
         status: curTask.status,
-        task_id: curTask.id
+        task_id: curTask.id,
       };
       curGroup.all_tasks.push(taskItem);
       if (curGroup.top_three_tasks.length < 3) {
@@ -236,11 +241,11 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
         this.$router.push({
           name: 'uptime-check-task-add',
           params: {
-            title: this.$tc('新建拨测任务')
+            title: this.$tc('新建拨测任务'),
           },
           query: {
-            groupId: String(this.groupDataTask.groupId)
-          }
+            groupId: String(this.groupDataTask.groupId),
+          },
         });
         break;
       case 'createGroup': // 创建任务组
@@ -253,9 +258,10 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
 
   // loading
-  @Emit('loading')
+  // @Emit('loading')
   handleLoading(v: boolean) {
-    return v;
+    // return v;
+    this.loading = v;
   }
 
   // 新增任务组时的校验
@@ -290,7 +296,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
       id: '',
       logo: this.groupDialogData.data.img,
       name: this.groupDialogData.data.name,
-      task_id_list: this.groupDialogData.data.tasks
+      task_id_list: this.groupDialogData.data.tasks,
     };
     this.handleLoading(true);
     if (this.groupDialogData.isEdit) {
@@ -303,7 +309,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
       if (res.result) {
         this.$bkMessage({
           message: this.$t('编辑成功'),
-          theme: 'success'
+          theme: 'success',
         });
         this.handleRefreshData();
         // 分组里编辑当前任务组
@@ -322,7 +328,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     if (res) {
       this.$bkMessage({
         message: this.$t('创建成功'),
-        theme: 'success'
+        theme: 'success',
       });
       this.handleRefreshData();
     }
@@ -337,7 +343,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           img: groupData.logo,
           tasks: groupData.all_tasks.map(item => Number(item.task_id)),
           name: groupData.name,
-          groupId: `${groupData.id}`
+          groupId: `${groupData.id}`,
         };
         this.groupDialogData.validate = false;
         this.groupDialogData.isEdit = true;
@@ -355,14 +361,14 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             this.handleLoading(false);
             this.$bkMessage({
               message: res ? this.$t('解散任务组成功') : this.$t('解散任务组失败'),
-              theme: res ? 'success' : 'error'
+              theme: res ? 'success' : 'error',
             });
             // 分组里解散任务组
             if (res && this.groupDataTask.show) {
               this.groupDataTask = groupDataTaskInit();
             }
             this.handleRefreshData();
-          }
+          },
         });
         break;
     }
@@ -380,8 +386,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           name: 'uptime-check-task-edit',
           params: {
             id: String(taskData.id),
-            bizId: String(taskData.bk_biz_id)
-          }
+            bizId: String(taskData.bk_biz_id),
+          },
         });
         break;
       case 'delete':
@@ -391,8 +397,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           subHeader: this.$createElement(DeleteSubtitle, {
             props: {
               title: this.$tc('任务名'),
-              name: taskData.name
-            }
+              name: taskData.name,
+            },
           }),
           maskClose: true,
           escClose: true,
@@ -404,10 +410,10 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             this.handleLoading(false);
             this.$bkMessage({
               theme: delRes ? 'success' : 'error',
-              message: delRes ? this.$t('删除任务成功！') : this.$t('删除任务失败！')
+              message: delRes ? this.$t('删除任务成功！') : this.$t('删除任务失败！'),
             });
             this.handleRefreshData();
-          }
+          },
         });
         break;
       case 'clone':
@@ -418,7 +424,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
         this.handleLoading(false);
         this.$bkMessage({
           theme: cloneRes ? 'success' : 'error',
-          message: cloneRes ? this.$t('克隆任务成功！') : this.$t('克隆任务失败!')
+          message: cloneRes ? this.$t('克隆任务成功！') : this.$t('克隆任务失败!'),
         });
         this.handleRefreshData();
         break;
@@ -432,7 +438,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
         statusRes &&
           this.$bkMessage({
             theme: 'success',
-            message: this.$t(statusRes === 'running' ? '任务启动成功' : '任务停止成功')
+            message: this.$t(statusRes === 'running' ? '任务启动成功' : '任务停止成功'),
           });
         this.handleRefreshData();
         break;
@@ -454,8 +460,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
       name: this.groupDataTask.groupId ? 'uptime-check-group-detail' : 'uptime-check-task-detail',
       params: {
         taskId: String(taskData.id),
-        groupId: String(this.groupDataTask.groupId)
-      }
+        groupId: String(this.groupDataTask.groupId),
+      },
     });
   }
   // 返回到拨测任务
@@ -477,7 +483,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     const pagination = {
       ...this.taskTableData.pagination,
       count: this.searchTaskData.length,
-      current: 1
+      current: 1,
     };
     this.taskTableData.pagination = pagination;
     this.taskTableData.data = taskDataToTableData(paginationUtil(pagination, this.searchTaskData));
@@ -486,8 +492,8 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
       name: this.$route.name,
       query: {
         ...this.$route.query,
-        queryString: v.trim?.().length ? v : undefined
-      }
+        queryString: v.trim?.().length ? v : undefined,
+      },
     };
     if (!isInit) {
       this.$router.replace(params).catch(() => {});
@@ -498,15 +504,15 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     this.$router.push({
       name: 'uptime-check-task-detail',
       params: {
-        taskId: String(id)
-      }
+        taskId: String(id),
+      },
     });
   }
   // 点击表格中的启停时
   handleTaskSwitchChange(v: boolean) {
     this.$bkMessage({
       theme: 'success',
-      message: v ? this.$t('任务启动成功') : this.$t('任务停止成功')
+      message: v ? this.$t('任务启动成功') : this.$t('任务停止成功'),
     });
     this.handleRefreshTableData();
   }
@@ -517,14 +523,14 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
       get_available: true,
       get_task_duration: true,
       get_groups: false,
-      ordering: '-id'
+      ordering: '-id',
     });
     this.data.task_data = data.task_data;
     await this.$nextTick();
     const pagination = {
       count: this.searchTaskData.length,
       current: 1,
-      limit: 10
+      limit: 10,
     };
     this.taskTableData.pagination = pagination;
     this.taskTableData.data = taskDataToTableData(paginationUtil(pagination, this.searchTaskData));
@@ -551,7 +557,7 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     const pagination = {
       count: this.searchTaskData.length,
       current: v,
-      limit: this.taskTableData.pagination.limit
+      limit: this.taskTableData.pagination.limit,
     };
     this.taskTableData.pagination = pagination;
     this.taskTableData.data = taskDataToTableData(
@@ -562,8 +568,9 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     const pagination = {
       count: this.searchTaskData.length,
       current: 1,
-      limit: v
+      limit: v,
     };
+    commonPageSizeSet(v);
     this.taskTableData.pagination = pagination;
     this.taskTableData.data = taskDataToTableData(
       paginationUtil(pagination, this.isTableSort ? this.sortTableData : this.searchTaskData)
@@ -571,17 +578,17 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   }
 
   // 列表排序
-  handleSortChange(v: { prop: string; order: 'descending' | 'ascending' | null }) {
+  handleSortChange(v: { prop: string; order: 'ascending' | 'descending' | null }) {
     const columnId = v.prop;
     const { order } = v; // ascending: 升序
     let taskData = [];
     const pagination = {
       count: this.searchTaskData.length,
       current: 1,
-      limit: 10
+      limit: 10,
     };
     if (order) {
-      switch (columnId as 'task_duration_text' | 'available_progress') {
+      switch (columnId as 'available_progress' | 'task_duration_text') {
         case 'available_progress': // 可用率
           taskData = [...this.searchTaskData].sort((a, b) => {
             if (order === 'ascending') {
@@ -610,19 +617,19 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     this.taskTableData.data = taskDataToTableData(paginationUtil(pagination, taskData));
   }
 
-  handleEmptyCreate(v: 'create' | 'import' | 'createNode') {
+  handleEmptyCreate(v: 'create' | 'createNode' | 'import') {
     switch (v) {
       case 'create':
         this.$router.push({
           name: 'uptime-check-task-add',
           params: {
-            title: this.$tc('新建拨测任务')
-          }
+            title: this.$tc('新建拨测任务'),
+          },
         });
         break;
       case 'createNode':
         this.$router.push({
-          name: 'uptime-check-node-add'
+          name: 'uptime-check-node-add',
         });
         break;
       case 'import':
@@ -639,32 +646,6 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
     }
     this.handleRefreshTableData();
   }
-
-  render() {
-    return (
-      <div class='uptime-check-task-component'>
-        {!this.data.group_data.length && !this.data.task_data.length ? (
-          <UptimeCheckEmpty
-            is-node={!this.data.has_node}
-            on-create={() => this.handleEmptyCreate('create')}
-            on-import={() => this.handleEmptyCreate('import')}
-            on-create-node={() => this.handleEmptyCreate('createNode')}
-          ></UptimeCheckEmpty>
-        ) : this.isCard ? (
-          this.getCardData()
-        ) : (
-          this.getTableData()
-        )}
-        {this.getDialogContent()}
-        <UptimeCheckImport
-          options={{ isShow: this.isShowImport }}
-          on-close={() => (this.isShowImport = false)}
-          on-complete={this.handleRefreshData}
-        ></UptimeCheckImport>
-      </div>
-    );
-  }
-
   // 表格容器
   getTableData() {
     return (
@@ -674,84 +655,89 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           search={this.searchValue}
           onCreate={this.handleHeaderCreate}
           onSearch={(v: string) => this.handleSearch(v)}
-        ></HeaderTools>
-        <CommonTable
-          style={{ marginTop: '16px' }}
-          {...{ props: taskCommonTableProps }}
-          data={this.taskTableData.data}
-          pagination={this.taskTableData.pagination}
-          scopedSlots={{
-            operate: (row: ItaskItem) => (
-              <OperateOptions
-                options={{
-                  outside: [
-                    {
-                      id: 'edit',
-                      name: window.i18n.tc('button-编辑'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH
-                    },
-                    {
-                      id: 'delete',
-                      name: window.i18n.tc('删除'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH
-                    }
-                  ],
-                  popover: [
-                    {
-                      id: 'clone',
-                      name: window.i18n.tc('克隆'),
-                      authority: this.authority.MANAGE_AUTH,
-                      authorityDetail: this.authorityMap.MANAGE_AUTH
-                    }
-                  ]
-                }}
-                onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
-              ></OperateOptions>
-            ),
-            name: (row: ItaskItem) => (
-              <span
-                class='task-name'
-                onClick={() => this.handleTaskNameClick(row.id)}
-              >
-                {row.name}
-              </span>
-            ),
-            enable: (row: ItaskItem) => (
-              <bk-switcher
-                value={taskSwitch(row.status)}
-                disabled={taskSwitchDisabled(row.status)}
-                size={'small'}
-                theme={'primary'}
-                preCheck={() => this.taskSwitchChangePreCheck(row.id, row.status)}
-                on-change={this.handleTaskSwitchChange}
-              ></bk-switcher>
-            ),
-            statusText: (row: ItaskItem) => (
-              <span style={{ color: taskStatusTextColor(row.status) }}>{taskStatusMap[row.status]}</span>
-            ),
-            progress: (row: ItaskItem) => (
-              <div>
-                {<div>{row.available !== null ? `${row.available}%` : '--'}</div>}
-                <bk-progress
-                  color={tableAvailableProcessColor(row.available, row.status)}
-                  showText={false}
-                  percent={Number((row.available * 0.01).toFixed(2)) || 0}
-                ></bk-progress>
-              </div>
-            )
-          }}
-          onPageChange={this.handleTaskTablePageChange}
-          onLimitChange={this.handleTaskTableLimitChange}
-          onSortChange={this.handleSortChange}
-        >
-          <EmptyStatus
-            type={this.emptyStatusType}
-            slot='empty'
-            onOperation={this.handleOperation}
-          />
-        </CommonTable>
+        />
+        {this.loading ? (
+          <TableSkeleton class='mt-16' />
+        ) : (
+          <CommonTable
+            style={{ marginTop: '16px' }}
+            {...{ props: taskCommonTableProps }}
+            scopedSlots={{
+              operate: (row: ItaskItem) => (
+                <OperateOptions
+                  options={{
+                    outside: [
+                      {
+                        id: 'edit',
+                        name: window.i18n.tc('button-编辑'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH,
+                      },
+                      {
+                        id: 'delete',
+                        name: window.i18n.tc('删除'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH,
+                      },
+                    ],
+                    popover: [
+                      {
+                        id: 'clone',
+                        name: window.i18n.tc('克隆'),
+                        authority: this.authority.MANAGE_AUTH,
+                        authorityDetail: this.authorityMap.MANAGE_AUTH,
+                      },
+                    ],
+                  }}
+                  onOptionClick={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, row.id)}
+                />
+              ),
+              name: (row: ItaskItem) => (
+                <span
+                  class='task-name'
+                  onClick={() => this.handleTaskNameClick(row.id)}
+                >
+                  {row.name}
+                </span>
+              ),
+              enable: (row: ItaskItem) => (
+                <bk-switcher
+                  disabled={taskSwitchDisabled(row.status)}
+                  preCheck={() => this.taskSwitchChangePreCheck(row.id, row.status)}
+                  size={'small'}
+                  theme={'primary'}
+                  value={taskSwitch(row.status)}
+                  on-change={this.handleTaskSwitchChange}
+                />
+              ),
+              statusText: (row: ItaskItem) => (
+                <span style={{ color: taskStatusTextColor(row.status) }}>{taskStatusMap[row.status]}</span>
+              ),
+              progress: (row: ItaskItem) => (
+                <div>
+                  {<div>{row.available !== null ? `${row.available}%` : '--'}</div>}
+                  <bk-progress
+                    color={tableAvailableProcessColor(row.available, row.status)}
+                    percent={Number((row.available * 0.01).toFixed(2)) || 0}
+                    showText={false}
+                    size={'small'}
+                  />
+                </div>
+              ),
+            }}
+            data={this.taskTableData.data}
+            pagination={this.taskTableData.pagination}
+            onLimitChange={this.handleTaskTableLimitChange}
+            onPageChange={this.handleTaskTablePageChange}
+            onSortChange={this.handleSortChange}
+          >
+            <EmptyStatus
+              slot='empty'
+              type={this.emptyStatusType}
+              onOperation={this.handleOperation}
+            />
+          </CommonTable>
+        )}
       </div>
     );
   }
@@ -763,70 +749,83 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           search={this.searchValue}
           onCreate={this.handleHeaderCreate}
           onSearch={(v: string) => this.handleSearch(v)}
-        ></HeaderTools>
+        />
         {this.groupDataTask.show ? (
-          this.searchGroupToTaskData.length ? (
-            <CardsContainer style={{ marginTop: '20px' }}>
+          <CardsContainer style={{ marginTop: '20px' }}>
+            <span
+              class='card-container-header'
+              slot='title'
+            >
               <span
-                slot='title'
-                class='card-container-header'
+                class='header-btn'
+                onClick={this.handleBackGroup}
               >
-                <span
-                  class='header-btn'
-                  onClick={this.handleBackGroup}
-                >
-                  {this.$t('拨测任务')}
-                </span>
-                <span class='header-arrow'>{'>'}</span>
-                <span class='header-name'>{this.groupDataTask.groupName}</span>
+                {this.$t('拨测任务')}
               </span>
-              {this.searchGroupToTaskData.map(item => (
-                <TaskCard
-                  data={item}
-                  onCardClick={(id: number) => this.handleTaskCardClick(id)}
-                  onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-                ></TaskCard>
-              ))}
-            </CardsContainer>
-          ) : undefined
+              <span class='header-arrow'>{'>'}</span>
+              <span class='header-name'>{this.groupDataTask.groupName}</span>
+            </span>
+            {this.searchGroupToTaskData?.map(item => (
+              <TaskCard
+                key={item.id}
+                data={item}
+                onCardClick={(id: number) => this.handleTaskCardClick(id)}
+                onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
+              />
+            ))}
+          </CardsContainer>
         ) : (
           [
-            this.searchGroupData.length ? (
+            this.loading || this.searchGroupData.length ? (
               <CardsContainer
-                title={this.$tc('拨测任务组')}
+                key='task'
                 style={{ marginTop: '20px' }}
+                title={this.$tc('拨测任务组')}
                 showSeeAll
               >
-                {this.searchGroupData.map(item => (
-                  <GroupCard
-                    data={item}
-                    dragStatus={this.dragStatus}
-                    onDropItem={v => this.handleDropItem(v)}
-                    onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
-                    onCardClick={(id: number) => this.handleGroupCardClick(id)}
-                  ></GroupCard>
-                ))}
+                {this.loading
+                  ? new Array(2).fill(null).map((_item, index) => <TaskCardSkeleton key={index} />)
+                  : this.searchGroupData.map(item => (
+                      <GroupCard
+                        key={item.id}
+                        data={item}
+                        dragStatus={this.dragStatus}
+                        onCardClick={(id: number) => this.handleGroupCardClick(id)}
+                        onDropItem={v => this.handleDropItem(v)}
+                        onOperate={(v: IGroupCardOperate) => this.handleGroupCardOperate(v, item.id)}
+                      />
+                    ))}
               </CardsContainer>
             ) : undefined,
-            this.searchTaskData.length ? (
+            this.loading || this.searchTaskData.length ? (
               <CardsContainer
-                title={this.$tc('拨测任务')}
+                key='task_1'
                 style={{ marginTop: '12px' }}
+                title={this.$tc('拨测任务')}
               >
-                {this.searchTaskData.map(item => (
-                  <TaskCard
-                    data={item}
-                    onDragStatus={(v: IDragStatus) => this.handleDragStatus(v)}
-                    onCardClick={(id: number) => this.handleTaskCardClick(id)}
-                    onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
-                  ></TaskCard>
-                ))}
+                {this.loading
+                  ? new Array(6).fill(null).map((_item, index) => (
+                      <TaskCardSkeleton
+                        key={index}
+                        type={2}
+                      />
+                    ))
+                  : this.searchTaskData.map(item => (
+                      <TaskCard
+                        key={item.id}
+                        data={item}
+                        onCardClick={(id: number) => this.handleTaskCardClick(id)}
+                        onDragStatus={(v: IDragStatus) => this.handleDragStatus(v)}
+                        onOperate={(v: ITaskCardOperate) => this.handleTaskCardOperate(v, item.id)}
+                      />
+                    ))}
               </CardsContainer>
-            ) : undefined
+            ) : undefined,
           ]
         )}
-        {this.isShowNodata ? (
+        {!this.loading && this.isShowNodata ? (
           <EmptyStatus
+            style={{ paddingTop: '8%' }}
             type={this.emptyStatusType}
             onOperation={this.handleOperation}
           />
@@ -838,17 +837,17 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
   getDialogContent() {
     return (
       <bk-dialog
-        class='uptime-check-small-dialog'
-        value={this.groupDialogData.show}
-        title={this.$t('新建拨测任务组')}
-        headerPosition={'left'}
         width={480}
+        class='uptime-check-small-dialog'
+        headerPosition={'left'}
+        title={this.$t('新建拨测任务组')}
+        value={this.groupDialogData.show}
         on-cancel={this.handleCloseGroupData}
       >
         <div class='dialog-form-content'>
           <bk-form
-            formType={'vertical'}
             class='form-content'
+            formType={'vertical'}
           >
             <bk-form-item
               label={this.$t('任务组名称')}
@@ -858,26 +857,26 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
                 v-model={this.groupDialogData.data.name}
                 placeholder={this.$t('输入拨测任务组名称')}
                 on-blur={this.handleGroupDialogBlur}
-                on-focus={this.handleGroupDialogFocus}
                 on-change={this.handleGroupDialogBlur}
-              ></bk-input>
+                on-focus={this.handleGroupDialogFocus}
+              />
               {this.groupDialogData.errMsg.name ? (
                 <span class='errmsg'>{this.groupDialogData.errMsg.name}</span>
               ) : undefined}
             </bk-form-item>
             <bk-form-item label={this.$t('选择拨测任务')}>
               <bk-select
-                v-model={this.groupDialogData.data.tasks}
                 style={{ width: '320px' }}
+                v-model={this.groupDialogData.data.tasks}
                 placeholder={this.$t('选择拨测任务')}
                 multiple
               >
                 {this.data.task_data.map(item => (
                   <bk-option
                     id={item.id}
-                    name={item.name}
                     key={item.id}
-                  ></bk-option>
+                    name={item.name}
+                  />
                 ))}
               </bk-select>
             </bk-form-item>
@@ -886,14 +885,14 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
             <UploadContent
               imgSrc={this.groupDialogData.data.img}
               onChangeImg={(img: string) => (this.groupDialogData.data.img = img)}
-            ></UploadContent>
+            />
           </div>
         </div>
         <div slot='footer'>
           <bk-button
-            theme='primary'
             style={{ marginRight: '5px' }}
             disabled={this.groupDialogData.validate}
+            theme='primary'
             on-click={this.handleSubmitGroupData}
           >
             {this.$t('确定')}
@@ -901,6 +900,31 @@ export default class UptimeCheckTask extends tsc<IUptimeCheckTaskProps, IUptimeC
           <bk-button on-click={this.handleCloseGroupData}>{this.$t('取消')}</bk-button>
         </div>
       </bk-dialog>
+    );
+  }
+
+  render() {
+    return (
+      <div class='uptime-check-task-component'>
+        {!this.loading && !this.data.group_data.length && !this.data.task_data.length ? (
+          <UptimeCheckEmpty
+            is-node={!this.data.has_node}
+            on-create={() => this.handleEmptyCreate('create')}
+            on-create-node={() => this.handleEmptyCreate('createNode')}
+            on-import={() => this.handleEmptyCreate('import')}
+          />
+        ) : this.isCard ? (
+          this.getCardData()
+        ) : (
+          this.getTableData()
+        )}
+        {this.getDialogContent()}
+        <UptimeCheckImport
+          options={{ isShow: this.isShowImport }}
+          on-close={() => (this.isShowImport = false)}
+          on-complete={this.handleRefreshData}
+        />
+      </div>
     );
   }
 }

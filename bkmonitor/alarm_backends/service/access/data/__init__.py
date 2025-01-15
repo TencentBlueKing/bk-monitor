@@ -10,6 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from .processor import AccessDataProcess, AccessRealTimeDataProcess
+from .processor import (
+    AccessBatchDataProcess,
+    AccessDataProcess,
+    AccessRealTimeDataProcess,
+)
 
-__all__ = ["AccessDataProcess", "AccessRealTimeDataProcess"]
+__all__ = ["AccessDataProcess", "AccessBatchDataProcess", "AccessRealTimeDataProcess"]

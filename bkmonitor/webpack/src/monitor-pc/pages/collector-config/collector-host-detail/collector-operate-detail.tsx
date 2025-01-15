@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { Component, Provide, ProvideReactive } from 'vue-property-decorator';
+
 import { collectingTargetStatus } from 'monitor-api/modules/datalink';
 // import { collectingTargetStatus } from 'monitor-api/modules/datalink';
 import { random } from 'monitor-common/utils/index';
@@ -31,7 +32,6 @@ import { random } from 'monitor-common/utils/index';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as collectAuth from '../authority-map';
 import CollectorStatusDetails from '../collector-detail/collector-status-details';
-
 import { STATUS_LIST } from './utils';
 
 import './collector-operate-detail.scss';
@@ -56,7 +56,9 @@ export default class CollectorOperateDetail extends authorityMixinCreate(collect
     this.id = this.$route.params.id;
     this.getHosts(this.pollingCount);
   }
-
+  beforeDestroy() {
+    window.clearTimeout(this.timer);
+  }
   getHosts(count) {
     return collectingTargetStatus({ collect_config_id: this.id })
       .then(data => {
@@ -104,7 +106,7 @@ export default class CollectorOperateDetail extends authorityMixinCreate(collect
           updateKey={this.updateKey}
           onCanPolling={this.handlePolling}
           onRefresh={this.handleRefreshData}
-        ></CollectorStatusDetails>
+        />
       </div>
     );
   }

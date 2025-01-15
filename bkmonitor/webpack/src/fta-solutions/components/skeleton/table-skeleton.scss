@@ -1,0 +1,23 @@
+.common-table-skeleton {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+
+  .common-table-skeleton-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 22px;
+
+    .common-table-skeleton-row-item {
+      position: relative;
+
+      & > div {
+        min-width: 19px;
+        height: 100%;
+      }
+    }
+  }
+}

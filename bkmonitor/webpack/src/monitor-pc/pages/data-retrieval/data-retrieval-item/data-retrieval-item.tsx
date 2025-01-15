@@ -25,17 +25,19 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 import { recheckInterval } from 'monitor-ui/chart-plugins/utils';
 
 import CycleInput from '../../../components/cycle-input/cycle-input';
-import { IntervalType } from '../../../components/cycle-input/typings';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { METHOD_LIST } from '../../../constant/constant';
 import SimpleConditionInput from '../../alarm-shield/components/simple-condition-input';
 // import ConditionInput from '../../strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import FunctionSelect from '../../strategy-config/strategy-config-set-new/monitor-data/function-select';
-import { DataRetrievalQueryItem, IDataRetrievalItem, IDataRetrievalView } from '../typings';
+
+import type { IntervalType } from '../../../components/cycle-input/typings';
+import type { DataRetrievalQueryItem, IDataRetrievalItem, IDataRetrievalView } from '../typings';
 
 import './data-retrieval-item.scss';
 
@@ -60,7 +62,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
         result_table_label_name: resultTableLabelName,
         related_name: relatedName,
         result_table_name: resultTableName,
-        metric_field_name: metricFieldName
+        metric_field_name: metricFieldName,
       } = this.localValue as DataRetrievalQueryItem;
       value = `${resultTableLabelName}/${relatedName}/${resultTableName}/${metricFieldName}`;
     }
@@ -95,7 +97,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
       if (!this.groupByMap.includes(id)) {
         newGroupBy.push({
           id,
-          name: id
+          name: id,
         });
       }
     });
@@ -136,7 +138,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
   emitChange(type?: IDataRetrievalItem.emitType): IDataRetrievalItem.onChange {
     return {
       type,
-      value: this.localValue
+      value: this.localValue,
     };
   }
 
@@ -205,7 +207,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             placement: 'right',
             zIndex: 9999,
             boundary: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {item.name}
@@ -226,7 +228,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             zIndex: 9999,
             offset: '0, 6',
             boundary: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {node.name}
@@ -245,34 +247,37 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
             onClick={() => this.handleShowMetricSelector(true)}
           >
             <bk-input
-              class='metric-selector-target'
+              id={`_metric_item_index_${this.index}`}
               ref='metricInput'
+              class='metric-selector-target'
+              clearable={true}
               placeholder={this.$t('选择')}
               value={this.metricValStr}
-              clearable={true}
               readonly
-              id={`_metric_item_index_${this.index}`}
               onClear={this.handleClearMerticVal}
             />
           </div>
         </div>
         {this.metricValStr
           ? [
-              <div class='query-item-group'>
+              <div
+                key={1}
+                class='query-item-group'
+              >
                 <div class='query-item-wrap flex-1'>
                   <div class='query-item-label'>{this.$t('汇聚方法')}</div>
                   <div class='query-item-content'>
                     <bk-select
                       vModel={this.localValue.agg_method}
-                      onChange={this.handleMethodChange}
                       clearable={false}
+                      onChange={this.handleMethodChange}
                     >
                       {this.methodList.map((method, index) => (
                         <bk-option
-                          key={index}
                           id={method.id}
+                          key={index}
                           name={method.name}
-                        ></bk-option>
+                        />
                       ))}
                     </bk-select>
                   </div>
@@ -289,21 +294,24 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                   </div>
                 </div>
               </div>,
-              <div class='query-item-group'>
+              <div
+                key={'query-item-group'}
+                class='query-item-group'
+              >
                 <div class='query-item-wrap query-item-group-by'>
                   <div class='query-item-label'>{this.$t('维度')}</div>
                   <div class='query-item-content'>
                     <bk-tag-input
                       vModel={this.localValue.agg_dimension}
+                      allow-create={true}
+                      allow-next-focus={false}
                       list={this.metricGroupByList}
                       placeholder={String(this.$t('选择'))}
-                      trigger='focus'
-                      allow-next-focus={false}
-                      allow-create={true}
                       search-key={['name', 'id']}
-                      tpl={this.aggDimensionOptionTpl}
                       tag-tpl={this.aggDimensionTagTpl}
-                      // tooltip-key="id"
+                      tooltip-key='__null__' // 这里有xss注入问题 改成一个不可能字符串字段
+                      tpl={this.aggDimensionOptionTpl}
+                      trigger='focus'
                       onChange={() => this.emitChange()}
                     />
                   </div>
@@ -313,19 +321,19 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                   <div class='query-item-content'>
                     <SimpleConditionInput
                       class='query-where-selector-simple'
-                      conditionList={this.localValue.agg_condition}
-                      dimensionsList={this.metricWhereGroupBy}
                       metricMeta={{
                         dataSourceLabel: this.localValue.data_source_label,
                         dataTypeLabel: this.localValue.data_type_label,
                         metricField: this.localValue.metric_field,
                         resultTableId: this.localValue.result_table_id,
-                        indexSetId: this.localValue.index_set_id
+                        indexSetId: this.localValue.index_set_id,
                       }}
+                      conditionList={this.localValue.agg_condition}
+                      dimensionsList={this.metricWhereGroupBy}
                       isHasNullOption={true}
                       onChange={this.handleConditionChaneg}
                       onKeyLoading={this.handleLoadingChange}
-                    ></SimpleConditionInput>
+                    />
                     {/* <ConditionInput
                     class={['query-where-selector', { 'is-empt': this.whereIsEmpt }]}
                     conditionList={this.localValue.agg_condition}
@@ -355,7 +363,7 @@ export default class DataRetrievalItem extends tsc<IDataRetrievalItem.IProps, ID
                     </div>
                   </div>
                 ) : undefined}
-              </div>
+              </div>,
             ]
           : undefined}
       </div>

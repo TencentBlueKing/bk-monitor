@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { methodMap } from '../typing';
@@ -35,16 +35,16 @@ export default defineComponent({
   props: {
     strategyData: {
       type: Object as PropType<any>,
-      default: () => null
+      default: () => null,
     },
     detects: {
       type: Object as PropType<any>,
-      default: () => null
+      default: () => null,
     },
     simple: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -68,9 +68,9 @@ export default defineComponent({
                 {queryConfig.agg_condition.map((item, index) => [
                   index > 0 && <div class='column-agg-dimension mb-2'>{item.condition}</div>,
                   <div
-                    class='column-agg-dimension mb-2'
                     key={index}
-                  >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+                    class='column-agg-dimension mb-2'
+                  >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
                 ])}
               </div>
             </div>
@@ -92,7 +92,7 @@ export default defineComponent({
                   <div class='column-item'>
                     <div class='column-label'> {t('检索语句')} : </div>
                     <div class='column-center'>{queryConfig.keywords_query_string}</div>
-                  </div>
+                  </div>,
                 ]
               : undefined,
             [
@@ -112,7 +112,7 @@ export default defineComponent({
                     <div class='item-font'>{queryConfig.agg_method}</div>
                   )}
                 </div>
-              </div>
+              </div>,
             ],
             queryConfig.agg_method !== 'REAL_TIME' ? (
               <div class='column-item'>
@@ -128,8 +128,8 @@ export default defineComponent({
                 <div class='column-agg-condition'>
                   {queryConfig.agg_dimension?.map((item, index) => (
                     <div
-                      class='column-agg-dimension mb-2'
                       key={index}
+                      class='column-agg-dimension mb-2'
                     >
                       {item}
                     </div>
@@ -140,15 +140,15 @@ export default defineComponent({
             <div class='column-item column-item-agg-condition'>
               <div class='column-label column-target'> {t('监控条件')} : </div>
               <div class='column-agg-condition'>
-                {queryConfig.agg_condition.map((item, index) => [
+                {queryConfig?.agg_condition?.map((item, index) => [
                   index > 0 && <div class='column-agg-dimension mb-2'>{item.condition}</div>,
                   <div
-                    class='column-agg-dimension mb-2'
                     key={index}
-                  >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+                    class='column-agg-dimension mb-2'
+                  >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
                 ])}
               </div>
-            </div>
+            </div>,
           ]}
         </div>
       );
@@ -173,9 +173,9 @@ export default defineComponent({
               {queryConfig.agg_condition.map((item, index) => [
                 index > 0 && <div class='column-agg-dimension mb-2'>{item.condition}</div>,
                 <div
-                  class='column-agg-dimension mb-2'
                   key={index}
-                >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>
+                  class='column-agg-dimension mb-2'
+                >{`${item.key} ${methodMap[item.method]} ${item.value.join(',')}`}</div>,
               ])}
             </div>
           </div>
@@ -194,11 +194,29 @@ export default defineComponent({
               if (item.data_type_label === 'alert') {
                 return getAlertContent(item);
               }
+              if (item?.data_source_label === 'prometheus') {
+                return (
+                  <div class='item-content'>
+                    <div class='column-item'>
+                      <div class='column-label'> {t('告警名称')} : </div>
+                      <div class='column-content item-font'>{props.strategyData.name}</div>
+                    </div>
+                    <div class='column-item'>
+                      <div class='column-label'> {t('告警级别')} : </div>
+                      <div class='column-content item-font'>{levelMap[props.strategyData.detects[0].level]}</div>
+                    </div>
+                    <div class='column-item'>
+                      <div class='column-label'> {t('监控项')} : </div>
+                      <div class='column-content item-font'>{item.promql}</div>
+                    </div>
+                  </div>
+                );
+              }
               return getTimeSeriesContent(item);
             })()}
           </div>
         ))}
       </div>
     );
-  }
+  },
 });

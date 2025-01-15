@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, ref, watch } from 'vue';
+import { type PropType, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { TagInput } from 'bkui-vue';
 import { listUsersUser } from 'monitor-api/modules/model';
 import { debounce, random } from 'monitor-common/utils';
@@ -36,24 +37,24 @@ export default defineComponent({
   props: {
     value: {
       type: Array as PropType<string[]>,
-      default: () => []
+      default: () => [],
     },
     api: {
       type: String,
-      default: ''
+      default: '',
     },
     userGroups: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     useGroup: {
       type: Boolean,
-      default: false
+      default: false,
     },
     onChange: {
       type: Function as PropType<(v: string[]) => void>,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -63,7 +64,7 @@ export default defineComponent({
       app_code: 'bk-magicbox',
       page: 1,
       page_size: 20,
-      fuzzy_lookups: ''
+      fuzzy_lookups: '',
     });
     const trigger = ref<'focus' | 'search'>('focus');
     const groupsMap = new Map();
@@ -85,7 +86,7 @@ export default defineComponent({
         setUsersMap(localValue.value);
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
     function init() {
@@ -102,22 +103,19 @@ export default defineComponent({
           noData.push(u);
         }
       });
-      noData.forEach(u => {
-        const curParams = JSON.parse(JSON.stringify(params));
-        curParams.fuzzy_lookups = u;
-        curParams.page = 1;
-        getUserList(curParams).then(data => {
-          const item = (data as any[]).find(d => d.username === u) || null;
-          if (item) {
-            const obj = {
-              ...item,
-              idd: item.id,
-              id: item.username,
-              name: item.display_name
-            };
-            usersMap.set(obj.id, obj);
-            key.value = random(8);
-          }
+      const curParams = JSON.parse(JSON.stringify(params));
+      curParams.fuzzy_lookups = noData.join(',');
+      curParams.page = 1;
+      getUserList(curParams).then(data => {
+        (data as any[]).forEach(item => {
+          const obj = {
+            ...item,
+            idd: item.id,
+            id: item.username,
+            name: item.display_name,
+          };
+          usersMap.set(obj.id, obj);
+          key.value = random(8);
         });
       });
     }
@@ -132,7 +130,7 @@ export default defineComponent({
             const children = item.children.map(c => {
               const obj = {
                 ...c,
-                name: c.display_name
+                name: c.display_name,
               };
               groupsMap.set(obj.id, obj);
               return obj;
@@ -152,7 +150,7 @@ export default defineComponent({
           ...item,
           idd: item.id,
           id: item.username,
-          name: item.display_name
+          name: item.display_name,
         };
         usersMap.set(obj.id, obj);
         return obj;
@@ -178,7 +176,7 @@ export default defineComponent({
 
     async function getUserList(params: Record<string, any>) {
       return await listUsersUser(params, {
-        needCancel: true
+        needCancel: true,
       })
         .then(res => res?.results || [])
         .catch(() => []);
@@ -194,7 +192,7 @@ export default defineComponent({
         <div class='user-item-wrap'>
           {(() => {
             if (node.type === 'group') {
-              return <span class='icon-monitor icon-mc-user-group'></span>;
+              return <span class='icon-monitor icon-mc-user-group' />;
             }
             if (
               node.logo &&
@@ -204,12 +202,12 @@ export default defineComponent({
               return (
                 <img
                   class='user-logo'
-                  src={node.logo}
                   alt=''
-                ></img>
+                  src={node.logo}
+                />
               );
             }
-            return <span class='icon-monitor icon-mc-user-one'></span>;
+            return <span class='icon-monitor icon-mc-user-one' />;
           })()}
           <span class='user-name'>{node.type === 'group' ? node.name : `${node.id} (${node.name})`}</span>
         </div>
@@ -222,18 +220,18 @@ export default defineComponent({
         <div class='user-item-tag'>
           {(() => {
             if (obj.type === 'group') {
-              return <span class='icon-monitor icon-mc-user-group'></span>;
+              return <span class='icon-monitor icon-mc-user-group' />;
             }
             if (obj.logo && typeof obj.logo === 'string' && /^(https?|HTTPS?):\/\/[^\s/$.?#].[^\s]*$/.test(obj.logo)) {
               return (
                 <img
                   class='user-logo'
-                  src={obj.logo}
                   alt=''
-                ></img>
+                  src={obj.logo}
+                />
               );
             }
-            return <span class='icon-monitor icon-mc-user-one'></span>;
+            return <span class='icon-monitor icon-mc-user-one' />;
           })()}
           <span class='user-name'>{obj.type === 'group' ? obj.name : `${obj.id} (${obj.name})`}</span>
         </div>
@@ -251,34 +249,34 @@ export default defineComponent({
       handleChange,
       debounceHandleInput,
       handleFocus,
-      handleBlur
+      handleBlur,
     };
   },
   render() {
     return (
       <TagInput
         key={this.key}
-        placeholder={this.t('选择通知对象')}
-        modelValue={this.localValue}
-        useGroup={this.useGroup}
-        list={this.lcoalList}
-        trigger={this.trigger}
-        tpl={this.tpl}
-        tagTpl={this.tagTpl}
         class='member-selector-component'
-        contentWidth={320}
-        allowNextFocus={true}
-        allowCreate={true}
-        isAsyncList={true}
         popoverProps={{
-          extCls: 'member-selector-component-tag-input-pop'
+          extCls: 'member-selector-component-tag-input-pop',
         }}
+        allowCreate={true}
+        allowNextFocus={true}
+        contentWidth={320}
         filterCallback={(_filterVal, _filterKey, data) => data}
-        onUpdate:modelValue={v => this.handleChange(v)}
-        onInput={this.debounceHandleInput}
-        onFocus={this.handleFocus}
+        isAsyncList={true}
+        list={this.lcoalList}
+        modelValue={this.localValue}
+        placeholder={this.t('选择通知对象')}
+        tagTpl={this.tagTpl}
+        tpl={this.tpl}
+        trigger={this.trigger}
+        useGroup={this.useGroup}
         onBlur={this.handleBlur}
-      ></TagInput>
+        onFocus={this.handleFocus}
+        onInput={this.debounceHandleInput}
+        onUpdate:modelValue={v => this.handleChange(v)}
+      />
     );
-  }
+  },
 });

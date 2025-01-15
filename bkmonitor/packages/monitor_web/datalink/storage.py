@@ -15,7 +15,7 @@ import time
 from typing import Dict, List, Optional, Tuple
 
 import humanize
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from typing_extensions import TypedDict
 
 from common.log import logger
@@ -36,8 +36,10 @@ def get_storager(table_id):
         return VictoriaMetricsStorage(detail=detail)
     elif "influxdb" in detail and detail["influxdb"]:
         return InfluxdbStorager(detail=detail)
+    elif "elasticsearch" in detail and detail["elasticsearch"]:
+        return EsStorage(detail=detail)
 
-    raise ResultTableMetaError("No valid storage in table{}".format(table_id))
+    raise ResultTableMetaError("No valid storage in table: {}".format(table_id))
 
 
 InfoElement = TypedDict("InfoElement", {"key": str, "name": str, "value": str})
@@ -278,3 +280,20 @@ class VictoriaMetricsStorage(Storager):
 
     def handle_info_vm_result_table_id(self):
         return self.detail["victoria_metrics"]["vm_result_table_id"]
+
+
+class EsStorage(Storager):
+    INFO_TMP: List[InfoElement] = [
+        {"key": "storage_type", "name": _("存储类型"), "value": "ElasticSearch"},
+        {"key": "cluster_name", "name": _("集群名"), "value": ""},
+        {"key": "result_table", "name": _("结果表"), "value": ""},
+    ]
+
+    def handle_info_cluster_name(self):
+        return "{}({})".format(
+            self.detail["elasticsearch"]["cluster_config"]["cluster_name"],
+            self.detail["elasticsearch"]["cluster_config"]["domain_name"],
+        )
+
+    def handle_info_result_table(self):
+        return self.detail["result_table"]["table_id"]

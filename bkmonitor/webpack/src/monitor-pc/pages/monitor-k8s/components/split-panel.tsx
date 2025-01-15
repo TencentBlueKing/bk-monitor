@@ -26,6 +26,7 @@
  */
 import { Component, Emit, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 import { queryCustomEventGroup } from 'monitor-api/modules/custom_report';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
@@ -33,13 +34,14 @@ import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import bus from 'monitor-common/utils/event-bus';
 import { docCookies, random } from 'monitor-common/utils/utils';
 import { DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants';
-import { BookMarkModel, IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import { BookMarkModel, type IPanelModel, type IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import { IntervalType } from '../../../components/cycle-input/typings';
 import FilterVarSelectGroup from '../../monitor-k8s/components/filter-var-select/filter-var-select-group';
 import GroupSelect from '../../monitor-k8s/components/group-select/group-select';
-import { FilterDictType } from '../../performance/performance-detail/host-tree/host-tree';
-import { SceneType, SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH, SPLIT_PANEL_LIST, SplitPanelModel } from '../typings';
+import { SPLIT_MAX_WIDTH, SPLIT_MIN_WIDTH, SPLIT_PANEL_LIST, type SceneType, type SplitPanelModel } from '../typings';
+
+import type { IntervalType } from '../../../components/cycle-input/typings';
+import type { FilterDictType } from '../../performance/performance-detail/host-tree/host-tree';
 
 import './split-panel.scss';
 
@@ -68,12 +70,12 @@ interface ISplitPanelEvent {
   onDragMove: number;
 }
 
-type IDashbordMode = 'list' | 'chart';
+type IDashbordMode = 'chart' | 'list';
 @Component({
   components: {
     Event: () => import('fta-solutions/pages/event/event'),
-    DashboardPanel: () => import('monitor-ui/chart-plugins/components/dashboard-panel')
-  }
+    DashboardPanel: () => import('monitor-ui/chart-plugins/components/dashboard-panel'),
+  },
 })
 export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> {
   // 分屏最大宽度
@@ -196,7 +198,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         // 获取自定义事件列表
         const { list = [] } = await queryCustomEventGroup({
           page: 1,
-          page_size: 1000
+          page_size: 1000,
         }).catch(() => ({ total: 0, list: [] }));
         this.relateMiddlewareList = list.map(item => ({ id: item.bk_event_group_id, name: item.name }));
         this.relateMiddlewareId = this.relateMiddlewareList[0]?.id;
@@ -223,7 +225,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       name:
         docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en'
           ? item.id
-          : item.name + (item.type === 'overview' ? this.$t('概览') : this.$t('详情'))
+          : item.name + (item.type === 'overview' ? this.$t('概览') : this.$t('详情')),
     }));
     if (data.length) {
       const [{ id, type }] = this.relateTabList;
@@ -252,7 +254,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       scene_id: this.sceneId,
       type,
       id,
-      is_split: true
+      is_split: true,
     }).catch(() => ({ id: '', panels: [], name: '' }));
     this.sceneData = new BookMarkModel(data || { id: '', panels: [], name: '' });
     this.localPanels = this.handleGetLocalPanels(this.sceneData.panels);
@@ -269,7 +271,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
   handleFilterVarDataReady(list: FilterDictType[]) {
     this.variables = {
       /** 过滤空字符串、空数组的变量值 */
-      ...list.reduce((pre, cur) => ({ ...pre, ...cur }), {})
+      ...list.reduce((pre, cur) => ({ ...pre, ...cur }), {}),
     };
     this.handleUpdateViewOptions();
     this.filtersReady = true;
@@ -288,11 +290,11 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
     this.viewOptions = {
       variables: {
         ...this.viewOptions.filters,
-        ...this.variables
+        ...this.variables,
       },
       interval: this.interval,
       method: this.method || DEFAULT_METHOD,
-      group_by: this.group_by ? [...this.group_by] : []
+      group_by: this.group_by ? [...this.group_by] : [],
     };
   }
   handleGetLocalPanels(panels: IPanelModel[]) {
@@ -314,7 +316,7 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       kubernetes: `${url}#/k8s?dashboardId=${this.relateTab.replace(`_${this.sceneType}`, '')}`,
       alert_event: `${url}#/event-center`,
       action_event: `${url}#/event-center?searchType=action&activeFilterId=action`,
-      custom_event: `${url}#/custom-escalation-event-view/${this.relateMiddlewareId}`
+      custom_event: `${url}#/custom-escalation-event-view/${this.relateMiddlewareId}`,
     };
     window.open(urlMap[this.relatePage]);
   }
@@ -337,24 +339,24 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
             {!!this.sceneData.variables?.length && (
               <FilterVarSelectGroup
                 key={this.sceneData.id + this.refleshVariablesKey}
+                pageId={this.relateTab.replace(/_(detail|overview)$/gim, '')}
+                panelList={this.sceneData.variables}
                 scencId={this.relatePage}
                 sceneType={this.sceneType}
-                pageId={this.relateTab.replace(/_(detail|overview)$/gim, '')}
                 variables={this.variables}
-                panelList={this.sceneData.variables}
                 onChange={this.handleFilterVarChange}
                 onDataReady={this.handleFilterVarDataReady}
               />
             )}
             {this.sceneData.enableGroup && (
               <div class='group-column'>
-                <div class='split-line'></div>
+                <div class='split-line' />
                 <GroupSelect
                   class='k8s-group-select'
-                  value={this.groupsGroupBy}
-                  scencId={this.relatePage}
                   pageId={this.relateTab.replace(/_(detail|overview)$/gim, '')}
+                  scencId={this.relatePage}
                   sceneType={this.sceneType}
+                  value={this.groupsGroupBy}
                 />
               </div>
             )}
@@ -362,8 +364,8 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         )}
         {this.activePage.hasSearchInput && (
           <bk-input
-            placeholder={this.$t('搜索并筛选')}
             class='filter-content-input'
+            placeholder={this.$t('搜索并筛选')}
             right-icon={'bk-icon icon-search'}
           />
         )}
@@ -378,10 +380,10 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         return (
           this.sceneData && (
             <DashboardPanel
-              isSplitPanel={true}
-              key={this.sceneData.id}
               id={this.dashboardId}
+              key={this.sceneData.id}
               column={this.sceneData.mode === 'custom' ? 'custom' : this.columns + 1}
+              isSplitPanel={true}
               panels={this.dashbordMode === 'chart' ? this.localPanels : this.sceneData.list}
             />
           )
@@ -389,8 +391,8 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
       case 'event': // 事件类型 即事件的分屏页面
         return (
           <Event
-            isSplitEventPanel={true}
             defaultParams={this.activePage.defaultParams}
+            isSplitEventPanel={true}
           />
         );
       default:
@@ -409,24 +411,24 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
             <span class='query-label mr10'>{this.$t('关联查看')}</span>
             <bk-select
               class='bk-select-simplicity query-select'
-              ext-popover-cls='associate-view-popover'
-              clearable={false}
-              behavior='simplicity'
               v-model={this.relatePage}
+              behavior='simplicity'
+              clearable={false}
+              ext-popover-cls='associate-view-popover'
               onChange={this.handleRelatePageChange}
             >
               {SPLIT_PANEL_LIST.map((group, index) => (
                 <bk-option-group
-                  name={group.name}
                   key={index}
+                  name={group.name}
                   show-count={false}
                 >
                   {group.children.map(option => (
                     <bk-option
-                      key={option.id}
                       id={option.id}
+                      key={option.id}
                       name={option.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-option-group>
               ))}
@@ -435,16 +437,16 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
               <bk-select
                 class='bk-select-simplicity query-select'
                 v-model={this.relateMiddlewareId}
-                clearable={false}
                 behavior='simplicity'
+                clearable={false}
                 onChange={this.handleMiddlewareChange}
               >
                 {this.relateMiddlewareList.map(option => (
                   <bk-option
-                    key={option.id}
                     id={option.id}
+                    key={option.id}
                     name={option.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             )}
@@ -452,16 +454,16 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
               <bk-select
                 class='bk-select-simplicity query-select'
                 v-model={this.relateTab}
-                clearable={false}
                 behavior='simplicity'
+                clearable={false}
                 onChange={this.handleRelateTabChange}
               >
                 {this.relateTabList.map(option => (
                   <bk-option
-                    key={`${option.id}_${option.type}`}
                     id={`${option.id}_${option.type}`}
+                    key={`${option.id}_${option.type}`}
                     name={option.name}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             )}
@@ -476,9 +478,9 @@ export default class SplitPanel extends tsc<ISplitPanelProps, ISplitPanelEvent> 
         </div>
         <div class='split-panel-content'>{this.contentComponent()}</div>
         <MonitorDrag
-          startPlacement='left'
-          minWidth={this.splitMinWidth}
           maxWidth={this.splitMaxWidth}
+          minWidth={this.splitMinWidth}
+          startPlacement='left'
           toggleSet={this.toggleSet}
           on-move={this.handleDragMove}
         />

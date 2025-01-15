@@ -25,13 +25,19 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getEventPluginToken } from 'monitor-api/modules/event_plugin';
 import { copyText } from 'monitor-common/utils/utils';
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 
 import RulesViewer from '../rules-viewer/rules-viewer';
-import { EPluginType, IAlertConfigTable, INormalizationTable, IPushConfigData, TPluginType } from '../types';
-
+import {
+  EPluginType,
+  type IAlertConfigTable,
+  type INormalizationTable,
+  type IPushConfigData,
+  type TPluginType,
+} from '../types';
 import PullForm from './pull-form';
 
 import './config.scss';
@@ -57,7 +63,7 @@ interface ITableColumnsItem {
   prop: string;
   key?: string;
   width?: number;
-  formatter?: Function;
+  formatter?: (row: any) => any;
 }
 /**
  * 事件源详情配置页
@@ -88,17 +94,17 @@ export default class Config extends tsc<IConfig> {
       prop: 'display_name',
       key: 'field',
       width: 180,
-      formatter: row => (row.field ? `${row.display_name} (${row.field})` : row.display_name)
+      formatter: row => (row.field ? `${row.display_name} (${row.field})` : row.display_name),
     },
     { label: i18n.tc('类型'), prop: 'type', key: 'type', width: 120 },
     { label: i18n.tc('说明'), prop: 'description', key: 'desc', formatter: row => row.description || '--' },
-    { label: i18n.tc('源映字段规则'), prop: 'expr', key: 'rules', formatter: row => row.expr || '--' }
+    { label: i18n.tc('源映字段规则'), prop: 'expr', key: 'rules', formatter: row => row.expr || '--' },
   ];
   // 告警名称列表
   noticeNameTableColumnlist: ITableColumnsItem[] = [
     { label: i18n.tc('告警名称'), prop: 'name', key: 'name', width: 200 },
     // { label: '', prop: 'type', key: 'type', width: 100 },
-    { label: i18n.tc('匹配内容'), prop: 'rules', key: 'content' }
+    { label: i18n.tc('匹配内容'), prop: 'rules', key: 'content' },
     // { label: i18n.tc('匹配模式'), prop: 'match', key: 'match' }
   ];
 
@@ -122,13 +128,13 @@ export default class Config extends tsc<IConfig> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -147,10 +153,10 @@ export default class Config extends tsc<IConfig> {
       default: ({ row }) => {
         if (!row.type) return undefined;
         return <span class='type-label'>{row.type}</span>;
-      }
+      },
     };
     const rulesColumnScopedSlots = {
-      default: ({ row: { rules } }) => <RulesViewer value={rules}></RulesViewer>
+      default: ({ row: { rules } }) => <RulesViewer value={rules} />,
     };
     const scopedSlots = key => {
       if (key === 'type') return typeColumnScopedSlots;
@@ -173,8 +179,8 @@ export default class Config extends tsc<IConfig> {
                 <tbody>
                   <tr>
                     <td
-                      class='label right'
                       style='width: 80px'
+                      class='label right'
                     >
                       {this.$t('用户名')}
                     </td>
@@ -186,16 +192,16 @@ export default class Config extends tsc<IConfig> {
                   </tr>
                   <tr>
                     <td
-                      class='label right'
                       style='width: 80px'
+                      class='label right'
                     >
                       {this.$t('使用SSL')}
                     </td>
                     <td class='value'>是</td>
                     <td class='label right'>{this.$t('拉取频率')}</td>
                     <td class='value'>30分钟</td>
-                    <td class='label right'></td>
-                    <td class='value'></td>
+                    <td class='label right' />
+                    <td class='value' />
                   </tr>
                 </tbody>
               </table>
@@ -207,7 +213,7 @@ export default class Config extends tsc<IConfig> {
               <PullForm
                 formData={this.paramsSchema}
                 instanceId={this.instanceId}
-              ></PullForm>
+              />
             ) : undefined
           }
           {
@@ -221,12 +227,11 @@ export default class Config extends tsc<IConfig> {
                       {!this.isHidePushKey && this.pushKey}
                     </span>
                     {this.isHidePushKey && this.isInstalled && (
-                      // eslint-disable-next-line @typescript-eslint/no-misused-promises
                       <span
                         class={['btn', { 'btn-loading': this.pushKeyLoading }]}
                         onClick={this.getSecureKey}
                       >
-                        {this.pushKeyLoading && <span class='loading'></span>}
+                        {this.pushKeyLoading && <span class='loading' />}
                         {this.$t('点击查看')}
                       </span>
                     )}
@@ -239,7 +244,7 @@ export default class Config extends tsc<IConfig> {
                     <i
                       class='icon-monitor icon-mc-copy'
                       onClick={() => this.handleCopy(this.ingesterHost)}
-                    ></i>
+                    />
                   </span>
                 </div>
               </div>
@@ -251,9 +256,9 @@ export default class Config extends tsc<IConfig> {
           {this.tutorialMd ? (
             <Viewer
               class='md-viewer'
-              value={this.tutorialMd}
               flowchartStyle={true}
-            ></Viewer>
+              value={this.tutorialMd}
+            />
           ) : (
             <div style='margin-bottom: 16px;'>{this.$t('暂无')}</div>
           )}
@@ -266,19 +271,19 @@ export default class Config extends tsc<IConfig> {
             <bk-table
               key={`${this.normalizationTable.length || 0}${this.id}normalization`}
               class='table-wrap'
-              data={this.normalizationTable}
               border={false}
+              data={this.normalizationTable}
               outer-border={false}
             >
               {this.fieldMapTableColumnlist.map(item => (
                 <bk-table-column
                   key={item.key}
-                  label={item.label}
-                  prop={item.prop}
                   width={item.width}
                   formatter={item.formatter}
+                  label={item.label}
+                  prop={item.prop}
                   scopedSlots={item.key === 'type' ? typeColumnScopedSlots : null}
-                ></bk-table-column>
+                />
               ))}
               {/* <bk-table-column label={this.$t('操作')} width="180" scopedSlots={oprateScopedSlots}/> */}
             </bk-table>
@@ -297,11 +302,11 @@ export default class Config extends tsc<IConfig> {
               {this.noticeNameTableColumnlist.map(item => (
                 <bk-table-column
                   key={item.key}
+                  width={item.width}
                   label={item.label}
                   prop={item.prop}
-                  width={item.width}
                   scopedSlots={scopedSlots(item.key)}
-                ></bk-table-column>
+                />
               ))}
             </bk-table>
           </div>

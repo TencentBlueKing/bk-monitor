@@ -30,4 +30,4 @@ export interface ISearchItem {
   values?: ISearchItem[];
 }
 // 搜索模式
-export type SearchType = 'list' | 'key-value';
+export type SearchType = 'key-value' | 'list';

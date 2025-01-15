@@ -43,13 +43,12 @@
         <div class="content-checkbox">
           <div>
             {{ $t('全选') }}&nbsp;&nbsp;
-            <i18n path="共计{0}项">
-              &nbsp;{{ list.length }}&nbsp;
-            </i18n>
+            <i18n path="共计{0}项"> &nbsp;{{ list.length }}&nbsp; </i18n>
           </div>
           <div>
             <i18n path="已选{0}项">
-              &nbsp;<span class="blue">{{ groupChecked.length }}</span>&nbsp;
+              &nbsp;<span class="blue">{{ groupChecked.length }}</span
+              >&nbsp;
             </i18n>
           </div>
         </div>
@@ -71,15 +70,15 @@
                 {{ item.name }}<span>（#{{ item.id }}）</span>
               </div>
               <div
-                class="icon"
                 v-show="hover === index"
+                class="icon"
               >
                 <i
                   v-if="item.dependencyPlugin"
+                  ref="Icon"
                   class="icon-monitor icon-mc-guanlian"
                   @mouseenter.self="handleIconEnter($event, item.dependencyPlugin)"
                   @mouseleave.self="handleIconLeave"
-                  ref="Icon"
                 />
                 <i
                   class="icon-monitor icon-mc-wailian"
@@ -110,37 +109,37 @@ import EmptyStatus from '../../../components/empty-status/empty-status';
 export default {
   name: 'ExportConfigurationForms',
   components: { EmptyStatus },
+  inject: ['authority', 'handleShowAuthorityDetail', 'emptyStatus'],
   props: {
     // form 数据
     list: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     // 标题
     name: {
       type: String,
-      default: ''
+      default: '',
     },
     // 跳转路由
     routeName: {
       type: String,
-      default: ''
+      default: '',
     },
     // 已勾选ID
     checked: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
-  inject: ['authority', 'handleShowAuthorityDetail', 'emptyStatus'],
   data() {
     return {
       groupChecked: [],
       hover: -1,
       popover: {
         index: -1,
-        instance: null
-      }
+        instance: null,
+      },
     };
   },
   computed: {
@@ -151,7 +150,7 @@ export default {
     // 半选的状态
     indeterminate() {
       return this.groupChecked.length !== 0;
-    }
+    },
   },
   watch: {
     // 数据切换时，清空勾选
@@ -163,8 +162,8 @@ export default {
       handler(newV) {
         this.groupChecked = newV;
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     // 勾选触发的回调函数
@@ -185,7 +184,7 @@ export default {
         this.popover.instance = this.$bkPopover(event.target, {
           content: text,
           arrow: true,
-          hideOnClick: false
+          hideOnClick: false,
         });
         this.popover.instance.show(100);
       }
@@ -212,7 +211,7 @@ export default {
       if (this.routeName === 'strategy-config-detail') {
         const { href } = this.$router.resolve({
           name: 'strategy-config-detail',
-          params: { id }
+          params: { id },
         });
         window.open(href, '_blank');
       } else if (this.routeName === 'grafana') {
@@ -220,19 +219,19 @@ export default {
         const { href } = this.$router.resolve({
           name: 'favorite-dashboard',
           params: {
-            url: id
-          }
+            url: id,
+          },
         });
         window.open(href, '_blank');
       } else {
         const { href } = this.$router.resolve({
           name: this.routeName,
-          query: { id }
+          query: { id },
         });
         window.open(href, '_blank');
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -244,7 +243,7 @@ export default {
   width: 0;
   border: 1px solid #dcdee5;
   border-right: 0;
-  transition: width .5s;
+  transition: width 0.5s;
 
   @media screen and (max-width: 1366px) {
     max-width: 420px;
@@ -252,7 +251,7 @@ export default {
 
   &:hover {
     /* stylelint-disable-next-line declaration-no-important */
-    box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, .1);
+    box-shadow: 0px 3px 6px 0px rgba(0, 0, 0, 0.1);
 
     @media screen and (max-width: 1366px) {
       width: 420px;

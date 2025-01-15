@@ -11,5 +11,5 @@ export default {
   exportConfig,
   exportAllConfigFile,
   exportConfigFile,
-  importConfigFile
+  importConfigFile,
 };

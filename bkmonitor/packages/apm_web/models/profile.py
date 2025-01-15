@@ -8,20 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.db import models
-from django.utils.translation import gettext_lazy as _
 
 
 class UploadedFileStatus(models.TextChoices):
     # 已上传
-    UPLOADED = "uploaded", _("已上传")
+    UPLOADED = "uploaded", "已上传"
     # 解析失败
-    PARSING_FAILED = "parsing_failed", _("解析失败")
+    PARSING_FAILED = "parsing_failed", "解析失败"
     # 解析成功
-    PARSING_SUCCEED = "parsing_succeed", _("已解析")
+    PARSING_SUCCEED = "parsing_succeed", "已解析"
     # 存储成功
-    STORE_SUCCEED = "store_succeed", _("已存储")
+    STORE_SUCCEED = "store_succeed", "已存储"
     # 存储失败
-    STORE_FAILED = "store_failed", _("存储失败")
+    STORE_FAILED = "store_failed", "存储失败"
 
 
 class ProfileUploadRecord(models.Model):
@@ -52,5 +51,6 @@ class ProfileUploadRecord(models.Model):
     meta_info = models.JSONField("数据元信息", default=dict)
 
     content = models.TextField("运行信息", null=True)
+    data_time = models.DateTimeField("文件数据时间", null=True)
     query_start_time = models.CharField("查询此文件的 profile 数据时的开始时间", max_length=128, null=True)
     query_end_time = models.CharField("查询此文件的 profile 数据时的结束时间", max_length=128, null=True)

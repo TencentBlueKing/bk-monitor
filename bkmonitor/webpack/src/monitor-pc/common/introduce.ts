@@ -23,19 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type RouteConfig } from 'vue-router';
 import { spaceIntroduce } from 'monitor-api/modules/commons';
 
-import { ISPaceIntroduceData } from '../types';
+import type { ISPaceIntroduceData } from '../types';
+import type { RouteConfig } from 'vue-router';
 
 export enum IntroduceRouteKey {
-  'performance' = 'performance',
-  'uptime-check' = 'uptime-check',
   'apm-home' = 'apm-home',
-  'k8s' = 'k8s',
-  'custom-scenes' = 'custom-scenes',
   'collect-config' = 'collect-config',
-  'plugin-manager' = 'plugin-manager'
+  'custom-scenes' = 'custom-scenes',
+  k8s = 'k8s',
+  'k8s-new' = 'k8s-new',
+  // 'k8s-old' = 'k8s-old',
+  performance = 'performance',
+  'plugin-manager' = 'plugin-manager',
+  'uptime-check' = 'uptime-check',
 }
 export type IntroduceStoreData = Record<
   IntroduceRouteKey,
@@ -48,16 +50,14 @@ class IntroduceStore {
   // 使用一个对象存储介绍数据和加载状态
   data: Partial<IntroduceStoreData> = {};
   constructor() {
-    // eslint-disable-next-line no-restricted-syntax
     for (const key in IntroduceRouteKey) {
       this.data[key] = {
         introduce: null,
-        loading: false
+        loading: false,
       };
     }
   }
   clear() {
-    // eslint-disable-next-line no-restricted-syntax
     for (const key in IntroduceRouteKey) {
       this.data[key].introduce = null;
     }
@@ -82,33 +82,11 @@ class IntroduceStore {
 
     // 设置加载状态，发送请求并更新数据
     this.data[tag].loading = true;
-    const data = await spaceIntroduce({ tag }).catch(() => undefined);
+    const data = await spaceIntroduce({
+      tag: tag === IntroduceRouteKey['k8s-new'] ? IntroduceRouteKey.k8s : tag,
+    }).catch(() => undefined);
     this.data[tag].loading = false;
     this.data[tag].introduce = data;
-  }
-
-  // 初始化所有介绍数据
-  initIntroduce(to: RouteConfig) {
-    const toNavId = to.meta.navId;
-    Object.keys(this.data).forEach((tag: IntroduceRouteKey) => {
-      // 如果已有数据，直接返回
-      if (this.data[tag].introduce) return;
-      if (!this.data[tag].loading) {
-        requestIdleCallback(() => {
-          if (toNavId === tag) {
-            this.getIntroduce(tag);
-          } else {
-            this.data[tag].loading = true;
-            spaceIntroduce({ tag })
-              .then(data => {
-                this.data[tag].introduce = data;
-              })
-              .catch(() => (this.data[tag].introduce = undefined))
-              .finally(() => (this.data[tag].loading = false));
-          }
-        });
-      }
-    });
   }
 
   // 获取路由对应的 getIntroduce 方法
@@ -120,6 +98,37 @@ class IntroduceStore {
   getShowGuidePageByRoute(routeId: IntroduceRouteKey) {
     if (routeId === IntroduceRouteKey['plugin-manager']) return !!this.data[routeId]?.introduce.is_no_source;
     return !!(this.data[routeId]?.introduce.is_no_data || this.data[routeId]?.introduce.is_no_source);
+  }
+
+  // 初始化所有介绍数据
+  initIntroduce(to: RouteConfig) {
+    const toNavId = to.meta.navId;
+    for (const [tag, value] of Object.entries(this.data)) {
+      // 如果已有数据，直接返回
+      if (value.introduce) return;
+      if (!value.loading) {
+        requestIdleCallback(() => {
+          if (toNavId === tag) {
+            this.getIntroduce(tag as IntroduceRouteKey);
+          } else {
+            setTimeout(() => {
+              if (this.data[tag].introduce || this.data[tag].loading) return;
+              this.data[tag].loading = true;
+              spaceIntroduce({ tag: tag === IntroduceRouteKey['k8s-new'] ? IntroduceRouteKey.k8s : tag })
+                .then(data => {
+                  this.data[tag].introduce = data;
+                })
+                .catch(() => {
+                  value.introduce = undefined;
+                })
+                .finally(() => {
+                  value.loading = false;
+                });
+            }, 6000);
+          }
+        });
+      }
+    }
   }
 }
 

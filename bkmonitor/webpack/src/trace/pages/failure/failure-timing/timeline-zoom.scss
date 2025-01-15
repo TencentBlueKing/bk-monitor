@@ -1,0 +1,213 @@
+.timeline-zoom {
+    position: absolute;
+    right: 22px;
+    bottom: 18px;
+    display: flex;
+    align-items: center;
+    width: 242px;
+    // width: 222px;
+    height: 32px;
+    padding: 0px 4px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 1px 6px 0 #0000001f;
+
+    .failure-topo-graph-zoom-slider {
+      display: flex;
+      flex: 1;
+      align-items: center;
+    }
+
+    .slider {
+      width: 80px;
+      height: 4px;
+
+      .bk-slider-runway {
+        // background: #5c5c5c !important;
+      }
+
+      .slider-button {
+        // background: #5c5c5c;
+      }
+    }
+
+    .failure-topo-graph-tooltip {
+      z-index: 9999 !important;
+    }
+
+    .failure-topo-graph-legend,
+    .failure-topo-graph-proportion,
+    .failure-topo-graph-setting {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      margin: 0 4px;
+      font-size: 16px;
+      color: #63656E;
+      cursor: pointer;
+      background: #fff;
+      border-radius: 2px;
+    }
+
+    .icon-minimap {
+        margin: 0 8px;
+        font-size: 13px;
+    }
+
+    .failure-topo-graph-proportion {
+      margin: 0px 6px;
+    }
+
+    .failure-topo-graph-line {
+      width: 1px;
+      height: 16px;
+      background: #DCDEE5;
+    }
+}
+
+.timeline-zoom-legend-popover, .timeline-zoom-map-popover {
+    /* stylelint-disable-next-line declaration-no-important */
+    padding: 0 !important;
+    border: 1px solid #DCDEE5;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    border-radius: 2px !important;
+    box-shadow: 0 2px 6px 0 #0000001a;
+
+    .failure-topo-graph-legend-content {
+      display: flex;
+      flex-direction: row;
+      min-width: 186px;
+      padding: 10px;
+    }
+
+    .failure-topo-graph-map-content {
+      position: relative;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+      width: 240px;
+      height: 120px; 
+      overflow: hidden;
+    }
+
+    .map-selection { 
+      position: absolute;
+      width: 100%; 
+      height: 100%;
+      background: #3a84ff1a;
+      border: 1px solid #3A84FF;
+      border-radius: 2px;
+      transform: translateX(0);
+    }
+
+    .node-line-type {
+      display: flex;
+      flex-direction: column;
+      align-items: self-start;
+      justify-content: flex-end;
+      margin-left: 18px;
+      font-size: 12px;
+      color: #dcdee5;
+
+      li {
+        display: flex;
+        align-items: center;
+        margin-bottom: 9px;
+      }
+
+      .line {
+        width: 24px;
+        height: 1px;
+        margin-right: 6px;
+        border: 1px solid #979797;
+      }
+
+      .arrow {
+        position: relative;
+
+        &::before {
+          position: absolute;
+          top: 50%;
+          right: -3px;
+          width: 0;
+          height: 0;
+          content: '';
+          border-top: 6px solid transparent;
+          border-bottom: 6px solid transparent;
+          border-left: 12px solid #979797;
+          transform: translate(0px, -50%);
+        }
+      }
+
+      .dash {
+        border: 1px dashed #ff5656;
+      }
+    }
+
+    .node-type {
+      display: flex;
+      flex-direction: column;
+      align-items: self-start;
+      font-size: 12px;
+      color: #63656E;
+
+      li {
+        display: flex;
+        align-items: center;
+        margin-bottom: 9px;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+      }
+
+      .circle {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-right: 10px;
+        margin-left: 4px;
+        background: #C4C6CC;
+        border-radius: 2px;
+      }
+
+      .info-circle {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        margin-right: 6px;
+        line-height: 20px;
+        color: #fff;
+        text-align: center;
+        background: #C4C6CC;
+        border-radius: 50%;
+      }
+
+      .node-tag {
+        width: 20px;
+        height: 12px;
+        margin-right: 5px;
+        margin-left: 0;
+        font-size: 8px;
+        line-height: 12px;
+        color: #fff;
+        text-align: center;
+        border-radius: 2px;
+      }
+
+      .error {
+        background: #EA3636;
+      }
+
+      .root {
+        background: #EA3636;
+      }
+
+      .feedBackRoot {
+        background: #ff9c01;
+      }
+    }
+}

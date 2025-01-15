@@ -25,14 +25,15 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { alertStatus, updateAlertUserGroups } from 'monitor-api/modules/datalink';
 import { Debounce } from 'monitor-common/utils';
 
-// import { isEnFn } from '../../../../utils/index';
-import { TCollectorAlertStage } from '../typings/detail';
-
-import AlarmGroup, { IAlarmGroupList } from './alarm-group';
+import AlarmGroup, { type IAlarmGroupList } from './alarm-group';
 import AlertHistogram from './alert-histogram';
+
+// import { isEnFn } from '../../../../utils/index';
+import type { TCollectorAlertStage } from '../typings/detail';
 
 import './alert-topic.scss';
 
@@ -61,12 +62,12 @@ export default class AlertTopic extends tsc<IProps> {
 
   show = false;
 
-  @Watch('updateKey')
+  @Watch('updateKey', { immediate: true })
   handleWatchKey() {
     if (!!this.stage && !!this.id) {
       alertStatus({
         collect_config_id: this.id,
-        stage: this.stage
+        stage: this.stage,
       }).then(data => {
         if (data?.has_strategies === false) {
           return;
@@ -98,7 +99,7 @@ export default class AlertTopic extends tsc<IProps> {
     updateAlertUserGroups({
       collect_config_id: this.id,
       stage: this.stage,
-      notice_group_list: value
+      notice_group_list: value,
     });
   }
 
@@ -112,13 +113,32 @@ export default class AlertTopic extends tsc<IProps> {
           <span class='left-wrap'>
             <span class='cur-alert'>
               {this.hasAlert
-                ? [<span class='icon-monitor icon-danger'></span>, <span class='ml-8'>{this.$t('当前有告警')}</span>]
+                ? [
+                    <span
+                      key={'danger'}
+                      class='icon-monitor icon-danger'
+                    />,
+                    <span
+                      key={'ml'}
+                      class='ml-8'
+                    >
+                      {this.$t('当前有告警')}
+                    </span>,
+                  ]
                 : [
-                    <span class='icon-monitor icon-mc-check-fill'></span>,
-                    <span class='ml-8'>{this.$t('当前暂无告警')}</span>
+                    <span
+                      key={'check'}
+                      class='icon-monitor icon-mc-check-fill'
+                    />,
+                    <span
+                      key={'alarm'}
+                      class='ml-8'
+                    >
+                      {this.$t('当前暂无告警')}
+                    </span>,
                   ]}
             </span>
-            <span class='split-line'></span>
+            <span class='split-line' />
             <span class='alert-histogram'>
               <span class='alert-msg mr-8'>
                 <span>{this.$t('总告警')}</span>
@@ -129,26 +149,29 @@ export default class AlertTopic extends tsc<IProps> {
                 onClick={() => this.handleToEvent()}
               >
                 <AlertHistogram
-                  value={this.alertHistogram}
                   defaultInterval={2}
-                ></AlertHistogram>
+                  value={this.alertHistogram}
+                />
               </span>
             </span>
           </span>
           <span class='right-wrap'>
             <span class='receive-msg'>
-              <span class='icon-monitor icon-mc-alarm-create mr-6'></span>
+              <span class='icon-monitor icon-mc-alarm-create mr-6' />
               <bk-popover
-                theme='light'
                 ext-cls='alert-topic-component-pop-alert'
+                theme='light'
               >
                 <span class='dash-text'>{this.$t('可接收告警')}</span>
                 <div
-                  slot='content'
                   class='alert-topic-component-alert-name'
+                  slot='content'
                 >
-                  {this.strategies.map(item => (
-                    <div class='alert-name-item'>
+                  {this.strategies.map((item, index) => (
+                    <div
+                      key={index}
+                      class='alert-name-item'
+                    >
                       <div class='item-name'>{item.name}</div>
                       <div class='item-description'>{item.description}</div>
                     </div>
@@ -156,21 +179,21 @@ export default class AlertTopic extends tsc<IProps> {
                 </div>
               </bk-popover>
             </span>
-            <span class='split-line'></span>
+            <span class='split-line' />
             <span class='group-wrap'>
               <span class='group-title mr-8'>
-                <span class='icon-monitor icon-mc-add-strategy mr-6'></span>
+                <span class='icon-monitor icon-mc-add-strategy mr-6' />
                 <span>{this.$t('告警组')}: </span>
               </span>
               <AlarmGroup
-                value={this.userGroupList}
-                list={this.alarmGroupList}
-                isRefresh={true}
                 isOpenNewPage={true}
+                isRefresh={true}
+                list={this.alarmGroupList}
                 loading={this.alarmGroupListLoading}
-                onRefresh={this.handleAlarmGroupListRefresh}
+                value={this.userGroupList}
                 onChange={this.handleAlarmGroupChange}
-              ></AlarmGroup>
+                onRefresh={this.handleAlarmGroupListRefresh}
+              />
             </span>
           </span>
         </div>

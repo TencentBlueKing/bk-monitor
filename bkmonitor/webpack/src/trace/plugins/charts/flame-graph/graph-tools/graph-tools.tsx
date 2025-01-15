@@ -31,33 +31,33 @@ export default defineComponent({
   name: 'GraphTools',
   props: {
     scaleValue: {
-      default: 100
+      default: 100,
     },
     maxScale: {
-      default: 100
+      default: 100,
     },
     minScale: {
-      default: 1
+      default: 1,
     },
     scaleStep: {
-      default: 1
+      default: 1,
     },
     showThumbnail: {
       type: Boolean,
-      default: true
+      default: true,
     },
     thumbnailActive: {
       type: Boolean,
-      default: false
+      default: false,
     },
     legendActive: {
       type: Boolean,
-      default: false
+      default: false,
     },
     showLegend: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   emits: ['scaleChange', 'storeImg', 'showThumbnail', 'showLegend'],
   setup(props, { emit }) {
@@ -84,7 +84,7 @@ export default defineComponent({
       handleMinus,
       handleStoreImg,
       handleShowThumbnail,
-      handleShowLegend
+      handleShowLegend,
     };
   },
   render() {
@@ -95,33 +95,33 @@ export default defineComponent({
             <i
               class={`icon-monitor icon-minimap item-store ${this.thumbnailActive ? 'is-active' : ''}`}
               onClick={this.handleShowThumbnail}
-            ></i>
+            />
           )}
           {this.showLegend && (
             <i
               class={`icon-monitor icon-legend ${this.legendActive ? 'is-active' : ''}`}
               onClick={this.handleShowLegend}
-            ></i>
+            />
           )}
           <i
             class='icon-monitor icon-xiazai1 item-store'
             onClick={this.handleStoreImg}
-          ></i>
+          />
         </div>
         {
           <div class='tools-scale'>
             <i
               class='icon-monitor icon-plus-line item-icon'
               onClick={this.handlePlus}
-            ></i>
+            />
             <span class='scale-text'>{this.scaleValue}%</span>
             <i
               class='icon-monitor icon-minus-line item-icon'
               onClick={this.handleMinus}
-            ></i>
+            />
           </div>
         }
       </div>
     );
-  }
+  },
 });

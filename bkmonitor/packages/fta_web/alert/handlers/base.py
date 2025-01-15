@@ -10,9 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 import time
 from abc import ABC
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict, Q, Search
 from elasticsearch_dsl.aggs import Bucket
 from elasticsearch_dsl.response import Response
@@ -22,13 +22,14 @@ from luqum.exceptions import ParseError
 from luqum.parser import lexer, parser
 from luqum.tree import AndOperation, FieldGroup, SearchField, Word
 
-from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request, get_request_username
 from constants.alert import EventTargetType
+from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
+from fta_web.alert.utils import process_metric_string, process_stage_string
 
 
 class QueryField:
@@ -76,6 +77,9 @@ class QueryField:
         return value
 
 
+query_cache = {}
+
+
 class BaseQueryTransformer(BaseTreeTransformer):
     """
     Elasticsearch 自定义 query_string 到 标准化 query_string 转换器
@@ -99,6 +103,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
             yield from self.generic_visit(node, context)
         else:
             origin_node_name = node.name
+            # NESTED_KV_FIELDS 为监控定义的特殊字段，tags.key, tags.value, tags.value.raw
             for field, es_field in self.NESTED_KV_FIELDS.items():
                 if node.name.startswith(f"{field}."):
                     self.has_nested_field = True
@@ -107,7 +112,8 @@ class BaseQueryTransformer(BaseTreeTransformer):
                         es_field,
                         FieldGroup(
                             AndOperation(
-                                SearchField("key", Word(node.name[len(field) + 1 :])), SearchField("value", node.expr)
+                                SearchField("key", Word(node.name[len(field) + 1 :])),
+                                SearchField("value.raw", node.expr),
                             )
                         ),
                     )
@@ -129,12 +135,17 @@ class BaseQueryTransformer(BaseTreeTransformer):
 
     @classmethod
     def transform_query_string(cls, query_string: str):
+        global query_cache
         if not query_string:
             return ""
-        try:
-            query_tree = parser.parse(query_string, lexer=lexer)
-        except ParseError as e:
-            raise QueryStringParseError({"msg": e})
+        if query_string in query_cache:
+            query_tree = query_cache[query_string]
+        else:
+            try:
+                query_tree = parser.parse(query_string, lexer=lexer)
+                query_cache[query_string] = query_tree
+            except ParseError as e:
+                raise QueryStringParseError({"msg": e})
 
         transformer = cls()
         query_tree = transformer.visit(query_tree)
@@ -232,22 +243,26 @@ class BaseQueryHandler:
         search_object = self.add_query_string(search_object)
         search_object = self.add_ordering(search_object)
 
-        for hit in search_object.params(preserve_order=True).scan():
-            yield self.handle_hit(hit)
+        yield from search_object.params(preserve_order=True).scan()
 
-    def export(self):
+    def export(self) -> List[dict]:
         """
         将数据导出，用于生成 csv 文件
         :return:
         """
-        docs = []
-        for hit in self.scan():
-            doc = {}
-            for field in self.query_transformer.query_fields:
-                # 替换字段名为中文（表头）
-                doc[str(field.display)] = hit.get(field.field)
-            docs.append(doc)
-        return docs
+        cleaned_docs = (self.handle_hit(hit) for hit in self.scan())
+        return list(self.translate_field_names(cleaned_docs))
+
+    def translate_field_names(self, docs: Iterable[dict]) -> Iterable[dict]:
+        """将字段名转换为显示名。"""
+        # 预先翻译
+        translated_fields = [(field.field, str(field.display)) for field in self.query_transformer.query_fields]
+
+        for doc in docs:
+            translated_doc = {}
+            for field, display in translated_fields:
+                translated_doc[display] = doc.get(field)
+            yield translated_doc
 
     def get_search_object(self, *args, **kwargs) -> Search:
         """
@@ -283,7 +298,10 @@ class BaseQueryHandler:
         处理 query_string
         """
         query_string = self.query_string if query_string is None else query_string
-        if query_string:
+        query_string = process_stage_string(query_string)
+        query_string = process_metric_string(query_string)
+
+        if query_string.strip():
             query_dsl = self.query_transformer.transform_query_string(query_string)
             if isinstance(query_dsl, str):
                 # 如果 query_dsl 是字符串，就使用 query_string 查询
@@ -581,18 +599,23 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         self.username = username
         self.request_username = username or get_request_username()
         if self.bk_biz_ids is not None:
-            self.parse_biz_item()
+            self.authorized_bizs, self.unauthorized_bizs = self.parse_biz_item(bk_biz_ids, **kwargs)
 
-    def parse_biz_item(self):
-        try:
-            req = get_request()
-        except Exception:
-            return
-        self.authorized_bizs = Permission(request=req).filter_biz_ids_by_action(
-            action=ActionEnum.VIEW_EVENT, bk_biz_ids=self.bk_biz_ids
-        )
-        if self.bk_biz_ids:
-            self.unauthorized_bizs = list(set(self.bk_biz_ids) - set(self.authorized_bizs))
+    @classmethod
+    def parse_biz_item(self, bk_biz_ids, **kwargs):
+        if "authorized_bizs" in kwargs:
+            authorized_bizs = kwargs["authorized_bizs"] or bk_biz_ids
+            unauthorized_bizs = kwargs["unauthorized_bizs"] or []
+        else:
+            try:
+                req = get_request()
+            except Exception:
+                return bk_biz_ids, []
+            authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
+            if -1 not in bk_biz_ids:
+                authorized_bizs = list(set(bk_biz_ids) & set(authorized_bizs))
+            unauthorized_bizs = list(set(bk_biz_ids or []) - set(authorized_bizs))
+        return authorized_bizs, unauthorized_bizs
 
 
 class QueryBuilder(ElasticsearchQueryBuilder):

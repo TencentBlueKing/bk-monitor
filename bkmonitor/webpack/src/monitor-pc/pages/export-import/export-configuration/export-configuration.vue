@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="export"
     v-bkloading="{ isLoading: loading }"
+    class="export"
   >
     <!-- 搜索——下拉选框 组件 -->
     <select-input
@@ -52,15 +52,17 @@
     <bk-button
       theme="primary"
       :disabled="isdisable"
-      @click="handleSubmit"
       class="btn"
+      @click="handleSubmit"
     >
       {{ $t('导出') }}
     </bk-button>
     <bk-button
-      @click="handleCancel"
       class="cancel"
-    > {{ $t('取消') }} </bk-button>
+      @click="handleCancel"
+    >
+      {{ $t('取消') }}
+    </bk-button>
     <!-- 导出dialog框 组件 -->
     <export-configuration-dialog
       :state="state"
@@ -72,14 +74,13 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex';
 import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
 import { exportPackage } from 'monitor-api/modules/export_import';
+import { mapActions } from 'vuex';
 
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import * as importExportAuth from '../authority-map';
-
 import exportConfigurationDialog from './export-configuration-dialog';
 import exportConfigurationForm from './export-configuration-forms';
 import selectInput from './select-input';
@@ -89,67 +90,21 @@ export default {
   components: {
     selectInput,
     exportConfigurationForm,
-    exportConfigurationDialog
+    exportConfigurationDialog,
   },
   mixins: [authorityMixinCreate(importExportAuth)],
   provide() {
     return {
       authority: this.authority,
       handleShowAuthorityDetail: this.handleShowAuthorityDetail,
-      emptyStatus: this.emptyStatus
+      emptyStatus: this.emptyStatus,
     };
-  },
-  data() {
-    return {
-      loading: false,
-      exportData: [], // 所有的导出目录
-      dialogShow: false,
-      timer: null,
-      state: 'PREPARE_FILE',
-      message: '',
-      defaultValue: {
-        value: 1
-      },
-      packageNum: {}, // dialog里面对应的导出条数
-      listMap: [
-        // 勾选的ID会存到对应的checked里面
-        {
-          name: this.$t('采集配置'),
-          id: 'collectConfigList',
-          routeName: 'collect-config',
-          checked: []
-        },
-        {
-          name: this.$t('策略配置'),
-          id: 'strategyConfigList',
-          routeName: 'strategy-config-detail',
-          checked: []
-        },
-        {
-          name: this.$t('仪表盘'),
-          id: 'viewConfigList',
-          routeName: 'grafana',
-          checked: []
-        }
-      ],
-      emptyStatus: {
-        type: 'empty',
-        changeType: this.changeType,
-        handleOperation: this.handleOperation
-      }
-    };
-  },
-  computed: {
-    // 未勾选不能导出
-    isdisable() {
-      return this.listMap.every(item => item.checked.length === 0);
-    }
   },
   // created () {
   //     this.getTableList()
   // },
   beforeRouteEnter(to, from, next) {
-    next((vm) => {
+    next(vm => {
       vm.updateNavData(vm.$t('route-导出配置'));
       const routeParams = vm.$route.params;
       vm.defaultValue.routeName = from.name || '';
@@ -165,6 +120,52 @@ export default {
       }
     });
   },
+  data() {
+    return {
+      loading: false,
+      exportData: [], // 所有的导出目录
+      dialogShow: false,
+      timer: null,
+      state: 'PREPARE_FILE',
+      message: '',
+      defaultValue: {
+        value: 1,
+      },
+      packageNum: {}, // dialog里面对应的导出条数
+      listMap: [
+        // 勾选的ID会存到对应的checked里面
+        {
+          name: this.$t('采集配置'),
+          id: 'collectConfigList',
+          routeName: 'collect-config',
+          checked: [],
+        },
+        {
+          name: this.$t('策略配置'),
+          id: 'strategyConfigList',
+          routeName: 'strategy-config-detail',
+          checked: [],
+        },
+        {
+          name: this.$t('仪表盘'),
+          id: 'viewConfigList',
+          routeName: 'grafana',
+          checked: [],
+        },
+      ],
+      emptyStatus: {
+        type: 'empty',
+        changeType: this.changeType,
+        handleOperation: this.handleOperation,
+      },
+    };
+  },
+  computed: {
+    // 未勾选不能导出
+    isdisable() {
+      return this.listMap.every(item => item.checked.length === 0);
+    },
+  },
   beforeDestroy() {
     clearTimeout(this.timer);
   },
@@ -174,7 +175,9 @@ export default {
      * 处理仪表盘选中数据
      */
     handleDefaultChecked() {
-      const { params: { dashboardChecked = [] } } = this.$route;
+      const {
+        params: { dashboardChecked = [] },
+      } = this.$route;
       if (!!dashboardChecked) {
         const target = this.listMap.find(item => item.id === 'viewConfigList');
         !!dashboardChecked.length && this.$set(target, 'checked', dashboardChecked);
@@ -196,7 +199,7 @@ export default {
         name: item.name,
         list: data[item.id],
         routeName: item.routeName,
-        checked: item.checked
+        checked: item.checked,
       }));
     },
     // 勾选变更事件
@@ -210,7 +213,7 @@ export default {
       let num = 0;
       const polling = (params, callBack) => {
         queryAsyncTaskResult(params)
-          .then((data) => {
+          .then(data => {
             if (!data.is_completed) {
               if (data.state === 'PENDING') {
                 num += 1;
@@ -219,7 +222,7 @@ export default {
                   const result = {
                     is_completed: true,
                     state: 'FAILURE',
-                    message: this.$t('请求超时')
+                    message: this.$t('请求超时'),
                   };
                   callBack(result);
                   return;
@@ -232,12 +235,12 @@ export default {
             }
             callBack(data);
           })
-          .catch((err) => {
+          .catch(err => {
             const result = {
               is_completed: true,
               state: 'FAILURE',
               data: err.data,
-              message: err.message
+              message: err.message,
             };
             callBack(result);
           });
@@ -245,13 +248,13 @@ export default {
       const params = {
         collect_config_ids: this.listMap[0].checked,
         strategy_config_ids: this.listMap[1].checked,
-        view_config_ids: this.listMap[2].checked
+        view_config_ids: this.listMap[2].checked,
       };
       this.dialogShow = true;
       // 导出配置接口
       exportPackage(params, { isAsync: true })
-        .then((data) => {
-          polling(data, (data) => {
+        .then(data => {
+          polling(data, data => {
             this.state = data.state;
             if (data.state === 'MAKE_PACKAGE' && data.data) {
               this.packageNum = data.data;
@@ -259,9 +262,10 @@ export default {
             if (data.state === 'SUCCESS') {
               let url = data.data.download_path;
               if (data.data.download_path.indexOf('http') !== 0) {
-                url =                  process.env.NODE_ENV === 'development'
-                  ? `${process.env.proxyUrl}/media${data.data.download_path}`
-                  : `${window.location.origin}${window.site_url}media${data.data.download_path}`;
+                url =
+                  process.env.NODE_ENV === 'development'
+                    ? `${process.env.proxyUrl}/media${data.data.download_path}`
+                    : `${window.location.origin}${window.site_url}media${data.data.download_path}`;
               }
               // 创建a标签的方式不会弹新窗口
               const element = document.createElement('a');
@@ -279,7 +283,7 @@ export default {
             }
           });
         })
-        .catch((err) => {
+        .catch(err => {
           this.state = 'FAILURE';
           this.message = err.message;
         });
@@ -297,8 +301,8 @@ export default {
     },
     handleOperation(val) {
       this.$refs.selectInput.handleOperation(val);
-    }
-  }
+    },
+  },
 };
 </script>
 

@@ -44,21 +44,23 @@
     <div
       v-else
       class="status-chart-empty"
-    >--</div>
+    >
+      --
+    </div>
   </ul>
 </template>
 <script lang="ts">
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
 @Component({
-  name: 'StatusChart'
+  name: 'StatusChart',
 })
 export default class StatusChart extends Vue {
   // 端口列表
   @Prop({
     default() {
       return [];
-    }
+    },
   })
   readonly series: { value: string; status: string }[];
   private statusList: any[];
@@ -68,6 +70,8 @@ export default class StatusChart extends Vue {
 }
 </script>
 <style lang="scss" scoped>
+/* stylelint-disable function-no-unknown */
+
 $statusFontColor: #10c178 #c4c6cc #ffb848;
 $statusBgColor: #e7f9f2 #f0f1f5 #ffe8c3;
 
@@ -78,32 +82,35 @@ $statusBgColor: #e7f9f2 #f0f1f5 #ffe8c3;
   width: 100%;
   height: 100%;
   padding: 0;
+
   &-item {
     display: flex;
-    padding: 5px 14px;
     align-items: center;
     justify-content: center;
-    line-height: 20px;
-    font-size: 12px;
-    border-radius: 2px;
-    margin: 0 2px 2px 0;
     height: 30px;
+    padding: 5px 14px;
+    margin: 0 2px 2px 0;
+    font-size: 12px;
+    line-height: 20px;
+    border-radius: 2px;
 
     @for $i from 0 through 2 {
       &.status-#{$i} {
-        background: nth($statusBgColor, $i + 1);
         color: nth($statusFontColor, $i + 1);
+        background: nth($statusBgColor, $i + 1);
+
         &:hover {
-          background: nth($statusFontColor, $i + 1);
           color: white;
+          background: nth($statusFontColor, $i + 1);
         }
       }
     }
   }
+
   &-empty {
-    color: #dcdee5;
     font-size: 50px;
     line-height: 30px;
+    color: #dcdee5;
   }
 }
 </style>

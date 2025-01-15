@@ -12,7 +12,6 @@ import logging
 import time
 from typing import Dict, List
 
-from celery.task import task
 from elasticsearch.helpers import BulkIndexError
 from elasticsearch_dsl import Q
 
@@ -21,6 +20,7 @@ from alarm_backends.core.alert.alert import Alert, AlertCache, AlertKey
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
 from alarm_backends.service.alert.manager.processor import AlertManager
+from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.base import BulkActionType
 from constants.alert import EventStatus
@@ -57,7 +57,8 @@ def check_abnormal_alert():
             continue
         alerts.append({"id": hit.id, "strategy_id": getattr(hit, "strategy_id", None)})
 
-    send_check_task(alerts)
+    if alerts:
+        send_check_task(alerts)
 
 
 def check_blocked_alert():
@@ -67,6 +68,7 @@ def check_blocked_alert():
     current_time = int(time.time())
     end_time = current_time - CONST_ONE_HOUR
     start_time = current_time - CONST_ONE_DAY
+    logger.info("[check_blocked_alert] begin %s - %s", start_time, end_time)
     search = (
         AlertDocument.search(start_time=start_time, end_time=end_time)
         .filter(Q("term", status=EventStatus.ABNORMAL) & Q('term', is_blocked=True))
@@ -77,20 +79,26 @@ def check_blocked_alert():
     cluster_bk_biz_ids = set(get_cluster_bk_biz_ids())
 
     alerts = []
+    total = 0
     # 这里用 scan 迭代的查询方式，目的是为了突破 ES 查询条数 1w 的限制
-    for hit in search.params(size=5000).scan():
+    for hit in search.params(size=BATCH_SIZE).scan():
         if not getattr(hit, "id", None) or not getattr(hit, "event", None) or not getattr(hit.event, "bk_biz_id", None):
             continue
         # 只处理集群内的告警
         if hit.event.bk_biz_id not in cluster_bk_biz_ids:
             continue
         alerts.append({"id": hit.id, "strategy_id": getattr(hit, "strategy_id", None)})
+        total += 1
+        if total % BATCH_SIZE == 0:
+            alert_keys = [AlertKey(alert_id=alert["id"], strategy_id=alert.get("strategy_id")) for alert in alerts]
+            check_blocked_alert_finished(alert_keys)
+            logger.info("[check_blocked_alert]  blocked alert processed (%s)", len(alert_keys))
+            alerts = []
 
     alert_keys = [AlertKey(alert_id=alert["id"], strategy_id=alert.get("strategy_id")) for alert in alerts]
-    for index in range(0, len(alert_keys), BATCH_SIZE):
-        check_blocked_alert_finished(alert_keys[index : index + BATCH_SIZE])
-
-    logger.info("[check_blocked_alert]  blocked alert total count(%s)", len(alerts))
+    check_blocked_alert_finished(alert_keys)
+    total += len(alerts)
+    logger.info("[check_blocked_alert]  blocked alert total count(%s)", total)
 
 
 def check_blocked_alert_finished(alert_keys):
@@ -143,14 +151,15 @@ def check_blocked_alert_finished(alert_keys):
     )
 
 
-@task(ignore_result=True, queue="celery_alert_manager")
 def send_check_task(alerts: List[Dict], run_immediately=True):
     """
     生成告警检测任务
     :param alerts: 告警对象列表
     :param run_immediately: 是否立即发送一个检查任务
     """
-    alerts = alerts
+    if not alerts:
+        return
+
     alert_ids_with_interval = cal_alerts_check_interval(alerts)
 
     for check_interval, alerts in alert_ids_with_interval.items():
@@ -181,24 +190,34 @@ def send_check_task(alerts: List[Dict], run_immediately=True):
     )
 
 
-@task(ignore_result=True, queue="celery_alert_manager")
+@app.task(ignore_result=True, queue="celery_alert_manager")
 def handle_alerts(alert_keys: List[AlertKey]):
     """
     处理告警（异步任务）
     """
     exc = None
+    if not alert_keys:
+        return
+    total = len(alert_keys)
     manager = AlertManager(alert_keys)
     start_time = time.time()
     try:
+        manager.logger.info("[alert.manager start] with total alerts(%s)", total)
         manager.process()
     except Exception as e:
-        manager.logger.exception("error when processing alert, reason: %s", e)
+        manager.logger.exception("[alert.manager ERROR] detail: %s", e)
         exc = e
+        cost = time.time() - start_time
+    else:
+        cost = time.time() - start_time
+        manager.logger.info("[alert.manager end] cost: %s", cost)
 
-    metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).observe(
-        time.time() - start_time
-    )
-    metrics.ALERT_MANAGE_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).inc()
+    # 按单条告警进行统计耗时，因为这有两个入口：
+    # 1. 周期维护未恢复的告警， 按 total=200 分批跑
+    # 2. 产生新告警时，由alert.builder 立刻执行一次周期任务管理， total 较小。
+    # 因此会存在耗时跟随total值的变化抖动。所以这里算单条告警的处理平均耗时才能体现出实际情况
+    metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).observe(cost / total)
+    metrics.ALERT_MANAGE_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).inc(total)
     metrics.report_all()
 
 

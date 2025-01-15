@@ -26,7 +26,7 @@
 
 import { inject, provide } from 'vue';
 
-import { IChildrenHiddenStore, IFocusMatchesStore, ISpanBarStore, IViewRangeStore } from '../typings';
+import type { IChildrenHiddenStore, IFocusMatchesStore, ISpanBarStore, IViewRangeStore } from '../typings';
 
 export const VIEW_RANGE = 'viewRange';
 export const SPAN_BAR_CURRENT = 'spanBarCurrent';

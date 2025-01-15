@@ -27,26 +27,26 @@
 <template>
   <div class="terminal-instance">
     <pre
-      class="terminal-instance-pre"
       v-if="animation"
+      class="terminal-instance-pre"
     ><code class="console-code"><div
       v-for="(item,index) in consoles"
       :key="index"
       :class="'status-' + item.status"
     ><span
-      class="code-span"
-      :style="{ animationDelay: `${getDelayTime(index,key)}s` }"
       v-for="(code,key) in item.text"
       :key="key"
+      class="code-span"
+      :style="{ animationDelay: `${getDelayTime(index,key)}s` }"
     >{{code}}</span></div></code></pre>
     <!-- eslint-disable-next-line vue/no-v-html -->
     <pre
-      class="terminal-instance-pre"
       v-else
       ref="instancePre"
+      class="terminal-instance-pre"
     ><code class="console-code"><div
-      ref="consoleCode"
       v-for="(item,index) in consoles"
+      ref="consoleCode"
       :key="index"
       :class="'status-' + item.status"
       v-html="item.text"
@@ -63,56 +63,52 @@ export default {
   props: {
     animation: {
       type: Boolean,
-      default: true
+      default: true,
     },
     delay: {
       type: Number,
-      default: 0.005
+      default: 0.005,
     },
     consoles: {
       type: Array,
       default() {
         return [
           {
-            // eslint-disable-next-line vue/max-len
             text: '[HMR]  - ./node_modules/css-loader/dist/cjs.js!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/sass-loader/lib/loader.js!./node_modules/vue-loader/lib??vue-loader-options!./src/pages/plugin-manager/plugin-instance/terminal-instance/terminal-instance.vue?vue&type=style&index=0&id=66f0afa5&lang=scss&scoped=true&',
-            status: 1
+            status: 1,
           },
           {
-            // eslint-disable-next-line vue/max-len
             text: '[HMR]  - ./node_modules/css-loader/dist/cjs.js!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/sass-loader/lib/loader.js!./node_modules/vue-loader/lib??vue-loader-options!./src/pages/plugin-manager/plugin-instance/terminal-instance/terminal-instance.vue?vue&type=style&index=0&id=66f0afa5&lang=scss&scoped=true&',
-            status: 2
+            status: 2,
           },
           {
-            // eslint-disable-next-line vue/max-len
             text: '[HMR]  - ./node_modules/css-loader/dist/cjs.js!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/sass-loader/lib/loader.js!./node_modules/vue-loader/lib??vue-loader-options!./src/pages/plugin-manager/plugin-instance/terminal-instance/terminal-instance.vue?vue&type=style&index=0&id=66f0afa5&lang=scss&scoped=true&',
-            status: 3
+            status: 3,
           },
           {
-            // eslint-disable-next-line vue/max-len
             text: '[HMR]  - ./node_modules/css-loader/dist/cjs.js!./node_modules/vue-loader/lib/loaders/stylePostLoader.js!./node_modules/sass-loader/lib/loader.js!./node_modules/vue-loader/lib??vue-loader-options!./src/pages/plugin-manager/plugin-instance/terminal-instance/terminal-instance.vue?vue&type=style&index=0&id=66f0afa5&lang=scss&scoped=true&',
-            status: 0
-          }
+            status: 0,
+          },
         ];
-      }
-    }
+      },
+    },
   },
   data() {
     return {
       isFull: false, // 是否全屏
       instancePre: null,
-      consoleCode: null
+      consoleCode: null,
     };
   },
   computed: {
     exitFullscreen() {
       return (
-        document.exitFullscreen // W3C
-        || document.mozCancelFullScreen // FireFox
-        || document.webkitExitFullscreen // Chrome等
-        || document.msRequestFullscreen
+        document.exitFullscreen || // W3C
+        document.mozCancelFullScreen || // FireFox
+        document.webkitExitFullscreen || // Chrome等
+        document.msRequestFullscreen
       ); // IE11
-    }
+    },
   },
   watch: {
     consoles(v) {
@@ -122,7 +118,7 @@ export default {
           this.autoScrollToBottom();
         });
       }
-    }
+    },
   },
   mounted() {
     window.addEventListener('fullscreenchange', this.handleFullScreenChange);
@@ -144,10 +140,11 @@ export default {
     toggleFullSreen() {
       if (!this.isFull) {
         const element = this.$el;
-        const requestFullscreen =          element.requestFullscreen // W3C
-          || element.mozRequestFullScreen // FireFox
-          || element.webkitRequestFullScreen // Chrome等
-          || element.msRequestFullscreen; // IE11
+        const requestFullscreen =
+          element.requestFullscreen || // W3C
+          element.mozRequestFullScreen || // FireFox
+          element.webkitRequestFullScreen || // Chrome等
+          element.msRequestFullscreen; // IE11
         if (requestFullscreen) {
           requestFullscreen.call(element);
         }
@@ -170,8 +167,8 @@ export default {
       if (instancePre && consoleCode) {
         instancePre.scrollTop = consoleCode.scrollHeight;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -225,7 +222,7 @@ $statusColors: #c4c4c4 #b5bd68 #cd0000;
       }
 
       .code-span {
-        animation: flip-in .05s 0s linear both;
+        animation: flip-in 0.05s 0s linear both;
       }
 
       ::v-deepa {
@@ -233,7 +230,7 @@ $statusColors: #c4c4c4 #b5bd68 #cd0000;
       }
 
       .code-span {
-        animation: flip-in .05s 0s linear both;
+        animation: flip-in 0.05s 0s linear both;
       }
     }
 
@@ -245,7 +242,7 @@ $statusColors: #c4c4c4 #b5bd68 #cd0000;
     &::-webkit-scrollbar-thumb {
       border-radius: 20px;
       background: #aeaeae;
-      box-shadow: inset 0 0 6px rgba(204, 204, 204, .3);
+      box-shadow: inset 0 0 6px rgba(204, 204, 204, 0.3);
     }
   }
 

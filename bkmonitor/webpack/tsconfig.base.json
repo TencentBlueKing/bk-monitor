@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "pretty": true,
+    "jsx": "preserve",
+    "lib": ["ESNext.Array", "es2018", "dom"],
+    "removeComments": false
+  }
+}

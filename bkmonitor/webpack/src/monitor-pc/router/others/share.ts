@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
+import type { RouteConfig } from 'vue-router';
 
 const Share = () => import(/* webpackChunkName: 'no-business' */ '../../pages/share/share');
 export default [
@@ -31,18 +31,18 @@ export default [
     name: 'share',
     path: '/share/:token',
     components: {
-      noCache: Share
+      noCache: Share,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: {
       title: '临时分享',
       navId: '',
       noNavBar: true,
       route: {
-        parent: 'home'
-      }
-    }
-  }
+        parent: 'home',
+      },
+    },
+  },
 ] as RouteConfig[];

@@ -69,11 +69,11 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Emit, Inject, Vue } from 'vue-property-decorator';
 import { typeTools } from 'monitor-common/utils/utils.js';
+import { Component, Emit, Inject, Vue } from 'vue-property-decorator';
 
-import { IConditionValue, IOption, ITag } from '../performance-type';
-import TableStore from '../table-store';
+import type { IConditionValue, IOption, ITag } from '../performance-type';
+import type TableStore from '../table-store';
 
 @Component({ name: 'filter-tag' })
 export default class FilterTag extends Vue {
@@ -84,7 +84,7 @@ export default class FilterTag extends Vue {
     unresolveData: window.i18n.t('告警中的主机'),
     cpuData: `${window.i18n.t('CPU使用率超80%')}`,
     menmoryData: `${window.i18n.t('应用内存使用率超80%')}`,
-    diskData: `${window.i18n.t('磁盘空间使用率超80%')}`
+    diskData: `${window.i18n.t('磁盘空间使用率超80%')}`,
   };
 
   // 当前筛选面板name
@@ -106,7 +106,7 @@ export default class FilterTag extends Vue {
 
       if (next.type === 'condition') {
         // 使用率类型
-        (next.value as IConditionValue[]).forEach((item) => {
+        (next.value as IConditionValue[]).forEach(item => {
           const range = item as IConditionValue;
           if (typeTools.isNull(range.value)) return;
           // 这里value类型为对象，原始类型为数组, originValue保存的是当前tag下对应的原始值类型
@@ -117,7 +117,7 @@ export default class FilterTag extends Vue {
             value: range,
             count: 0,
             conditions: next.conditions,
-            originValue: [range]
+            originValue: [range],
           });
         });
       } else if (next.type === 'select') {
@@ -125,54 +125,58 @@ export default class FilterTag extends Vue {
         // 区分单选和多选
         const data = Array.isArray(next.value)
           ? (next.value as (string | number)[]).reduce<IOption[]>((pre, value) => {
-            const data = next.options.find(item => item.id === value);
-            if (data) {
-              pre.push(data);
-            }
-            return pre;
-          }, [])
+              const data = next.options.find(item => item.id === value);
+              if (data) {
+                pre.push(data);
+              }
+              return pre;
+            }, [])
           : next.options.filter(item => item.id === next.value).slice(0, 1);
-        data.length
-          && pre.push({
+        data.length &&
+          pre.push({
             id: next.id,
             name: next.name,
             display: data.map(item => item.name).join(','),
             value: data,
             count: 0,
             dynamic: next.dynamic ?? false,
-            originValue: data.map(item => item.id)
+            originValue: data.map(item => item.id),
           });
       } else if (next.type === 'checkbox') {
         // 复选框类型
-        (next.value as number[]).forEach((item) => {
+        (next.value as number[]).forEach(item => {
           const data = next.options.find(data => data.id === item);
-          data
-            && pre.push({
+          data &&
+            pre.push({
               id: next.id,
               name: next.name,
               display: data.name,
               value: data,
               count: 0,
-              originValue: [data.id]
+              originValue: [data.id],
             });
         });
       } else if (next.type === 'cascade') {
         // 级联类型(多选)
         const data = (next.value as string[][]).reduce<string[]>((pre, value) => {
-          pre.push(value.map((v) => {
-            return this.tableInstance.topoNameMap[v];
-          }).join(' / '));
+          pre.push(
+            value
+              .map(v => {
+                return this.tableInstance.topoNameMap[v];
+              })
+              .join(' / ')
+          );
           return pre;
         }, []);
 
-        data.length
-          && pre.push({
+        data.length &&
+          pre.push({
             id: next.id,
             name: next.name,
             display: data.join(','),
             value: next.value,
             count: 0,
-            originValue: next.value
+            originValue: next.value,
           });
       } else if (next.type === 'textarea') {
         // 富文本类型
@@ -187,7 +191,7 @@ export default class FilterTag extends Vue {
           display: this.$t('{num} 个', { num: tmpValue.length }) as string,
           value: next.value,
           count: 0,
-          originValue: next.value
+          originValue: next.value,
         });
       } else {
         pre.push({
@@ -196,19 +200,19 @@ export default class FilterTag extends Vue {
           display: next.value as string,
           value: next.value,
           count: 0,
-          originValue: next.value
+          originValue: next.value,
         });
       }
       return pre;
     }, data);
     // 计算统计信息
     const { allData = [] } = this.tableInstance;
-    allData.forEach((item) => {
-      fieldData.forEach((field) => {
+    allData.forEach(item => {
+      fieldData.forEach(field => {
         const { originValue } = field;
         this.tableInstance.isMatchedCondition(item, {
           ...field,
-          value: originValue
+          value: originValue,
         } as any) && (field.count += 1);
       });
     });
@@ -259,7 +263,7 @@ export default class FilterTag extends Vue {
       if (!isEmpty) {
         pre.push({
           id: next.id,
-          value: next.value
+          value: next.value,
         });
       }
       return pre;
@@ -270,7 +274,7 @@ export default class FilterTag extends Vue {
   @Emit('filter-change')
   private handleClear() {
     this.tableInstance.panelKey = '';
-    this.tableInstance.fieldData.forEach((item) => {
+    this.tableInstance.fieldData.forEach(item => {
       item.value = Array.isArray(item.value) ? [] : '';
     });
     this.handleSearchUpdate([], '');
@@ -280,7 +284,7 @@ export default class FilterTag extends Vue {
   private handleSearchUpdate(search?, panelKey?) {
     return {
       search,
-      panelKey
+      panelKey,
     };
   }
 }

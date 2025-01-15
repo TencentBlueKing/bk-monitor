@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import * as AuthorizationListAuth from '../../pages/authorization-list/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const AuthorizationList = () =>
   import(/* webpackChunkName: 'FunctionSwitch' */ '../../pages/authorization-list/authorization-list');
@@ -35,19 +35,19 @@ export default [
     path: '/external-auth',
     name: 'external-auth',
     components: {
-      noCache: AuthorizationList
+      noCache: AuthorizationList,
     },
     meta: {
       title: '授权列表',
       navId: 'external-auth',
       authority: {
         map: AuthorizationListAuth,
-        page: AuthorizationListAuth.VIEW_AUTH
+        page: AuthorizationListAuth.VIEW_AUTH,
       },
       route: {
-        parent: ''
+        parent: '',
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

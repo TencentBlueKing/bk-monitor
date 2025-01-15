@@ -58,7 +58,7 @@
           chart-type="text"
           class="chart-item"
           :title="`${process}${$t('运行时长')}`"
-          style="marginright: 10px"
+          style="margin-right: 10px"
           height="100"
           :get-series-data="handleGetTextSeries"
         />
@@ -83,8 +83,8 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
+import { Component, Emit, Prop, Vue } from 'vue-property-decorator';
 
 import AbnormalTips from '../../../components/abnormal-tips/abnormal-tips.vue';
 import PerformanceModule from '../../../store/modules/performance';
@@ -96,8 +96,8 @@ import DashboardPanels from './dashboard-panels.vue';
   components: {
     MonitorEcharts,
     DashboardPanels,
-    AbnormalTips
-  }
+    AbnormalTips,
+  },
 })
 export default class ViewContentProcess extends Vue {
   @Prop({ default: () => [], type: Array }) readonly groupsData: IHostGroup[];
@@ -114,15 +114,15 @@ export default class ViewContentProcess extends Vue {
     1: {
       // 异常
       tipsText: window.i18n.t('原因:查看进程本身问题或者检查进程配置是否正常'),
-      docLink: 'processMonitor'
+      docLink: 'processMonitor',
     },
     2: {
       // 无数据
       tipsText: window.i18n.t('原因:bkmonitorbeat进程采集器未安装或者状态异常'),
       linkText: window.i18n.t('前往节点管理处理'),
-      linkUrl: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`
+      linkUrl: `${this.$store.getters.bkNodemanHost}#/plugin-manager/list`,
     },
-    3: {}
+    3: {},
   };
   get processList() {
     return PerformanceModule.curProcessList;
@@ -155,11 +155,11 @@ export default class ViewContentProcess extends Vue {
     return resStatus;
   }
   handleGetTextSeries() {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       setTimeout(() => {
         resolve({
           value: 56.78,
-          unit: this.$t('小时')
+          unit: this.$t('小时'),
         });
       }, 1000);
     });
@@ -199,7 +199,11 @@ $statusBgColors: #f0f1f5 #85dcb8 #ea3636 #ffeb00;
           width: 6px;
           height: 6px;
           margin-right: 5px;
+
+          /* stylelint-disable-next-line function-no-unknown */
           background-color: nth($statusBgColors, $i + 2);
+
+          /* stylelint-disable-next-line function-no-unknown */
           border: 1px solid nth($statusColors, $i + 2);
           border-radius: 6px;
         }
@@ -232,7 +236,7 @@ $statusBgColors: #f0f1f5 #85dcb8 #ea3636 #ffeb00;
         .chart-item {
           height: 100px;
           border-radius: 2px;
-          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
         }
       }
     }

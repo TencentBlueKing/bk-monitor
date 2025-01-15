@@ -26,6 +26,11 @@ for _setting in dir(_module):
     if _setting == _setting.upper():
         locals()[_setting] = getattr(_module, _setting)
 
+# 复用worker CACHES
+from config.role import worker
+
+CACHES = worker.CACHES
+
 # 覆盖默认配置
 RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_VHOST, RABBITMQ_USER, RABBITMQ_PASS, _ = get_rabbitmq_settings(
     app_code=APP_CODE, backend=True
@@ -55,9 +60,6 @@ INSTALLED_APPS += (
     "audit",
     "apigw_manager",
 )
-
-# api not use celery worker
-CELERY_ALWAYS_EAGER = True
 
 LOGGER_LEVEL = os.environ.get("BKAPP_LOG_LEVEL", "INFO")
 LOGGER_DEFAULT = {
@@ -179,6 +181,9 @@ MIDDLEWARE = (
     "bkmonitor.middlewares.prometheus.MetricsAfterMiddleware",  # 必须放到最后面
 )
 
+# 后台api服务， 请求的cookie中不会有session id， 因此每次都会创建新的session， 这里只保留1min即可。
+SESSION_COOKIE_AGE = 60
+
 REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -206,7 +211,6 @@ AUTHENTICATION_BACKENDS = (
 )
 
 ALLOW_EXTEND_API = True
-APIGW_PUBLIC_KEY = ""
 AES_X_KEY_FIELD = "SAAS_SECRET_KEY"
 
 # 跳过权限中心检查
@@ -221,9 +225,6 @@ COMMON_USERNAME = os.environ.get("BK_ESB_SUPER_USER", "admin")
 AES_TOKEN_KEY = os.environ.get("AK_AES_TOKEN_KEY", "ALERT_RESULT")
 
 INGESTER_CONSUL = os.environ.get("INGESTER_CONSUL", "")
-
-# 项目空间API类模块路径
-BKM_SPACE_API_CLASS = "metadata.resources.space_api.InjectSpaceApi"
 
 # api 进程禁用ssl
 SECURE_SSL_REDIRECT = False

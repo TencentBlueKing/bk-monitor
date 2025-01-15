@@ -27,31 +27,32 @@
   <div class="card">
     <h4
       class="card__title"
-      @click="clickHandle"
       :title="title"
       :style="{ borderLeftColor: seriesDataMap[level].color }"
+      @click="clickHandle"
     >
       {{ title || 'Title' }}
     </h4>
     <div
-      class="card__content"
       v-if="options"
       v-bkloading="{ isLoading: isLoading }"
+      class="card__content"
     >
       <monitor-eacharts
         v-if="seriesData.length"
         height="36"
         :options="options"
-        @click="clickHandle"
         :unit="valueSuffix"
         :series="seriesData"
+        @click="clickHandle"
       />
       <span
-        class="error-content"
         v-else
-        @click="clickHandle"
+        class="error-content"
         :title="message"
-      >{{ message }}</span>
+        @click="clickHandle"
+        >{{ message }}</span
+      >
     </div>
   </div>
 </template>
@@ -67,7 +68,7 @@ import { gotoPageMixin } from '../../../../common/mixins';
 export default {
   name: 'BusinessAlarmCard',
   components: {
-    MonitorEacharts
+    MonitorEacharts,
   },
   mixins: [gotoPageMixin],
   inject: ['homeItemBizId'],
@@ -76,17 +77,17 @@ export default {
       type: Object,
       default() {
         return {};
-      }
+      },
     },
     id: null,
     title: {
       type: String,
-      default: ''
+      default: '',
     },
     level: {
       type: [String, Number],
-      default: '1'
-    }
+      default: '1',
+    },
   },
   data() {
     return {
@@ -94,7 +95,7 @@ export default {
       needObserver: true,
       styles: {
         width: 210,
-        height: 37
+        height: 37,
       },
       valueSuffix: '',
       seriesData: [],
@@ -104,17 +105,17 @@ export default {
       seriesDataMap: {
         1: {
           name: this.$t('致命告警'),
-          color: '#EA3636'
+          color: '#EA3636',
         },
         2: {
           name: this.$t('预警告警'),
-          color: '#FF9C01'
+          color: '#FF9C01',
         },
         3: {
           name: this.$t('提醒告警'),
-          color: '#FFD000'
-        }
-      }
+          color: '#FFD000',
+        },
+      },
     };
   },
   computed: {
@@ -122,19 +123,19 @@ export default {
       return {
         color: [this.seriesDataMap[this.level].color],
         legend: {
-          show: false
+          show: false,
         },
         xAxis: {
           splitLine: {
-            show: false
+            show: false,
           },
           axisTick: {
-            show: false
+            show: false,
           },
           axisLabel: {
-            show: false
+            show: false,
           },
-          boundaryGap: false
+          boundaryGap: false,
         },
         grid: {
           containLabel: false,
@@ -142,26 +143,26 @@ export default {
           right: 5,
           top: 5,
           bottom: 5,
-          backgroundColor: 'transparent'
+          backgroundColor: 'transparent',
         },
         yAxis: {
           scale: false,
           min: 0,
           splitLine: {
-            show: false
+            show: false,
           },
           axisTick: {
-            show: false
+            show: false,
           },
           axisLabel: {
-            show: false
-          }
+            show: false,
+          },
         },
         tooltip: {
-          appendToBody: true
-        }
+          appendToBody: true,
+        },
       };
-    }
+    },
   },
   mounted() {
     this.registerObserver();
@@ -174,8 +175,8 @@ export default {
   },
   methods: {
     registerObserver() {
-      this.observer = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
+      this.observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
           if (entry.intersectionRatio > 0 && this.needObserver) {
             this.getAlarmChatData();
           }
@@ -187,22 +188,27 @@ export default {
       this.observer.disconnect();
       this.needObserver = false;
       this.isLoading = true;
-      alertGraphQuery({
-        ...(this.homeItemBizId ? { bk_biz_id: this.homeItemBizId } : {}),
-        id: this.id,
-        chart_type: 'main',
-        time_range: `${dayjs.tz().add(-1, 'day')
-          .format('YYYY-MM-DD HH:mm:ss')} -- ${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`,
-        functions: [],
-        expression: ''
-      }, {
-        needTraceId: false,
-        needMessage: false
-      })
+      alertGraphQuery(
+        {
+          ...(this.homeItemBizId ? { bk_biz_id: this.homeItemBizId } : {}),
+          id: this.id,
+          chart_type: 'main',
+          time_range: `${dayjs
+            .tz()
+            .add(-1, 'day')
+            .format('YYYY-MM-DD HH:mm:ss')} -- ${dayjs.tz().format('YYYY-MM-DD HH:mm:ss')}`,
+          functions: [],
+          expression: '',
+        },
+        {
+          needTraceId: false,
+          needMessage: false,
+        }
+      )
         .then(({ series = [] }) => {
           this.valueSuffix = series[0]?.unit === 'none' ? '' : series[0]?.unit;
           setTimeout(() => {
-            this.seriesData = series.map((item) => {
+            this.seriesData = series.map(item => {
               const { datapoints, target, markPoints } = item;
               const data = [];
               if (datapoints?.length) {
@@ -215,16 +221,16 @@ export default {
                 data,
                 markPoints,
                 lineStyle: {
-                  width: 1
+                  width: 1,
                 },
                 areaStyle: {
-                  opacity: 0.25
-                }
+                  opacity: 0.25,
+                },
               };
             });
           }, 30);
         })
-        .catch((e) => {
+        .catch(e => {
           this.seriesData = [];
           this.message = e.message || this.$t('数据拉取异常');
         })
@@ -236,8 +242,8 @@ export default {
       const query = `?queryString=id : ${this.alarm.event_id}&from=now-${this.homeDays || 7}d&to=now`;
       const url = `${location.origin}${location.pathname}?bizId=${this.homeItemBizId}#/event-center${query}`;
       window.open(url);
-    }
-  }
+    },
+  },
 };
 </script>
 

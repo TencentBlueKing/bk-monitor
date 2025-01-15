@@ -12,8 +12,11 @@ import datetime
 from abc import ABC
 from typing import List
 
+import arrow
+from arrow.parser import ParserError
 from django.utils.translation import gettext_lazy as _lazy
 
+from apm_web.constants import DataStatusColumnEnum
 from core.unit import load_unit
 
 
@@ -55,6 +58,7 @@ class TableFormat(DefaultTableFormat):
         overview_calculator=None,
         overview_calculate_handler=None,
         asyncable: bool = False,
+        props: dict = None,
         display_handler=None,
     ):
         self.id = id
@@ -70,6 +74,8 @@ class TableFormat(DefaultTableFormat):
         self.action_id = action_id
         self.overview_calculator = overview_calculator
         self.asyncable = asyncable
+        self.props = props or {}
+
         self.overview_calculate_handler = overview_calculate_handler
         # display_handler 为觉得此列是否需要展示的 handler
         self.display_handler = display_handler
@@ -110,6 +116,7 @@ class TableFormat(DefaultTableFormat):
             "filter_list": self.filter_list,
             "actionId": self.action_id,
             "asyncable": self.asyncable,
+            "props": self.props,
         }
 
     def display(self, request_data) -> bool:
@@ -150,9 +157,13 @@ class StringLabelTableFormat(StringTableFormat):
 
     def format(self, row: dict):
         if not self.icon_getter:
-            return {"text": self.label_getter(row[self.id]), "type": row[self.id]}
+            return {"text": self.label_getter.from_value(row[self.id]).label, "type": row[self.id]}
 
-        return {"text": self.label_getter(row[self.id]), "type": row[self.id], "icon": self.icon_getter(row)}
+        return {
+            "text": self.label_getter.from_value(row[self.id]).label,
+            "type": row[self.id],
+            "icon": self.icon_getter(row),
+        }
 
     def column(self):
         res = super(StringTableFormat, self).column()
@@ -160,7 +171,7 @@ class StringLabelTableFormat(StringTableFormat):
 
     def get_filter_key(self, row):
         default_key = row.get(self.id, "--")
-        return {"value": default_key, "text": self.label_getter(default_key)}
+        return {"value": default_key, "text": self.label_getter.from_value(default_key).label}
 
 
 class TimestampTableFormat(TableFormat):
@@ -171,7 +182,14 @@ class TimestampTableFormat(TableFormat):
         self.digits = digits
 
     def format(self, row: dict) -> str:
-        return datetime.datetime.fromtimestamp(int(row[self.id]) // self.digits).strftime("%Y-%m-%d %H:%M:%S")
+        content = row[self.id]
+        try:
+            return datetime.datetime.fromtimestamp(int(content) // self.digits).strftime("%Y-%m-%d %H:%M:%S")
+        except (TypeError, ValueError):
+            try:
+                return arrow.get(content).format("YYYY-MM-DD HH:mm:ss")
+            except ParserError:
+                return ""
 
 
 class LinkTableFormat(TableFormat):
@@ -332,7 +350,7 @@ class CustomProgressTableFormat(TableFormat):
         if not isinstance(value, dict):
             # 兼容概览列数据格式
             return {
-                "value": value if not self.max_if_overview else 100,
+                "value": (value if not self.max_if_overview else 100) if value else None,
                 "label": self.label_calculator(value) if self.label_calculator else value,
                 "status": self.color_getter(value) if self.color_getter else None,
             }
@@ -414,21 +432,56 @@ class StatusTableFormat(TableFormat):
         self.show_tips = show_tips
 
     def get_filter_key(self, row):
-        status = self.status_map_cls.get_status_by_key(row.get(self.id, ""))
+        status = self.status_map_cls.from_value(row.get(self.id, "")).status
         text = status.get("text", "")
         value = self.get_map_value(status.get("type", ""))
         return {"text": text, "value": value}
 
     def get_value(self, row):
-        status = self.status_map_cls.get_status_by_key(row.get(self.id, ""))
+        status = self.status_map_cls.from_value(row.get(self.id, "")).status
         type_value = status.get("type", "")
         return self.get_map_value(type_value)
 
     def format(self, row):
-        status = self.status_map_cls.get_status_by_key(row[self.id])
+        status = self.status_map_cls.from_value(row[self.id]).status
         if self.tips_format and self.show_tips(row[self.id]):
             status["tips"] = self.tips_format.format(**row)
         return status
+
+
+class DataStatusTableFormat(TableFormat):
+    """
+    数据状态列 用于显示功能的数据状态
+    1. 绿色勾: 开启了功能并且此功能有数据
+    2. 红色感叹号: 开启了功能但是功能无数据
+    3. 灰色叉叉: 未开启功能
+    """
+
+    column_type = "data_status"
+
+    def get_filter_key(self, row):
+        text = DataStatusColumnEnum.from_value(row.get(self.id)).label
+        return {"text": text, "value": row.get(self.id)}
+
+    def format(self, row):
+        return {"icon": row.get(self.id)}
+
+
+class DataPointsTableFormat(TableFormat):
+    """
+    趋势图列
+    会在表格上显示趋势图
+    """
+
+    column_type = "datapoints"
+
+    def __init__(self, unit: str = None, *args, **kwargs):
+        super(DataPointsTableFormat, self).__init__(*args, **kwargs)
+        self.unit = unit
+
+    def format(self, row: dict) -> any:
+        series = row.get(self.id)
+        return {"datapoints": series, "unit": self.unit}
 
 
 class CollectTableFormat(TableFormat):

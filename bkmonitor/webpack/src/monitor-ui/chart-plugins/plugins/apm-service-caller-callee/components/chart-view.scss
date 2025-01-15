@@ -1,0 +1,17 @@
+/* stylelint-disable declaration-no-important */
+.caller-callee-chart-view {
+  width: 100%;
+  margin-top: 10px;
+  .dashboard-panel {
+    overflow: visible;
+    overflow-x: visible;
+  }
+
+  .draggable-handle {
+    display: block !important;
+  }
+
+  .chart-wrapper .check-mark {
+    display: none !important;
+  }
+}

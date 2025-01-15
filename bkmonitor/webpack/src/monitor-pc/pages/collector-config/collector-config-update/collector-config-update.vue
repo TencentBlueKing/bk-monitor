@@ -41,7 +41,12 @@
           v-if="!updateMessage"
           class="left-message-content"
         >
-          {{ $t('插件{name}最新版本{version}可能存在运行参数变动，请检查并确认运行参数！',{ name: pluginName, version: lastVersion }) }}
+          {{
+            $t('插件{name}最新版本{version}可能存在运行参数变动，请检查并确认运行参数！', {
+              name: pluginName,
+              version: lastVersion,
+            })
+          }}
         </span>
         <span
           v-else
@@ -62,13 +67,13 @@
                   <!-- snmp多用户 -->
                   <auto-multi
                     v-if="item.auth_json !== undefined"
-                    :key="index"
-                    :template-data="[]"
-                    :souce-data="item.auth_json"
-                    :tips-data="[]"
-                    :param-type="paramType"
                     :allow-add="false"
-                    @canSave="(bool) => handleSnmpAuthCanSave(bool, item)"
+                    :key="index"
+                    :param-type="paramType"
+                    :souce-data="item.auth_json"
+                    :template-data="[]"
+                    :tips-data="[]"
+                    @canSave="bool => handleSnmpAuthCanSave(bool, item)"
                     @triggerData="triggerAuthData"
                   />
                   <div
@@ -77,7 +82,7 @@
                   />
                   <verify-input
                     v-else
-                    class="params-item"
+                    :class="{ 'params-item': true, 'params-item-code': item.type === 'code' }"
                     :key="index"
                     :show-validate.sync="item.validate.isValidate"
                     :validator="item.validate"
@@ -85,21 +90,24 @@
                   >
                     <auto-complete-input
                       class="mb10"
+                      v-model.trim="item.default"
+                      :config="item"
                       :key="index"
                       :tips-data="[]"
                       :type="item.type"
-                      :config="item"
+                      @error-message="msg => handleErrorMessage(msg, item)"
+                      @file-change="file => configJsonFileChange(file, item)"
                       @input="handleInput(item)"
-                      @error-message="(msg) => handleErrorMessage(msg, item)"
-                      @file-change="(file) => configJsonFileChange(file, item)"
-                      v-model.trim="item.default"
                     >
                       <template slot="prepend">
                         <bk-popover
-                          placement="top"
                           :tippy-options="tippyOptions"
+                          placement="top"
                         >
-                          <div class="group-text">
+                          <div
+                            class="group-text"
+                            :class="{ 'tag-list-text': item.type === 'tag_list' }"
+                          >
                             {{ item.alias || item.name }}
                           </div>
                           <div slot="content">
@@ -114,20 +122,21 @@
                 </div>
               </bk-form-item>
               <bk-form-item
-                :label="$t('维度注入')"
                 v-if="hasDmsInsertType"
+                :label="$t('维度注入')"
               >
-                <template v-for="(item,index) in configJson">
+                <template v-for="(item, index) in configJson">
                   <template v-if="item.mode === 'dms_insert'">
                     <template v-if="item.type === 'host'">
                       <div :key="index">
                         <div>{{ $t('主机维度注入') }}</div>
                         <div class="dms-insert-wrap">
                           <bk-tag
-                            v-for="(value,key) in item.default"
-                            :value="item.default[key]"
+                            v-for="(value, key) in item.default"
                             :key="key"
-                          >{{ `${key}:${value}` }}</bk-tag>
+                            :value="item.default[key]"
+                            >{{ `${key}:${value}` }}</bk-tag
+                          >
                         </div>
                       </div>
                     </template>
@@ -136,10 +145,11 @@
                         <div>{{ $t('服务实例维度注入') }}</div>
                         <div class="dms-insert-wrap">
                           <bk-tag
-                            v-for="(value,key) in item.default"
-                            :value="item.default[key]"
+                            v-for="(value, key) in item.default"
                             :key="key"
-                          >{{ `${key}:${value}` }}</bk-tag>
+                            :value="item.default[key]"
+                            >{{ `${key}:${value}` }}</bk-tag
+                          >
                         </div>
                       </div>
                     </template>
@@ -150,23 +160,27 @@
             <div
               v-else
               class="wrap-empty"
-            >{{ $t('该插件未定义参数，如需升级请继续！') }}</div>
+            >
+              {{ $t('该插件未定义参数，如需升级请继续！') }}
+            </div>
           </div>
           <bk-form-item class="update-footer">
             <bk-button
               class="update-footer-btn"
-              theme="primary"
-              :title="$t('提交')"
-              @click="handleSubmit"
               :loading="updateLoading"
+              :title="$t('提交')"
+              theme="primary"
+              @click="handleSubmit"
             >
               {{ $t('提交') }}
             </bk-button>
             <bk-button
-              theme="default"
               :title="$t('取消')"
+              theme="default"
               @click="handleCancel(false)"
-            > {{ $t('取消') }} </bk-button>
+            >
+              {{ $t('取消') }}
+            </bk-button>
           </bk-form-item>
         </bk-form>
       </div>
@@ -178,14 +192,16 @@
       <div class="right-content">
         <ul class="record-list">
           <li
-            class="record-list-item"
             v-for="(item, index) in versionLog"
+            class="record-list-item"
             :key="index"
           >
             <div
               class="item-title"
               :class="{ 'current-item': item.version === version }"
-            >{{ item.version }}</div>
+            >
+              {{ item.version }}
+            </div>
             <div class="item-wrap">
               <div class="item-wrap-content">
                 {{ item.version_log }}
@@ -198,8 +214,6 @@
   </div>
 </template>
 <script>
-
-
 import { pluginUpgradeInfo } from 'monitor-api/modules/plugin';
 
 import VerifyInput from '../../../components/verify-input/verify-input.vue';
@@ -211,18 +225,18 @@ export default {
   components: {
     AutoCompleteInput,
     AutoMulti,
-    VerifyInput
+    VerifyInput,
   },
   props: {
     updateParams: {
       type: Object,
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
       tippyOptions: {
-        distance: 0
+        distance: 0,
       },
       show: false,
       loading: false,
@@ -240,23 +254,23 @@ export default {
           {
             required: true,
             message: this.$t('必填项'),
-            trigger: 'blur'
-          }
+            trigger: 'blur',
+          },
         ],
         user: [
           {
             required: true,
             message: this.$t('必填项'),
-            trigger: 'blur'
-          }
+            trigger: 'blur',
+          },
         ],
         password: [
           {
             required: true,
             message: this.$t('必填项'),
-            trigger: 'blur'
-          }
-        ]
+            trigger: 'blur',
+          },
+        ],
       },
       paramType: {
         collector: this.$t('采集器参数'),
@@ -264,8 +278,8 @@ export default {
         pos_cmd: this.$t('位置参数'),
         env: this.$t('环境变量参数'),
         listen_cmd: this.$t('监听参数'),
-        dms_insert: this.$t('维度注入')
-      }
+        dms_insert: this.$t('维度注入'),
+      },
     };
   },
   computed: {
@@ -277,13 +291,13 @@ export default {
     },
     hasDmsInsertType() {
       return this.configJson.some(item => item.mode === 'dms_insert');
-    }
+    },
   },
   watch: {
     updateParams: {
       handler: 'handleConfigUpdate',
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     handleConfigUpdate() {
@@ -296,9 +310,9 @@ export default {
         plugin_id: pluginId,
         config_version: configVersion,
         info_version: infoVersion,
-        config_id: id
+        config_id: id,
       })
-        .then((data) => {
+        .then(data => {
           this.pluginId = data.plugin_id;
           this.pluginName = data.plugin_display_name;
           this.version = data.plugin_version;
@@ -318,18 +332,18 @@ export default {
     validateItem(item) {
       const validate = {
         content: '',
-        isValidate: false
+        isValidate: false,
       };
       const fnMap = {
-        port: (v) => {
+        port: v => {
           const isPass = /^([1-9]\d{0,4}|[1-5]\d{5}|6[0-4]\d{4}|65[0-4]\d{3}|655[0-2]\d{2}|6553[0-5])$/.test(v);
           validate.content = isPass ? '' : this.$t('输入正确的端口号');
           validate.isValidate = !isPass;
         },
-        host: (v) => {
+        host: v => {
           validate.content = v ? '' : this.$t('必填项');
           validate.isValidate = !v;
-        }
+        },
       };
       const fn = fnMap[item.key || item.name];
       fn?.(item.default);
@@ -338,17 +352,16 @@ export default {
     },
     triggerAuthData(v) {
       if (this.configJson) {
-        this.configJson.forEach((item) => {
+        for (const item of this.configJson) {
           if (item.auth_json) {
-            return (item.auth_json = v);
+            item.auth_json = v;
           }
-          return { ...item };
-        });
+        }
       }
     },
     handleConfigJson(runtimeParams) {
-      const handleDefaultValue = (list) => {
-        list.forEach((item) => {
+      const handleDefaultValue = list => {
+        for (const item of list) {
           if (item.auth_json) {
             handleDefaultValue(item.auth_json);
           }
@@ -357,32 +370,32 @@ export default {
           }
           if (item.type === 'file') {
             item.default = item.value?.filename;
-            item.file_base64 = item.value?.file_base64; // eslint-disable-line
+            item.file_base64 = item.value?.file_base64;
           }
-        });
+        }
       };
       handleDefaultValue(runtimeParams);
-      const configJson = runtimeParams.map((item) => {
+      const configJson = runtimeParams.map(item => {
         if ((item.key || item.name) === 'auth_json') {
           const temp = [
-            item.auth_json.map((set) => {
+            item.auth_json.map(set => {
               set.validate = {
                 content: '',
-                isValidate: false
+                isValidate: false,
               };
               return set;
-            })
+            }),
           ];
           this.$set(item, 'auth_json', temp);
           item.validate = {
             content: '',
-            isValidate: false
+            isValidate: false,
           };
           return item;
         }
         item.validate = {
           content: '',
-          isValidate: false
+          isValidate: false,
         };
         return item;
       });
@@ -393,18 +406,18 @@ export default {
     },
     handleConfigJsonParams() {
       const formData = {};
-      const fn = (list) => {
-        list.forEach((set) => {
+      const fn = list => {
+        for (const set of list) {
           if (set.auth_json) {
             fn(set.auth_json[0]);
           } else {
             const value = set.type === 'file' ? { filename: set.default, file_base64: set.file_base64 } : set.default;
             formData[set.key || set.name] = {
               value,
-              mode: set.mode
+              mode: set.mode,
             };
           }
-        });
+        }
       };
       fn(this.configJson);
       return formData;
@@ -417,20 +430,19 @@ export default {
       const collector = {};
       const plugin = {};
       const formData = this.handleConfigJsonParams();
-      Object.keys(formData).forEach((key) => {
-        const item = formData[key];
+      for (const [key, item] of Object.entries(formData)) {
         if (item.mode === 'collector') {
           collector[key] = item.value;
         } else {
           plugin[key] = item.value;
         }
-      });
+      }
       const params = {
         params: {
           collector,
-          plugin
+          plugin,
         },
-        id: this.updateParams.id
+        id: this.updateParams.id,
       };
       this.$emit('on-submit', params);
     },
@@ -449,8 +461,8 @@ export default {
     configJsonFileChange(file, item) {
       item.default = file.name;
       item.file_base64 = file.fileContent;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -510,7 +522,7 @@ export default {
     .left-form {
       margin-top: 10px;
 
-      ::v-deep .bk-label {
+      .bk-label {
         /* stylelint-disable-next-line declaration-no-important */
         width: 100% !important;
         font-size: 12px;
@@ -518,7 +530,8 @@ export default {
 
       &-wrap {
         min-height: 272px;
-        // overflow: auto;
+        overflow: auto;
+
         .mb10 {
           margin-bottom: 10px;
         }
@@ -532,20 +545,16 @@ export default {
           color: #979ba5;
         }
 
-        ::v-deep.auto-complete-input {
+        .auto-complete-input {
           .group-prepend {
             flex-shrink: 0;
             padding: 0 20px;
           }
         }
 
-        ::v-deep.step-verify-input {
+        .step-verify-input {
           height: 32px;
           margin-bottom: 10px;
-
-          &:last-child {
-            margin-bottom: 0;
-          }
 
           .tooltips-icon {
             /* stylelint-disable-next-line declaration-no-important */
@@ -562,11 +571,15 @@ export default {
           .auto-complete-input-select {
             height: 100%;
           }
+
+          &.params-item-code {
+            align-items: flex-start;
+          }
         }
 
-        ::v-deep.auto-complete-input-select {
+        .auto-complete-input-select {
           .bk-tooltip {
-            // display: flex;
+            display: inline-flex;
             height: 32px;
 
             .prepend-text {
@@ -578,6 +591,18 @@ export default {
             height: 32px;
           }
         }
+      }
+
+      .tag-list-text {
+        position: relative;
+        padding: 0 20px;
+        overflow: hidden;
+        line-height: 30px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        background: #f2f4f8;
+        border: 1px solid#c4c6cc;
+        border-right: 0;
       }
 
       .update-footer {
@@ -655,6 +680,26 @@ export default {
         }
       }
     }
+  }
+}
+</style>
+<style lang="scss">
+.params-item-code {
+  align-items: flex-start;
+
+  .group-text {
+    position: relative;
+    padding: 0 20px;
+    overflow: hidden;
+    line-height: 30px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #f2f4f8;
+    border: 1px solid#c4c6cc;
+  }
+
+  .code-select-editor {
+    margin-top: 0px;
   }
 }
 </style>

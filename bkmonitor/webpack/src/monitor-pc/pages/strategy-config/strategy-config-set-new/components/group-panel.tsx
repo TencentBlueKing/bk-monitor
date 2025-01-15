@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './group-panel.scss';
 
 interface IGroupPanelProps {
-  title?: string | TranslateResult;
-  subtitle?: string | TranslateResult;
+  title?: TranslateResult | string;
+  subtitle?: TranslateResult | string;
   showExpand?: boolean;
   expand?: boolean;
   defaultExpand?: boolean;
@@ -76,18 +77,18 @@ export default class GroupPanel extends tsc<IGroupPanelProps, { onExpand: { expa
   render() {
     return (
       <div
-        class='group-panel'
         style={{ borderColor: this.validate ? 'transparent' : 'red' }}
+        class='group-panel'
       >
         <div class='group-panel-header'>
           <div
-            class='header-wrapper'
             style={{ cursor: this.showExpand ? 'pointer' : 'default' }}
+            class='header-wrapper'
             on-click={() => !this.isPackUp && this.handleExpandPanel()}
           >
             {this.showExpand ? (
               <span class='collapse-expand'>
-                <i class={['bk-icon icon-play-shape', { 'icon-rotate': this.localExpand }]}></i>
+                <i class={['bk-icon icon-play-shape', { 'icon-rotate': this.localExpand }]} />
               </span>
             ) : undefined}
             <span class='title'>{this.title}</span>
@@ -97,11 +98,11 @@ export default class GroupPanel extends tsc<IGroupPanelProps, { onExpand: { expa
           </div>
         </div>
         <div
-          class='group-panel-content'
           style={{ display: this.localExpand ? 'block' : 'none' }}
+          class='group-panel-content'
         >
           {this.$slots?.default}
-          {this.readonly && <div class='content-readonly'></div>}
+          {this.readonly && <div class='content-readonly' />}
         </div>
       </div>
     );

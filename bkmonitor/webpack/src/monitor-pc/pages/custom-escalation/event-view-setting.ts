@@ -25,17 +25,17 @@
  */
 // 自定义事件视图设置处理
 import { COLLECT_CHART_TYPE } from '../../constant/constant';
-import { hideOptions } from '../collector-config/collector-view/log-handle';
-import { metric } from '../collector-config/collector-view/type';
+
+import type { hideOptions } from '../collector-config/collector-view/log-handle';
+import type { metric } from '../collector-config/collector-view/type';
 
 interface IMetricDimension {
   variableParams?: any; // 查询预览值api参数
-  // eslint-disable-next-line camelcase
+
   metricList: { id: string; metrics: metric[]; result_table_id?: string }[]; // 指标列表(自定义事件没有)
   dimensionList: metric[]; // 维度列表
 }
 interface IEventInfoList {
-  // eslint-disable-next-line camelcase
   dimension_list?: { dimension_name: string }[];
 }
 // 自定义事件不区分维度所属所有图表可用
@@ -50,12 +50,12 @@ const eventDimensions = (tableId: string, eventInfoList: IEventInfoList[], varia
         metrics: [
           {
             englishName: 'event.count', // 自定义事件指标名固定为event.count
-            dimension_list: []
-          }
-        ]
-      }
+            dimension_list: [],
+          },
+        ],
+      },
     ],
-    dimensionList: []
+    dimensionList: [],
   };
   if (eventInfoList.length) {
     const dimensions = [];
@@ -69,11 +69,11 @@ const eventDimensions = (tableId: string, eventInfoList: IEventInfoList[], varia
     metricDimension.dimensionList = dimensions.map(item => ({
       aliaName: item,
       englishName: item,
-      groupId: 'base'
+      groupId: 'base',
     }));
     metricDimension.metricList[0].metrics[0].dimension_list = dimensions.map(item => ({
       id: item,
-      name: item
+      name: item,
     }));
   }
   return metricDimension;
@@ -87,8 +87,8 @@ const eventInit = (): hideOptions => {
     compareHide: true,
     searchHide: true,
     dashboardHide: true,
-    convergeHide: true
+    convergeHide: true,
   };
 };
 
-export { eventDimensions, eventInit, IMetricDimension };
+export { eventDimensions, eventInit, type IMetricDimension };

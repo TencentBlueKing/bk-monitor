@@ -7,6 +7,9 @@ from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.handlers.topo_handler import TopoHandler
 from bkm_ipchooser.tools.batch_request import batch_request, request_multi_thread
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -17,10 +20,18 @@ class DynamicGroupHandler:
     def __init__(self, scope_list: types.ScopeList) -> None:
         # 暂时不支持多业务同时查询
         self.bk_biz_id = [scope["bk_biz_id"] for scope in scope_list][0]
+        # 兼容非cmdb业务空间
+        space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
+        space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+        if space:
+            self.bk_biz_id = space.bk_biz_id
         self.meta = BaseHandler.get_meta_data(self.bk_biz_id)
 
     def list(self, dynamic_group_list: List[Dict] = None) -> List[types.DynamicGroup]:
         """获取动态分组列表"""
+        if self.bk_biz_id < 0:
+            return []
+
         dynamic_group_ids = [dynamic_group["id"] for dynamic_group in dynamic_group_list]
         params = {"bk_biz_id": self.bk_biz_id, "no_request": True}
         groups = batch_request(func=BkApi.search_dynamic_group, params=params)
@@ -51,25 +62,39 @@ class DynamicGroupHandler:
         ]
         return groups
 
-    def execute(self, dynamic_group_id: str, start: int, page_size: int) -> List[Dict]:
+    def execute(self, dynamic_group_id: str, start: int, page_size: int) -> Dict:
         """执行动态分组"""
-        result = {"start": start, "page_size": page_size, "total": 0}
+        result = {"start": start, "page_size": page_size, "total": 0, "data": []}
 
-        execute_dynamic_group_result = BkApi.execute_dynamic_group(
-            {
-                "bk_biz_id": self.bk_biz_id,
-                "id": dynamic_group_id,
-                "fields": constants.CommonEnum.DEFAULT_HOST_FIELDS.value,
-                "page": {"start": start, "limit": page_size},
-            }
-        )
-        if not execute_dynamic_group_result or not execute_dynamic_group_result["info"]:
-            return result
+        if page_size > 0:
+            execute_dynamic_group_result = BkApi.execute_dynamic_group(
+                {
+                    "bk_biz_id": self.bk_biz_id,
+                    "id": dynamic_group_id,
+                    "fields": constants.CommonEnum.DEFAULT_HOST_FIELDS.value,
+                    "page": {"start": start, "limit": page_size},
+                }
+            )
+            if not execute_dynamic_group_result or not execute_dynamic_group_result["info"]:
+                return result
+        else:
+            host_list = batch_request(
+                func=BkApi.execute_dynamic_group,
+                params={
+                    "bk_biz_id": self.bk_biz_id,
+                    "id": dynamic_group_id,
+                    "fields": constants.CommonEnum.DEFAULT_HOST_FIELDS.value,
+                },
+            )
+            if not host_list:
+                return result
+            execute_dynamic_group_result = {"info": host_list, "count": len(host_list)}
+
         # count预留给分页使用
         # TODO: 当动态分组为集群时, 暂不支持
         result["total"] = execute_dynamic_group_result["count"]
         host_list = execute_dynamic_group_result["info"]
-        TopoHandler.fill_agent_status(host_list)
+        TopoHandler.fill_agent_status(host_list, self.bk_biz_id)
         host_list = BaseHandler.format_hosts(host_list, self.bk_biz_id)
         result["data"] = host_list
         return result
@@ -103,12 +128,9 @@ class DynamicGroupHandler:
             "fields": constants.CommonEnum.SIMPLE_HOST_FIELDS.value,
             "no_request": True,
         }
-        hosts = batch_request(func=BkApi.execute_dynamic_group, params=params)
-        if not hosts:
-            return result
-
+        hosts = batch_request(func=BkApi.execute_dynamic_group, params=params) or []
         result["host_count"] = len(hosts)
-        TopoHandler.fill_agent_status(hosts)
+        TopoHandler.fill_agent_status(hosts, self.bk_biz_id)
         agent_statistics = TopoHandler.count_agent_status(hosts)
         result.update(agent_statistics)
         return result

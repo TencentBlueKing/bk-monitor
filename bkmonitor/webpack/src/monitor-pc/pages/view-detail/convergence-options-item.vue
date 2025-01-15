@@ -39,6 +39,7 @@
     </div>
     <bk-select
       v-model="checkData"
+      searchable
       :clearable="false"
       @change="handleCheckedChange"
       :popover-options="{ appendTo: 'parent' }"
@@ -57,7 +58,7 @@
 import { Component, Prop, Vue } from 'vue-property-decorator';
 
 @Component({
-  name: 'convergence-options'
+  name: 'convergence-options',
 })
 export default class ConvergenceOptions extends Vue {
   @Prop()
@@ -70,6 +71,7 @@ export default class ConvergenceOptions extends Vue {
   readonly id: string;
   @Prop()
   readonly groupbyList: () => Promise<any[]>;
+  @Prop({ default: '' }) readonly defaultValue: string;
 
   selectList = [];
   isShowCloseIcon = false;
@@ -84,6 +86,14 @@ export default class ConvergenceOptions extends Vue {
     if (this.isDefault) {
       this.selectList.unshift({ id: 'all', name: this.$tc('全部') });
       this.checkData = 'all';
+    }
+    if(this.defaultValue) {
+      for(const item of this.selectList) {
+        if(item.id === this.defaultValue) {
+          this.checkData = item.id;
+          break;
+        }
+      }
     }
   }
 
@@ -109,21 +119,24 @@ export default class ConvergenceOptions extends Vue {
 
 <style lang="scss" scoped>
 .convergence-options {
+  position: relative;
   width: 320px;
   height: 73px;
   padding: 5px 10px 10px 10px;
-  position: relative;
+
   &-label {
     margin-bottom: 6px;
   }
+
   &:hover {
     background: #f5f6fa;
     border-radius: 2px;
   }
+
   .icon-mc-close {
     position: absolute;
-    right: 0;
     top: 0;
+    right: 0;
     font-size: 24px;
     color: #ea3636;
     cursor: pointer;

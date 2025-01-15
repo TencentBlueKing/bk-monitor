@@ -12,12 +12,14 @@ specific language governing permissions and limitations under the License.
 import abc
 import base64
 import json
+from copy import deepcopy
+from typing import Dict, List, Union
 
 import six
 from django.conf import settings
-from django.utils.translation import ugettext as _
 from rest_framework import serializers
 
+from core.drf_resource import api
 from core.drf_resource.contrib.api import APIResource
 from core.errors.api import BKAPIError
 
@@ -47,33 +49,111 @@ class CheckCMSIResource(CMSIBaseResource):
         }
     """
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: Dict[str, Union[List[str], any]]):
         """
-        进行
+        发送请求
+        """
+        self.message_detail = {}
+
+        receivers = self.get_receivers(validated_request_data)
+
+        return self.send_request(validated_request_data, receivers)
+
+    @classmethod
+    def get_receivers(cls, validated_request_data: Dict) -> List[str]:
+        """
+        获取接收用户列表
+        优先 receiver__username， 再 receiver
         """
         if validated_request_data.get("receiver__username"):
-            receivers = validated_request_data["receiver__username"].split(",")
+            receivers: List[str] = validated_request_data["receiver__username"].split(",")
         elif isinstance(validated_request_data["receiver"], list):
-            receivers = validated_request_data["receiver"]
+            receivers: List = validated_request_data["receiver"]
+            validated_request_data["receiver"] = ",".join(receivers)
         else:
-            receivers = validated_request_data["receiver"].split(",")
+            receivers: List = validated_request_data["receiver"].split(",")
+
+        return receivers
+
+    def send_request(self, validated_request_data: Dict, receivers: List[str]):  # send_failed_users
+        """
+        发送请求
+        """
+        # 待返回数据格式， 假定默认都是成功发送
+        response_data = {
+            # invalid: 通知失败的用户名列表
+            "username_check": {"invalid": []},
+            "message": "发送成功",
+            "message_detail": {},
+        }
+
         try:
             super(CMSIBaseResource, self).perform_request(validated_request_data)
-            return {"username_check": {"invalid": []}, "message": _("发送成功")}
+
+            response_data["message_detail"] = self.message_detail
+            return response_data
+
         except BKAPIError as e:
             invalid = receivers
             if isinstance(e.data, dict):
                 try:
+                    # api 返回告诉哪些人失败， 但不一定有， 没有的时候， 默认所有通知人都失败
                     invalid = e.data["data"]["username_check"]["invalid"]
                 except (KeyError, TypeError):
                     pass
                 if not invalid:
                     # 如果在错误结果情况下，返回的invalid用户为空的时候，判断所有的用户为失败
                     invalid = receivers
-            return {"username_check": {"invalid": invalid}, "message": str(e)}
+
+            # 通知失败的人员列表
+            response_data["username_check"]["invalid"] = invalid
+            # 失败原因
+            response_data["message"] = str(e)
+            # 记录失败的具体原因 {username: reason}， 仅失败才有
+            response_data["message_detail"] = self.message_detail
+
+            return response_data
+
         except Exception as e:
+            self.report_api_failure_metric(error_code=getattr(e, 'code', 0), exception_type=type(e).__name__)
             # 其他没有处理到的异常，默认发送失败
-            return {"username_check": {"invalid": receivers}, "message": str(e)}
+
+            response_data["username_check"]["invalid"] = receivers
+            response_data["message"] = str(e)
+            return response_data
+
+    @classmethod
+    def get_external_receiver_info(cls, receivers_username: List[str]) -> Dict[str, Dict[str, str]]:
+        """
+        通过用户名获取用户信息(邮箱和电话号)
+        param
+        ```python
+        receivers_username  # 用户名列表
+        ```
+        return
+        ```python
+        {
+            username: {
+                "email": email | "",
+                "phone": f"[+]{phone_country_code}{phone}" | "",
+            }
+        }
+        ```
+        """
+        fields = "email,phone"
+        param = {"usernames": receivers_username, "fields": fields}
+
+        receivers_info = api.bk_login.get_user_sensitive_info(**param)["data"]
+
+        # 转化格式  -> {username: { "email": email, "phone": phone }}
+        # e.g. {"zhangsan": {"email": "zhangsan@qq.com", "phone": "+8612312312345"}}
+        return {
+            receiver["username"]: {
+                "email": receiver["email"],
+                "phone": f"+{receiver['phone_country_code']}{receiver['phone']}" if receiver['phone'] else "",
+            }
+            for receiver in receivers_info
+        }
 
 
 class GetMsgType(CMSIBaseResource):
@@ -84,12 +164,11 @@ class GetMsgType(CMSIBaseResource):
     action = "get_msg_type"
     method = "GET"
 
-    def perform_request(self, validated_request_data):
-        result = super(GetMsgType, self).perform_request(validated_request_data)
-        for msg_type in result:
+    def render_response_data(self, validated_request_data, response_data):
+        for msg_type in response_data:
             msg_type["channel"] = "user"
         if settings.WXWORK_BOT_WEBHOOK_URL:
-            result.append(
+            response_data.append(
                 {
                     "icon": "iVBORw0KGgoAAAANSUhEUgAAANcAAADICAMAAABMI4TJAAACvlBMVEUAAAAA//8AgP8Aqv8AgL8AmcwAqtU"
                     "Aktsgn98"
@@ -140,7 +219,7 @@ class GetMsgType(CMSIBaseResource):
                 }
             )
         if settings.BKCHAT_API_BASE_URL:
-            result.append(
+            response_data.append(
                 {
                     "icon": "iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAMAAACahl6sAAACglBMVEUAAAD///+A//+qqv+/v/+ZzP+q1f+Stv+fv/"
                     "+qxv+ZzP+iuf+qv/+dxP+kyP+qzP+fv/+qxv+hyf+mv/+ewv+ixf+myP+fyv+jwv+nxP+hxv+kyP+nwf+ixP+lxf+f"
@@ -183,7 +262,7 @@ class GetMsgType(CMSIBaseResource):
                 }
             )
 
-        return result
+        return response_data
 
 
 class SendMsg(CheckCMSIResource):
@@ -280,6 +359,105 @@ class SendMail(CheckCMSIResource):
                 attrs["content"] = base64.b64encode(attrs["content"].encode("utf-8")).decode("utf-8")
 
             return attrs
+
+    def perform_request(self, validated_request_data: Dict[str, Union[List[str], any]]):
+        """
+        发送请求
+
+        针对内部用户和外部用户做一个额外判断处理
+        """
+        self.message_detail = {}
+
+        # 如果没有 receiver__username 说明是直接用 receiver 邮箱发送的
+        # 交由父类直接处理
+        if not validated_request_data.get("receiver__username"):
+            return super().perform_request(validated_request_data)
+
+        # 判断是否存在有环境变量 BK_USERINFO_API_BASE_URL 如果存在则可能需要区分内外部用户
+        if not settings.BK_USERINFO_API_BASE_URL:
+            return super().perform_request(validated_request_data)
+
+        # 区分内外部用户
+        internal_users: List[str] = []
+        external_users: List[str] = []
+
+        for username in validated_request_data.get("receiver__username").split(","):
+            # 通过是否以 "@tai" 结尾判断是否是内外部用户
+            if self.is_external_user(username):
+                external_users.append(username)
+            else:
+                internal_users.append(username)
+
+        response = {}
+        default_response_data = {
+            # invalid: 通知失败的用户名列表
+            "username_check": {"invalid": []},
+            "message": "发送成功",
+            "message_detail": {},
+        }
+        # 内部用户 针对内部用户直接通过 receiver__username 发送
+        if internal_users:
+            request_data = deepcopy(validated_request_data)
+            request_data["receiver__username"] = ",".join(internal_users)
+            request_data.pop("receiver", None)
+            response = self.send_request(request_data, request_data["receiver__username"])
+
+        # 外部用户 针对外部用户通过 需要转化成 receiver 邮箱的方式直接发送
+        if external_users:  # <- 以@结尾,还需要转化成邮箱
+            # receivers -> 邮箱
+            receivers = self.get_receivers_with_external_users(external_users)
+            request_data = deepcopy(validated_request_data)
+            request_data["receiver"] = ",".join(receivers)  # receivers <- 接收邮箱
+            request_data.pop("receiver__username", None)
+            if receivers:
+                external_send_response = self.send_request(request_data, external_users)
+                if response:
+                    # merge response
+                    response["message_detail"].update(external_send_response["message_detail"])
+                    response["username_check"]["invalid"] += external_send_response["username_check"]["invalid"]
+                else:
+                    response = external_send_response
+
+        return response or default_response_data
+
+    def get_receivers_with_external_users(self, external_users: List[str]) -> List[str]:
+        """
+        获取接收者
+
+        调用查询用户信息的接口，返回的用户可能
+        receivers: List[str]  # 邮箱不为空用户的邮箱
+        """
+        # 获取外部人员的信息
+        receivers_info = self.get_external_receiver_info(external_users)
+
+        not_exist_usernames = []
+        not_email_usernames = []
+        exist_usernames = []
+        for username in external_users:
+            if username not in receivers_info:
+                not_exist_usernames.append(username)
+                continue
+            if not receivers_info[username]["mail"]:
+                not_email_usernames.append(username)
+                continue
+            exist_usernames.append(username)
+
+        # 提前获取失败原因为 "用户不存在" 的用户, 并且不会对他们进行发送
+        self.rich_message_detail_with_usernames(not_exist_usernames, "user not exists")
+        # 提前获取失败原因为 "邮箱不存在" 的用户，并且不会对他们进行发送
+        self.rich_message_detail_with_usernames(not_email_usernames, "user email not exists")
+        # 获取最终的 receivers
+        return [receivers_info[username]["mail"] for username in exist_usernames]
+
+    def rich_message_detail_with_usernames(self, usernames: List[str], message_detail):
+        """
+        丰富异常用户的消息详情
+        """
+        self.message_detail.update({username: message_detail for username in usernames})
+
+    @classmethod
+    def is_external_user(self, username: str) -> bool:
+        return username.endswith("@tai")
 
 
 class SendSms(CheckCMSIResource):

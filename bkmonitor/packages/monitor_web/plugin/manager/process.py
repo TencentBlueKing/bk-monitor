@@ -9,7 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import ugettext as _
+from typing import List
+
+from django.utils.translation import gettext as _
 
 from constants.strategy import DataTarget
 from core.drf_resource import api, resource
@@ -113,7 +115,7 @@ class ProcessPluginManager(BuiltInPluginManager):
         "port": {"metric_list": ["alive"], "dimensions": ["listen_address", "listen_port", "process_name", "pid"]},
     }
 
-    def gen_metric_info(self):
+    def gen_metric_info(self) -> List[dict]:
         metrics = []
         for table_name, field_info in self.metric_info.items():
             field_list = []
@@ -234,7 +236,7 @@ class ProcessPluginManager(BuiltInPluginManager):
             "scenario": self.label,
             "table_id": self.get_table_id(ts_name),
             "metric_info_list": self.get_metric_info_list(ts_name),
-            "data_label": self.data_name_suffix(ts_name),
+            "data_label": "process",
             # 进程采集预定义了table_id，不能使用单指标单表模式
             "is_split_measurement": False,
         }
@@ -247,11 +249,15 @@ class ProcessPluginManager(BuiltInPluginManager):
         if match_type == "command":
             collector_params.pop("pid_path", "")
         else:
+            # 进程匹配参数： 匹配
             collector_params.pop("match_pattern", "")
+            # 进程匹配参数：排除
             collector_params.pop("exclude_pattern", "")
+            # 维度提取参数， 用正则提取进程启动命令里的维度
+            collector_params.pop("extract_pattern", "")
         collector_params = {"config": collector_params}
 
         deploy_steps = [
-            self.get_bkprocessbeat_deploy_step("monitor_process.conf", {"context": collector_params}),
+            self._get_bkprocessbeat_deploy_step("monitor_process.conf", {"context": collector_params}),
         ]
         return deploy_steps

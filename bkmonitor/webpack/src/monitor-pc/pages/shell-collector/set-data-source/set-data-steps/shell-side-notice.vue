@@ -34,17 +34,13 @@
           <span @click="handleGotoPage">{{ $t('Prometheus Metrics 标准格式') }}</span>
         </i18n>
       </div>
-      <div class="notice-content-code">
-        metric_name{label_name="lable_value"} metric_value timestamp
-      </div>
+      <div class="notice-content-code">metric_name{label_name="lable_value"} metric_value timestamp</div>
     </div>
     <div class="notice-table">
       <table>
         <thead>
           <tr>
-            <th style="width: 110px">
-              metric_name
-            </th>
+            <th style="width: 110px">metric_name</th>
             <th style="width: 200px">
               {{ $t('指标名称') }}
             </th>
@@ -100,8 +96,8 @@ export default {
         'https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md',
         '_black'
       );
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -159,7 +155,7 @@ export default {
 
       tr {
         height: 27px;
-        border-bottom: .5px solid #3b3c42;
+        border-bottom: 0.5px solid #3b3c42;
 
         td,
         th {

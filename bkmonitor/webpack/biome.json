@@ -1,0 +1,73 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
+  "organizeImports": {
+    "enabled": false
+  },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": {
+          "level": "off"
+        },
+        "noAssignInExpressions": "warn",
+        "noArrayIndexKey": "warn"
+      },
+      "style": {
+        "useSelfClosingElements": {
+          "fix": "safe",
+          "level": "warn"
+        },
+        "noUnusedTemplateLiteral": {
+          "fix": "safe",
+          "level": "error"
+        },
+        "noNonNullAssertion": "warn"
+      },
+      "complexity": {
+        "noBannedTypes": {
+          "fix": "safe",
+          "level": "error"
+        },
+        "noForEach": {
+          "level": "warn"
+        },
+        "useArrowFunction": {
+          "fix": "none",
+          "level": "warn"
+        }
+      },
+      "a11y": {
+        "useKeyWithMouseEvents": "off",
+        "useKeyWithClickEvents": "off",
+        "noSvgWithoutTitle": "off",
+        "useValidAnchor": "off"
+      }
+    }
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 120,
+    "attributePosition": "multiline"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "single",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "es5",
+      "semicolons": "always",
+      "arrowParentheses": "asNeeded",
+      "bracketSpacing": true,
+      "bracketSameLine": false,
+      "attributePosition": "multiline"
+    }
+  }
+}

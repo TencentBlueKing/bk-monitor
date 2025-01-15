@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import logging
 import re
 
@@ -21,68 +22,75 @@ logger = logging.getLogger("apm")
 
 
 class ServiceDiscover(Discover):
-    # 获取service的前10条数据进行计算信息
-    # TODO
-    #  1. 目前实现可能是临时方案 后续支持SQL查询时使用distinct+group_by实现
-    #  2. Bkbase 暂不支持时间过滤 service 接口所以这里查询了所有出现过的 service
+    """Profile 服务 + 采样类型发现"""
 
-    @classmethod
-    def get_name(cls):
-        return "service_discover"
+    LARGE_SERVICE_SIZE = 10000
 
     def discover(self, start_time: int, end_time: int):
-        """发现profile服务"""
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
-        # Step1: 查询所有出现过的服务
-        response = self.get_builder().with_api_type(ProfileApiType.SERVICE_NAME).execute()
-        service_names = list({i["service_name"] for i in response if i.get("service_name")})
-        logger.info(f"[ProfileServiceDiscover] found {len(service_names)} services: {service_names}")
+        # Step1: 获取 service_name，type，sample_type
+        result_list = (
+            self.get_builder()
+            .with_api_type(ProfileApiType.AGGREGATE)
+            .with_time(start_time, end_time)
+            .with_metric_fields("count(1)")
+            .with_dimension_fields("service_name,sample_type,type")
+            .with_offset_limit(0, 1000)
+            .execute()
+        )
 
         instances = []
-        for svr in service_names:
-            # Step2: 按照此服务下出现过的 type
-            types = self.get_builder().with_api_type(ProfileApiType.COL_TYPE).with_service_filter(svr).execute()
-            if not types:
-                logger.warning(f"[ProfileServiceDiscover] could not found types of service: {svr}")
-                continue
 
-            logger.info(f"[ProfileServiceDiscover] found {len(types)} types: {types}")
-            for col_type in types:
-                col_type = col_type.get("type")
-                if not col_type:
-                    logger.warning(f"[ProfileServiceDiscover] query {svr} types successfully, but return a none type")
+        # Step2: 遍历 service_name，type，sample_type三个键的字典组成的列表，再从字典内去获取字典内的type，sample_type，service_name去查询数据
+        if result_list:
+            for result_dict in result_list:
+                col_type = result_dict.get("type", "")
+                sample_type = result_dict.get("sample_type", "")
+                svr = result_dict.get("service_name", "")
+                # 如果这三个值都没有，直接 continue，查出来的可能也是重复的数据
+                if not col_type and not sample_type and not svr:
+                    logger.info(
+                        f"[ProfileServiceDiscover] "
+                        f"when service_name: {svr} and type: {col_type} and sample_type: {sample_type} has no value, "
+                        f"The queried data may be duplicated! ! !！！！"
+                    )
                     continue
-
-                # Step3: 获取此 type 下的一条数据
-                type_samplers = (
+                sample_type_samplers = (
                     self.get_builder()
                     .with_time(start_time, end_time)
                     .with_api_type(ProfileApiType.SAMPLE)
                     .with_service_filter(svr)
                     .with_offset_limit(0, 1)
                     .with_type(col_type)
+                    .with_general_filters({"sample_type": f"op_eq|{sample_type}"})
                     .execute()
                 )
-                if not type_samplers:
-                    logger.info(f"[ProfileServiceDiscover] receive a empty sample of {svr}")
-                    continue
-                sampler = type_samplers[0]
-                period = sampler.get("period")
-                period_type = sampler.get("period_type")
-                instances.append(
-                    ProfileService(
-                        bk_biz_id=self.bk_biz_id,
-                        app_name=self.app_name,
-                        name=svr,
-                        period=period,
-                        period_type=period_type,
-                        frequency=self._calculate_frequency(sampler),
-                        data_type=col_type,
-                        last_check_time=check_time,
+                if not sample_type_samplers:
+                    logger.info(
+                        f"[ProfileServiceDiscover] "
+                        f"service_name: {svr} + type: {col_type} + sample_type: {sample_type} cannot find data！！！"
                     )
-                )
+                    continue
+                sampler = sample_type_samplers[0]
+                if sampler:
+                    period = sampler.get("period", "")
+                    period_type = sampler.get("period_type", "")
+                    instances.append(
+                        ProfileService(
+                            bk_biz_id=self.bk_biz_id,
+                            app_name=self.app_name,
+                            name=svr,
+                            period=period,
+                            period_type=period_type,
+                            frequency=self._calculate_frequency(sampler),
+                            data_type=col_type,
+                            last_check_time=check_time,
+                            sample_type=sample_type,
+                            is_large=self.is_large_service(end_time, svr, col_type, sample_type),
+                        )
+                    )
 
         # Final: 保存到数据库
         self._upsert(instances, check_time)
@@ -92,14 +100,14 @@ class ServiceDiscover(Discover):
         update_instances = []
         create_instances = []
 
-        # 去重依据: service_name + data_type
+        # 去重依据: service_name + data_type + sample_type
         exist_mapping = {
-            (i.name, i.data_type): i.id
+            (i.name, i.data_type, i.sample_type): i.id
             for i in ProfileService.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
         }
 
         for instance in instances:
-            key = (instance.name, instance.data_type)
+            key = (instance.name, instance.data_type, instance.sample_type)
             if key in exist_mapping:
                 logger.info(f"[ProfileDiscover] update service key -> {key}")
                 instance.id = exist_mapping[key]
@@ -112,7 +120,7 @@ class ServiceDiscover(Discover):
 
         ProfileService.objects.bulk_create(create_instances)
         ProfileService.objects.bulk_update(
-            update_instances, fields=["period", "period_type", "frequency", "last_check_time", "updated_at"]
+            update_instances, fields=["period", "period_type", "frequency", "last_check_time", "is_large", "updated_at"]
         )
         logger.info(f"[ProfileDiscover] service update {len(update_instances)} create: {len(create_instances)}")
 
@@ -156,3 +164,34 @@ class ServiceDiscover(Discover):
                 return int(value) / (period * (duration_nanos / 1e9))
 
         return None
+
+    def is_large_service(self, end_timestamp, service, _type, sample_type):
+        """
+        判断此服务是否是大数据量应用
+        如果 10 分钟内超过 10000 条数据即认为是大数据量应用
+        """
+
+        end_time = datetime.datetime.fromtimestamp(end_timestamp / 1000)
+        start_time = end_time - datetime.timedelta(minutes=10)
+
+        response = (
+            self.get_builder()
+            .with_api_type(ProfileApiType.AGGREGATE)
+            .with_time(int(start_time.timestamp() * 1000), int(end_time.timestamp() * 1000))
+            .with_metric_fields("count(*) AS count")
+            .with_type(_type)
+            .with_service_filter(service)
+            .with_dimension_fields("service_name")
+            .with_general_filters(
+                {
+                    "sample_type": f"op_eq|{sample_type}",
+                }
+            )
+            .execute()
+        )
+
+        if not response:
+            return False
+
+        count = next((i.get("count", 0) for i in response if i.get("service_name") == service), None)
+        return count and count > self.LARGE_SERVICE_SIZE

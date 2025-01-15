@@ -25,8 +25,8 @@
 -->
 <template>
   <div
-    class="collector-host"
     ref="collectorHost"
+    class="collector-host"
   >
     <div v-if="tables && tables.contents && tables.contents.length">
       <config-deploy
@@ -46,15 +46,16 @@
       </div>
     </div>
     <div
-      class="footer"
       v-if="!openDetail"
+      class="footer"
     >
       <bk-button
         v-show="tables"
         theme="primary"
         :disabled="btnType === 'RUNNING'"
         @click="btnType !== 'RUNNING' && handleConfirm(btnType)"
-      >{{ textObj[btnType] }}</bk-button>
+        >{{ textObj[btnType] }}</bk-button
+      >
       <!-- <bk-button v-show="type !== 'UPGRADE' && btnType !== 'RUNNING'" @click="handleCancel"> {{ $t('取消') }} </bk-button> -->
       <bk-button
         v-show="type === 'UPGRADE' && !rollBackSuccess"
@@ -73,26 +74,27 @@ import {
   isTaskReady,
   rollbackDeploymentConfig,
   toggleCollectConfigStatus,
-  upgradeCollectPlugin } from 'monitor-api/modules/collecting';
+  upgradeCollectPlugin,
+} from 'monitor-api/modules/collecting';
 
 import configDeploy from '../../config-deploy/config-deploy';
 
 export default {
   name: 'StopStartHost',
   components: {
-    configDeploy
+    configDeploy,
   },
   props: {
     data: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     openDetail: Boolean,
     upgradeParams: Object,
     type: {
       type: String,
-      default: 'STOPPED'
-    }
+      default: 'STOPPED',
+    },
   },
   data() {
     return {
@@ -114,14 +116,14 @@ export default {
         DONE: this.$t('button-完成'),
         RUNNING: this.$t('执行中'),
         CREATE: this.$t('新增'),
-        ROLLBACK: this.$t('回滚')
+        ROLLBACK: this.$t('回滚'),
       },
       rollBackSuccess: false,
       deffData: [],
       t: 10000,
       hostTotal: 0,
       ajaxMark: null,
-      showRollback: false
+      showRollback: false,
     };
   },
   async created() {
@@ -148,7 +150,7 @@ export default {
       this.$bkMessage({
         theme,
         message,
-        ellipsisLine: 0
+        ellipsisLine: 0,
       });
     },
     handleRollback() {
@@ -170,7 +172,7 @@ export default {
             .catch(() => {
               this.$parent.pageLoading = false;
             });
-        }
+        },
       });
     },
     handleConfirm(type) {
@@ -221,16 +223,18 @@ export default {
       return new Promise((resolve, reject) => {
         const ajaxMethod = ajaxFn || collectTargetStatus;
         ajaxMethod({ id, is_auto: this.data.autoStatus })
-          .then((data) => {
+          .then(data => {
             this.tables = this.handleData(data);
-            const hasRunning = data.contents.some(item => item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING'));
+            const hasRunning = data.contents.some(item =>
+              item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING')
+            );
             if (this.isRunning) {
               this.btnType = hasRunning ? 'RUNNING' : 'DONE';
             }
             this.$emit('update:hosts', this.tables);
             resolve(data);
           })
-          .catch((err) => {
+          .catch(err => {
             reject(err);
           })
           .finally(() => {
@@ -242,14 +246,14 @@ export default {
       return new Promise((resolve, reject) => {
         this.ajaxMark = false;
         collectTargetStatus({ id, is_auto: this.data.autoStatus })
-          .then((data) => {
+          .then(data => {
             if (this.ajaxMark) {
               reject(data);
             } else {
               resolve(data);
             }
           })
-          .catch((err) => {
+          .catch(err => {
             reject(err);
           })
           .finally(() => {
@@ -263,7 +267,7 @@ export default {
       const sumData = {
         success: {},
         failed: {},
-        pending: {}
+        pending: {},
       };
       content.forEach((item, index) => {
         item.expand = oldContent?.length && oldContent[index] ? oldContent[index].expand : item.child.length > 0;
@@ -271,14 +275,14 @@ export default {
         item.failedNum = 0;
         item.table = [];
         item.pendingNum = 0;
-        item.child.forEach((set) => {
+        item.child.forEach(set => {
           if (set.status === 'RUNNING' || set.status === 'PENDING') {
             sumData.pending[set.instance_id] = set.instance_id;
             item.pendingNum += 1;
           } else if (set.status === 'SUCCESS') {
             sumData.success[set.instance_id] = set.instance_id;
             item.successNum += 1;
-          }  else {
+          } else {
             item.failedNum += 1;
             sumData.failed[set.instance_id] = set.instance_id;
           }
@@ -308,17 +312,19 @@ export default {
       if (v) {
         clearTimeout(this.timer);
         await this.getHostData(this.id, this.nodeType)
-          .then((data) => {
+          .then(data => {
             if (this.ajaxMark) {
               this.tables = this.handleData(data);
-              const hasRunning = data.contents.some(item => item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING'));
+              const hasRunning = data.contents.some(item =>
+                item.child.some(set => set.status === 'RUNNING' || set.status === 'PENDING')
+              );
               if (this.isRunning) {
                 this.btnType = hasRunning ? 'RUNNING' : 'DONE';
               }
               this.$emit('update:hosts', this.tables);
             }
           })
-          .catch((err) => {
+          .catch(err => {
             console.error(err);
           })
           .finally(() => {
@@ -338,20 +344,20 @@ export default {
       clearTimeout(timer);
       let timer = null;
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      return new Promise(async (resolve) => {
+      return new Promise(async resolve => {
         const show = await isTaskReady({ collect_config_id });
         if (show) {
           resolve(true);
           return;
         }
         timer = setTimeout(() => {
-          this.taskReadyStatusPromise(collect_config_id).then((res) => {
+          this.taskReadyStatusPromise(collect_config_id).then(res => {
             resolve(res);
           });
         }, 2010);
       });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

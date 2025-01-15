@@ -11,7 +11,6 @@ from rest_framework import serializers
 from api.cmdb.define import Business
 from bkm_space.api import SpaceApi
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
-from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -249,7 +248,7 @@ class StatisticsResource(Resource):
     @classmethod
     def get_space_data_by_cache(cls) -> Dict[str, Any]:
         username: str = get_request_username()
-        allowed_biz_ids = set(resource.cc.fetch_allow_biz_ids_by_user(username))
+        allowed_biz_ids = set(resource.space.get_bk_biz_ids_by_user(username))
         return {"biz_id__space_map": {}, "allowed_biz_ids": allowed_biz_ids}
 
     @classmethod
@@ -312,7 +311,7 @@ class StatisticsResource(Resource):
                 return 0
             elif _biz_id in sticky_biz_ids:
                 return 1
-            elif _biz_id == int(settings.DEMO_BIZ_ID):
+            elif _biz_id == int(settings.DEMO_BIZ_ID or 0):
                 # 先判断 DEMO 业务，避免「有权限」「Demo」业务同时成立的场景下，优先命中「有权限」导致排序前置
                 return 4
             else:
@@ -399,7 +398,7 @@ class StatisticsResource(Resource):
                     else None
                 ),
             },
-            "details": [detail_map.get(biz_id) for biz_id in ordered_filtered_biz_ids],
+            "details": [detail_map[biz_id] for biz_id in ordered_filtered_biz_ids if biz_id in detail_map],
         }
 
         return result
@@ -529,7 +528,7 @@ class StatisticsResource(Resource):
             biz_action_data: Dict[str, int] = all_data["action"].get(biz_id_str, {"count": 0, "auto_recovery_count": 0})
 
             # 仅统计有权限且非 DEMO 业务的总数
-            if biz_id in allowed_biz_ids and biz_id != int(settings.DEMO_BIZ_ID):
+            if biz_id in allowed_biz_ids and biz_id != int(settings.DEMO_BIZ_ID or 0):
                 overview_data["biz_count"] += 1
                 overview_data["event_count"] += biz_event_count
                 overview_data["alert_count"] += biz_alert_data["count"]
@@ -552,7 +551,7 @@ class StatisticsResource(Resource):
                 "bk_biz_id": space["bk_biz_id"],
                 "bk_biz_name": space["space_name"],
                 "is_favorite": biz_id in favorite_biz_ids,
-                "is_demo": biz_id == int(settings.DEMO_BIZ_ID),
+                "is_demo": biz_id == int(settings.DEMO_BIZ_ID or 0),
                 "is_sticky": biz_id in sticky_biz_ids,
                 "is_allowed": biz_id in allowed_biz_ids,
             }
@@ -666,13 +665,11 @@ class BizWithAlertStatisticsResource(Resource):
     @staticmethod
     def get_all_business_list():
         business_list = {
-            biz.bk_biz_id: {"bk_biz_id": biz.bk_biz_id, "bk_biz_name": biz.bk_biz_name}
-            for biz in api.cmdb.get_business(all=True)
+            biz["bk_biz_id"]: {"bk_biz_id": biz["bk_biz_id"], "bk_biz_name": biz["display_name"]}
+            for biz in resource.commons.list_spaces(show_all=1)
         }
         all_bk_biz_ids = list(business_list.keys())
-        authorized_business_list = Permission().filter_biz_ids_by_action(
-            action=ActionEnum.VIEW_EVENT, bk_biz_ids=all_bk_biz_ids
-        )
+        authorized_business_list = resource.space.get_bk_biz_ids_by_user()
         business_with_permission = [business_list[bk_biz_id] for bk_biz_id in authorized_business_list]
         unauthorized_biz_ids = set(all_bk_biz_ids) - set(authorized_business_list)
         business_data = {

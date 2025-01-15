@@ -26,6 +26,7 @@
 
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { CancelToken } from 'monitor-api/index';
 import { globalSearch } from 'monitor-api/modules/search';
 
@@ -66,13 +67,13 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     { id: 'nav', name: this.$t('导航') },
     { id: 'biz', name: this.$t('空间列表') },
     { id: 'host', name: this.$t('route-主机监控') },
-    { id: 'kubernetes', name: 'Kubernetes' },
+    { id: 'kubernetes', name: '容器监控' },
     { id: 'alert', name: this.$t('route-告警事件') },
     { id: 'action', name: this.$t('route-处理记录') },
     { id: 'strategy', name: this.$t('route-告警策略') },
     { id: 'uptimecheck', name: this.$t('route-综合拨测') },
     { id: 'dashboard', name: this.$t('route-仪表盘') },
-    { id: 'apm', name: 'APM' }
+    { id: 'apm', name: 'APM' },
   ];
   defaultNavList = [
     // 默认展示的导航列表
@@ -90,41 +91,13 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     { id: 'custom-metric', name: this.$t('route-自定义指标'), icon: 'icon-menu-custom' },
     { id: 'custom-event', name: this.$t('route-自定义事件'), icon: 'icon-mc-custom-event' },
     { id: 'fta-integrated', name: this.$t('route-告警源'), icon: 'icon-menu-aler-source' },
-    { id: 'apm-home', name: this.$t('route-应用监控'), icon: 'icon-mc-menu-apm' }
+    { id: 'apm-home', name: this.$t('route-应用监控'), icon: 'icon-mc-menu-apm' },
   ];
   searchResultList = [];
   modalPosition = {
     top: 0,
-    left: 0
+    left: 0,
   };
-  /** 搜索取消请求方法 */
-  searchCancelFn = () => {};
-
-  handleShowChange(v) {
-    this.$emit('change', v, this.searchVal);
-  }
-
-  @Watch('show', { immediate: true })
-  handleShow(v) {
-    this.searchCancelFn();
-    this.isPollRequest = v;
-    this.isLoading = false;
-    if (v) {
-      this.$nextTick(() => document.addEventListener('click', this.handleClickOutSide, true));
-    }
-  }
-
-  mounted() {
-    if (localStorage.getItem('globalSearchHistory')) {
-      this.searchHistoryList = JSON.parse(localStorage.getItem('globalSearchHistory'));
-    }
-    this.resizeObsever();
-  }
-
-  beforeDestroy() {
-    this.resizeObserver.unobserve(document.body);
-  }
-
   get bizId() {
     return this.$store.getters.bizId;
   }
@@ -136,7 +109,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     return [
       // 搜索范围列表
       { id: 'BIZ', name: `${this.$t('本空间')} (${this.curSpaceItem.type_name})` },
-      { id: 'GLOBAL', name: this.$t('全部') }
+      { id: 'GLOBAL', name: this.$t('全部') },
     ];
   }
   /**
@@ -150,7 +123,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     const { top, left } = this.modalPosition;
     return {
       top: `${top}px`,
-      left: `${left}px`
+      left: `${left}px`,
     };
   }
 
@@ -161,10 +134,44 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     return this.isAllScene ? list : list.filter(val => this.selectSceneList.includes(val.id));
   }
 
+  /** 搜索取消请求方法 */
+  searchCancelFn = () => {};
+
+  handleShowChange(v) {
+    this.$emit('change', v, this.searchVal);
+  }
+
+  @Watch('show', { immediate: true })
+  handleShow(v) {
+    this.searchCancelFn();
+    this.isPollRequest = v;
+    this.isLoading = false;
+    if (v) {
+      this.$nextTick(() => {
+        document.addEventListener('click', this.handleClickOutSide, true);
+        window.addEventListener('blur', this.handleHiddenPanel);
+      });
+    }
+  }
+
+  mounted() {
+    if (localStorage.getItem('globalSearchHistory')) {
+      this.searchHistoryList = JSON.parse(localStorage.getItem('globalSearchHistory'));
+    }
+    this.resizeObsever();
+  }
+
+  beforeDestroy() {
+    this.resizeObserver.unobserve(document.body);
+    window.removeEventListener('blur', this.handleHiddenPanel);
+  }
+
   activated() {
     this.inputRef.focus();
   }
-
+  handleHiddenPanel() {
+    this.handleShowChange(false);
+  }
   /** 监听页面大小变化 定位 Modal */
   resizeObsever() {
     this.resizeObserver = new ResizeObserver(() => {
@@ -272,9 +279,9 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     return (
       <span
         class='result-text'
-        title={item.title}
         domPropsInnerHTML={innerHtml}
-      ></span>
+        title={item.title}
+      />
     );
   }
 
@@ -302,7 +309,7 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
    */
   handleDefaultNavView(nav) {
     this.$router.push({ name: nav.id });
-    this.handleShowChange(false);
+    this.handleHiddenPanel();
   }
 
   /**
@@ -328,11 +335,11 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
         title: item.name,
         view: item.id,
         view_args: {},
-        is_collected: false
+        is_collected: false,
       }));
       this.searchResultList.push({
         scene: 'nav',
-        results: resArr
+        results: resArr,
       });
     }
   }
@@ -396,10 +403,10 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
         bk_biz_id: this.bizId,
         scope: this.activeRange,
         scene: scene.id,
-        query: str
+        query: str,
       };
       await globalSearch(params, {
-        cancelToken: new CancelToken(c => (this.searchCancelFn = c))
+        cancelToken: new CancelToken(c => (this.searchCancelFn = c)),
       }).then(res => {
         this.searchResultList.push(...res);
       });
@@ -428,7 +435,6 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
     const params =
       viewArgs.params &&
       Object.keys(viewArgs.params).reduce((result, key) => {
-        // eslint-disable-next-line no-param-reassign
         result[key] = String(viewArgs.params[key]);
         return result;
       }, {});
@@ -442,9 +448,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
       let queryStr =
         viewArgs.query &&
         Object.keys(viewArgs.query).reduce((result, key) => {
-          // eslint-disable-next-line no-param-reassign
-          result += `${key}=${String(viewArgs.query[key])}&`;
-          return result;
+          // result += `${key}=${String(viewArgs.query[key])}&`;
+          return `${result}${key}=${String(viewArgs.query[key])}&`;
         }, '');
       queryStr = queryStr.substring(0, queryStr.length - 1);
       const newHref = `${location.origin}${location.pathname}?bizId=${data.bk_biz_id}#/${routerNamePath}?${queryStr}`;
@@ -454,18 +459,18 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
       const targetRoute = this.$router.resolve({
         name: view,
         params,
-        query: viewArgs.query
+        query: viewArgs.query,
       });
       location.href = `${location.origin}${location.pathname}?bizId=${data.bk_biz_id}${targetRoute.href}`;
     } else {
       this.$router.push({
         name: view,
         params,
-        query: viewArgs.query
+        query: viewArgs.query,
       });
       if (this.$route.name === view) location.reload();
     }
-    this.handleShowChange(false);
+    this.handleHiddenPanel();
   }
 
   /**
@@ -475,29 +480,29 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
   handleClickOutSide(evt: Event) {
     const targetEl = evt.target as HTMLBaseElement;
     if (this.$el.contains(targetEl)) return;
-    this.handleShowChange(false);
+    this.handleHiddenPanel();
   }
 
   render() {
     return (
       <div
-        class='global-search-modal'
         style={this.modalStyle}
+        class='global-search-modal'
       >
         <div class='global-search-wrap'>
           <div class='search-input'>
             <bk-input
               ref='input'
               v-model={this.searchVal}
-              placeholder={this.$t('请输入关键词搜索')}
               clearable={!this.isLoading}
+              placeholder={this.$t('请输入关键词搜索')}
               right-icon={`${!this.isLoading ? 'bk-icon icon-search' : ''}`}
               on-change={() => {
                 this.isSearchedQuery = false;
               }}
-              on-enter={() => this.handleSearch()}
               on-clear={() => this.handleSearch()}
-            ></bk-input>
+              on-enter={() => this.handleSearch()}
+            />
             {this.isLoading && (
               <bk-spin
                 size='mini'
@@ -516,11 +521,12 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                   <span
                     class='bk-icon icon-delete'
                     onClick={() => this.handleDeleteHistory()}
-                  ></span>
+                  />
                 </div>
                 <div class='history-list'>
                   {this.searchHistoryList.map(item => (
                     <span
+                      key={item}
                       class='search-tag'
                       title={item}
                       onClick={() => {
@@ -541,8 +547,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 <div class='search-empty'>
                   <bk-exception
                     class='search-empty-item'
-                    type='search-empty'
                     scene='part'
+                    type='search-empty'
                   >
                     <div class='empty-text'>{this.$t('输入关键词进行搜索')}</div>
                   </bk-exception>
@@ -557,8 +563,9 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 {/* 超过一项分类出现分类tag 用于快速定位 */}
                 {this.searchResultList.length > 1 && (
                   <div class='scene-bar'>
-                    {this.searchResultList.map(item => (
+                    {this.searchResultList.map((item, index) => (
                       <div
+                        key={index}
                         class={['scene-tag', { active: item.scene === this.curSelectScene }]}
                         onClick={() => this.handleSelectCategory(item.scene)}
                       >
@@ -569,12 +576,13 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                   </div>
                 )}
                 <div
-                  class='scene-result-list'
                   style={`height:${this.searchResultList.length > 1 ? 'calc(100% - 43px)' : '100%'}`}
+                  class='scene-result-list'
                 >
                   {this.searchResultList.map(list => (
                     <div
                       id={`${list.scene}__key__`}
+                      key={`${list.scene}__key__`}
                       class='main-content'
                     >
                       <div class='title'>
@@ -582,12 +590,13 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                         <span class='count'>({list.results.length})</span>
                       </div>
                       <div class='list-item'>
-                        {list.results.map(val => (
+                        {list.results.map((val, index) => (
                           <div
+                            key={index}
                             class={['val-item', { 'not-allow': !val.is_allowed }]}
                             onClick={() => this.handleViewToScene(val, list.scene)}
                           >
-                            {!val.is_allowed && <span class='bk-icon icon-lock-shape'></span>}
+                            {!val.is_allowed && <span class='bk-icon icon-lock-shape' />}
                             {this.getResultItemText(val)}
                             {val.bk_biz_id && (
                               <span class='biz-name'>{`${this.$t('业务:')}[${val.bk_biz_id}]${val.bk_biz_name}`}</span>
@@ -608,9 +617,9 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 <div class='bar-content'>
                   <span class='loading-text-default'>
                     <bk-spin
-                      theme='info'
                       size='mini'
-                    ></bk-spin>
+                      theme='info'
+                    />
                     {`${this.$t('加载中...')}`}
                   </span>
                   <span class='laoding-text-module'>{this.curSearchSceneName}</span>
@@ -622,8 +631,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
               <div class='search-empty'>
                 <bk-exception
                   class='search-empty-item'
-                  type='search-empty'
                   scene='part'
+                  type='search-empty'
                 >
                   <div class='empty-text'>
                     {this.activeRange === 'BIZ' ? this.$t('当前空间下无结果，尝试') : this.$t('全站搜索无结果')}
@@ -654,8 +663,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 {this.searchRangeMenu.map(item => (
                   <bk-radio
                     key={item.id}
-                    value={item.id}
                     class={`${item.id === 'BIZ' ? 'biz-radio' : ''}`}
+                    value={item.id}
                   >
                     {item.id === 'BIZ' ? (
                       <div class='range-biz'>
@@ -666,8 +675,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                           {item.name}
                         </div>
                         <div
-                          class='range-biz-item'
                           style='color: #ddd'
+                          class='range-biz-item'
                           v-bk-overflow-tips
                         >
                           {this.curSpaceItem.text}(
@@ -705,8 +714,8 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
                 {this.sceneViewList.map(scene => (
                   <bk-checkbox
                     key={scene.id}
-                    value={scene.id}
                     class='scene-item'
+                    value={scene.id}
                   >
                     {scene.name}
                   </bk-checkbox>

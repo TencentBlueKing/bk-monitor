@@ -19,19 +19,22 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import copy
+import datetime
 import functools
 import re
 from collections import defaultdict
 from typing import Any, Dict, List
 
 import arrow
+import pytz
 from django.conf import settings
-from django.db.transaction import atomic
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext as _
 
 from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_search.constants import (
@@ -39,6 +42,8 @@ from apps.log_search.constants import (
     BKDATA_ASYNC_FIELDS,
     DEFAULT_INDEX_OBJECT_FIELDS_PRIORITY,
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+    DEFAULT_TIME_FIELD,
+    DEFAULT_TIME_FIELD_ALIAS_NAME,
     FEATURE_ASYNC_EXPORT_COMMON,
     LOG_ASYNC_FIELDS,
     OPERATORS,
@@ -49,22 +54,27 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import (
     FieldsDateNotExistException,
     IndexSetNotHaveConflictIndex,
+    MultiFieldsErrorException,
 )
 from apps.log_search.models import (
     IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
+    StorageClusterRecord,
     UserIndexSetFieldsConfig,
 )
 from apps.utils.cache import cache_one_minute, cache_ten_minute
 from apps.utils.codecs import unicode_str_encode
+from apps.utils.drf import custom_params_valid
 from apps.utils.local import (
     get_local_param,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
+from apps.utils.log import logger
+from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range
 
 INNER_COMMIT_FIELDS = ["dteventtime", "report_time"]
@@ -84,16 +94,31 @@ TRACE_SCOPE = ["trace", "trace_detail", "trace_detail_log"]
 
 class MappingHandlers(object):
     def __init__(
-        self, indices, index_set_id, scenario_id, storage_cluster_id, time_field="", start_time="", end_time=""
+        self,
+        indices,
+        index_set_id,
+        scenario_id,
+        storage_cluster_id,
+        time_field="",
+        start_time="",
+        end_time="",
+        bk_biz_id=None,
+        only_search=False,
     ):
         self.indices = indices
         self.index_set_id = index_set_id
+        self.bk_biz_id = bk_biz_id
         self.scenario_id = scenario_id
         self.storage_cluster_id = storage_cluster_id
         self.time_field = time_field
         self.start_time = start_time
         self.end_time = end_time
         self.time_zone: str = get_local_param("time_zone")
+        # 最终字段
+        self._final_fields = None
+
+        # 仅查询使用
+        self.only_search = only_search
 
     def check_fields_not_conflict(self, raise_exception=True):
         """
@@ -206,6 +231,15 @@ class MappingHandlers(object):
             )
         return field_list
 
+    @property
+    def final_fields(self):
+        """添加最终字段的缓存"""
+        if self._final_fields is None:
+            self._final_fields = self.get_final_fields()
+        # 使用深拷贝,避免上文的内容被修改
+        final_fields_list = copy.deepcopy(self._final_fields)
+        return final_fields_list
+
     def get_final_fields(self):
         """获取最终字段"""
         mapping_list: list = self._get_mapping()
@@ -234,7 +268,8 @@ class MappingHandlers(object):
         ]
         fields_list = self.add_clustered_fields(fields_list)
         fields_list = self.virtual_fields(fields_list)
-        fields_list = self._combine_description_field(fields_list)
+        if not self.only_search:
+            fields_list = self._combine_description_field(fields_list)
         fields_list = self._combine_fields(fields_list)
 
         for field in fields_list:
@@ -250,15 +285,20 @@ class MappingHandlers(object):
         @param scope:
         @return:
         """
-        final_fields_list = self.get_final_fields()
+        final_fields_list = self.final_fields
         # search_context情况，默认只显示log字段
         # if scope in CONTEXT_SCOPE:
         #     return self._get_context_fields(final_fields_list)
 
         # 其它情况
-        default_config = self.get_or_create_default_config(scope=scope)
+        if final_fields_list:
+            # mapping拉取到数据时才创建配置
+            default_config = self.get_or_create_default_config(scope=scope)
+            display_fields = default_config.display_fields
+        else:
+            display_fields = []
         if is_union_search:
-            return final_fields_list, default_config.display_fields
+            return final_fields_list, display_fields
 
         username = get_request_external_username() or get_request_username()
         user_index_set_config_obj = UserIndexSetFieldsConfig.get_config(
@@ -287,9 +327,8 @@ class MappingHandlers(object):
                     final_field["is_display"] = True
             return final_fields_list, display_fields_list
 
-        return final_fields_list, default_config.display_fields
+        return final_fields_list, display_fields
 
-    @atomic
     def get_or_create_default_config(self, scope=SearchScopeEnum.DEFAULT.value):
         """获取默认配置"""
         # 获取当前请求用户(兼容外部用户)
@@ -346,7 +385,7 @@ class MappingHandlers(object):
 
     def get_default_fields(self, scope=SearchScopeEnum.DEFAULT.value):
         """获取索引集默认字段"""
-        final_fields_list = self.get_final_fields()
+        final_fields_list = self.final_fields
         if scope == SearchScopeEnum.SEARCH_CONTEXT.value:
             for _field in final_fields_list:
                 if _field["field_name"] == "log":
@@ -426,23 +465,84 @@ class MappingHandlers(object):
         end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
 
         return self._get_latest_mapping(
-            index_set_id=self.index_set_id, start_time=start_time_format, end_time=end_time_format
+            index_set_id=self.index_set_id,
+            start_time=start_time_format,
+            end_time=end_time_format,
+            only_search=self.only_search,
         )
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}")
-    def _get_latest_mapping(self, index_set_id, start_time, end_time):  # noqa
-        latest_mapping = BkLogApi.mapping(
-            {
-                "indices": self.indices,
-                "scenario_id": self.scenario_id,
-                "storage_cluster_id": self.storage_cluster_id,
-                "time_zone": self.time_zone,
-                "start_time": start_time,
-                "end_time": end_time,
-                "add_settings_details": True,
-            }
-        )
+    def _direct_latest_mapping(self, params):
+        from apps.log_esquery.esquery.esquery import EsQuery
+        from apps.log_esquery.serializers import EsQueryMappingAttrSerializer
+
+        if FeatureToggleObject.switch(DIRECT_ESQUERY_SEARCH, self.bk_biz_id):
+            data = custom_params_valid(EsQueryMappingAttrSerializer, params)
+            latest_mapping = EsQuery(data).mapping()
+        else:
+            latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
+
+    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
+    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+        storage_cluster_record_objs = StorageClusterRecord.objects.none()
+
+        if self.start_time:
+            try:
+                tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
+                if type(self.start_time) in [int, float]:
+                    start_datetime = arrow.get(self.start_time).to(tz=tz_info).datetime
+                else:
+                    start_datetime = arrow.get(self.start_time).replace(tzinfo=tz_info).datetime
+                storage_cluster_record_objs = StorageClusterRecord.objects.filter(
+                    index_set_id=int(self.index_set_id), created_at__gt=(start_datetime - datetime.timedelta(hours=1))
+                ).exclude(storage_cluster_id=self.storage_cluster_id)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(f"[_multi_mappings] parse time error -> e: {e}")
+
+        params = {
+            "indices": self.indices,
+            "scenario_id": self.scenario_id,
+            "storage_cluster_id": self.storage_cluster_id,
+            "time_zone": self.time_zone,
+            "start_time": start_time,
+            "end_time": end_time,
+            "add_settings_details": False if only_search else True,
+        }
+        if not storage_cluster_record_objs.exists():
+            return self._direct_latest_mapping(params)
+
+        multi_execute_func = MultiExecuteFunc()
+        multi_num = 1
+        storage_cluster_ids = {self.storage_cluster_id}
+
+        # 获取当前使用的存储集群数据
+        multi_execute_func.append(
+            result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=params
+        )
+
+        # 获取历史使用的存储集群数据
+        for storage_cluster_record_obj in storage_cluster_record_objs:
+            if storage_cluster_record_obj.storage_cluster_id not in storage_cluster_ids:
+                multi_params = copy.deepcopy(params)
+                multi_params["storage_cluster_id"] = storage_cluster_record_obj.storage_cluster_id
+                multi_num += 1
+                multi_execute_func.append(
+                    result_key=f"multi_mappings_{multi_num}", func=self._direct_latest_mapping, params=multi_params
+                )
+                storage_cluster_ids.add(storage_cluster_record_obj.storage_cluster_id)
+
+        multi_result = multi_execute_func.run()
+
+        # 合并多个集群的检索结果
+        merge_result = list()
+        try:
+            for _key, _result in multi_result.items():
+                merge_result.extend(_result)
+        except Exception as e:
+            logger.error(f"[_multi_get_latest_mapping] error -> e: {e}")
+            raise MultiFieldsErrorException()
+
+        return merge_result
 
     @staticmethod
     def _get_context_fields(final_fields_list):
@@ -644,9 +744,6 @@ class MappingHandlers(object):
                     if not merge_dict[property_key].get("latest_field_type"):
                         merge_dict[property_key]["latest_field_type"] = property_define["type"]
                     continue
-                if merge_dict[property_key]["type"] != property_define["type"]:
-                    merge_dict[property_key]["type"] = "conflict"
-                    merge_dict[property_key]["is_conflict"] = True
         return {property_key: property for property_key, property in merge_dict.items()}
 
     def _mapping_group(self, index_result_tables: list, mapping_result: list):
@@ -690,8 +787,9 @@ class MappingHandlers(object):
         if self.scenario_id in [Scenario.BKDATA]:
             schema_result: list = self.get_bkdata_schema(self.indices)
         if self.scenario_id in [Scenario.LOG]:
-            schema_result: list = self.get_meta_schema(self.indices)
+            schema_result: list = self.get_meta_schema(indices=self.indices)
 
+        field_time_format_dict = {}
         # list to dict
         schema_dict: dict = {}
         for item in schema_result:
@@ -699,6 +797,14 @@ class MappingHandlers(object):
             temp_dict: dict = {}
             for k, v in item.items():
                 temp_dict.update({k: v})
+                # 记录指定日志时间字段信息
+            if _field_name == DEFAULT_TIME_FIELD and item.get("option"):
+                _alias_name = item.get("alias_name")
+                field_time_format_dict = {
+                    "field_name": _field_name if _alias_name == DEFAULT_TIME_FIELD_ALIAS_NAME else _alias_name,
+                    "field_time_zone": item["option"].get("time_zone"),
+                    "field_time_format": item["option"].get("time_format"),
+                }
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
@@ -715,8 +821,26 @@ class MappingHandlers(object):
                     else:
                         field_alias: str = ""
                     _field.update({"description": field_alias, "field_alias": field_alias})
+
+                    field_option = field_info.get("option")
+                    if field_option:
+                        # 加入元数据标识
+                        metadata_type = field_option.get("metadata_type")
+                        if metadata_type:
+                            _field.update({"metadata_type": metadata_type})
                 else:
                     _field.update({"description": None})
+
+                # 为指定日志时间字段添加标识,时区和格式
+                if a_field_name == field_time_format_dict.get("field_name"):
+                    _field.update(
+                        {
+                            "is_time": True,
+                            "field_time_zone": field_time_format_dict.get("field_time_zone"),
+                            "field_time_format": field_time_format_dict.get("field_time_format"),
+                        }
+                    )
+
         return fields_list
 
     def get_bkdata_schema(self, index: str) -> list:
@@ -734,7 +858,8 @@ class MappingHandlers(object):
             return []
 
     @staticmethod
-    def get_meta_schema(indices):
+    @cache_one_minute("{indices}_meta_schema")
+    def get_meta_schema(*, indices):
         indices = indices.split(",")
         try:
             all_field_list = list()
@@ -1042,7 +1167,7 @@ class MappingHandlers(object):
         return None
 
     @classmethod
-    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str) -> dict:
+    def async_export_fields(cls, final_fields_list: List[Dict[str, Any]], scenario_id: str, sort_fields: list) -> dict:
         """
         判断是否可以支持大额导出
         """
@@ -1052,6 +1177,8 @@ class MappingHandlers(object):
         if not FeatureToggleObject.switch(FEATURE_ASYNC_EXPORT_COMMON):
             result["async_export_usable_reason"] = _("【异步导出功能尚未开放】")
             return result
+        if sort_fields and fields.issuperset(set(sort_fields)):
+            return cls._judge_missing_agg_field(result, agg_fields, sort_fields)
 
         if scenario_id == Scenario.BKDATA and fields.issuperset(set(BKDATA_ASYNC_FIELDS)):
             return cls._judge_missing_agg_field(result, agg_fields, BKDATA_ASYNC_FIELDS)

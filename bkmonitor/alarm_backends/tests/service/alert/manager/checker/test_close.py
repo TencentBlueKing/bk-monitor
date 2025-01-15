@@ -336,14 +336,8 @@ class TestCloseStatusChecker(TestCase):
             bk_module_ids=[1],
             bk_set_ids=[1],
             topo_link={
-                "module|16": [
-                    {"bk_obj_id": "module", "bk_inst_id": 16},
-                    {"bk_obj_id": "set", "bk_inst_id": 13},
-                ],
-                "module|28": [
-                    {"bk_obj_id": "module", "bk_inst_id": 28},
-                    {"bk_obj_id": "set", "bk_inst_id": 26},
-                ],
+                "module|16": [{"bk_obj_id": "module", "bk_inst_id": 16}, {"bk_obj_id": "set", "bk_inst_id": 13}],
+                "module|28": [{"bk_obj_id": "module", "bk_inst_id": 28}, {"bk_obj_id": "set", "bk_inst_id": 26}],
             },
         )
         strategy = copy.deepcopy(STRATEGY)
@@ -378,14 +372,8 @@ class TestCloseStatusChecker(TestCase):
             bk_module_ids=[1],
             bk_set_ids=[1],
             topo_link={
-                "module|16": [
-                    {"bk_obj_id": "module", "bk_inst_id": 16},
-                    {"bk_obj_id": "set", "bk_inst_id": 13},
-                ],
-                "module|28": [
-                    {"bk_obj_id": "module", "bk_inst_id": 28},
-                    {"bk_obj_id": "set", "bk_inst_id": 26},
-                ],
+                "module|16": [{"bk_obj_id": "module", "bk_inst_id": 16}, {"bk_obj_id": "set", "bk_inst_id": 13}],
+                "module|28": [{"bk_obj_id": "module", "bk_inst_id": 28}, {"bk_obj_id": "set", "bk_inst_id": 26}],
             },
         )
         strategy = copy.deepcopy(STRATEGY)

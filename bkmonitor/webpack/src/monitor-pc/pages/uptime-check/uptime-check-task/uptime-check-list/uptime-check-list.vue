@@ -26,9 +26,9 @@
 <template>
   <div class="task-list">
     <bk-table
+      ref="table"
       class="task-list-table"
       :data="tableData"
-      ref="table"
       :empty-text="$t('没有搜索到相关拨测任务')"
     >
       <bk-table-column
@@ -65,12 +65,8 @@
         :label="$t('响应时长')"
         min-width="120"
       >
-        <template
-          slot-scope="scope"
-        >
-          <span
-            :style="{ color: scope.row.alarm_num === 0 ? '' : '#EA3636' }"
-          >
+        <template slot-scope="scope">
+          <span :style="{ color: scope.row.alarm_num === 0 ? '' : '#EA3636' }">
             {{ scope.row.task_duration !== null ? `${scope.row.task_duration}ms` : '--' }}
           </span>
         </template>
@@ -98,7 +94,7 @@
       >
         <template slot-scope="scope">
           <span>{{
-            scope.row.groups && scope.row.groups.length ? scope.row.groups.map((item) => item.name).join(',') : '--'
+            scope.row.groups && scope.row.groups.length ? scope.row.groups.map(item => item.name).join(',') : '--'
           }}</span>
         </template>
       </bk-table-column>
@@ -119,9 +115,10 @@
                   ? '#c7c7c7'
                   : ['start_failed', 'stop_failed'].includes(scope.row.status)
                     ? '#EA3636'
-                    : '#63656E'
+                    : '#63656E',
             }"
-          >{{ table.statusMap[scope.row.status] }}</span>
+            >{{ table.statusMap[scope.row.status] }}</span
+          >
         </template>
       </bk-table-column>
       <bk-table-column
@@ -183,19 +180,21 @@
       align="right"
       size="small"
       show-total-count
+      v-bind="pagination"
       @change="handlePageChange"
       @limit-change="handleLimitChange"
-      v-bind="pagination"
     />
     <div v-show="false">
       <div
-        class="more-group"
         ref="moreGroup"
+        class="more-group"
       >
         <span
           class="more-group-btn"
           @click="handleCloneTask"
-        > {{ $t('克隆') }} </span>
+        >
+          {{ $t('克隆') }}
+        </span>
       </div>
     </div>
     <div style="display: none">
@@ -209,11 +208,8 @@
   </div>
 </template>
 <script>
+import { changeStatusUptimeCheckTask, cloneUptimeCheckTask, destroyUptimeCheckTask } from 'monitor-api/modules/model';
 import { createNamespacedHelpers } from 'vuex';
-import {
-  changeStatusUptimeCheckTask,
-  cloneUptimeCheckTask,
-  destroyUptimeCheckTask } from 'monitor-api/modules/model';
 
 import { uptimeCheckMixin } from '../../../../common/mixins';
 import { SET_PAGE, SET_PAGE_SIZE } from '../../../../store/modules/uptime-check-task';
@@ -223,12 +219,12 @@ const { mapGetters, mapActions, mapMutations } = createNamespacedHelpers('uptime
 export default {
   name: 'UptimeCheckList',
   components: {
-    DeleteSubtitle
+    DeleteSubtitle,
   },
   mixins: [uptimeCheckMixin],
   inject: ['authority', 'handleShowAuthorityDetail'],
   props: {
-    changeStatus: Function
+    changeStatus: Function,
   },
   data() {
     return {
@@ -242,23 +238,23 @@ export default {
           stop_failed: this.$t('停用失败'),
           starting: this.$t('启用中'),
           stoping: this.$t('停用中'),
-          new_draft: this.$t('未保存')
-        }
+          new_draft: this.$t('未保存'),
+        },
       },
       watchInstance: null,
       popover: {
         instance: null,
         active: -1,
-        data: {}
+        data: {},
       },
       delSubTitle: {
         title: window.i18n.t('任务名'),
-        name: ''
-      }
+        name: '',
+      },
     };
   },
   computed: {
-    ...mapGetters(['keyword', 'tableData', 'pagination'])
+    ...mapGetters(['keyword', 'tableData', 'pagination']),
   },
   created() {
     this.watchInstance = this.$watch('keyword', () => {
@@ -296,18 +292,19 @@ export default {
           reject();
         }
         this.table.loading = true;
-        changeStatusUptimeCheckTask(row.id, { status: row.switch ? 'stoped' : 'running' }).then((data) => {
-          this.changeStatus(row.id, row.status);
-          this.$bkMessage({
-            theme: 'success',
-            message: data.status === 'running' ? this.$t('任务启动成功') : this.$t('任务停止成功')
-          });
-          resolve();
-        })
+        changeStatusUptimeCheckTask(row.id, { status: row.switch ? 'stoped' : 'running' })
+          .then(data => {
+            this.changeStatus(row.id, row.status);
+            this.$bkMessage({
+              theme: 'success',
+              message: data.status === 'running' ? this.$t('任务启动成功') : this.$t('任务停止成功'),
+            });
+            resolve();
+          })
           .catch(() => {
             reject();
           })
-          .finally(() => this.table.loading = false);
+          .finally(() => (this.table.loading = false));
       });
     },
     async handleRowDelete(row) {
@@ -325,14 +322,14 @@ export default {
             .then(() => {
               this.$bkMessage({
                 theme: 'success',
-                message: this.$t('删除任务成功！')
+                message: this.$t('删除任务成功！'),
               });
               this.$emit('update-all');
             })
             .finally(() => {
               this.table.loading = false;
             });
-        }
+        },
       });
     },
     // 显示更多操作
@@ -352,7 +349,7 @@ export default {
             this.popover.active = -1;
             this.popover.instance.destroy();
             this.popover.instance = null;
-          }
+          },
         });
       }
       this.popover.instance?.show(100);
@@ -367,14 +364,14 @@ export default {
           this.setTabelData();
           this.$bkMessage({
             theme: 'success',
-            message: this.$t('克隆任务成功！')
+            message: this.$t('克隆任务成功！'),
           });
         })
         .finally(() => {
           this.table.loading = false;
         });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

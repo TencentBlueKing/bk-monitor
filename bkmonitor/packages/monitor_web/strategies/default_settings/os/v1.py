@@ -9,7 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import os
-from django.utils.translation import ugettext_lazy as _lazy
+
+from django.utils.translation import gettext_lazy as _lazy
+
+from common.context_processors import Platform
 
 DEFAULT_OS_STRATEGIES = [
     {
@@ -103,16 +106,6 @@ DEFAULT_OS_STRATEGIES = [
         "recovery_status_setter": "close",
     },
     {
-        "name": _lazy("PING不可达告警"),
-        "data_type_label": "event",
-        "data_source_label": "bk_monitor",
-        "result_table_label": "os",
-        "metric_field": "ping-gse",
-        "trigger_count": 3,
-        "trigger_check_window": 5,
-        "recovery_check_window": 5,
-    },
-    {
         "name": _lazy("OOM异常告警"),
         "data_type_label": "event",
         "data_source_label": "bk_monitor",
@@ -136,17 +129,18 @@ DEFAULT_OS_STRATEGIES = [
         "agg_method": "MAX",
         "recovery_status_setter": "close",
     },
-    {
-        "name": _lazy("自定义字符型告警"),
-        "data_type_label": "event",
-        "data_source_label": "bk_monitor",
-        "result_table_label": "os",
-        "metric_field": "gse_custom_event",
-        "trigger_count": 1,
-        "trigger_check_window": 5,
-        "recovery_check_window": 5,
-        "recovery_status_setter": "close",
-    },
+    # deprecated
+    # {
+    #     "name": _lazy("自定义字符型告警"),
+    #     "data_type_label": "event",
+    #     "data_source_label": "bk_monitor",
+    #     "result_table_label": "os",
+    #     "metric_field": "gse_custom_event",
+    #     "trigger_count": 1,
+    #     "trigger_check_window": 5,
+    #     "recovery_check_window": 5,
+    #     "recovery_status_setter": "close",
+    # },
     {
         "name": _lazy("进程端口"),
         "data_type_label": "event",
@@ -168,3 +162,17 @@ DEFAULT_OS_STRATEGIES = [
         ],
     },
 ]
+
+if not Platform.te:
+    DEFAULT_OS_STRATEGIES.append(
+        {
+            "name": _lazy("PING不可达告警"),
+            "data_type_label": "event",
+            "data_source_label": "bk_monitor",
+            "result_table_label": "os",
+            "metric_field": "ping-gse",
+            "trigger_count": 3,
+            "trigger_check_window": 5,
+            "recovery_check_window": 5,
+        }
+    )

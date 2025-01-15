@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { KeyValuePair, Span, TNil } from '../typings';
+import type { KeyValuePair, Span, TNil } from '../typings';
 
 export default function filterSpans(textFilter: string, spans: Span[] | TNil) {
   if (!spans) {
@@ -49,7 +49,6 @@ export default function filterSpans(textFilter: string, spans: Span[] | TNil) {
       }
     });
 
-  // eslint-disable-next-line max-len
   const isTextInFilters = (filters: Array<string>, text: string) =>
     filters.some(filter => text.toLowerCase().includes(filter));
 

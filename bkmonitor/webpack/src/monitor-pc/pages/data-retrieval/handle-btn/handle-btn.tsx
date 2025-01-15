@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,7 +27,7 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { HandleBtnType, IDataRetrievalView } from '../typings';
+import type { HandleBtnType, IDataRetrievalView } from '../typings';
 
 @Component
 export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.IEvent> {
@@ -72,26 +73,25 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
         >
           {(() => {
             if (this.queryLoading) {
-              /* eslint-disable-next-line @typescript-eslint/no-require-imports */
               return (
                 <img
-                  src={require('../../../static/images/svg/spinner.svg')}
                   class='status-loading'
                   alt=''
-                ></img>
+                  src={require('../../../static/images/svg/spinner.svg')}
+                />
               );
             }
             return this.autoQuery ? (
-              <span class='icon-monitor icon-weibiaoti519'></span>
+              <span class='icon-monitor icon-weibiaoti519' />
             ) : (
-              <span class='icon-monitor icon-kaishi11'></span>
+              <span class='icon-monitor icon-kaishi11' />
             );
           })()}
         </span>
         <span onMousedown={this.handleQuery}>
           <bk-button
-            theme='primary'
             disabled={!this.canQuery}
+            theme='primary'
           >
             {/* { this.autoQuery ? <i class="icon-monitor icon-mc-zidongsousuo"></i> : undefined } */}
             {this.autoQuery ? this.$t('自动查询') : this.$t('查询')}
@@ -99,27 +99,27 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
         </span>
         {!!this.favCheckedValue ? (
           <div class='favorite-btn-container'>
-            {this.isFavoriteUpdate ? <i class='catching-ball'></i> : undefined}
+            {this.isFavoriteUpdate ? <i class='catching-ball' /> : undefined}
             <span
               v-bk-tooltips={{ content: this.$t('当前收藏有更新，点击保存当前修改'), disabled: !this.isFavoriteUpdate }}
             >
               <bk-button
-                theme='default'
                 disabled={!this.isFavoriteUpdate}
+                theme='default'
                 onClick={() => this.handleEmitFavoriteDialog(true)}
               >
-                <i class={`icon-monitor ${this.isFavoriteUpdate ? 'icon-mc-mark' : 'icon-mc-collect'}`}></i>
+                <i class={`icon-monitor ${this.isFavoriteUpdate ? 'icon-mc-mark' : 'icon-mc-collect'}`} />
                 <span>{this.isFavoriteUpdate ? this.$t('保存') : this.$t('已收藏')}</span>
               </bk-button>
             </span>
           </div>
         ) : (
           <bk-button
-            theme='default'
             disabled={!this.canQuery || !this.canFav}
+            theme='default'
             onClick={() => this.handleEmitFavoriteDialog(false)}
           >
-            <i class='icon-monitor icon-mc-uncollect'></i>
+            <i class='icon-monitor icon-mc-uncollect' />
             {this.$t('收藏')}
           </bk-button>
         )}
@@ -129,8 +129,8 @@ export default class HandleBtn extends tsc<HandleBtnType.IProps, HandleBtnType.I
             class='clear-params-btn'
             onClick={this.handleClearAll}
           >
-            <i class='icon-monitor icon-mc-clear-query'></i>
-            <bk-button theme='default'></bk-button>
+            <i class='icon-monitor icon-mc-clear-query' />
+            <bk-button theme='default' />
           </div>
         </bk-popover>
       </div>

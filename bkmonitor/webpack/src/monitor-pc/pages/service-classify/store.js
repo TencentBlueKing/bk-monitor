@@ -42,7 +42,7 @@ export default class TableStore {
         second: item.second,
         metricCount: item.metric_count,
         configCount: item.config_count,
-        strategyCount: item.strategy_count
+        strategyCount: item.strategy_count,
       });
       i += 1;
     }

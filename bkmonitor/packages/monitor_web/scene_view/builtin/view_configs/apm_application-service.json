@@ -13,7 +13,9 @@
       "targets": [
         {
           "data": {
-            "app_name": "$app_name"
+            "app_name": "$app_name",
+            "filter": "all",
+            "view_mode": "page_services"
           },
           "dataType": "table",
           "api": "apm_metric.serviceList",
@@ -32,7 +34,15 @@
               "async_columns": [
                 "request_count",
                 "error_rate",
-                "avg_duration"
+                "avg_duration",
+                "p90",
+                "p50",
+                "strategy_count",
+                "alert_status",
+                "metric_data_status",
+                "log_data_status",
+                "trace_data_status",
+                "profiling_data_status"
               ]
             }
           }

@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-param-reassign */
-import { TranslateResult } from 'vue-i18n';
+
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
 import CycleInput from '../../../../components/cycle-input/cycle-input';
@@ -35,10 +35,11 @@ import { getPopoverWidth } from '../../../../utils';
 // import ConditionInput from './condition-input';
 import SimpleConditionInput from '../../../alarm-shield/components/simple-condition-input';
 // import IntervalSelect from '../../../../components/cycle-input/interval-select'
-import { MetricDetail, MetricType } from '../typings/index';
-
-import FunctionSelect, { IFunctionsValue } from './function-select';
+import { type MetricDetail, MetricType } from '../typings/index';
+import FunctionSelect, { type IFunctionsValue } from './function-select';
 import LogMetricInfo from './log-metric-info';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './monitor-data-input.scss';
 
@@ -61,6 +62,7 @@ interface IMericDataInputProps {
   expFunctions: IFunctionsValue[];
   dataTypeLabel?: string;
   hasAiOpsDetect?: boolean;
+  isKpiAnomalySdkEnabled?: boolean;
 }
 interface IMetricDataInputEvent {
   onExpressionBlur: string;
@@ -72,7 +74,7 @@ interface IMetricDataInputEvent {
 }
 
 @Component({
-  name: 'monitor-data-input'
+  name: 'monitor-data-input',
 })
 class MericDataInput extends Mixins(metricTipsContentMixin) {
   @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
@@ -85,9 +87,10 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
   @Prop({ default: () => [], type: Array }) expFunctions: IFunctionsValue[]; /** 表达式函数 */
   @Prop({ type: String, default: 'time_series' }) dataTypeLabel: string;
   @Prop({ default: false, type: Boolean }) hasAiOpsDetect: boolean;
+  @Prop({ default: false, type: Boolean }) isKpiAnomalySdkEnabled: boolean; // 是否智能算法支持函数
 
   hoverDeleteItemIndex = -1;
-  levelIconMap: string[] = [, 'icon-danger', 'icon-mind-fill', 'icon-tips'];
+  levelIconMap: string[] = ['', 'icon-danger', 'icon-mind-fill', 'icon-tips'];
   contentLoading = false;
   metricpopoerInstance: any = null;
   isShowExpress = false; // 此值用与单指标时可选填表达式
@@ -162,11 +165,11 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     if (['event', 'log', 'alert'].includes(type))
       return {
         type,
-        ...metricItem
+        ...metricItem,
       };
     return {
       type: MetricType.TimeSeries,
-      ...metricItem
+      ...metricItem,
     };
   }
 
@@ -236,10 +239,10 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
       conditions: [
         {
           key: 'related_id',
-          value: metric.index_set_id
-        }
+          value: metric.index_set_id,
+        },
       ],
-      data_source: [['bk_log_search', 'time_series']]
+      data_source: [['bk_log_search', 'time_series']],
     }).catch(() => []);
     metric.setLogMetricList(data?.metric_list || []);
   }
@@ -290,7 +293,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
       placement: 'right',
       zIndex: 9999,
       boundary: document.body,
-      appendTo: document.body
+      appendTo: document.body,
     });
     this.dimensionPopInstance.show?.();
   }
@@ -316,7 +319,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
           class={textClass}
           domPropsInnerHTML={innerHtml}
           onMouseenter={e => this.handleDimensionMouseEnter(e, node)}
-        ></span>
+        />
       </div>
     );
   }
@@ -331,7 +334,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             zIndex: 9999,
             offset: '0, 6',
             boundary: document.body,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {node.name}
@@ -343,7 +346,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     let content = '';
     try {
       content = this.handleGetMetricTipsContent(item);
-    } catch (error) {
+    } catch {
       // content = `${this.$t('指标不存在')}`;
     }
     if (content) {
@@ -352,15 +355,16 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
         placement: 'right',
         theme: 'monitor-metric-input',
         arrow: true,
-        flip: false
+        flip: false,
+        interactive: true,
+        interactiveBorder: 6,
+        onHidden: () => {
+          this.metricpopoerInstance?.destroy?.();
+          this.metricpopoerInstance = null;
+        },
       });
       this.metricpopoerInstance?.show?.(100);
     }
-  }
-  handleMetricMouseleave() {
-    this.metricpopoerInstance?.hide?.();
-    this.metricpopoerInstance?.destroy?.();
-    this.metricpopoerInstance = null;
   }
   handleQueryStringChange(e: Event, item: MetricDetail) {
     item.keywords_query_string = String((e.target as any).value).trim();
@@ -379,8 +383,8 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             : null;
           return (
             <div
-              class='metric-content-item mb10'
               key={`${item.id}-${index}`}
+              class='metric-content-item mb10'
               // on-mouseenter={() => (this.hoverDeleteItemIndex = index)}
               // on-mouseleave={() => (this.hoverDeleteItemIndex = -1)}
             >
@@ -393,21 +397,20 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                 {
                   <div class='form metric-name'>
                     <span
-                      class='form-label'
                       style='border-left: 1px solid #dcdee5'
+                      class='form-label'
                     >
                       {this.metricNameLabel || this.$t('指标')}
                     </span>
                     <div
                       class='form-content monitor-input metric-wrap'
-                      onMouseenter={e => this.handleMetricMouseenter(e, item)}
-                      onMouseleave={this.handleMetricMouseleave}
                       on-click={() => !this.readonly && this.handleAddMetric(item)}
+                      onMouseenter={e => this.handleMetricMouseenter(e, item)}
                     >
                       <div
-                        class='metric-input'
                         id={`set-panel-item-${this.dataTypeLabel}${item.key || ''}`}
                         style='display: flex;align-items: flex-end;'
+                        class='metric-input'
                       >
                         {item.metric_field_name || item.metric_id || <span class='placeholder'>{this.$t('添加')}</span>}
                       </div>
@@ -422,15 +425,15 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       <LogMetricInfo />
                     </span>
                     <div
-                      class='form-content content-wrap'
                       style='min-width: 200px'
+                      class='form-content content-wrap'
                     >
                       <span class='input-content'>{item.localQueryString}</span>
                       <input
                         key='queryString'
                         class='monitor-input input-set'
-                        placeholder={String(this.$t('输入'))}
                         v-model={item.localQueryString}
+                        placeholder={String(this.$t('输入'))}
                         onBlur={(e: Event) => this.handleQueryStringChange(e, item)}
                       />
                     </div>
@@ -442,17 +445,17 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     <span class='form-label'>{this.$t('汇聚')}</span>
                     <bk-select
                       class='select-small'
-                      clearable={false}
                       v-model={item.agg_method}
+                      clearable={false}
                       popover-width={getPopoverWidth(item?.aggMethodList || [])}
                       onSelected={v => this.emitMethodChange(item, v)}
                     >
                       {item?.aggMethodList.map(option => (
                         <bk-option
-                          key={option.id}
                           id={option.id}
+                          key={option.id}
                           name={option.name}
-                        ></bk-option>
+                        />
                       ))}
                     </bk-select>
                   </div>
@@ -463,17 +466,17 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     <span class='form-label'>{this.$t('指标')}</span>
                     <bk-select
                       class='select-small'
+                      v-model={item.metric_id}
                       clearable={false}
                       popover-min-width=''
-                      v-model={item.metric_id}
                       popover-width={getPopoverWidth(item?.logMetricList || [])}
                     >
                       {item.logMetricList?.map(option => (
                         <bk-option
-                          key={option.metric_id}
                           id={option.metric_id}
+                          key={option.metric_id}
                           name={option.metric_field_name}
-                        ></bk-option>
+                        />
                       ))}
                     </bk-select>
                   </div>
@@ -509,25 +512,25 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     <bk-tag-input
                       class='form-content monitor-input monitor-dimension'
                       v-model={item.agg_dimension}
-                      list={nullMetricGroupByList || this.handleGetDimensionList(item)}
                       content-width={getPopoverWidth(
                         nullMetricGroupByList || this.handleGetDimensionList(item),
                         20,
                         190
                       )}
-                      placeholder={String(this.$t('选择'))}
-                      trigger='focus'
-                      has-delete-icon
-                      allow-create
                       allow-next-focus={false}
+                      list={nullMetricGroupByList || this.handleGetDimensionList(item)}
+                      placeholder={String(this.$t('选择'))}
                       search-key={['name', 'id']}
                       tag-tpl={this.handleRenderDimensionTag}
                       tpl={this.handleRenderDimensionList}
-                    ></bk-tag-input>
+                      trigger='focus'
+                      allow-create
+                      has-delete-icon
+                    />
                   </div>
                 )}
                 {/* =======条件====== */}
-                {/* eslint-disable-next-line no-param-reassign */}
+                {}
                 {/* {!item.isNullMetric && <ConditionInput
                   conditionList={item.agg_condition}
                   dimensionsList={nullMetricWhere || this.handleGetConditionDimensionList(item)}
@@ -541,37 +544,39 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                   key-loading={v => this.contentLoading = v }/>} */}
                 {!item.isNullMetric && (
                   <SimpleConditionInput
-                    conditionList={item.agg_condition}
-                    dimensionsList={nullMetricWhere || this.handleGetConditionDimensionList(item)}
                     metricMeta={{
                       dataSourceLabel: item.data_source_label,
                       dataTypeLabel: item.data_type_label,
                       metricField: item.metric_field,
                       resultTableId: item.result_table_id,
-                      indexSetId: item.index_set_id
+                      indexSetId: item.index_set_id,
                     }}
+                    conditionList={item.agg_condition}
+                    dimensionsList={nullMetricWhere || this.handleGetConditionDimensionList(item)}
                     hasLeftLabel={true}
                     isHasNullOption={true}
                     on-change={v => this.handleConditionChange(item, v)}
                     onKeyLoading={v => (this.contentLoading = v)}
-                  ></SimpleConditionInput>
-                )}
-                {/* =======函数====== */}
-                {!this.isRealTimeModel && item.canSetFunction && !this.hasAiOpsDetect && !item.isNullMetric && (
-                  <FunctionSelect
-                    v-model={item.functions}
-                    onValueChange={this.emitFunctionChange}
                   />
                 )}
+                {/* =======函数====== */}
+                {!this.isRealTimeModel &&
+                  item.canSetFunction &&
+                  (!this.hasAiOpsDetect || this.isKpiAnomalySdkEnabled) &&
+                  !item.isNullMetric && (
+                    <FunctionSelect
+                      v-model={item.functions}
+                      onValueChange={this.emitFunctionChange}
+                    />
+                  )}
               </div>
               <div class='item-delete'>
                 <div
                   class='item-delete-btn'
-                  // eslint-disable-next-line quotes
                   // style={{ display: this.hoverDeleteItemIndex === index ? 'flex' : 'none' }}
                   on-click={() => this.handleDeleteMetric(item, index)}
                 >
-                  <i class='icon-monitor icon-mc-delete-line'></i>
+                  <i class='icon-monitor icon-mc-delete-line' />
                 </div>
               </div>
             </div>
@@ -582,39 +587,43 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
             {/* =======计算表达式====== */}
             {this.canSetExpress || this.isShowExpress
               ? [
-                  <div class='expression-left'>
+                  <div
+                    key='0'
+                    class='expression-left'
+                  >
                     <span class='item-key'>
-                      <i class='icon-monitor icon-arrow-turn'></i>
+                      <i class='icon-monitor icon-arrow-turn' />
                     </span>
                     <div class='form-label'>{this.$t('表达式')}</div>
                     <input
                       class='form-content monitor-input'
                       placeholder={expressPlaceholders(this.metricData[0].data_type_label || this.dataTypeLabel)}
-                      onInput={this.handleExpressionChange}
-                      onBlur={this.handleExpressionBlur}
                       value={this.expression}
+                      onBlur={this.handleExpressionBlur}
+                      onInput={this.handleExpressionChange}
                     />
                     <FunctionSelect
                       class='query-func-selector'
-                      isExpSupport
                       value={this.expFunctions}
+                      isExpSupport
                       onValueChange={this.handleFunctionsChange}
                     />
                   </div>,
                   !this.readonly && this.canAddMetric && (
                     <button
-                      class='expression-right'
                       ref='addMetricBtn'
+                      class='expression-right'
                       v-bk-tooltips={{
                         content: this.$t('AIOps算法只支持单指标'),
-                        disabled: !this.hasAiOpsDetect || this.readonly
+                        disabled: !this.hasAiOpsDetect || this.readonly,
                       }}
+                      type='button'
                       on-click={this.handleAddMetricProxy}
                     >
-                      <i class='bk-icon icon-plus'></i>
+                      <i class='bk-icon icon-plus' />
                       <span class='name'>{`${this.$t('添加')}${this.metricNameLabel}`}</span>
                     </button>
-                  )
+                  ),
                 ]
               : !this.readonly &&
                 this.canAddMetric && (
@@ -625,11 +634,11 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       class='metric-add-btn'
                       onClick={this.handleAddMetricProxy}
                     >
-                      <i class='icon-monitor icon-mc-add'></i>
+                      <i class='icon-monitor icon-mc-add' />
                       <span
                         v-bk-tooltips={{
                           content: this.$t('AIOps算法只支持单指标'),
-                          disabled: !this.hasAiOpsDetect || this.readonly
+                          disabled: !this.hasAiOpsDetect || this.readonly,
                         }}
                       >
                         {this.$t('多指标计算')}
@@ -639,11 +648,11 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                       class='expression-add-btn'
                       v-bk-tooltips={{
                         content: this.$t('AIOps算法只支持单指标'),
-                        disabled: !this.hasAiOpsDetect || this.readonly
+                        disabled: !this.hasAiOpsDetect || this.readonly,
                       }}
                       onClick={this.handleAddExpression}
                     >
-                      <i class='icon-monitor icon-mc-add'></i>
+                      <i class='icon-monitor icon-mc-add' />
                       <span>{this.$t('表达式')}</span>
                     </div>
                   </div>

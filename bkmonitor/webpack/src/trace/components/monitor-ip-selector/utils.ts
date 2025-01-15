@@ -1,5 +1,3 @@
-import { IHost, IIpV6Value, INode, INodeType, ITarget, TargetObjectType } from './typing';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,12 +23,15 @@ import { IHost, IIpV6Value, INode, INodeType, ITarget, TargetObjectType } from '
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { IHost, IIpV6Value, INode, INodeType, ITarget, TargetObjectType } from './typing';
+
 export const PanelTargetMap = {
   staticTopo: 'INSTANCE',
   dynamicTopo: 'TOPO',
   serviceTemplate: 'SERVICE_TEMPLATE',
   setTemplate: 'SET_TEMPLATE',
-  manualInput: 'INSTANCE'
+  manualInput: 'INSTANCE',
+  dynamicGroup: 'DYNAMIC_GROUP',
 };
 
 export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6Value | any {
@@ -47,28 +48,34 @@ export function transformMonitorToValue(data: any[], nodeType: INodeType): IIpV6
             host_id: item.bk_host_id,
             ip: 'ip' in item ? item.ip : item.bk_target_ip,
             cloud_id: 'bk_cloud_id' in item ? item.bk_cloud_id : item.bk_target_cloud_id,
-            cloud_area: { id: 'bk_cloud_id' in item ? item.bk_cloud_id : item.bk_target_cloud_id }
+            cloud_area: { id: 'bk_cloud_id' in item ? item.bk_cloud_id : item.bk_target_cloud_id },
           })
-        )
+        ),
       };
     case 'TOPO':
       return {
         node_list: data.map(item => ({
           object_id: item.bk_obj_id,
-          instance_id: item.bk_inst_id
-        }))
+          instance_id: item.bk_inst_id,
+        })),
       };
     case 'SET_TEMPLATE':
       return {
         set_template_list: data.map(item => ({
-          id: item.bk_inst_id
-        }))
+          id: item.bk_inst_id,
+        })),
       };
     case 'SERVICE_TEMPLATE':
       return {
         service_template_list: data.map(item => ({
-          id: item.bk_inst_id
-        }))
+          id: item.bk_inst_id,
+        })),
+      };
+    case 'DYNAMIC_GROUP':
+      return {
+        dynamic_group_list: data.map(item => ({
+          id: item.dynamic_group_id || item.id,
+        })),
       };
     default:
       return [];
@@ -81,25 +88,29 @@ export function transformValueToMonitor(value: IIpV6Value, nodeType: INodeType) 
       return value.host_list.map((item: IHost) => ({
         bk_host_id: item.host_id,
         ip: item.ip,
-        bk_cloud_id: item.cloud_area.id
+        bk_cloud_id: item.cloud_area.id,
       }));
     case 'TOPO':
       return value.node_list.map((item: INode) => ({
         bk_obj_id: item.object_id,
-        bk_inst_id: item.instance_id
+        bk_inst_id: item.instance_id,
       }));
     case 'SERVICE_TEMPLATE':
       return value.service_template_list.map((item: INode) => ({
         bk_obj_id: nodeType,
-        bk_inst_id: item.id
+        bk_inst_id: item.id,
       }));
     case 'SET_TEMPLATE':
       return value.set_template_list.map((item: INode) => ({
         bk_obj_id: nodeType,
-        bk_inst_id: item.id
+        bk_inst_id: item.id,
       }));
     case 'SERVICE_INSTANCE':
       return value.service_instance_list.map((item: INode) => item.service_instance_id);
+    case 'DYNAMIC_GROUP':
+      return value.dynamic_group_list.map((item: INode) => ({
+        dynamic_group_id: item.id,
+      }));
     default:
       return [];
   }
@@ -128,12 +139,16 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
     case 'TOPO':
       return nodes.map(item => ({
         object_id: item.bk_obj_id,
-        instance_id: item.bk_inst_id
+        instance_id: item.bk_inst_id,
       }));
     case 'SERVICE_TEMPLATE':
     case 'SET_TEMPLATE':
       return nodes.map(item => ({
-        id: item.bk_inst_id
+        id: item.bk_inst_id,
+      }));
+    case 'DYNAMIC_GROUP':
+      return nodes.map(item => ({
+        id: item.dynamic_group_id,
       }));
     default:
       return [];

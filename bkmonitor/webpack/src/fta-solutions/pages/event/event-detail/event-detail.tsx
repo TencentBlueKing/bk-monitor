@@ -23,7 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
+import { Component, Emit, Mixins, Prop, ProvideReactive } from 'vue-property-decorator';
+
 import dayjs from 'dayjs';
 import { alertDetail, listAlertFeedback, searchAction } from 'monitor-api/modules/alert';
 import { listIndexByHost } from 'monitor-api/modules/alert_events';
@@ -31,7 +32,7 @@ import { graphTraceQuery } from 'monitor-api/modules/grafana';
 import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
 import { getPluginInfoByResultTable } from 'monitor-api/modules/scene_view';
 import { deepClone, random } from 'monitor-common/utils/utils';
-import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
+import { destroyTimezone, getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
 import LogRetrievalDialog from 'monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
 import authorityStore from 'monitor-pc/store/modules/authority';
@@ -39,8 +40,6 @@ import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
 import ChatGroup from '../../../components/chat-group/chat-group';
-import { IChatGroupDialogOptions } from '../typings/event';
-
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
@@ -51,13 +50,14 @@ import ManualDebugStatus from './manual-debug-status';
 import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
 import TabContainer from './tab-container';
-import { IDetail } from './type';
+
+import type { IChatGroupDialogOptions } from '../typings/event';
+import type { IDetail } from './type';
 
 import './event-detail.scss';
 
 const authMap = ['manage_rule_v2', 'manage_event_v2', 'manage_downtime_v2'];
 
-/* eslint-disable camelcase */
 // interface IEventDeatil {
 //   id: string;
 //   activeTab?: string;
@@ -69,16 +69,16 @@ const authMap = ['manage_rule_v2', 'manage_event_v2', 'manage_downtime_v2'];
 // }
 Component.registerHooks(['beforeRouteLeave']);
 @Component({
-  name: 'EventDetail'
+  name: 'EventDetail',
 })
 export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth)) {
-  @Provide('authorityFromEventDetail') authority;
-  @Provide('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetail;
   @Prop({ default: '', type: [String, Number] }) id: string;
   @Prop({ default: '', type: String }) activeTab: string;
   @Prop({ type: Number, default: +window.bk_biz_id }) bizId: number;
   // bizId
   @ProvideReactive('bkBizId') bkBizId = null;
+  // 时区
+  @ProvideReactive('timezone') timezone: string = window.timezone || getDefaultTimezone();
   // public id = 0
   basicInfo: IDetail = {
     id: '', // 告警id
@@ -100,32 +100,33 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       failed_count: 0,
       partial_count: 0,
       shielded_count: 0,
-      success_count: 0
+      success_count: 0,
     },
     duration: '',
     dimension_message: '',
     overview: {}, // 处理状态数据
-    assignee: []
+    assignee: [],
   };
   actions = []; // 处理记录数据
+  total = 0; // 记录数据总条数
 
   isLoading = false;
   tabShow = false;
   dialog = {
     quickShield: {
-      show: false
+      show: false,
     },
     alarmConfirm: {
-      show: false
+      show: false,
     },
     logRetrieval: {
-      show: false
+      show: false,
     },
     statusDialog: {
-      show: false
+      show: false,
     },
     feedback: {
-      show: false
+      show: false,
     },
     manualProcess: {
       show: false,
@@ -133,13 +134,13 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       bizIds: [],
       debugKey: random(8),
       actionIds: [],
-      mealInfo: null
+      mealInfo: null,
     },
     alarmDispatch: {
       show: false,
       alertIds: [],
-      bizIds: []
-    }
+      bizIds: [],
+    },
   };
   scrollEl = null;
   isScrollEnd = false; // 是否滑动到底部
@@ -151,7 +152,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     isJumpDirectly: false, // 是否直接跳转到日志
     indexId: 0,
     indexList: [],
-    ip: '0.0.0.0'
+    ip: '0.0.0.0',
   };
   /* 是否已反馈 */
   isFeedback = false;
@@ -160,7 +161,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     show: false,
     alertName: '',
     alertIds: [],
-    assignee: []
+    assignee: [],
   };
   /* traceIds 用于展示trace标签页 */
   traceIds = [];
@@ -170,7 +171,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   /* 权限校验 */
   authorityConfig = {};
   enableCreateChatGroup = false;
-  throttledScroll: Function = () => {};
+  throttledScroll: () => void = () => {};
 
   created() {
     this.getDetailData();
@@ -201,11 +202,11 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   async getCheckAllowed() {
     const data = await checkAllowedByActionIds({
       action_ids: authMap,
-      bk_biz_id: this.basicInfo.bk_biz_id
+      bk_biz_id: this.basicInfo.bk_biz_id,
     }).catch(() => []);
-    data.forEach(item => {
+    for (const item of data) {
       this.authorityConfig[item.action_id] = !!item.is_allowed;
-    });
+    }
   }
   // 获取告警详情数据
   async getDetailData() {
@@ -237,11 +238,12 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       page_size: 100,
       alert_ids: [this.id],
       status: ['failure', 'success', 'partial_failure'],
-      ordering: ['create_time'],
-      conditions: [{ key: 'parent_action_id', value: [0], method: 'eq' }] // 处理状态数据写死条件
+      ordering: ['-create_time'],
+      conditions: [{ key: 'parent_action_id', value: [0], method: 'eq' }], // 处理状态数据写死条件
     };
-    const { actions, overview } = await searchAction(params);
+    const { actions, overview, total } = await searchAction(params);
     this.actions = actions;
+    this.total = total;
     this.$set(this.basicInfo, 'overview', overview);
   }
 
@@ -381,9 +383,9 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     const params: Record<string, any> = {
       bk_biz_id: this.basicInfo.bk_biz_id,
       bk_host_innerip: '0.0.0.0',
-      bk_cloud_id: '0'
+      bk_cloud_id: '0',
     };
-    this.basicInfo.dimensions.forEach(item => {
+    for (const item of this.basicInfo.dimensions) {
       if (hostMap.includes(item.key) && item.value) {
         params.bk_host_id = item.value;
       }
@@ -393,7 +395,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       if (ipMap.includes(item.key) && item.value) {
         params.bk_host_innerip = item.value;
       }
-    });
+    }
     this.logRetrieval.ip = params.bk_host_innerip;
     this.logRetrieval.indexList = await listIndexByHost(params).catch(() => []);
     // 如果查不到索引集则显示提示
@@ -425,7 +427,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       bk_biz_id: this.basicInfo.bk_biz_id,
       id: this.basicInfo.id,
       start_time: dayjs.tz(startTime).unix(),
-      end_time: dayjs.tz(endTime).unix()
+      end_time: dayjs.tz(endTime).unix(),
     };
     if (graph_panel) {
       const [{ data: queryConfig }] = graph_panel.targets;
@@ -434,14 +436,16 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       }
       const data = await graphTraceQuery({ ...queryConfig, ...params }).catch(() => ({ series: [] }));
       const traceIdSet = new Set();
-      data.series.forEach(item => {
-        const idIndex = item.columns.findIndex(c => c === 'bk_trace_id');
-        item.data_points.forEach(d => {
-          if (d[idIndex]) {
-            traceIdSet.add(d[idIndex]);
+      if (data.series?.length) {
+        for (const item of data.series) {
+          const idIndex = item.columns.findIndex(c => c === 'bk_trace_id');
+          for (const d of item.data_points) {
+            if (d[idIndex]) {
+              traceIdSet.add(d[idIndex]);
+            }
           }
-        });
-      });
+        }
+      }
       this.traceIds = Array.from(traceIdSet);
     } else {
       this.traceIds = [];
@@ -460,14 +464,14 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       this.basicInfo.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.data_label ||
       this.basicInfo.extend_info?.data_label ||
       '';
-    if (!!resultTableId) {
+    if (resultTableId) {
       const sceneInfo = await getPluginInfoByResultTable({
         result_table_id: resultTableId,
         data_label: dataLabel || undefined,
-        bk_biz_id: this.basicInfo.bk_biz_id
+        bk_biz_id: this.basicInfo.bk_biz_id,
       }).catch(() => ({
         scene_view_id: '',
-        scene_view_name: ''
+        scene_view_name: '',
       }));
       sceneId = sceneInfo.scene_view_id || '';
       sceneName = sceneInfo.scene_view_name || '';
@@ -484,71 +488,85 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     const detail = [
       {
         severity: this.basicInfo?.severity,
-        dimension: this.basicInfo?.dimension_message || '--',
+        dimension: this.basicInfo?.dimensions || [],
         trigger: this.basicInfo?.description || '--',
+        alertId: this.basicInfo.id,
         strategy: {
           id: this.basicInfo?.extra_info?.strategy?.id,
-          name: this.basicInfo?.extra_info?.strategy?.name
-        }
-      }
+          name: this.basicInfo?.extra_info?.strategy?.name,
+        },
+      },
     ];
+    // EventModuleStore.setDimensionList(this.basicInfo?.dimensions || []);
+
     return [
       <AlarmConfirm
-        show={alarmConfirm.show}
+        key='alarm-confirm'
         bizIds={[this.basicInfo.bk_biz_id]}
         ids={[this.id]}
+        show={alarmConfirm.show}
         on-change={this.alarmConfirmChange}
         onConfirm={this.handleConfirmAfter}
-      ></AlarmConfirm>,
+      />,
       <QuickShield
-        details={detail}
+        key='quick-shield'
+        authority={this.authority}
         bizIds={[this.basicInfo.bk_biz_id]}
+        details={detail}
+        handleShowAuthorityDetail={this.handleShowAuthorityDetail}
         ids={[this.basicInfo.id]}
         show={quickShield.show}
         on-change={this.quickShieldChange}
         on-succes={this.quickShieldSucces}
         on-time-change={this.handleTimeChange}
-      ></QuickShield>,
+      />,
       this.logRetrieval.isMounted ? (
         <LogRetrievalDialog
-          show={this.logRetrieval.show}
-          indexList={this.logRetrieval.indexList}
-          showTips={this.logRetrieval.isShowTip}
-          ip={this.logRetrieval.ip}
+          key='log-retrieval'
           bizId={this.basicInfo.bk_biz_id}
+          indexList={this.logRetrieval.indexList}
+          ip={this.logRetrieval.ip}
+          show={this.logRetrieval.show}
+          showTips={this.logRetrieval.isShowTip}
           onShowChange={this.handleLogDialogShow}
-        ></LogRetrievalDialog>
+        />
       ) : undefined,
       <HandleStatusDialog
-        actions={this.actions}
+        key='status'
         v-model={this.dialog.statusDialog.show}
-      ></HandleStatusDialog>,
+        actions={this.actions}
+        total={this.total}
+      />,
       <Feedback
-        show={feedback.show}
+        key='feedback'
         ids={[this.basicInfo.id]}
+        show={feedback.show}
         onChange={this.handleFeedback}
         onConfirm={this.handleFeedBackConfirm}
-      ></Feedback>,
+      />,
       <ManualProcess
-        show={this.dialog.manualProcess.show}
-        bizIds={this.dialog.manualProcess.bizIds}
+        key='manual-process'
         alertIds={this.dialog.manualProcess.alertIds}
-        onShowChange={this.manualProcessShowChange}
+        bizIds={this.dialog.manualProcess.bizIds}
+        show={this.dialog.manualProcess.show}
         onDebugStatus={this.handleDebugStatus}
         onMealInfo={this.handleMealInfo}
-      ></ManualProcess>,
+        onShowChange={this.manualProcessShowChange}
+      />,
       <ManualDebugStatus
+        key='manual-debug-status'
+        actionIds={this.dialog.manualProcess.actionIds}
         bizIds={this.dialog.manualProcess.bizIds}
         debugKey={this.dialog.manualProcess.debugKey}
-        actionIds={this.dialog.manualProcess.actionIds}
         mealInfo={this.dialog.manualProcess.mealInfo}
-      ></ManualDebugStatus>,
+      />,
       <AlarmDispatch
-        show={this.dialog.alarmDispatch.show}
+        key='alarm-dispatch'
         alertIds={this.dialog.alarmDispatch.alertIds}
         bizIds={this.dialog.alarmDispatch.bizIds}
+        show={this.dialog.alarmDispatch.show}
         onShow={this.handleAlarmDispatchShowChange}
-      ></AlarmDispatch>
+      />,
     ];
   }
 
@@ -600,11 +618,11 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         <div class='container-group'>
           {this.enableCreateChatGroup ? (
             <div
-              class='chat-btn'
               v-en-style='right: 120px'
+              class='chat-btn'
               onClick={() => this.handleChatGroup()}
             >
-              <span class='icon-monitor icon-we-com'></span>
+              <span class='icon-monitor icon-we-com' />
               {window.i18n.tc('拉群')}
             </div>
           ) : (
@@ -614,37 +632,37 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
             class='feedback-btn'
             onClick={() => this.handleFeedback(true)}
           >
-            <span class='icon-monitor icon-fankui'></span>
+            <span class='icon-monitor icon-fankui' />
             {this.isFeedback ? window.i18n.tc('已反馈') : window.i18n.tc('反馈')}
           </div>
           <BasicInfo
             basicInfo={this.basicInfo}
-            on-quick-shield={this.quickShieldChange}
             on-alarm-confirm={this.alarmConfirmChange}
-            on-strategy-detail={this.toStrategyDetail}
-            on-processing-status={this.processingStatus}
             on-manual-process={this.handleManualProcess}
+            on-processing-status={this.processingStatus}
+            on-quick-shield={this.quickShieldChange}
+            on-strategy-detail={this.toStrategyDetail}
             onAlarmDispatch={this.handleAlarmDispatch}
-          ></BasicInfo>
-          <div class='basicinfo-bottom-border'></div>
+          />
+          <div class='basicinfo-bottom-border' />
           <TabContainer
-            detail={this.basicInfo}
-            show={this.tabShow}
-            alertId={this.id}
-            isScrollEnd={this.isScrollEnd}
-            activeTab={this.activeTab}
             actions={this.actions}
-            traceIds={this.traceIds}
+            activeTab={this.activeTab}
+            alertId={this.id}
+            detail={this.basicInfo}
+            isScrollEnd={this.isScrollEnd}
             sceneId={this.sceneId}
             sceneName={this.sceneName}
-          ></TabContainer>
+            show={this.tabShow}
+            traceIds={this.traceIds}
+          />
         </div>
         {this.getDialogComponent()}
         <ChatGroup
-          show={this.chatGroupDialog.show}
-          assignee={this.chatGroupDialog.assignee}
           alarmEventName={this.chatGroupDialog.alertName}
           alertIds={this.chatGroupDialog.alertIds}
+          assignee={this.chatGroupDialog.assignee}
+          show={this.chatGroupDialog.show}
           onShowChange={this.chatGroupShowChange}
         />
       </div>

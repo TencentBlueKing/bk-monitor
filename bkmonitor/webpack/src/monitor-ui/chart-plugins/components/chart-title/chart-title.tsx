@@ -24,22 +24,23 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { modifiers, Component as tsc } from 'vue-tsx-support';
+
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
 
-import {
+import { createMetricTitleTooltips, deduplicateByField, fitPosition } from '../../utils';
+import { VariablesService } from '../../utils/variable';
+import ChartMenu, { type IChartTitleMenuEvents } from './chart-title-menu';
+
+import type {
   ChartTitleMenuType,
   CurrentTargetType,
   IExtendMetricData,
   IMenuChildItem,
   IMenuItem,
   ITitleAlarm,
-  IViewOptions
+  IViewOptions,
 } from '../../typings';
-import { createMetricTitleTooltips } from '../../utils';
-import { VariablesService } from '../../utils/variable';
-
-import ChartMenu, { IChartTitleMenuEvents } from './chart-title-menu';
 
 import './chart-title.scss';
 
@@ -74,6 +75,11 @@ export interface IChartTitleProps {
   inited?: boolean;
   /** 修改掉菜单的点击区域, 为true时 菜单区域仅为icon区域 */
   customArea?: boolean;
+  // 数据步长（步长过大情况时需要）
+  collectIntervalDisplay?: string;
+  rawInterval?: string;
+  // 是否展示更多菜单
+  needMoreMenu?: boolean;
 }
 
 interface IChartTitleEvent {
@@ -86,12 +92,12 @@ interface IChartTitleEvent {
 }
 
 enum AlarmStatus {
-  /** 没有配置策略 */
-  not_confit_strategy = 0,
   /** 已经配置策略 */
   already_config_strategy = 1,
+  /** 没有配置策略 */
+  not_confit_strategy = 0,
   /** 告警中 */
-  on_warning = 2
+  on_warning = 2,
 }
 
 @Component
@@ -102,6 +108,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ default: () => [] }) metrics: IExtendMetricData[];
   @Prop({ default: '0' }) collectInterval: string;
   @Prop({ default: false }) showMore: boolean;
+  @Prop({ default: true }) needMoreMenu: boolean;
   @Prop({ default: false }) customArea: boolean;
   @Prop() menuList: ChartTitleMenuType[];
   @Prop({ default: () => [] }) drillDownOption: IMenuChildItem[];
@@ -111,6 +118,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ type: Boolean, default: true }) showTitleIcon: boolean;
   @Prop({ type: Boolean, default: false }) isInstant: boolean;
   @Prop({ type: Boolean, default: true }) inited: boolean;
+  @Prop({ type: String, default: '' }) collectIntervalDisplay: string;
 
   @Ref('chartTitle') chartTitleRef: HTMLDivElement;
   // 是否只读模式
@@ -139,7 +147,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
         content = window.i18n.t('告警中，告警数量：{0}', [alert_number]).toString();
         break;
       default:
-      case AlarmStatus.not_confit_strategy:
         content = window.i18n.t('未配置策略').toString();
         break;
     }
@@ -148,7 +155,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       showOnInit: false,
       trigger: 'mouseenter',
       placements: ['top'],
-      allowHTML: false
+      allowHTML: false,
     };
   }
   /** aiops title高度不一致，需要特殊向上偏移 */
@@ -156,16 +163,27 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     return !this.showTitleIcon ? { top: '32px' } : {};
   }
   get showMetricAlarm() {
-    return !this.readonly && this.metrics?.length === 1;
+    const metrics = new Set(this.metrics?.map(item => item.metric_id) || []);
+    return !this.readonly && Array.from(metrics).length === 1;
   }
   get metricTitleData() {
     return this.metrics[0];
   }
 
+  get metricTitleTooltips() {
+    return this.showMetricAlarm
+      ? createMetricTitleTooltips(this.metricTitleData)
+      : deduplicateByField(this.metrics, 'metric_id')
+          .map(metric => createMetricTitleTooltips(metric))
+          .join('<hr class="custom-hr" />');
+  }
+
   get currentMetricsIds() {
     return this.metrics[0].metric_id || `${this.metrics[0].result_table_id}.${this.metrics[0].metric_field}`;
   }
-
+  get showAddStrategy() {
+    return !this.$route.name.includes('strategy');
+  }
   @Watch('metrics', { immediate: true })
   async handleMetricChange(v, o) {
     if (this.metrics?.length !== 1) return;
@@ -196,7 +214,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     const params = {
       metric_ids: [ids],
       ...otherParams,
-      bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId
+      bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
     };
     const data = await fetchItemStatus(params).catch(() => ({ [ids]: 0 }));
     this.alarmStatus = data?.[ids];
@@ -232,7 +250,17 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       if (!this.showMore) return;
       this.showMenu = !this.showMenu;
       const rect = this.chartTitleRef.getBoundingClientRect();
-      this.menuLeft = rect.width - 185 < e.layerX ? rect.width - 185 : e.layerX;
+      const { innerWidth } = window;
+      // 自身宽度 + 距离右侧浏览器窗口宽度（innerWidth - rect.right）
+      const rightWidth = 180 + innerWidth - rect.right;
+      const postion = fitPosition(
+        {
+          left: e.x,
+          top: e.y,
+        },
+        rightWidth
+      );
+      this.menuLeft = postion.left - rect.x;
     }
     this.$emit('updateDragging', false);
   }
@@ -261,7 +289,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   handleAlarmClick() {
     return {
       ...this.alarmStatus,
-      targetStr: this.eventSearchStr
+      targetStr: this.eventSearchStr,
     };
   }
   handleShowTips(e: MouseEvent) {
@@ -269,12 +297,12 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
       e.stopPropagation();
       if (e.target !== e.currentTarget) return;
       this.popoverInstance = this.$bkPopover(e.target, {
-        content: createMetricTitleTooltips(this.metricTitleData),
+        content: this.metricTitleTooltips,
         trigger: 'manual',
         theme: 'tippy-metric',
         arrow: true,
         placement: 'auto',
-        boundary: 'window'
+        boundary: 'window',
       });
       this.popoverInstance?.show(100);
     }
@@ -318,7 +346,6 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           <div class='main-title'>
             {this.showMetricAlarm && this.showTitleIcon ? (
               <i
-                v-bk-tooltips={this.alarmTips}
                 class={[
                   'icon-monitor',
                   'alarm-icon',
@@ -326,38 +353,43 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-mc-strategy status-strategy',
                   this.alarmStatus.status === AlarmStatus.not_confit_strategy &&
                     'icon-mc-strategy status-strategy-not-config',
-                  this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3'
+                  this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3',
                 ]}
+                v-bk-tooltips={this.alarmTips}
                 onClick={modifiers.stop(this.handleAlarmClick)}
               />
             ) : undefined}
             <div
               class={['title-name', { 'has-more': this.showMore }]}
               v-bk-overflow-tips={{
-                interactive: this.showTitleIcon
+                interactive: this.showTitleIcon,
               }}
             >
-              {this.title}
+              {(this.$scopedSlots as any)?.title ? (this.$scopedSlots as any)?.title?.() : this.title}
             </div>
             {this.inited && [
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
+              (this.showTitleIcon && this.showMetricAlarm && this.metricTitleData?.collect_interval) ||
+              this.collectIntervalDisplay ? (
                 <span
+                  key='title-interval'
                   class='title-interval'
                   v-bk-tooltips={{
                     content: this.$t('数据步长'),
                     delay: 200,
-                    appendTo: 'parent'
+                    appendTo: () => document.body,
                   }}
                 >
-                  {this.metricTitleData.collect_interval}
-                  {this.metricTitleData.collect_interval < 10 ? 'm' : 's'}
+                  {this.collectIntervalDisplay
+                    ? this.collectIntervalDisplay
+                    : `${this.metricTitleData.collect_interval}${this.metricTitleData.collect_interval < 10 ? 'm' : 's'}`}
                 </span>
               ) : undefined,
               (this.$scopedSlots as any)?.customSlot?.(),
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
+              this.showTitleIcon && this.metrics.length ? (
                 <i
-                  class='bk-icon icon-info-circle tips-icon'
+                  key={'custom-icon'}
                   style={{ display: this.showMore ? 'flex' : 'none' }}
+                  class='bk-icon icon-info-circle tips-icon'
                   onMouseenter={this.handleShowTips}
                   onMouseleave={this.handleHideTips}
                 />
@@ -370,57 +402,65 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                     allowHTML: true,
                     boundary: 'window',
                     distance: 0,
-                    placements: ['top']
+                    placements: ['top'],
                   }}
                 />
               ),
-              <span class='title-center'></span>,
-              this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
+              <span
+                key={'title-center'}
+                class='title-center'
+              >
+                {this.inited && this.$slots?.default}
+              </span>,
+              this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
-                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
+                  key={'添加策略'}
                   style={{
-                    display: this.showMore && this.showAddMetric ? 'flex' : 'none'
+                    display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
+                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   v-bk-tooltips={{
                     content: this.$t('添加策略'),
-                    delay: 200
+                    delay: 200,
                   }}
                   onClick={this.handleAllMetricSelect}
-                ></i>
+                />
               ) : undefined,
               <span
-                onClick={this.customArea ? this.handleShowMenu.bind(this, 'customArea') : () => {}}
+                key={'更多'}
                 style={{
                   marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
-                  display: this.showMore ? 'flex' : 'none'
+                  display: this.showMore && this.needMoreMenu ? 'flex' : 'none',
                 }}
+                class='icon-monitor icon-mc-more more-icon icon-btn'
                 v-bk-tooltips={{
                   content: this.$t('更多'),
-                  delay: 200
+                  interactive: false,
                 }}
                 tabindex='undefined'
-                class='icon-monitor icon-mc-more more-icon icon-btn'
-              />
+                onClick={this.customArea ? this.handleShowMenu.bind(this, 'customArea') : () => {}}
+              />,
             ]}
           </div>
           {this.subtitle && <div class='sub-title'>{(this.$scopedSlots as any)?.subTitle?.() || this.subtitle}</div>}
         </div>
         <ChartMenu
-          list={this.menuList}
-          drillDownOption={this.drillDownOption}
-          onShowChildren={this.handleShowChildren}
-          onSelect={this.handleMenuClick}
-          onMetricSelect={this.handleMetricSelect}
-          onChildMenuToggle={this.handleChildMenuToggle}
-          metrics={this.metrics}
-          showAddMetric={this.showAddMetric && this.showMenuAddMetric}
           style={{
             left: `${this.menuLeft}px`,
-            display: this.showMenu ? 'flex' : 'none',
-            ...this.menuPosition
+            display: this.needMoreMenu && this.showMenu ? 'flex' : 'none',
+            ...this.menuPosition,
           }}
+          drillDownOption={this.drillDownOption}
+          list={this.menuList}
+          metrics={this.metrics}
+          showAddMetric={this.showAddMetric && this.showMenuAddMetric}
+          showMenu={this.showMenu}
+          onChildMenuToggle={this.handleChildMenuToggle}
+          onMetricSelect={this.handleMetricSelect}
+          onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
-        ></ChartMenu>
+          onShowChildren={this.handleShowChildren}
+        />
       </div>
     );
   }

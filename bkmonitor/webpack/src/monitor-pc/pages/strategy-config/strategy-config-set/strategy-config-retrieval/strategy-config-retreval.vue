@@ -124,12 +124,12 @@
   </monitor-dialog>
 </template>
 <script lang="ts">
-// eslint-disable-next-line no-unused-vars
-import { TranslateResult } from 'vue-i18n/types/index';
-import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 import { getMetricList } from 'monitor-api/modules/strategies';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import { debounce } from 'throttle-debounce';
+// eslint-disable-next-line no-unused-vars
+import type { TranslateResult } from 'vue-i18n/types/index';
+import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
 interface IParams {
   bk_biz_id: number | string;
@@ -156,8 +156,8 @@ interface ITable {
 }
 @Component({
   components: {
-    MonitorDialog
-  }
+    MonitorDialog,
+  },
 })
 export default class StrategyConfigRetreval extends Vue {
   @Prop(Boolean) // dialog展示控制
@@ -177,12 +177,12 @@ export default class StrategyConfigRetreval extends Vue {
   table: ITable = {
     data: [], //  当前数据
     logData: [], //  日志平台数据
-    bkMonitorLogData: [] //  监控采集数据
+    bkMonitorLogData: [], //  监控采集数据
   };
   //  tableMap
   tableDataMap: { bkMonitor: string; logData: string } = {
     bkMonitor: 'bkMonitorLogData',
-    logData: 'logData'
+    logData: 'logData',
   };
   handleKeywordSearch: Function = null;
 
@@ -195,10 +195,10 @@ export default class StrategyConfigRetreval extends Vue {
   get scenarioListAll() {
     let arr = [];
     const list = JSON.parse(JSON.stringify(this.scenarioList));
-    list.reverse().forEach((item) => {
+    list.reverse().forEach(item => {
       const child = item.children.map(({ name, id }) => ({
         label: name,
-        name: id
+        name: id,
       }));
       arr = [...child, ...arr];
     });
@@ -220,16 +220,16 @@ export default class StrategyConfigRetreval extends Vue {
         {
           id: 'bkMonitor',
           name: this.$t('监控采集'),
-          count: 0
+          count: 0,
         },
         {
           id: 'logData',
           name: this.$t('日志平台'),
-          count: 0
-        }
+          count: 0,
+        },
       ],
       value: 'bkMonitor',
-      keyword: ''
+      keyword: '',
     };
   }
 
@@ -250,9 +250,9 @@ export default class StrategyConfigRetreval extends Vue {
       this.table.logData = retreavlData.metric_list.map(item => ({
         ...item,
         id: item.index_set_id,
-        checked: this.indexId === item.index_set_id
+        checked: this.indexId === item.index_set_id,
       }));
-      this.origin.list.forEach((item) => {
+      this.origin.list.forEach(item => {
         if (item.id === 'logData') {
           item.count = this.table.logData.length;
         }
@@ -262,9 +262,9 @@ export default class StrategyConfigRetreval extends Vue {
     if (bkMonitorData) {
       this.table.bkMonitorLogData = bkMonitorData.metric_list.map(item => ({
         ...item,
-        checked: this.indexId === item.id
+        checked: this.indexId === item.id,
       }));
-      this.origin.list.forEach((item) => {
+      this.origin.list.forEach(item => {
         if (item.id === 'bkMonitor') {
           item.count = this.table.bkMonitorLogData.length;
         }
@@ -280,7 +280,7 @@ export default class StrategyConfigRetreval extends Vue {
       bk_biz_id: this.$store.getters.bizId,
       page_size: -1,
       search_data_source: this.origin.value,
-      search_value: this.origin.keyword
+      search_value: this.origin.keyword,
     };
   }
 
@@ -291,7 +291,7 @@ export default class StrategyConfigRetreval extends Vue {
       data_source_label: 'bk_monitor',
       data_type_label: 'log',
       result_table_label: this.scenarioType,
-      page: -1
+      page: -1,
     };
   }
 
@@ -312,8 +312,9 @@ export default class StrategyConfigRetreval extends Vue {
     const { value, keyword }: { value: string; keyword: string } = this.origin;
     const data = this.table[this.tableDataMap[value]];
     if (this.origin.value === 'logData') {
-      this.table.data = data.filter(item => item.result_table_id.includes(keyword)
-      || item.metric_field.includes(keyword));
+      this.table.data = data.filter(
+        item => item.result_table_id.includes(keyword) || item.metric_field.includes(keyword)
+      );
     } else {
       this.table.data = data.filter(item => item.metric_field_name.includes(keyword));
     }

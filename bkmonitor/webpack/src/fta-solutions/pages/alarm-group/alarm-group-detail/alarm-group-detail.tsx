@@ -30,6 +30,7 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import AlarmGroupDetail from 'monitor-pc/pages/alarm-group/alarm-group-detail/alarm-group-detail';
 
 interface IAlarmGroupDeatail {
@@ -51,7 +52,7 @@ export default class AlarmGroupDetailFta extends tsc<IAlarmGroupDeatail> {
       <AlarmGroupDetail
         id={this.id}
         onShowChange={this.handleDetailClose}
-      ></AlarmGroupDetail>
+      />
     );
   }
 }

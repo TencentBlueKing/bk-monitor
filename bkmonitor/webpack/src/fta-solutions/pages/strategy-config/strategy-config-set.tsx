@@ -24,25 +24,23 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
+
 import { random } from 'monitor-common/utils/utils';
 import StrategyConfigSet from 'monitor-pc/pages/strategy-config/strategy-config-set-new/strategy-config-set';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 
-import { strategyType } from './typings/strategy';
 import * as ruleAuth from './authority-map';
+
+import type { strategyType } from './typings/strategy';
 
 import './strategy-config-set.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class FtaStrategyConfigSet extends Mixins(authorityMixinCreate(ruleAuth)) {
-  @Prop({ type: [String, Number], default: '' }) readonly id: string | number;
+  @Prop({ type: [String, Number], default: '' }) readonly id: number | string;
   needCheck = true;
   fromRouteName = '';
-
-  @Provide('authority') authority: Record<string, boolean>;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Provide('authorityMap') authorityMap;
   @Provide('strategyType') strategyType: strategyType = 'fta';
 
   beforeRouteEnter(to, from, next) {
@@ -70,7 +68,7 @@ export default class FtaStrategyConfigSet extends Mixins(authorityMixinCreate(ru
           needBack && this.$router.back();
           resolve(true);
         },
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }
@@ -81,8 +79,8 @@ export default class FtaStrategyConfigSet extends Mixins(authorityMixinCreate(ru
   render() {
     return (
       <StrategyConfigSet
-        class='strategy-fta-set'
         id={this.id}
+        class='strategy-fta-set'
         fromRouteName={this.fromRouteName}
         onCancel={this.handleCancel}
         onSave={this.handleSave}

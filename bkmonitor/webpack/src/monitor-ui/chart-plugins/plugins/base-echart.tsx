@@ -26,7 +26,10 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { echarts, MonitorEchartOptions } from '../typings/index';
+import { type MonitorEchartOptions, type ZrClickEvent, echarts } from '../typings/index';
+import { getTimeSeriesXInterval } from '../utils/axis';
+
+import type { IDataItem } from './apm-service-caller-callee/type';
 
 import './base-echart.scss';
 
@@ -37,20 +40,51 @@ export interface IChartProps {
   width?: number;
   // echart 配置
   options: MonitorEchartOptions;
+  // hover是显示所有图标tooltips
+  hoverAllTooltips?: boolean;
+  // 禁用右键菜单默认事件
+  isContextmenuPreventDefault?: boolean;
+  notMerge?: boolean;
+  toolbox?: string[];
 }
 export interface IChartEvent {
   // mouseover 事件
-  onMouseover: void;
+  onMouseover: () => void;
   // mouseout 事件
-  onMouseout: void;
+  onMouseout: () => void;
   // dblclick 事件
   onDblClick: MouseEvent;
   /** mousemove事件  */
   onMousemove: MouseEvent;
   // click 事件
   onClick: MouseEvent;
+  // contextmenu 事件
+  onContextmenu?: (v: any) => void;
+  onUpdateAxisPointer?: (v: any) => void;
+  onZrClick: (p: ZrClickEvent) => void;
+  onBrush?: (v: any) => void;
+  onBrushEnd?: (v: any) => void;
+  onLoaded?: () => void;
+  /** 图表鼠标右击事件的回调方法 */
+  onMenuClick?: (data: IDataItem) => void;
 }
-const MOUSE_EVENTS = ['click', 'dblclick', 'mouseover', 'mousemove', 'mouseout', 'mousedown', 'mouseup', 'globalout'];
+const MOUSE_EVENTS = [
+  'click',
+  'dblclick',
+  'mouseover',
+  'mousemove',
+  'mouseout',
+  'mousedown',
+  'mouseup',
+  'globalout',
+  'contextmenu',
+  'updateAxisPointer',
+  'showTip',
+  'hideTip',
+  'brushEnd',
+  'brush',
+  'brushselected',
+];
 @Component
 export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Ref('chartInstance') chartRef: HTMLDivElement;
@@ -60,6 +94,10 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   @Prop({ required: true }) height: number;
   // 视图宽度 默认撑满父级
   @Prop() width: number;
+  // 禁用右键菜单默认事件
+  @Prop({ default: false }) isContextmenuPreventDefault: boolean;
+  @Prop({ default: true }) notMerge: boolean;
+  @Prop({ default: () => ['dataZoom'] }) toolbox: string[];
   // 当前图表配置
   // curChartOption: MonitorEchartOptions = null;
   // // echarts 实例
@@ -72,29 +110,39 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   isMouseOver = false;
 
   @Watch('height')
-  handleHeightChange() {
+  handleHeightChange(h: number) {
+    const instance = (this as any).instance;
+    const height = instance?.getHeight() || 0;
+    if (!height || Math.abs(height - h) < 1) return;
     if (this.height < 200) {
-      (this as any).instance?.setOption({
+      instance?.setOption({
         yAxis: {
           splitNumber: 2,
-          scale: false
-        }
+          scale: false,
+        },
       });
     }
-    (this as any).instance?.resize({
-      silent: true
+    instance?.resize({
+      silent: true,
     });
   }
   @Watch('width')
-  handleWidthChange() {
-    (this as any).instance?.setOption({
-      xAxis: {
-        splitNumber: Math.ceil(this.width / 150),
-        min: 'dataMin'
-      }
-    });
-    (this as any).instance?.resize({
-      silent: true
+  handleWidthChange(v: number) {
+    const instance = (this as any).instance;
+    const width = instance?.getWidth() || 0;
+    if (!width || Math.abs(width - v) < 1) return;
+    const instanceOptions = instance.getOption();
+    const { maxXInterval, maxSeriesCount } = instanceOptions?.customData || {};
+    const xInterval = getTimeSeriesXInterval(maxXInterval, v, maxSeriesCount);
+    if (instanceOptions.series?.[0]?.type !== 'pie') {
+      instance?.setOption({
+        xAxis: {
+          ...xInterval,
+        },
+      });
+    }
+    instance?.resize({
+      silent: true,
     });
   }
   mounted() {
@@ -114,6 +162,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
       (this as any).instance.setOption(this.options);
       this.initPropsWatcher();
       this.initChartAction();
+      this.$emit('loaded');
     }
   }
   // resize
@@ -138,7 +187,7 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
       'options',
       v => {
         this.initChart();
-        (this as any).instance.setOption(v, { notMerge: true, lazyUpdate: false, silent: true });
+        (this as any).instance.setOption(v, { notMerge: this.notMerge, lazyUpdate: false, silent: true });
         (this as any).curChartOption = (this as any).instance.getOption();
       },
       { deep: false }
@@ -146,18 +195,36 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
   }
   // 初始化chart Action
   initChartAction() {
-    this.dispatchAction({
-      type: 'takeGlobalCursor',
-      key: 'dataZoomSelect',
-      dataZoomSelectActive: true
-    });
+    if (this.toolbox.includes('dataZoom')) {
+      this.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'dataZoomSelect',
+        dataZoomSelectActive: true,
+      });
+    }
+    if (this.toolbox.includes('brush')) {
+      this.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'brush',
+        brushOption: {
+          brushType: 'lineX', // 指定选框类型
+        },
+      });
+    }
   }
   initChartEvent() {
-    MOUSE_EVENTS.forEach(event => {
+    this.chartRef.addEventListener('contextmenu', this.handleContextmenu);
+    for (const event of MOUSE_EVENTS) {
       (this as any).instance.on(event, params => {
-        this.$emit(event, params);
+        if ('updateAxisPointer' === event) {
+          if (this.isMouseOver) {
+            this.$emit(event, params);
+          }
+        } else {
+          this.$emit(event, params);
+        }
       });
-    });
+    }
   }
   // echarts 实例销毁
   destroy() {
@@ -165,33 +232,30 @@ export default class BaseChart extends tsc<IChartProps, IChartEvent> {
     (this as any).instance = null;
     this.isMouseOver = false;
   }
-  handleDblClick(e: MouseEvent) {
-    e.preventDefault();
-    clearTimeout(this.clickTimer);
-    this.$emit('dblClick', e);
-  }
-  handleClick(e: MouseEvent) {
-    clearTimeout(this.clickTimer);
-    this.clickTimer = setTimeout(() => {
-      this.$emit('click', e);
-    }, 300);
-  }
   handleMouseover() {
     this.isMouseOver = true;
   }
   handleMouseleave() {
     this.isMouseOver = false;
   }
+  handleContextmenu(event) {
+    if (this.isContextmenuPreventDefault) {
+      event.preventDefault();
+      this.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'dataZoomSelect',
+        dataZoomSelectActive: false,
+      });
+    }
+  }
   render() {
     return (
       <div
-        class='chart-base'
         ref='chartInstance'
         style={{ minHeight: `${1}px` }}
-        onMouseover={this.handleMouseover}
+        class='chart-base'
         onMouseleave={this.handleMouseleave}
-        onClick={this.handleClick}
-        onDblclick={this.handleDblClick}
+        onMouseover={this.handleMouseover}
       />
     );
   }

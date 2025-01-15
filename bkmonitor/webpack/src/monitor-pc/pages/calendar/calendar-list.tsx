@@ -25,20 +25,29 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
+import { deleteItem, itemList } from 'monitor-api/modules/calendar';
 import { Debounce } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
 
-import { deleteItem, itemList } from '../../../monitor-api/modules/calendar';
 import EmptyStatus from '../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
 import { Storage } from '../../utils';
 import CommonStatus from '../monitor-k8s/components/common-status/common-status';
-import { ITableFilterItem } from '../monitor-k8s/typings';
-
-import CalendarInfo, { IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
 import CalendarAddForm from './calendar-add-form';
-import { EDelAndEditType, ERepeatTypeId, ICalendarTableItem, IOptionsItem, WORKING_DATE_LIST, Z_INDEX } from './types';
+import CalendarInfo, { type IProps as CalendarInfoPrps } from './components/calendar-info/calendar-info';
+import {
+  EDelAndEditType,
+  ERepeatTypeId,
+  type ICalendarTableItem,
+  type IOptionsItem,
+  WORKING_DATE_LIST,
+  Z_INDEX,
+} from './types';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { ITableFilterItem } from '../monitor-k8s/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './calendar-list.scss';
 /** 表格选中的列数据 */
@@ -82,7 +91,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
     infoDesc: window.i18n.tc('当前日程包含重复内容，仅删除该日程还是全部删除？'),
     okText: window.i18n.tc('仅删除该日程'),
     cancelText: window.i18n.tc('全部删除'),
-    zIndex: Z_INDEX
+    zIndex: Z_INDEX,
   };
 
   emptyStatusType: EmptyStatusType = 'empty';
@@ -101,20 +110,20 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   timeRangeList: ITableFilterItem[] = [
     {
       id: 'day',
-      name: window.i18n.tc('日')
+      name: window.i18n.tc('日'),
     },
     {
       id: 'week',
-      name: window.i18n.tc('周')
+      name: window.i18n.tc('周'),
     },
     {
       id: 'month',
-      name: window.i18n.tc('月')
+      name: window.i18n.tc('月'),
     },
     {
       id: 'year',
-      name: window.i18n.tc('年')
-    }
+      name: window.i18n.tc('年'),
+    },
   ];
 
   /** 事项编辑数据 */
@@ -124,17 +133,14 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   tableData: ICalendarTableItem[] = [];
   virtualRender = false;
   selectedFields = [];
-  tableSize = 'small';
-
-  /** 重复名称映射 */
-  repeatNameMap: Record<ERepeatTypeId, Function> = {
+  repeatNameMap: Record<ERepeatTypeId, (a: any) => TranslateResult | string> = {
     [ERepeatTypeId.days]: () => window.i18n.tc('每天'),
     [ERepeatTypeId.weeks]: row => {
       if (WORKING_DATE_LIST.every(item => row.repeat.every.includes(item))) return this.$t('每个工作日');
       return window.i18n.tc('每周');
     },
     [ERepeatTypeId.months]: () => window.i18n.tc('每月'),
-    [ERepeatTypeId.years]: () => window.i18n.tc('每年')
+    [ERepeatTypeId.years]: () => window.i18n.tc('每年'),
   };
 
   /** 缓存管理实例 */
@@ -144,7 +150,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
   get timeRange(): { startTime: number; endTime: number } {
     return {
       startTime: dayjs.tz().startOf(this.timeRangeId).unix(),
-      endTime: dayjs.tz().endOf(this.timeRangeId).unix()
+      endTime: dayjs.tz().endOf(this.timeRangeId).unix(),
     };
   }
 
@@ -154,12 +160,12 @@ export default class CalendarList extends tsc<IProps, IEvents> {
       {
         label: window.i18n.tc('不工作事项'),
         id: 'name',
-        width: 130
+        width: 130,
       },
       {
         label: window.i18n.tc('日历'),
         id: 'calendar_name',
-        with: 50
+        with: 50,
       },
       {
         label: window.i18n.tc('状态'),
@@ -167,7 +173,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
         formatter: row => {
           const status = {
             type: 'success',
-            text: this.$tc('有效')
+            text: this.$tc('有效'),
           };
           if (!row.status) {
             status.text = this.$tc('已失效');
@@ -175,40 +181,39 @@ export default class CalendarList extends tsc<IProps, IEvents> {
           }
           return (
             <CommonStatus
-              type={status.type}
               text={status.text}
-            ></CommonStatus>
+              type={status.type}
+            />
           );
-        }
+        },
       },
       {
         label: window.i18n.tc('开始时间'),
         id: 'start_time',
         width: 90,
-        formatter: row => dayjs.tz(row.start_time * 1000, this.timeZone).format('MM-DD HH:mm')
+        formatter: row => dayjs.tz(row.start_time * 1000, this.timeZone).format('MM-DD HH:mm'),
       },
       {
         label: window.i18n.tc('结束时间'),
         id: 'end_time',
         width: 80,
-        formatter: row => dayjs.tz(row.end_time * 1000, this.timeZone).format('MM-DD HH:mm')
+        formatter: row => dayjs.tz(row.end_time * 1000, this.timeZone).format('MM-DD HH:mm'),
       },
       {
         label: window.i18n.tc('重复'),
         id: 'repeat',
-        formatter: row => this.repeatNameMap[row.repeat.freq]?.(row) || this.$t('不重复')
+        formatter: row => this.repeatNameMap[row.repeat.freq]?.(row) || this.$t('不重复'),
       },
       {
         label: window.i18n.tc('结束日期'),
         id: 'end_date',
-        // eslint-disable-next-line no-nested-ternary
+
         formatter: row =>
           row.repeat.freq
-            ? // eslint-disable-next-line newline-per-chained-call
-              row.repeat.until
+            ? row.repeat.until
               ? dayjs.tz(row.repeat.until * 1000, this.timeZone).format('YYYY-MM-DD')
               : this.$t('永不结束')
-            : '--'
+            : '--',
       },
       {
         label: window.i18n.tc('操作'),
@@ -222,21 +227,21 @@ export default class CalendarList extends tsc<IProps, IEvents> {
               {this.$t('button-编辑')}
             </bk-button>,
             <bk-button
-              text
               class='del-btn'
+              text
               onClick={() => this.handleDelItem(row)}
             >
               {this.$t('删除')}
-            </bk-button>
-          ]
-      }
+            </bk-button>,
+          ],
+      },
     ];
   }
 
   created() {
     this.tableSize = (this.storage.get(CALENDAR_TABLE_SIZE) ?? 'small') as string;
     const checkedList = this.storage.get(CALENDAR_TABLE_COLUMNS_CHECKED) as string[];
-    // eslint-disable-next-line max-len
+
     this.selectedFields = !!checkedList
       ? this.tableColumns.filter(item => checkedList.includes(item.id))
       : this.tableColumns;
@@ -261,7 +266,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
       start_time: this.timeRange.startTime,
       end_time: this.timeRange.endTime,
       time_zone: this.timeZone,
-      search_key: this.searchKeyword ? this.searchKeyword : undefined
+      search_key: this.searchKeyword ? this.searchKeyword : undefined,
     };
     this.emptyStatusType = params.search_key ? 'search-empty' : 'empty';
     const data = await itemList(params)
@@ -324,7 +329,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
     this.infoLoading = true;
     const params = {
       ...this.currentEditData,
-      delete_type: delType
+      delete_type: delType,
     };
     const res = await deleteItem(params)
       .then(() => true)
@@ -370,7 +375,6 @@ export default class CalendarList extends tsc<IProps, IEvents> {
    * 切换时间范围
    */
   handleTimeRangeChange() {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.$nextTick(() => this.getTableList(true));
   }
 
@@ -404,18 +408,18 @@ export default class CalendarList extends tsc<IProps, IEvents> {
             needAll={false}
             statusList={this.timeRangeList}
             onChange={this.handleTimeRangeChange}
-          ></StatusTab>
+          />
           <bk-input
             class='search-input'
-            right-icon='bk-icon icon-search'
             v-model={this.searchKeyword}
+            right-icon='bk-icon icon-search'
             clearable
             onChange={this.handleSearch}
           />
           <bk-button
             class='add-btn'
-            theme='primary'
             icon='plus'
+            theme='primary'
             onClick={this.handleShowAddForm}
           >
             {this.$t('新增事项')}
@@ -425,78 +429,78 @@ export default class CalendarList extends tsc<IProps, IEvents> {
           <bk-select
             class='time-zone-select simplicity-select'
             v-model={this.timeZone}
-            clearable={false}
-            searchable
-            z-index={Z_INDEX + 10}
             behavior='simplicity'
+            clearable={false}
+            z-index={Z_INDEX + 10}
+            searchable
             onSelected={() => this.getTableList(true)}
           >
             {this.timeZoneList.map(opt => (
               <bk-option
                 id={opt.id}
                 name={opt.name}
-              ></bk-option>
+              />
             ))}
           </bk-select>
         </div>
         <bk-table
           key={this.tableData.length}
-          class='calendar-table'
           ref='bkTalbeRef'
           style='margin-top: 15px'
+          height={this.tableData.length >= TABLE_ROW_COUNT ? 600 : undefined}
+          class='calendar-table'
           data={this.tableData}
-          outer-border={true}
           header-border={false}
+          outer-border={true}
           size={this.tableSize}
           virtual-render={this.virtualRender}
-          height={this.tableData.length >= TABLE_ROW_COUNT ? 600 : undefined}
         >
           <EmptyStatus
-            type={this.emptyStatusType}
             slot='empty'
+            type={this.emptyStatusType}
             onOperation={this.handleOperation}
           />
           {this.selectedFields.map((item, index) => (
             <bk-table-column
               key={index}
+              width={item.width}
+              formatter={item.formatter}
               label={item.label}
               prop={item.id}
-              width={item.width}
               show-overflow-tooltip={true}
-              formatter={item.formatter}
-            ></bk-table-column>
+            />
           ))}
           <bk-table-column
-            type='setting'
             tippy-options={{ zIndex: Z_INDEX }}
+            type='setting'
           >
             <bk-table-setting-content
               fields={this.tableColumns}
               selected={this.selectedFields}
               size={this.tableSize}
               on-setting-change={this.handleSettingChange}
-            ></bk-table-setting-content>
+            />
           </bk-table-column>
         </bk-table>
         {/* 新增弹层 */}
         <CalendarAddForm
           v-model={this.showAddForm}
-          editData={this.currentEditData}
           calendarList={this.calendarList}
-          onUpdateList={() => this.getTableList(true)}
+          editData={this.currentEditData}
           onShowChange={this.handleAddFormChange}
           onUpdateCalendarList={this.handleUpdateCalendarList}
+          onUpdateList={() => this.getTableList(true)}
         />
         <CalendarInfo
           v-model={this.infoConfig.value}
+          cancelText={this.infoConfig.cancelText}
           infoDesc={this.infoConfig.infoDesc}
           infoTitle={this.infoConfig.infoTitle}
           okText={this.infoConfig.okText}
-          cancelText={this.infoConfig.cancelText}
           zIndex={this.infoConfig.zIndex}
-          onConfirm={this.handleInfoConfirm}
           onCancel={this.handleInfoCancel}
-        ></CalendarInfo>
+          onConfirm={this.handleInfoConfirm}
+        />
       </div>
     );
   }

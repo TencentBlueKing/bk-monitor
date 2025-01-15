@@ -12,14 +12,13 @@ from typing import List
 
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.views.decorators.cache import cache_control
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
-from rest_framework_condition import condition
 
 from core.drf_resource.base import Resource
 
@@ -76,7 +75,6 @@ class ResourceRoute(object):
 
 
 class ResourceViewSet(viewsets.GenericViewSet):
-
     EMPTY_ENDPOINT_METHODS = {
         "GET": "list",
         "POST": "create",
@@ -89,6 +87,7 @@ class ResourceViewSet(viewsets.GenericViewSet):
     resource_routes: List[ResourceRoute] = []
     filter_backends = []
     pagination_class = None
+    resource_mapping = {}
 
     def get_serializer_class(self):
         """
@@ -106,7 +105,10 @@ class ResourceViewSet(viewsets.GenericViewSet):
         class Meta:
             ref_name = None
 
-        serializer_class.Meta = Meta
+        # 如果serializer_class没有Meta属性，则添加Meta属性
+        if not getattr(serializer_class, "Meta", None):
+            serializer_class.Meta = Meta
+
         return serializer_class
 
     def get_queryset(self):
@@ -117,6 +119,11 @@ class ResourceViewSet(viewsets.GenericViewSet):
 
     @classmethod
     def generate_endpoint(cls):
+        if issubclass(cls, ResourceViewSet):
+            view_set_path = f"{cls.__module__}.{cls.__name__}"
+        else:
+            view_set_path = f"{type(cls).__module__}.{type(cls).__name__}"
+
         for resource_route in cls.resource_routes:
             # 生成方法模版
             function = cls._generate_function_template(resource_route)
@@ -156,6 +163,10 @@ class ResourceViewSet(viewsets.GenericViewSet):
                     setattr(cls, cls.EMPTY_ENDPOINT_METHODS[resource_route.method], function)
                 else:
                     raise AssertionError(_("不支持的请求方法: %s，请确认resource_routes配置是否正确!") % resource_route.method)
+
+                cls.resource_mapping[
+                    (resource_route.method, f"{view_set_path}-{cls.EMPTY_ENDPOINT_METHODS[resource_route.method]}")
+                ] = resource_route.resource_class
             else:
                 function.__name__ = (
                     f"api_func_{resource_route.endpoint}"
@@ -169,13 +180,12 @@ class ResourceViewSet(viewsets.GenericViewSet):
                     url_path=resource_route.endpoint,
                     url_name=resource_route.endpoint.replace("_", "-"),
                 )(function)
-                function = condition(
-                    etag_func=resource_route.resource_class.etag,
-                    last_modified_func=resource_route.resource_class.last_modified,
-                )(function)
 
                 function = decorator_function(function)
                 setattr(cls, function.__name__, function)
+                cls.resource_mapping[
+                    (resource_route.method, f"{view_set_path}-{resource_route.endpoint}")
+                ] = resource_route.resource_class
 
     @classmethod
     def _generate_function_template(cls, resource_route: ResourceRoute):

@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import alarmDispatch from './alarm-dispatch/alarm-dispath';
 import alarmGroupRoutes from './alarm-group/alarm-group';
 import alarmShieldRoutes from './alarm-shield/alarm-shield';
 import setMealRoutes from './set-meal/set-meal';
 import strategyConfigRoutes from './strategy-config/strategy-config';
+
+import type { RouteConfig } from 'vue-router';
 
 export default [
   {
@@ -38,12 +38,12 @@ export default [
     redirect: '/set-meal',
     meta: {
       title: '管理',
-      navId: 'set-meal'
-    }
+      navId: 'set-meal',
+    },
   },
   ...alarmGroupRoutes,
   ...alarmShieldRoutes,
   ...setMealRoutes,
   ...strategyConfigRoutes,
-  ...alarmDispatch
+  ...alarmDispatch,
 ] as RouteConfig[];

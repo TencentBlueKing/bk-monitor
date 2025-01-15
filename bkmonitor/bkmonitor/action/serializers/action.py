@@ -15,7 +15,7 @@ from typing import Dict
 
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from jinja2.exceptions import TemplateSyntaxError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -128,9 +128,7 @@ class UpgradeConfigSlz(serializers.Serializer):
 
 class NoticeWaySerializer(serializers.Serializer):
     name = serializers.CharField(required=True, label="通知方式")
-    receivers = serializers.ListField(
-        required=False, label="接收人员人员", default=[], child=serializers.CharField(max_length=32)
-    )
+    receivers = serializers.ListField(required=False, label="接收人员人员", default=[], child=serializers.CharField())
 
 
 class BaseNotifyConfigSerializer(serializers.Serializer):

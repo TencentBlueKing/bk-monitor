@@ -23,26 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { listUsersUser } from 'monitor-api/modules/model';
 import { Debounce, deepClone, random } from 'monitor-common/utils';
 
 import HorizontalScrollContainer from '../../../pages/strategy-config/strategy-config-set-new/components/horizontal-scroll-container';
 import { getEventPaths } from '../../../utils';
-import { CONDITIONS, deepCompare, ICondtionItem, METHODS, TContionType, TMthodType } from '../typing';
+import { CONDITIONS, type ICondtionItem, METHODS, type TContionType, type TMthodType, deepCompare } from '../typing';
 import {
-  conditionCompare,
-  conditionsInclues,
   EKeyTags,
-  ISpecialOptions,
+  type ISpecialOptions,
   KEY_FILTER_TAGS,
   KEY_TAG_MAPS,
   NOTICE_USERS_KEY,
-  TGroupKeys,
-  TValueMap
+  type TGroupKeys,
+  type TValueMap,
+  conditionCompare,
+  conditionsInclues,
 } from '../typing/condition';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './common-condition-new.scss';
 
@@ -82,12 +84,12 @@ interface IListItem {
 }
 
 enum TypeEnum {
+  condition = 'condition',
   input = 'input',
   key = 'key',
-  value = 'value',
   method = 'method',
-  condition = 'condition',
-  null = ''
+  null = '',
+  value = 'value',
 }
 
 interface ITag {
@@ -107,20 +109,20 @@ const defaultCondition: ICondtionItem = {
   field: '',
   method: 'eq',
   value: [],
-  condition: 'and'
+  condition: 'and',
 };
 
 const inputTag = {
   id: '____INPUT___TAG__',
   name: '',
-  type: TypeEnum.input
+  type: TypeEnum.input,
 };
 
 const nullOption = {
   id: '',
   name: `-${window.i18n.tc('空')}-`,
   type: TypeEnum.value,
-  isCheck: false
+  isCheck: false,
 };
 
 const groupNamesMap = {
@@ -128,7 +130,7 @@ const groupNamesMap = {
   dimensions: window.i18n.t('维度'),
   set: window.i18n.t('集群属性'),
   module: window.i18n.t('模块属性'),
-  host: window.i18n.t('主机属性')
+  host: window.i18n.t('主机属性'),
 };
 
 const strategyField = 'alert.strategy_id';
@@ -222,6 +224,7 @@ export default class CommonCondition extends tsc<IProps> {
   isUserKey = false;
   /* 远程搜索的loading */
   searchLoading = false;
+  connectorMethods = [...METHODS, { id: 'issuperset', name: '⊇' }];
 
   /* 是否不可点击(只读状态) */
   get canNotClick() {
@@ -271,31 +274,31 @@ export default class CommonCondition extends tsc<IProps> {
       const tempTags = [];
       if (condition.field) {
         const keyItem = keysMap.get(condition.field) as any;
-        const methodItem = METHODS.find(m => m.id === condition.method);
+        const methodItem = this.connectorMethods.find(m => m.id === condition.method);
         const conditionItem = CONDITIONS.find(c => c.id === (condition.condition || 'and'));
         if (!(conditionItem.id === 'and' && index === 0)) {
           tempTags.push({
             ...conditionItem,
-            type: TypeEnum.condition
+            type: TypeEnum.condition,
           });
         }
         tempTags.push({
           id: keyItem?.id || condition.field,
           name: keyItem?.name || condition.field,
           type: TypeEnum.key,
-          alias: !!keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined
+          alias: keyItem?.groupName ? `[${keyItem.groupName}]${keyItem.name}` : undefined,
         });
         tempTags.push({
-          id: methodItem?.id || METHODS[0].id,
-          name: methodItem?.name || METHODS[0].name,
-          type: TypeEnum.method
+          id: methodItem?.id || this.connectorMethods[0].id,
+          name: methodItem?.name || this.connectorMethods[0].name,
+          type: TypeEnum.method,
         });
         if (condition.value.length) {
           if (condition.value?.length === 1 && condition.value[0] === '') {
             tempTags.push({
               id: '',
               name: NULL_NAME,
-              type: TypeEnum.value
+              type: TypeEnum.value,
             });
           } else {
             /* 此数据需要去重，以免引起意料之外的bug */
@@ -312,7 +315,7 @@ export default class CommonCondition extends tsc<IProps> {
               tempTags.push({
                 id: String(valueItem?.id || vItem),
                 name: String(valueItem?.name || vItem),
-                type: TypeEnum.value
+                type: TypeEnum.value,
               });
             });
           }
@@ -320,19 +323,19 @@ export default class CommonCondition extends tsc<IProps> {
           tempTags.push({
             id: '',
             name: NULL_NAME,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         }
         tagList.push({
           condition: tempCondition,
-          tags: tempTags
+          tags: tempTags,
         });
       }
     });
     if (!this.locaLValue.length) {
       tagList.push({
         condition: null,
-        tags: []
+        tags: [],
       });
     }
     this.tagList = tagList;
@@ -370,14 +373,16 @@ export default class CommonCondition extends tsc<IProps> {
     if (this.canNotClick) {
       return;
     }
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
     }
   }
   /* 输入框失焦 */
-  handBlur() {
+  handBlur(index: number, tagIndex: number) {
     if (!this.popInstance?.show && !this.inputValue) {
       this.resetInputPosition();
+    } else {
+      this.handleInputEnter(index, tagIndex);
     }
     this.inputValue = '';
   }
@@ -387,18 +392,18 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     event?.stopPropagation?.();
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
       return;
     }
     if (!this.tagList[index].tags.some(item => item.type === TypeEnum.input)) {
       this.tagList[index].tags.push(inputTag);
     }
-    if (!!this.tagList[index].condition) {
+    if (this.tagList[index].condition) {
       const len = this.tagList[index].tags.length;
       const lastTag = this.tagList[index].tags[len - 2];
       if (lastTag.type === TypeEnum.key) {
-        this.curList = [...METHODS];
+        this.curList = [...this.connectorMethods];
         this.curIndex = [index, len - 1];
         this.selectType = TypeEnum.method;
       } else if (lastTag.type === TypeEnum.method) {
@@ -407,7 +412,7 @@ export default class CommonCondition extends tsc<IProps> {
         const values = this.getCurValuesList(key);
         this.curList = values.map(item => ({
           ...item,
-          isCheck: false
+          isCheck: false,
         }));
         this.curList.unshift({ ...nullOption, isCheck: false });
         this.curIndex = [index, len - 1];
@@ -430,7 +435,7 @@ export default class CommonCondition extends tsc<IProps> {
         this.curIndex = [index, len - 1];
         this.curList = values.map(item => ({
           ...item,
-          isCheck: this.tagList[index].condition.value.includes(item.id)
+          isCheck: this.tagList[index].condition.value.includes(item.id),
         }));
         this.curList.unshift({ ...nullOption, isCheck: this.tagList[index].condition.value.includes(nullOption.id) });
         this.selectType = TypeEnum.value;
@@ -457,7 +462,7 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     event.stopPropagation();
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
       return;
     }
@@ -477,11 +482,11 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     event.stopPropagation();
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
       return;
     }
-    this.curList = [...METHODS];
+    this.curList = [...this.connectorMethods];
     this.curIndex = [index, tagIndex];
     this.selectType = TypeEnum.method;
     this.clickType = TypeEnum.method;
@@ -495,7 +500,7 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     event.stopPropagation();
-    if (!!this.popInstance?.show) {
+    if (this.popInstance?.show) {
       this.handlePopoverHidden();
       return;
     }
@@ -503,7 +508,7 @@ export default class CommonCondition extends tsc<IProps> {
     const values = this.getCurValuesList(key);
     this.curList = values.map(item => ({
       ...item,
-      isCheck: this.tagList[index].condition.value.includes(item.id)
+      isCheck: this.tagList[index].condition.value.includes(item.id),
     }));
     this.curList.unshift({ ...nullOption, isCheck: this.tagList[index].condition.value.includes(nullOption.id) });
     this.selectType = TypeEnum.value;
@@ -530,14 +535,14 @@ export default class CommonCondition extends tsc<IProps> {
         app_code: 'bk-magicbox',
         page: 1,
         page_size: 20,
-        fuzzy_lookups: this.searchValue
+        fuzzy_lookups: this.searchValue,
       })
         .then(data => {
           this.curList = data.results.map(item => {
             return {
               name: item.display_name,
               id: item.username,
-              isCheck: this.tagList[this.curIndex[0]].condition.value.includes(item.username)
+              isCheck: this.tagList[this.curIndex[0]].condition.value.includes(item.username),
             };
           });
         })
@@ -570,9 +575,9 @@ export default class CommonCondition extends tsc<IProps> {
       {
         id: keyItem.id,
         name: keyItem.name,
-        type: TypeEnum.key
+        type: TypeEnum.key,
       },
-      !!keyItem?.alias ? { alias: keyItem.alias } : {}
+      keyItem?.alias ? { alias: keyItem.alias } : {}
     );
     if (this.clickType === TypeEnum.key) {
       /* 通过点击keytag触发的 */
@@ -583,12 +588,12 @@ export default class CommonCondition extends tsc<IProps> {
       return;
     }
     this.tagList[this.curIndex[0]].tags.splice(this.curIndex[1], 0, tempItem);
-    if (!!this.tagList[this.curIndex[0]].condition) {
+    if (this.tagList[this.curIndex[0]].condition) {
       this.tagList[this.curIndex[0]].condition.field = keyItem.id;
     } else {
       this.tagList[this.curIndex[0]].condition = {
         ...JSON.parse(JSON.stringify(defaultCondition)),
-        field: keyItem.id
+        field: keyItem.id,
       };
     }
     this.handleChange();
@@ -604,13 +609,13 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList[this.curIndex[0]].tags[this.curIndex[1]] = {
         id: keyItem.id,
         name: keyItem.name,
-        type: TypeEnum.method
+        type: TypeEnum.method,
       };
     } else {
       this.tagList[this.curIndex[0]].tags.splice(this.curIndex[1], 0, {
         id: keyItem.id,
         name: keyItem.name,
-        type: TypeEnum.method
+        type: TypeEnum.method,
       });
     }
     this.tagList[this.curIndex[0]].condition.method = keyItem.id as TMthodType;
@@ -627,9 +632,9 @@ export default class CommonCondition extends tsc<IProps> {
         condition: {
           ...JSON.parse(JSON.stringify(defaultCondition)),
           field: '',
-          value: []
+          value: [],
         },
-        tags: [{ id: keyItem.id, name: keyItem.name, type: TypeEnum.condition }]
+        tags: [{ id: keyItem.id, name: keyItem.name, type: TypeEnum.condition }],
       });
     }
     this.handleChange();
@@ -648,7 +653,7 @@ export default class CommonCondition extends tsc<IProps> {
       newTags.splice(methodIndex + 1, 0, {
         id: nullOption.id,
         name: nullOption.name,
-        type: TypeEnum.value
+        type: TypeEnum.value,
       });
       this.tagList[this.curIndex[0]].condition.value = [''];
       this.tagList[this.curIndex[0]].tags = newTags;
@@ -673,7 +678,7 @@ export default class CommonCondition extends tsc<IProps> {
         tags.push({
           id: item.id,
           name: item.name,
-          type: TypeEnum.value
+          type: TypeEnum.value,
         });
       }
       if (item.id === nullOption.id) {
@@ -686,7 +691,7 @@ export default class CommonCondition extends tsc<IProps> {
           customTags.push({
             id: v,
             name: v,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         }
       });
@@ -728,13 +733,13 @@ export default class CommonCondition extends tsc<IProps> {
           tempPre.push({
             id: findItem.id,
             name: findItem.name,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         } else {
           tempPre.push({
             id,
             name: id,
-            type: TypeEnum.value
+            type: TypeEnum.value,
           });
         }
       }
@@ -778,7 +783,7 @@ export default class CommonCondition extends tsc<IProps> {
       if (isStrategyId) {
         return valueMap.get(key).map(item => ({
           ...item,
-          isStrategyId
+          isStrategyId,
         }));
       }
       return valueMap.get(key);
@@ -828,7 +833,7 @@ export default class CommonCondition extends tsc<IProps> {
       arrow: false,
       placement: 'bottom-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
     });
     this.popInstance?.show?.();
   }
@@ -843,7 +848,8 @@ export default class CommonCondition extends tsc<IProps> {
     this.popInstance = null;
     this.addActive = false;
     this.clickType = TypeEnum.null;
-    this.$nextTick(() => {
+    // 处理将该事件执行时机延后，使input输入框 blur 失焦事件能够先执行
+    requestAnimationFrame(() => {
       this.resetInputPosition();
     });
   }
@@ -856,14 +862,14 @@ export default class CommonCondition extends tsc<IProps> {
       arrow: false,
       placement: 'right-start',
       boundary: 'window',
-      hideOnClick: false
+      hideOnClick: false,
     };
     if (isGroupKey) {
       this.secondPopInstance = this.$bkPopover(event.target, {
         ...props,
         content: this.secondWrapRef,
         distance: 0,
-        theme: 'light common-monitor'
+        theme: 'light common-monitor',
       });
     } else {
       this.secondPopInstance = this.$bkPopover(event.target, {
@@ -873,7 +879,7 @@ export default class CommonCondition extends tsc<IProps> {
         arrow: true,
         duration: [0, 0],
         theme: '',
-        extCls: 'common-condition-component-second-pop-wrap-tip'
+        extCls: 'common-condition-component-second-pop-wrap-tip',
       });
     }
     this.secondPopInstance?.show?.(isGroupKey ? undefined : 300);
@@ -894,7 +900,7 @@ export default class CommonCondition extends tsc<IProps> {
       arrow: true,
       placement: 'bottom-start',
       boundary: 'window',
-      interactive: true
+      interactive: true,
     });
     this.settingsPopInstance?.show();
     this.isShowSettingPop = true;
@@ -914,7 +920,7 @@ export default class CommonCondition extends tsc<IProps> {
       let keyList = [];
       if (item.id === 'dimensions') {
         const tempKeys = this.getDimensionKeys() as any;
-        if (!!tempKeys?.length) {
+        if (tempKeys?.length) {
           keyList = tempKeys;
         } else {
           keyList = this.groupKeys.get(item.id) || [];
@@ -923,11 +929,11 @@ export default class CommonCondition extends tsc<IProps> {
         keyList = this.groupKeys.get(item.id) || [];
       }
       const selectKeysSet = new Set();
-      this.tagList.forEach(t => {
-        if (!!t.condition?.field) {
+      for (const t of this.tagList) {
+        if (t.condition?.field) {
           selectKeysSet.add(t.condition.field);
         }
-      });
+      }
       this.keyListSecond = keyList.filter(k => !selectKeysSet.has(k.id));
       this.$nextTick(() => {
         this.showSecondPopfn(event);
@@ -940,7 +946,7 @@ export default class CommonCondition extends tsc<IProps> {
   handleClickSecondKey(item: IListItem) {
     this.handleSelectKey({
       ...item,
-      alias: `[${groupNamesMap[this.curGroupKey]}]${item.name}`
+      alias: `[${groupNamesMap[this.curGroupKey]}]${item.name}`,
     });
   }
 
@@ -954,15 +960,15 @@ export default class CommonCondition extends tsc<IProps> {
       this.tagList.push({
         condition: {
           ...JSON.parse(JSON.stringify(defaultCondition)),
-          condition: CONDITIONS[0].id as TContionType
+          condition: CONDITIONS[0].id as TContionType,
         },
         tags: [
           {
             id: CONDITIONS[0].id,
             name: CONDITIONS[0].name,
-            type: TypeEnum.condition
-          }
-        ]
+            type: TypeEnum.condition,
+          },
+        ],
       });
       if (!this.tagList[this.tagList.length - 1].tags.some(item => item.type === TypeEnum.input)) {
         this.tagList[this.tagList.length - 1].tags.push(inputTag);
@@ -1024,7 +1030,7 @@ export default class CommonCondition extends tsc<IProps> {
       )
       .map(item => ({
         ...item,
-        isGroupKey: this.groupKey.includes(item.id)
+        isGroupKey: this.groupKey.includes(item.id),
       }));
   }
 
@@ -1066,66 +1072,7 @@ export default class CommonCondition extends tsc<IProps> {
       this.handlePopoverHidden(isOnlyHide);
     };
     if (event.key === 'Enter') {
-      if (this.selectType === TypeEnum.key) {
-        if (!!this.inputValue) {
-          const keyItem = this.keyList.find(kItem => kItem.name === this.inputValue);
-          if (tagIndex === 0) {
-            this.tagList[index].condition = {
-              ...JSON.parse(JSON.stringify(defaultCondition)),
-              field: keyItem?.id || this.inputValue
-            };
-            this.tagList[index].tags.push({
-              id: keyItem?.id || this.inputValue,
-              name: keyItem?.name || this.inputValue,
-              type: TypeEnum.key
-            });
-          } else {
-            /* 多行 */
-            this.tagList[index].condition.field = this.inputValue;
-            this.tagList[index].tags.splice(tagIndex, 1, {
-              id: keyItem?.id || this.inputValue,
-              name: keyItem?.name || this.inputValue,
-              type: TypeEnum.key
-            });
-          }
-          this.curIndex = [index, 0];
-          this.handleChange();
-          /* 自动弹出 */
-          setTimeout(() => {
-            this.handleClickLineWrap(null, this.curIndex[0]);
-          }, 100);
-        }
-      } else if (this.selectType === TypeEnum.value) {
-        if (!!this.inputValue) {
-          const curValues = this.tagList[index].condition.value;
-          if (!curValues.includes(this.inputValue)) {
-            const key = this.tagList[index].condition.field;
-            const values = this.getCurValuesList(key);
-            const valueItem = values.find(vItem => vItem.id === this.inputValue);
-            this.tagList[index].condition.value.push(this.inputValue);
-            this.tagList[index].tags.splice(tagIndex, 0, {
-              id: valueItem?.id || this.inputValue,
-              name: valueItem?.name || this.inputValue,
-              type: TypeEnum.value
-            });
-            if (this.tagList[index].condition.value.includes(nullOption.id)) {
-              /* 清除空选项 */
-              const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
-              const tagDelIndex = this.tagList[index].tags.findIndex(
-                t => t.type === TypeEnum.value && t.id === nullOption.id
-              );
-              if (delIndex > -1) {
-                this.tagList[index].condition.value.splice(delIndex, 1);
-              }
-              if (tagDelIndex > -1) {
-                this.tagList[index].tags.splice(tagDelIndex, 1);
-              }
-            }
-            this.curIndex = [index, 0];
-            this.handleChange();
-          }
-        }
-      }
+      this.handleInputEnter(index, tagIndex);
       this.inputValue = '';
       hiddenFn();
     } else if (event.key === 'Backspace') {
@@ -1159,6 +1106,70 @@ export default class CommonCondition extends tsc<IProps> {
     }
   }
 
+  /** 自定义输入 -- Enter按钮处理逻辑 */
+  handleInputEnter(index: number, tagIndex: number) {
+    if (this.selectType === TypeEnum.key) {
+      if (this.inputValue) {
+        const keyItem = this.keyList.find(kItem => kItem.name === this.inputValue);
+        if (tagIndex === 0) {
+          this.tagList[index].condition = {
+            ...JSON.parse(JSON.stringify(defaultCondition)),
+            field: keyItem?.id || this.inputValue,
+          };
+          this.tagList[index].tags.push({
+            id: keyItem?.id || this.inputValue,
+            name: keyItem?.name || this.inputValue,
+            type: TypeEnum.key,
+          });
+        } else {
+          /* 多行 */
+          this.tagList[index].condition.field = this.inputValue;
+          this.tagList[index].tags.splice(tagIndex, 1, {
+            id: keyItem?.id || this.inputValue,
+            name: keyItem?.name || this.inputValue,
+            type: TypeEnum.key,
+          });
+        }
+        this.curIndex = [index, 0];
+        this.handleChange();
+        /* 自动弹出 */
+        setTimeout(() => {
+          this.handleClickLineWrap(null, this.curIndex[0]);
+        }, 100);
+      }
+    } else if (this.selectType === TypeEnum.value) {
+      if (this.inputValue) {
+        const curValues = this.tagList[index].condition.value;
+        if (!curValues.includes(this.inputValue)) {
+          const key = this.tagList[index].condition.field;
+          const values = this.getCurValuesList(key);
+          const valueItem = values.find(vItem => vItem.id === this.inputValue);
+          this.tagList[index].condition.value.push(this.inputValue);
+          this.tagList[index].tags.splice(tagIndex, 0, {
+            id: valueItem?.id || this.inputValue,
+            name: valueItem?.name || this.inputValue,
+            type: TypeEnum.value,
+          });
+          if (this.tagList[index].condition.value.includes(nullOption.id)) {
+            /* 清除空选项 */
+            const delIndex = this.tagList[index].condition.value.findIndex(v => v === nullOption.id);
+            const tagDelIndex = this.tagList[index].tags.findIndex(
+              t => t.type === TypeEnum.value && t.id === nullOption.id
+            );
+            if (delIndex > -1) {
+              this.tagList[index].condition.value.splice(delIndex, 1);
+            }
+            if (tagDelIndex > -1) {
+              this.tagList[index].tags.splice(tagDelIndex, 1);
+            }
+          }
+          this.curIndex = [index, 0];
+          this.handleChange();
+        }
+      }
+    }
+  }
+
   handleInput() {
     if (this.focusType === strategyField) {
       this.inputValue = '';
@@ -1174,7 +1185,7 @@ export default class CommonCondition extends tsc<IProps> {
       const curCondition = JSON.parse(JSON.stringify(this.locaLValue?.[this.curIndex[0]]));
       let isIncluesSettings = false;
       curCondition.value = [...new Set(curCondition.value)];
-      if (!!curCondition) {
+      if (curCondition) {
         isIncluesSettings = conditionsInclues(curCondition, this.settingsValue);
       }
       if (isIncluesSettings) {
@@ -1264,12 +1275,12 @@ export default class CommonCondition extends tsc<IProps> {
   render() {
     return (
       <div
-        class={['common-condition-new-component', { 'is-err': this.isErr || this.isRepeat }]}
-        v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini', zIndex: 10 }}
         id={this.componentId}
+        class={['common-condition-new-component', { 'is-err': this.isErr || this.isRepeat }]}
+        v-bkloading={{ isLoading: this.loading, mode: 'spin', size: 'mini', theme: 'primary', zIndex: 10 }}
+        onClick={this.handleComponentClick}
         onMouseenter={this.handleMouseEnter}
         onMouseleave={this.handleMouseLeave}
-        onClick={this.handleComponentClick}
       >
         {/* 校验提示信息 */}
         {this.isRepeat && <div class='repeat-tag'>{this.$t('重复')}</div>}
@@ -1279,17 +1290,17 @@ export default class CommonCondition extends tsc<IProps> {
             v-bk-tooltips={{
               content: this.errorMsg,
               placements: ['top'],
-              allowHTML: false
+              allowHTML: false,
             }}
           >
-            <span class='icon-monitor icon-mind-fill'></span>
+            <span class='icon-monitor icon-mind-fill' />
           </div>
         )}
         {this.tagList.map((item, index) => (
           <div
             key={index}
-            class='line-wrap'
             style={{ height: this.tagList.length > 1 ? 'auto' : '100%' }}
+            class='line-wrap'
             onClick={(event: MouseEvent) => this.handleClickLineWrap(event, index)}
           >
             <div class={['rule-line-item', { 'is-replace': item.isReplace }]}>
@@ -1315,7 +1326,7 @@ export default class CommonCondition extends tsc<IProps> {
                           content: tag.id,
                           placements: ['top'],
                           delay: [500, 0],
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                         onClick={e => this.handleClickKeyTag(e, index, tagIndex)}
                       >
@@ -1332,7 +1343,7 @@ export default class CommonCondition extends tsc<IProps> {
                           content: tag.id,
                           placements: ['top'],
                           delay: [500, 0],
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                         onClick={e => this.handleClickTagMethod(e, index, tagIndex)}
                       >
@@ -1346,10 +1357,10 @@ export default class CommonCondition extends tsc<IProps> {
                         key={`${index}_${tagIndex}`}
                         class='common-tag tag-value'
                         v-bk-tooltips={{
-                          content: tag.id,
+                          content: item.condition.field === 'dynamic_group' ? tag.name : tag.id,
                           placements: ['top'],
                           delay: [500, 0],
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                         onClick={e => this.handleClickTagValue(e, index, tagIndex)}
                       >
@@ -1358,7 +1369,7 @@ export default class CommonCondition extends tsc<IProps> {
                           <span
                             class='icon-monitor icon-mc-close'
                             onClick={e => this.handDelValue(e, index, tagIndex)}
-                          ></span>
+                          />
                         )}
                       </div>
                     );
@@ -1371,13 +1382,13 @@ export default class CommonCondition extends tsc<IProps> {
                       >
                         <span class='input-value'>{this.inputValue}</span>
                         <input
-                          class='input'
                           ref='input'
+                          class='input'
                           v-model={this.inputValue}
-                          onBlur={this.handBlur}
+                          onBlur={() => this.handBlur(index, tagIndex)}
                           onInput={this.handleInput}
                           onKeydown={e => this.handleInputKeydown(e, index, tagIndex)}
-                        ></input>
+                        />
                       </div>
                     );
                   }
@@ -1399,7 +1410,7 @@ export default class CommonCondition extends tsc<IProps> {
                       class={['tag-add no-dispaly-none', { active: this.addActive }]}
                       onClick={this.handleAddFirst}
                     >
-                      <span class='icon-monitor icon-plus-line'></span>
+                      <span class='icon-monitor icon-plus-line' />
                     </div>
                   );
                 }
@@ -1427,26 +1438,26 @@ export default class CommonCondition extends tsc<IProps> {
               class={['tag-add', { active: this.addActive }, { permanent: !this.isFormMode }]}
               onClick={this.handleAdd}
             >
-              <span class='icon-monitor icon-plus-line'></span>
+              <span class='icon-monitor icon-plus-line' />
             </div>
           </div>
         )}
         <div style={'display: none;'}>
           <div
-            class={['common-condition-component-pop-wrap', { 'key-type': this.selectType === TypeEnum.key }]}
-            ref='wrap'
             id={this.componentId}
+            ref='wrap'
+            class={['common-condition-component-pop-wrap', { 'key-type': this.selectType === TypeEnum.key }]}
           >
             {/* value搜索输入框 */}
             {[TypeEnum.value, TypeEnum.key].includes(this.selectType) && (
               <div class='search-wrap'>
                 <bk-input
-                  value={this.searchValue}
+                  behavior={'simplicity'}
                   left-icon='bk-icon icon-search'
                   placeholder={window.i18n.t('输入关键字搜索')}
-                  behavior={'simplicity'}
+                  value={this.searchValue}
                   onChange={this.handleSearchChange}
-                ></bk-input>
+                />
               </div>
             )}
             {/* key选项类型筛选栏  */}
@@ -1459,8 +1470,8 @@ export default class CommonCondition extends tsc<IProps> {
                   <div class='type-list'>
                     {KEY_FILTER_TAGS.map(tag => (
                       <div
-                        class={['type-list-item', { active: this.keyTypeTag === tag.id }]}
                         key={tag.id}
+                        class={['type-list-item', { active: this.keyTypeTag === tag.id }]}
                         onClick={() => this.handleClickKeyTypeTag(tag)}
                       >
                         {tag.name}
@@ -1492,7 +1503,7 @@ export default class CommonCondition extends tsc<IProps> {
                         onMouseenter={e => this.handleKeyMouseEnter(e, item)}
                       >
                         <span>{item.name}</span>
-                        {!!item?.isGroupKey && <span class='right icon-monitor icon-arrow-right'></span>}
+                        {!!item?.isGroupKey && <span class='right icon-monitor icon-arrow-right' />}
                       </div>
                     ))
                   ) : (
@@ -1501,7 +1512,12 @@ export default class CommonCondition extends tsc<IProps> {
                 }
                 /* 连接符可选项 */
                 if (this.selectType === TypeEnum.method || this.selectType === TypeEnum.condition) {
-                  return this.curList.map((item, index) => (
+                  let symbolList = this.curList;
+                  /* 动态分组的连接符仅支持 'eq' */
+                  if (this.tagList[this.curIndex[0]]?.condition?.field === 'dynamic_group') {
+                    symbolList = this.curList.filter(f => f.id === 'eq');
+                  }
+                  return symbolList.map((item, index) => (
                     <div
                       key={index}
                       class={['list-item']}
@@ -1509,7 +1525,7 @@ export default class CommonCondition extends tsc<IProps> {
                         content: item.id,
                         placements: ['right'],
                         delay: [300, 0],
-                        allowHTML: false
+                        allowHTML: false,
                       }}
                       onMousedown={() =>
                         this.selectType === TypeEnum.method
@@ -1538,7 +1554,7 @@ export default class CommonCondition extends tsc<IProps> {
                             placements: ['right'],
                             delay: [300, 0],
                             disabled: !item.id,
-                            allowHTML: false
+                            allowHTML: false,
                           }}
                           onMousedown={() => this.handleSelectValue(item)}
                         >
@@ -1548,7 +1564,7 @@ export default class CommonCondition extends tsc<IProps> {
                               <span class='strategy-name-info'>{`${item.first_label_name || ''} (#${item.id})`}</span>
                             )}
                           </span>
-                          {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small'></span>}
+                          {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small' />}
                         </div>
                       ))
                     ) : (
@@ -1558,6 +1574,10 @@ export default class CommonCondition extends tsc<IProps> {
                   const results = this.curList.filter(
                     item => item.id.indexOf(this.searchValue) > -1 || item.name.indexOf(this.searchValue) > -1
                   );
+                  const isEmptyUsers = this.tagList[this.curIndex[0]]?.condition?.field === 'is_empty_users';
+                  if (isEmptyUsers) {
+                    results.shift();
+                  }
                   return results.length ? (
                     results.map((item, index) => (
                       <div
@@ -1568,12 +1588,12 @@ export default class CommonCondition extends tsc<IProps> {
                           placements: ['right'],
                           delay: [300, 0],
                           disabled: !item.id,
-                          allowHTML: false
+                          allowHTML: false,
                         }}
                         onMousedown={() => this.handleSelectValue(item)}
                       >
                         <span>{item.name}</span>
-                        {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small'></span>}
+                        {!!item?.isCheck && <span class='right icon-monitor icon-mc-check-small' />}
                       </div>
                     ))
                   ) : (
@@ -1588,7 +1608,7 @@ export default class CommonCondition extends tsc<IProps> {
                 class='del-bottom'
                 onClick={this.handleDelKey}
               >
-                <span class='icon-monitor icon-mc-delete-line'></span>
+                <span class='icon-monitor icon-mc-delete-line' />
                 <span class='del-text'>{this.$t('删除')}</span>
               </div>
             )}
@@ -1597,17 +1617,17 @@ export default class CommonCondition extends tsc<IProps> {
         {/* 二级选项列表 */}
         <div style={'display: none'}>
           <div
-            class='common-condition-component-second-pop-wrap'
             ref='secondWrap'
+            class='common-condition-component-second-pop-wrap'
           >
             <div class='search-wrap'>
               <bk-input
-                value={this.secondSearch}
+                behavior={'simplicity'}
                 left-icon='bk-icon icon-search'
                 placeholder={window.i18n.t('输入关键字搜索')}
-                behavior={'simplicity'}
+                value={this.secondSearch}
                 onChange={this.handleSecondSearchChange}
-              ></bk-input>
+              />
             </div>
             {this.keyListSecond.length ? (
               <div class='wrap-list'>
@@ -1617,13 +1637,13 @@ export default class CommonCondition extends tsc<IProps> {
                     <div
                       key={item.id}
                       class='list-item key-type'
-                      onMousedown={() => this.handleClickSecondKey(item)}
                       v-bk-tooltips={{
                         content: item.id,
                         placements: ['right'],
                         delay: [300, 0],
-                        allowHTML: false
+                        allowHTML: false,
                       }}
+                      onMousedown={() => this.handleClickSecondKey(item)}
                     >
                       <span>{item.name}</span>
                     </div>
@@ -1639,11 +1659,11 @@ export default class CommonCondition extends tsc<IProps> {
         {/* 统一设置提示 */}
         <div style={'display: none'}>
           <div
-            class={settingPopClassName}
             ref='settingsMsg'
+            class={settingPopClassName}
           >
             <div class='top'>
-              <span class='icon-monitor icon-remind'></span>
+              <span class='icon-monitor icon-remind' />
               <i18n path='变更当前值将会使 {0}，是否确定变更？'>
                 <span class='blod'>{window.i18n.t('统一设置条件失效')}</span>
               </i18n>

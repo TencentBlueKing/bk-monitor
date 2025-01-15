@@ -26,14 +26,15 @@
 import { defineComponent, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { Button, Dropdown, Message } from 'bkui-vue';
 
-import { createOrUpdateReport, sendReport } from '../../../monitor-api/modules/new_report';
-import { deepClone } from '../../../monitor-common/utils';
+import { Button, Dropdown, Message } from 'bkui-vue';
+import { createOrUpdateReport, sendReport } from 'monitor-api/modules/new_report';
+import { deepClone } from 'monitor-common/utils';
 
 import CreateSubscriptionForm from './components/create-subscription-form';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
-import { TestSendingTarget } from './types';
+
+import type { TestSendingTarget } from './types';
 
 import './create-subscription.scss';
 
@@ -64,11 +65,11 @@ export default defineComponent({
               {
                 id: window.user_name || window.username,
                 type: 'user',
-                is_enabled: true
-              }
+                is_enabled: true,
+              },
             ],
-            channel_name: 'user'
-          }
+            channel_name: 'user',
+          },
         ];
         formData.channels = selfChannels;
       }
@@ -90,7 +91,7 @@ export default defineComponent({
           .then(() => {
             Message({
               theme: 'success',
-              message: t('保存成功')
+              message: t('保存成功'),
             });
             emit('saveSuccess');
           })
@@ -110,8 +111,8 @@ export default defineComponent({
         name: 'report',
         query: {
           reportId,
-          isShowEditSlider: 'true'
-        }
+          isShowEditSlider: 'true',
+        },
       });
     }
 
@@ -126,7 +127,7 @@ export default defineComponent({
       isShowTestSendResult,
       isShowDropdownMenu,
       handleGoToReportListPage,
-      emit
+      emit,
     };
   },
   render() {
@@ -137,21 +138,18 @@ export default defineComponent({
             ref='refOfCreateSubscriptionForm'
             mode='create'
             onSelectExistedReport={this.handleGoToReportListPage}
-          ></CreateSubscriptionForm>
+          />
         </div>
         <div class='footer-bar'>
           <Button
-            theme='primary'
-            loading={this.isSaving}
             style='width: 88px;margin-right: 8px;'
+            loading={this.isSaving}
+            theme='primary'
             onClick={this.handleSave}
           >
             {this.t('保存')}
           </Button>
           <Dropdown
-            isShow={this.isShowDropdownMenu}
-            trigger='manual'
-            placement='top-start'
             v-slots={{
               content: () => {
                 return (
@@ -164,14 +162,17 @@ export default defineComponent({
                     </Dropdown.DropdownItem>
                   </Dropdown.DropdownMenu>
                 );
-              }
+              },
             }}
+            isShow={this.isShowDropdownMenu}
+            placement='top-start'
+            trigger='manual'
           >
             <Button
+              style='width: 88px;margin-right: 8px;'
+              loading={this.isSending}
               theme='primary'
               outline
-              loading={this.isSending}
-              style='width: 88px;margin-right: 8px;'
               onClick={() => {
                 this.isShowDropdownMenu = !this.isShowDropdownMenu;
               }}
@@ -189,8 +190,8 @@ export default defineComponent({
           </Button>
         </div>
 
-        <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
+        <TestSendSuccessDialog v-model={this.isShowTestSendResult} />
       </div>
     );
-  }
+  },
 });

@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { HierarchyNode } from 'd3-hierarchy';
-
-import traceIcons from '../../utls/icons';
+import type traceIcons from '../../utls/icons';
+import type { HierarchyNode } from 'd3-hierarchy';
 
 export const ColorTypes = {
   http: '#aea2e0',
@@ -38,7 +37,7 @@ export const ColorTypes = {
   redis: '#ea6460',
   async_backend: '#699DF4',
   error: '#d74747',
-  network: '#59c0a3'
+  network: '#59c0a3',
 };
 
 export const RootId = '___root___';
@@ -83,7 +82,7 @@ export interface BaseDataType {
   diff_info?: {
     baseline: number;
     comparison: number;
-    mark: 'added' | 'removed' | 'changed' | 'unchanged';
+    mark: 'added' | 'changed' | 'removed' | 'unchanged';
   };
 }
 export interface ILineData<D extends BaseDataType> {
@@ -127,25 +126,25 @@ export const CommonMenuList: ICommonMenuItem[] = [
   {
     id: 'span',
     name: window.i18n.t('Span 详情'),
-    icon: 'icon-menu-view'
+    icon: 'icon-xiangqing1',
   },
   {
     id: 'reset',
     name: window.i18n.t('重置图表'),
-    icon: 'icon-menu-view'
+    icon: 'icon-zhongzhi1',
   },
   {
     id: 'highlight',
     name: window.i18n.t('高亮相似 Span'),
-    icon: 'icon-menu-view'
-  }
+    icon: 'icon-beauty',
+  },
 ];
 // 用于标识根节点
 export interface ITipsDetail {
   left?: number; // 提示框左边距离画布左边的距离
   top?: number; // 提示框上边距离画布上边的距离
   title?: string;
-  proportion?: string | number;
+  proportion?: number | string;
   duration?: string;
   diffDuration?: string;
   diffValue?: number | string;

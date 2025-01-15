@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bkm_ipchooser import constants
@@ -74,6 +74,7 @@ class AgentStatisticsSer(BaseTemplateSer):
     service_template_list = serializers.ListField(child=ListTemplateRequestSer(), required=False, default=[])
     set_template_list = serializers.ListField(child=ListTemplateRequestSer(), required=False, default=[])
     template_id_list = serializers.ListField(child=serializers.IntegerField(), required=False, default=[])
+    only_host_count = serializers.BooleanField(required=False, default=False)
 
     def validate(self, attrs):
         super().validate(attrs)

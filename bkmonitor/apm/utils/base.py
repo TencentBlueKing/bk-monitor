@@ -36,3 +36,7 @@ def balanced_biscuit(input_list, num_splits):
         current_index += current_split_size
 
     return result
+
+
+def rt_id_to_index(rt_id: str) -> str:
+    return rt_id.replace(".", "_")

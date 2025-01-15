@@ -1,0 +1,16 @@
+.resource-graph {
+  display: flex;
+  width: 30%;
+  height: 100%;
+  background: #212224;
+
+  .resource-graph-loading {
+    width: 100%;
+    height: 100%;
+  }
+
+  .graph-wrapper {
+    width: 100%;
+    height: 100%;
+  }
+}

@@ -1,4 +1,4 @@
-import { RouteRecordRaw } from 'vue-router';
+import type { RouteRecordRaw } from 'vue-router';
 
 /*
  * Tencent is pleased to support the open source community by making
@@ -29,6 +29,6 @@ export default [
   {
     path: '/home',
     name: 'home',
-    component: () => import(/* webpackChunkName: "inquire" */ '../../pages/main/inquire')
-  }
+    component: () => import(/* webpackChunkName: "inquire" */ '../../pages/main/inquire'),
+  },
 ] as RouteRecordRaw[];

@@ -25,12 +25,12 @@
 -->
 <template>
   <article
-    class="strategy-config-target"
     v-bkloading="{ isLoading: loading }"
+    class="strategy-config-target"
   >
     <section
-      class="target-container"
       ref="targetContainer"
+      class="target-container"
     >
       <div class="target-container-lable">
         {{ $t('监控目标') }}
@@ -48,8 +48,8 @@
       <bk-button
         class="btn"
         theme="primary"
-        @click="handleSave"
         :disabled="!checkedData.length || !historyId"
+        @click="handleSave"
       >
         {{ $t('保存') }}
       </bk-button>
@@ -68,28 +68,28 @@ import TopoSelector from '../../../components/ip-selector/business/topo-selector
 export default {
   name: 'ImportConfigurationTarget',
   components: {
-    TopoSelector
+    TopoSelector,
   },
   props: {
     // 历史任务ID
     historyId: {
       type: [Number, String],
       default: 0,
-      required: true
+      required: true,
     },
     // 实例类型
     targetType: {
       type: String,
       default: 'INSTANCE',
-      required: true
-    }
+      required: true,
+    },
   },
   data() {
     return {
       loading: false,
       checkedData: [],
       targetNodeType: 'TOPO',
-      targetContainerHeight: 0
+      targetContainerHeight: 0,
     };
   },
   mounted() {
@@ -115,12 +115,12 @@ export default {
         TOPO: 'host_topo_node',
         INSTANCE: 'ip',
         SERVICE_TEMPLATE: 'host_service_template',
-        SET_TEMPLATE: 'host_set_template'
+        SET_TEMPLATE: 'host_set_template',
       };
       const serviceTargetFieldType = {
         TOPO: 'service_topo_node',
         SERVICE_TEMPLATE: 'service_service_template',
-        SET_TEMPLATE: 'service_set_template'
+        SET_TEMPLATE: 'service_set_template',
       };
       if (this.targetType === 'HOST') {
         field = hostTargetFieldType[this.targetNodeType];
@@ -135,10 +135,10 @@ export default {
             {
               field,
               method: 'eq',
-              value: this.checkedData
-            }
-          ]
-        ]
+              value: this.checkedData,
+            },
+          ],
+        ],
       };
     },
     // 批量修改采集目标
@@ -150,15 +150,15 @@ export default {
       if (success) {
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('添加成功')
+          message: this.$t('添加成功'),
         });
         this.$router.push({ name: 'export-import' });
       }
     },
     handleCancel() {
       this.$router.back();
-    }
-  }
+    },
+  },
 };
 </script>
 

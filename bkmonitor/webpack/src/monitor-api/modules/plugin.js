@@ -15,5 +15,5 @@ export default {
   saveAndReleasePlugin,
   getReservedWord,
   pluginUpgradeInfo,
-  pluginType
+  pluginType,
 };

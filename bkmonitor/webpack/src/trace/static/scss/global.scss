@@ -1,69 +1,8 @@
 html,
 body {
-  padding: 0;
-  margin: 0;
-  font-size: 12px;
-  color: #63656e;
-}
-
-html {
-  overflow: hidden;
-}
-
-ul {
-  padding: 0;
-  margin: 0;
-
-  li {
-    list-style: none;
+  .bk-radio-label {
+    font-size: 12px;
   }
-}
-
-label {
-  margin-bottom: 0;
-}
-
-* {
-  font-family: -apple-system, 'Helvetica Neue', 'Helvetica', 'Arial', 'PingFang SC', 'Microsoft YaHei', SimSun,
-    sans-serif !important; /* stylelint-disable-line declaration-no-important */
-
-  &:focus {
-    outline: none;
-  }
-}
-
-*,
-*::after,
-*::before {
-  box-sizing: border-box;
-}
-
-div,
-ul,
-section,
-article {
-  &::-webkit-scrollbar {
-    width: 4px;
-    height: 6px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #a5a5a5;
-    border-radius: 20px;
-    box-shadow: inset 0 0 6px rgba(204, 204, 204, .3);
-  }
-}
-
-input::-webkit-inner-spin-button {
-  appearance: none;
-}
-
-input[type='number'] {
-  appearance: textfield;
-}
-
-a {
-  text-decoration: none;
 }
 
 .bk-monitor-drag {
@@ -208,8 +147,8 @@ a {
         padding: 0 5px;
         // flex: 1;
         margin-left: auto;
-        color: rgba(255, 255, 255, .8);
-        background-color: rgba(1, 1, 1, .8);
+        color: rgba(255, 255, 255, 0.8);
+        background-color: rgba(1, 1, 1, 0.8);
         border-radius: 3px;
       }
     }
@@ -264,4 +203,39 @@ a {
 .bk-cascader-popover {
   /* stylelint-disable-next-line declaration-no-important */
   padding: 0 !important;
+}
+
+.skeleton-element {
+  position: relative;
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+
+  &:after {
+    position: absolute;
+    inset-inline-start: -150%;
+    inset-inline-end: -150%;
+    top: 0;
+    bottom: 0;
+    content: '';
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.15) 37%, rgba(0, 0, 0, 0.06) 63%);
+    animation-name: skeleton-loading;
+    animation-duration: 1.4s;
+    animation-timing-function: ease;
+    animation-iteration-count: infinite;
+  }
+
+  &.skeleton-element-lg {
+    border-radius: 50%;
+  }
+}
+
+@keyframes skeleton-loading {
+  0% {
+    transform: translateX(-37.5%);
+  }
+
+  100% {
+    transform: translateX(37.5%);
+  }
 }

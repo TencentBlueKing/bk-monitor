@@ -29,18 +29,18 @@
       :title="$t('批量导入')"
       :width="640"
       :is-show.sync="options.isShow"
-      @hidden="handleHidden"
       :before-close="close"
+      @hidden="handleHidden"
     >
       <div
-        class="import-content"
         slot="content"
+        class="import-content"
       >
         <div class="import-content-body">
           <div class="file-container">
             <div
-              :class="['file-wrapper', { 'is-drap': isDrap }]"
               v-show="status === 'import'"
+              :class="['file-wrapper', { 'is-drap': isDrap }]"
             >
               <i class="icon-monitor icon-upload-cloud upload-icon" />
               <div class="upload-text">
@@ -55,19 +55,19 @@
                 @dragleave="isDrap = false"
                 @drop="handleDrop($event)"
                 @change="handleFileChange($event)"
-              >
+              />
             </div>
             <div
-              class="file-result"
               v-show="status === 'uploading' || status === 'parsing'"
+              class="file-result"
             >
               <div class="icon-monitor icon-xls xlsx-icon" />
               <div class="file-name">
                 {{ file.name }}
               </div>
               <div
-                class="upload-process"
                 v-show="status === 'uploading'"
+                class="upload-process"
               >
                 <div
                   class="process-done"
@@ -75,17 +75,19 @@
                 />
               </div>
               <div
-                class="file-size"
                 v-show="status === 'parsing'"
-              >{{ file.size | fileSizeFormat }}</div>
+                class="file-size"
+              >
+                {{ file.size | fileSizeFormat }}
+              </div>
               <i
                 class="bk-icon icon-close"
                 @click="deleteFile"
               />
             </div>
             <div
-              class="file-desc"
               v-show="status === 'import' || status === 'uploading'"
+              class="file-desc"
             >
               <div class="file-text">
                 {{ $t('只支持“xlsx”格式的文件') }}
@@ -102,20 +104,20 @@
                 >
                   <bk-option
                     v-for="option in downloadList"
-                    :key="option.id"
                     :id="option.id"
+                    :key="option.id"
                     :name="option.name"
                   />
                 </bk-select>
               </div>
             </div>
             <div
-              class="file-parsing"
               v-show="status === 'parsing'"
+              class="file-parsing"
             >
               <div
-                class="parsing-loading"
                 v-show="parsingRes === 'parsing'"
+                class="parsing-loading"
               >
                 <svg
                   class="loading-svg"
@@ -143,8 +145,8 @@
                 <span class="parsing-text">{{ $t('解析中...') }}...</span>
               </div>
               <div
-                class="parsing-result"
                 v-show="parsingRes === 'error'"
+                class="parsing-result"
               >
                 <i class="bk-icon icon-exclamation-circle-shape icon-error" />
                 <span class="error-text"> {{ $t('文件已损坏') }} </span>
@@ -152,8 +154,8 @@
             </div>
           </div>
           <div
-            class="data-preview"
             v-show="taskList.length > 0"
+            class="data-preview"
           >
             <div class="preview-title">
               {{ $t('预览') }}
@@ -179,9 +181,10 @@
                         {{ importStatus[scope.row.status] }}
                       </span>
                       <div slot="content">
-                        <pre class="hint-content">
-{{ scope.row.errMsg }}
-</pre>
+                        <pre class="hint-content"
+                          >{{ scope.row.errMsg }}
+</pre
+                        >
                       </div>
                     </bk-popover>
                     <span
@@ -254,20 +257,21 @@ export default {
           break;
       }
       return size;
-    }
+    },
   },
   props: {
     options: {
       type: Object,
       default: () => ({
-        isShow: false
-      })
-    }
+        isShow: false,
+      }),
+    },
   },
   data() {
-    const url =      process.env.NODE_ENV === 'development'
-      ? process.env.proxyUrl + window.static_url
-      : location.origin + window.static_url;
+    const url =
+      process.env.NODE_ENV === 'development'
+        ? process.env.proxyUrl + window.static_url
+        : location.origin + window.static_url;
     return {
       file: {},
       uploadProcess: 0,
@@ -279,7 +283,7 @@ export default {
       importStatus: {
         pending: this.$t('导入中'),
         success: this.$t('成功'),
-        fail: this.$t('失败')
+        fail: this.$t('失败'),
       },
       baseUrl: url,
       downloadList: [
@@ -287,36 +291,36 @@ export default {
           id: 'HTTP(S)',
           name: 'HTTP(S)',
           url: 'example/uptime_check/bk_monitor_http_template.xlsx',
-          downloadName: 'bk_monitor_http_template'
+          downloadName: 'bk_monitor_http_template',
         },
         {
           id: 'TCP',
           name: 'TCP',
           url: 'example/uptime_check/bk_monitor_tcp_template.xlsx',
-          downloadName: 'bk_monitor_tcp_template'
+          downloadName: 'bk_monitor_tcp_template',
         },
         {
           id: 'UDP',
           name: 'UDP',
           url: 'example/uptime_check/bk_monitor_udp_template.xlsx',
-          downloadName: 'bk_monitor_udp_template'
+          downloadName: 'bk_monitor_udp_template',
         },
         {
           id: 'ICMP',
           name: 'ICMP',
           url: 'example/uptime_check/bk_monitor_icmp_template.xlsx',
-          downloadName: 'bk_monitor_icmp_template'
-        }
+          downloadName: 'bk_monitor_icmp_template',
+        },
       ],
       rulesMap: new Map(),
-      taskList: []
+      taskList: [],
     };
   },
   computed: {
     // 能否点击完成
     canComplete() {
       return this.taskList.length && !this.taskList.find(item => item.status !== 'success');
-    }
+    },
   },
   methods: {
     handleDloadTem(value) {
@@ -333,7 +337,7 @@ export default {
       const res = this.taskList.filter(item => item.status === 'success').length;
       this.$bkMessage({
         theme: 'success',
-        message: this.$t('成功导入 {num} 个拨测任务', { num: res })
+        message: this.$t('成功导入 {num} 个拨测任务', { num: res }),
       });
       this.close();
       this.$emit('complete');
@@ -378,7 +382,7 @@ export default {
             if (task.status === 'pending') {
               // 规则校验通过
               // 后台导入
-              this.importTask([task]).then((data) => {
+              this.importTask([task]).then(data => {
                 if (data.success.total === 1) {
                   taskList[index].status = 'success';
                 } else {
@@ -393,7 +397,7 @@ export default {
               name: item[this.$t('任务名称（必填）')],
               protocol: item[this.$t('协议（必填）')],
               errMsg: rule.message || this.$t('不支持该协议'),
-              status: 'fail'
+              status: 'fail',
             });
           }
         }
@@ -411,13 +415,13 @@ export default {
         size: file.size / 1024, // 单位 KB
         type: file.type,
         suffix, // 文件名后缀
-        origin: file
+        origin: file,
       };
     },
     validateFile(file) {
       const valid = {
         success: true,
-        message: ''
+        message: '',
       };
       if (file.size > this.maxFileSize * 1024) {
         valid.success = false;
@@ -438,7 +442,7 @@ export default {
           this.$bkMessage({
             theme: 'error',
             message: valid.message,
-            ellipsisLine: 0
+            ellipsisLine: 0,
           });
           reject(valid.message);
         }
@@ -448,15 +452,15 @@ export default {
       const res = {
         success: true,
         message: '',
-        data: []
+        data: [],
       };
       const fileReader = new FileReader();
       return new Promise((resolve, reject) => {
-        fileReader.onload = (ev) => {
+        fileReader.onload = ev => {
           try {
             const data = ev.target.result;
             const workbook = read(data, {
-              type: 'binary' // 以二进制流方式读取得到整份excel表格对象
+              type: 'binary', // 以二进制流方式读取得到整份excel表格对象
             });
             Object.keys(workbook.Sheets).forEach((sheet, index) => {
               if (index === 0) {
@@ -471,14 +475,14 @@ export default {
               this.$bkMessage({
                 theme: 'error',
                 message: e || this.$t('解析文件失败'),
-                ellipsisLine: 0
+                ellipsisLine: 0,
               });
               this.parsingRes = 'error';
               reject(e);
             }, 300);
           }
         };
-        fileReader.onprogress = (ev) => {
+        fileReader.onprogress = ev => {
           setTimeout(() => {
             this.uploadProcess = Number.parseInt((ev.loaded / ev.total) * 100, 10);
           }, 300);
@@ -490,7 +494,7 @@ export default {
       const rule = {
         success: true,
         message: '',
-        data: []
+        data: [],
       };
       if (!type) {
         rule.success = false;
@@ -513,24 +517,26 @@ export default {
     },
     requestRules(type) {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      return new Promise(resolve => fileParse({ protocol: type }, { needRes: true })
-        .then((res) => {
-          if (res.result) {
-            resolve({ success: true, data: res.data });
-          } else {
-            resolve({ success: false, message: res.message });
-          }
-        })
-        .catch((err) => {
-          resolve({ success: false, message: err.responseJSON.data });
-        }));
+      return new Promise(resolve =>
+        fileParse({ protocol: type }, { needRes: true })
+          .then(res => {
+            if (res.result) {
+              resolve({ success: true, data: res.data });
+            } else {
+              resolve({ success: false, message: res.message });
+            }
+          })
+          .catch(err => {
+            resolve({ success: false, message: err.responseJSON.data });
+          })
+      );
     },
     isNullOrEmpty(v) {
       return typeof v === 'undefined' || v === '' || v === null;
     },
     getExcelRowData(rules, row) {
       const data = {};
-      rules.forEach((item) => {
+      rules.forEach(item => {
         if (item.is_dict && !this.isNullOrEmpty(row[item.cnkey])) {
           data[item.enkey] = JSON.parse(row[item.cnkey]);
         } else if (item.default && this.isNullOrEmpty(row[item.cnkey])) {
@@ -578,7 +584,7 @@ export default {
     },
     importTask(data) {
       return fileImportUptimeCheck({
-        task_list: data
+        task_list: data,
       });
     },
     handleHidden() {
@@ -595,10 +601,10 @@ export default {
       this.$bkInfo({
         type: 'warning',
         title: this.$t('确定删除文件？'),
-        confirmFn: () => this.handleHidden()
+        confirmFn: () => this.handleHidden(),
       });
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -802,7 +808,7 @@ export default {
               g {
                 @for $i from 1 through 8 {
                   :nth-child(#{$i}) {
-                    opacity: #{$i * .125};
+                    opacity: #{$i * 0.125};
                     fill: $primaryFontColor;
                   }
                 }

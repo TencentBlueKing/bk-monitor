@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 import json
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.models import FeatureToggle
+from apps.feature_toggle.plugins.constants import FIELD_ANALYSIS_CONFIG
 
 
 def dictfetchall(cursor):
@@ -94,13 +96,33 @@ def array_chunk(data, size=100):
     return [data[i : i + size] for i in range(0, len(data), size)]
 
 
-def get_toggle_data():
+def get_toggle_data(request):
     toggle_list = FeatureToggleObject.toggle_list(**{"is_viewed": True})
+    field_analysis_config, __ = FeatureToggle.objects.get_or_create(
+        name=FIELD_ANALYSIS_CONFIG,
+        defaults={
+            "status": "on",
+            "is_viewed": True,
+            "feature_config": {"scenario_id_white_list": ["es", "log", "bkdata"]},
+            "biz_id_white_list": [],
+        },
+    )
+    # 获取用户名
+    username = request.user.username
+    for toggle in toggle_list:
+        config = toggle.feature_config
+        if isinstance(config, dict):
+            # 获取用户白名单
+            user_list = config.get("user_white_list", [])
+            if username in user_list:
+                toggle.status = "on"
     data = {
         # 实时日志最大长度
         "REAL_TIME_LOG_MAX_LENGTH": "20000",
         # 超过此长度删除部分日志
         "REAL_TIME_LOG_SHIFT_LENGTH": "10000",
+        # 字段分析白名单
+        "FIELD_ANALYSIS_CONFIG": json.dumps(field_analysis_config.feature_config),
         # 特性开关
         "FEATURE_TOGGLE": json.dumps({toggle.name: toggle.status for toggle in toggle_list}),
         "FEATURE_TOGGLE_WHITE_LIST": json.dumps(
@@ -108,6 +130,15 @@ def get_toggle_data():
                 toggle.name: toggle.biz_id_white_list
                 for toggle in toggle_list
                 if isinstance(toggle.biz_id_white_list, list)
+            }
+        ),
+        "SPACE_UID_WHITE_LIST": json.dumps(
+            {
+                toggle.name: toggle.feature_config["space_uid_white_list"]
+                for toggle in toggle_list
+                if toggle.feature_config
+                and isinstance(toggle.feature_config, dict)
+                and toggle.feature_config.get("space_uid_white_list", [])
             }
         ),
     }

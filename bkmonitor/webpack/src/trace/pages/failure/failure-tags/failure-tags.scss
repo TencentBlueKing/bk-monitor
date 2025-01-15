@@ -1,0 +1,225 @@
+.failure-tags {
+  position: relative;
+  flex-basis: 40px;
+  flex-shrink: 0;
+  width: 100%;
+  @keyframes text-ellipsis-animate {
+    0% {
+      overflow: unset;
+      text-overflow: unset;
+      white-space: unset;
+    }
+
+    50% {
+      overflow: unset;
+      text-overflow: unset;
+      white-space: unset;
+    }
+
+    51% {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    100% {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .failure-tags-container {
+    display: grid;
+    grid-template-columns: 1fr calc(var(--icon-size) + var(--icon-padding-right));
+    width: 100%;
+    overflow: hidden;
+    background: #f0f1f5;
+    box-shadow: 0 1px 2px 0 #0000001f;
+    transition: calc(var(--animation-timeline) * 1s);
+    transition-timing-function: ease-in-out;
+    will-change: height;
+
+    .failure-tags-main {
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
+      height: 100%;
+      min-height: 40px;
+      padding: 8px 16px 8px 40px;
+
+      .failure-tags-item {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        margin-right: 28px;
+        color: #63656e;
+        &:first-child {
+          .item-main {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+          }
+        }
+
+        &:last-child {
+          margin-right: 0;
+        }
+
+        .item-main {
+          display: inline-block;
+          flex: 1;
+          min-width: 0px;
+          height: 100%;
+          overflow: hidden;
+          line-height: 24px;
+        }
+
+        .item-label {
+          display: inline-block;
+          flex-shrink: 0;
+          height: 100%;
+          line-height: 24px;
+          color: #313238;
+        }
+
+        .item-info {
+          display: inline-block;
+          width: 100%;
+          line-height: 24px;
+        }
+      }
+
+      .name-target {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+
+    .failure-tags-icon {
+      padding-top: var(--icon-padding-top);
+      padding-right: var(--icon-padding-right);
+
+      .icon-monitor {
+        display: inline-block;
+        font-size: var(--icon-size);
+        font-weight: 500;
+        color: #979ba5;
+        transition: transform calc(var(--animation-timeline) * 1s);
+        transform: rotate(0deg);
+      }
+
+      &:hover {
+        cursor: pointer;
+
+        .icon-monitor {
+          color: #3a84ff;
+        }
+      }
+
+      &.failure-tags-icon-collapse {
+        .icon-monitor {
+          transform: rotate(180deg);
+        }
+      }
+    }
+
+    .business-tag,
+    .principal-tag {
+      color: #3a84ff;
+      background: transparent;
+    }
+    .business-tag {
+      background-color: #fafbfd !important;
+      padding: 0 4px !important;
+      // &.business-tag-collapse {
+      //   color: #63656e !important;
+      // }
+    }
+    .principal-tag {
+      .bk-select-tag {
+        height: auto;
+        min-height: auto !important;
+        padding-top: 1px;
+        padding-right: 0px;
+        background: transparent !important;
+        border: 0;
+
+        &.is-disabled {
+          cursor: default !important;
+        }
+
+        .bk-select-tag-wrapper {
+          height: auto !important;
+          padding: 0;
+        }
+
+        .bk-tag {
+          cursor: default !important;
+        }
+
+        .bk-tag--default {
+          background-color: #fafbfd !important;
+
+          &:hover {
+            background-color: #fafbfd !important;
+          }
+        }
+      }
+
+      .bk-tag-close {
+        display: none !important;
+      }
+
+      .angle-up {
+        display: none !important;
+      }
+
+      .angle-down {
+        display: none !important;
+      }
+    }
+  }
+
+  &.failure-tags-show-omit {
+    .failure-tags-container {
+      grid-template-rows: 0fr;
+
+      .item-info {
+        animation: calc(var(--animation-timeline) * 1s) text-ellipsis-animate;
+        animation-fill-mode: forwards;
+      }
+    }
+  }
+
+  &.failure-tags-show-all {
+    .failure-tags-container {
+      grid-template-rows: 1fr;
+      transition-timing-function: cubic-bezier(0, 0.98, 0.51, 0.83);
+
+      .failure-tags-main {
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
+    }
+  }
+
+  &.failure-tags-positions-absolute {
+    .failure-tags-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1002;
+    }
+  }
+
+  .failure-tags-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.2);
+  }
+}

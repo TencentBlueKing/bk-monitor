@@ -25,8 +25,10 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
+
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './alarm-tools.scss';
 
@@ -34,6 +36,7 @@ interface IAlarmToolProps {
   panel?: PanelModel;
   filters?: Record<string, any>;
   variables?: Record<string, any>;
+  isShowStrategy?: boolean;
 }
 @Component
 export default class AlarmTools extends tsc<IAlarmToolProps> {
@@ -42,6 +45,7 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
   /** 目标主机、节点数据 */
   @Prop() filters: Record<string, any>;
   @Prop() variables: Record<string, any>;
+  @Prop({ default: true }) isShowStrategy: boolean;
 
   /** 告警数 */
   alarmNum = 0;
@@ -74,11 +78,11 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
       params = toEvent
         ? {
             condition: JSON.stringify({ category: ['uptimecheck'] }),
-            activeFilterId: 'NOT_SHIELDED_ABNORMAL'
+            activeFilterId: 'NOT_SHIELDED_ABNORMAL',
           }
         : {
             scenario: 'uptimecheck',
-            strategyState: 'ON'
+            strategyState: 'ON',
           };
       /** 拨测任务 */
       if (target?.task_id !== undefined) {
@@ -86,7 +90,7 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
           ? { queryString: `tags.task_id : "${target.task_id}"`, activeFilterId: 'NOT_SHIELDED_ABNORMAL' }
           : {
               taskId: target.task_id,
-              strategyState: 'ON'
+              strategyState: 'ON',
             };
       }
       /** 主机列表 */
@@ -94,26 +98,26 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
       params = toEvent
         ? {
             condition: JSON.stringify({
-              category: ['hosts', 'host_process', 'os', 'host_device']
+              category: ['hosts', 'host_process', 'os', 'host_device'],
             }),
-            activeFilterId: 'NOT_SHIELDED_ABNORMAL'
+            activeFilterId: 'NOT_SHIELDED_ABNORMAL',
           }
         : {
             scenario: ['host_process', 'os', 'host_device'],
-            strategyState: 'ON'
+            strategyState: 'ON',
           };
       /** 主机、进程详情 */
       if (target?.bk_target_cloud_id !== undefined && target?.bk_target_ip !== undefined) {
         params = toEvent
           ? {
               queryString: `目标IP : ${target.bk_target_ip} AND 目标云区域ID : ${target.bk_target_cloud_id}`,
-              activeFilterId: 'NOT_SHIELDED_ABNORMAL'
+              activeFilterId: 'NOT_SHIELDED_ABNORMAL',
             }
           : {
               ip: target.bk_target_ip,
               bkCloudId: target.bk_target_cloud_id,
               strategyState: 'ON',
-              scenario: ['host_process', 'os', 'host_device']
+              scenario: ['host_process', 'os', 'host_device'],
             };
       }
     }
@@ -122,13 +126,13 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
       params = toEvent
         ? {
             condition: JSON.stringify({
-              category: ['kubernetes']
+              category: ['kubernetes'],
             }),
-            activeFilterId: 'NOT_SHIELDED_ABNORMAL'
+            activeFilterId: 'NOT_SHIELDED_ABNORMAL',
           }
         : {
             scenario: 'k8s',
-            strategyState: 'ON'
+            strategyState: 'ON',
           };
     }
 
@@ -141,7 +145,7 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
       this.$router.push({
         name: toEvent ? 'event-center' : 'strategy-config',
         params: toEvent ? {} : params,
-        query: toEvent ? params : {}
+        query: toEvent ? params : {},
       });
     }
   }
@@ -149,15 +153,15 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
   handleGetAlarmCount() {
     const variablesService = new VariablesService({
       ...this.filters,
-      ...this.variables
+      ...this.variables,
     });
     const { target, ...arg } = this.apiData.data;
     const params = variablesService.transformVariables({
       ...arg,
       target: {
         ...target,
-        ...this.filters
-      }
+        ...this.filters,
+      },
     });
     this.currentParams = params;
     this.$api[this.apiData.apiModule][this.apiData.apiFunc](params).then(result => {
@@ -168,24 +172,26 @@ export default class AlarmTools extends tsc<IAlarmToolProps> {
   render() {
     return (
       <div class='alarm-tools'>
-        <span
-          class='alarm-tools-strategy'
-          onClick={() => this.handleToStrategyListAndEvnetCenter()}
-          v-bk-tooltips={{ content: this.$t('策略'), delay: 200, boundary: 'window', placement: 'bottom' }}
-        >
-          <i class='icon-monitor icon-mc-strategy tool-icon' />
-          {this.strategyNum}
-        </span>
+        {this.isShowStrategy ? (
+          <span
+            class='alarm-tools-strategy'
+            v-bk-tooltips={{ content: this.$t('策略'), delay: 200, boundary: 'window', placement: 'bottom' }}
+            onClick={() => this.handleToStrategyListAndEvnetCenter()}
+          >
+            <i class='icon-monitor icon-mc-strategy tool-icon' />
+            {this.strategyNum}
+          </span>
+        ) : null}
         <span
           class={`alarm-tools-alarm ${!this.alarmNum ? 'is-disabled' : ''}`}
-          onClick={() => (this.alarmNum ? this.handleToStrategyListAndEvnetCenter(true) : false)}
           v-bk-tooltips={{
             content: this.alarmNum < 1 ? this.$t('无告警事件') : this.$t('当前有{0}个告警事件', [this.alarmNum]),
             delay: 200,
             boundary: 'window',
             placement: 'bottom',
-            allowHTML: false
+            allowHTML: false,
           }}
+          onClick={() => (this.alarmNum ? this.handleToStrategyListAndEvnetCenter(true) : false)}
         >
           <i class='icon-monitor icon-mc-chart-alert tool-icon' />
           {this.alarmNum}

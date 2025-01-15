@@ -1,29 +1,36 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Prop, Inject, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { Input, Popover, Form, FormItem } from 'bk-magic-vue';
+
 import { IGroupItem, IFavoriteItem } from '../collect-index';
+
 import './group-dropdown.scss';
 
 interface IProps {
@@ -31,7 +38,7 @@ interface IProps {
   groupList: IGroupItem[];
   groupName: string;
   isHoverTitle: boolean;
-  data: IGroupItem | IFavoriteItem;
+  data: IFavoriteItem | IGroupItem;
 }
 
 @Component
@@ -42,12 +49,7 @@ export default class CollectGroup extends tsc<IProps> {
   @Prop({ type: String, default: '' }) groupName: string; // 组名
   @Prop({ type: Boolean, default: false }) isHoverTitle: boolean; // 鼠标是否经过表头
   @Prop({ type: Array, default: () => [] }) groupList: IGroupItem[]; // 组列表
-  @Prop({ type: Object, required: true }) data: IGroupItem | IFavoriteItem; // 所有数据
-  @Ref('operate') private readonly operatePopoverRef: Popover; // 操作列表实例
-  @Ref('groupMoveList') private readonly groupMoveListPopoverRef: Popover; // 移动到分组实例
-  @Ref('titleDrop') private readonly titlePopoverRef: Popover; // 操作列表实例
-  @Ref('checkInputForm') private readonly checkInputFormRef: Form; // 移动到分组实例
-  @Ref('checkInputAddForm') private readonly checkInputAddFormRef: Form; // 移动到分组实例
+  @Prop({ type: Object, required: true }) data: IFavoriteItem | IGroupItem; // 所有数据
 
   isShowNewGroupInput = false; // 是否展示新建分组
   isShowResetGroupName = false; // 是否展示重命名组名
@@ -57,7 +59,7 @@ export default class CollectGroup extends tsc<IProps> {
   groupListPopoverInstance = null; // 分组列表实例
   titlePopoverInstance = null; // 表头列表实例
   verifyData = {
-    groupEditName: ''
+    groupEditName: '',
   };
 
   public rules = {
@@ -65,25 +67,31 @@ export default class CollectGroup extends tsc<IProps> {
       {
         validator: this.checkName,
         message: window.mainComponent.$t('{n}不规范, 包含特殊符号.', { n: window.mainComponent.$t('组名') }),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: this.checkExistName,
         message: window.mainComponent.$t('组名重复'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         required: true,
         message: window.mainComponent.$t('必填项'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         max: 30,
         message: window.mainComponent.$t('不能多于{n}个字符', { n: 30 }),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
+
+  @Ref('operate') private readonly operatePopoverRef: Popover; // 操作列表实例
+  @Ref('groupMoveList') private readonly groupMoveListPopoverRef: Popover; // 移动到分组实例
+  @Ref('titleDrop') private readonly titlePopoverRef: Popover; // 操作列表实例
+  @Ref('checkInputForm') private readonly checkInputFormRef: Form; // 移动到分组实例
+  @Ref('checkInputAddForm') private readonly checkInputAddFormRef: Form; // 移动到分组实例
 
   get unPrivateGroupList() {
     // 去掉个人收藏的组列表
@@ -122,9 +130,9 @@ export default class CollectGroup extends tsc<IProps> {
 
   checkName() {
     if (this.verifyData.groupEditName.trim() === '') return true;
-    // eslint-disable-next-line no-useless-escape
+
     return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
-      this.verifyData.groupEditName.trim()
+      this.verifyData.groupEditName.trim(),
     );
   }
 
@@ -137,7 +145,7 @@ export default class CollectGroup extends tsc<IProps> {
     this.checkInputFormRef.validate().then(() => {
       this.handleUserOperate('reset-group-name', {
         group_id: this.data.group_id,
-        group_new_name: this.verifyData.groupEditName
+        group_new_name: this.verifyData.groupEditName,
       });
       this.verifyData.groupEditName = '';
       this.isShowResetGroupName = false;
@@ -193,7 +201,7 @@ export default class CollectGroup extends tsc<IProps> {
         },
         onShow: () => {
           this.operatePopoverInstance?.set({ hideOnClick: false });
-        }
+        },
       });
       this.groupListPopoverInstance.show(100);
     }
@@ -220,7 +228,7 @@ export default class CollectGroup extends tsc<IProps> {
           this.groupListPopoverInstance?.destroy();
           this.groupListPopoverInstance = null;
           this.clearStatus(); // 清空状态
-        }
+        },
       });
       this.operatePopoverInstance.show(100);
     }
@@ -241,7 +249,7 @@ export default class CollectGroup extends tsc<IProps> {
           this.titlePopoverInstance?.destroy();
           this.titlePopoverInstance = null;
           this.clearStatus();
-        }
+        },
       });
       this.titlePopoverInstance.show(100);
     }
@@ -269,26 +277,26 @@ export default class CollectGroup extends tsc<IProps> {
     const groupDropList = () => (
       <div style={{ display: 'none' }}>
         <ul
-          class='dropdown-list add-new-page-container'
           ref='titleDrop'
+          class='dropdown-list add-new-page-container'
         >
           {this.isShowResetGroupName ? (
             <li class='add-new-page-input'>
               <Form
-                labelWidth={0}
                 ref='checkInputForm'
+                labelWidth={0}
                 {...{
                   props: {
                     model: this.verifyData,
-                    rules: this.rules
-                  }
+                    rules: this.rules,
+                  },
                 }}
               >
                 <FormItem property='groupEditName'>
                   <Input
-                    clearable
-                    placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                     vModel={this.verifyData.groupEditName}
+                    placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
+                    clearable
                     onEnter={v => this.handleGroupKeyDown(v, 'reset')}
                   ></Input>
                 </FormItem>
@@ -322,8 +330,8 @@ export default class CollectGroup extends tsc<IProps> {
     const collectDropList = () => (
       <div style={{ display: 'none' }}>
         <ul
-          class='dropdown-list'
           ref='operate'
+          class='dropdown-list'
         >
           <li onClick={() => this.handleClickLi('share')}>{this.$t('分享')}</li>
           <li onClick={() => this.handleClickLi('edit-favorite')}>{this.$t('编辑')}</li>
@@ -338,6 +346,7 @@ export default class CollectGroup extends tsc<IProps> {
           {!this.isUnknownGroup ? (
             <li onClick={() => this.handleClickLi('remove-group')}>{this.$t('从该组移除')}</li>
           ) : undefined}
+          <li onClick={() => this.handleClickLi('new-link')}>{this.$t('新开标签页')}</li>
           <li
             class='eye-catching'
             onClick={() => this.handleClickLi('delete-favorite')}
@@ -350,8 +359,8 @@ export default class CollectGroup extends tsc<IProps> {
     const groupList = () => (
       <div style={{ display: 'none' }}>
         <ul
-          class='group-dropdown-list add-new-page-container'
           ref='groupMoveList'
+          class='group-dropdown-list add-new-page-container'
         >
           {this.showGroupList.map(item => (
             <li
@@ -366,21 +375,21 @@ export default class CollectGroup extends tsc<IProps> {
             {this.isShowNewGroupInput ? (
               <li class='new-page-input'>
                 <Form
-                  labelWidth={0}
-                  style={{ width: '100%' }}
                   ref='checkInputAddForm'
+                  style={{ width: '100%' }}
+                  labelWidth={0}
                   {...{
                     props: {
                       model: this.verifyData,
-                      rules: this.rules
-                    }
+                      rules: this.rules,
+                    },
                   }}
                 >
                   <FormItem property='groupEditName'>
                     <Input
-                      clearable
-                      placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                       vModel={this.verifyData.groupEditName}
+                      placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
+                      clearable
                       onEnter={v => this.handleGroupKeyDown(v, 'add')}
                     ></Input>
                   </FormItem>
@@ -420,14 +429,14 @@ export default class CollectGroup extends tsc<IProps> {
               onMouseenter={this.handleHoverIcon}
             >
               <span
-                v-show={!this.isHoverTitle && this.titlePopoverInstance === null}
                 class='title-number'
+                v-show={!this.isHoverTitle && this.titlePopoverInstance === null}
               >
                 {this.data.favorites.length}
               </span>
               <div
-                v-show={this.isHoverTitle || this.titlePopoverInstance !== null}
                 class={['more-box', this.titlePopoverInstance !== null && 'is-click']}
+                v-show={this.isHoverTitle || this.titlePopoverInstance !== null}
               >
                 <span class='bk-icon icon-more'></span>
               </div>

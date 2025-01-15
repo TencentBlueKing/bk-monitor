@@ -32,6 +32,7 @@ import formLabel from '../lang/form-label';
 import message from '../lang/message';
 import placeholder from '../lang/placeholder';
 import route from '../lang/route';
+import strategy from '../lang/strategy';
 import tableColumn from '../lang/table-column';
 import tableContent from '../lang/table-content';
 import tips from '../lang/tips';
@@ -55,7 +56,8 @@ const MonitorLangData = {
   tableContent,
   tips,
   tooltips,
-  title
+  title,
+  strategy,
 };
 
 // 比较两个翻译文件是否多出来的词条
@@ -112,14 +114,14 @@ function mergeJson<T extends keyof MonitorLang>(data: Record<string, string>, it
     return res;
   }, data);
 }
-
+type MonitorLangDataType = typeof MonitorLangData;
 /**
  * @description 合并所有翻译文件
  * @returns {Record<string, Record<string, string>>} 合并后的翻译文件
  */
 export function mergeI18nJson() {
   const keyList = Object.keys(MonitorLangData) as Array<keyof MonitorLang>;
-  // eslint-disable-next-line max-len
+
   const data = keyList.reduce((data, name) => mergeJson(data, MonitorLangData[name], name), {});
 
   // 合并所有翻译文件
@@ -135,7 +137,7 @@ export function mergeI18nJson() {
     zhCN: Object.keys(data).reduce((res, key) => {
       res[key] = key.replace(reg, '');
       return res;
-    }, {}) as typeof MonitorLangData,
-    enUS: data as typeof MonitorLangData
+    }, {}) as MonitorLangDataType[keyof MonitorLangDataType],
+    enUS: data as MonitorLangDataType[keyof MonitorLangDataType],
   };
 }

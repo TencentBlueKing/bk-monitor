@@ -25,7 +25,9 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { activated, deactivated, loadApp } from '@blueking/bk-weweb';
+import EventDetailSlider from 'fta-solutions/pages/event/event-detail/event-detail-slider';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
@@ -34,9 +36,16 @@ import './apm.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class ApmPage extends tsc<{}> {
+export default class ApmPage extends tsc<object> {
   loading = false;
   appkey = 'apm';
+  // 侧栏详情信息
+  detailInfo: { isShow: boolean; id: string; type: 'eventDetail'; bizId: number } = {
+    isShow: false,
+    id: '',
+    type: 'eventDetail',
+    bizId: +window.bk_biz_id,
+  };
   get apmHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -48,7 +57,7 @@ export default class ApmPage extends tsc<{}> {
   get apmData() {
     return JSON.stringify({
       host: this.apmHost,
-      baseroute: '/apm/'
+      baseroute: '/apm/',
     });
   }
   // 是否显示引导页
@@ -69,7 +78,7 @@ export default class ApmPage extends tsc<{}> {
       url: this.apmUrl,
       id: this.appkey,
       container: this.$refs.apmPageWrap as HTMLElement,
-      showSourceCode: true,
+      showSourceCode: false,
       scopeCss: true,
       scopeJs: true,
       scopeLocation: false,
@@ -78,8 +87,9 @@ export default class ApmPage extends tsc<{}> {
       data: {
         host: this.apmHost,
         baseroute: '/apm/',
-        $baseStore: this.$store
-      }
+        $baseStore: this.$store,
+        showDetailSlider: this.handleShowDetail,
+      },
     });
     activated(this.appkey, this.$refs.apmPageWrap as HTMLElement);
     window.requestIdleCallback(() => (this.loading = false));
@@ -98,13 +108,28 @@ export default class ApmPage extends tsc<{}> {
   deactivate() {
     this.$route.name !== 'application-add' && deactivated(this.appkey);
   }
+  /**
+   * @description: 显示详情数据
+   */
+  handleShowDetail(id: string) {
+    this.detailInfo.id = id;
+    this.detailInfo.isShow = true;
+    this.detailInfo.bizId = +window.bk_biz_id;
+  }
   render() {
     if (this.showGuidePage) return <GuidePage guideData={introduce.data['apm-home'].introduce} />;
     return (
       <div class='apm-wrap'>
         <div
-          class='apm-wrap-iframe'
           ref='apmPageWrap'
+          class='apm-wrap-iframe'
+        />
+        <EventDetailSlider
+          bizId={this.detailInfo.bizId}
+          eventId={this.detailInfo.id}
+          isShow={this.detailInfo.isShow}
+          type={this.detailInfo.type}
+          onShowChange={v => (this.detailInfo.isShow = v)}
         />
       </div>
     );

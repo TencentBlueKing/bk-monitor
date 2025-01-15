@@ -33,7 +33,7 @@ interface IVerifyItem {
 }
 
 @Component({
-  name: 'VerifyItem'
+  name: 'VerifyItem',
 })
 export default class VerifyItem extends tsc<IVerifyItem> {
   @Prop({ default: '', type: String }) errorMsg;

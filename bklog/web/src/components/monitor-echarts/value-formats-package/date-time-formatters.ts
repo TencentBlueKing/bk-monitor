@@ -1,43 +1,46 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import { toDuration as duration, toUtc, dateTime } from '../datetime/moment-wrapper';
-
-import { toFixed, toFixedScaled, FormattedValue, ValueFormatter } from './value-formats';
 import { DecimalCount } from '../types/display-value';
+import { toFixed, toFixedScaled, FormattedValue, ValueFormatter } from './value-formats';
 
 interface IntervalsInSeconds {
   [interval: string]: number;
 }
 
 export enum Interval {
-  Year = 'year',
-  Month = 'month',
-  Week = 'week',
   Day = 'day',
   Hour = 'hour',
+  Millisecond = 'millisecond',
   Minute = 'minute',
+  Month = 'month',
   Second = 'second',
-  Millisecond = 'millisecond'
+  Week = 'week',
+  Year = 'year',
 }
 
 const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
@@ -48,7 +51,7 @@ const INTERVALS_IN_SECONDS: IntervalsInSeconds = {
   [Interval.Hour]: 3600,
   [Interval.Minute]: 60,
   [Interval.Second]: 1,
-  [Interval.Millisecond]: 0.001
+  [Interval.Millisecond]: 0.001,
 };
 
 export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDecimals?: DecimalCount): FormattedValue {
@@ -74,7 +77,7 @@ export function toNanoSeconds(size: number, decimals: DecimalCount = 2, scaledDe
 export function toMicroSeconds(
   size: number,
   decimals: DecimalCount = 2,
-  scaledDecimals?: DecimalCount
+  scaledDecimals?: DecimalCount,
 ): FormattedValue {
   if (size === null) {
     return { text: '' };
@@ -92,7 +95,7 @@ export function toMicroSeconds(
 export function toMilliSeconds(
   size: number,
   decimals: DecimalCount = 2,
-  scaledDecimals?: DecimalCount
+  scaledDecimals?: DecimalCount,
 ): FormattedValue {
   if (size === null) {
     return { text: '' };
@@ -246,7 +249,7 @@ export function toDuration(size: number, decimals: DecimalCount, timeScale: Inte
     { long: Interval.Hour },
     { long: Interval.Minute },
     { long: Interval.Second },
-    { long: Interval.Millisecond }
+    { long: Interval.Millisecond },
   ];
 
   // convert $size to milliseconds
@@ -287,7 +290,7 @@ export function toClock(size: number, decimals: DecimalCount = 2): FormattedValu
   // < 1 second
   if (size < 1000) {
     return {
-      text: toUtc(size).format('SSS\\m\\s')
+      text: toUtc(size).format('SSS\\m\\s'),
     };
   }
 
@@ -386,7 +389,7 @@ export function dateTimeFromNow(
   value: number,
   decimals: DecimalCount,
   scaledDecimals: DecimalCount,
-  timeZone?
+  timeZone?,
 ): FormattedValue {
   const isUtc = timeZone === 'utc';
   const time = isUtc ? toUtc(value) : dateTime(value);

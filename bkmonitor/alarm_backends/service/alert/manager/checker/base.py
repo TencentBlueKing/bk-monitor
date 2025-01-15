@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+import time
 from typing import List
 
 from alarm_backends.core.alert import Alert
@@ -29,12 +30,17 @@ class BaseChecker:
     def check_all(self):
         success = 0
         failed = 0
+        start = time.time()
         for alert in self.alerts:
             if self.is_enabled(alert):
                 try:
                     self.check(alert)
                     success += 1
                 except Exception as e:
-                    logger.exception("alert(%s) run checker(%s) failed: %s", alert.id, self.__class__.__name__, e)
+                    logger.exception(
+                        "[%s failed] alert(%s) strategy(%s) %s", self.__class__.__name__, alert.id, alert.strategy_id, e
+                    )
                     failed += 1
-        logger.info("AlertChecker(%s) run finished, success(%s), failed(%s)", self.__class__.__name__, success, failed)
+        logger.info(
+            "[%s] success(%s), failed(%s), cost: %s", self.__class__.__name__, success, failed, time.time() - start
+        )

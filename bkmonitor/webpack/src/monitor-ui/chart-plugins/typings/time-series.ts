@@ -65,5 +65,5 @@ export interface IPlotBand {
   color?: string;
   borderColor?: string;
   shadowColor?: string;
-  borderType?: 'solid' | 'dashed' | 'dotted';
+  borderType?: 'dashed' | 'dotted' | 'solid';
 }

@@ -1,3 +1,4 @@
+/* eslint-disable perfectionist/sort-imports */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,6 +26,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import { useJSONP } from 'monitor-api/jsonp';
 import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
 import bus from 'monitor-common/utils/event-bus';
@@ -36,13 +38,13 @@ import DocumentLinkMixin from '../mixins/documentLinkMixin';
 import { GLOAB_FEATURE_LIST, setLocalStoreRoute } from '../router/router-config';
 import enIcon from '../static/images/svg/en.svg';
 import zhIcon from '../static/images/svg/zh.svg';
-import { IMenuItem } from '../types';
+import type { IMenuItem } from '../types';
 
 // #if APP !== 'external'
 import GlobalSearchModal from './global-search-modal-new';
 import SettingModal from './setting-modal';
-
 // #endif
+
 import './nav-tools.scss';
 
 export const HANDLE_SHOW_SETTING = 'HANDLE_SHOW_SETTING';
@@ -67,8 +69,8 @@ interface INavToolsEvents {
     SpaceManage: () => import(/* webpackChunkName: 'SpaceManage' */ './space-manage/space-manage') as any,
     GlobalCalendar: () => import(/* webpackChunkName: 'calendar' */ './calendar/calendar') as any,
     MyApply: () => import(/* webpackChunkName: 'MyApply' */ './my-apply/my-apply') as any,
-    MySubscription: () => import(/* webpackChunkName: 'MySubscription' */ './my-subscription/my-subscription') as any
-  }
+    MySubscription: () => import(/* webpackChunkName: 'MySubscription' */ './my-subscription/my-subscription') as any,
+  },
   // #endif
 } as any)
 class NavTools extends DocumentLinkMixin {
@@ -110,31 +112,31 @@ class NavTools extends DocumentLinkMixin {
       {
         id: 'DOCS',
         name: this.$t('产品文档').toString(),
-        href: ''
+        href: '',
       },
       {
         id: 'VERSION',
-        name: this.$t('版本日志').toString()
+        name: this.$t('版本日志').toString(),
       },
       {
         id: 'FAQ',
         name: this.$t('问题反馈').toString(),
-        href: window.ce_url
-      }
+        href: window.ce_url,
+      },
     ];
     this.setList = GLOAB_FEATURE_LIST.map(({ name, ...args }) => ({
       name: `route-${name}`,
-      ...args
+      ...args,
     }));
     this.languageList = [
       {
         id: 'zh-cn',
-        name: '中文'
+        name: '中文',
       },
       {
         id: 'en',
-        name: 'English'
-      }
+        name: 'English',
+      },
     ];
   }
   mounted() {
@@ -151,7 +153,7 @@ class NavTools extends DocumentLinkMixin {
 
   handleShowSetting(key: string) {
     const item = this.setList.find(item => item.id === key);
-    if (!!item) {
+    if (item) {
       this.handleSet(item);
     }
   }
@@ -232,15 +234,17 @@ class NavTools extends DocumentLinkMixin {
       item.id,
       undefined,
       '/',
-      `${window.bk_domain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, '')}`
+      `${window.bk_domain && location.hostname.includes(window.bk_domain) ? window.bk_domain : location.hostname}`
     );
     if (window.bk_component_api_url) {
       useJSONP(
-        `${window.bk_component_api_url}/api/c/compapi/v2/usermanage/fe_update_user_language`.replace(/\/\//, '/'),
+        `${window.bk_component_api_url
+          .replace(/\/$/, '')
+          .replace(/^http:/, location.protocol)}/api/c/compapi/v2/usermanage/fe_update_user_language`,
         {
           data: {
-            language: item.id
-          }
+            language: item.id,
+          },
         }
       ).finally(() => {
         location.reload();
@@ -261,16 +265,16 @@ class NavTools extends DocumentLinkMixin {
       return <migrate-dashboard class='migrate-dashboard' />;
     }
     if (this.activeSetting === 'calendar') {
-      return <global-calendar></global-calendar>;
+      return <global-calendar />;
     }
     if (this.activeSetting === 'space-manage') {
-      return <space-manage></space-manage>;
+      return <space-manage />;
     }
     if (this.activeSetting === 'resource-register') {
-      return <resource-register></resource-register>;
+      return <resource-register />;
     }
     if (this.activeSetting === 'data-pipeline') {
-      return <data-pipeline></data-pipeline>;
+      return <data-pipeline />;
     }
     return <health-z />;
   }
@@ -306,7 +310,7 @@ class NavTools extends DocumentLinkMixin {
             onClick={this.handleGlobalSearch}
           >
             <span class='search-text'>{this.globalSearchPlaceholder}</span>
-            <span class='bk-icon icon-search'></span>
+            <span class='bk-icon icon-search' />
           </div>
           // #endif
         }
@@ -314,23 +318,23 @@ class NavTools extends DocumentLinkMixin {
           // #if APP !== 'external'
           <bk-popover
             ref='popoverset'
-            theme='light common-monitor'
+            tippy-options={{
+              trigger: 'click',
+            }}
             arrow={false}
             offset='-10, 4'
             placement='bottom-start'
-            tippy-options={{
-              trigger: 'click'
-            }}
+            theme='light common-monitor'
           >
             <div class='header-help'>
-              <span class='help-icon icon-monitor icon-menu-setting'></span>
+              <span class='help-icon icon-monitor icon-menu-setting' />
             </div>
             <template slot='content'>
               <ul class='monitor-navigation-help'>
                 {this.setList.map((item, index) => (
                   <li
-                    class='nav-item'
                     key={index}
+                    class='nav-item'
                     onClick={() => this.handleSet(item)}
                   >
                     {this.$t(item.name)}
@@ -343,13 +347,13 @@ class NavTools extends DocumentLinkMixin {
         }
         <bk-popover
           ref='popoverlanguage'
-          theme='light common-monitor'
+          tippy-options={{
+            trigger: 'click',
+          }}
           arrow={false}
           offset='-10, 4'
           placement='bottom-start'
-          tippy-options={{
-            trigger: 'click'
-          }}
+          theme='light common-monitor'
         >
           <div class='header-language'>
             {this.$store.getters.lang === 'en' ? (
@@ -357,28 +361,24 @@ class NavTools extends DocumentLinkMixin {
                 class='language-icon'
                 alt='english'
                 src={enIcon}
-              ></img>
+              />
             ) : (
               <img
                 class='language-icon'
-                src={zhIcon}
                 alt='中文'
-              ></img>
+                src={zhIcon}
+              />
             )}
           </div>
           <template slot='content'>
             <ul class='monitor-navigation-help'>
               {this.languageList.map((item, index) => (
                 <li
-                  class='nav-item'
                   key={index}
+                  class={`nav-item ${item.id === this.$store.getters.lang ? 'nav-item-active' : ''}`}
                   onClick={() => this.handleLanguageChange(item)}
                 >
-                  <img
-                    class='language-icon'
-                    src={item.id === 'en' ? enIcon : zhIcon}
-                    alt='language'
-                  ></img>
+                  <span class={`bk-icon ${item.id === 'en' ? 'icon-english' : 'icon-chinese'} language-icon`} />
                   {item.name}
                 </li>
               ))}
@@ -389,23 +389,31 @@ class NavTools extends DocumentLinkMixin {
           // #if APP !== 'external'
           <bk-popover
             ref='popoverhelp'
-            theme='light common-monitor'
+            tippy-options={{
+              trigger: 'click',
+            }}
             arrow={false}
             offset='-10, 4'
             placement='bottom-start'
-            tippy-options={{
-              trigger: 'click'
-            }}
+            theme='light common-monitor'
           >
             <div class='header-help'>
-              <span class='help-icon icon-monitor icon-mc-help-fill'></span>
+              <svg
+                style='width: 1em; height: 1em;vertical-align: middle;fill: currentColor;overflow: hidden;'
+                class='bk-icon'
+                version='1.1'
+                viewBox='0 0 64 64'
+                xmlns='http://www.w3.org/2000/svg'
+              >
+                <path d='M32,4C16.5,4,4,16.5,4,32c0,3.6,0.7,7.1,2,10.4V56c0,1.1,0.9,2,2,2h13.6C36,63.7,52.3,56.8,58,42.4S56.8,11.7,42.4,6C39.1,4.7,35.6,4,32,4z M31.3,45.1c-1.7,0-3-1.3-3-3s1.3-3,3-3c1.7,0,3,1.3,3,3S33,45.1,31.3,45.1z M36.7,31.7c-2.3,1.3-3,2.2-3,3.9v0.9H29v-1c-0.2-2.8,0.7-4.4,3.2-5.8c2.3-1.4,3-2.2,3-3.8s-1.3-2.8-3.3-2.8c-1.8-0.1-3.3,1.2-3.5,3c0,0.1,0,0.1,0,0.2h-4.8c0.1-4.4,3.1-7.4,8.5-7.4c5,0,8.3,2.8,8.3,6.9C40.5,28.4,39.2,30.3,36.7,31.7z' />
+              </svg>
             </div>
             <template slot='content'>
               <ul class='monitor-navigation-help'>
                 {this.helpList.map((item, index) => (
                   <li
-                    class='nav-item'
                     key={index}
+                    class='nav-item'
                     onClick={() => this.handleHelp(item)}
                   >
                     {item.name}
@@ -419,22 +427,22 @@ class NavTools extends DocumentLinkMixin {
         <div
           class={{
             'header-user is-left': true,
-            'is-external': process.env.APP === 'external'
+            'is-external': process.env.APP === 'external',
           }}
         >
           <bk-popover
             ref='popoveruser'
-            theme='light common-monitor'
+            tippy-options={{
+              trigger: 'click',
+            }}
             arrow={false}
+            disabled={process.env.APP === 'external'}
             offset='0, 4'
             placement='bottom'
-            disabled={process.env.APP === 'external'}
-            tippy-options={{
-              trigger: 'click'
-            }}
+            theme='light common-monitor'
           >
             <span class='header-user-text'>{window.user_name || window.username}</span>
-            <i class='bk-icon icon-down-shape'></i>
+            <i class='bk-icon icon-down-shape' />
             <div slot='content'>
               {process.env.APP !== 'external' && (
                 <ul class='monitor-navigation-help'>
@@ -476,38 +484,39 @@ class NavTools extends DocumentLinkMixin {
         <LogVersion
           dialogShow={this.logShow}
           on={{ 'update:dialogShow': v => (this.logShow = v) }}
-        ></LogVersion>
+        />
         {
           // #if APP !== 'external'
           [
             <SettingModal
-              title={this.settingTitle}
-              show={this.show}
-              menuList={this.setList}
+              key='setting-modal'
               activeMenu={this.activeSetting}
+              menuList={this.setList}
+              show={this.show}
+              title={this.settingTitle}
               zIndex={2000}
               onChange={this.handleSettingShowChange}
               onMenuChange={this.handleMenuChange}
             >
               {this.show && this.createAsyncComponent()}
             </SettingModal>,
-            <keep-alive>
+            <keep-alive key='keep-alive'>
               {this.globalSearchShow && (
                 <GlobalSearchModal
                   ref='globalSearchModal'
                   show={this.globalSearchShow}
                   onChange={this.handleGlobalSearchShowChange}
-                ></GlobalSearchModal>
+                />
               )}
-            </keep-alive>
+            </keep-alive>,
           ]
           // #endif
         }
 
         {this.isShowMyApplyModal && (
           <SettingModal
-            title={this.$t('我申请的').toString()}
             show={this.isShowMyApplyModal}
+            title={this.$t('我申请的').toString()}
             zIndex={2000}
             onChange={v => {
               this.isShowMyApplyModal = v;
@@ -519,8 +528,8 @@ class NavTools extends DocumentLinkMixin {
 
         {this.isShowMyReportModal && (
           <SettingModal
-            title={this.$t('我的订阅').toString()}
             show={this.isShowMyReportModal}
+            title={this.$t('我的订阅').toString()}
             zIndex={2000}
             onChange={v => {
               this.isShowMyReportModal = v;

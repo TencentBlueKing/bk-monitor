@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -27,6 +26,7 @@
 import { computed, defineComponent, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+
 import {
   Button,
   Dialog,
@@ -40,11 +40,9 @@ import {
   Sideslider,
   Switcher,
   Table,
-  TagInput
+  TagInput,
 } from 'bkui-vue';
-import { Column } from 'bkui-vue/lib/table/props';
 import dayjs from 'dayjs';
-
 import {
   createOrUpdateReport,
   deleteReport,
@@ -52,19 +50,21 @@ import {
   getReport,
   getReportList,
   getSendRecords,
-  sendReport
-} from '../../../monitor-api/modules/new_report';
-import { deepClone, LANGUAGE_COOKIE_KEY } from '../../../monitor-common/utils';
-import { docCookies } from '../../../monitor-common/utils/utils';
-import NavBar from '../../components/nav-bar/nav-bar';
+  sendReport,
+} from 'monitor-api/modules/new_report';
+import { LANGUAGE_COOKIE_KEY, deepClone } from 'monitor-common/utils';
+import { docCookies } from 'monitor-common/utils/utils';
 
+import NavBar from '../../components/nav-bar/nav-bar';
 import CreateSubscriptionForm from './components/create-subscription-form';
 import SubscriptionDetail from './components/subscription-detail';
 import TestSendSuccessDialog from './components/test-send-success-dialog';
 import CreateSubscription from './create-subscription';
 import { ChannelName, Scenario, SendMode, SendStatus } from './mapping';
-import { FrequencyType, TestSendingTarget } from './types';
+import { FrequencyType, type TestSendingTarget } from './types';
 import { getDefaultReportData, getSendFrequencyText } from './utils';
+
+import type { Column } from 'bkui-vue/lib/table/props';
 
 import './email-subscription-config.scss';
 
@@ -88,9 +88,9 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
     // 查询订阅列表 相关参数 开始
-    const createType = ref<'manager' | 'user' | 'self'>('manager');
+    const createType = ref<'manager' | 'self' | 'user'>('manager');
     const queryType = ref<'all' | 'available' | 'invalid'>('all');
-    const queryTypeForSelf = ref<'all' | 'RUNNING' | 'FAILED' | 'SUCCESS'>('all');
+    const queryTypeForSelf = ref<'FAILED' | 'RUNNING' | 'SUCCESS' | 'all'>('all');
     const searchKey = ref('');
     const page = ref(1);
     const pageSize = ref(20);
@@ -106,14 +106,14 @@ export default defineComponent({
     const navList = ref([
       {
         id: 'report',
-        name: t('订阅配置')
-      }
+        name: t('订阅配置'),
+      },
     ]);
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const ApplyStatus = {
       RUNNING: t('未审批'),
       FAILED: t('未通过'),
-      SUCCESS: t('已通过')
+      SUCCESS: t('已通过'),
     };
     const isSelfMode = ref(false);
     const isTableLoading = ref(false);
@@ -138,7 +138,7 @@ export default defineComponent({
                   {t(`${data.name}`)}
                 </Button>
               );
-            }
+            },
           },
           {
             label: `${t('通知渠道')}`,
@@ -150,23 +150,23 @@ export default defineComponent({
                 .toString();
               return (
                 <Popover
+                  v-slots={{
+                    content,
+                  }}
                   maxWidth='300'
                   placement='top'
                   popoverDelay={[300, 0]}
-                  v-slots={{
-                    content
-                  }}
                 >
                   <div
                     class={{
-                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                     }}
                   >
                     {content}
                   </div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('订阅场景')}`,
@@ -175,13 +175,13 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   {t(Scenario[data.scenario])}
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('发送模式')}`,
@@ -190,7 +190,7 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   {t(SendMode[data.send_mode])}
@@ -201,15 +201,15 @@ export default defineComponent({
               list: [
                 {
                   text: t('周期发送'),
-                  value: 'periodic'
+                  value: 'periodic',
                 },
                 {
                   text: t('仅发一次'),
-                  value: 'one_time'
-                }
+                  value: 'one_time',
+                },
               ],
-              filterFn: () => true
-            }
+              filterFn: () => true,
+            },
           },
           {
             label: `${t('发送时间')}`,
@@ -221,41 +221,41 @@ export default defineComponent({
                   : getSendFrequencyText(data);
               return (
                 <Popover
+                  v-slots={{
+                    content,
+                  }}
                   maxWidth='300'
                   placement='top'
                   popoverDelay={[300, 0]}
-                  v-slots={{
-                    content
-                  }}
                 >
                   <div
                     class={{
-                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                      'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                     }}
                   >
                     {content}
                   </div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('最近一次发送时间')}`,
             field: 'last_send_time',
             sort: {
-              value: null
+              value: null,
             },
             render: ({ data }) => {
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   {data.last_send_time ? dayjs(data.last_send_time).format('YYYY-MM-DD HH:mm:ss') : t('未发送')}
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('发送状态')}`,
@@ -264,13 +264,13 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   <i
-                    class={['icon-circle', data.send_status]}
                     style='margin-right: 10px;'
-                  ></i>
+                    class={['icon-circle', data.send_status]}
+                  />
                   {t(SendStatus[data.send_status])}
                 </div>
               );
@@ -279,11 +279,11 @@ export default defineComponent({
               list: [
                 {
                   text: `${t('发送成功')}`,
-                  value: 'success'
+                  value: 'success',
                 },
                 {
                   text: `${t('未发送')}`,
-                  value: 'no_status'
+                  value: 'no_status',
                 },
                 // {
                 //   text: `${t('发送部分失败')}`,
@@ -291,11 +291,11 @@ export default defineComponent({
                 // },
                 {
                   text: `${t('发送失败')}`,
-                  value: 'failed'
-                }
+                  value: 'failed',
+                },
               ],
-              filterFn: () => true
-            }
+              filterFn: () => true,
+            },
           },
           {
             label: `${t('创建人')}`,
@@ -304,13 +304,13 @@ export default defineComponent({
               return (
                 <div
                   class={{
-                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid
+                    'gray-text': queryType.value === 'invalid' ? false : data.is_invalid,
                   }}
                 >
                   {data.create_user}
                 </div>
               );
-            }
+            },
           },
           {
             width: '50px',
@@ -321,23 +321,23 @@ export default defineComponent({
                 <div>
                   <Switcher
                     v-model={data.is_enabled}
-                    theme='primary'
                     size='small'
+                    theme='primary'
                     onChange={() => handleSetEnable(index)}
-                  ></Switcher>
+                  />
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('创建时间')}`,
             field: 'create_time',
             sort: {
-              value: null
+              value: null,
             },
             render: ({ data }) => {
               return <div>{dayjs(data.create_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
-            }
+            },
           },
           {
             label: `${t('操作')}`,
@@ -359,9 +359,9 @@ export default defineComponent({
                   </Button>
 
                   <Button
+                    style='margin-left: 10px;'
                     theme='primary'
                     text
-                    style='margin-left: 10px;'
                     onClick={() => {
                       subscriptionDetail.value = row.data;
                       isShowEditSideslider.value = true;
@@ -373,10 +373,6 @@ export default defineComponent({
                   {/* 实现方式有问题，看看有没有其它的实现方式 */}
                   <div>
                     <Popover
-                      trigger='click'
-                      theme='light'
-                      isShow={toggleMap[row.index] || false}
-                      placement='bottom-start'
                       extCls='email-subscription-popover'
                       v-slots={{
                         content: () => (
@@ -413,29 +409,33 @@ export default defineComponent({
                                       .catch(() => {
                                         return false;
                                       });
-                                  }
+                                  },
                                 });
                               }}
                             >
                               {t('删除')}
                             </div>
                           </div>
-                        )
+                        ),
                       }}
+                      isShow={toggleMap[row.index] || false}
+                      placement='bottom-start'
+                      theme='light'
+                      trigger='click'
                     >
                       <i
-                        class='more-btn icon-monitor icon-mc-more'
                         style='margin-left: 10px;'
+                        class='more-btn icon-monitor icon-mc-more'
                         onClick={() => (toggleMap[row.index] = true)}
                       />
                     </Popover>
                   </div>
                 </div>
               );
-            }
-          }
+            },
+          },
         ],
-        limit: 0
+        limit: 0,
       },
       settings: {
         fields: [],
@@ -443,14 +443,14 @@ export default defineComponent({
         limit: 0,
         size: 'small',
         sizeList: [],
-        showLineHeight: false
-      }
+        showLineHeight: false,
+      },
     });
     // 根据 table 字段生成对应的字段显隐 setting
     table.settings.fields = table.columns.fields.map(item => {
       return {
         label: item.label,
-        field: item.field
+        field: item.field,
       };
     });
     table.settings.checked = table.columns.fields
@@ -480,7 +480,7 @@ export default defineComponent({
                   {t(`${data.content_title}`)}
                 </Button>
               );
-            }
+            },
           },
           {
             label: `${t('通知渠道')}`,
@@ -492,24 +492,24 @@ export default defineComponent({
                 .toString();
               return (
                 <Popover
+                  v-slots={{
+                    content,
+                  }}
                   maxWidth='300'
                   placement='top'
                   popoverDelay={[300, 0]}
-                  v-slots={{
-                    content
-                  }}
                 >
                   <div>{content}</div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('订阅场景')}`,
             field: 'scenario',
             render: ({ data }) => {
               return <div>{t(Scenario[data.scenario])}</div>;
-            }
+            },
           },
           {
             label: `${t('发送模式')}`,
@@ -521,15 +521,15 @@ export default defineComponent({
               list: [
                 {
                   text: t('周期发送'),
-                  value: 'periodic'
+                  value: 'periodic',
                 },
                 {
                   text: t('仅发一次'),
-                  value: 'one_time'
-                }
+                  value: 'one_time',
+                },
               ],
-              filterFn: () => true
-            }
+              filterFn: () => true,
+            },
           },
           {
             label: `${t('发送时间')}`,
@@ -541,17 +541,17 @@ export default defineComponent({
                   : getSendFrequencyText(data);
               return (
                 <Popover
+                  v-slots={{
+                    content,
+                  }}
                   maxWidth='300'
                   placement='top'
                   popoverDelay={[300, 0]}
-                  v-slots={{
-                    content
-                  }}
                 >
                   <div>{content}</div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('审批状态')}`,
@@ -560,20 +560,20 @@ export default defineComponent({
               return (
                 <div>
                   <i
-                    class={['icon-circle', data.status]}
                     style='margin-right: 10px;'
-                  ></i>
+                    class={['icon-circle', data.status]}
+                  />
                   {ApplyStatus[data.status]}
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('创建人')}`,
             field: 'create_user',
             render: ({ data }) => {
               return <div>{data.create_user}</div>;
-            }
+            },
           },
           {
             label: `${t('操作')}`,
@@ -593,10 +593,10 @@ export default defineComponent({
                   </Button>
                 </div>
               );
-            }
-          }
+            },
+          },
         ],
-        limit: 0
+        limit: 0,
       },
       settings: {
         fields: [],
@@ -604,14 +604,14 @@ export default defineComponent({
         limit: 0,
         size: 'small',
         sizeList: [],
-        showLineHeight: false
-      }
+        showLineHeight: false,
+      },
     });
     // 根据 tableForSelf 字段生成对应的字段显隐 setting
     tableForSelf.settings.fields = tableForSelf.columns.fields.map(item => {
       return {
         label: item.label,
-        field: item.field
+        field: item.field,
       };
     });
     tableForSelf.settings.checked = tableForSelf.columns.fields.map(item => item.field);
@@ -628,13 +628,13 @@ export default defineComponent({
             field: 'send_time',
             render: ({ data }) => {
               return <div>{dayjs(data.send_time).format('YYYY-MM-DD HH:mm:ss')}</div>;
-            }
+            },
           },
           {
             label: `${t('类型')}`,
             render: ({ data }) => {
               return t(ChannelName[data.channel_name]);
-            }
+            },
           },
           {
             label: `${t('接收人')}`,
@@ -642,19 +642,19 @@ export default defineComponent({
               const content = data.send_results.map(item => item.id).toString();
               return (
                 <Popover
-                  maxWidth='300'
-                  placement='top'
-                  popoverDelay={[300, 0]}
                   v-slots={{
                     content: () => {
                       return <span style='word-break: break-word;'>{content}</span>;
-                    }
+                    },
                   }}
+                  maxWidth='300'
+                  placement='top'
+                  popoverDelay={[300, 0]}
                 >
                   <div style='overflow: hidden;text-overflow: ellipsis;white-space: nowrap;'>{content}</div>
                 </Popover>
               );
-            }
+            },
           },
           {
             label: `${t('发送结果')}`,
@@ -666,30 +666,25 @@ export default defineComponent({
                     <span style='margin-left: 10px;'>{t(SendStatus[data.send_status])}</span>
                   ) : (
                     <span
+                      style='margin-left: 10px;'
                       v-bk-tooltips={{
                         content: data.send_results.find(item => !item.result)?.message,
-                        placement: 'top'
+                        placement: 'top',
                       }}
-                      style='margin-left: 10px;'
                     >
                       {t(SendStatus[data.send_status])}
                     </span>
                   )}
                 </div>
               );
-            }
+            },
           },
           {
             label: `${t('操作')}`,
             render: ({ data, index }) => {
               return (
                 <Popover
-                  trigger='click'
-                  isShow={toggleMapForSendRecord[index] || false}
-                  theme='light'
-                  placement='bottom-start'
                   extCls='email-subscription-popover'
-                  disableOutsideClick
                   // zIndex={99999 + index}
                   v-slots={{
                     content: () => {
@@ -699,26 +694,26 @@ export default defineComponent({
                         const headerTextMap = {
                           user: '已成功发送 {0} 个内部用户',
                           email: '已成功发送 {0} 个外部邮件',
-                          wxbot: '已成功发送 {0} 个企业微信群'
+                          wxbot: '已成功发送 {0} 个企业微信群',
                         };
                         headerText = headerTextMap[data.channel_name];
                         const headerConfirmTextMap = {
                           user: '确定重新发送给以下用户',
                           email: '确定重新发送给以下邮件',
-                          wxbot: '确定重新发送给以下企业微信群'
+                          wxbot: '确定重新发送给以下企业微信群',
                         };
                         headerConfirmText = headerConfirmTextMap[data.channel_name];
                       } else if (['partial_failed', 'failed'].includes(data.send_status)) {
                         const headerTextMap = {
                           user: '已成功发送 {0} 个，失败 {1} 个内部用户',
                           email: '已成功发送 {0} 个，失败 {1} 个外部邮件',
-                          wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信群'
+                          wxbot: '已成功发送 {0} 个，失败 {1} 个企业微信群',
                         };
                         headerText = headerTextMap[data.channel_name];
                         const headerConfirmTextMap = {
                           user: '确定重新发送给以下失败用户',
                           email: '确定重新发送给以下失败邮件',
-                          wxbot: '确定重新发送给以下失败企业微信群'
+                          wxbot: '确定重新发送给以下失败企业微信群',
                         };
                         headerConfirmText = headerConfirmTextMap[data.channel_name];
                       }
@@ -761,23 +756,23 @@ export default defineComponent({
                           <div style='margin-top: 10px;'>
                             <TagInput
                               v-model={data.selectedTag}
+                              content-width={238}
+                              display-key='id'
                               list={data.tempSendResult}
                               placeholder={t('请选择')}
-                              has-delete-icon
-                              trigger='focus'
-                              display-key='id'
                               save-key='id'
                               search-key={['id']}
-                              content-width={238}
-                            ></TagInput>
+                              trigger='focus'
+                              has-delete-icon
+                            />
                           </div>
 
                           <div class='footer-operation'>
                             <Button
-                              theme='primary'
                               style='min-width: 64px;'
-                              loading={isResending.value}
                               disabled={!data.selectedTag.length}
+                              loading={isResending.value}
+                              theme='primary'
                               onClick={() => {
                                 handleResendSubscription(data, index);
                               }}
@@ -796,20 +791,24 @@ export default defineComponent({
                           </div>
                         </div>
                       );
-                    }
+                    },
                   }}
+                  isShow={toggleMapForSendRecord[index] || false}
+                  placement='bottom-start'
+                  theme='light'
+                  trigger='click'
+                  disableOutsideClick
                 >
                   <Button
-                    text
                     theme='primary'
+                    text
                     onClick={() => {
                       toggleMapForSendRecord[index] = true;
                       // 每次重新发送都会重置一次 tag 列表。不知道是否实用。
                       sendRecordTable.data.forEach(item => {
-                        // eslint-disable-next-line no-param-reassign
                         item.tempSendResult = deepClone(item.send_results);
                         // 这里将展示 TagInput 用的保存变量。
-                        // eslint-disable-next-line no-param-reassign
+
                         item.selectedTag = [];
                         // 需要根据发送结果去对 selectedTag 里的内容进行预先填充。
                         item.send_results.forEach(subItem => {
@@ -827,11 +826,11 @@ export default defineComponent({
                   </Button>
                 </Popover>
               );
-            }
-          }
-        ]
+            },
+          },
+        ],
       },
-      isLoading: false
+      isLoading: false,
     });
 
     // 显隐 订阅详情 抽屉组件
@@ -860,7 +859,7 @@ export default defineComponent({
 
     function handleGoToCreateConfigPage() {
       router.push({
-        name: 'create-report'
+        name: 'create-report',
       });
     }
 
@@ -870,7 +869,7 @@ export default defineComponent({
 
     async function handleDeleteRow(report_id) {
       await deleteReport({
-        report_id
+        report_id,
       }).then(() => {
         fetchSubscriptionList();
       });
@@ -889,11 +888,11 @@ export default defineComponent({
               {
                 id: window.user_name || window.username,
                 type: 'user',
-                is_enabled: true
-              }
+                is_enabled: true,
+              },
             ],
-            channel_name: 'user'
-          }
+            channel_name: 'user',
+          },
         ];
         clonedFormData.channels = selfChannels;
       }
@@ -940,7 +939,7 @@ export default defineComponent({
         page: page.value,
         page_size: pageSize.value,
         order: order.value,
-        conditions: conditions.value
+        conditions: conditions.value,
       })
         .then(response => {
           table.data = response.report_list;
@@ -956,7 +955,6 @@ export default defineComponent({
       createOrUpdateReport(data)
         .then(() => {})
         .catch(() => {
-          // eslint-disable-next-line no-param-reassign
           data.is_enabled = !data.is_enabled;
         });
     }
@@ -964,7 +962,7 @@ export default defineComponent({
     function getSendingRecordList() {
       sendRecordTable.isLoading = true;
       getSendRecords({
-        report_id: subscriptionDetail.value.id
+        report_id: subscriptionDetail.value.id,
       })
         .then(response => {
           sendRecordTable.data = response;
@@ -992,22 +990,21 @@ export default defineComponent({
               return data.selectedTag.includes(item.id);
             })
             .map(item => {
-              // eslint-disable-next-line no-param-reassign
               delete item.result;
-              // eslint-disable-next-line no-param-reassign
+
               item.is_enabled = true;
               return item;
-            })
-        }
+            }),
+        },
       ];
       sendReport({
         report_id: data.report_id,
-        channels
+        channels,
       })
         .then(() => {
           Message({
             theme: 'success',
-            message: t('发送成功')
+            message: t('发送成功'),
           });
         })
         .finally(() => {
@@ -1025,11 +1022,11 @@ export default defineComponent({
             {
               id: window.user_name || window.username,
               type: 'user',
-              is_enabled: true
-            }
+              is_enabled: true,
+            },
           ],
-          channel_name: 'user'
-        }
+          channel_name: 'user',
+        },
       ];
       const clonedFormData = deepClone(subscriptionDetail.value);
       clonedFormData.channels = selfChannels;
@@ -1067,7 +1064,7 @@ export default defineComponent({
     function handleReportDetailChange(reportId) {
       isFetchReport.value = true;
       getReport({
-        report_id: reportId
+        report_id: reportId,
       })
         .then(response => {
           subscriptionDetail.value = response;
@@ -1092,7 +1089,7 @@ export default defineComponent({
       isShowEditSideslider.value = true;
       isFetchReport.value = true;
       getReport({
-        report_id: reportId
+        report_id: reportId,
       })
         .then(response => {
           subscriptionDetail.value = response;
@@ -1108,7 +1105,7 @@ export default defineComponent({
           isShowCreateReportFormComponent.value = true;
           // 只需要打开一次 slider 即可。把 url 参数清空，避免刷新页面时还会出现 slider 。
           router.replace({
-            name: 'report'
+            name: 'report',
           });
         });
     }
@@ -1130,7 +1127,7 @@ export default defineComponent({
       getApplyRecords({
         query_type: 'biz',
         // 选择 全部 时则不传
-        status: queryTypeForSelf.value === 'all' ? undefined : queryTypeForSelf.value
+        status: queryTypeForSelf.value === 'all' ? undefined : queryTypeForSelf.value,
       })
         .then(res => {
           tableForSelf.data = res;
@@ -1143,7 +1140,7 @@ export default defineComponent({
     function fetchReportDetail(report_id) {
       isFetchReport.value = true;
       getReport({
-        report_id
+        report_id,
       })
         .then(response => {
           subscriptionDetail.value = response;
@@ -1164,7 +1161,7 @@ export default defineComponent({
 
     const filterConfig = reactive({
       key: '',
-      value: []
+      value: [],
     });
 
     const computedTableDataForSelf = computed(() => {
@@ -1233,7 +1230,7 @@ export default defineComponent({
       isSelfMode,
       computedTableDataForSelf,
       filterConfig,
-      isShowHeaderNav
+      isShowHeaderNav,
     };
   },
   render() {
@@ -1248,12 +1245,12 @@ export default defineComponent({
                 this.isShowCreateSubscription = true;
               }}
             >
-              <i class='icon-monitor icon-mc-add'></i>
+              <i class='icon-monitor icon-mc-add' />
               <span>{this.t('新建')}</span>
             </Button>
             <Radio.Group
-              v-model={this.createType}
               style='margin-left: 16px;background-color: white;'
+              v-model={this.createType}
               onChange={() => {
                 if (this.isManagerOrUser) {
                   this.resetAndGetSubscriptionList();
@@ -1279,15 +1276,15 @@ export default defineComponent({
                 <Radio.Button label='all'>{this.t('全部')}</Radio.Button>
                 <Radio.Button label='available'>
                   <i
-                    class='icon-circle success'
                     style='margin-right: 4px;'
+                    class='icon-circle success'
                   />
                   <span>{this.t('生效中')}</span>
                 </Radio.Button>
                 <Radio.Button label='invalid'>
                   <i
-                    class='icon-circle gray'
                     style='margin-right: 4px;'
+                    class='icon-circle gray'
                   />
                   <span>{this.t('已失效')}</span>
                 </Radio.Button>
@@ -1316,20 +1313,20 @@ export default defineComponent({
               </Radio.Group>
             )}
             <Input
-              v-model={this.searchKey}
-              clearable
               class='search-input'
-              onEnter={this.handleInputKeydown}
-              onClear={this.handleInputKeydown}
-              onBlur={this.handleInputKeydown}
-              placeholder={this.t('请输入搜索条件')}
+              v-model={this.searchKey}
               v-slots={{
                 suffix: () => (
                   <div class='suffix-icon'>
-                    <i class='icon-monitor icon-mc-search'></i>
+                    <i class='icon-monitor icon-mc-search' />
                   </div>
-                )
+                ),
               }}
+              placeholder={this.t('请输入搜索条件')}
+              clearable
+              onBlur={this.handleInputKeydown}
+              onClear={this.handleInputKeydown}
+              onEnter={this.handleInputKeydown}
             />
           </div>
         </div>
@@ -1339,22 +1336,17 @@ export default defineComponent({
       <div>
         {this.isShowHeaderNav && (
           <NavBar
-            routeList={this.navList}
             class='report-nav'
-          ></NavBar>
+            routeList={this.navList}
+          />
         )}
         <div class={['email-subscription-config-container', { 'as-iframe': !this.isShowHeaderNav }]}>
           {/* 头部搜索 部分 */}
           {headerTmpl()}
           <Loading loading={this.isTableLoading}>
             <Table
-              v-show={this.isManagerOrUser}
-              data={this.table.data}
-              columns={this.table.columns.fields as Column[]}
-              border={['outer']}
-              settings={this.table.settings}
               style='margin-top: 16px;background-color: white;'
-              remote-pagination
+              v-show={this.isManagerOrUser}
               pagination={{
                 current: this.page,
                 limit: this.pageSize,
@@ -1367,8 +1359,13 @@ export default defineComponent({
                   this.page = 1;
                   this.pageSize = limit;
                   this.fetchSubscriptionList();
-                }
+                },
               }}
+              border={['outer']}
+              columns={this.table.columns.fields as Column[]}
+              data={this.table.data}
+              settings={this.table.settings}
+              remote-pagination
               onColumnFilter={({ checked, column }) => {
                 let currentIndex = -1;
                 const result = this.conditions.filter((item, index) => {
@@ -1388,7 +1385,7 @@ export default defineComponent({
                   if (checked.length) {
                     this.conditions.push({
                       key: column.field,
-                      value: checked
+                      value: checked,
                     });
                   }
                 }
@@ -1406,15 +1403,15 @@ export default defineComponent({
               onSettingChange={({ checked }) => {
                 window.localStorage.setItem(keyOfTableSettingInLocalStorage, JSON.stringify(checked));
               }}
-            ></Table>
+            />
 
             <Table
-              v-show={this.createType === 'self'}
-              data={this.computedTableDataForSelf}
-              columns={this.tableForSelf.columns.fields as Column[]}
-              border={['outer']}
-              settings={this.tableForSelf.settings}
               style='margin-top: 16px;background-color: white;'
+              v-show={this.createType === 'self'}
+              border={['outer']}
+              columns={this.tableForSelf.columns.fields as Column[]}
+              data={this.computedTableDataForSelf}
+              settings={this.tableForSelf.settings}
               onColumnFilter={({ checked, column }) => {
                 if (!checked.length) {
                   this.filterConfig.key = '';
@@ -1428,13 +1425,13 @@ export default defineComponent({
               onSettingChange={({ checked }) => {
                 window.localStorage.setItem(keyOfTableForSelfSettingInLocalStorage, JSON.stringify(checked));
               }}
-            ></Table>
+            />
           </Loading>
           <Dialog
+            width='960'
+            dialog-type='show'
             is-show={this.isShowSendRecord}
             title={this.t('发送记录')}
-            dialog-type='show'
-            width='960'
             onClosed={() => {
               this.isShowSendRecord = false;
               Object.keys(this.toggleMapForSendRecord).forEach(key => {
@@ -1448,8 +1445,8 @@ export default defineComponent({
                   <div class='label-container'>
                     <div class='label'>{this.t('发送频率')}:</div>
                     <div
-                      class='value'
                       style='max-width: 200px;white-space: normal;word-break: break-all;'
+                      class='value'
                     >
                       {this.getSendFrequencyText(this.subscriptionDetail)}
                     </div>
@@ -1462,8 +1459,8 @@ export default defineComponent({
                   {this.subscriptionDetail.frequency.type !== FrequencyType.onlyOnce && (
                     <div class='label-container'>
                       <div
-                        class='label'
                         style='margin-left: 55px;'
+                        class='label'
                       >
                         {this.t('任务有效期')}:
                       </div>
@@ -1475,11 +1472,11 @@ export default defineComponent({
                 </div>
                 <div>
                   <Button
-                    text
-                    theme='primary'
-                    disabled={this.sendRecordTable.isLoading}
-                    onClick={this.getSendingRecordList}
                     style='font-size: 12px;'
+                    disabled={this.sendRecordTable.isLoading}
+                    theme='primary'
+                    text
+                    onClick={this.getSendingRecordList}
                   >
                     {this.t('刷新')}
                   </Button>
@@ -1488,21 +1485,21 @@ export default defineComponent({
 
               <Loading loading={this.sendRecordTable.isLoading}>
                 <Table
-                  data={this.sendRecordTable.data}
-                  columns={this.sendRecordTable.columns.fields as Column[]}
-                  height={400}
-                  virtual-enabled
                   style='margin-top: 16px;'
+                  height={400}
+                  columns={this.sendRecordTable.columns.fields as Column[]}
+                  data={this.sendRecordTable.data}
+                  virtual-enabled
                 />
               </Loading>
             </div>
           </Dialog>
 
           <Sideslider
-            v-model={[this.isShowCreateSubscription, 'isShow']}
-            title={this.t('新建订阅')}
             width={960}
             ext-cls='edit-subscription-sideslider-container'
+            v-model={[this.isShowCreateSubscription, 'isShow']}
+            title={this.t('新建订阅')}
             transfer
           >
             <CreateSubscription
@@ -1513,18 +1510,14 @@ export default defineComponent({
                 this.fetchSubscriptionList();
                 this.isShowCreateSubscription = false;
               }}
-            ></CreateSubscription>
+            />
           </Sideslider>
 
           <Sideslider
-            v-model={[this.isShowSubscriptionDetailSideslider, 'isShow']}
             // 根据显示内容要动态调整。
             width={640}
             ext-cls='detail-subscription-sideslider-container'
-            transfer
-            onHidden={() => {
-              this.isSelfMode = false;
-            }}
+            v-model={[this.isShowSubscriptionDetailSideslider, 'isShow']}
             v-slots={{
               header: () => {
                 return (
@@ -1532,19 +1525,19 @@ export default defineComponent({
                     <div class='title-container'>
                       <span class='title'>{this.t('订阅详情')}</span>
                       <Popover
-                        maxWidth='300'
-                        placement='bottom'
                         v-slots={{
                           content: () => {
                             return <span>{this.subscriptionDetail.name}</span>;
-                          }
+                          },
                         }}
+                        maxWidth='300'
+                        placement='bottom'
                       >
                         <span
-                          class='sub-title'
                           style={{
-                            maxWidth: currentLang === 'en' ? '180px' : '250px'
+                            maxWidth: currentLang === 'en' ? '180px' : '250px',
                           }}
+                          class='sub-title'
                         >
                           -&nbsp;{this.subscriptionDetail.name}
                         </span>
@@ -1569,16 +1562,16 @@ export default defineComponent({
                                   .catch(() => {
                                     return false;
                                   });
-                              }
+                              },
                             });
                           }}
                         >
                           {this.t('发送给自己')}
                         </Button>
                         <Button
-                          outline
-                          theme='primary'
                           style='margin-right: 8px;'
+                          theme='primary'
+                          outline
                           onClick={() => {
                             this.isShowEditSideslider = true;
                           }}
@@ -1587,7 +1580,6 @@ export default defineComponent({
                         </Button>
 
                         <Popover
-                          placement='bottom-end'
                           v-slots={{
                             content: () => {
                               return (
@@ -1602,11 +1594,12 @@ export default defineComponent({
                                   )}`}</div>
                                 </div>
                               );
-                            }
+                            },
                           }}
+                          placement='bottom-end'
                         >
                           <Button style='margin-right: 24px;'>
-                            <i class='icon-monitor icon-lishi'></i>
+                            <i class='icon-monitor icon-lishi' />
                           </Button>
                         </Popover>
                       </div>
@@ -1618,20 +1611,24 @@ export default defineComponent({
                 return (
                   <div>
                     <SubscriptionDetail
-                      detailInfo={this.subscriptionDetail}
                       style='padding: 20px 40px;'
-                    ></SubscriptionDetail>
+                      detailInfo={this.subscriptionDetail}
+                    />
                   </div>
                 );
-              }
+              },
             }}
-          ></Sideslider>
+            transfer
+            onHidden={() => {
+              this.isSelfMode = false;
+            }}
+          />
 
           <Sideslider
-            v-model={[this.isShowEditSideslider, 'isShow']}
-            title={this.t('编辑')}
             width={960}
             ext-cls='edit-subscription-sideslider-container'
+            v-model={[this.isShowEditSideslider, 'isShow']}
+            title={this.t('编辑')}
             transfer
             onHidden={() => {
               this.isShowDropdownMenu = false;
@@ -1651,17 +1648,17 @@ export default defineComponent({
                   {this.isShowCreateReportFormComponent && (
                     <CreateSubscriptionForm
                       ref='refOfCreateSubscriptionForm'
-                      mode='edit'
                       detailInfo={this.subscriptionDetail}
+                      mode='edit'
                       onSelectExistedReport={this.handleReportDetailChange}
-                    ></CreateSubscriptionForm>
+                    />
                   )}
                 </div>
 
                 <div class='footer-bar'>
                   <Button
-                    theme='primary'
                     style='width: 88px;margin-right: 8px;'
+                    theme='primary'
                     onClick={() => {
                       this.refOfCreateSubscriptionForm.validateAllForms().then(response => {
                         if (isOnCloneMode) {
@@ -1671,7 +1668,7 @@ export default defineComponent({
                         createOrUpdateReport(response).then(() => {
                           Message({
                             theme: 'success',
-                            message: this.t('保存成功')
+                            message: this.t('保存成功'),
                           });
                           this.fetchSubscriptionList();
                           this.isShowEditSideslider = false;
@@ -1682,9 +1679,6 @@ export default defineComponent({
                     {this.t('保存')}
                   </Button>
                   <Dropdown
-                    isShow={this.isShowDropdownMenu}
-                    trigger='manual'
-                    placement='top-start'
                     v-slots={{
                       content: () => {
                         return (
@@ -1697,14 +1691,17 @@ export default defineComponent({
                             </Dropdown.DropdownItem>
                           </Dropdown.DropdownMenu>
                         );
-                      }
+                      },
                     }}
+                    isShow={this.isShowDropdownMenu}
+                    placement='top-start'
+                    trigger='manual'
                   >
                     <Button
+                      style='width: 88px;margin-right: 8px;'
+                      loading={this.isSending}
                       theme='primary'
                       outline
-                      loading={this.isSending}
-                      style='width: 88px;margin-right: 8px;'
                       onClick={() => {
                         this.isShowDropdownMenu = !this.isShowDropdownMenu;
                       }}
@@ -1725,9 +1722,9 @@ export default defineComponent({
             </Loading>
           </Sideslider>
 
-          <TestSendSuccessDialog v-model={this.isShowTestSendResult}></TestSendSuccessDialog>
+          <TestSendSuccessDialog v-model={this.isShowTestSendResult} />
         </div>
       </div>
     );
-  }
+  },
 });

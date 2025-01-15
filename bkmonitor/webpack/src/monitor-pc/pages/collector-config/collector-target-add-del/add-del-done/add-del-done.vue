@@ -28,7 +28,9 @@
     <done :options="options">
       <template #text>
         <div class="success-container">
-          <i18n :path="`对该配置${textMap[type]},成功{0}${data.target_object_type === 'HOST' ? '台主机' : '个实例'},失败{1}${data.target_object_type === 'HOST' ? '台主机' : '个实例'}`">
+          <i18n
+            :path="`对该配置${textMap[type]},成功{0}${data.target_object_type === 'HOST' ? '台主机' : '个实例'},失败{1}${data.target_object_type === 'HOST' ? '台主机' : '个实例'}`"
+          >
             <span class="success-total"> {{ successTotal }} </span>
             <span class="fail-total"> {{ failTotal }} </span>
           </i18n>
@@ -39,7 +41,9 @@
           key="123"
           theme="primary"
           @click="handleGoStrategy"
-        > {{ $t('button-策略配置') }} </bk-button>
+        >
+          {{ $t('button-策略配置') }}
+        </bk-button>
         <!-- <bk-button theme="primary" v-if="false"> {{ $t('视图配置') }} </bk-button> -->
         <bk-button @click="handleClose">
           {{ $t('button-关闭') }}
@@ -54,7 +58,7 @@ import Done from '../../collector-add/config-done/loading-done';
 export default {
   name: 'AddDelDone',
   components: {
-    Done
+    Done,
   },
   props: {
     data: {
@@ -62,26 +66,26 @@ export default {
       default: () => ({
         config_info: {},
         headerData: {},
-        contents: []
-      })
+        contents: [],
+      }),
     },
     config: Object,
     step: {
       type: Number,
-      default: 2
+      default: 2,
     },
     type: {
       type: String,
-      default: 'ADD_DEL'
+      default: 'ADD_DEL',
     },
     hosts: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     diffData: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -89,16 +93,16 @@ export default {
         loading: false,
         status: true,
         title: this.$t('操作完成'),
-        text: ''
+        text: '',
       },
       textMap: {
         ROLLBACK: '增/删目标',
         ADD_DEL: '增/删目标',
-        EDIT: '编辑'
+        EDIT: '编辑',
       },
       isCloseOut: false,
       successTotal: 0,
-      failTotal: 0
+      failTotal: 0,
     };
   },
   created() {
@@ -108,7 +112,7 @@ export default {
   methods: {
     handleClose() {
       this.$router.push({
-        name: 'collect-config'
+        name: 'collect-config',
       });
     },
     handleGoStrategy() {
@@ -117,12 +121,12 @@ export default {
         params: {
           baseInfo: {
             scenario: this.config.params.label,
-            name: this.config.params.name
-          }
-        }
+            name: this.config.params.name,
+          },
+        },
       });
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

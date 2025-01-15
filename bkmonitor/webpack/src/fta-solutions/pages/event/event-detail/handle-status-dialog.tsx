@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { subActionDetail } from 'monitor-api/modules/alert';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
@@ -39,6 +40,7 @@ interface IHandleStatusDialog {
   value?: boolean;
   actions?: any[];
   alertId?: string;
+  total?: number;
 }
 interface IEvent {
   onShowChange?: boolean;
@@ -50,20 +52,21 @@ export type TType = 'eventDetail' | 'handleDetail';
 @Component
 export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent> {
   @Prop({ type: Array, default: () => [] }) actions: any[];
+  @Prop({ type: Number, default: 0 }) total: number;
 
   @Model('show-change', { type: Boolean }) readonly value;
 
   localActions: any[] = []; // 告警列表
   actionStatusMap = {
     success: window.i18n.t('成功'),
-    failure: window.i18n.t('失败')
+    failure: window.i18n.t('失败'),
   };
   curHandleData = {
     operator: [],
     type: '',
     check: '',
     operateTargetString: '',
-    statusTip: ''
+    statusTip: '',
   };
   loading = false;
   checkedCount = 0; // 当前选中的
@@ -72,18 +75,16 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
     // 通知类型表格数据
     tableData: [],
     tableColumns: [],
-    hasColumns: []
+    hasColumns: [],
   };
 
   get list() {
-    return this.localActions
-      .map((item, index) => ({
-        id: item.id,
-        name: `${this.$t('第 {n} 次', { n: index + 1 })}（${dayjs
-          .tz(item.create_time * 1000)
-          .format('YYYY-MM-DD HH:mm:ss')}）`
-      }))
-      .reverse();
+    return this.localActions.map((item, index) => ({
+      id: item.id,
+      name: `${this.$t('第 {n} 次', { n: this.total - index })}（${dayjs
+        .tz(item.create_time * 1000)
+        .format('YYYY-MM-DD HH:mm:ss')}）`,
+    }));
   }
 
   // 表格数据
@@ -94,8 +95,8 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
         check: this.curHandleData.check, // 执行状态
         operateTargetString: this.curHandleData.operateTargetString, // 执行对象
         type: this.curHandleData.type, // 套餐类型
-        statusTip: this.curHandleData.statusTip // 失败是展示tips
-      }
+        statusTip: this.curHandleData.statusTip, // 失败是展示tips
+      },
     ];
   }
 
@@ -133,7 +134,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
         .then(res =>
           res.map(item => ({
             label: item.label,
-            prop: item.type
+            prop: item.type,
           }))
         )
         .catch(() => []);
@@ -149,7 +150,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
             const statusData = data?.[key]?.[subKey] || {};
             temp[subKey] = {
               label: statusData?.status_display || '',
-              tip: statusData?.status_tips || ''
+              tip: statusData?.status_tips || '',
             };
           });
           return temp;
@@ -167,7 +168,7 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
       type: temp?.action_plugin.name, // 套餐类型
       check: temp?.status, // 执行状态   operate_target_string
       operateTargetString: temp?.operate_target_string, // 执行对象
-      statusTip: temp?.status_tips || ''
+      statusTip: temp?.status_tips || '',
     };
     if (temp.action_plugin_type === NOTICE) {
       this.getNoticeStatusData(temp.id);
@@ -185,13 +186,13 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
   // table
   getTableComponent() {
     const typeSlot = {
-      default: ({ row }) => row.type
+      default: ({ row }) => row.type,
     };
     const operateTargetStringSlot = {
-      default: ({ row }) => row.operateTargetString
+      default: ({ row }) => row.operateTargetString,
     };
     const operatorSlot = {
-      default: ({ row }) => row.operator?.join(';')
+      default: ({ row }) => row.operator?.join(';'),
     };
     const checkSlot = {
       default: ({ row }) => (
@@ -203,36 +204,36 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
             width: 200,
             allowHtml: false,
             html: false,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
           {this.actionStatusMap[row.check]}
         </span>
-      )
+      ),
     };
     return (
       <bk-table
-        data={this.curTableTable}
         class='table-wrap'
         border={false}
+        data={this.curTableTable}
         outer-border={false}
       >
         <bk-table-column
           label={this.$t('套餐类型')}
           scopedSlots={typeSlot}
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('执行对象')}
           scopedSlots={operateTargetStringSlot}
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('负责人')}
           scopedSlots={operatorSlot}
-        ></bk-table-column>
+        />
         <bk-table-column
           label={this.$t('执行状态')}
           scopedSlots={checkSlot}
-        ></bk-table-column>
+        />
       </bk-table>
     );
   }
@@ -240,12 +241,12 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
   render() {
     return (
       <bk-dialog
-        ext-cls='handle-status-dialog-wrap'
-        value={this.value}
-        mask-close={true}
-        header-position='left'
         width={800}
+        ext-cls='handle-status-dialog-wrap'
+        header-position='left'
+        mask-close={true}
         title={this.$t('处理状态详情')}
+        value={this.value}
         {...{ on: { 'value-change': this.handleClose } }}
       >
         <div
@@ -256,26 +257,26 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
             <div class='handel-label'>{this.$t('处理次数')}</div>
             <bk-select
               class='count-select'
-              clearable={false}
               v-model={this.checkedCount}
+              clearable={false}
               on-selected={v => this.handleSelected(v)}
             >
               {this.list.map((item, index) => (
                 <bk-option
-                  key={index}
                   id={item.id}
+                  key={index}
                   name={item.name}
-                ></bk-option>
+                />
               ))}
             </bk-select>
           </div>
           <div class='handle-label mb16'>{this.$t('处理明细')}</div>
           {this.isNotice ? (
             <NoticeStatusTable
-              tableData={this.noticeData.tableData}
-              tableColumns={this.noticeData.tableColumns}
               hasColumns={this.noticeData.hasColumns}
-            ></NoticeStatusTable>
+              tableColumns={this.noticeData.tableColumns}
+              tableData={this.noticeData.tableData}
+            />
           ) : (
             this.getTableComponent()
           )}

@@ -14,7 +14,7 @@ import logging
 import re
 import time
 from itertools import chain
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import arrow
 from django.conf import settings
@@ -29,6 +29,7 @@ from bkmonitor.data_source.unify_query.functions import (
     CpAggMethods,
     add_expression_functions,
 )
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.data_source import GrayUnifyQueryDataSources, UnifyQueryDataSources
 from core.drf_resource import api
@@ -101,6 +102,25 @@ class UnifyQuery:
         return list(dimensions)
 
     @classmethod
+    def process_time_range(cls, start_time: Optional[int], end_time: Optional[int]) -> Tuple[int, int]:
+        if not start_time or not end_time:
+            end_time = int(time.time()) * 1000
+            start_time = end_time - 60 * 60 * 1000
+        return start_time, end_time
+
+    @classmethod
+    def process_data_sources(cls, data_sources: List[DataSource]):
+        # 补充特殊网络和磁盘维度过滤
+        for data_source in data_sources:
+            if data_source._is_system_disk():
+                data_source.filter_dict[
+                    f"{settings.FILE_SYSTEM_TYPE_FIELD_NAME}__neq"
+                ] = settings.FILE_SYSTEM_TYPE_IGNORE
+            elif data_source._is_system_net():
+                value = [condition["sql_statement"] for condition in settings.ETH_FILTER_CONDITION_LIST]
+                data_source.filter_dict[f"{settings.SYSTEM_NET_GROUP_FIELD_NAME}__neq"] = value
+
+    @classmethod
     def process_unify_query_data(cls, params: Dict, data: Dict, end_time: int = None):
         """
         处理统一查询模块返回值
@@ -109,7 +129,7 @@ class UnifyQuery:
 
         records = []
 
-        rows = data["series"] or []
+        rows = data.get("series") or []
         for row in rows:
             dimensions = {}
             if not row["group_keys"]:
@@ -140,11 +160,36 @@ class UnifyQuery:
                     record["_result_"] = record[params["query_list"][0]["reference_name"]]
 
                 # 如果是最后一条数据，且时间戳等于结束时间，不返回
-                if end_time and record.get("_time_") == end_time:
+                if not params.get("instant") and end_time and record.get("_time_") == end_time:
                     continue
 
                 records.append(record)
         return records
+
+    def get_observe_labels(self) -> Dict[str, str]:
+
+        result_tables: List[str] = []
+        for data_source in self.data_sources:
+            result_table = str(
+                getattr(data_source, "table", "")
+                or getattr(data_source, "index_set_id", "")
+                or getattr(data_source, "alert_name", "")
+            )
+
+            if not result_table and data_source.metrics:
+                result_table = data_source.metrics[0]["field"]
+            result_tables.append(result_table)
+
+        # 上报数据源查询时间指标
+        result_tables.sort()
+        labels: Dict[str, str] = {
+            "data_source_label": self.data_sources[0].data_source_label,
+            "data_type_label": self.data_sources[0].data_type_label,
+            "role": settings.ROLE,
+            "result_table": "|".join(result_tables),
+        }
+
+        return labels
 
     def use_unify_query(self) -> bool:
         """
@@ -154,30 +199,24 @@ class UnifyQuery:
         if self.data_sources[0].id not in UnifyQueryDataSources + GrayUnifyQueryDataSources:
             return False
 
-        # 灰度切换unify-query判定， 不灰度就全量放开
-        if self.data_sources[0].id in GrayUnifyQueryDataSources:
-            # 先排除特殊查询： aiops策略定义的特殊查询, 搜索关键字： !!! 特殊逻辑 重要提示 !!!
-            # init_by_query_config 逻辑中，metrics列表 正常只有指标(field_name)或者日志关键字(_index)
-            # 当 metrics 有多个时，表示特殊逻辑
-            if len(self.data_sources[0].metrics) > 1:
-                return False
-
-            # 灰度状态： 灰度业务列表不包含0业务
-            grayscale = 0 not in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
-
-            if grayscale:
-                # 灰度数据源基于业务进行灰度
-                return self.bk_biz_id in settings.BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST
-            # 非灰度状态下，使用unify-query
-            return True
-
         # 如果是多指标，必然会走统一查询模块
         if len(self.data_sources) > 1:
+            return True
+
+        # 如果使用表达式，走统一查询模块
+        if len(self.expression.strip()) > 1:
             return True
 
         # 如果使用了查询函数，比如会走统一查询模块
         if self.data_sources[0].functions:
             return True
+
+        # 灰度切换unify-query判定， 不灰度就全量放开
+        if self.data_sources[0].id in GrayUnifyQueryDataSources:
+            # 先排除特殊查询： aiops策略定义的特殊查询, 搜索关键字： !!! 特殊逻辑 重要提示 !!!
+            # init_by_query_config 逻辑中，metrics列表 正常只有指标(field_name)或者日志关键字(_index)
+            # 只有开启灰度的数据源需要定义 using_unify_query 判断
+            return self.data_sources[0].switch_unify_query(self.bk_biz_id)
 
         # 使用特殊函数必须走统一查询模块
         for metric in self.data_sources[0].metrics:
@@ -225,7 +264,7 @@ class UnifyQuery:
 
         # 默认表达式
         if not self.expression:
-            expression = " + ".join([query["reference_name"] for query in query_list])
+            expression = " or ".join([query["reference_name"] for query in query_list])
         else:
             expression = self.expression
 
@@ -253,14 +292,24 @@ class UnifyQuery:
         end_time: int,
         limit: Optional[int] = None,
         slimit: Optional[int] = None,
+        offset: Optional[int] = None,
         down_sample_range: Optional[int] = "",
         time_alignment: bool = True,
+        instant: bool = None,
     ) -> List[Dict]:
         """
         使用统一查询模块进行查询
         """
         params = self.get_unify_query_params(start_time, end_time, time_alignment)
+        if not params["query_list"]:
+            return []
+
         params.update(dict(down_sample_range=down_sample_range, timezone=timezone.get_current_timezone_name()))
+
+        if instant:
+            params["instant"] = instant
+            # 使用 instant 查询时 step 固定为 1m
+            params["step"] = "1m"
 
         logger.info(f"UNIFY_QUERY: {json.dumps(params)}")
 
@@ -271,25 +320,23 @@ class UnifyQuery:
             data = self.process_unify_query_data(params, data, end_time=end_time)
         return data
 
-    def _query_data_source(
+    def _query_data_using_datasource(
         self,
         start_time: int,
         end_time: int,
         limit: Optional[int] = None,
         slimit: Optional[int] = None,
+        offset: Optional[int] = None,
+        **kwargs,
     ) -> List[Dict]:
         """
         使用原始数据源进行查询
         """
 
         all_data = []
-
         for datasource in self.data_sources:
             data = datasource.query_data(
-                start_time=start_time,
-                end_time=end_time,
-                limit=limit,
-                slimit=slimit,
+                start_time=start_time, end_time=end_time, limit=limit, slimit=slimit, offset=offset, **kwargs
             )
             if len(self.data_sources) == 1:
                 # 如果只有一个指标，就直接将 result 字段当前指标，否则不设置
@@ -302,12 +349,38 @@ class UnifyQuery:
 
         return all_data
 
+    def _query_log_using_datasource(
+        self,
+        start_time: int,
+        end_time: int,
+        limit: Optional[int] = settings.SQL_MAX_LIMIT,
+        offset: Optional[int] = None,
+        search_after_key: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        def _query_log(_datasource) -> Tuple[List[Dict[str, Any]], int]:
+            return _datasource.query_log(
+                start_time=start_time, end_time=end_time, limit=limit, offset=offset, search_after_key=search_after_key
+            )
+
+        if len(self.data_sources) <= 1:
+            return _query_log(self.data_sources[0])
+
+        total: int = 0
+        data: List[Dict[str, Any]] = []
+        params_list: List[Tuple] = [(datasource,) for datasource in self.data_sources]
+        for partial_data, partial_total in ThreadPool().map_ignore_exception(_query_log, params_list):
+            total += partial_total
+            data.extend(partial_data)
+
+        return data, total
+
     def query_data(
         self,
         start_time: int = None,
         end_time: int = None,
         limit: Optional[int] = settings.SQL_MAX_LIMIT,
         slimit: Optional[int] = settings.SQL_MAX_LIMIT,
+        offset: Optional[int] = None,
         down_sample_range: Optional[str] = "",
         *args,
         **kwargs,
@@ -315,41 +388,11 @@ class UnifyQuery:
         if not self.data_sources:
             return []
 
-        if not start_time or not end_time:
-            end_time = int(time.time()) * 1000
-            start_time = end_time - 60 * 60 * 1000
-
-        result_tables = []
-        # 补充特殊网络和磁盘维度过滤
-        for data_source in self.data_sources:
-            if data_source._is_system_disk():
-                data_source.filter_dict[
-                    f"{settings.FILE_SYSTEM_TYPE_FIELD_NAME}__neq"
-                ] = settings.FILE_SYSTEM_TYPE_IGNORE
-            elif data_source._is_system_net():
-                value = [condition["sql_statement"] for condition in settings.ETH_FILTER_CONDITION_LIST]
-                data_source.filter_dict[f"{settings.SYSTEM_NET_GROUP_FIELD_NAME}__neq"] = value
-
-            result_table = str(
-                getattr(data_source, "table", "")
-                or getattr(data_source, "index_set_id", "")
-                or getattr(data_source, "alert_name", "")
-            )
-
-            if not result_table and data_source.metrics:
-                result_table = data_source.metrics[0]["field"]
-            result_tables.append(result_table)
-        result_tables.sort()
-
-        # 上报数据源查询时间指标
-        labels = {
-            "data_source_label": self.data_sources[0].data_source_label,
-            "data_type_label": self.data_sources[0].data_type_label,
-            "role": settings.ROLE,
-            "result_table": "|".join(result_tables),
-        }
+        self.process_data_sources(self.data_sources)
 
         exc = None
+        labels: Dict[str, str] = self.get_observe_labels()
+        start_time, end_time = self.process_time_range(start_time, end_time)
 
         # 使用统一查询模块或原始数据源进行查询
         if self.use_unify_query():
@@ -363,6 +406,7 @@ class UnifyQuery:
                         slimit=slimit,
                         down_sample_range=down_sample_range,
                         time_alignment=kwargs.get("time_alignment", True),
+                        instant=kwargs.get("instant"),
                     )
             except Exception as e:
                 exc = e
@@ -370,11 +414,8 @@ class UnifyQuery:
             try:
                 labels["api"] = "query_api"
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    data = self._query_data_source(
-                        start_time=start_time,
-                        end_time=end_time,
-                        limit=limit,
-                        slimit=slimit,
+                    data = self._query_data_using_datasource(
+                        start_time=start_time, end_time=end_time, limit=limit, slimit=slimit, offset=offset, **kwargs
                     )
             except Exception as e:
                 exc = e
@@ -386,6 +427,50 @@ class UnifyQuery:
             raise exc
 
         return data
+
+    def query_log(
+        self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        if not self.data_sources:
+            return [], 0
+
+        exc = None
+        labels: Dict[str, str] = self.get_observe_labels()
+        start_time, end_time = self.process_time_range(start_time, end_time)
+
+        if self.use_unify_query():
+            labels["api"] = "unify_query"
+            try:
+                with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
+                    # TODO 预留 total，后续看怎么处理
+                    total = 0
+                    data = self._query_unify_query(
+                        start_time=start_time,
+                        end_time=end_time,
+                        limit=limit,
+                        offset=offset,
+                        time_alignment=kwargs.get("time_alignment", True),
+                        instant=kwargs.get("instant"),
+                    )
+            except Exception as e:
+                exc = e
+        else:
+            try:
+                labels["api"] = "query_api"
+                with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
+                    data, total = self._query_log_using_datasource(
+                        start_time, end_time, limit, offset, kwargs.get("search_after_key")
+                    )
+            except Exception as e:
+                exc = e
+
+        metrics.DATASOURCE_QUERY_COUNT.labels(**labels, status=metrics.StatusEnum.from_exc(exc), exception=exc).inc()
+        metrics.report_all()
+
+        if exc:
+            raise exc
+
+        return data, total
 
     def query_dimensions(self, dimension_field: Union[List, str], limit, start_time, end_time, *args, **kwargs):
         """

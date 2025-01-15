@@ -41,8 +41,8 @@
     <div class="empty-container">
       <div class="register-dialog">
         <div
-          class="loading"
           v-if="!taskReady.failMsg"
+          class="loading"
         >
           <svg-loading-icon />
         </div>
@@ -51,9 +51,11 @@
             {{ taskReady.msg }}
           </div>
           <div
-            class="wait"
             v-if="!taskReady.failMsg"
-          >{{ $t('等待中') }}</div>
+            class="wait"
+          >
+            {{ $t('等待中') }}
+          </div>
         </div>
       </div>
     </div>
@@ -64,7 +66,6 @@
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 import SvgLoadingIcon from '../../../../components/svg-loading-icon/svg-loading-icon';
-
 import TopHint from './top-hint';
 
 const { i18n } = window;
@@ -72,30 +73,30 @@ export default {
   name: 'TaskReady',
   components: {
     TopHint,
-    SvgLoadingIcon
+    SvgLoadingIcon,
   },
   props: {
     taskReady: {
       type: Object,
       default: {
-        msg: i18n.t('准备中...')
-      }
+        msg: i18n.t('准备中...'),
+      },
     },
     target: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     targetString: {
-      type: String
-    }
+      type: String,
+    },
   },
   data() {
     return {
       targetMessage: {
         title: '',
-        subTitle: ''
+        subTitle: '',
       },
-      tipShow: true
+      tipShow: true,
     };
   },
   watch: {
@@ -106,17 +107,14 @@ export default {
         const textMap = {
           TOPO: '{0}个拓扑节点',
           SERVICE_TEMPLATE: '{0}个服务模板',
-          SET_TEMPLATE: '{0}个集群模板'
+          SET_TEMPLATE: '{0}个集群模板',
         };
         if (target?.length) {
           let len = target.length;
-          if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO']
-            .includes(bkTargetType)) {
+          if (['SERVICE_TEMPLATE', 'SET_TEMPLATE', 'TOPO'].includes(bkTargetType)) {
             const count = target.reduce((list, cur) => {
               const allTargets = cur.allHost || [];
-              return Array.from(new Set([
-                ...list,
-                ...allTargets]));
+              return Array.from(new Set([...list, ...allTargets]));
             }, []).length;
             // 服务模板和集群模板比较特殊，不能直接取target的长度作为数量
             if (['SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(bkTargetType)) {
@@ -137,9 +135,9 @@ export default {
         }
       },
       immediate: true,
-      deep: true
-    }
-  }
+      deep: true,
+    },
+  },
 };
 </script>
 

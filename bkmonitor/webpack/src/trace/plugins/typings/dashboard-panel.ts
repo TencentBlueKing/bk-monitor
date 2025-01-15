@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 import { typeTools } from 'monitor-common/utils/utils';
-import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
-import { TimeSeriesType } from './time-series';
+import type { TimeSeriesType } from './time-series';
+import type { MonitorEchartOptions } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 // 图例呈现模式
-export type LegendDisplayMode = 'table' | 'list' | 'hidden';
+export type LegendDisplayMode = 'hidden' | 'list' | 'table';
 // 图例展示位置
-export type LegendPlacement = 'right' | 'bottom';
+export type LegendPlacement = 'bottom' | 'right';
 // 图例计算配置
-export type LegendCalcs = 'max' | 'min' | 'avg' | 'sum';
+export type LegendCalcs = 'avg' | 'max' | 'min' | 'sum';
 
 // 图例配置
 export interface ILegendOption {
@@ -149,7 +149,7 @@ export interface DataQueryOptions {
   };
 }
 export interface IDataQuery {
-  datasource?: string | null;
+  datasource?: null | string;
   // 查询图表配置
   data: any;
   // 数据api
@@ -167,7 +167,7 @@ export interface IDataQuery {
   /** 根据当前请求接口数据的映射规则生成id */
   handleCreateItemId?: (item: object, isFilterDict?: boolean, fieldsSort?: FieldsSortType) => string;
   /** 根据接口数据提取对应的filter_dict值  */
-  // eslint-disable-next-line max-len
+
   handleCreateFilterDictValue?: (
     item: object,
     isFilterDict?: boolean,
@@ -176,25 +176,25 @@ export interface IDataQuery {
 }
 
 export class DataQuery implements IDataQuery {
-  datasource?: string | null;
-  // 查询图表配置
-  data: any;
-  // 数据api
-  api?: string;
-  // 数据类型 table time_series ...
-  dataType?: string;
   // 别名 用于图例 设置有变量
   alias?: string;
-  // 变量的映射关系
-  fields?: Record<string, string> = {};
-  /** fields的拼接顺序 */
-  fieldsSort?: FieldsSortType = [];
-  fieldsKey?: string = '';
-  field?: Record<string, string> = {};
-  isMultiple?: boolean;
-  options?: DataQueryOptions;
+  // 数据api
+  api?: string;
   /** 目标对比的字段映射 */
   compareFieldsSort?: FieldsSortType = [];
+  // 查询图表配置
+  data: any;
+  datasource?: null | string;
+  // 数据类型 table time_series ...
+  dataType?: string;
+  field?: Record<string, string> = {};
+  // 变量的映射关系
+  fields?: Record<string, string> = {};
+  fieldsKey?: string = '';
+  /** fields的拼接顺序 */
+  fieldsSort?: FieldsSortType = [];
+  isMultiple?: boolean;
+  options?: DataQueryOptions;
   constructor(model: IDataQuery, isMultiple = false) {
     this.isMultiple = isMultiple;
     Object.keys(model || {}).forEach(key => {
@@ -217,11 +217,18 @@ export class DataQuery implements IDataQuery {
       }
     });
   }
+  get apiFunc() {
+    return this.api?.split('.')[1] || '';
+  }
   get apiModule() {
     return this.api?.split('.')[0] || '';
   }
-  get apiFunc() {
-    return this.api?.split('.')[1] || '';
+  /** 生成一个唯一的key */
+  handleCreateFieldsKey(fieldsSort) {
+    return fieldsSort.reduce((total, cur, index) => {
+      const joiner = !index ? '' : '-';
+      return (total = `${total}${joiner}${cur[1]}`);
+    }, '');
   }
   /** 对象生成有序的二维数组 */
   handleCreateFieldsSort(fields: Record<string, string>): FieldsSortType {
@@ -232,15 +239,23 @@ export class DataQuery implements IDataQuery {
       ?.forEach(key => fieldsSort.push([key, fields[key]]));
     return fieldsSort;
   }
-  /** 生成一个唯一的key */
-  handleCreateFieldsKey(fieldsSort) {
-    return fieldsSort.reduce((total, cur, index) => {
-      const joiner = !index ? '' : '-';
-      return (total = `${total}${joiner}${cur[1]}`);
-    }, '');
+  /** 根据接口数据提取对应的filter_dict值 */
+  handleCreateFilterDictValue(data: object, isFilterDict = false, fieldsSort?: FieldsSortType) {
+    const localFieldsSort = fieldsSort || this.fieldsSort;
+    let isExist = true;
+    const result = localFieldsSort.reduce((total, cur) => {
+      const [itemKey, filterDictKey] = cur;
+      let value = data[isFilterDict ? filterDictKey : itemKey];
+      value === undefined && isExist && (isExist = false);
+
+      value = this.isMultiple ? (Array.isArray(value) ? value : [value]) : value;
+      total[filterDictKey] = value;
+      return total;
+    }, {});
+    return isExist ? result : null;
   }
   /** 根据当前请求接口数据的映射规则生成id */
-  handleCreateItemId(item: Object, isFilterDict = false, fieldsSort?: FieldsSortType) {
+  handleCreateItemId(item: object, isFilterDict = false, fieldsSort?: FieldsSortType) {
     const localFieldsSort = fieldsSort || this.fieldsSort;
     let isExist = true;
     const itemIds = [];
@@ -249,26 +264,11 @@ export class DataQuery implements IDataQuery {
       const key = isFilterDict ? filterDictKey : itemKey;
       let value = item[key];
       value === undefined && isExist && (isExist = false);
-      // eslint-disable-next-line no-nested-ternary
+
       value = this.isMultiple ? (Array.isArray(value) ? value : [value]) : value;
       itemIds.push(item[key]);
     });
     return isExist ? itemIds.filter(item => item !== undefined).join('-') : null;
-  }
-  /** 根据接口数据提取对应的filter_dict值 */
-  handleCreateFilterDictValue(data: Object, isFilterDict = false, fieldsSort?: FieldsSortType) {
-    const localFieldsSort = fieldsSort || this.fieldsSort;
-    let isExist = true;
-    const result = localFieldsSort.reduce((total, cur) => {
-      const [itemKey, filterDictKey] = cur;
-      let value = data[isFilterDict ? filterDictKey : itemKey];
-      value === undefined && isExist && (isExist = false);
-      // eslint-disable-next-line no-nested-ternary
-      value = this.isMultiple ? (Array.isArray(value) ? value : [value]) : value;
-      total[filterDictKey] = value;
-      return total;
-    }, {});
-    return isExist ? result : null;
   }
 }
 
@@ -276,7 +276,20 @@ export interface IRatioRingChartOption {
   hideLabel?: boolean; // 是否隐藏圆环中间label
 }
 
-// eslint-disable-next-line max-len
+interface IApmTimeSeriesOption {
+  apm_time_series?: {
+    unit?: string; // 详情单位
+    metric?: string;
+    app_name?: string;
+    service_name?: string;
+    enableSeriesContextmenu?: boolean; // 是否开启series的右键菜单
+    enableContextmenu?: boolean; // 是否开启全局的右键菜单
+    xAxisSplitNumber?: number;
+    disableZoom?: boolean;
+    sceneType?: string;
+  };
+}
+
 // 视图特殊配置
 export type PanelOption = { legend?: ILegendOption } & ISelectorList &
   IDashboardCommon &
@@ -287,10 +300,11 @@ export type PanelOption = { legend?: ILegendOption } & ISelectorList &
   ITableChartOption &
   ITimeSeriesListOption &
   ITimeSeriesForecastOption &
-  IRatioRingChartOption;
+  IRatioRingChartOption &
+  IApmTimeSeriesOption;
 
 export interface IPanelModel {
-  id: string | number;
+  id: number | string;
   // 图表位置
   gridPos?: IGridPos;
   // 图表类型 如 line-chart bar-chart status-chart group
@@ -306,13 +320,13 @@ export interface IPanelModel {
   // 图表配置
   options?: PanelOption;
   // 图表dashboard id
-  dashboardId?: string | number;
+  dashboardId?: number | string;
   // 组内视图列表
   panels?: IPanelModel[];
   // 是否显示
   show?: boolean;
   // 组id
-  groupId?: string | number;
+  groupId?: number | string;
   // 是否实时
   instant?: boolean;
   // 数据步长
@@ -320,38 +334,38 @@ export interface IPanelModel {
 }
 
 export class PanelModel implements IPanelModel {
-  // 图表id
-  id!: string | number;
-  // 图表位置
-  gridPos!: IGridPos;
-  // 图表类型 如 line-chart bar-chart status-chart group
-  type!: string;
-  // 图表title
-  title!: string;
-  subTitle!: string;
-  // 是否折叠
-  collapsed?: boolean = false;
-  // 图表数据源
-  targets: DataQuery[];
-  // 图表配置
-  options?: PanelOption;
-  // dashbordId
-  dashboardId?: string;
   // 是否被勾选
   checked?: boolean = false;
-  // 组id
-  groupId?: string | number;
-  // 是否显示
-  show?: boolean = true;
-  panels?: PanelModel[];
+  // 是否折叠
+  collapsed?: boolean = false;
+  collect_interval: number;
+  // dashbordId
+  dashboardId?: string;
   // 是否正在drag中
   draging = false;
+  // 图表位置
+  gridPos!: IGridPos;
+  // 组id
+  groupId?: number | string;
+  // 图表id
+  id!: number | string;
   // 是否为实时
   instant = false;
+  // 图表配置
+  options?: PanelOption;
+  panels?: PanelModel[];
+  // 是否显示
+  show?: boolean = true;
+  subTitle!: string;
+  // 图表数据源
+  targets: DataQuery[];
+  // 图表title
+  title!: string;
 
-  collect_interval: number;
+  // 图表类型 如 line-chart bar-chart status-chart group
+  type!: string;
 
-  constructor(model: IPanelModel & { panelIds?: (string | number)[] }) {
+  constructor(model: IPanelModel & { panelIds?: (number | string)[] }) {
     this.id = model.id;
     Object.keys(model).forEach(key => {
       if (key === 'targets') {
@@ -364,15 +378,12 @@ export class PanelModel implements IPanelModel {
       this.options = {
         legend: {
           displayMode: 'list',
-          placement: 'bottom'
+          placement: 'bottom',
         },
-        ...this.options
+        ...this.options,
       };
     }
     this.updateGridPos(model.gridPos);
-  }
-  get canSetGrafana() {
-    return ['graph'].includes(this.type);
   }
   get canDrag() {
     // return !(['row'].includes(this.type) && this.collapsed);
@@ -384,6 +395,19 @@ export class PanelModel implements IPanelModel {
     // 当期需求默认配置视图不可resize
     return false;
   }
+  get canSetGrafana() {
+    return ['graph'].includes(this.type);
+  }
+  public updateChecked(v: boolean) {
+    this.checked = v;
+  }
+  public updateCollapsed(v: boolean) {
+    this.collapsed = v;
+    this.panels?.length && this.panels.forEach(item => item.updateShow(v));
+  }
+  public updateDraging(v: boolean) {
+    this.draging = v;
+  }
   public updateGridPos(v: IGridPos) {
     this.gridPos = {
       ...v,
@@ -394,21 +418,11 @@ export class PanelModel implements IPanelModel {
       i: this.id,
       static: !(this.canDrag && this.canResize),
       isDraggable: this.canDrag,
-      isResizable: this.canResize
+      isResizable: this.canResize,
     };
-  }
-  public updateChecked(v: boolean) {
-    this.checked = v;
-  }
-  public updateCollapsed(v: boolean) {
-    this.collapsed = v;
-    this.panels?.length && this.panels.forEach(item => item.updateShow(v));
   }
   public updateShow(v: boolean) {
     this.show = v;
-  }
-  public updateDraging(v: boolean) {
-    this.draging = v;
   }
 }
 
@@ -431,15 +445,15 @@ export interface IVariableModel {
 }
 /** 变量数据类 */
 export class VariableModel implements IVariableModel {
-  type = '';
-  title = '';
-  targets: DataQuery[] = [];
-  options: IVariablesOption = {};
-  fieldsKey = '';
-  fieldsSort: FieldsSortType = [];
-  value: Record<string, any> = {};
   checked = true;
   fields: Record<string, any> = {};
+  fieldsKey = '';
+  fieldsSort: FieldsSortType = [];
+  options: IVariablesOption = {};
+  targets: DataQuery[] = [];
+  title = '';
+  type = '';
+  value: Record<string, any> = {};
   constructor(model) {
     Object.keys(model || {}).forEach(key => {
       if (key === 'targets') {
@@ -456,6 +470,10 @@ export class VariableModel implements IVariableModel {
         this[key] = model[key];
       }
     });
+  }
+  /** 变量是否支持多选 */
+  get isMultiple() {
+    return this.options?.variables?.multiple ?? false;
   }
   /** 生成id */
   handleCreateItemId(srcData: IFields, isFilterDict = false) {
@@ -476,18 +494,14 @@ export class VariableModel implements IVariableModel {
     }, []);
     return isExits ? resData.join(JOINER) : null;
   }
-  /** 变量是否支持多选 */
-  get isMultiple() {
-    return this.options?.variables?.multiple ?? false;
-  }
 }
 
 export interface IDashbordConfig {
-  id: string | number;
+  id: number | string;
   panels: IPanelModel[];
 }
 
-export type DashboardColumnType = number | 'custom';
+export type DashboardColumnType = 'custom' | number;
 export interface IAddition {
   key: string;
   value: string[];
@@ -500,6 +514,32 @@ export interface ILogUrlParams {
   time_range?: 'customized'; // 带了时间start_time end_time必填
   keyword: string; // 搜索关键字
   addition: IAddition[]; // 搜索条件 即监控的汇聚条件
-  start_time?: number; // 起始时间
-  end_time?: number; // 终止时间
+  start_time?: string; // 起始时间
+  end_time?: string; // 终止时间
+}
+export interface IViewOptions {
+  // 对比数据 如 目标对比 集成等
+  compares?: Record<'targets', any>;
+  // filter 数据 视图最侧栏定位数据使用
+  filters?: Record<string, any>;
+  // 变量数据 视图变量
+  variables?: Record<string, any>;
+  // 汇聚方法
+  method?: string;
+  // 汇聚周期
+  interval?: 'auto' | number | string;
+  // 数据组 维度 指标组
+  groups?: string[];
+  // 特殊数据组  主机监控使用 主机ip 云区域id
+  group_by?: string[];
+  // 当前选中的目标 主机和容器监控特殊使用
+  current_target?: Record<string, any>;
+  // 对比目标 主机监控特殊使用
+  compare_targets?: Record<string, any>[];
+  bk_target_cloud_id?: string;
+  bk_target_ip?: string;
+  // 用于动态判断panel是否显示
+  matchFields?: Record<string, any>;
+  // 策略id 用于hostIntelligenAnomalyRange接口
+  strategy_id?: number | string;
 }

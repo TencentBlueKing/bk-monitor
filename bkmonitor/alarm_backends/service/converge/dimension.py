@@ -113,7 +113,11 @@ class DimensionHandler(object):
         """
         pipeline = FTA_SUB_CONVERGE_DIMENSION_KEY.client.pipeline()
         keys_length = {}
-        converge_key = FTA_SUB_CONVERGE_DIMENSION_KEY.get_key(**self.get_sub_converge_label_info())
+
+        # 去除策略ID避免存储被路由到不同的redis
+        key_params = self.get_sub_converge_label_info()
+        key_params.pop("strategy_id", None)
+        converge_key = FTA_SUB_CONVERGE_DIMENSION_KEY.get_key(**key_params)
         keys_length[converge_key] = 1
         pipeline.zrangebyscore(converge_key, self.start_timestamp, self.end_timestamp, withscores=True)
         pipeline_results = pipeline.execute()

@@ -30,6 +30,6 @@ export const splitGraphId = (graphId: string) => {
   return {
     bizId: +graphId.slice(0, firstIndex),
     dashboardId: graphId.slice(firstIndex + 1, lastIndex),
-    panelId: graphId.slice(lastIndex + 1)
+    panelId: graphId.slice(lastIndex + 1),
   };
 };

@@ -27,9 +27,9 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 @Component({
-  name: 'name'
+  name: 'name',
 })
-export default class MyComponents extends tsc<{}> {
+export default class MyComponents extends tsc<object> {
   render() {
     return <div>test</div>;
   }

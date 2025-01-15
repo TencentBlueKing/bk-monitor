@@ -23,15 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Prop, Provide } from 'vue-property-decorator';
+import { Component, Mixins, Prop } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
+
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
-import NoDataGuide from '../application/app-add/no-data-guide';
-
 import * as authorityMap from './../home/authority-map';
+import ServiceApply from './data-guide';
+
+import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './service-add.scss';
 
@@ -45,10 +46,7 @@ Component.registerHooks(['beforeRouteEnter']);
 class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
   @Prop({ type: String, default: '' }) pluginId: IProps['pluginId'];
   @Prop({ type: String, default: '' }) appName: IProps['appName'];
-
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
+  guideUrl: string;
   routeList: INavItem[] = [];
 
   /** 页面权限校验实例资源 */
@@ -57,44 +55,46 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
   }
 
   beforeRouteEnter(from, to, next) {
-    const { params: formParams } = from;
-    const appName = (formParams.appName as string) || '';
     next((vm: ServiceAdd) => {
       vm.routeList = [
         {
-          id: 'home',
-          name: 'APM'
-        },
-        {
-          id: 'application',
-          name: `${window.i18n.tc('应用')}：${appName}`,
-          query: {
-            'filter-app_name': appName
-          }
-        },
-        {
           id: 'service-add',
-          name: vm.$t('接入服务')
-        }
+          name: vm.$t('接入服务'),
+        },
       ];
     });
   }
-
+  handleUpdateGuideUrl(url: string) {
+    this.guideUrl = url;
+  }
   render() {
     return (
       <div class='service-add'>
         <CommonNavBar
-          slot='nav'
           class='service-configuration-nav'
+          slot='nav'
+          navMode={'display'}
+          needBack={true}
           routeList={this.routeList}
-          needShadow={true}
-          needBack={false}
-        />
+        >
+          <div slot='custom'>
+            {this.$t('接入服务')}
+            <div
+              class='service-add-link'
+              onClick={() => this.guideUrl && window.open(this.guideUrl)}
+            >
+              <i class='icon-monitor icon-mc-detail' />
+              {this.$tc('完整接入指引')}
+            </div>
+          </div>
+        </CommonNavBar>
         <div class='monitor-k8s-detail service-add-content'>
-          <NoDataGuide
-            appName={this.appName}
-            type='service'
-          />
+          {this.appName && (
+            <ServiceApply
+              defaultAppName={this.appName}
+              onUpdateGuideUrl={this.handleUpdateGuideUrl}
+            />
+          )}
         </div>
       </div>
     );

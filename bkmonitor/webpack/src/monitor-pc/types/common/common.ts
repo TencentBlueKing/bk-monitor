@@ -30,14 +30,14 @@ export interface IMenuItem {
 }
 
 export type SpaceIntroduceKeys =
-  | 'performance'
-  | 'uptime-check'
   | 'apm-home'
-  | 'k8s'
-  | 'custom-scenes'
   | 'collect-config'
   | 'custom-event'
-  | 'custom-metric';
+  | 'custom-metric'
+  | 'custom-scenes'
+  | 'k8s'
+  | 'performance'
+  | 'uptime-check';
 export interface IBtnAndLinkItem {
   name: string;
   url: string;
@@ -54,3 +54,10 @@ export interface ISPaceIntroduceData {
   };
 }
 export type SpaceIntoduceType = Record<SpaceIntroduceKeys, ISPaceIntroduceData>;
+
+export interface IOverseasConfig {
+  title: string;
+  url?: string;
+  subtitle?: string;
+  icon?: string;
+}

@@ -57,7 +57,7 @@ def test_add_bkci_system_dimensions(create_and_delete_record, mocker, clean_reco
     # 判断新的结果表存在
     assert models.ResultTable.objects.filter(table_id=f"devx_{DEFAULT_NAME}").exists()
     # 判断添加的字段存在
-    check_field_name = ["projectId"]
+    check_field_name = ["projectId", "workspaceName", "owner"]
     for f in check_field_name:
         assert models.ResultTableField.objects.filter(field_name=f).exists()
     # 判断 option 存在

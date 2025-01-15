@@ -26,9 +26,9 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import { ILegendItem, LegendActionType } from '../../typings';
-
 import CommonLegend from './common-legend';
+
+import type { ILegendItem, LegendActionType } from '../../typings';
 
 import './ratio-legend.scss';
 
@@ -60,30 +60,30 @@ class RatioLegend extends CommonLegend {
           if (legend.hidden) return undefined;
           return (
             <div
-              class='ratio-legend-item'
               key={index}
+              class='ratio-legend-item'
               onClick={e => this.legendData.length > 2 && this.handleLegendEvent(e, 'click', legend)}
               onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
               onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
             >
               <div class='legend-info'>
                 <span
-                  class='legend-icon'
                   style={{
                     backgroundColor: legend.show ? legend.color : '#ccc',
-                    borderColor: legend.show ? legend.borderColor : '#ccc'
+                    borderColor: legend.show ? legend.borderColor : '#ccc',
                   }}
-                ></span>
+                  class='legend-icon'
+                />
                 <div
-                  class='legend-name'
                   style={{ color: legend.show ? '#63656e' : '#ccc' }}
+                  class='legend-name'
                 >
                   {legend.name}
                 </div>
               </div>
               <div
-                class='legend-value'
                 style={{ color: legend.show ? legend.color : '#ccc' }}
+                class='legend-value'
               >
                 {legend.value}
                 {this.percent && `(${((Number(legend.value) / this.total) * 100).toFixed(2)}%)`}

@@ -26,15 +26,15 @@
 <template>
   <div class="set-input-wrapper">
     <div
-      class="set-input"
       v-if="!multiple"
+      ref="input"
+      class="set-input"
       :class="{
         'is-condition': isCondition || isMethod,
         'is-method': isMethod,
-        'input-placeholder': !inputValue.length && !(select[displayKey] + '').length
+        'input-placeholder': !inputValue.length && !(select[displayKey] + '').length,
       }"
       :style="{ 'min-width': width + 'px' }"
-      ref="input"
       :data-placeholder="placeholder"
       :contenteditable="!readonly"
       @input="handleInputChange"
@@ -43,8 +43,8 @@
       @blur="handleSetBlur"
     />
     <div
-      class="set-tag"
       v-else
+      class="set-tag"
     >
       <bk-tag-input
         trigger="focus"
@@ -60,35 +60,35 @@
       />
     </div>
     <div
-      style="display: none"
       v-if="!multiple"
+      style="display: none"
     >
       <slot name="list">
         <div
-          class="set-list-wrapper"
           ref="setList"
+          class="set-list-wrapper"
         >
           <ul
             class="set-list"
             :style="{ 'min-width': listMinWidth + 'px' }"
           >
             <li
+              v-for="(item, index) in filterList"
+              v-show="unique ? !(+unique ^ +item.show) : item.show"
+              :key="index"
               class="set-list-item"
               :class="{ 'is-condition': isCondition || isMethod }"
               data-set-item="setListItem"
               :data-item-index="index"
-              v-for="(item, index) in filterList"
-              v-show="unique ? !(+unique ^ +item.show) : item.show"
-              :key="index"
               @mousedown="handleSetItemClick($event, item)"
             >
               {{ item[displayKey] }}
             </li>
           </ul>
           <div
+            v-if="isKey && (select[displayKey] + '').length"
             class="set-remove"
             @mousedown="handleRemoveClick"
-            v-if="isKey && (select[displayKey] + '').length"
           >
             <i
               class="icon-monitor icon-chahao"
@@ -110,11 +110,11 @@ export default {
       default: 'text',
       validator(v) {
         return ['text', 'number'].includes(v);
-      }
+      },
     },
     list: {
       type: Array,
-      required: true
+      required: true,
     },
     isKey: Boolean,
     isCondition: Boolean,
@@ -124,51 +124,51 @@ export default {
       type: String,
       default() {
         return this.$t('选择值');
-      }
+      },
     },
     value: {
       type: [Object, Array],
-      required: true
+      required: true,
     },
     listMinWidth: {
       type: [String, Number],
-      default: 98
+      default: 98,
     },
     width: {
       type: [String, Number],
-      default: 100
+      default: 100,
     },
     idKey: {
       type: String,
-      default: 'id'
+      default: 'id',
     },
     displayKey: {
       type: String,
-      default: 'name'
+      default: 'name',
     },
     unique: Boolean,
     readonly: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // 是否只允许选择
     onlySelect: {
       type: Boolean,
-      default: true
+      default: true,
     },
     // 是否多选
     multiple: {
       type: Boolean,
-      default: false
+      default: false,
     },
     allowCreate: {
       type: Boolean,
-      default: true
+      default: true,
     },
     allowAutoMatch: {
       type: Boolean,
-      default: true
-    }
+      default: true,
+    },
   },
   data() {
     return {
@@ -178,9 +178,9 @@ export default {
       isItemClick: false,
       select: {
         id: '',
-        name: ''
+        name: '',
       },
-      inputValue: ''
+      inputValue: '',
     };
   },
   watch: {
@@ -189,24 +189,24 @@ export default {
         this.select = Object.assign(
           {
             [this.idKey]: '',
-            [this.displayKey]: ''
+            [this.displayKey]: '',
           },
           this.select,
           v
         );
       },
       immediate: true,
-      deep: true
+      deep: true,
     },
     list: {
       handler() {
         this.filterList = this.list || [];
-        this.filterList.forEach((item) => {
+        this.filterList.forEach(item => {
           item.show = item.show !== undefined ? !!item.show : true;
         });
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   created() {
     this.unWatch = this.$watch('inputValue', this.handleSelectChange);
@@ -240,21 +240,21 @@ export default {
         onHidden: () => {
           // this.popoverInstance.destroy()
           // this.popoverInstance = null
-        }
+        },
       });
     },
     handlePaste(v) {
       const data = `${v}`.replace(/\s/gim, '');
       const valList = Array.from(new Set(`${data}`.split(',').map(v => v.trim())));
       const ret = [];
-      valList.forEach((val) => {
+      valList.forEach(val => {
         // eslint-disable-next-line vue/no-mutating-props
         !this.value.some(v => v === val) && val !== '' && this.value.push(val);
         if (!this.list.some(item => item.id === val)) {
           ret.push({
             id: val,
             name: val,
-            show: true
+            show: true,
           });
         }
       });
@@ -333,10 +333,10 @@ export default {
       if (!this.filterList.length) {
         this.popoverInstance?.hide(100);
       } else if (
-        !this.isItemClick
-        && this.popoverInstance
-        && !this.popoverInstance.state.isVisible
-        && this.list.length
+        !this.isItemClick &&
+        this.popoverInstance &&
+        !this.popoverInstance.state.isVisible &&
+        this.list.length
       ) {
         this.popoverInstance?.show(100);
       }
@@ -391,8 +391,8 @@ export default {
     },
     getInput() {
       return this.$refs.input;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

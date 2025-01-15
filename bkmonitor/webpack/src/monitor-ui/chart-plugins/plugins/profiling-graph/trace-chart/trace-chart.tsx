@@ -26,7 +26,6 @@
 import { Component } from 'vue-property-decorator';
 
 import TimeSeries from '../../time-series/time-series';
-
 import { setTraceTooltip } from './util';
 
 import './trace-chart.scss';

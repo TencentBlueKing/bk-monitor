@@ -56,8 +56,8 @@ export default class TopoGraph extends tsc<ITopoGraphProps> {
   render() {
     return (
       <div
-        class='profiling-topo-graph'
         ref='containerRef'
+        class='profiling-topo-graph'
       >
         <div
           ref='imageRef'

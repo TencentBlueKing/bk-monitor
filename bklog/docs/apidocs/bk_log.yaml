@@ -144,6 +144,28 @@
   dest_http_method: POST
   is_hidden: True
 
+- path: /v2/bk_log/search_index_set/{index_set_id}/search/original/
+  name: search_original_log
+  label: 日志平台-检索-原始日志内容
+  label_en: search_original_log
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/search/index_set/{index_set_id}/search/original/
+  dest_http_method: POST
+  is_hidden: True
+
+- path: /v2/bk_log/search_index_set/statistics/total/
+  name: index_set_statistics_total
+  label: 日志平台-检索-获取索引集日志总条数
+  label_en: fetch_total_count
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: api/v1/field/index_set/statistics/total/
+  dest_http_method: POST
+  is_hidden: True
+
 - path: /v2/bk_log/index_set/
   name: index_set
   label: 日志平台-索引集列表
@@ -1123,6 +1145,17 @@
   comp_codename: generic.v2.bk_log.bk_log_component
   dest_path: /api/v1/index_set/{index_set_id}/desensitize/config/delete/
   dest_http_method: DELETE
+  is_hidden: True
+
+- path: /v2/bk_log/index_set/desensitize/config/state/
+  name: desensitize_config_state
+  label: 索引集脱敏状态
+  label_en: desensitize config state
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: /api/v1/index_set/desensitize/config/state/
+  dest_http_method: POST
   is_hidden: True
 
 - path: /v2/bk_log/search_index_set/union_search/

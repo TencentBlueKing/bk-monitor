@@ -9,13 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import datetime
 import json
 
 import six
 from django.db import models
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 
 class Label(models.Model):
@@ -114,7 +113,6 @@ class Label(models.Model):
 
         result = {}
         for label_info in label_list:
-
             # 需要将不同类别通过不同的数组进行返回
             try:
                 result[label_info.label_type].append(label_info.to_json())
@@ -250,7 +248,6 @@ class OptionBase(models.Model):
         return json.loads(self.value)
 
     def _trans_int(self):
-
         return json.loads(self.value)
 
     def to_json(self):
@@ -279,6 +276,19 @@ class BaseModel(models.Model):
     create_time = models.DateTimeField("创建时间", auto_now_add=True)
     updater = models.CharField("更新者", max_length=64)
     update_time = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class BaseModelWithTime(models.Model):
+    """包含用户及时间"""
+
+    creator = models.CharField("创建者", max_length=64)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updater = models.CharField("更新者", max_length=64)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+    STORAGE_TYPE = "victoria_metrics"
 
     class Meta:
         abstract = True

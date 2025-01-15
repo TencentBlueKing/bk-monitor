@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
-import { Route, RouteConfig } from 'vue-router';
 
 import * as ruleAuth from '../../pages/strategy-config/authority-map';
 
+import type { Route, RouteConfig } from 'vue-router';
+
 const StrategyConfig = () =>
-  import(/* webpackChunkName: 'StrategyConfig' */ '../../pages/strategy-config/strategy-config');
+  import(/* webpackChunkName: 'StrategyConfig' */ '../../pages/strategy-config/strategy-config-common/strategy-config');
 const StrategyConfigSetNew = () =>
   import(/* webpackChunkName: 'StrategyConfigSetNew' */ '../../pages/strategy-config/strategy-config-set');
 // const StrategyConfigDetail = () => import(/* webpackChunkName: 'StrategyConfigDetail' */ '../../pages/strategy-config/strategy-config-detail/strategy-config-detail');
@@ -46,13 +46,13 @@ export default [
       navId: 'strategy-config',
       authority: {
         map: ruleAuth,
-        page: ruleAuth.VIEW_AUTH
+        page: ruleAuth.VIEW_AUTH,
       },
       route: {
-        parent: 'manager'
+        parent: 'manager',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/strategy-config/edit/:id',
@@ -65,23 +65,23 @@ export default [
       needBack: true,
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_AUTH
+        page: ruleAuth.MANAGE_AUTH,
       },
       route: {
-        parent: 'strategy-config'
+        parent: 'strategy-config',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/strategy-config/detail/:id',
     name: 'strategy-config-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     // component: StrategyConfigSetNew,
     components: {
-      noCache: StrategyConfigDetail
+      noCache: StrategyConfigDetail,
     },
     meta: {
       // title: '策略配置详情',
@@ -89,14 +89,14 @@ export default [
       needBack: true,
       authority: {
         map: ruleAuth,
-        page: ruleAuth.VIEW_AUTH
+        page: ruleAuth.VIEW_AUTH,
       },
       // noNavBar: true,
       route: {
-        parent: 'strategy-config'
+        parent: 'strategy-config',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/strategy-config/add',
@@ -108,13 +108,13 @@ export default [
       needBack: true,
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_AUTH
+        page: ruleAuth.MANAGE_AUTH,
       },
       route: {
-        parent: 'strategy-config'
+        parent: 'strategy-config',
       },
-      noNavBar: true
-    }
+      noNavBar: true,
+    },
   },
   {
     path: '/strategy-config/clone/:id',
@@ -127,12 +127,12 @@ export default [
       needBack: true,
       authority: {
         map: ruleAuth,
-        page: ruleAuth.MANAGE_AUTH
+        page: ruleAuth.MANAGE_AUTH,
       },
       route: {
-        parent: 'strategy-config'
+        parent: 'strategy-config',
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

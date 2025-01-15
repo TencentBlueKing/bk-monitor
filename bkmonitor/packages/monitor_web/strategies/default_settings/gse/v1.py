@@ -9,7 +9,35 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
+
+# 默认启用的插件
+ENABLED_PLUGINS = [
+    "bkmonitorbeat",
+    "bkunifylogbeat",
+    "bk-collector",
+    "gseAgent",
+    "gse_agent",
+]
+
+
+# 废弃的插件
+DISCARD_PLUGINS = [
+    "basereport",
+    "processbeat",
+    "exceptionbeat",
+    "bkmonitorproxy",
+    "unifyTlogc",
+    "unifytlogc",
+    "dbcheck",
+    "dbbeat",
+    "httpbeat",
+    "bkmetricbeat",
+    "logbeat",
+    "uptimecheckbeat",
+    "bkfilebeat",
+]
+
 
 DEFAULT_GSE_PROCESS_EVENT_STRATEGIES = [
     {
@@ -28,19 +56,7 @@ DEFAULT_GSE_PROCESS_EVENT_STRATEGIES = [
             {
                 "key": "process_name",
                 "method": "neq",
-                "value": [
-                    "basereport",
-                    "processbeat",
-                    "exceptionbeat",
-                    "bkmonitorbeat",
-                    "bkmonitorproxy",
-                    "bkunifylogbeat",
-                    "unifyTlogc",
-                    "unifytlogc",
-                    "gseAgent",
-                    "bk-collector",
-                    "gse_agent",
-                ],
+                "value": DISCARD_PLUGINS + ENABLED_PLUGINS,
             },
         ],
     },
@@ -60,18 +76,7 @@ DEFAULT_GSE_PROCESS_EVENT_STRATEGIES = [
             {
                 "key": "process_name",
                 "method": "eq",
-                "value": [
-                    "basereport",
-                    "processbeat",
-                    "exceptionbeat",
-                    "bkmonitorbeat",
-                    "bkmonitorproxy",
-                    "bkunifylogbeat",
-                    "unifyTlogc",
-                    "unifytlogc",
-                    "gseAgent",
-                    "gse_agent",
-                ],
+                "value": ENABLED_PLUGINS,
             },
         ],
     },

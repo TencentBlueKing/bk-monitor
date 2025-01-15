@@ -32,7 +32,7 @@
   </span>
 </template>
 <script lang="ts">
-import { CreateElement } from 'vue';
+import type { CreateElement } from 'vue';
 import { Component, Emit, Vue } from 'vue-property-decorator';
 
 @Component({ name: 'MonitorExport' })
@@ -42,11 +42,11 @@ export default class MonitorExport extends Vue {
       'span',
       {
         class: {
-          'monitor-export': true
+          'monitor-export': true,
         },
         on: {
-          click: this.handleExport
-        }
+          click: this.handleExport,
+        },
       },
       String(this.$t('导出'))
     );
@@ -74,9 +74,10 @@ export default class MonitorExport extends Vue {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2px;
-  color: #3a84ff;
   margin: 0 10px;
+  color: #3a84ff;
+  border-radius: 2px;
+
   &:hover {
     cursor: pointer;
   }

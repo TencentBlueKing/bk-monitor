@@ -1,0 +1,42 @@
+@import '../../css/mixins.scss';
+
+@include monitorEchartCommon;
+.caller-bar-chart {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  z-index: 7;
+  .time-series-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    height: 580px;
+  }
+  .chart-instance {
+    width: 100%;
+    height: 580px;
+    .chart-base {
+      width: 100%;
+      margin: 0 auto;
+      height: 590px;
+    }
+  }
+  .empty-chart {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex: 1;
+  }
+}
+.caller-pie-chart-tooltips {
+  .tooltips-span {
+    color: rgb(99, 101, 110) !important;
+    margin: 0px 0px 2px 6px;
+    font-size: 12px;
+    text-align: left;
+  }
+}

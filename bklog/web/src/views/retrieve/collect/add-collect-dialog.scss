@@ -21,7 +21,7 @@
     > :first-child {
       display: inline-block;
       min-width: 72px;
-      margin-right: 6px;  
+      margin-right: 6px;
       color: #979ba5;
     }
 
@@ -80,8 +80,8 @@
 
   .filed-container {
     display: flex;
-    align-items: center;
     flex-wrap: wrap;
+    align-items: center;
 
     .current-filed {
       margin-left: 24px;
@@ -95,22 +95,22 @@
       display: flex;
       align-items: center;
     }
-  
+
     .operate-button {
+      justify-content: space-between;
       margin-left: 6px;
       font-size: 16px;
       color: #979ba5;
-      justify-content: space-between;
-  
+
       span {
         cursor: pointer;
       }
-  
+
       > :first-child {
         margin-right: 12px;
         color: #33d05c;
       }
-  
+
       > :last-child {
         color: #979ba5;
       }

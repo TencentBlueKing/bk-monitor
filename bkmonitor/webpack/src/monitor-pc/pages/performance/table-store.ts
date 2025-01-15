@@ -1,5 +1,6 @@
+import { commonPageSizeGet } from 'monitor-common/utils';
 /* eslint-disable @typescript-eslint/prefer-for-of */
-/* eslint-disable no-loop-func */
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -30,58 +31,56 @@
  * @LastEditTime: 2021-07-01 17:23:59
  * @Description:
  */
-/* eslint-disable no-restricted-syntax */
-/* eslint-disable no-param-reassign */
+
 // @ts-nocheck
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { typeTools } from 'monitor-common/utils/utils.js';
 
-import { CheckType, IConditionValue, IFieldConfig, IOption, ITableOptions, ITableRow } from './performance-type';
+import type { CheckType, IConditionValue, IFieldConfig, IOption, ITableOptions, ITableRow } from './performance-type';
 
 const IP_LIST_MATCH = new RegExp(/((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)/, 'g');
 const IPV6_LIST_MATCH = new RegExp(/([\da-fA-F]{4}:){7}[\da-fA-F]{4}/, 'g');
 const commonTopoLevel = ['biz', 'module', 'set'];
 export default class TableStore {
-  public loading = false;
-  public page = 1;
-  public pageSize: number = +localStorage.getItem('__common_page_size__') || 10;
-  public pageList: Array<number> = [10, 20, 50, 100];
-  public stickyValue = {};
-  public panelKey = '';
-  public sortKey = 'totalAlarmCount';
-  public order = 'descending';
-  public keyWord = '';
-  public total = 0;
-  public unresolveData = [];
-  public cpuData = [];
-  public menmoryData = [];
-  public diskData = [];
-  public checkType: CheckType = 'current';
-  // public selections: ITableRow[] = []
-  public conditionsList: IOption[] = [
+  allClusterTopo = [];
+  allData!: Readonly<Array<ITableRow>>;
+  bizIdMap: Map<number, any> = new Map();
+  cacheClusterMap = new Map();
+  // 缓存options数据的字段
+  cacheFieldOptionsSet = {
+    bk_host_name: new Set(),
+    bk_os_name: new Set(),
+    bk_cloud_name: new Set(),
+    display_name: new Set(), // 进程选项缓存
+  };
+  cacheModuleMap = new Map();
+  checkType: CheckType = 'current';
+  // selections: ITableRow[] = []
+  conditionsList: IOption[] = [
     {
       name: '>',
-      id: '>'
+      id: '>',
     },
     {
       name: '>=',
-      id: '>='
+      id: '>=',
     },
     {
       name: '<',
-      id: '<'
+      id: '<',
     },
     {
       name: '<=',
-      id: '<='
+      id: '<=',
     },
     {
       name: '=',
-      id: '='
-    }
+      id: '=',
+    },
   ];
-
-  public fieldData: Array<IFieldConfig> = [
+  cpuData = [];
+  diskData = [];
+  fieldData: Array<IFieldConfig> = [
     {
       name: window.i18n.t('主机'),
       id: 'host_display_name',
@@ -91,7 +90,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('主机ID'),
@@ -103,7 +102,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('内网IPv6'),
@@ -115,7 +114,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('外网IPv6'),
@@ -127,7 +126,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('内网IP'),
@@ -139,7 +138,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('外网IP'),
@@ -151,7 +150,7 @@ export default class TableStore {
       type: 'textarea',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('采集状态'),
@@ -164,23 +163,23 @@ export default class TableStore {
       options: [
         {
           name: window.i18n.t('未知'),
-          id: -1
+          id: -1,
         },
         {
           name: window.i18n.t('正常'),
-          id: 0
+          id: 0,
         },
         {
           name: window.i18n.t('无数据上报'),
-          id: 3
+          id: 3,
         },
         {
           name: window.i18n.t('无Agent'),
-          id: 2
-        }
+          id: 2,
+        },
       ],
       value: [],
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('主机名'),
@@ -194,7 +193,7 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       allowEmpt: true, // 允许空筛选选项出现
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('OS名称'),
@@ -208,7 +207,7 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       allowEmpt: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('管控区域'),
@@ -220,7 +219,7 @@ export default class TableStore {
       options: [],
       type: 'select',
       value: '',
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('业务拓扑'),
@@ -231,7 +230,7 @@ export default class TableStore {
       type: 'cascade',
       value: [],
       multiple: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('集群名'),
@@ -245,7 +244,7 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       multiple: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('模块名'),
@@ -259,7 +258,7 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       multiple: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('未恢复告警'),
@@ -267,7 +266,7 @@ export default class TableStore {
       checked: true,
       disable: false,
       type: 'number',
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('CPU五分钟负载'),
@@ -280,7 +279,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-last'
+      headerPreIcon: 'icon-last',
     },
     {
       name: window.i18n.t('CPU使用率'),
@@ -293,7 +292,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-last'
+      headerPreIcon: 'icon-last',
     },
     {
       name: window.i18n.t('磁盘空间使用率'),
@@ -306,7 +305,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-max'
+      headerPreIcon: 'icon-max',
     },
     {
       name: window.i18n.t('磁盘IO使用率'),
@@ -319,7 +318,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-max'
+      headerPreIcon: 'icon-max',
     },
     {
       name: window.i18n.t('应用内存使用率'),
@@ -332,7 +331,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-last'
+      headerPreIcon: 'icon-last',
     },
     {
       name: window.i18n.t('物理内存使用率'),
@@ -345,7 +344,7 @@ export default class TableStore {
       type: 'condition',
       value: [],
       show: false,
-      headerPreIcon: 'icon-last'
+      headerPreIcon: 'icon-last',
     },
     {
       name: window.i18n.t('业务名'),
@@ -357,7 +356,7 @@ export default class TableStore {
       type: 'text',
       value: '',
       fuzzySearch: true,
-      show: false
+      show: false,
     },
     {
       name: window.i18n.t('进程'),
@@ -371,71 +370,85 @@ export default class TableStore {
       value: '',
       fuzzySearch: true,
       allowEmpt: true,
-      show: false
-    }
+      show: false,
+    },
   ];
-  // 缓存options数据的字段
-  public cacheFieldOptionsSet = {
-    bk_host_name: new Set(),
-    bk_os_name: new Set(),
-    bk_cloud_name: new Set(),
-    display_name: new Set() // 进程选项缓存
-  };
-  public cacheModuleMap = new Map();
-  public cacheClusterMap = new Map();
-  allClusterTopo = [];
-  topoNameMap = {};
   // 缓存当前筛选数据
-  public filterData!: Readonly<Array<ITableRow>>;
-  public allData!: Readonly<Array<ITableRow>>;
-  private bizList: any[] = [];
-  public constructor(data: Array<any>, options: ITableOptions, bizList: any[]) {
-    this.bizList = bizList;
+  filterData!: Readonly<Array<ITableRow>>;
+  keyWord = '';
+  loading = false;
+  menmoryData = [];
+
+  order = 'descending';
+  page = 1;
+  pageList: Array<number> = [10, 20, 50, 100];
+  pageSize: number = commonPageSizeGet();
+  panelKey = '';
+  sortKey = 'totalAlarmCount';
+  stickyValue = {};
+  topoNameMap = {};
+  total = 0;
+  unresolveData = [];
+  constructor(data: Array<any>, options: ITableOptions, bizIdMap: Map<number, any>) {
+    this.bizIdMap = bizIdMap;
     this.updateData(data, options);
   }
 
-  public get columns() {
+  get columns() {
     const columns = {};
-    this.fieldData.forEach(field => {
+    for (const field of this.fieldData) {
       columns[field.id] = field;
-    });
+    }
     return columns;
   }
 
-  public setState(rowId: string, key: string, value: any) {
-    const row = this.allData.find(item => item.rowId === rowId);
-    if (Object.prototype.hasOwnProperty.call(row, key)) {
-      row[key] = value;
+  // 获取级联对象
+  convertToTree(topo_link, topo_link_display) {
+    if (topo_link.length === 0 || topo_link_display.length === 0) {
+      return null;
     }
+    const id = topo_link.shift();
+    const name = topo_link_display.shift();
+    const node = { id, name };
+    const child = this.convertToTree(topo_link, topo_link_display);
+    if (child) {
+      node.children = [...(node.children || []), child];
+    }
+    return node;
   }
 
-  public updateData(data: Array<any>, options?: ITableOptions) {
-    this.stickyValue = options?.stickyValue || {};
-    this.panelKey = options?.panelKey || '';
-    this.unresolveData = [];
-    this.cpuData = [];
-    this.menmoryData = [];
-    this.diskData = [];
-    this.allData = Object.freeze(data.map(item => Object.seal(this.initRowData(item))));
-    this.allClusterTopo = Object.freeze(this.createTopoTree());
-    this.updateFieldDataOptions();
-  }
   createTopoTree() {
     const topoNameMap = {};
-    const list = this.allData.reduce((pre, cur) => {
+    const list = [];
+    for (const cur of this.allData) {
       const modules = cur.module || [];
-      const list = modules.map(({ topo_link, topo_link_display }) => {
+      const moduleList = modules.map(({ topo_link, topo_link_display }) => {
         const topo = topo_link.map((id, index) => {
           topoNameMap[id] = topo_link_display[index];
           return {
             id,
-            name: topo_link_display[index]
+            name: topo_link_display[index],
           };
         });
         return topo;
       });
-      return pre.concat(list);
-    }, []);
+      list.push(...moduleList);
+    }
+    // const list = this.allData.reduce((pre, cur) => {
+    //   const modules = cur.module || [];
+    //   const list = modules.map(({ topo_link, topo_link_display }) => {
+    //     const topo = topo_link.map((id, index) => {
+    //       topoNameMap[id] = topo_link_display[index];
+    //       return {
+    //         id,
+    //         name: topo_link_display[index],
+    //       };
+    //     });
+    //     return topo;
+    //   });
+    //   return pre.concat(list);
+    // }, []);
+
     const dynamicRowData = this.allData
       ?.find(item => item?.module?.some(set => set.topo_link.length > 3))
       ?.module?.find(item => item.topo_link.length > 3);
@@ -444,17 +457,18 @@ export default class TableStore {
       const dynamicCol = Object.keys(dynamicRowData.bk_obj_name_map).filter(key => !commonTopoLevel.includes(key));
       const clusterIndex = this.fieldData.findIndex(field => field.id === 'bk_cluster');
       const setFieldList = [];
-      dynamicCol.reverse().forEach(id => {
+      const reverseList = dynamicCol.reverse();
+      for (const id of reverseList) {
         if (!this.fieldData.some(field => field.id === id)) {
           const options = [];
-          Object.entries(topoNameMap).forEach(([key, name]) => {
+          for (const [key, name] of Object.entries(topoNameMap)) {
             if (key.includes(`${id}|`)) {
               options.push({
                 id: key,
-                name
+                name,
               });
             }
-          });
+          }
           setFieldList.push({
             name: dynamicRowData.bk_obj_name_map[id] || id,
             id,
@@ -468,10 +482,10 @@ export default class TableStore {
             multiple: true,
             fuzzySearch: true,
             show: true,
-            dynamic: true
+            dynamic: true,
           });
         }
-      });
+      }
       setFieldList.length && this.fieldData.splice(clusterIndex - 1, 0, ...setFieldList);
     }
     const treeList = [];
@@ -479,7 +493,7 @@ export default class TableStore {
     const createNode = data => ({
       id: data.id,
       name: data.name,
-      children: []
+      children: [],
     });
     for (let i = 0; i < list.length; i++) {
       const pathList = list[i];
@@ -499,205 +513,25 @@ export default class TableStore {
       }
     }
     this.topoNameMap = topoNameMap;
-    this.fieldData
-      .filter(item => ['bk_cluster'].includes(item.id))
-      .forEach(fieldData => {
-        const options = [];
-        Object.entries(topoNameMap).forEach(([id, name]) => {
-          if (id.match(/^set\|/)) {
-            options.push({
-              id,
-              name
-            });
-          }
-        });
-        fieldData.options = options;
-      });
+    const filterList = this.fieldData.filter(item => ['bk_cluster'].includes(item.id));
+    for (const fieldData of filterList) {
+      const options = [];
+      for (const [id, name] of Object.entries(topoNameMap)) {
+        if (id.match(/^set\|/)) {
+          options.push({
+            id,
+            name,
+          });
+        }
+      }
+      fieldData.options = options;
+    }
     const topofield = this.fieldData.find(item => ['cluster_module'].includes(item.id));
     topofield.options = treeList;
     return treeList;
   }
-  public updateFieldDataOptions() {
-    for (const key in this.cacheFieldOptionsSet) {
-      const cacheFieldSet = this.cacheFieldOptionsSet[key];
-      const fieldData = this.fieldData.find(item => item.id === key);
-      if (cacheFieldSet.size && fieldData) {
-        fieldData.options = [];
-        for (const val of cacheFieldSet.values()) {
-          fieldData.options.push({
-            id: val,
-            name: val
-          });
-        }
-      }
-      // 添加空项筛选
-      if (fieldData?.allowEmpt) {
-        fieldData.options.unshift({ id: '__empt__', name: window.i18n.t('- 空 -') });
-      }
-    }
-    const moduleFieldData = this.fieldData.find(item => item.id === 'bk_inst_name');
-    if (moduleFieldData) {
-      moduleFieldData.options = Array.from(this.cacheModuleMap.values()).reduce((pre, cur) => {
-        if (!pre.find(item => item.id === cur.id)) pre.push(cur);
-        return pre;
-      }, []);
-    }
-    // // forEach性能低
-    // for (const key in this.cacheFieldOptionsData) {
-    //   this.cacheFieldOptionsData[key].clear()
-    // }
-    // this.cacheModule.clear()
-    // this.cacheCluster.clear()
-  }
-  // 获取级联对象
-  public convertToTree(topo_link, topo_link_display) {
-    if (topo_link.length === 0 || topo_link_display.length === 0) {
-      return null;
-    }
-    const id = topo_link.shift();
-    const name = topo_link_display.shift();
-    const node = { id, name };
-    const child = this.convertToTree(topo_link, topo_link_display);
-    if (child) {
-      node.children = [...(node.children || []), child];
-    }
-    return node;
-  }
-
-  // 初始化行属性（扩展属性）
-  public initRowData(item) {
-    // 集群名称
-    item.bk_cluster = [];
-    // 填充options数据
-    // forEach性能低
-    for (const key in this.cacheFieldOptionsSet) {
-      if (item[key] || key === 'display_name') {
-        item[key] && this.cacheFieldOptionsSet[key].add(item[key]);
-        // 进程添加可选项
-        if (key === 'display_name') {
-          // item?.component?.forEach(com => this.cacheFieldOptionsSet[key].add(com?.['display_name'] || ''))
-          for (const com of item?.component || []) {
-            this.cacheFieldOptionsSet[key].add(com?.display_name || '');
-          }
-        }
-      }
-    }
-    const module = item.module || [];
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
-    for (let i = 0; i < module.length; i++) {
-      const currentModule = module[i];
-      const {
-        id: moduleId,
-        bk_inst_name: moduleName,
-        topo_link: topoLink,
-        topo_link_display: topoLinkDisplay
-      } = currentModule;
-
-      if (moduleId && moduleName) {
-        this.cacheModuleMap.set(moduleId, {
-          id: moduleName,
-          name: moduleName,
-          moduleId
-        });
-      }
-
-      if (topoLink && topoLink.length > 1) {
-        const clusterIndex = topoLink.findIndex((id: string) => id.match(/^set\|/));
-        const clusterId = topoLink[clusterIndex] || '';
-        const clusterName = topoLinkDisplay[clusterIndex] || currentModule?.bk_obj_name_map?.set || '';
-        if (!item.bk_cluster.find(i => i.id === clusterId)) {
-          item.bk_cluster.push({
-            name: clusterName,
-            id: clusterId
-          });
-        }
-      }
-    }
-    // 行Id
-    item.rowId = item.bk_host_id ?? `${item.bk_host_innerip}|${item.bk_cloud_id}`;
-    // 未恢复告警总数
-    item.totalAlarmCount = item.alarm_count?.reduce((pre, cur) => pre + cur.count, 0);
-    // 当前悬浮状态
-    // item.hover = false
-    item.mark = Object.prototype.hasOwnProperty.call(this.stickyValue, item.rowId);
-    // item.order = this.sticky[item.rowId] ? 99999 : i
-    // todo 排序进程
-    item?.component?.forEach(com => {
-      switch (+com.status) {
-        case -1:
-          com.status = 2;
-          break;
-        case 0:
-          com.status = 3;
-          break;
-        default:
-          com.status = 1;
-      }
-      // com.status = +com.status === -1 ? 2 : (+com.status === 0 ? 3 : 1)
-    });
-    item?.component?.sort((b, a) => b.status - a.status);
-    // 进程数量过多时是否省略
-    // item.overflow = false
-    // 业务名
-    const bizItem = this.bizList.find(set => +set.id === +item.bk_biz_id);
-    item.bk_biz_name = bizItem ? bizItem.text : '--';
-    // 模块名
-    item.bk_inst_name = item.module?.length ? item.module.map(m => m.bk_inst_name).join(' , ') : '--';
-    // checkedbox
-    item.selection = false;
-    // 新增模糊搜索字段属性
-    item.moduleInstNames = item.module ? item.module.map(m => m.bk_inst_name).join() : '';
-    item.componentNames = item.component ? item.component.map(com => com.display_name).join() : '';
-    item.clusterNames = item.bk_cluster.map(cluster => cluster.name).join();
-    // 分类数据
-    if (item.alarm_count && item.alarm_count.findIndex(data => +data.count > 0) > -1) {
-      this.unresolveData.push(item);
-    }
-    if (item.cpu_usage >= 80) {
-      this.cpuData.push(item);
-    }
-    if (item.mem_usage >= 80) {
-      this.menmoryData.push(item);
-    }
-    if (item.disk_in_use >= 80) {
-      this.diskData.push(item);
-    }
-    item.host_display_name = item.display_name || '';
-    return item;
-  }
-
-  public getTableData() {
-    let data = [...(this.panelKey ? this[this.panelKey] : this.allData)];
-    const fieldData = this.fieldData.filter(field =>
-      Array.isArray(field.value) ? !!field.value.length : field.value !== '' && field.value !== undefined
-    );
-
-    fieldData.forEach(field => {
-      data = data.filter(item => this.isMatchedCondition(item, field));
-    });
-    if (this.keyWord.trim() !== '') {
-      data = this.filterDataByKeyword(data);
-    }
-    const sortData = this.sortDataByKey(data);
-    this.total = sortData.length;
-    // 缓存当前过滤后数据，用于分页、换页、指标对比、采集下发和复制IP操作
-    this.filterData = Object.freeze(sortData);
-
-    return JSON.parse(JSON.stringify(this.pagination(sortData)));
-  }
-  // 重新排序缓存数据
-  public reOrderData() {
-    this.filterData = Object.freeze(this.sortDataByKey([...this.filterData]));
-    return JSON.parse(JSON.stringify(this.pagination(this.filterData)));
-  }
-  // 重新分页数据
-  public reLimitData() {
-    // return this.reOrderData()
-    return JSON.parse(JSON.stringify(this.pagination([...this.filterData])));
-  }
-
   // 关键字匹配
-  public filterDataByKeyword(data: ITableRow[]) {
+  filterDataByKeyword(data: ITableRow[]) {
     // const keyWord = this.keyWord.trim().toLocaleLowerCase()
     const keyWord = this.keyWord.trim();
     const fieldData = this.fieldData.filter(item => item.fuzzySearch);
@@ -743,9 +577,163 @@ export default class TableStore {
       return false;
     });
   }
+  getCompareValue(item: ITableRow, field: IFieldConfig) {
+    let originValue = item[field.id] === undefined ? '' : item[field.id]; // 当 field.id 为 模块、进程、集群、模块\集群时，该值为undefined
+    let curValue = field.value === '' ? '' : field.value; // 筛选条件的值
+    if (['bk_host_innerip', 'bk_host_outerip'].includes(field.id)) {
+      // IP类型的值
+      curValue = (field.value as string).replace(/\n|,/g, '|').replace(/\s+/g, '').split('|');
+    } else if (field.id === 'bk_inst_name') {
+      // 模块名称
+      originValue = item.module ? item.module.map(m => m.bk_inst_name) : [];
+    } else if (field.id === 'display_name') {
+      // 进程名
+      originValue = item.component ? item.component.map(com => com[field.id]) : [];
+    } else if (field.id === 'bk_cluster') {
+      // 集群ID（集群字段是前端拼接的，在initRowData方法里面）
+      originValue = item.bk_cluster.map(cluster => cluster.id);
+    } else if (field.id === 'cluster_module') {
+      // 集群\模块（级联输入）
+      originValue = item.module ? item.module.map(m => m.topo_link, []) : [];
+      // const clusterIds = item.bk_cluster.map(cluster => cluster.id);
+      // originValue = moduleIds.concat(clusterIds);
+    } else if (field.dynamic) {
+      const data = [];
+      for (const m of item.module || []) {
+        const dataIndex = m.topo_link.findIndex(t => t.includes(`${field.id}|`));
+        if (dataIndex > -1) {
+          data.push(m.topo_link[dataIndex]);
+        }
+      }
+      originValue = data;
+    }
+    return {
+      originValue,
+      curValue,
+    };
+  }
+  getTableData() {
+    let data = [...(this.panelKey ? this[this.panelKey] : this.allData)];
+    const fieldData = this.fieldData.filter(field =>
+      Array.isArray(field.value) ? !!field.value.length : field.value !== '' && field.value !== undefined
+    );
+    for (const field of fieldData) {
+      data = data.filter(item => this.isMatchedCondition(item, field));
+    }
+    if (this.keyWord.trim() !== '') {
+      data = this.filterDataByKeyword(data);
+    }
+    const sortData = this.sortDataByKey(data);
+    this.total = sortData.length;
+    // 缓存当前过滤后数据，用于分页、换页、指标对比、采集下发和复制IP操作
+    this.filterData = Object.freeze(sortData);
+
+    return JSON.parse(JSON.stringify(this.pagination(sortData)));
+  }
+
+  // 初始化行属性（扩展属性）
+  initRowData(item) {
+    // 集群名称
+    item.bk_cluster = [];
+    // 填充options数据
+    // forEach性能低
+    for (const key in this.cacheFieldOptionsSet) {
+      if (item[key] || key === 'display_name') {
+        item[key] && this.cacheFieldOptionsSet[key].add(item[key]);
+        // 进程添加可选项
+        if (key === 'display_name') {
+          // item?.component?.forEach(com => this.cacheFieldOptionsSet[key].add(com?.['display_name'] || ''))
+          for (const com of item?.component || []) {
+            this.cacheFieldOptionsSet[key].add(com?.display_name || '');
+          }
+        }
+      }
+    }
+    const module = item.module || [];
+
+    for (let i = 0; i < module.length; i++) {
+      const currentModule = module[i];
+      const {
+        id: moduleId,
+        bk_inst_name: moduleName,
+        topo_link: topoLink,
+        topo_link_display: topoLinkDisplay,
+      } = currentModule;
+
+      if (moduleId && moduleName) {
+        this.cacheModuleMap.set(moduleId, {
+          id: moduleName,
+          name: moduleName,
+          moduleId,
+        });
+      }
+
+      if (topoLink && topoLink.length > 1) {
+        const clusterIndex = topoLink.findIndex((id: string) => id.match(/^set\|/));
+        const clusterId = topoLink[clusterIndex] || '';
+        const clusterName = topoLinkDisplay[clusterIndex] || currentModule?.bk_obj_name_map?.set || '';
+        if (!item.bk_cluster.find(i => i.id === clusterId)) {
+          item.bk_cluster.push({
+            name: clusterName,
+            id: clusterId,
+          });
+        }
+      }
+    }
+    // 行Id
+    item.rowId = item.bk_host_id ?? `${item.bk_host_innerip}|${item.bk_cloud_id}`;
+    // 未恢复告警总数
+    item.totalAlarmCount = item.alarm_count?.reduce((pre, cur) => pre + cur.count, 0);
+    // 当前悬浮状态
+    // item.hover = false
+    item.mark = Object.prototype.hasOwnProperty.call(this.stickyValue, item.rowId);
+    // item.order = this.sticky[item.rowId] ? 99999 : i
+    // todo 排序进程
+    for (const com of item?.component || []) {
+      switch (+com.status) {
+        case -1:
+          com.status = 2;
+          break;
+        case 0:
+          com.status = 3;
+          break;
+        default:
+          com.status = 1;
+      }
+    }
+    item?.component?.sort((b, a) => b.status - a.status);
+    // 进程数量过多时是否省略
+    // item.overflow = false
+    // 业务名
+    const bizItem = this.bizIdMap.get(+item.bk_biz_id);
+    item.bk_biz_name = bizItem ? bizItem.text : '--';
+    // 模块名
+    item.bk_inst_name = item.module?.length ? item.module.map(m => m.bk_inst_name).join(' , ') : '--';
+    // checkedbox
+    item.selection = false;
+    // 新增模糊搜索字段属性
+    item.moduleInstNames = item.module ? item.module.map(m => m.bk_inst_name).join() : '';
+    item.componentNames = item.component ? item.component.map(com => com.display_name).join() : '';
+    item.clusterNames = item.bk_cluster.map(cluster => cluster.name).join();
+    // 分类数据
+    if (item.alarm_count && item.alarm_count.findIndex(data => +data.count > 0) > -1) {
+      this.unresolveData.push(item);
+    }
+    if (item.cpu_usage >= 80) {
+      this.cpuData.push(item);
+    }
+    if (item.mem_usage >= 80) {
+      this.menmoryData.push(item);
+    }
+    if (item.disk_in_use >= 80) {
+      this.diskData.push(item);
+    }
+    item.host_display_name = item.display_name || '';
+    return item;
+  }
 
   // 条件匹配
-  public isMatchedCondition(item: ITableRow, field: IFieldConfig) {
+  isMatchedCondition(item: ITableRow, field: IFieldConfig) {
     const { curValue, originValue } = this.getCompareValue(item, field);
     if (field.dynamic) {
       const value = Array.isArray(curValue[0]) ? curValue[0] : Array.isArray(curValue) ? curValue : [curValue];
@@ -843,44 +831,29 @@ export default class TableStore {
 
     return originValue === curValue;
   }
-
-  public getCompareValue(item: ITableRow, field: IFieldConfig) {
-    let originValue = item[field.id] === undefined ? '' : item[field.id]; // 当 field.id 为 模块、进程、集群、模块\集群时，该值为undefined
-    let curValue = field.value === '' ? '' : field.value; // 筛选条件的值
-    if (['bk_host_innerip', 'bk_host_outerip'].includes(field.id)) {
-      // IP类型的值
-      curValue = (field.value as string).replace(/\n|,/g, '|').replace(/\s+/g, '').split('|');
-    } else if (field.id === 'bk_inst_name') {
-      // 模块名称
-      originValue = item.module ? item.module.map(m => m.bk_inst_name) : [];
-    } else if (field.id === 'display_name') {
-      // 进程名
-      originValue = item.component ? item.component.map(com => com[field.id]) : [];
-    } else if (field.id === 'bk_cluster') {
-      // 集群ID（集群字段是前端拼接的，在initRowData方法里面）
-      originValue = item.bk_cluster.map(cluster => cluster.id);
-    } else if (field.id === 'cluster_module') {
-      // 集群\模块（级联输入）
-      originValue = item.module ? item.module.map(m => m.topo_link, []) : [];
-      // const clusterIds = item.bk_cluster.map(cluster => cluster.id);
-      // originValue = moduleIds.concat(clusterIds);
-    } else if (field.dynamic) {
-      const data = [];
-      item.module?.forEach(m => {
-        const dataIndex = m.topo_link.findIndex(t => t.includes(`${field.id}|`));
-        if (dataIndex > -1) {
-          data.push(m.topo_link[dataIndex]);
-        }
-      });
-      originValue = data;
-    }
-    return {
-      originValue,
-      curValue
-    };
+  pagination(data: ITableRow[]) {
+    return data.slice(this.pageSize * (this.page - 1), this.pageSize * this.page);
+  }
+  // 重新分页数据
+  reLimitData() {
+    // return this.reOrderData()
+    return JSON.parse(JSON.stringify(this.pagination([...this.filterData])));
   }
 
-  public sortDataByKey(data: ITableRow[]) {
+  // 重新排序缓存数据
+  reOrderData() {
+    this.filterData = Object.freeze(this.sortDataByKey([...this.filterData]));
+    return JSON.parse(JSON.stringify(this.pagination([...this.filterData])));
+  }
+
+  setState(rowId: string, key: string, value: any) {
+    const row = this.allData.find(item => item.rowId === rowId);
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      row[key] = value;
+    }
+  }
+
+  sortDataByKey(data: ITableRow[]) {
     data.sort((pre, next) => {
       const isPreTop = Object.prototype.hasOwnProperty.call(this.stickyValue, pre.rowId) ? 1 : 0;
       const isNextTop = Object.prototype.hasOwnProperty.call(this.stickyValue, next.rowId) ? 1 : 0;
@@ -894,7 +867,48 @@ export default class TableStore {
     return data;
   }
 
-  public pagination(data: ITableRow[]) {
-    return data.slice(this.pageSize * (this.page - 1), this.pageSize * this.page);
+  updateData(data: Array<any>, options?: ITableOptions) {
+    this.stickyValue = options?.stickyValue || {};
+    this.panelKey = options?.panelKey || '';
+    this.unresolveData = [];
+    this.cpuData = [];
+    this.menmoryData = [];
+    this.diskData = [];
+    this.allData = Object.freeze(data.map(item => Object.seal(this.initRowData(item))));
+    this.allClusterTopo = Object.freeze(this.createTopoTree());
+    this.updateFieldDataOptions();
+  }
+
+  updateFieldDataOptions() {
+    for (const key in this.cacheFieldOptionsSet) {
+      const cacheFieldSet = this.cacheFieldOptionsSet[key];
+      const fieldData = this.fieldData.find(item => item.id === key);
+      if (cacheFieldSet.size && fieldData) {
+        fieldData.options = [];
+        for (const val of cacheFieldSet.values()) {
+          fieldData.options.push({
+            id: val,
+            name: val,
+          });
+        }
+      }
+      // 添加空项筛选
+      if (fieldData?.allowEmpt) {
+        fieldData.options.unshift({ id: '__empt__', name: window.i18n.t('- 空 -') });
+      }
+    }
+    const moduleFieldData = this.fieldData.find(item => item.id === 'bk_inst_name');
+    if (moduleFieldData) {
+      moduleFieldData.options = Array.from(this.cacheModuleMap.values()).reduce((pre, cur) => {
+        if (!pre.find(item => item.id === cur.id)) pre.push(cur);
+        return pre;
+      }, []);
+    }
+    // // forEach性能低
+    // for (const key in this.cacheFieldOptionsData) {
+    //   this.cacheFieldOptionsData[key].clear()
+    // }
+    // this.cacheModule.clear()
+    // this.cacheCluster.clear()
   }
 }

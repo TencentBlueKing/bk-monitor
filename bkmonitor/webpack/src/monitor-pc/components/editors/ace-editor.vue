@@ -33,53 +33,53 @@ export default {
   props: {
     value: {
       type: String,
-      default: ''
+      default: '',
     },
     width: {
       type: [Number, String],
-      default: '100%'
+      default: '100%',
     },
     height: {
       type: [Number, String],
-      default: 320
+      default: 320,
     },
     lang: {
       type: String,
-      default: 'javascript'
+      default: 'javascript',
     },
     theme: {
       type: String,
-      default: 'monokai'
+      default: 'monokai',
     },
     readOnly: {
       type: Boolean,
-      default: false
+      default: false,
     },
     fullScreen: {
       type: Boolean,
-      default: false
+      default: false,
     },
     hasError: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
-      $ace: null
+      $ace: null,
     };
   },
   watch: {
     fullScreen() {
       this.$el.classList.toggle('ace-full-screen');
       this.$ace.resize();
-    }
+    },
   },
   mounted() {
     const { ace } = window;
     this.$ace = ace.edit(this.$el);
     const { $ace, lang, theme, readOnly } = this;
-    $ace.$blockScrolling = Infinity;
+    $ace.$blockScrolling = Number.POSITIVE_INFINITY;
     $ace.getSession().setMode(`ace/mode/${lang}`);
     $ace.getSession().setNewLineMode('unix');
     $ace.setTheme(`ace/theme/${theme}`);
@@ -87,7 +87,7 @@ export default {
       enableBasicAutocompletion: true,
       enableSnippets: true,
       enableLiveAutocompletion: true,
-      fontSize: '12pt'
+      fontSize: '12pt',
     });
     $ace.setReadOnly(readOnly); // 设置是否为只读模式
     $ace.setShowPrintMargin(false); // 不显示打印边距
@@ -118,9 +118,7 @@ export default {
       if (_size.match(/^[0-9]?%$/)) return _size;
 
       return '100%';
-    }
-  }
+    },
+  },
 };
 </script>
-
-<style scoped></style>

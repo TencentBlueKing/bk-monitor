@@ -63,7 +63,7 @@ export default class SideSlider extends tsc<IEvent> {
   handleWidthChange(val: number) {
     const emitValue: IWidthValue = {
       val,
-      animation: this.enableAnimation
+      animation: this.enableAnimation,
     };
     return emitValue;
   }
@@ -74,12 +74,8 @@ export default class SideSlider extends tsc<IEvent> {
   }
 
   handleMousedown(evt) {
-    document.onselectstart = function () {
-      return false;
-    };
-    document.ondragstart = function () {
-      return false;
-    };
+    document.onselectstart = () => false;
+    document.ondragstart = () => false;
     this.enableAnimation = false;
     this.startClientX = evt.clientX;
     this.handleAddMouseMove();
@@ -110,19 +106,19 @@ export default class SideSlider extends tsc<IEvent> {
   render() {
     return (
       <div
-        class={['side-slider-wrap', { animation: this.enableAnimation }]}
         style={{ width: `${this.width}px` }}
+        class={['side-slider-wrap', { animation: this.enableAnimation }]}
       >
         <span
           class='slider-drag-btn'
           onMousedown={this.handleMousedown}
-        ></span>
+        />
         <span
           class={['side-slider-btn', { 'is-hidden': !this.isShowSideSlider }]}
           onClick={this.handleShowSideSlider}
         >
           <span class='side-slider-btn-text'>{this.$t('插件说明')}</span>
-          <i class='icon-monitor icon-arrow-right'></i>
+          <i class='icon-monitor icon-arrow-right' />
         </span>
         <div class='side-slider-content'>{this.$slots.default}</div>
       </div>

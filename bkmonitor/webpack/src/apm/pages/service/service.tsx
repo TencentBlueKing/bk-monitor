@@ -23,30 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
-import { Component, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, Provide, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { random } from 'monitor-common/utils/utils';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
-import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
-import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
-import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
+import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
+import { random } from 'monitor-common/utils/utils';
+import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
+import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
+
+import ApmCommonNavBar, {
+  type INavItem,
+  type ISelectItem,
+} from '../../components/apm-common-nav-bar/apm-common-nav-bar';
+import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
-import { IAppSelectOptItem } from '../home/app-select';
+
+import type { IAppSelectOptItem } from '../home/app-select';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './service.scss';
-
-// interface IServiceConfigItem{
-//   id: string;
-//   name: TranslateResult;
-//   serviceName: TranslateResult;
-//   params: IServiceParams;
-// }
 
 interface IServiceParams {
   is_relation: boolean; // 是否关联
@@ -56,11 +52,12 @@ interface IServiceParams {
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class Service extends tsc<{}> {
+export default class Service extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
 
   @Ref() commonPageRef: CommonPage;
   @InjectReactive('readonly') readonly readonly: boolean;
+
   viewOptions: IViewOptions = {};
   // 导航条设置
   routeList: INavItem[] = [];
@@ -72,18 +69,23 @@ export default class Service extends tsc<{}> {
 
   sceneType: SceneType = 'overview';
 
+  /** common-page组件的key */
+  pageKey = 1;
   appName = '';
+  serviceName = '';
   pluginId = '';
   dashboardId = '';
   tabId = '';
   tabName: string | TranslateResult = '';
   subName = '';
+  appList = [];
+  serviceList = [];
   // menu list
   menuList: IMenuItem[] = [
     {
       id: 'basic',
-      name: window.i18n.tc('基本设置')
-    }
+      name: window.i18n.tc('基本设置'),
+    },
   ];
 
   /** 列表 */
@@ -97,7 +99,7 @@ export default class Service extends tsc<{}> {
 
   get positonText() {
     const label = this.tabName;
-    // eslint-disable-next-line no-nested-ternary
+
     const value =
       this.sceneType === 'overview'
         ? this.tabId === 'topo'
@@ -105,6 +107,12 @@ export default class Service extends tsc<{}> {
           : window.i18n.tc('概览')
         : this.subName;
     return `${label}：${value}`;
+  }
+
+  @Provide('linkSelfClick')
+  linkSelfClick() {
+    this.handleUpdateAppName(this.tabId);
+    this.pageKey += 1;
   }
 
   async beforeRouteEnter(to, from, next) {
@@ -116,23 +124,43 @@ export default class Service extends tsc<{}> {
       vm.routeList = [
         {
           id: 'home',
-          name: 'APM'
+          name: 'APM',
+          query: {
+            app_name: appName,
+          },
         },
         {
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
           query: {
-            'filter-app_name': appName
-          }
+            'filter-app_name': appName,
+          },
+          selectOption: {
+            value: appName,
+            selectList: [],
+          },
         },
         {
           id: 'service',
-          name: `${window.i18n.tc('服务')}：${serviceName}`
-        }
+          name: `${window.i18n.tc('服务')}：${serviceName}`,
+          selectOption: {
+            value: serviceName,
+            selectList: [],
+            loading: false,
+          },
+        },
       ];
-      vm.viewOptions = {};
-      vm.appName = query['filter-app_name'] as string;
-      vm.handleGetAppInfo();
+      vm.viewOptions = {
+        filters: {
+          app_name: appName,
+          service_name: serviceName,
+        },
+      };
+      vm.appName = appName;
+      vm.serviceName = serviceName;
+      vm.dashboardId = query.dashboardId as string;
+      vm.getApplicationList();
+      vm.getServiceList();
     };
     next(nextTo);
   }
@@ -140,49 +168,97 @@ export default class Service extends tsc<{}> {
     destroyTimezone();
     next();
   }
-  /** 切换时间范围重新请求以获取无数据状态 */
-  handelTimeRangeChange() {
-    this.handleGetAppInfo();
-  }
 
-  /** 通过应用信息接口获取无数据状态 */
-  async handleGetAppInfo() {
-    let queryTimeRange;
-    const { from, to } = this.$route.query;
-    if (from && to) {
-      const timeRanges = [from, to];
-      const formatValue = handleTransformToTimestamp(timeRanges as TimeRangeType);
-      if (formatValue) {
-        queryTimeRange = formatValue;
-      }
-    }
-    const timeRange = queryTimeRange || handleTransformToTimestamp(this.commonPageRef?.timeRange);
-    const [startTime, endTime] = timeRange;
-    const params = {
-      app_name: this.appName,
-      start_time: startTime,
-      end_time: endTime
-    };
-    const data = await applicationStore.getAppInfo(params);
-
-    /** 当前应用无数据跳转应用无数据页面展示 */
-    if (data && data.data_status === 'no_data' && data.profiling_data_status === 'no_data') {
-      this.$router.push({
-        name: 'application',
-        query: {
-          'filter-app_name': this.appName
-        }
-      });
-    }
-  }
   /** 更新当前路由的信息 */
   async handleUpdateAppName(id, name = '') {
     await this.$nextTick();
     const { query } = this.$route;
     this.appName = (query['filter-app_name'] as string) || '';
+    this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
+    this.routeList[1].selectOption.value = this.appName;
+    this.serviceName = (query['filter-service_name'] as string) || '';
+    this.routeList[2].name = `${this.$tc('服务')}：${this.serviceName}`;
+    this.routeList[2].selectOption.value = this.serviceName;
     this.dashboardId = (query.dashboardId as string) || '';
     this.tabId = id;
     this.tabName = ['topo', 'overview'].includes(id) ? this.$t('服务') : name;
+  }
+
+  /** 获取应用列表 */
+  async getApplicationList() {
+    this.routeList[1].selectOption.loading = true;
+    const listData = await listApplicationInfo().catch(() => []);
+    this.appList = listData.map(item => ({
+      id: item.app_name,
+      name: `${item.app_name}(${item.app_alias})`,
+      ...item,
+    }));
+    this.routeList[1].selectOption.loading = false;
+    this.routeList[1].selectOption.selectList = this.appList;
+  }
+
+  /** 获取服务列表 */
+  async getServiceList() {
+    if (!this.appName) return;
+    this.routeList[2].selectOption.loading = true;
+    const listData = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+    this.routeList[2].selectOption.loading = false;
+    this.serviceList = listData.map(item => ({
+      id: item.service_name,
+      name: item.service_name,
+      ...item,
+    }));
+    this.routeList[2].selectOption.selectList = this.serviceList;
+  }
+
+  /** 导航栏下拉选择 */
+  async handleNavSelect(item: ISelectItem, navId) {
+    // 选择应用
+    if (navId === 'application') {
+      const { id } = this.routeList[1];
+      this.appName = item.id;
+      const targetRoute = this.$router.resolve({
+        name: id,
+        query: { 'filter-app_name': this.appName, dashboardId: this.$route.query.dashboardId || this.dashboardId },
+      });
+      /** 防止出现跳转当前地址导致报错 */
+      if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+        this.$router.push({
+          name: id,
+          query: { 'filter-app_name': this.appName, dashboardId: this.$route.query.dashboardId || this.dashboardId },
+        });
+      }
+    } else {
+      this.serviceName = item.id;
+      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          to,
+          from,
+          interval,
+          timezone,
+          refleshInterval,
+          dashboardId,
+          'filter-app_name': item.app_name,
+          'filter-service_name': item.service_name,
+          'filter-category': item.category,
+          'filter-kind': item.kind,
+          'filter-predicate_value': item.predicate_value,
+        },
+      });
+      this.viewOptions = {
+        filters: {
+          app_name: item.app_name,
+          service_name: item.service_name,
+          category: item.category,
+          kind: item.kind,
+          predicate_value: item.predicate_value,
+        },
+      };
+      this.handleUpdateAppName(this.tabId);
+      this.pageKey += 1;
+    }
   }
 
   /**
@@ -202,16 +278,17 @@ export default class Service extends tsc<{}> {
       name: 'service-config',
       query: {
         app_name: (query['filter-app_name'] as string) || '',
-        service_name: (query['filter-service_name'] as string) || ''
-      }
+        service_name: (query['filter-service_name'] as string) || '',
+      },
     });
   }
   /** 详情返回列表操作刷新列表的数据 */
   handleRouterBack() {
     this.backToOverviewKey = random(8);
   }
-  handleSecendTypeChange(type) {
+  handleSceneTypeChange(type) {
     this.sceneType = type;
+    this.dashboardId = '';
   }
   handleTitleChange(title) {
     this.subName = title;
@@ -225,26 +302,27 @@ export default class Service extends tsc<{}> {
       <div class='service'>
         {
           <CommonPage
+            key={this.pageKey}
             ref='commonPageRef'
+            backToOverviewKey={this.backToOverviewKey}
+            defaultDashboardId={this.dashboardId}
+            defaultViewOptions={this.viewOptions}
+            isShowSplitPanel={false}
             sceneId={'apm_service'}
             sceneType={'overview'}
-            isShowSplitPanel={false}
-            backToOverviewKey={this.backToOverviewKey}
-            defaultViewOptions={this.viewOptions}
             tab2SceneType
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises
+            onSceneTypeChange={this.handleSceneTypeChange}
             onTabChange={this.handleUpdateAppName}
-            onTimeRangeChange={this.handelTimeRangeChange}
             onTitleChange={this.handleTitleChange}
-            onSceneTypeChange={this.handleSecendTypeChange}
           >
-            <CommonNavBar
+            <ApmCommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={false}
+              needShadow={true}
               positionText={this.positonText}
+              routeList={this.routeList}
+              needCopyLink
+              onNavSelect={this.handleNavSelect}
             />
             {!this.readonly && !!this.appName && (
               <div

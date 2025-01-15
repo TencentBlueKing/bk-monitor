@@ -17,7 +17,7 @@
   ("merge", "分支合并及冲突解决"),
 */
 const colors = require('picocolors');
-const { readFileSync } = require('fs');
+const { readFileSync } = require('node:fs');
 const msgPath = process.argv[2];
 const msg = readFileSync(msgPath, 'utf-8').trim();
 const oldCommitRE = /^(revert: )?(feature|bugfix|minor|optimization|sprintfix|merge)(\(.+\))?: .{1,50}/;
@@ -25,7 +25,9 @@ const newCommitRE = /^(revert: )?(feat|fix|docs|style|refactor|perf|test|chore)(
 if (!(oldCommitRE.test(msg) || newCommitRE.test(msg)) && !msg.includes('Merge branch')) {
   console.log(msg);
   console.log('\n');
-  console.error(`  ${colors.bgRed(colors.white(' ERROR '))} ${colors.red('invalid commit message format.')}\n\n${colors.red('  Proper commit message format is required for automated changelog generation. Examples:\n\n')}    ${colors.green('feature: add \'comments\' option')}\n`
-      + `    ${colors.green('bugfix: handle events on blur (close #28)')}\n}`);
+  console.error(
+    `  ${colors.bgRed(colors.white(' ERROR '))} ${colors.red('invalid commit message format.')}\n\n${colors.red('  Proper commit message format is required for automated changelog generation. Examples:\n\n')}    ${colors.green("feature: add 'comments' option")}\n` +
+      `    ${colors.green('bugfix: handle events on blur (close #28)')}\n}`,
+  );
   process.exit(1);
 }

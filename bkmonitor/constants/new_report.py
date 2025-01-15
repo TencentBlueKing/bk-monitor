@@ -8,8 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.utils.translation import ugettext_lazy as _lazy
-
 from bkmonitor.utils.enum import ChoicesEnum
 
 
@@ -21,7 +19,7 @@ class StaffEnum(ChoicesEnum):
     USER = "user"
     GROUP = "group"
 
-    _choices_labels = ((USER, _lazy("用户")), (GROUP, _lazy("用户组")))
+    _choices_labels = ((USER, "用户"), (GROUP, "用户组"))
 
 
 class ChannelEnum(ChoicesEnum):
@@ -30,7 +28,7 @@ class ChannelEnum(ChoicesEnum):
     WXBOT = "wxbot"
     USER = "user"
 
-    _choices_labels = ((EMAIL, _lazy("外部邮件")), (WXBOT, _lazy("企业微信机器人")), (USER, _lazy("内部用户")))
+    _choices_labels = ((EMAIL, "外部邮件"), (WXBOT, "企业微信机器人"), (USER, "内部用户"))
 
 
 class ScenarioEnum(ChoicesEnum):
@@ -39,7 +37,7 @@ class ScenarioEnum(ChoicesEnum):
     DASHBOARD = "dashboard"
     SCENE = "scene"
 
-    _choices_labels = ((CLUSTERING, _lazy("日志聚类")), (DASHBOARD, _lazy("仪表盘")), (SCENE, _lazy("观测场景")))
+    _choices_labels = ((CLUSTERING, "日志聚类"), (DASHBOARD, "仪表盘"), (SCENE, "观测场景"))
 
 
 class SendStatusEnum(ChoicesEnum):
@@ -50,10 +48,10 @@ class SendStatusEnum(ChoicesEnum):
     PARTIAL_FAILED = "partial_failed"
 
     _choices_labels = (
-        (SUCCESS, _lazy("成功")),
-        (FAILED, _lazy("失败")),
-        (PARTIAL_FAILED, _lazy("部分失败")),
-        (NO_STATUS, _lazy("无")),
+        (SUCCESS, "成功"),
+        (FAILED, "失败"),
+        (PARTIAL_FAILED, "部分失败"),
+        (NO_STATUS, "无"),
     )
 
 
@@ -62,7 +60,7 @@ class SendModeEnum(ChoicesEnum):
     PERIODIC = "periodic"
     ONE_TIME = "one_time"
 
-    _choices_labels = ((PERIODIC, _lazy("周期发送")), (ONE_TIME, _lazy("只发一次")))
+    _choices_labels = ((PERIODIC, "周期发送"), (ONE_TIME, "只发一次"))
 
 
 class SubscriberTypeEnum(ChoicesEnum):
@@ -70,7 +68,7 @@ class SubscriberTypeEnum(ChoicesEnum):
     SELF = "self"
     OTHERS = "others"
 
-    _choices_labels = ((SELF, _lazy("仅自己")), (OTHERS, _lazy("其他人")))
+    _choices_labels = ((SELF, "仅自己"), (OTHERS, "其他人"))
 
 
 class HourFrequencyTime:
@@ -93,13 +91,13 @@ class YearOnYearEnum(ChoicesEnum):
     ONE_DAY = 24
 
     _choices_labels = (
-        (NOT, _lazy("不比对")),
-        (ONE_HOUR, _lazy("1小时前")),
-        (TWO_HOUR, _lazy("2小时前")),
-        (THREE_HOUR, _lazy("3小时前")),
-        (SIX_HOUR, _lazy("6小时前")),
-        (HALF_DAY, _lazy("12小时前")),
-        (ONE_DAY, _lazy("24小时前")),
+        (NOT, "不比对"),
+        (ONE_HOUR, "1小时前"),
+        (TWO_HOUR, "2小时前"),
+        (THREE_HOUR, "3小时前"),
+        (SIX_HOUR, "6小时前"),
+        (HALF_DAY, "12小时前"),
+        (ONE_DAY, "24小时前"),
     )
 
 
@@ -109,9 +107,9 @@ class YearOnYearChangeEnum(ChoicesEnum):
     DECLINE = "decline"
 
     _choices_labels = (
-        (ALL, _lazy("所有")),
-        (RISE, _lazy("上升")),
-        (DECLINE, _lazy("下降")),
+        (ALL, "所有"),
+        (RISE, "上升"),
+        (DECLINE, "下降"),
     )
 
 
@@ -120,8 +118,8 @@ class LogColShowTypeEnum(ChoicesEnum):
     LOG = "log"
 
     _choices_labels = (
-        (PATTERN, _lazy("PATTERN模式")),
-        (LOG, _lazy("采样日志")),
+        (PATTERN, "PATTERN模式"),
+        (LOG, "采样日志"),
     )
 
 
@@ -130,8 +128,8 @@ class ReportCreateTypeEnum(ChoicesEnum):
     SELF = "self"
 
     _choices_labels = (
-        (MANAGER, _lazy("管理员")),
-        (SELF, _lazy("自己")),
+        (MANAGER, "管理员"),
+        (SELF, "自己"),
     )
 
 
@@ -142,10 +140,10 @@ class ReportQueryTypeEnum(ChoicesEnum):
     ALL = "all"
 
     _choices_labels = (
-        (INVALID, _lazy("失效")),
-        (CANCELLED, _lazy("已取消")),
-        (AVAILABLE, _lazy("生效")),
-        (ALL, _lazy("全部")),
+        (INVALID, "失效"),
+        (CANCELLED, "已取消"),
+        (AVAILABLE, "生效"),
+        (ALL, "全部"),
     )
 
 
@@ -154,8 +152,8 @@ class ApplyRecordQueryTypeEnum(ChoicesEnum):
     BIZ = "biz"
 
     _choices_labels = (
-        (USER, _lazy("用户")),
-        (BIZ, _lazy("业务")),
+        (USER, "用户"),
+        (BIZ, "业务"),
     )
 
 

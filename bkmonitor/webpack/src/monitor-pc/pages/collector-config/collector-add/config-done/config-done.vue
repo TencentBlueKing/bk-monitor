@@ -27,7 +27,10 @@
   <div class="done">
     <done :options="options">
       <template #text>
-        <div v-if="nodeType === 'INSTANCE'">
+        <div v-if="isTencentCloudPlugin">
+          {{ $tc('已成功下发采集配置') }}
+        </div>
+        <div v-else-if="nodeType === 'INSTANCE'">
           <span class="text">
             <i18n :path="`共成功{0}了{1}${suffixName}`">
               {{ $t(options.type) }}
@@ -90,32 +93,32 @@ import Done from './loading-done';
 export default {
   name: 'StopDone',
   components: {
-    Done
+    Done,
   },
   inject: ['authority', 'handleShowAuthorityDetail', 'collectAuth'],
   props: {
     data: {
       type: Object,
-      default: () => ({})
+      default: () => ({}),
     },
     hosts: {
       type: Object,
       default: () => ({
         config_info: {},
         contents: [],
-        headerData: {}
-      })
+        headerData: {},
+      }),
     },
     type: {
       type: String,
-      default: 'ADD'
+      default: 'ADD',
     },
     config: {
       type: Object,
       default() {
         return {};
-      }
-    }
+      },
+    },
   },
   data() {
     return {
@@ -126,15 +129,19 @@ export default {
         text: '',
         type: '',
         successTotal: 0,
-        failTotal: 0
+        failTotal: 0,
       },
-      nodeType: 'INSTANCE'
+      nodeType: 'INSTANCE',
     };
   },
   computed: {
     suffixName() {
       return this.hosts.config_info.target_object_type === 'HOST' ? '台主机' : '个实例';
-    }
+    },
+    // 是否是腾讯云插件
+    isTencentCloudPlugin() {
+      return this.config.set.data.plugin.type === 'K8S';
+    },
   },
   created() {
     const type = {
@@ -144,10 +151,11 @@ export default {
       CREATE: '新增',
       ADD: '新增',
       EDIT: '编辑',
-      ROLLBACK: '回滚'
+      ROLLBACK: '回滚',
     };
     this.options.type = type[this.type];
     this.options.title = this.$t(`配置已${type[this.type]}`);
+    if (this.isTencentCloudPlugin) return;
     this.nodeType = this.data.nodeType;
     this.options.successTotal = this.hosts.headerData.successNum;
     this.options.failTotal = this.hosts.headerData.failedNum;
@@ -156,7 +164,7 @@ export default {
     close() {
       // this.$router.back()
       this.$router.push({
-        name: 'collect-config'
+        name: 'collect-config',
       });
     },
     handleGoStrategy() {
@@ -166,9 +174,9 @@ export default {
         params: {
           baseInfo: {
             scenario: setData.objectId,
-            name: setData.name
-          }
-        }
+            name: setData.name,
+          },
+        },
       });
     },
     // 点击检查视图跳转
@@ -177,15 +185,15 @@ export default {
         this.$router.push({
           name: 'collect-config-view',
           params: {
-            id: this.config.data.id
+            id: this.config.data.id,
           },
           query: {
-            name: this.config.set.data.name
-          }
+            name: this.config.set.data.name,
+          },
         });
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

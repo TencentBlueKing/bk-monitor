@@ -34,7 +34,7 @@ const { i18n } = window;
 
 const AlarmUpdateContent = ctx => {
   const {
-    props: { severity, tag }
+    props: { severity, tag },
   } = ctx;
   const language = getCookie('blueking_language') || 'zhCN';
 
@@ -46,16 +46,16 @@ const AlarmUpdateContent = ctx => {
           {severity > 0 && (
             <span>
               <span
-                class='content-label'
                 style={{ width: language === 'en' ? '104px' : '56px' }}
+                class='content-label'
               >
                 {i18n.t('等级调整')} :{' '}
               </span>
               <span>
                 <i
-                  class={`icon-common ${level.icon}`}
                   style={{ color: level.color }}
-                ></i>
+                  class={`icon-common ${level.icon}`}
+                />
                 <span>{level.name}</span>
               </span>
             </span>
@@ -63,8 +63,8 @@ const AlarmUpdateContent = ctx => {
           {tag.length > 0 ? (
             <span>
               <span
-                class='content-label'
                 style={{ width: language === 'en' ? '104px' : '56px' }}
+                class='content-label'
               >
                 {i18n.t('追加标签')} :{' '}
               </span>

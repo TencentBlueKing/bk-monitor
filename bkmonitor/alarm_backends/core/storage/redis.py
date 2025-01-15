@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import os
 import random
 import sys
 import time
@@ -19,6 +20,7 @@ import uuid
 
 import redis
 from django.conf import settings
+from kombu.utils.url import parse_url
 from redis.exceptions import ConnectionError
 from redis.sentinel import Sentinel
 from six.moves import map, range
@@ -55,6 +57,44 @@ CACHE_BACKEND_CONF_MAP = {
 }
 
 
+def cache_conf_with_router(router_id):
+    """
+    基于模块的路由
+    cache-cmdb: os.getenv("REDIS_CACHE_CMDB_URL")
+    cache-strategy: os.getenv("REDIS_CACHE_STRATEGY_URL")
+    """
+    # 环境变量名模板
+    env_tpl = "REDIS_CACHE_{mod}_URL"
+    # 路由id格式: 模块-子模块
+    mods = router_id.split("-", 1)
+    if len(mods) == 1:
+        return None
+    router_module, sub_mod = mods
+    if router_module not in CACHE_BACKEND_CONF_MAP:
+        return None
+    conf = CACHE_BACKEND_CONF_MAP[router_module]
+    env_conf_name = env_tpl.format(mod=sub_mod.upper())
+    url = os.getenv(env_conf_name)
+    if not url:
+        return conf
+    # 解析 redis 连接url
+    # {'transport': 'redis',
+    #  'hostname': '127.0.0.1',
+    #  'port': 6379,
+    #  'userid': None,
+    #  'password': 'admin',
+    #  'virtual_host': '0'}
+    parts = parse_url(url)
+    parts["_cache_type"] = parts.pop("transport")
+    parts["host"] = parts.pop("hostname")
+    parts["db"] = conf["db"]
+    # sentinel 特性
+    # sentinel://{master_name}:{redis_pwd}@{sentinel_host}:{sentinel_port}/{sentinel_pwd}
+    parts["sentinel_password"] = parts.pop("virtual_host")
+    parts["master_name"] = parts.pop("userid")
+    return parts
+
+
 class BaseRedisCache(object):
     def __init__(self, redis_class=None):
         self.redis_class = redis_class or redis.Redis
@@ -65,17 +105,40 @@ class BaseRedisCache(object):
 
     @classmethod
     def instance(cls, backend, conf=None):
+        """
+        创建或获取缓存实例。
+
+        该函数旨在为给定的后端名称提供一个缓存实例。它首先检查是否已经为该后端创建了一个实例，
+        如果没有，它将尝试基于提供的配置或环境变量生成一个实例。
+
+        :param cls: 请求实例化的类。
+        :param backend: 字符串，表示缓存后端的名称。
+        :param conf: 可选参数，用于为后端提供特定的配置。
+        :return:
+        """
+        # 构建实例属性名称，以避免直接属性访问的不透明度
         _instance = "_%s_instance" % backend
+
+        # 检查是否已经为给定的后端创建了实例,如果创建了直接返回，所以这是一个单例模式
+        # 相当于它变成了一个全局的redis工具类
         if not hasattr(cls, _instance):
+            # 如果提供了特定的配置，使用它来创建实例
             if conf is not None:
                 ins = cls(conf)
                 setattr(cls, _instance, ins)
-                return ins
+            # 尝试从预定义的映射中获取配置
+            elif backend in CACHE_BACKEND_CONF_MAP:
+                ins = cls(CACHE_BACKEND_CONF_MAP[backend])
+                setattr(cls, _instance, ins)
+            else:
+                # 尝试从cache_conf_with_router获取config配置，backend格式需要为“[type]-xxx”
+                # type 需要被定义在 CACHE_BACKEND_CONF_MAP中，否则config为None
+                config = cache_conf_with_router(backend)
+                if config is not None:
+                    setattr(cls, _instance, Cache.__new__(Cache, backend, config))
+                else:
+                    raise Exception("unknown redis backend %s" % backend)
 
-            if backend not in CACHE_BACKEND_CONF_MAP:
-                raise Exception("unknown redis backend %s" % backend)
-            ins = cls(CACHE_BACKEND_CONF_MAP[backend])
-            setattr(cls, _instance, ins)
         return getattr(cls, _instance)
 
     @property
@@ -89,21 +152,33 @@ class BaseRedisCache(object):
         raise NotImplementedError()
 
     def refresh_instance(self):
+        """
+        刷新实例。
+
+        此方法旨在关闭当前实例和只读实例（如果已存在），并尝试重新创建新的实例。
+        它尝试最多三次创建新实例，如果成功，则更新最后刷新时间。
+        """
+        # 如果当前实例不为空，则关闭当前实例和只读实例
         if self._instance is not None:
             self.close_instance(self._instance)
             self.close_instance(self._readonly_instance)
 
+        # 尝试最多三次创建新的实例和只读实例
         for _ in range(3):
             try:
+                # 成功创建实例后，更新刷新时间，并退出循环
                 self._instance, self._readonly_instance = self.create_instance()
                 self.refresh_time = time.time()
                 break
+            # 捕获异常并记录日志
             except Exception as err:
                 logger.exception(err)
 
     def __getattr__(self, name):
+        # 从_instance中获取到熟悉，这里的command对应的就是redis中的各种命令，比如set命令
         command = getattr(self._instance, name)
 
+        # 对command进行再包装，然后返回
         def handle(*args, **kwargs):
             exception = None
             for _ in range(3):
@@ -217,20 +292,25 @@ class SentinelRedisCache(BaseRedisCache):
 
 class Cache(redis.Redis):
     CacheTypes = {
+        "redis": RedisCache,
         "RedisCache": RedisCache,
         "SentinelRedisCache": SentinelRedisCache,
+        "sentinel": SentinelRedisCache,
         "InstanceCache": InstanceCache,
     }
 
+    # 从settings中获取CACHE_BACKEND_TYPE的值，如果未设置，则默认使用"RedisCache"
+    # 这是为了确定缓存后端的类型，根据应用场景的不同可以选择不同的缓存系统
     CacheBackendType = getattr(settings, "CACHE_BACKEND_TYPE", "RedisCache")
-    CacheDefaultType = getattr(settings, "CACHE_DEFAULT_TYPE", "InstanceCache")
 
     def __new__(cls, backend, connection_conf=None):
         if not backend:
             raise
-        cache_type = connection_conf and connection_conf.pop("_cache_type") or cls.CacheBackendType
+        # 根据连接配置获取缓存类型设置，如果没有显式设置，则使用类的默认缓存类型
+        cache_type = connection_conf and connection_conf.pop("_cache_type", None) or cls.CacheBackendType
         try:
             type_ = cls.CacheTypes[cache_type]
+            # 根据不同的缓存类型，创建缓存实例，通过instance类方法获取缓存实例
             return type_.instance(backend, connection_conf)
         except Exception:
             logger.exception("fail to use %s [%s]", backend, " ".join(sys.argv))

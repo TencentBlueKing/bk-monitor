@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VueConstructor } from 'vue';
-import { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
 import { random } from 'monitor-common/utils/utils';
+
+import type { VueConstructor } from 'vue';
+import type { DirectiveBinding, DirectiveOptions } from 'vue/types/options';
 
 let insertedEl: IDragHtmlElement = null;
 
@@ -41,7 +42,6 @@ interface IBindValue {
   theme: 'normal' | 'simple'; // 拖拽按钮主题
 }
 interface IDragHtmlElement extends HTMLElement {
-  // eslint-disable-next-line camelcase
   _bk_monitor_drag: {
     el: HTMLDivElement;
     value: IBindValue;
@@ -81,12 +81,8 @@ const handleMouseUp = () => {
 const dragMouseDown = evt => {
   const key = evt.target.dataset.dragKey;
   insertedEl = insertedElMap[key];
-  document.onselectstart = function () {
-    return false;
-  };
-  document.ondragstart = function () {
-    return false;
-  };
+  document.onselectstart = () => false;
+  document.ondragstart = () => false;
 
   document.addEventListener('mousemove', handleMouseMove);
   document.addEventListener('mouseup', handleMouseUp);
@@ -123,7 +119,7 @@ const monitorDrag: DirectiveOptions = {
     el._bk_monitor_drag = {
       el: dragEle,
       value: bind.value,
-      dragKey: key
+      dragKey: key,
     };
   },
 
@@ -140,10 +136,10 @@ const monitorDrag: DirectiveOptions = {
     delete insertedElMap[dragKey];
 
     delete el._bk_monitor_drag;
-  }
+  },
 };
 
 export default {
   install: (Vue: VueConstructor) => Vue.directive('monitor-drag', monitorDrag),
-  directive: monitorDrag
+  directive: monitorDrag,
 };

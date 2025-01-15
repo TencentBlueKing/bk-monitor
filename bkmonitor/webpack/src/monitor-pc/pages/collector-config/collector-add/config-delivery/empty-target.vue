@@ -26,8 +26,8 @@
 <template>
   <div class="empty-target">
     <top-hint
-      class="target-hint"
       v-if="needTitle"
+      class="target-hint"
     >
       <slot> {{ $t('未选择采集目标，但并不影响本次操作') }} </slot>
     </top-hint>
@@ -48,14 +48,14 @@ import TopHint from './top-hint';
 export default {
   name: 'EmptyTarget',
   components: {
-    TopHint
+    TopHint,
   },
   props: {
     needTitle: {
       type: Boolean,
-      default: true
-    }
-  }
+      default: true,
+    },
+  },
 };
 </script>
 

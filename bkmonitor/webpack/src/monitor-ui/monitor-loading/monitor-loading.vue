@@ -70,15 +70,15 @@ $colorList: #fd6154 #ffb726 #4cd084 #57a3f1;
 
 .monitor-loading {
   position: absolute;
-  z-index: 900;
-  left: 4px;
   top: 0;
-  bottom: 0;
   right: 4px;
+  bottom: 0;
+  left: 4px;
+  z-index: 900;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity .3s;
+  transition: opacity 0.3s;
 
   @keyframes scale-animate {
     0% {
@@ -86,7 +86,7 @@ $colorList: #fd6154 #ffb726 #4cd084 #57a3f1;
     }
 
     100% {
-      transform: scale(.6);
+      transform: scale(0.6);
     }
   }
 
@@ -97,18 +97,19 @@ $colorList: #fd6154 #ffb726 #4cd084 #57a3f1;
     .loading-pointer {
       width: 14px;
       height: 14px;
-      transform: scale(.6);
-      border-radius: 100%;
       margin-right: 6px;
+      border-radius: 100%;
+      transform: scale(0.6);
       animation-name: scale-animate;
-      animation-duration: .8s;
+      animation-duration: 0.8s;
       animation-iteration-count: infinite;
       animation-direction: normal;
 
       @for $i from 1 through length($colorList) {
         &.pointer-#{$i} {
+          /* stylelint-disable-next-line function-no-unknown */
           background-color: nth($colorList, $i);
-          animation-delay: ($i * .15s + .1s);
+          animation-delay: ($i * 0.15s + 0.1s);
         }
       }
     }

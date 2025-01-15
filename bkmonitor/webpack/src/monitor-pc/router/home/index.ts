@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
+import type { RouteConfig } from 'vue-router';
 // import * as homeAuth from '../../pages/home/authority-map';
 const Home = () => import(/* webpackChunkName: 'Home' */ '../../pages/home/home');
 export default [
@@ -31,16 +31,16 @@ export default [
     path: '/',
     name: 'home',
     components: {
-      noCache: Home
+      noCache: Home,
     },
     meta: {
       title: '首页',
       navId: 'home',
       pageCls: 'home-page',
-      noNavBar: true
+      noNavBar: true,
       // authority: {
       //   page: homeAuth.VIEW_AUTH
       // }
-    }
-  }
+    },
+  },
 ] as RouteConfig[];

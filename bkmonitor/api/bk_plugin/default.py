@@ -52,8 +52,7 @@ class BkPluginMetaResource(BkPluginBaseResource):
     method = "GET"
     action = "/bk_plugin/meta"
 
-    def perform_request(self, validated_request_data):
-        response_data = super(BkPluginMetaResource, self).perform_request(validated_request_data)
+    def render_response_data(self, validated_request_data, response_data):
         versions = response_data.get("versions", [])
         return [{"version": version, "name": version} for version in versions]
 
@@ -81,8 +80,7 @@ class BkPluginDetailResource(BkPluginBaseResource):
         ]
         return params
 
-    def perform_request(self, validated_request_data):
-        response_data = super(BkPluginDetailResource, self).perform_request(validated_request_data)
+    def render_response_data(self, validated_request_data, response_data):
         inputs = self.parse_json_schema(response_data.get("inputs", {}))
         # outputs = self.parse_json_schema(response_data.get("outputs", {}))
         # context_inputs = self.parse_json_schema(response_data.get("context_inputs", {}))
@@ -104,7 +102,8 @@ class BkPluginInvokeResource(BkPluginBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
         assignee = serializers.ListField(label="执行人", required=False)
 
-    def perform_request(self, validated_request_data):
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(BkPluginInvokeResource, self).full_request_data(validated_request_data)
         inputs = validated_request_data.pop("inputs", [])
         invoke_data = {
             "inputs": {param["key"]: param["value"] for param in inputs},
@@ -114,8 +113,7 @@ class BkPluginInvokeResource(BkPluginBaseResource):
             },
         }
         validated_request_data.update(invoke_data)
-        response_data = super(BkPluginInvokeResource, self).perform_request(validated_request_data)
-        return response_data
+        return validated_request_data
 
 
 class BkPluginScheduleResource(BkPluginBaseResource):

@@ -8,21 +8,35 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
+import time
 import traceback
 
-import kafka
+from confluent_kafka import TopicCollection
+from confluent_kafka.admin import AdminClient
 from django.conf import settings
 from django.db.models import F
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.lock.service_lock import share_lock
+from core.prometheus import metrics
 from metadata import models
-from metadata.config import PERIODIC_TASK_DEFAULT_TTL
+from metadata.config import (
+    KAFKA_SASL_MECHANISM,
+    KAFKA_SASL_PROTOCOL,
+    PERIODIC_TASK_DEFAULT_TTL,
+)
+from metadata.models.constants import DataIdCreatedFromSystem, EsSourceType
+from metadata.task.tasks import (
+    bulk_check_and_delete_ds_consul_config,
+    bulk_refresh_data_link_status,
+    clean_disable_es_storage,
+    manage_es_storage,
+)
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
-
-from .tasks import manage_es_storage
 
 logger = logging.getLogger("metadata")
 
@@ -44,11 +58,29 @@ def refresh_consul_storage():
     """
     刷新storage信息给unify-query使用
     """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_consul_storage", status=TASK_STARTED, process_target=None
+    ).inc()
+    start_time = time.time()
     try:
         logger.info("start to refresh metadata es storage info")
         models.ClusterInfo.refresh_consul_storage_config()
     except Exception as e:
         logger.error("refresh es storage failed for ->{}".format(e))
+
+    cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_consul_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_consul_storage", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh_consul_storage:task finished, cost time: %s" % cost_time)
 
 
 @share_lock(identify="metadata_refreshConsulESInfo")
@@ -56,11 +88,29 @@ def refresh_consul_es_info():
     """
     刷新es相关的consul信息，供unify-query使用
     """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_consul_es_info", status=TASK_STARTED, process_target=None
+    ).inc()
+    start_time = time.time()
     try:
         logger.info("start to refresh metadata es table info")
         models.ESStorage.refresh_consul_table_config()
     except Exception as e:
         logger.error("refresh es table failed for ->{}".format(e))
+
+    cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_consul_es_info", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_consul_es_info", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh_consul_es_info:task finished, cost time: %s" % cost_time)
 
 
 @share_lock(ttl=1800, identify="metadata_refreshInfluxdbRoute")
@@ -144,7 +194,6 @@ def clean_influxdb_host():
     models.InfluxDBHostInfo.clean_redis_host_config()
 
 
-@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshDatasource")
 def refresh_datasource():
     # 更新datasource的外部依赖 及 配置信息
     # NOTE: 过滤有结果表的数据源并且状态是启动
@@ -178,7 +227,16 @@ def refresh_datasource():
 
 @share_lock(identify="metadata_refreshKafkaStorage")
 def refresh_kafka_storage():
-    # 确认所有kafka存储都有对应的topic
+    """
+    刷新kafka存储的topic信息
+    """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_kafka_storage", status=TASK_STARTED, process_target=None
+    ).inc()
+    logger.info("refresh_kafka_storage: start to refresh kafka storage")
+    start_time = time.time()
     for kafka_storage in models.KafkaStorage.objects.all():
         try:
             kafka_storage.ensure_topic()
@@ -189,9 +247,19 @@ def refresh_kafka_storage():
                     kafka_storage.table_id, traceback.format_exc()
                 )
             )
+    cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_kafka_storage", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_kafka_storage", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh_kafka_storage: kafka storage refresh success,cost->[%s]", cost_time)
 
 
-@share_lock(identify="metadata_refreshKafkaTopicInfo")
 def refresh_kafka_topic_info():
     cluster_map = {}
     for kafka_topic_info in models.KafkaTopicInfo.objects.all():
@@ -202,10 +270,26 @@ def refresh_kafka_topic_info():
                 client = cluster_map[datasource.mq_cluster_id]
             except KeyError:
                 cluster = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
-                hosts = "{}:{}".format(cluster.domain_name, cluster.port)
-                client = kafka.SimpleClient(hosts=hosts)
+                conf = {
+                    "bootstrap.servers": f"{cluster.domain_name}:{cluster.port}",
+                }
+                # NOTE: 当有用户名和密码时，指定对应的sasl_mechanism和security_protocol
+                if cluster.username and cluster.password:
+                    conf["sasl.mechanisms"] = KAFKA_SASL_MECHANISM
+                    conf["security.protocol"] = KAFKA_SASL_PROTOCOL
+                    conf["sasl.username"] = cluster.username
+                    conf["sasl.password"] = cluster.password
+
+                client = AdminClient(conf)
                 cluster_map[datasource.mq_cluster_id] = client
-            len_partition = len(client.topic_partitions.get(kafka_topic_info.topic, {}))
+            topics = client.describe_topics(TopicCollection([kafka_topic_info.topic]))
+            topic_detail = topics.get(kafka_topic_info.topic)
+            if not topic_detail:
+                continue
+            try:
+                len_partition = len(topic_detail.result().partitions)
+            except AttributeError:
+                continue
             if not len_partition:
                 raise ValueError(_("分区数量获取失败，请确认"))
 
@@ -232,26 +316,107 @@ def refresh_kafka_topic_info():
 
 @share_lock(identify="metadata_refreshESStorage", ttl=7200)
 def refresh_es_storage():
-    # NOTE: 这是临时处理；如果在白名单中，则按照串行处理
-    es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
-    if es_cluster_wl:
-        # 这里集群不会太多
-        es_storage_data = models.ESStorage.objects.filter(storage_cluster_id__in=es_cluster_wl)
-        manage_es_storage.delay(es_storage_data)
-    # 设置每100条记录，拆分为一个任务
-    start, step = 0, 100
-    es_storages = models.ESStorage.objects.exclude(storage_cluster_id__in=es_cluster_wl)
-    # 添加一步过滤，用以减少任务的数量
+    logger.info("refresh_es_storage:start to refresh es_storage")
+    start_time = time.time()  # 记录开始时间
+
+    # 1. 获取设置中的黑名单和启用V2索引轮转的白名单
+    es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+    enable_v2_rotation_es_cluster_ids = getattr(settings, "ENABLE_V2_ROTATION_ES_CLUSTER_IDS", [])
+    # es_cluster_wl = getattr(settings, "ES_SERIAL_CLUSTER_LIST", [])
+
+    # # 处理白名单中的集群，串行处理
+    # if es_cluster_wl:
+    #     es_storage_data = models.ESStorage.objects.filter(
+    #         storage_cluster_id__in=es_cluster_wl, need_create_index=True
+    #     )
+    #     manage_es_storage.delay(es_storage_data)
+
+    # 2.筛选出需要创建索引且不在黑名单中的集群
+    # Note：由于白名单中的集群涉及的索引数量过大，现不再采用串行处理方式，改为根据ES集群ID分组进行索引轮转任务
+    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
+        storage_cluster_id__in=es_blacklist
+    )
+    # 3. 过滤掉无效的表，进一步减少轮转的索引数据量
     table_id_list = models.ResultTable.objects.filter(
         table_id__in=es_storages.values_list("table_id", flat=True), is_enable=True, is_deleted=False
     ).values_list("table_id", flat=True)
+
     es_storages = es_storages.filter(table_id__in=table_id_list)
 
-    count = es_storages.count()
-    for s in range(start, count, step):
-        manage_es_storage.delay(es_storages[s : s + step])
+    # 4. 设置每个任务处理的记录数
+    start, step = 0, settings.ES_INDEX_ROTATION_STEP
 
-    logger.info("es_storage cron task started success.")
+    # 5. 按 storage_cluster_id 分组下发轮转任务，提高并发性能，降低ES集群的压力
+    es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
+
+    for cluster in es_storages_by_cluster:
+        try:
+            cluster_id = cluster['storage_cluster_id']
+            cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
+            count = cluster_storages.count()
+            logger.info(
+                "refresh_es_storage:refresh cluster_id->[%s] es_storages count->[%s]，now try to rotate",
+                cluster_id,
+                count,
+            )
+
+            # 默认使用新方式轮转
+            manage_es_storage.delay(cluster_storages, cluster_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("refresh_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster.cluster_id, e)
+            continue
+
+    end_time = time.time()  # 记录结束时间
+    logger.info("refresh_es_storage:es_storage cron task started successfully,use %.2f seconds.", end_time - start_time)
+
+
+@share_lock(identify="metadata_manageDisableESStorage", ttl=7200)
+def manage_disable_es_storage():
+    """
+    清理禁用的采集项索引
+    """
+    logger.info("manage_disable_es_storage:start to clean disable es_storage")
+
+    start_time = time.time()  # 记录开始时间
+    # 1. 获取轮转集群黑名单
+    es_blacklist = getattr(settings, "ES_CLUSTER_BLACKLIST", [])
+
+    # 2.筛选出需要创建索引且不在黑名单中的集群
+    es_storages = models.ESStorage.objects.filter(source_type=EsSourceType.LOG.value, need_create_index=True).exclude(
+        storage_cluster_id__in=es_blacklist
+    )
+
+    # 3. 只处理禁用的结果表/采集项
+    table_id_list = models.ResultTable.objects.filter(
+        table_id__in=es_storages.values_list("table_id", flat=True), is_enable=False
+    ).values_list("table_id", flat=True)
+
+    es_storages = es_storages.filter(table_id__in=table_id_list)
+
+    es_storages_by_cluster = es_storages.values('storage_cluster_id').distinct()
+
+    # 4, 分集群执行并发清理
+    for cluster in es_storages_by_cluster:
+        try:
+            cluster_id = cluster['storage_cluster_id']
+            cluster_storages = es_storages.filter(storage_cluster_id=cluster_id)
+            count = cluster_storages.count()
+            logger.info(
+                "manage_disable_es_storage:clean cluster_id->[%s] es_storages count->[%s]，now try to clean",
+                cluster_id,
+                count,
+            )
+
+            # 默认使用新方式轮转
+            clean_disable_es_storage.delay(cluster_storages, cluster_id)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("manage_disable_es_storage:refresh cluster_id->[%s] failed for->[%s]", cluster.cluster_id, e)
+            continue
+
+    end_time = time.time()  # 记录结束时间
+    logger.info(
+        "manage_disable_es_storage:es_storage cron task started successfully,use %.2f seconds.", end_time - start_time
+    )
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshBCSInfo")
@@ -259,6 +424,11 @@ def refresh_bcs_info():
     """
     刷新bcs_info到consul
     """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_bcs_info", status=TASK_STARTED, process_target=None
+    ).inc()
+    start_time = time.time()
     try:
         logger.info("start to refresh resources")
         models.PodMonitorInfo.refresh_all_to_consul()
@@ -266,11 +436,37 @@ def refresh_bcs_info():
         logger.error("refresh bcs info into consul failed for ->{}".format(e))
     # 清理到期的回溯索引
     models.EsSnapshotRestore.clean_expired_restore()
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_bcs_info", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_bcs_info", process_target=None).observe(cost_time)
+    metrics.report_all()
+    logger.info("refresh bcs info into consul success,use ->[%s] seconds", cost_time)
+
+
+@share_lock(identify="metadata_check_and_delete_ds_consul_config")
+def check_and_delete_ds_consul_config():
+    """
+    针对V4数据源，检查Consul是否存在，若存在则进行删除操作
+    """
+    logger.info("check_and_delete_ds_consul_config: start to check and delete ds consul config")
+    data_sources = models.DataSource.objects.filter(created_from=DataIdCreatedFromSystem.BKDATA.value)
+    bulk_check_and_delete_ds_consul_config.delay(data_sources)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshEsRestore")
 def refresh_es_restore():
-    # 刷新回溯状态
+    """
+    刷新es回溯状态
+    """
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_es_restore", status=TASK_STARTED, process_target=None
+    ).inc()
+    logger.info("refresh_es_restore:start to refresh es restore")
+    start_time = time.time()
     not_done_restores = models.EsSnapshotRestore.objects.exclude(total_doc_count=F("complete_doc_count")).exclude(
         is_deleted=True
     )
@@ -284,6 +480,17 @@ def refresh_es_restore():
                 )
             )
             continue
+    cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_es_restore", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="refresh_es_restore", process_target=None).observe(
+        cost_time
+    )
+    metrics.report_all()
+    logger.info("refresh es restore success,use ->[%s] seconds", cost_time)
 
 
 @share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshInfluxDBProxyStorage")
@@ -318,7 +525,7 @@ def clean_datasource_from_consul():
     """
     logger.info("start to delete datasource from consul")
     # 获取使用的 transfer 集群
-    data_info = models.DataSource.objects.values("bk_data_id", "transfer_cluster_id")
+    data_info = models.DataSource.objects.filter(is_enable=True).values("bk_data_id", "transfer_cluster_id")
     # 组装 transfer 消费的数据源 ID
     transfer_id_and_data_ids = {}
     for d in data_info:

@@ -23,42 +23,42 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
+import type { RouteConfig } from 'vue-router';
 // import * as HomeAuth from '../../pages/home/authority-map';
 const Service = () => import(/* webpackChunkName: "service" */ '../../pages/service/service');
-const ServiceDetail = () => import(/* webpackChunkName: "service-detial" */ '../../pages/service/service-detail');
+const ServiceDetail = () => import(/* webpackChunkName: "service-detail" */ '../../pages/service/service-detail');
 const ServiceAdd = () => import(/* webpackChunkName: "service-add" */ '../../pages/service/service-add');
 const ServiceConfig = () =>
-  import(/* webpackChunkName: "ServiceConfig" */ '../../pages/service/service-configuration/configuration');
+  import(/* webpackChunkName: "ServiceConfig" */ '../../pages/service/service-config/configuration');
 export default [
   {
     path: '/service',
     name: 'service',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: Service
+      noCache: Service,
     },
     meta: {
       title: '服务',
       navId: 'service',
       customTitle: true,
-      noNavBar: true
+      noNavBar: true,
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/service/detail',
     name: 'service-detail',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: ServiceDetail
+      noCache: ServiceDetail,
     },
     meta: {
       title: '服务详情',
@@ -66,48 +66,48 @@ export default [
       customTitle: true,
       noNavBar: true,
       route: {
-        parent: 'service'
-      }
+        parent: 'service',
+      },
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/service-config',
     name: 'service-config',
     props: true,
     components: {
-      noCache: ServiceConfig
+      noCache: ServiceConfig,
     },
     meta: {
       title: '服务配置',
       navId: 'service',
-      noNavBar: true
+      noNavBar: true,
       // authority: {
       //   map: HomeAuth,
       //   page: [HomeAuth.VIEW_AUTH]
       // }
-    }
+    },
   },
   {
     path: '/service-add/:appName',
     name: 'service-add',
     props: {
-      noCache: true
+      noCache: true,
     },
     components: {
-      noCache: ServiceAdd
+      noCache: ServiceAdd,
     },
     meta: {
-      title: '新增服务',
+      title: '接入服务',
       navId: 'service',
       customTitle: false,
       noNavBar: true,
       route: {
-        parent: 'service'
-      }
-    }
-  }
+        parent: 'service',
+      },
+    },
+  },
 ] as RouteConfig[];

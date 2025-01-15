@@ -109,7 +109,7 @@ class Redis2Mysql(Singleton):
         # 如果找不到指定key对应的value 则返回None
         try:
             result = GlobalConfig.objects.get(key=self.get_key(key, member)).value
-            return result
+            return result.encode("utf8")
         except Exception:
             return None
 

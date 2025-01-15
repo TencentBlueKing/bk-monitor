@@ -35,17 +35,17 @@
     </div>
     <div class="host-body">
       <bk-input
+        v-model.trim="keyword"
         class="body-search"
         :placeholder="$t('输入')"
         clearable
         right-icon="bk-icon icon-search"
-        v-model.trim="keyword"
         @change="handleKeywordChange"
       />
       <div class="body-table">
         <bk-table
-          height="313"
           ref="hostTableRef"
+          height="313"
           :empty-text="$t('无数据')"
           highlight-current-row
           :data="tableData"
@@ -78,7 +78,7 @@ export default {
   name: 'UptimeCheckNodeEditTable',
   props: {
     isShow: Boolean,
-    ipList: Array
+    ipList: Array,
   },
   data() {
     return {
@@ -89,13 +89,13 @@ export default {
       agentStatusMap: {
         '-1': this.$t('Agent异常'),
         0: this.$t('Agent正常'),
-        2: this.$t('无Agent')
+        2: this.$t('无Agent'),
       },
       agentColorMap: {
         '-1': '#EA3636',
         0: '#2DCB56',
-        2: '#C4C6CC'
-      }
+        2: '#C4C6CC',
+      },
     };
   },
   mounted() {
@@ -140,8 +140,8 @@ export default {
       } else {
         this.tableData = this.ipList;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 

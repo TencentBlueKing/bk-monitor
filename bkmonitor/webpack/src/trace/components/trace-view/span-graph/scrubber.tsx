@@ -47,26 +47,26 @@ const Scrubber = ({ isDragging, onMouseDown, onMouseEnter, onMouseLeave, positio
       >
         {/* handleExpansion is only visible when `isDragging` is true */}
         <rect
-          x={xPercent}
-          class='scrubber-handleExpansion'
           style={{ transform: 'translate(-4.5px)' }}
           width='9'
           height='24'
+          class='scrubber-handleExpansion'
+          x={xPercent}
         />
         <rect
-          x={xPercent}
-          y={20}
-          class='scrubber-handle'
           style={{ transform: 'translate(-1.5px)' }}
           width='3'
           height='24'
+          class='scrubber-handle'
+          x={xPercent}
+          y={20}
         />
       </g>
       <line
         class='scrubber-line'
-        y2='100%'
         x1={xPercent}
         x2={xPercent}
+        y2='100%'
       />
     </g>
   );

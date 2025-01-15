@@ -38,16 +38,16 @@ export default defineComponent({
   props: {
     errMsg: {
       type: String,
-      default: ''
+      default: '',
     },
     label: {
       type: String,
-      default: ''
+      default: '',
     },
     require: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   setup(props: IProps, { slots }) {
     function renderFn() {
@@ -62,10 +62,10 @@ export default defineComponent({
       );
     }
     return {
-      renderFn
+      renderFn,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

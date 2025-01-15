@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 GLOBAL_BIZ_ID = 0
 
@@ -301,15 +301,15 @@ VARIABLES = [
                 "example": "xxx_127.0.1.11,xxx_127.0.1.12",
             },
             {"name": "target.processes[0].port", "desc": _lazy("第i个进程的端口"), "example": "80"},
-            {"name": 'target.process["process_name"].bk_process_id', "desc": _lazy("进程ID"), "example": "1"},
+            {"name": "target.process['process_name'].bk_process_id", "desc": _lazy("进程ID"), "example": "1"},
             {
-                "name": 'target.process["process_name"].bk_process_name',
+                "name": "target.process['process_name'].bk_process_name",
                 "desc": _lazy("进程名称"),
                 "example": _lazy("进程1"),
             },
-            {"name": 'target.process["process_name"].bk_func_name', "desc": _lazy("进程功能名称"), "example": "java"},
-            {"name": 'target.process["process_name"].bind_ip', "desc": _lazy("绑定IP"), "example": "127.0.1.10"},
-            {"name": 'target.process["process_name"].port', "desc": _lazy("绑定端口"), "example": "1,2,3-5,7-10"},
+            {"name": "target.process['process_name'].bk_func_name", "desc": _lazy("进程功能名称"), "example": "java"},
+            {"name": "target.process['process_name'].bind_ip", "desc": _lazy("绑定IP"), "example": "127.0.1.10"},
+            {"name": "target.process['process_name'].port", "desc": _lazy("绑定端口"), "example": "1,2,3-5,7-10"},
         ],
     },
     {
@@ -343,6 +343,7 @@ VARIABLES = [
             {"name": "content.ack_operators", "desc": _lazy("确认人"), "example": "admin"},
             {"name": "content.ack_reason", "desc": _lazy("确认原因"), "example": "Process Later"},
             {"name": "content.receivers", "desc": _lazy("通知人"), "example": "lisa,yunweixiaoge"},
+            {"name": "content.remarks", "desc": _lazy("备注"), "example": "known"},
         ],
     },
     {
@@ -353,15 +354,16 @@ VARIABLES = [
         "items": [
             {"name": "alarm.id", "desc": _lazy("告警ID"), "example": "163800442000001"},
             {"name": "alarm.name", "desc": _lazy("告警名称"), "example": "CPU总使用率告警"},
-            {"name": 'alarm.dimensions["dimension_name"].display_name', "desc": _lazy("维度名"), "example": "目标IP"},
+            {"name": "alarm.dimensions['dimension_name'].display_name", "desc": _lazy("维度名"), "example": "目标IP"},
             {
-                "name": 'alarm.dimensions["dimension_name"].display_value',
+                "name": "alarm.dimensions['dimension_name'].display_value",
                 "desc": _lazy("维度值"),
                 "example": "127.0.0.1",
             },
             {"name": "alarm.level", "desc": _lazy("告警级别"), "example": "1"},
             {"name": "alarm.level_name", "desc": _lazy("告警级别名称"), "example": "致命"},
             {"name": "alarm.begin_time", "desc": _lazy("告警开始时间"), "example": "1970-01-01 00:00:00"},
+            {"name": "alarm.begin_timestamp", "desc": _lazy("告警开始时间戳"), "example": "1970-01-01 00:00:00"},
             {"name": "alarm.duration", "desc": _lazy("告警持续时间(秒)"), "example": "130"},
             {"name": "alarm.duration_string", "desc": _lazy("告警持续时间字符串"), "example": "2m 10s"},
             {"name": "alarm.description", "desc": _lazy("告警内容"), "example": "AVG(CPU使用率) >= 95.0%, 当前值96.317582%"},
@@ -400,7 +402,7 @@ VARIABLES = [
             {
                 "name": "alarm.alert_info",
                 "desc": _lazy("回调数据【new】"),
-                "example": _lazy(json.dumps({"alarm": "the new version content of webhook"})),
+                "example": json.dumps({"alarm": "the new version content of webhook"}),
             },
             {
                 "name": "alarm.bkm_info",

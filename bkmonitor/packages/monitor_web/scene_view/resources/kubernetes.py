@@ -21,10 +21,12 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Count, Q
-from django.db.models.aggregates import Sum
+from django.db.models.aggregates import Avg, Sum
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_ci_space
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
@@ -50,6 +52,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.casting import force_float
+from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.kubernetes import (
     BcsClusterType,
     KubernetesServiceJsonParser,
@@ -59,6 +62,7 @@ from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.event import EventTypeNormal, EventTypeWarning
 from core.drf_resource import Resource, api, resource
+from core.unit import load_unit
 from monitor_web.constants import (
     GRAPH_COLUMN_BAR,
     GRAPH_NUMBER_CHART,
@@ -1614,9 +1618,9 @@ class GetKubernetesClusterList(KubernetesResource):
             bk_biz_id,
             {
                 "node_count": Sum("node_count"),
-                "cpu_usage_ratio": Sum("cpu_usage_ratio"),
-                "memory_usage_ratio": Sum("memory_usage_ratio"),
-                "disk_usage_ratio": Sum("disk_usage_ratio"),
+                "cpu_usage_ratio": Avg("cpu_usage_ratio"),
+                "memory_usage_ratio": Avg("memory_usage_ratio"),
+                "disk_usage_ratio": Avg("disk_usage_ratio"),
             },
         )
         summary["cpu_usage_ratio"] = get_progress_value(summary["cpu_usage_ratio"])
@@ -1675,7 +1679,14 @@ class GetKubernetesClusterChoices(KubernetesResource):
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
-        # todo 空间支持
+        data = []
+        if bk_biz_id < 0:
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+            if not space:
+                return data
+            bk_biz_id = space.bk_biz_id
+
         cluster_list = BCSCluster.objects.filter(bk_biz_id=bk_biz_id).values("bcs_cluster_id", "name")
         data = []
         for item in cluster_list:
@@ -1993,22 +2004,22 @@ class GetKubernetesObjectCount(ApiAuthResource):
             "label": _("集群"),
         },
         "namespace": {
-            "label": _("命名空间"),
+            "label": "Namespace",
         },
         "node": {
-            "label": _("节点(Node)"),
+            "label": "Node",
         },
         "pod": {
             "label": "Pod",
         },
         "master_node": {
-            "label": _("Master节点"),
+            "label": "Master Node",
         },
         "work_node": {
-            "label": _("Worker节点"),
+            "label": "Worker Node",
         },
         "container": {
-            "label": _("容器"),
+            "label": "Container",
         },
     }
 
@@ -2658,7 +2669,9 @@ class GetKubernetesNetworkTimeSeries(Resource):
                 {
                     "key": "instance",
                     "method": "reg",
-                    "value": [f"^{node.ip}:" for node in node_list if node.ip],
+                    "value": [
+                        fr"^\[{node.ip}\]:" if is_v6(node.ip) else f"{node.ip}:" for node in node_list if node.ip
+                    ],
                 }
             )
         else:
@@ -3841,6 +3854,7 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         sorted_data = sorted(data.items(), key=lambda d: d[1] if d[1] else 0, reverse=True)[:top_n]
         graph_data = []
         for namespace, value in sorted_data:
+            # 不知道哪里调用这块， value 和 total 共用G 单位， 暂不改
             graph_data.append(
                 {
                     "name": namespace,
@@ -3867,9 +3881,9 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
                 value = 0
             data[key_name] = value
 
-        allocatable_memory = round(data.get("allocatable_memory_bytes", 0) / 1024 / 1024 / 1024, 2)
-        requests_memory = round(data.get("requests_memory_bytes", 0) / 1024 / 1024 / 1024, 2)
-        limits_memory = round(data.get("limits_memory_bytes", 0) / 1024 / 1024 / 1024, 2)
+        allocatable_memory = data.get("allocatable_memory_bytes", 0)
+        requests_memory = data.get("requests_memory_bytes", 0)
+        limits_memory = data.get("limits_memory_bytes", 0)
 
         pre_allocatable_usage_ratio = round(data.get('pre_allocatable_usage_ratio', 0), 2)
         if pre_allocatable_usage_ratio > 80:
@@ -3881,11 +3895,11 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
                 graph_data = [
                     {
                         "name": _("内存 request 量"),
-                        "value": f"{requests_memory}G",
+                        "value": "%s %s" % load_unit("bytes").auto_convert(requests_memory, decimal=2),
                     },
                     {
                         "name": _("内存 limit 量"),
-                        "value": f"{limits_memory}G",
+                        "value": "%s %s" % load_unit("bytes").auto_convert(limits_memory, decimal=2),
                     },
                 ]
                 return graph_data
@@ -3893,15 +3907,15 @@ class GetKubernetesMemoryAnalysis(GetKubernetesMetricQueryRecords):
         graph_data = [
             {
                 "name": _("内存总量"),
-                "value": f"{allocatable_memory}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(allocatable_memory, decimal=2),
             },
             {
                 "name": _("内存 request 量"),
-                "value": f"{requests_memory}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(requests_memory, decimal=2),
             },
             {
                 "name": _("内存 limit 量"),
-                "value": f"{limits_memory}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(limits_memory, decimal=2),
             },
             {
                 "name": _("内存预分配率"),
@@ -4033,8 +4047,8 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
 
     @staticmethod
     def to_graph(validated_request_data: Dict, performance_data: List) -> List:
-        system_disk_total = round(performance_data.get("system_disk_total", 0) / 1024 / 1024 / 1024, 2)
-        system_disk_used = round(performance_data.get("system_disk_used", 0) / 1024 / 1024 / 1024, 2)
+        system_disk_total = performance_data.get("system_disk_total", 0)
+        system_disk_used = performance_data.get("system_disk_used", 0)
 
         disk_usage_ratio = round(performance_data.get('disk_usage_ratio', 0), 2)
         if disk_usage_ratio > 80:
@@ -4044,11 +4058,11 @@ class GetKubernetesDiskAnalysis(GetKubernetesMetricQueryRecords):
         graph_data = [
             {
                 "name": _("磁盘总量"),
-                "value": f"{system_disk_total}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(system_disk_total, decimal=2),
             },
             {
                 "name": _("磁盘已使用量"),
-                "value": f"{system_disk_used}G",
+                "value": "%s %s" % load_unit("bytes").auto_convert(system_disk_used, decimal=2),
             },
             {
                 "name": _("磁盘使用率"),

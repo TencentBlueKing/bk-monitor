@@ -27,7 +27,6 @@ import { Component, Provide } from 'vue-property-decorator';
 
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import * as pluginManageAuth from '../authority-map';
-
 import MetricDimensionDialog from './metric-dimension-dialog';
 
 @Component
@@ -35,6 +34,6 @@ export default class MetricDimensionPage extends authorityMixinCreate(pluginMana
   @Provide('authority') authority;
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   render() {
-    return <MetricDimensionDialog isRoutePage={true}></MetricDimensionDialog>;
+    return <MetricDimensionDialog isRoutePage={true} />;
   }
 }

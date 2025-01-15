@@ -16,7 +16,7 @@ from typing import Optional
 from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
 
 from bkmonitor.utils.db.fields import JsonField
@@ -24,6 +24,7 @@ from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
 
+from ..constants import EventGroupStatus
 from .base import CustomGroupBase
 
 logger = logging.getLogger("metadata")
@@ -33,14 +34,22 @@ class EventGroup(CustomGroupBase):
 
     """事件分组记录"""
 
+    EVENT_GROUP_STATUS_CHOICES = (
+        (EventGroupStatus.NORMAL, "正常"),
+        (EventGroupStatus.SLEEP, "休眠"),
+    )
+
     event_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     event_group_name = models.CharField(verbose_name="事件分组名", max_length=255)
+
+    status = models.CharField("状态", choices=EVENT_GROUP_STATUS_CHOICES, default="normal", max_length=16)
+    last_check_report_time = models.DateTimeField("最后检查报告时间", null=True, blank=True)
 
     GROUP_ID_FIELD = "event_group_id"
     GROUP_NAME_FIELD = "event_group_name"
 
     # 时间字段的配置
-    STORAGE_TIME_OPTION = {"es_type": "date_nanos", "es_format": "epoch_millis"}
+    STORAGE_TIME_OPTION = {"es_type": "date", "es_format": "epoch_millis"}
 
     # Event字段配置
     STORAGE_EVENT_OPTION = {
@@ -219,7 +228,19 @@ class EventGroup(CustomGroupBase):
         custom_events.delete()
         logger.info("all metrics about EventGroup->[{}] is deleted.".format(self.event_group_id))
 
-    def to_json(self):
+    def get_event_info_list(self, limit: Optional[int] = None):
+        query = Event.objects.filter(event_group_id=self.event_group_id).only(
+            "event_id", "event_name", "dimension_list"
+        )
+
+        # 如果limit存在，则限制查询结果数量
+        if limit:
+            query = query[:limit]
+
+        # 将查询结果转化为JSON格式
+        return [event_info.to_json() for event_info in query]
+
+    def to_json(self, event_infos_limit: Optional[int] = None):
         return {
             "event_group_id": self.event_group_id,
             "bk_data_id": self.bk_data_id,
@@ -232,13 +253,9 @@ class EventGroup(CustomGroupBase):
             "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
             "last_modify_user": self.last_modify_user,
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "event_info_list": [
-                event_info.to_json()
-                for event_info in Event.objects.filter(event_group_id=self.event_group_id).only(
-                    "event_id", "event_name", "dimension_list"
-                )
-            ],
+            "event_info_list": self.get_event_info_list(event_infos_limit),
             "data_label": self.data_label,
+            "status": self.status,
         }
 
     @classmethod
@@ -312,6 +329,7 @@ class EventGroup(CustomGroupBase):
         :param data_label: 数据标签
         :return: True or raise
         """
+        self.status = EventGroupStatus.NORMAL.value
         return self.modify_custom_group(
             operator=operator,
             custom_group_name=event_group_name,

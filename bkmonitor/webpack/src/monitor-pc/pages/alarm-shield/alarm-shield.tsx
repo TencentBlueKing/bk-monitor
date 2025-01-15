@@ -33,7 +33,7 @@ import './alarm-shield.scss';
 const wewebId = 'alarmShield';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class TraceRetrieval extends tsc<{}> {
+export default class TraceRetrieval extends tsc<object> {
   get alarmShieldHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -45,7 +45,7 @@ export default class TraceRetrieval extends tsc<{}> {
   get alarmShieldData() {
     return JSON.stringify({
       host: this.alarmShieldHost,
-      baseroute: '/trace/'
+      baseroute: '/trace/',
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -55,12 +55,12 @@ export default class TraceRetrieval extends tsc<{}> {
     return (
       <div class='alarm-shield-wrap'>
         <bk-weweb
-          setShodowDom={true}
-          class='alarm-shield-wrap-iframe'
-          url={this.alarmShieldUrl}
-          showSourceCode={true}
           id={wewebId}
+          class='alarm-shield-wrap-iframe'
           data={this.alarmShieldData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.alarmShieldUrl}
         />
       </div>
     );

@@ -25,24 +25,41 @@
 -->
 <template>
   <transition name="fade">
-    <div v-if="show" v-transfer-dom="'.bk-mobile-landscape'" class="bk-select">
+    <div
+      v-if="show"
+      class="bk-select"
+      v-transfer-dom="'.bk-mobile-landscape'"
+    >
       <!-- select内容 -->
       <div class="main">
         <!-- select 标题 -->
-        <div v-if="title" class="title">
+        <div
+          v-if="title"
+          class="title"
+        >
           {{ title }}
         </div>
         <!-- options picker -->
         <slot>
-          <van-picker :columns="columns" :default-index="defaultIndex" @change="handlePickerChange" />
+          <van-picker
+            :columns="columns"
+            :default-index="defaultIndex"
+            @change="handlePickerChange"
+          />
         </slot>
         <!-- 确定/取消 操作 -->
         <div class="contral-btn">
-          <span class="cancel" @click="handleSelectCancel">
+          <span
+            class="cancel"
+            @click="handleSelectCancel"
+          >
             {{ $t('取消') }}
           </span>
           <span class="line" />
-          <span class="confirm" @click="handleSelectConfirm">
+          <span
+            class="confirm"
+            @click="handleSelectConfirm"
+          >
             {{ $t('确定') }}
           </span>
         </div>
@@ -52,10 +69,12 @@
 </template>
 <script lang="ts">
 import { Vue, Component, Prop, Emit, Model } from 'vue-property-decorator';
+
 import { Picker } from 'vant';
+
 import transferDom from '../../directives/transform-dom';
 
-type ValueType = string | number;
+type ValueType = number | string;
 
 interface IOptions {
   text: string;
@@ -64,11 +83,11 @@ interface IOptions {
 @Component({
   name: 'bk-select',
   components: {
-    [Picker.name]: Picker
+    [Picker.name]: Picker,
   },
   directives: {
-    transferDom
-  }
+    transferDom,
+  },
 })
 export default class BkSelect extends Vue {
   // 自定义model
@@ -82,9 +101,9 @@ export default class BkSelect extends Vue {
     default: () => [
       {
         text: 'no data',
-        value: 0
-      }
-    ]
+        value: 0,
+      },
+    ],
   })
   private columns: IOptions[];
 

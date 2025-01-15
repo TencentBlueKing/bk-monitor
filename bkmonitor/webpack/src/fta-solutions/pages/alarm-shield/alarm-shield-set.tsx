@@ -25,13 +25,14 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import AlarmShieldSet from 'monitor-pc/pages/alarm-shield/alarm-shield-set/alarm-shield-set.vue';
 
 import './alarm-shield-set.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class FtaAlarmShieldSet extends tsc<{}> {
+export default class FtaAlarmShieldSet extends tsc<object> {
   needCheck = true;
   async beforeRouteLeave(to, from, next) {
     if (!to.params.refresh) {
@@ -49,7 +50,7 @@ export default class FtaAlarmShieldSet extends tsc<{}> {
           needBack && this.$router.back();
           resolve(true);
         },
-        cancelFn: () => resolve(false)
+        cancelFn: () => resolve(false),
       });
     });
   }

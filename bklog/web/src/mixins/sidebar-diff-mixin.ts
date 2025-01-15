@@ -1,23 +1,27 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 import { deepClone, deepEqual } from '../common/util';
@@ -27,14 +31,14 @@ export default {
     return {
       _initCloneData_: null, // 初始化时的formData
       _isChange_: false,
-      _isDataInit_: false
+      _isDataInit_: false,
     };
   },
   computed: {
     // 监听的formData对象 如果有多个监听则不使用mixin的默认值 自行在组件内设置计算属性
     _watchFormData_({ formData }) {
       return { formData };
-    }
+    },
   },
   watch: {
     _watchFormData_: {
@@ -44,8 +48,8 @@ export default {
         if (this._isChange_ || !this._isDataInit_) return;
         // 对比是否进行过修改
         if (!deepEqual(newVal, this._initCloneData_)) this._isChange_ = true;
-      }
-    }
+      },
+    },
   },
   methods: {
     /**
@@ -53,8 +57,9 @@ export default {
      * @returns {Boolean} 是否编辑过
      */
     $isSidebarClosed(): Promise<boolean> {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
       const _this = this;
-      return new Promise((resolve, reject) => {
+      return new Promise(resolve => {
         if (this._isChange_) {
           // 已编辑
           this.$bkInfo({
@@ -69,7 +74,7 @@ export default {
             },
             cancelFn() {
               resolve(false);
-            }
+            },
           });
         } else {
           // 未编辑
@@ -96,6 +101,6 @@ export default {
      */
     async handleCloseSidebar(): Promise<boolean> {
       return await this.$isSidebarClosed();
-    }
-  }
+    },
+  },
 };

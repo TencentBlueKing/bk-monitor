@@ -34,11 +34,13 @@
         <span>{{
           `${$t('找到 {count} 条结果 , 耗时  {time} ms', { count: totalCount, time: searchTipsObj.time })}`
         }}</span>
-        <span v-if="searchTipsObj.showAddStrategy">,
+        <span v-if="searchTipsObj.showAddStrategy"
+          >,
           <span
             class="add-strategy-btn"
             @click="handleQueryAddStrategy"
-          >{{ $t('添加监控策略') }}</span>
+            >{{ $t('添加监控策略') }}</span
+          >
         </span>
       </div>
       <div
@@ -81,14 +83,14 @@
                       {
                         'border-bottom':
                           group.panels.length - index <= chartType + 1 &&
-                          group.panels.length - index <= (group.panels.length % (chartType + 1) || chartType + 1)
+                          group.panels.length - index <= (group.panels.length % (chartType + 1) || chartType + 1),
                       },
                       { 'border-right': chartType > 0 && (index + 1) % (chartType + 1) },
                       {
                         'is-collect': needCollect && getHasCollected(item.id),
                         'is-collect-row': needCollect && getHasCollected(item.id),
-                        'collect-wrapper': needCollect
-                      }
+                        'collect-wrapper': needCollect,
+                      },
                     ]"
                     v-if="!item.hidden && showPanel(item.show)"
                     :key="item.key"
@@ -135,7 +137,7 @@
         :key="group.key"
         v-else
       >
-        <template v-for="item in group.panels">
+        <template v-for="(item, index) in group.panels">
           <div
             class="common-chart"
             :id="!!item.group ? `${item.group}${!!item.index ? '-' + item.index : ''}` : `${item.index}`"
@@ -145,8 +147,8 @@
               {
                 'is-collect': needCollect && item.type === 'graph' && getHasCollected(item.id),
                 'collect-wrapper': needCollect && item.type === 'graph',
-                'has-child': item.panels && item.panels.length
-              }
+                'has-child': item.panels && item.panels.length,
+              },
             ]"
             :key="item.key"
           >
@@ -191,8 +193,8 @@
               :chart-type="getPanelChartType(item)"
               :title="item.title"
               :subtitle="item.subTitle"
-              :error-msg="errorMsg"
-              :get-series-data="getSeriesData(item)"
+              :error-msg="errorMsg[index]"
+              :get-series-data="getSeriesData(item, index)"
               :reflesh-interval="compareValue.tools.refleshInterval"
               :get-alarm-status="getAlarmStatus"
               :group-id="groupId"
@@ -250,7 +252,6 @@
   </ul>
 </template>
 <script lang="ts">
-import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
 import dayjs from 'dayjs';
 import deepMerge from 'deepmerge';
 // import { handleTimeRange } from '../../../utils/index';
@@ -260,21 +261,21 @@ import { deepClone, random } from 'monitor-common/utils/utils.js';
 import { handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 import { echartsConnect, echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
+import { Component, Inject, InjectReactive, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import authorityStore from '../../../store/modules/authority';
 import { getCollectVariable, setCollectVariable } from '../../collector-config/collector-view/variable-set';
 import CollectChart from '../../data-retrieval/components/collect-chart.vue';
-import ViewDetail from '../../view-detail/view-detail.vue';
-import { ChartType, IHostGroup, IQueryOption, ISearchTipsObj } from '../performance-type';
+import type { ChartType, IHostGroup, IQueryOption, ISearchTipsObj } from '../performance-type';
 
 @Component({
   name: 'dashboard-panels',
   components: {
     MonitorEcharts,
     CollectChart,
-    ViewDetail
-  }
+    ViewDetail: () => import(/* webpackChunkName: "view-detail" */ '../../view-detail/view-detail.vue'),
+  },
 })
 export default class DashboardPanels extends Vue {
   // dashboard配置数据
@@ -296,11 +297,11 @@ export default class DashboardPanels extends Vue {
       show: false,
       time: 0,
       showSplit: true,
-      showAddStrategy: false
+      showAddStrategy: false,
     }),
-    type: Object
+    type: Object,
   })
-    searchTipsObj: ISearchTipsObj;
+  searchTipsObj: ISearchTipsObj;
 
   @Prop({ default: '' }) keyword: string;
   @Prop({ default: () => ({}), type: Object }) saveActiveParams;
@@ -321,23 +322,23 @@ export default class DashboardPanels extends Vue {
   isSingleChart = false;
   showViewDetail = false;
   viewQueryConfig = {};
-  errorMsg = '';
+  errorMsg = [];
   onlyChartHeight = 210;
   get chartOptions() {
     return deepMerge(
       {
         tool: {
-          list: ['save', 'screenshot', 'fullscreen', 'explore', 'set', 'strategy', 'area', 'relate-alert']
+          list: ['save', 'screenshot', 'fullscreen', 'explore', 'set', 'strategy', 'area', 'relate-alert'],
         },
         legend: {
           asTable: this.chartType === 0,
           toTheRight: this.chartType === 0,
-          maxHeight: 50
-        }
+          maxHeight: 50,
+        },
       },
       this.chartOption || {},
       {
-        arrayMerge: (destinationArray, sourceArray) => sourceArray
+        arrayMerge: (destinationArray, sourceArray) => sourceArray,
       }
     );
   }
@@ -367,7 +368,7 @@ export default class DashboardPanels extends Vue {
     const [startTime, endTime] = handleTransformToTimestamp(tools.timeRange);
     return {
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     };
   }
 
@@ -402,79 +403,81 @@ export default class DashboardPanels extends Vue {
     return this.isOnlyChart ? Math.max(height / 2 - 54, 210) : 210;
   }
   // 获取图表数据
-  getSeriesData(config) {
+  getSeriesData(config, index) {
     return async (startTime?, endTime?) => {
-      const dataList = await Promise.all((config.targets || []).map(async (item) => {
-        let params = item.data;
-        let timerange = this.getTimerange();
-        if (this.variableData) {
-          params = this.compileVariableData(params);
-        }
-        if (startTime && endTime) {
-          timerange = {
-            start_time: dayjs(startTime).unix(),
-            end_time: dayjs(endTime).unix()
-          };
-        }
-        if (item.datasourceId === 'log') {
-          return await logQuery({
-            ...params,
-            ...timerange
-          }).catch(() => ({
-            columns: [],
-            rows: []
-          }));
-        }
-        return await graphUnifyQuery(
-          {
-            ...params,
-            ...timerange,
-            slimit: window.slimit || 500,
-            // interval: reviewInterval(params.interval, ),
-            down_sample_range: this.downSampleRangeComputed(this.downSampleRange, Object.values(timerange))
-          },
-          { needRes: true, needMessage: false }
-        )
-          .then(({ data, tips }) => {
-            if (data?.length >= window.slimit) {
-              this.$bkNotify({
-                theme: 'warning',
-                title: this.$t('注意：单图中的数据量过多!!!'),
-                limitLine: 0,
-                message: `${this.$t('[{title}] 单图中的数据条数过多，为了避免查询和使用问题只显示了{slimit}条。', {
-                  title: config.title,
-                  slimit: window.slimit || 500
-                })}${this.$route.name === 'data-retrieval' ? this.$t('可以改变查询方式避免单图数量过大。') : ''}`
-              });
-            }
-            if (tips?.length) {
-              this.$bkMessage({
-                theme: 'warning',
-                message: tips
-              });
-            }
-            this.errorMsg = '';
-            const series = data?.series || [];
-            return series.map(({ target, datapoints, ...setData }) => ({
-              datapoints,
-              ...setData,
-              target:
+      const dataList = await Promise.all(
+        (config.targets || []).map(async item => {
+          let params = item.data;
+          let timerange = this.getTimerange();
+          if (this.variableData) {
+            params = this.compileVariableData(params);
+          }
+          if (startTime && endTime) {
+            timerange = {
+              start_time: dayjs(startTime).unix(),
+              end_time: dayjs(endTime).unix(),
+            };
+          }
+          if (item.datasourceId === 'log') {
+            return await logQuery({
+              ...params,
+              ...timerange,
+            }).catch(() => ({
+              columns: [],
+              rows: [],
+            }));
+          }
+          return await graphUnifyQuery(
+            {
+              ...params,
+              ...timerange,
+              slimit: window.slimit || 500,
+              // interval: reviewInterval(params.interval, ),
+              down_sample_range: this.downSampleRangeComputed(this.downSampleRange, Object.values(timerange)),
+            },
+            { needRes: true, needMessage: false }
+          )
+            .then(({ data, tips }) => {
+              if (data?.length >= window.slimit) {
+                this.$bkNotify({
+                  theme: 'warning',
+                  title: this.$t('注意：单图中的数据量过多!!!'),
+                  limitLine: 0,
+                  message: `${this.$t('[{title}] 单图中的数据条数过多，为了避免查询和使用问题只显示了{slimit}条。', {
+                    title: config.title,
+                    slimit: window.slimit || 500,
+                  })}${this.$route.name === 'data-retrieval' ? this.$t('可以改变查询方式避免单图数量过大。') : ''}`,
+                });
+              }
+              if (tips?.length) {
+                this.$bkMessage({
+                  theme: 'warning',
+                  message: tips,
+                });
+              }
+              this.$set(this.errorMsg, index, '');
+              const series = data?.series || [];
+              return series.map(({ target, datapoints, ...setData }) => ({
+                datapoints,
+                ...setData,
+                target:
                   this.handleBuildLegend(item.alias, {
                     ...setData,
                     tag: {
                       ...setData.dimensions,
-                      ...setData.dimensions_translation
+                      ...setData.dimensions_translation,
                     },
                     metric: setData.metric,
                     formula: params.method,
-                    ...params
-                  }) || target
-            }));
-          })
-          .catch((err) => {
-            this.errorMsg = err.message || err.msg;
-          });
-      }));
+                    ...params,
+                  }) || target,
+              }));
+            })
+            .catch(err => {
+              this.$set(this.errorMsg, index, err.message || err.msg);
+            });
+        })
+      );
       const sets = dataList.reduce<any[]>((data, item) => data.concat(item), []);
       return sets;
     };
@@ -500,11 +503,11 @@ export default class DashboardPanels extends Vue {
         this.chartOptions,
         {
           tool: {
-            list: ['save', 'screenshot']
-          }
+            list: ['save', 'screenshot'],
+          },
         },
         {
-          arrayMerge: (destinationArray, sourceArray) => sourceArray
+          arrayMerge: (destinationArray, sourceArray) => sourceArray,
         }
       );
     }
@@ -515,11 +518,11 @@ export default class DashboardPanels extends Vue {
         this.chartOptions,
         {
           tool: {
-            list: list.filter(item => item !== 'strategy')
-          }
+            list: list.filter(item => item !== 'strategy'),
+          },
         },
         {
-          arrayMerge: (destinationArray, sourceArray) => sourceArray
+          arrayMerge: (destinationArray, sourceArray) => sourceArray,
         }
       );
     }
@@ -528,7 +531,7 @@ export default class DashboardPanels extends Vue {
   handleBuildLegend(alia: string, compareData = {}) {
     if (!alia) return alia;
     let alias = alia;
-    Object.keys(compareData).forEach((key) => {
+    Object.keys(compareData).forEach(key => {
       const val = compareData[key] || {};
       if (key === 'time_offset') {
         if (val && alias.match(/\$time_offset/g)) {
@@ -537,16 +540,14 @@ export default class DashboardPanels extends Vue {
           alias = alias.replace(
             /\$time_offset/g,
             hasMatch
-              ? dayjs.tz().add(-timeMatch[1], timeMatch[2])
-                .fromNow()
-                .replace(/\s*/g, '')
+              ? dayjs.tz().add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
               : val.replace('current', this.$t('当前'))
           );
         }
       } else if (typeof val === 'object') {
         Object.keys(val)
           .sort((a, b) => b.length - a.length)
-          .forEach((valKey) => {
+          .forEach(valKey => {
             const variate = `$${key}_${valKey}`;
             alias = alias.replace(new RegExp(`\\${variate}`, 'g'), val[valKey]);
           });
@@ -562,8 +563,8 @@ export default class DashboardPanels extends Vue {
   // 变量替换
   compileVariableData(data) {
     let params = JSON.stringify(data);
-    this.variableData
-      && Object.keys(this.variableData).forEach((key) => {
+    this.variableData &&
+      Object.keys(this.variableData).forEach(key => {
         params = params.replace(new RegExp(`\\${key}`, 'g'), this.variableData[key]);
       });
     params = JSON.parse(params);
@@ -585,7 +586,7 @@ export default class DashboardPanels extends Vue {
     }, null);
     this.viewQueryConfig = {
       config,
-      compareValue: this.compareValue
+      compareValue: this.compareValue,
     };
     this.showViewDetail = true;
   }
@@ -599,7 +600,9 @@ export default class DashboardPanels extends Vue {
       return pre;
     }, []);
     // eslint-disable-next-line vue/max-len
-    window.open(`${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}`);
+    window.open(
+      `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}`
+    );
   }
 
   //  跳转数据大图
@@ -610,7 +613,7 @@ export default class DashboardPanels extends Vue {
     }
     this.viewQueryConfig = {
       config: query,
-      compareValue: this.compareValue
+      compareValue: this.compareValue,
     };
     this.showViewDetail = true;
   }
@@ -629,7 +632,9 @@ export default class DashboardPanels extends Vue {
       targets = this.compileVariableData(targets);
     }
     // eslint-disable-next-line vue/max-len
-    window.open(`${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}`);
+    window.open(
+      `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(JSON.stringify(targets))}`
+    );
   }
   // 跳转新增策略
   handleAddStrategy(item) {
@@ -655,7 +660,7 @@ export default class DashboardPanels extends Vue {
   //  全部收藏
   handleCollectionAll() {
     let setList = [];
-    this.groupList.forEach((item) => {
+    this.groupList.forEach(item => {
       if (item.panels) {
         setList = [...setList, ...item.panels];
       } else {
@@ -724,15 +729,20 @@ export default class DashboardPanels extends Vue {
     let count = 0;
     const specialGroup = {
       type: 'special',
-      panels: []
+      panels: [],
     };
-    const hasKeyword = (item) => {
-      this.keyword.trim()
-        && item.panels.forEach((child) => {
+    const hasKeyword = item => {
+      this.keyword.trim() &&
+        item.panels.forEach(child => {
           const keyword = (this.keyword ?? '').trim().toLocaleLowerCase();
-          const isShow =            (child.title ?? '').toLocaleLowerCase().indexOf(keyword) !== -1
+          const isShow =
+            (child.title ?? '').toLocaleLowerCase().indexOf(keyword) !== -1 ||
             // eslint-disable-next-line vue/max-len
-            || (child.targets || []).some(item => item.data?.query_configs.some(set => (set.metrics?.[0]?.field ?? '').toLocaleLowerCase().indexOf(keyword) !== -1));
+            (child.targets || []).some(item =>
+              item.data?.query_configs.some(
+                set => (set.metrics?.[0]?.field ?? '').toLocaleLowerCase().indexOf(keyword) !== -1
+              )
+            );
           child.hidden = !isShow;
         });
     };
@@ -749,14 +759,14 @@ export default class DashboardPanels extends Vue {
       this.activeName = this.groupsData.filter(item => item.type === 'row').map(item => item.id);
     }
 
-    groupsData.forEach((item) => {
+    groupsData.forEach(item => {
       if (item.type === 'row') {
         if (item.id !== '__UNGROUP__') {
-          setList.length
-            && this.groupList.push({
+          setList.length &&
+            this.groupList.push({
               type: 'list',
               panels: setList,
-              key: random(10)
+              key: random(10),
             });
           setList = [];
           this.groupList.push(item);
@@ -771,16 +781,19 @@ export default class DashboardPanels extends Vue {
         specialGroup.panels.push(item);
       } else {
         setList.push(item);
-        item.hidden =          (item.title || '').toLocaleLowerCase().indexOf(this.keyword) === -1
-          || (item.targets || []).every(set => (set?.data.metric_field || '').toLocaleLowerCase().indexOf(this.keyword) === -1);
+        item.hidden =
+          (item.title || '').toLocaleLowerCase().indexOf(this.keyword) === -1 ||
+          (item.targets || []).every(
+            set => (set?.data.metric_field || '').toLocaleLowerCase().indexOf(this.keyword) === -1
+          );
         count += !item.hidden ? 1 : 0;
       }
     });
-    setList.length
-      && this.groupList.push({
+    setList.length &&
+      this.groupList.push({
         type: 'list',
         panels: setList,
-        key: random(10)
+        key: random(10),
       });
     specialGroup.panels.length && this.groupList[0].panels.unshift(specialGroup);
     this.totalCount = count;
@@ -805,7 +818,7 @@ export default class DashboardPanels extends Vue {
   .icon-arrow-right {
     font-size: 24px;
     color: #979ba5;
-    transition: transform .2s ease-in-out;
+    transition: transform 0.2s ease-in-out;
 
     &.expand {
       transform: rotate(90deg);
@@ -820,7 +833,7 @@ export default class DashboardPanels extends Vue {
   :deep(.bk-collapse-item-hover) {
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .05);
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
 
     &:hover {
       color: #63656e;
@@ -831,7 +844,7 @@ export default class DashboardPanels extends Vue {
     padding: 0;
     margin-top: 1px;
     background: #fff;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
   }
 
   .chart-wrapper-old {
@@ -856,9 +869,7 @@ export default class DashboardPanels extends Vue {
             flex: 0 0 calc($w - 5px);
             width: calc($w - 5px);
           }
-        }
-
-        @else {
+        } @else {
           flex: 0 0 calc($w - 10px);
           width: calc($w - 10px);
         }
@@ -879,7 +890,7 @@ export default class DashboardPanels extends Vue {
       margin-bottom: 10px;
       border: 2px solid transparent;
       border-radius: 2px;
-      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
       &.scroll-in {
         /* stylelint-disable-next-line declaration-no-important */
@@ -906,7 +917,7 @@ export default class DashboardPanels extends Vue {
           background: white;
           border: 0;
           border-radius: 2px;
-          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
           &:first-child {
             margin-right: 10px;
@@ -930,7 +941,7 @@ export default class DashboardPanels extends Vue {
       position: relative;
       // border: 1px solid transparent;
       &:hover {
-        box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, .1);
+        box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, 0.1);
 
         .collect-wrapper-mark {
           display: block;
@@ -962,7 +973,7 @@ export default class DashboardPanels extends Vue {
       }
 
       &.is-collect {
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, .1);
+        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
 
         .collect-wrapper-mark {
           display: block;

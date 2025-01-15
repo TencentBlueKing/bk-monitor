@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ETabNames, IInfo } from './types';
+import { ETabNames, type IInfo } from './types';
 
 import './tab-title.scss';
 
@@ -74,54 +74,61 @@ export default class AiopsTabtitle extends tsc<IProps> {
     return (
       <div class='aiops-tab-title'>
         <div
-          class={['aiops-tab-title-item', { 'aiops-tab-title-active': this.active === ETabNames.dimension }]}
           style={{ borderRightWidth: this.showMetricRecommendation ? '1px' : '0px' }}
+          class={['aiops-tab-title-item', { 'aiops-tab-title-active': this.active === ETabNames.dimension }]}
           onClick={this.handleActive.bind(this, 'dimension')}
         >
           <span class='aiops-tab-title-icon'>
-            <i class='aiops-tab-icon icon-monitor icon-mc-drill-down'></i>
+            <i class='aiops-tab-icon icon-monitor icon-mc-drill-down' />
           </span>
           <span class='aiops-tab-title-text'>
             <span class='aiops-tab-title-name'>{this.$t('维度下钻')}</span>
-            <span
-              class={['aiops-tab-title-message']}
-              v-bkloading={{
-                isLoading: this.dimensionDrillDownLoading,
-                theme: 'primary',
-                size: 'mini',
-                extCls: 'metric_loading'
-              }}
-            >
-              {!this.showDimensionDrill ? (
-                <div>
-                  <i class='icon-monitor icon-tips tips-icon'></i>
-                  {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-                </div>
-              ) : (
-                [
+            {this.showDimensionDrill || this.dimensionDrillDownLoading ? (
+              <span
+                class={['aiops-tab-title-message']}
+                v-bkloading={{
+                  isLoading: this.dimensionDrillDownLoading,
+                  theme: 'primary',
+                  size: 'mini',
+                  extCls: 'metric_loading',
+                }}
+              >
+                {[
                   this.dimensionDrillDownErr ? (
-                    <span class='err-text'>
+                    <span
+                      key='dimension-err-text'
+                      class='err-text'
+                    >
                       <span>
-                        <i class='bk-icon icon-exclamation-circle-shape tooltips-icon'></i>
+                        <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
                         {this.$t('模型输出异常')}
                       </span>
                     </span>
                   ) : undefined,
-                  <span class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}>
+                  <span
+                    key='dimension-info-text'
+                    class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
+                  >
                     {this.$t('异常维度')}
                     <font> {this.dimensionInfo.anomaly_dimension_count}</font>
                     {isExitDimensionInfo ? ',' : ''}
                   </span>,
                   <span
-                    class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
+                    key='dimension-count-text'
                     style='marginLeft: 6px'
+                    class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
                   >
                     {this.$t('异常维度值')}
                     <font> {this.dimensionInfo.anomaly_dimension_value_count}</font>
-                  </span>
-                ]
-              )}
-            </span>
+                  </span>,
+                ]}
+              </span>
+            ) : (
+              <div>
+                <i class='icon-monitor icon-tips tips-icon' />
+                {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
+              </div>
+            )}
           </span>
         </div>
         <div
@@ -129,29 +136,24 @@ export default class AiopsTabtitle extends tsc<IProps> {
           onClick={this.handleActive.bind(this, 'index')}
         >
           <span class='aiops-tab-title-icon'>
-            <i class='aiops-tab-icon icon-monitor icon-mc-correlation-metrics'></i>
+            <i class='aiops-tab-icon icon-monitor icon-mc-correlation-metrics' />
           </span>
           <span class='aiops-tab-title-text'>
             <span class='aiops-tab-title-name'>{this.$t('关联指标')}</span>
-            {!this.showMetricRecommendation ? (
-              <span class='aiops-tab-title-message aiops-tab-title-index-message'>
-                <i class='icon-monitor icon-tips tips-icon'></i>
-                {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-              </span>
-            ) : (
+            {this.showMetricRecommendation || this.metricRecommendationLoading ? (
               <span
                 class={['aiops-tab-title-message aiops-tab-title-index-message']}
                 v-bkloading={{
                   isLoading: this.metricRecommendationLoading,
                   theme: 'primary',
                   size: 'mini',
-                  extCls: 'metric_loading'
+                  extCls: 'metric_loading',
                 }}
               >
                 {this.metricRecommendationErr && (
                   <span class='err-text'>
                     <span>
-                      <i class='bk-icon icon-exclamation-circle-shape tooltips-icon'></i>
+                      <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
                       {this.$t('模型输出异常')}
                     </span>
                   </span>
@@ -163,13 +165,18 @@ export default class AiopsTabtitle extends tsc<IProps> {
                   {isExitIndexInfo ? ',' : ''}
                 </span>
                 <span
-                  class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
                   style='marginLeft: 6px'
+                  class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
                 >
                   <i18n path='{0} 个维度'>
                     <font>{this.indexInfo.recommended_metric_count || 0} </font>
                   </i18n>
                 </span>
+              </span>
+            ) : (
+              <span class='aiops-tab-title-message aiops-tab-title-index-message'>
+                <i class='icon-monitor icon-tips tips-icon' />
+                {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
               </span>
             )}
           </span>

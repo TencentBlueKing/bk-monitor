@@ -11,10 +11,14 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import time
 
 from alarm_backends.core.lock.service_lock import share_lock
+from core.prometheus import metrics
 from metadata import models
-from metadata.models.vm.utils import access_bkdata
+from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.vm.utils import access_bkdata, access_v2_bkdata_vm
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.db import filter_model_by_in_page
 
 logger = logging.getLogger("metadata")
@@ -26,7 +30,12 @@ def check_access_vm_task():
 
     NOTE: 因为需要调用vm的接口，建议是需要单个单个执行
     """
-    logger.info("start to check result table and access vm")
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="check_access_vm_task", status=TASK_STARTED, process_target=None
+    ).inc()
+    start_time = time.time()  # 记录开始时间
+    logger.info("check_access_vm_task:start to check result table and access vm")
     # 获取有关联数据源的结果表
     rt_ds_dict = {
         obj["table_id"]: obj["bk_data_id"]
@@ -59,10 +68,12 @@ def check_access_vm_task():
             continue
         need_access_vm_rt_list.append(rt)
 
-    logger.info("need add vm result table_id list: %s", json.dumps(need_access_vm_rt_list))
+    logger.info("check_access_vm_task:need add vm result table_id list: %s", json.dumps(need_access_vm_rt_list))
 
     # 如果检查没有需要创建的，直接返回
     if not need_access_vm_rt_list:
+        end_time = time.time()  # 记录结束时间
+        logger.info("check_access_vm_task:no need to add fix access vm, total use %.2f seconds", end_time - start_time)
         return
 
     # 单个单个接入 vm
@@ -74,8 +85,21 @@ def check_access_vm_task():
             continue
         # 开始接入
         try:
-            access_bkdata(bk_biz_id, rt, bk_data_id)
+            # Note: 应根据data_id的来源决定接入链路的版本是V3还是V4
+            ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+            if ds.created_from == DataIdCreatedFromSystem.BKGSE.value:
+                access_bkdata(bk_biz_id, rt, bk_data_id)
+            if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
+                access_v2_bkdata_vm(bk_biz_id, rt, bk_data_id)
         except Exception as e:
             logger.error("access bkdata vm error, error: %s", e)
 
-    logger.info("check result table and access vm successfully")
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="check_access_vm_task", process_target=None).observe(
+        cost_time
+    )
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="check_access_vm_task", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.report_all()
+    logger.info("check_access_vm_task: check successfully，use %.2f seconds", cost_time)

@@ -32,6 +32,7 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -45,6 +46,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -115,6 +117,7 @@
             "mode": "continuous-YlRd"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
@@ -128,6 +131,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
             "pointSize": 5,
@@ -372,7 +376,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false,
             "minWidth": 50
           },
@@ -428,8 +434,10 @@
                 "value": "µs"
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -460,8 +468,10 @@
                 "value": "µs"
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -514,8 +524,11 @@
                 ]
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-background-solid"
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
               },
               {
                 "id": "custom.filterable",
@@ -530,8 +543,10 @@
             },
             "properties": [
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -558,8 +573,10 @@
             },
             "properties": [
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "thresholds",
@@ -589,7 +606,9 @@
       },
       "id": 2,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -600,11 +619,11 @@
         "sortBy": [
           {
             "desc": true,
-            "displayName": "TCP data delay"
+            "displayName": "Client TCP retrans "
           }
         ]
       },
-      "pluginVersion": "9.2.5",
+      "pluginVersion": "10.2.3",
       "targets": [
         {
           "queryText": "{\"appType\":\"trafficQuery\",\"db\":\"flow_log\",\"sources\":\"\",\"from\":\"l4_flow_log\",\"select\":[{\"type\":\"tag\",\"key\":\"resource_gl0_0\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"30f43432-66f7-df29-4dab-a33c95246490\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"resource_gl0_1\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9e480127-4afc-a283-a028-5c3841af5192\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"start_time\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8262e45b-525e-3297-4048-e7bce4ad6ded\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"protocol\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8ebe6891-2745-0fe4-5858-44648827a278\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"client_port\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"8adc65aa-0f44-f65b-5699-abb8f176ca0b\",\"subFuncs\":[]},{\"type\":\"tag\",\"key\":\"server_port\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"cbd3cba6-21f8-380a-d921-02fabcd2676a\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"tap_side\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"6dd53832-601a-9951-c1b9-63795ea24af1\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"tag\",\"key\":\"status\",\"func\":\"Enum\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"42bd700a-d26a-c9b2-9582-9d0f1f8f3fe8\",\"subFuncs\":[],\"cache\":{\"func\":\"Enum\",\"params\":[]}},{\"type\":\"metric\",\"key\":\"byte_tx\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"278a3327-43d5-767d-2e47-7c275b37fa86\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"byte_rx\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"896235de-d2f2-2fcd-e52a-53e2ea36dde7\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"retrans_tx\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"ee78f470-aed2-fbe4-f880-557d4a5d377c\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"retrans_rx\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"e42d8336-a5d1-f23a-eb43-13bb336b074b\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"rtt\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"5a9a3884-1fe7-2421-1ae1-fbdd62a3ad2a\",\"subFuncs\":[]},{\"type\":\"metric\",\"key\":\"art\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"320eec8d-d25f-8e39-d677-502d08a8feb2\",\"subFuncs\":[]}],\"where\":[{\"type\":\"tag\",\"key\":\"pod_cluster\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$cluster\",\"value\":\"cluster\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"244becd9-c318-6e45-2a93-d712f1e0b352\",\"subFuncs\":[],\"whereOnly\":true},{\"type\":\"tag\",\"key\":\"pod_ns\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$namespace\",\"value\":\"namespace\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"98a2fa35-32e9-76c6-461b-d2fec4d6c4e0\",\"subFuncs\":[],\"whereOnly\":true},{\"type\":\"tag\",\"key\":\"pod_group\",\"func\":\"\",\"op\":\"LIKE\",\"val\":[{\"label\":\"$workload\",\"value\":\"workload\",\"isVariable\":true}],\"as\":\"\",\"params\":[],\"uuid\":\"e0a1c151-6dbd-942e-b16e-253bc5e285a7\",\"subFuncs\":[],\"whereOnly\":true}],\"having\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"988ffa7a-4570-7f87-c676-7758d7d2701a\"}],\"groupBy\":[{\"type\":\"tag\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"9f39300f-1734-bc16-4b1f-d17fbdfb0d7e\"}],\"orderBy\":[{\"type\":\"metric\",\"key\":\"\",\"func\":\"\",\"op\":\"\",\"val\":\"\",\"as\":\"\",\"params\":[],\"uuid\":\"d986f27a-13e7-0508-b0d8-95f49cbae215\",\"sort\":\"asc\"}],\"interval\":\"\",\"limit\":\"500\",\"offset\":\"\",\"formatAs\":\"timeSeries\",\"alias\":\"\",\"showMetrics\":0,\"tracingId\":null}",
@@ -620,6 +639,7 @@
               "resource_gl0_id_0": true,
               "resource_gl0_id_1": true
             },
+            "includeByName": {},
             "indexByName": {
               "Avg Data Delay": 15,
               "Avg TCP Est. Delay": 14,
@@ -639,10 +659,16 @@
               "start_time": 0
             },
             "renameByName": {
+              "Avg Data Delay": "TCP data delay",
+              "Avg TCP Est. Delay": "TCP conn. establishment delay",
+              "Byte RX": "Receive byte",
+              "Byte TX": "Send byte",
               "Enum(protocol)": "Protocol",
               "Enum(server_port)": "Server port",
               "Enum(status)": "Status",
               "Enum(tap_side)": "Tap side",
+              "TCP Client Retransmission": "Client TCP retrans ",
+              "TCP Server Retransmission": "Server TCP retrans",
               "TCP客户端重传": "Client TCP retrans ",
               "TCP服务端重传": "Server TCP retrans",
               "client_port": "Client port",
@@ -667,8 +693,7 @@
     }
   ],
   "refresh": "",
-  "schemaVersion": 37,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
@@ -700,7 +725,7 @@
           ]
         },
         "datasource": "$datasource",
-        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
+        "definition": "{\"database\":\"flow_metrics\",\"sql\":\"SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999\",\"useAny\":true,\"useDisabled\":false}",
         "hide": 0,
         "includeAll": false,
         "label": "",
@@ -709,7 +734,7 @@
         "options": [],
         "query": {
           "database": "flow_metrics",
-          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE  time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
+          "sql": "SELECT pod_cluster as `value`, pod_cluster as `display_name` FROM `vtap_flow_port.1m` WHERE `display_name` != '' AND time >= ${__from:date:seconds} AND time <= ${__to:date:seconds} GROUP BY `value` LIMIT 999999999999",
           "useAny": true,
           "useDisabled": false
         },
@@ -818,7 +843,7 @@
   "timezone": "",
   "title": "Network - Flow Log",
   "uid": "Network_Flow_Log",
-  "version": 7,
+  "version": 27,
   "weekStart": "",
   "__inputs": [
     {
@@ -836,6 +861,5 @@
       "id": "deepflowio-deepflow-datasource",
       "name": "DeepFlow Datasource"
     }
-  ],
-  "__path": "dashboards/DeepFlow-Templates/Network-Flow-Log.json"
+  ]
 }

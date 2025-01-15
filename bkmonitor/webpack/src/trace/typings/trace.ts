@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Process, Span } from '../components/trace-view/typings';
+import type { Process, Span } from '../components/trace-view/typings';
 
 export interface IDetailInfo {
   [key: string]: any;
@@ -54,7 +54,7 @@ export interface ISpanClassifyItem {
   name: string;
   icon: string;
   count: number;
-  filter_value: string | number;
+  filter_value: number | string;
   filter_key: string;
   color: string;
   app_name?: string;
@@ -123,6 +123,10 @@ export interface ITraceData extends ITraceListItem {
   topo_nodes: ITopoNode[];
   topo_relation: ITopoRelation[];
   trace_tree?: ITraceTree;
+  streamline_service_topo?: {
+    nodes: any[];
+    edges: any[];
+  };
 }
 
 export interface OriginCrossAppSpanMap {
@@ -162,11 +166,27 @@ export interface ISpanListItem {
   };
 }
 
+export interface IServiceSpanListItem {
+  span_name: string;
+  span_id: string;
+  kind: number;
+  duration: number;
+  start_time: number;
+  display_name: string;
+  operation_name: string;
+  service_name: string;
+  icon: string;
+  color: string;
+  span_ids: string[];
+  collapsed: boolean;
+  collapsed_span_num: number;
+}
+
 export enum EListItemType {
-  tags = 'Tags',
   events = 'Events',
+  process = 'Process',
   stageTime = 'StageTime',
-  process = 'Process'
+  tags = 'Tags',
 }
 
 export interface ITagContent {
@@ -196,10 +216,10 @@ export interface IEventsItem {
 }
 
 export interface IStageTimeItemContent {
-  type: 'useTime' | 'gapTime';
+  type: 'gapTime' | 'useTime';
   useTime?: {
     tags: string[];
-    gap: { type: 'toRight' | 'toLeft'; value: string };
+    gap: { type: 'toLeft' | 'toRight'; value: string };
   };
   gapTime?: string;
 }
@@ -319,7 +339,7 @@ export interface ISpanDetail {
       processID: string;
     }[];
     processes: {
-      [key: string]: Object;
+      [key: string]: object;
     };
   };
 }
@@ -327,9 +347,10 @@ export interface ISpanDetail {
 export interface IQueryParams {
   bk_biz_id?: number;
   app_name?: string;
-  start?: number;
-  end?: number;
+  start: number;
+  end: number;
   data_type?: string;
+  global_query: boolean;
   profile_id?: string;
   diff_profile_id?: string;
   offset?: number;
@@ -338,4 +359,9 @@ export interface IQueryParams {
   filter_labels?: Record<string, string>;
   diff_filter_labels?: any;
   is_compared?: boolean;
+}
+
+export enum ETopoType {
+  service = 'service',
+  time = 'time',
 }

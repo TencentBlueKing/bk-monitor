@@ -23,18 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteRecordRaw } from 'vue-router';
+import type { RouteRecordRaw } from 'vue-router';
 
 export default [
   {
     path: '/report',
     name: 'report',
-    component: () => import(/* webpackChunkName: "report" */ '../../pages/email-subscription/email-subscription-config')
+    component: () =>
+      import(/* webpackChunkName: "report" */ '../../pages/email-subscription/email-subscription-config'),
   },
   {
     path: '/report/create',
     name: 'create-report',
     component: () =>
-      import(/* webpackChunkName: "create-report" */ '../../pages/email-subscription/create-subscription')
-  }
+      import(/* webpackChunkName: "create-report" */ '../../pages/email-subscription/create-subscription'),
+  },
 ] as RouteRecordRaw[];

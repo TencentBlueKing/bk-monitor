@@ -25,12 +25,13 @@
  */
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { saveScenePanelConfig } from 'monitor-api/modules/data_explorer';
 
 import SortPanel from '../../performance/performance-detail/sort-panel.vue';
-
-import { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
 import { delCollectScene, getCollectVariable, setCollectVariable } from './variable-set';
+
+import type { addSceneResult, metric, orderList, sceneList, viewSettingParams } from './type';
 
 import './view-settings-side.scss';
 
@@ -53,7 +54,7 @@ interface IViewSettingsSideEvent {
 }
 
 @Component({
-  name: 'ViewSettingsSide'
+  name: 'ViewSettingsSide',
 })
 export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettingsSideEvent> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -140,8 +141,8 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
         variables: this.isEdit
           ? this.viewSettingParams.variableResult.map(item => ({ id: item.key, name: item.name }))
           : this.dimensions.slice(0, 3).map(item => ({ id: item.englishName, name: item.englishName })),
-        order: arr
-      }
+        order: arr,
+      },
     };
     if (this.isEdit) {
       params.name = this.sceneName;
@@ -220,18 +221,18 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
   render() {
     return (
       <bk-sideslider
-        ext-cls='view-settings-side'
-        title={this.$t('视图设置')}
         width={524}
+        ext-cls='view-settings-side'
         is-show={this.isShow}
+        title={this.$t('视图设置')}
         {...{ on: { 'update:isShow': val => (this.isShow = val) } }}
         quick-close={true}
         show-mask={false}
         on-hidden={this.hiddenChange}
       >
         <div
-          slot='content'
           class={{ 'view-sort-hide': this.viewSortHide }}
+          slot='content'
           v-bkloading={{ isLoading: this.isLoading }}
         >
           <div class='settings-side-abs'>
@@ -242,16 +243,16 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                 {this.verify ? <span class='err-red'>{this.$t('视图标签名不能为空且不能相同')}</span> : undefined}
               </div>
               <bk-input
-                on-focus={() => (this.verify = false)}
                 v-model={this.labelName}
                 disabled={this.isLabelDisable}
                 maxlength={20}
                 show-word-limit
-              ></bk-input>
+                on-focus={() => (this.verify = false)}
+              />
             </div>
             <div
-              class='sort-setting-title'
               style={this.viewSortHide ? 'display: none' : undefined}
+              class='sort-setting-title'
             >
               <span class='title'>{this.$t('视图设置')}</span>
               <span class='title-create'>
@@ -268,15 +269,15 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                       v-model={this.createName}
                       maxlength={20}
                       show-word-limit
-                    ></bk-input>
+                    />
                     <i
                       class='ml5 bk-icon icon-check-1'
                       onClick={() => this.createGroup(true)}
-                    ></i>
+                    />
                     <i
                       class='ml5 icon-monitor icon-mc-close'
                       onClick={() => this.createGroup(false)}
-                    ></i>
+                    />
                   </div>
                 )}
               </span>
@@ -290,9 +291,9 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
                   {this.groupList.map(item => (
                     <bk-option
                       id={item.id}
-                      name={item.title}
                       key={item.id}
-                    ></bk-option>
+                      name={item.title}
+                    />
                   ))}
                 </bk-select>
                 <bk-button
@@ -306,16 +307,16 @@ export default class ViewSettingsSide extends tsc<IViewSettingsSide, IViewSettin
           </div>
           <SortPanel
             ref='sortPanel'
-            is-not-dialog={true}
             v-model={this.showChartSort}
-            groups-data={this.orderList}
-            need-group={true}
             defaultOrderList={this.defaultOrderList}
+            groups-data={this.orderList}
+            is-not-dialog={true}
+            need-group={true}
             viewSortHide={this.viewSortHide}
-            on-save={this.handleSortChange}
-            on-groups-change={this.groupsChange}
             on-checked-change={v => (this.isChecked = v)}
-          ></SortPanel>
+            on-groups-change={this.groupsChange}
+            on-save={this.handleSortChange}
+          />
         </div>
       </bk-sideslider>
     );

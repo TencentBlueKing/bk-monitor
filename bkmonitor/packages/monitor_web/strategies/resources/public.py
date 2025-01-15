@@ -10,21 +10,21 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import six
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from elasticsearch_dsl import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from bkmonitor.aiops.utils import AiSetting
+from bk_dataview.api import get_grafana_panel_query
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import QueryConfigModel, StrategyLabel, StrategyModel
+from bkmonitor.strategy.new_strategy import grafana_panel_to_config
 from bkmonitor.views.serializers import BusinessOnlySerializer
-from constants.aiops import SceneSet
+from constants.aiops import SCENE_METRIC_MAP, SCENE_NAME_MAPPING
 from constants.alert import EventStatus
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, resource
 from core.unit import UNITS, load_unit
 from monitor_web.strategies.constant import ValueableList
@@ -420,45 +420,58 @@ class MultivariateAnomalyScenesResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=False, default=0, label=_("业务ID"))
-
-    @classmethod
-    def parse_ai_setting(cls, bk_biz_id: int):
-        # 获取业务的AI配置
-        ai_setting = AiSetting(bk_biz_id=bk_biz_id).to_dict()
-        if (
-            "host" in ai_setting["multivariate_anomaly_detection"]
-            and ai_setting["multivariate_anomaly_detection"]["host"]["is_enabled"]
-        ):
-            # AI配置有打开时，才返回配置
-            intelligent_detect = ai_setting["multivariate_anomaly_detection"]["host"]["intelligent_detect"]
-            metrics_config = parse_scene_metrics(ai_setting["multivariate_anomaly_detection"]["host"]["plan_args"])
-            return True, intelligent_detect, metrics_config
-        return False, {}, []
+        bk_biz_id = serializers.IntegerField(required=False, default=0, label="业务ID")
 
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        is_enabled, intelligent_detect, metrics_config = self.parse_ai_setting(bk_biz_id)
-        if is_enabled:
-            return [
+        scenes = []
+
+        for scene_id, scene_metric_list in SCENE_METRIC_MAP.items():
+            metric_list = parse_scene_metrics(plan_args={"$metric_list": ",".join(scene_metric_list)})
+            scenes.append(
                 {
-                    "scene_id": SceneSet.HOST,
-                    "scene_name": _("主机场景"),
+                    "scene_id": scene_id,
+                    "scene_name": SCENE_NAME_MAPPING[scene_id],
                     "query_config": {
-                        "data_source_label": DataSourceLabel.BK_DATA,
-                        "data_type_label": DataTypeLabel.TIME_SERIES,
-                        "result_table_id": intelligent_detect["result_table_id"],
-                        "metric_field": "is_anomaly",
-                        # 添加anomaly_sort字段，用于算法检测输出报告
-                        "extend_fields": {"values": ["anomaly_sort"]},
-                        "agg_dimension": ["ip", "bk_cloud_id"],
-                        "agg_method": "MAX",
+                        "data_source_label": metric_list[0]["metric"]["data_source_label"],
+                        "data_type_label": metric_list[0]["metric"]["data_type_label"],
+                        "result_table_id": metric_list[0]["metric"]["result_table_id"],
+                        "metric_field": metric_list[0]["metric"]["metric_field"],
+                        "extend_fields": {"values": []},
+                        "agg_dimension": metric_list[0]["metric"]["default_dimensions"],
+                        "agg_method": "AVG",
                         "agg_interval": 60,
-                        # 只查询出is_anomaly=1的数据
-                        "agg_condition": [{"key": "is_anomaly", "value": [1], "method": "eq"}],
+                        "agg_condition": metric_list[0]["metric"]["default_condition"],
                         "alias": "a",
                     },
-                    "metrics": metrics_config,
+                    "metrics": metric_list,
                 }
-            ]
-        return []
+            )
+
+        return scenes
+
+
+class DashboardPanelToQueryConfig(Resource):
+    """
+    将仪表盘图表转换为查询配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        dashboard_uid = serializers.CharField(label="仪表盘UID")
+        panel_id = serializers.IntegerField(label="图表ID")
+        ref_id = serializers.CharField(label="图表RefID")
+        variables = serializers.DictField(label="变量", child=serializers.ListField(label="变量值"), allow_empty=True)
+
+    def perform_request(self, params: Dict[str, Any]):
+        panel_query = get_grafana_panel_query(
+            params["bk_biz_id"], params["dashboard_uid"], params["panel_id"], params["ref_id"]
+        )
+        if not panel_query:
+            raise ValidationError(_("无法获取到Grafana图表查询配置"))
+
+        try:
+            converted_config = grafana_panel_to_config(panel_query, params["variables"])
+        except (ValidationError, ValueError):
+            raise ValidationError(_("Grafana图表查询配置转换失败"))
+
+        return converted_config

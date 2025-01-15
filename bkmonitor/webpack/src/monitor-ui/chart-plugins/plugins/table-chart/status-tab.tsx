@@ -25,7 +25,8 @@
  */
 import { Component, Emit, Model, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
+
+import type { ITableFilterItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './status-tab.scss';
 
@@ -34,6 +35,7 @@ interface IProps {
   needAll?: boolean;
   statusList: ITableFilterItem[];
   disabledClickZero?: boolean;
+  needExpand?: boolean;
 }
 interface IEvents {
   onChange: string;
@@ -45,14 +47,18 @@ export default class StatusTab extends tsc<IProps, IEvents> {
   /** 数据为零时候点击事件不生效 */
   @Prop({ type: Boolean, default: false }) disabledClickZero: boolean;
   @Prop({ type: Array, default: () => [] }) statusList: ITableFilterItem[];
+  /* 是否可收缩 */
+  @Prop({ type: Boolean, default: false }) needExpand: boolean;
   @Model('change', { type: String, default: 'all' }) value: string;
 
   defaultList: ITableFilterItem[] = [
     {
       id: 'all',
-      name: window.i18n.tc('全部')
-    }
+      name: window.i18n.tc('全部'),
+    },
   ];
+
+  isExpand = false;
 
   @Emit('change')
   valueChange(val: string) {
@@ -68,7 +74,11 @@ export default class StatusTab extends tsc<IProps, IEvents> {
   }
 
   get localStatusList(): ITableFilterItem[] {
-    return [...(this.needAll ? this.defaultList : []), ...this.statusList];
+    const list = [...(this.needAll ? this.defaultList : []), ...this.statusList];
+    if (this.needExpand) {
+      return this.isExpand ? list : list.slice(0, 1);
+    }
+    return list;
   }
 
   render() {
@@ -76,6 +86,7 @@ export default class StatusTab extends tsc<IProps, IEvents> {
       <div class='status-tab-wrap'>
         {this.localStatusList.map(item => (
           <span
+            key={item.id}
             class={['common-status-wrap status-tab-item', { active: this.value === item.id }]}
             v-bk-tooltips={{
               content: item.tips,
@@ -83,15 +94,25 @@ export default class StatusTab extends tsc<IProps, IEvents> {
               boundary: 'window',
               disabled: !item.tips,
               delay: 200,
-              allowHTML: false
+              allowHTML: false,
             }}
             onClick={() => this.handleClickItem(item)}
           >
-            {item.status && <span class={['common-status-icon', `status-${item.status}`]}></span>}
-            {item.icon && <i class={['icon-monitor', item.icon]}></i>}
+            {item.status && <span class={['common-status-icon', `status-${item.status}`]} />}
+            {item.icon && <i class={['icon-monitor', item.icon]} />}
             {(!!item.name || item.name === 0) && <span class='status-count'>{item.name}</span>}
           </span>
         ))}
+        {this.needExpand && (
+          <div
+            class={['expand-btn', { expand: this.isExpand }]}
+            onClick={() => {
+              this.isExpand = !this.isExpand;
+            }}
+          >
+            <span class='icon-monitor icon-arrow-right' />
+          </div>
+        )}
       </div>
     );
   }

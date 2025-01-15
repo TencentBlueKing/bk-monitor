@@ -12,10 +12,13 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 import logging
+import time
 
 from django.conf import settings
 
 from alarm_backends.core.detect_result.clean import CleanResult
+from alarm_backends.service.scheduler.app import app
+from bkmonitor.models import CacheRouter
 from common.context_processors import Platform
 
 logger = logging.getLogger("celery")
@@ -30,11 +33,30 @@ def recover_weixin_robot_limit():
 
 
 def clean_expired_detect_result():
+    # 任务分发
+    recover_weixin_robot_limit()
+    strategy_score_list = list(CacheRouter.objects.values_list("strategy_score", flat=1).order_by("strategy_score"))
+    if len(strategy_score_list) < 2:
+        # 只有一个节点，直接清理就行
+        return async_clean_expired_detect_result((0, 2**20))
+
+    strategy_score_list.append(0)
+    strategy_score_list = sorted(set(strategy_score_list))
+    for s_range in list(zip(strategy_score_list, strategy_score_list[1:])):
+        async_clean_expired_detect_result.delay(strategy_range=s_range)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def async_clean_expired_detect_result(strategy_range=None):
+    # 任务负载
+    logger.info("clean_expired_detect_result(%s-%s) start", *strategy_range)
     try:
-        recover_weixin_robot_limit()
-        CleanResult.clean_expired_detect_result()
+        CleanResult.clean_expired_detect_result(strategy_range=strategy_range)
     except Exception as e:
-        logger.exception(e)
+        logger.exception("clean_expired_detect_result(%s-%s) Error: %s", *strategy_range, e)
+        time.sleep(60)
+        CleanResult.clean_expired_detect_result(strategy_range=strategy_range)
+    logger.info("clean_expired_detect_result(%s-%s) done", *strategy_range)
 
 
 def clean_md5_to_dimension_cache():

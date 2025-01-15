@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-from django.utils.translation import ugettext_lazy as _
+import typing
+
+from django.utils.translation import gettext_lazy as _
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.authentication import BasicAuthentication
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
+from bkm_ipchooser.authentication import CsrfExemptSessionAuthentication
 from bkm_ipchooser.handlers import (
     config_handler,
     dynamic_group_handler,
@@ -41,15 +44,9 @@ except ImportError:
 IP_CHOOSER_VIEW_TAGS = ["ipchooser"]
 
 
-class CsrfExemptSessionAuthentication(SessionAuthentication):
-    def enforce_csrf(self, request):
-        # To not perform the csrf check previously happening
-        return
-
-
 class CommonViewSet(GenericViewSet):
     def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.MANAGE_COLLECTION])]
+        return [BusinessActionPermission([ActionEnum.VIEW_HOST])]
 
     authentication_classes = (CsrfExemptSessionAuthentication, BasicAuthentication)
 
@@ -69,7 +66,7 @@ class CommonViewSet(GenericViewSet):
         return dict(_serializer.data)
 
     @property
-    def validated_data(self):
+    def validated_data(self) -> typing.Dict:
         """
         校验的数据
         """
@@ -91,7 +88,7 @@ class CommonViewSet(GenericViewSet):
 
     def finalize_response(self, request, response, *args, **kwargs):
         # 目前仅对 Restful Response 进行处理
-        if isinstance(response, Response):
+        if isinstance(response, Response) and not (isinstance(response.data, dict) and "result" in response.data):
             response.data = {"result": True, "data": response.data, "code": 0, "message": ""}
             response.status_code = status.HTTP_200_OK
 
@@ -307,7 +304,10 @@ class IpChooserTemplateViewSet(CommonViewSet):
         return Response(
             template_handler.TemplateHandler(
                 scope_list=self.validated_data["scope_list"], template_type=self.validated_data["template_type"]
-            ).agent_statistics(template_id_list=self.validated_data["template_id_list"])
+            ).agent_statistics(
+                template_id_list=self.validated_data["template_id_list"],
+                only_host_count=self.validated_data["only_host_count"],
+            )
         )
 
     @list_route(methods=["POST"], serializer_class=template_sers.ServiceInstanceCountSer)
@@ -374,7 +374,7 @@ class IpChooserDynamicGroupViewSet(CommonViewSet):
             )
         )
 
-    @list_route(methods=["POST"], serializer_class=dynamic_group_sers.AgentStatistiscSer)
+    @list_route(methods=["POST"], serializer_class=dynamic_group_sers.AgentStatisticsSer)
     def agent_statistics(self, request, *args, **kwargs):
         return Response(
             dynamic_group_handler.DynamicGroupHandler(scope_list=self.validated_data["scope_list"]).agent_statistics(

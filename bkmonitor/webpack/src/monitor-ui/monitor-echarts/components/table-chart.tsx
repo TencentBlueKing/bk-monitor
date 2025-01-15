@@ -25,9 +25,10 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 
-import { ITableSeries } from '../options/type-interface';
+import type { ITableSeries } from '../options/type-interface';
 
 import './table-chart.scss';
 
@@ -36,7 +37,7 @@ interface TableChartProps {
   maxHeight: number;
 }
 @Component({
-  name: 'table-chart'
+  name: 'table-chart',
 })
 export default class TableChart extends tsc<TableChartProps> {
   @Prop({ type: Object, default: () => ({}) }) series: ITableSeries;
@@ -65,20 +66,20 @@ export default class TableChart extends tsc<TableChartProps> {
   render() {
     return (
       <bk-table
-        data={this.tableData}
-        size={'small'}
         ext-cls='chart-table'
+        data={this.tableData}
         max-height={this.maxHeight - 10}
         outer-border={false}
+        size={'small'}
       >
         {this.tableColumn?.map(column => (
           <bk-table-column
+            scopedSlots={{
+              default: ({ row }) => row[column.text],
+            }}
             label={column.text}
             show-overflow-tooltip={true}
-            scopedSlots={{
-              default: ({ row }) => row[column.text]
-            }}
-          ></bk-table-column>
+          />
         ))}
       </bk-table>
     );

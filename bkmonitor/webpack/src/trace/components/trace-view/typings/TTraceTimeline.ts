@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import DetailState from '../trace-timeline-viewer/span-detail/detail-state';
-
-import TNil from './TNil';
+import type DetailState from '../trace-timeline-viewer/span-detail/detail-state';
+import type TNil from './TNil';
 
 type TTraceTimeline = {
   childrenHiddenIDs: Set<string>;
@@ -33,8 +32,7 @@ type TTraceTimeline = {
   hoverIndentGuideIds: Set<string>;
   shouldScrollToFirstUiFindMatch: boolean;
   spanNameColumnWidth: number;
-  traceID: string | TNil;
+  traceID: TNil | string;
 };
 
-// eslint-disable-next-line no-undef
 export default TTraceTimeline;

@@ -52,7 +52,7 @@ class MonitorEventAdapter:
         # 使用专用kafka集群: ALERT_KAFKA_HOST  ALERT_KAFKA_PORT
         kafka_queue = KafkaQueue.get_alert_kafka_queue()
         kafka_queue.set_topic(topic)
-        return kafka_queue.put(value=messages)
+        kafka_queue.put(value=messages)
 
     def __init__(self, record: dict, strategy: dict):
         """
@@ -184,6 +184,13 @@ class MonitorEventAdapter:
             for key, value in data_dimensions.items()
             if key in agg_dimensions or key == NO_DATA_TAG_DIMENSION
         }
+        to_be_pop = []
+        for key in data_dimensions:
+            if key.startswith("tags."):
+                to_be_pop.append(key)
+
+        for key in to_be_pop:
+            data_dimensions[key[5:]] = data_dimensions.pop(key)
 
         try:
             if data_dimensions.get("bk_host_id"):

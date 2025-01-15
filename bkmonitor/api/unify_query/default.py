@@ -11,13 +11,14 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
 from rest_framework import serializers
-from six.moves.urllib.parse import urljoin
 
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
+from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
@@ -88,11 +89,15 @@ class UnifyQueryAPIResource(Resource):
             space_uid = bk_biz_id_to_space_uid(request.biz_id)
 
         url = urljoin(get_unify_query_url(space_uid), self.path.format(**params))
-        requests_params = {
-            "method": self.method,
-            "url": url,
-            "headers": {"Bk-Query-Source": f"username:{username}" if username else "backend"},
-        }
+
+        # 记录查询来源
+        source = "backend"
+        if username:
+            source = f"username:{username}"
+        elif getattr(local, "strategy_id", None):
+            source = f"strategy:{local.strategy_id}"
+
+        requests_params = {"method": self.method, "url": url, "headers": {"Bk-Query-Source": source}}
         if space_uid is None:
             # 跨业务查询
             requests_params["headers"]["X-Bk-Scope-Skip-Space"] = settings.APP_CODE
@@ -130,6 +135,7 @@ class QueryDataResource(UnifyQueryAPIResource):
         space_uid = serializers.CharField(allow_null=True)
         down_sample_range = serializers.CharField(allow_blank=True)
         timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
 
 
 class QueryClusterMetricsDataResource(UnifyQueryAPIResource):
@@ -165,11 +171,13 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
     class RequestSerializer(serializers.Serializer):
         promql = serializers.CharField()
         match = serializers.CharField(default="", allow_blank=True, required=False)
+        is_verify_dimensions = serializers.BooleanField(default=False)
         start = serializers.CharField()
         end = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
         step = serializers.RegexField(required=False, regex=r"^\d+(ms|s|m|h|d|w|y)$")
         timezone = serializers.CharField(required=False)
+        down_sample_range = serializers.CharField(allow_blank=True, required=False)
 
         def validate(self, attrs):
             logger.info(f"PROMQL_QUERY: {json.dumps(attrs)}")
@@ -201,7 +209,7 @@ class StructToPromqlResource(UnifyQueryAPIResource):
         metric_merge = serializers.CharField(allow_blank=True, required=False)
         order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
         step = serializers.CharField(allow_blank=True, required=False, allow_null=True)
-        space_uid = serializers.CharField()
+        space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
 
 
 class GetDimensionDataResource(UnifyQueryAPIResource):
@@ -213,6 +221,7 @@ class GetDimensionDataResource(UnifyQueryAPIResource):
     path = "/query/ts/info/{info_type}"
 
     class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(allow_blank=True, required=False, allow_null=True)
         info_type = serializers.CharField(required=True, label="请求资源类型")
         table_id = serializers.CharField(required=False, allow_blank=True)
         conditions = serializers.DictField(required=False, label="查询参数")
@@ -235,10 +244,27 @@ class GetPromqlLabelValuesResource(UnifyQueryAPIResource):
         match = serializers.ListField(child=serializers.CharField())
         label = serializers.CharField()
         bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True)
+        start_time = serializers.CharField(required=False)
+        end_time = serializers.CharField(required=False)
 
         def validate(self, attrs):
             attrs["match[]"] = attrs.pop("match")
             return attrs
+
+
+class GetTagKeysResource(UnifyQueryAPIResource):
+    """
+    获取tag keys
+    """
+
+    method = "POST"
+    path = "/query/ts/info/tag_keys"
+
+    class RequestSerializer(serializers.Serializer):
+        data_source = serializers.CharField(default="bkmonitor")
+        table_id = serializers.CharField(allow_blank=True)
+        metric_name = serializers.CharField()
+        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True)
 
 
 class QueryDataByExemplarResource(QueryDataResource):
@@ -281,6 +307,33 @@ class GetKubernetesRelationResource(UnifyQueryAPIResource):
         query_list = []
         for source_info in request_data.pop("source_info_list", []):
             data_timestamp = source_info.pop("data_timestamp", int(time.time()))
-            query_list.append({"target_type": "system", "timestamp": data_timestamp, "source_info": source_info})
+            query_list.append(
+                {
+                    "target_type": "system",
+                    "path_resource": ["node"],
+                    "timestamp": data_timestamp,
+                    "source_info": source_info,
+                }
+            )
         request_data["query_list"] = query_list
         return request_data
+
+
+class QueryMultiResourceRange(UnifyQueryAPIResource):
+    """查询时间范围内的关联资源实体"""
+
+    method = "POST"
+    path = "/api/v1/relation/multi_resource_range"
+
+    class RequestSerializer(serializers.Serializer):
+        class QueryListSerializer(serializers.Serializer):
+            start_time = serializers.IntegerField()
+            end_time = serializers.IntegerField()
+            step = serializers.CharField()
+            target_type = serializers.CharField()
+            source_type = serializers.CharField(required=False)
+            source_info = serializers.DictField()
+            path_resource = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+
+        bk_biz_ids = serializers.ListField(child=serializers.CharField(), allow_empty=True, required=False)
+        query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)

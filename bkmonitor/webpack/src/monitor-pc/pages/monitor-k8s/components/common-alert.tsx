@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-type CommonAlertType = 'info' | 'success' | 'warning' | 'error';
+type CommonAlertType = 'error' | 'info' | 'success' | 'warning';
 
 interface IProps {
   type?: CommonAlertType;
@@ -44,9 +44,9 @@ export default class CommonStatus extends tsc<IProps> {
     return (
       <bk-alert
         class='common-alert'
-        type={this.type}
         show-icon={this.showIcon}
         title={this.title}
+        type={this.type}
       >
         {this.$slots.title && <div slot='title'>{this.$slots.title}</div>}
       </bk-alert>

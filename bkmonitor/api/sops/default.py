@@ -35,6 +35,9 @@ class SopsBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         if assignee is None:
             assignee = [settings.COMMON_USERNAME]
         if not assignee:
+            self.report_api_failure_metric(
+                error_code=EmptyAssigneeError.code, exception_type=EmptyAssigneeError.__name__
+            )
             raise EmptyAssigneeError()
         for index, username in enumerate(assignee):
             self.bk_username = username

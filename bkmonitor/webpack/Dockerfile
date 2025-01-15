@@ -1,12 +1,12 @@
 ARG NODE_IMAGE=node:20.11.1-slim
-ARG PNPM_VERSION=8
+ARG PNPM_VERSION=9
 ARG NODE_PLATFORM=linux/amd64
 
 FROM --platform=${NODE_PLATFORM} ${NODE_IMAGE} as nodejs
 
-WORKDIR /code
-
 RUN npm i -g pnpm@${PNPM_VERSION}
+
+WORKDIR /code
 
 COPY . .
 

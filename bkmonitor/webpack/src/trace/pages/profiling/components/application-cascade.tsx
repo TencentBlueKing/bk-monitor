@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Button, Form, Input, Loading, Popover } from 'bkui-vue';
+
+import { Button, Form, Input, Loading, Popover, Exception } from 'bkui-vue';
 import { queryBkDataToken } from 'monitor-api/modules/apm_meta';
 
 import { useDocumentLink } from '../../../hooks';
-import { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
+
+import type { ApplicationItem, ApplicationList, ServiceItem } from '../typings';
 
 import './application-cascade.scss';
 
@@ -38,12 +40,16 @@ export default defineComponent({
   props: {
     list: {
       type: Object as PropType<ApplicationList>,
-      default: () => ({ normal: [], no_data: [] })
+      default: () => ({ normal: [], no_data: [] }),
     },
     value: {
       type: Object as PropType<string[]>,
-      required: true
-    }
+      required: true,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -65,6 +71,13 @@ export default defineComponent({
         return item.app_name.includes(searchKey.value);
       });
       return list;
+    });
+    // 是否搜索为空
+    const isSearchEmpty = computed(() => {
+      const { normal, no_data } = appList.value;
+      const normalLen = (normal || []).length;
+      const noDataLen = (no_data || []).length;
+      return normalLen === 0 && noDataLen === 0 && !!searchKey.value;
     });
 
     /** 应用是否有数据 */
@@ -91,26 +104,31 @@ export default defineComponent({
       /** 应用名称 */
       appName: null,
       /** 服务名称 */
-      serviceName: null
+      serviceName: null,
     });
-    const inputText = computed(() => {
-      if (!selectValue.appName || !selectValue.serviceName) return '';
-      return `${selectValue.appName} / ${selectValue.serviceName}`;
-    });
+
+    const inputText = ref('');
 
     watch(
       () => props.value,
       val => {
         selectValue.appName = val[0] || '';
         selectValue.serviceName = val[1] || '';
+        if (!!selectValue.appName && !!selectValue.serviceName) {
+          inputText.value = `${selectValue.appName} / ${selectValue.serviceName}`;
+        }
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
     const showPopover = ref(false);
     function handlePopoverShowChange({ isShow }) {
+      if (isShow) {
+        selectValue.appName = props.value[0] || '';
+        selectValue.serviceName = props.value[1] || '';
+      }
       showPopover.value = isShow;
     }
 
@@ -121,7 +139,11 @@ export default defineComponent({
     function handleAppClick(val: ApplicationItem) {
       if (val.app_name === selectValue.appName) return;
       selectValue.appName = val.app_name;
-      selectValue.serviceName = null;
+      if (selectValue.appName === (props.value[0] || '')) {
+        selectValue.serviceName = props.value[1] || '';
+      } else {
+        selectValue.serviceName = null;
+      }
       token.value = '';
     }
     /**
@@ -132,6 +154,7 @@ export default defineComponent({
       if (val.name === selectValue.serviceName) return;
       selectValue.serviceName = val.name;
       showPopover.value = false;
+      inputText.value = `${selectValue.appName} / ${selectValue.serviceName}`;
       emit('change', [selectValue.appName, selectValue.serviceName]);
     }
 
@@ -151,7 +174,7 @@ export default defineComponent({
 
     /** 新增接入 */
     function jumpToApp() {
-      const hash = `#/apm/home?is_enabled_profiling=false`;
+      const hash = '#/apm/home?is_enabled_profiling=false';
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_self');
     }
@@ -174,20 +197,21 @@ export default defineComponent({
       handlePopoverShowChange,
       handleViewApp,
       jumpToApp,
-      handleGotoLink
+      handleGotoLink,
+      isSearchEmpty,
     };
   },
   render() {
     return (
       <div class='application-cascade-component'>
         <Popover
-          placement='bottom-start'
           arrow={false}
+          is-show={this.showPopover}
+          placement='bottom-start'
           theme='light application-cascade-popover'
           trigger='click'
-          is-show={this.showPopover}
-          onAfterShow={val => this.handlePopoverShowChange(val)}
           onAfterHidden={val => this.handlePopoverShowChange(val)}
+          onAfterShow={val => this.handlePopoverShowChange(val)}
         >
           {{
             default: () => (
@@ -197,127 +221,176 @@ export default defineComponent({
                   placeholder={this.t('选择应用/服务')}
                   readonly
                 >
-                  {{ suffix: () => <span class='icon-monitor icon-arrow-down'></span> }}
+                  {{ suffix: () => <span class='icon-monitor icon-arrow-down' /> }}
                 </Input>
               </div>
             ),
             content: () => (
               <div class='application-cascade-popover-content'>
-                <div class='search-wrap'>
-                  <i class='icon-monitor icon-mc-search search-icon'></i>
-                  <Input
-                    v-model={this.searchKey}
-                    class='search-input'
-                    placeholder={this.t('输入关键字')}
-                  ></Input>
-                </div>
-                <div class='select-wrap'>
-                  <div class='first panel'>
-                    <div class='group-title'>{this.t('有数据应用')}</div>
-                    <div class='group-wrap'>
-                      {this.appList.normal.map(item => (
-                        <div
-                          class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
-                          onClick={() => this.handleAppClick(item)}
-                          key={item.application_id}
-                        >
-                          <i class='icon-monitor icon-mc-menu-apm'></i>
-                          <span class='name'>
-                            {item.app_name}
-                            <span class='desc'>({item.app_alias})</span>
-                          </span>
-
-                          <i class='icon-monitor icon-arrow-right'></i>
-                        </div>
-                      ))}
+                {!this.loading ? (
+                  <>
+                    <div class='search-wrap'>
+                      <i class='icon-monitor icon-mc-search search-icon' />
+                      <Input
+                        class='search-input'
+                        v-model={this.searchKey}
+                        placeholder={this.t('输入关键字')}
+                      />
                     </div>
-                    <div class='group-title'>{this.t('无数据应用')}</div>
-                    {this.appList.no_data.map(item => (
-                      <div
-                        class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
-                        onClick={() => this.handleAppClick(item)}
-                      >
-                        <i class='icon-monitor icon-mc-menu-apm'></i>
-                        <span class='name'>
-                          {item.app_name}
-                          <span class='desc'>({item.app_alias})</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {this.selectValue.appName && (
-                    <div class='second panel'>
-                      {this.hasData ? (
-                        <div class='has-data-wrap'>
-                          {this.serviceList.map(item => (
-                            <div
-                              class={{ 'group-item': true, active: item.name === this.selectValue.serviceName }}
-                              onClick={() => this.handleServiceClick(item)}
-                            >
-                              <i class='icon-monitor icon-mc-grafana-home'></i>
-                              <span class='name'>{item.name}</span>
-                            </div>
-                          ))}
-                        </div>
+                    <div class='select-wrap'>
+                      {this.isSearchEmpty ? (
+                        <Exception
+                          class='exception-wrap-item'
+                          scene='part'
+                          type='search-empty'
+                        >
+                          {this.t('暂无搜索结果')}
+                        </Exception>
                       ) : (
-                        <div class='no-data-wrap'>
-                          <Loading
-                            loading={this.tokenLoading}
-                            theme='primary'
-                            mode='spin'
-                          >
-                            <Form labelWidth={100}>
-                              <Form.FormItem label={this.t('应用名')}>{this.appData.app_name}</Form.FormItem>
-                              <Form.FormItem label={this.t('应用别名')}>{this.appData.app_alias}</Form.FormItem>
-                              <Form.FormItem label={this.t('描述')}>{this.appData.description}</Form.FormItem>
-                              <Form.FormItem label='Token'>
-                                <span class='password'>{this.token || '●●●●●●●●●●'}</span>
-                                <Button
-                                  text
-                                  theme='primary'
-                                  onClick={this.handleViewToken}
+                        <>
+                          <div class='first panel'>
+                            {/* <div class='group-title'>{this.t('有数据应用')}</div> */}
+                            <div class='group-wrap'>
+                              {this.appList.normal.map(item => (
+                                <div
+                                  key={item.application_id}
+                                  class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
+                                  onClick={() => this.handleAppClick(item)}
                                 >
-                                  {this.t('点击查看')}
-                                </Button>
-                              </Form.FormItem>
-                            </Form>
-                            <div class='btn'>
-                              <a
-                                class='link'
-                                target='_blank'
-                                onClick={() => this.handleGotoLink('profiling_docs')}
+                                  <i class='icon-monitor icon-mc-menu-apm' />
+                                  <span
+                                    class='name'
+                                    v-overflowText={{
+                                      text: `${item.app_name} (${item.app_alias})`,
+                                      placement: 'right',
+                                    }}
+                                  >
+                                    {item.app_name}
+                                    <span class='desc'>({item.app_alias})</span>
+                                  </span>
+
+                                  <i class='icon-monitor icon-arrow-right' />
+                                </div>
+                              ))}
+                            </div>
+                            {/* <div class='group-title'>{this.t('无数据应用')}</div> */}
+                            {this.appList.no_data.map((item, index) => (
+                              <div
+                                key={`${item.app_name}_${index}`}
+                                class={{ 'group-item': true, active: item.app_name === this.selectValue.appName }}
+                                onClick={() => this.handleAppClick(item)}
                               >
-                                {this.t('Profile 接入指引')}
-                              </a>
-                              <i class='icon-monitor icon-fenxiang'></i>
+                                {/* <i class='icon-monitor icon-mc-menu-apm' /> */}
+                                <span class='menu-apm-point' />
+                                <span
+                                  class='name'
+                                  v-overflowText={{
+                                    text: `${item.app_name} (${item.app_alias})`,
+                                    placement: 'right',
+                                  }}
+                                >
+                                  {item.app_name}
+                                  <span class='desc'>({item.app_alias})</span>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {this.selectValue.appName ? (
+                            <div class='second panel'>
+                              {this.hasData ? (
+                                <div class='has-data-wrap'>
+                                  {this.serviceList.map((item, index) => (
+                                    <div
+                                      key={index}
+                                      class={{
+                                        'group-item': true,
+                                        active: item.name === this.selectValue.serviceName,
+                                      }}
+                                      onClick={() => this.handleServiceClick(item)}
+                                    >
+                                      <i class='icon-monitor icon-mokuai' />
+                                      <span class='name'>{item.name}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div class='no-data-wrap'>
+                                  <Loading
+                                    loading={this.tokenLoading}
+                                    mode='spin'
+                                    theme='primary'
+                                  >
+                                    <Form labelWidth={100}>
+                                      <Form.FormItem label={this.t('应用名')}>{this.appData.app_name}</Form.FormItem>
+                                      <Form.FormItem label={this.t('应用别名')}>{this.appData.app_alias}</Form.FormItem>
+                                      <Form.FormItem label={this.t('描述')}>{this.appData.description}</Form.FormItem>
+                                      <Form.FormItem label='Token'>
+                                        <span class='password'>{this.token || '●●●●●●●●●●'}</span>
+                                        {!this.token && (
+                                          <Button
+                                            theme='primary'
+                                            text
+                                            onClick={this.handleViewToken}
+                                          >
+                                            {this.t('点击查看')}
+                                          </Button>
+                                        )}
+                                      </Form.FormItem>
+                                    </Form>
+                                    <div
+                                      class='btn'
+                                      onClick={() => this.handleGotoLink('profiling_docs')}
+                                    >
+                                      <span class='link'>{this.t('Profile 接入指引')}</span>
+                                      <i class='icon-monitor icon-fenxiang' />
+                                    </div>
+                                    <div
+                                      class='btn'
+                                      onClick={this.handleViewApp}
+                                    >
+                                      <span>{this.t('查看应用')}</span>
+                                      <i class='icon-monitor icon-fenxiang' />
+                                    </div>
+                                  </Loading>
+                                </div>
+                              )}
                             </div>
-                            <div
-                              class='btn'
-                              onClick={this.handleViewApp}
-                            >
-                              <span>{this.t('查看应用')}</span>
-                              <i class='icon-monitor icon-fenxiang'></i>
+                          ) : (
+                            <div class='second panel no-select'>
+                              <div class='no-select-text'>{this.t('请先在左侧选择应用')}</div>
                             </div>
-                          </Loading>
-                        </div>
+                          )}
+                        </>
                       )}
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <div class='loading-wrap'>
+                    <Loading
+                      loading={true}
+                      mode='spin'
+                      size='small'
+                      theme='primary'
+                    >
+                      <div class='loading-spin' />
+                    </Loading>
+                    <div class='loading-text'>{this.$t('应用加载中，请耐心等候…')}</div>
+                  </div>
+                )}
                 <div class='footer-wrap'>
                   <div
                     class='jump-btn'
                     onClick={this.jumpToApp}
                   >
-                    <i class='icon-monitor icon-jia'></i>
+                    <i class='icon-monitor icon-jia' />
                     <span>{this.t('新增接入')}</span>
                   </div>
                 </div>
               </div>
-            )
+            ),
           }}
         </Popover>
       </div>
     );
-  }
+  },
 });

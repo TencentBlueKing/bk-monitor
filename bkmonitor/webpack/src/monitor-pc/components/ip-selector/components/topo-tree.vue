@@ -57,7 +57,7 @@
 /* eslint-disable @typescript-eslint/member-ordering */
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
-import { ITreeNode } from '../types/selector-type';
+import type { ITreeNode } from '../types/selector-type';
 
 @Component({ name: 'topo-tree' })
 export default class StaticTopo extends Vue {
@@ -80,7 +80,7 @@ export default class StaticTopo extends Vue {
     const nodeOptions = {
       idKey: 'id',
       nameKey: 'name',
-      childrenKey: 'children'
+      childrenKey: 'children',
     };
     return Object.assign(nodeOptions, this.options);
   }
@@ -124,7 +124,7 @@ export default class StaticTopo extends Vue {
 
   private handleGetExpandNodeByDeep(deep = 1, treeData: ITreeNode[] = []) {
     return treeData.reduce((pre: any[], node) => {
-      ((deep) => {
+      (deep => {
         if (deep > 1 && Array.isArray(node.children) && node.children.length > 0) {
           // eslint-disable-next-line no-param-reassign
           pre = pre.concat(this.handleGetExpandNodeByDeep((deep = deep - 1), node.children));
@@ -144,6 +144,12 @@ export default class StaticTopo extends Vue {
     background: #f5f6fa;
   }
 
+  .node-content {
+    overflow: inherit;
+    text-overflow: inherit;
+    white-space: nowrap;
+  }
+
   &.is-selected {
     /* stylelint-disable-next-line declaration-no-important */
     background: #e1ecff !important;
@@ -160,12 +166,6 @@ export default class StaticTopo extends Vue {
   .node-checkbox {
     /* stylelint-disable-next-line declaration-no-important */
     display: none !important;
-  }
-
-  .node-content {
-    overflow: inherit;
-    text-overflow: inherit;
-    white-space: nowrap;
   }
 }
 

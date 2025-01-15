@@ -25,6 +25,7 @@
  */
 import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import Big from 'big.js';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
@@ -35,17 +36,18 @@ import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/uti
 import RatioLegend from '../../components/chart-legend/ratio-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { MONITOR_PIE_OPTIONS } from '../../constants';
-import {
+import { VariablesService } from '../../utils/variable';
+import CommonSimpleChart from '../common-simple-chart';
+import BaseEchart from '../monitor-base-echart';
+
+import type {
   IExtendMetricData,
   ILegendItem,
   IMenuItem,
   LegendActionType,
   MonitorEchartOptions,
-  PanelModel
+  PanelModel,
 } from '../../typings';
-import { VariablesService } from '../../utils/variable';
-import CommonSimpleChart from '../common-simple-chart';
-import BaseEchart from '../monitor-base-echart';
 
 import './ratio-ring-chart.scss';
 /** 传递接口数据key */
@@ -79,7 +81,7 @@ class RatioRingChart extends CommonSimpleChart {
     '#FF5422',
     '#8C00A9',
     '#A91947',
-    '#FB962E'
+    '#FB962E',
   ]);
 
   // 是否在分屏展示
@@ -119,10 +121,10 @@ class RatioRingChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
       const promiseList = this.panel.targets.map(item =>
         (this as any).$api[item.apiModule]
@@ -131,8 +133,8 @@ class RatioRingChart extends CommonSimpleChart {
               ...variablesService.transformVariables(item.data),
               ...params,
               view_options: {
-                ...this.viewOptions
-              }
+                ...this.viewOptions,
+              },
             },
             { needMessage: false }
           )
@@ -202,8 +204,8 @@ class RatioRingChart extends CommonSimpleChart {
                 formatter: params => {
                   const ratio = this.handleDivide(+params.value, +totalValue);
                   return `${ratio}%\n${params.name}`;
-                }
-              }
+                },
+              },
             },
             label: {
               show: !this.hideLabel,
@@ -215,13 +217,13 @@ class RatioRingChart extends CommonSimpleChart {
                   return `${ratio}%\n${params.name}`;
                 }
                 return '';
-              }
+              },
             },
             radius: ['45%', '70%'],
             data: dataList,
-            type: 'pie'
-          }
-        ]
+            type: 'pie',
+          },
+        ],
       })
     ) as MonitorEchartOptions;
   }
@@ -260,9 +262,9 @@ class RatioRingChart extends CommonSimpleChart {
     (this.$refs.baseChart as any).instance.setOption({
       series: {
         label: {
-          show: this.hideLabel ? false : isShow
-        }
-      }
+          show: this.hideLabel ? false : isShow,
+        },
+      },
     });
   }
   handleMenuToolsSelect(menuItem: IMenuItem) {
@@ -304,7 +306,7 @@ class RatioRingChart extends CommonSimpleChart {
       if (link.target === 'event') {
         if (this.isSplitPanel) {
           const route = this.$router.resolve({
-            path: link.url
+            path: link.url,
           });
           window.open(location.href.replace(location.pathname, '/').replace(location.hash, '') + route.href);
         } else {
@@ -320,40 +322,40 @@ class RatioRingChart extends CommonSimpleChart {
       <div class='ratio-ring-chart'>
         <ChartHeader
           class='draggable-handle'
-          title={this.panelTitle}
           draging={this.panel.draging}
-          showMore={false}
-          metrics={this.metrics}
           isInstant={this.panel.instant && this.showHeaderMoreTool}
+          metrics={this.metrics}
+          showMore={false}
+          title={this.panelTitle}
           onMenuClick={this.handleMenuToolsSelect}
           onUpdateDragging={() => this.panel.updateDraging(false)}
         />
         {!this.empty ? (
           <div class='ratio-ring-chart-content'>
             <div
-              class='chart-instance'
               ref='chart'
+              class='chart-instance'
             >
               <BaseEchart
                 ref='baseChart'
-                height={this.height}
                 width={this.width}
+                height={this.height}
                 options={this.chartOption}
-                onMouseover={this.handleMouseover}
-                onMouseout={this.handleMouseout}
                 onClick={this.handleClickChart}
+                onMouseout={this.handleMouseout}
+                onMouseover={this.handleMouseover}
               />
             </div>
             {
               <div
-                class='chart-legend right-legend'
                 ref='chartLegend'
+                class='chart-legend right-legend'
               >
                 <RatioLegend
                   style={`height:${this.isLegendFullContainer ? '100%' : 'auto'}`}
                   legendData={this.legendData as any}
-                  onSelectLegend={this.handleSelectLegend}
                   percent={this.panel.percent}
+                  onSelectLegend={this.handleSelectLegend}
                 />
               </div>
             }

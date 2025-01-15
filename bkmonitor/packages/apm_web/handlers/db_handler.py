@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 from typing import List, Tuple
 
 from django.utils.functional import classproperty
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from elasticsearch_dsl import Q, Search
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -22,7 +22,6 @@ from apm_web.constants import (
     METRIC_RATE_TUPLE,
     METRIC_RELATION_MAP,
     METRIC_VALUE_COUNT_TUPLE,
-    TopoNodeKind,
 )
 from apm_web.handlers.component_handler import ComponentHandler
 from constants.apm import OtlpKey
@@ -228,18 +227,6 @@ class DbComponentHandler(ComponentHandler):
             "condition": "and",
         },
     }
-
-    @classmethod
-    def is_component(cls, service_params):
-        """判断是否是存储类节点"""
-        if not service_params:
-            return False
-
-        return (
-            service_params.get("kind")
-            and service_params.get("category")
-            and service_params.get("kind") == TopoNodeKind.COMPONENT
-        )
 
     @classmethod
     def build_db_system_param(cls, category, db_system=None):

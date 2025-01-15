@@ -33,7 +33,7 @@ import './fta.scss';
 Component.registerHooks(['beforeRouteLeave']);
 
 @Component
-export default class FTA extends tsc<{}> {
+export default class FTA extends tsc<object> {
   @Prop() a: number;
   loading = true;
   get ftaHost() {
@@ -48,7 +48,7 @@ export default class FTA extends tsc<{}> {
   get ftaData() {
     return JSON.stringify({
       host: this.ftaHost,
-      baseroute: '/fta/'
+      baseroute: '/fta/',
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -66,10 +66,10 @@ export default class FTA extends tsc<{}> {
         v-monitor-loading={{ isLoading: this.loading }}
       >
         <bk-weweb
-          class='fta-wrap-iframe'
-          url={this.ftaUrl}
           id='fta'
+          class='fta-wrap-iframe'
           data={this.ftaData}
+          url={this.ftaUrl}
         />
       </div>
     );

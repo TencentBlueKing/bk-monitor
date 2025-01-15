@@ -10,7 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
+
+from bkm_ipchooser import views as ip_views
+from core.drf_resource.routers import ResourceRouter
 from monitor_web.commons.biz import views as biz_views
 from monitor_web.commons.bkdocs import views as bkdocs_views
 from monitor_web.commons.cc import views as cc_views
@@ -22,9 +25,6 @@ from monitor_web.commons.robot import views as robot_views
 from monitor_web.commons.task import views as task_views
 from monitor_web.commons.token import views as token_views
 from monitor_web.commons.user import views as user_views
-
-from bkm_ipchooser import views as ip_views
-from core.drf_resource.routers import ResourceRouter
 
 router = ResourceRouter()
 router.register_module(biz_views)
@@ -42,5 +42,5 @@ router.register_module(report_views)
 
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
+    re_path(r"^", include(router.urls)),
 ]

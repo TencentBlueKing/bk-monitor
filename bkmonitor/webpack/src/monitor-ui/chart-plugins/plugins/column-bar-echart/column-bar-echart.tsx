@@ -26,14 +26,16 @@
 
 import { Component } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import ChartHeader from '../../components/chart-title/chart-title';
-import { IExtendMetricData, PanelModel } from '../../typings';
-import { IColumnBarData } from '../../typings/column-bar';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
+
+import type { IExtendMetricData, PanelModel } from '../../typings';
+import type { IColumnBarData } from '../../typings/column-bar';
 
 import './column-bar-echart.scss';
 
@@ -58,7 +60,7 @@ class ColumnBarEchart extends CommonSimpleChart {
     '#FF5422',
     '#8C00A9',
     '#A91947',
-    '#FB962E'
+    '#FB962E',
   ]);
 
   get max() {
@@ -77,31 +79,30 @@ class ColumnBarEchart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       const params = {
         start_time: start_time ? dayjs.tz(start_time).unix() : startTime,
-        end_time: end_time ? dayjs.tz(end_time).unix() : endTime
+        end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
-      const promiseList = this.panel.targets.map(
-        item =>
-          (this as any).$api[item.apiModule]
-            ?.[item.apiFunc](
-              {
-                ...variablesService.transformVariables(item.data),
-                ...params,
-                view_options: {
-                  ...this.viewOptions
-                }
+      const promiseList = this.panel.targets.map(item =>
+        (this as any).$api[item.apiModule]
+          ?.[item.apiFunc](
+            {
+              ...variablesService.transformVariables(item.data),
+              ...params,
+              view_options: {
+                ...this.viewOptions,
               },
-              { needMessage: false }
-            )
-            .then(res => {
-              this.clearErrorMsg();
-              return res;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            })
+            },
+            { needMessage: false }
+          )
+          .then(res => {
+            this.clearErrorMsg();
+            return res;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          })
       );
       const res = await Promise.all(promiseList);
       if (res?.every?.(item => item.length)) {
@@ -131,29 +132,29 @@ class ColumnBarEchart extends CommonSimpleChart {
   chartContent() {
     return (
       <div
-        class='column-bar-chart-content'
         style={{ 'justify-content': 'center' }}
+        class='column-bar-chart-content'
       >
         {this.data[0].map(item => (
           <div
-            class='content-item'
             style={{ cursor: item.link ? 'pointer' : '' }}
+            class='content-item'
             onClick={() => this.handleJump(item)}
           >
             <span
-              class='item-title text'
               style={{ color: item.color || '#699DF4' }}
+              class='item-title text'
             >
               {item.name}
             </span>
             <div class='progress-bar-container'>
               <div
-                class='progress-bar'
                 style={{
                   width: `${((item.value / this.max) * 100).toFixed(2)}%`,
-                  'background-color': item.color || '#699DF4'
+                  'background-color': item.color || '#699DF4',
                 }}
-              ></div>
+                class='progress-bar'
+              />
             </div>
             <span class='item-value text'>{item.value}</span>
           </div>
@@ -167,10 +168,10 @@ class ColumnBarEchart extends CommonSimpleChart {
       <div class='column-bar-chart'>
         <ChartHeader
           class='draggable-handle'
-          title={this.panel.title}
           draging={this.panel.draging}
-          metrics={this.metrics}
           isInstant={this.panel.instant && this.showHeaderMoreTool}
+          metrics={this.metrics}
+          title={this.panel.title}
         />
         {!this.empty ? this.chartContent() : <span class='empty-chart'>{this.emptyText}</span>}
       </div>

@@ -39,9 +39,9 @@ def mock_run_alert_builder(mocker):
 
 
 @pytest.fixture()
-def mock_send_periodic_check_task(mocker):
-    delay_task = mocker.MagicMock(return_value=True)
-    return mocker.patch("alarm_backends.service.alert.builder.processor.send_check_task.delay", delay_task)
+def mock_send_periodic_check(mocker):
+    ret = mocker.MagicMock(return_value=True)
+    return mocker.patch("alarm_backends.service.alert.builder.processor.send_check_task", ret)
 
 
 @pytest.fixture()
@@ -106,13 +106,13 @@ class TestAlertPollerHandler(object):
                         "data_id": 1,
                         "partition": 0,
                         "topic": "topic1",
-                        "bootstrap_server": f"kafka1.service.consul:9092",
+                        "bootstrap_server": "kafka1.service.consul:9092",
                     },
                     {
                         "data_id": 2,
                         "partition": 0,
                         "topic": "topic2",
-                        "bootstrap_server": f"kafka2.service.consul:9092",
+                        "bootstrap_server": "kafka2.service.consul:9092",
                     },
                 ]
             ),
@@ -132,13 +132,13 @@ class TestAlertPollerHandler(object):
                         "data_id": 1,
                         "topic": "topic1",
                         "partition": 0,
-                        "bootstrap_server": f"kafka1.service.consul:9092",
+                        "bootstrap_server": "kafka1.service.consul:9092",
                     },
                     {
                         "data_id": 3,
                         "topic": "topic3",
                         "partition": 0,
-                        "bootstrap_server": f"kafka3.service.consul:9092",
+                        "bootstrap_server": "kafka3.service.consul:9092",
                     },
                 ]
             ),
@@ -160,13 +160,13 @@ class TestAlertPollerHandler(object):
                         "data_id": 1,
                         "topic": "topic1",
                         "partition": 0,
-                        "bootstrap_server": f"kafka1.service.consul:9092",
+                        "bootstrap_server": "kafka1.service.consul:9092",
                     },
                     {
                         "data_id": 3,
                         "topic": "topic3",
                         "partition": 0,
-                        "bootstrap_server": f"kafka3.service.consul:9092",
+                        "bootstrap_server": "kafka3.service.consul:9092",
                     },
                 ]
             ),
@@ -187,13 +187,13 @@ class TestAlertPollerHandler(object):
                         "data_id": 4,
                         "topic": "topic4",
                         "partition": 0,
-                        "bootstrap_server": f"kafka4.service.consul:9092",
+                        "bootstrap_server": "kafka4.service.consul:9092",
                     },
                     {
                         "data_id": 3,
                         "topic": "topic3",
                         "partition": 0,
-                        "bootstrap_server": f"kafka3.service.consul:9092",
+                        "bootstrap_server": "kafka3.service.consul:9092",
                     },
                 ]
             ),
@@ -219,13 +219,13 @@ class TestAlertPollerHandler(object):
                         "data_id": 1,
                         "topic": "topic1",
                         "partition": 0,
-                        "bootstrap_server": f"kafka1.service.consul:9092",
+                        "bootstrap_server": "kafka1.service.consul:9092",
                     },
                     {
                         "data_id": 2,
                         "topic": "topic2",
                         "partition": 0,
-                        "bootstrap_server": f"kafka2.service.consul:9092",
+                        "bootstrap_server": "kafka2.service.consul:9092",
                     },
                 ]
             ),
@@ -268,13 +268,13 @@ class TestAlertPollerHandler(object):
                         "data_id": 1,
                         "topic": "topic1",
                         "partition": 0,
-                        "bootstrap_server": f"kafka1.service.consul:9092",
+                        "bootstrap_server": "kafka1.service.consul:9092",
                     },
                     {
                         "data_id": 2,
                         "topic": "topic2",
                         "partition": 0,
-                        "bootstrap_server": f"kafka2.service.consul:9092",
+                        "bootstrap_server": "kafka2.service.consul:9092",
                     },
                 ]
             ),
@@ -302,7 +302,7 @@ class TestAlertPollerHandler(object):
         settings.MAX_BUILD_EVENT_NUMBER = 0
 
     def test_run_alert_builder_once(
-        self, mock_alert_kafka_consumer, mock_send_periodic_check_task, mock_send_signal, clear_index
+        self, mock_alert_kafka_consumer, mock_send_periodic_check, mock_send_signal, clear_index
     ):
         time1 = int(time.time())
         time2 = time1 - 500
@@ -320,7 +320,7 @@ class TestAlertPollerHandler(object):
                         "data_id": 1,
                         "topic": "topic1",
                         "partition": 0,
-                        "bootstrap_server": f"kafka1.service.consul:9092",
+                        "bootstrap_server": "kafka1.service.consul:9092",
                     }
                 ]
             ),
@@ -337,6 +337,7 @@ class TestAlertPollerHandler(object):
                 "severity": 1,
                 "target": "127.0.0.1",
                 "dedupe_keys": ["alert_name", "target"],
+                "strategy_id": 100,
             },
             {
                 "bk_biz_id": 2,
@@ -348,6 +349,7 @@ class TestAlertPollerHandler(object):
                 "target": "127.0.0.1",
                 "severity": 1,
                 "dedupe_keys": ["alert_name", "target"],
+                "strategy_id": 100,
             },
         ]
 
@@ -359,13 +361,13 @@ class TestAlertPollerHandler(object):
             "topic1": records,
         }
         p.run_poller()
-        assert mock_send_periodic_check_task.call_count == 1
+        mock_send_periodic_check.assert_called_once()
         assert mock_send_signal.call_count == 1
         event1 = EventDocument.get_by_event_id("1")
         assert event1.target == "127.0.0.1"
-        assert "c32672f86e30586202311efb2267d44f" == event1.dedupe_md5
+        assert "936eafa6dac0d420db79fcdf3bae8f15" == event1.dedupe_md5
 
-        alert = AlertDocument.get_by_dedupe_md5(dedupe_md5="c32672f86e30586202311efb2267d44f")
+        alert = AlertDocument.get_by_dedupe_md5(dedupe_md5="936eafa6dac0d420db79fcdf3bae8f15")
         assert time2 == alert.begin_time
         assert time1 == alert.latest_time
         assert 1 == alert.severity

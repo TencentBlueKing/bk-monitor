@@ -25,8 +25,8 @@
 -->
 <template>
   <span
-    key="preAdd"
     v-if="addType === 'common'"
+    key="preAdd"
     class="input-add"
     @click.stop.prevent="handleAddClick"
   >
@@ -51,25 +51,25 @@ export default {
       default: 'common',
       validator(v) {
         return ['common', 'character'].includes(v);
-      }
+      },
     },
     // 文字按钮按钮时显示的名称
     addTitle: {
       type: String,
       default() {
         return this.$t('添加');
-      }
+      },
     },
     addDesc: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   methods: {
     handleAddClick(e) {
       this.$emit('set-add', e);
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

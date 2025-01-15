@@ -32,7 +32,7 @@ import './profiling.scss';
 
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class Profiling extends tsc<{}> {
+export default class Profiling extends tsc<object> {
   @Prop() a: number;
   get profilingHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
@@ -45,28 +45,28 @@ export default class Profiling extends tsc<{}> {
   get profilingData() {
     return JSON.stringify({
       host: this.profilingHost,
-      baseroute: '/trace/'
+      baseroute: '/trace/',
     });
   }
   mounted() {
     setTimeout(() => {
-      this.$store.commit('app/SET_ROUTE_CHANGE_LOADNG', false);
+      this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
     }, 300);
   }
   beforeRouteLeave(to, from, next) {
-    (document.body as any).___zrEVENTSAVED = null;
+    document.body.___zrEVENTSAVED = null; // echarts 微应用偶发tooltips错误问题
     next();
   }
   render() {
     return (
       <div class='profiling-wrap'>
         <bk-weweb
-          setShodowDom={true}
-          class='profiling-wrap-iframe'
-          url={this.profilingUrl}
-          showSourceCode={true}
           id='profiling'
+          class='profiling-wrap-iframe'
           data={this.profilingData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.profilingUrl}
         />
       </div>
     );

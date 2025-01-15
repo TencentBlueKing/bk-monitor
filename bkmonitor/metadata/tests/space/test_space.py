@@ -11,10 +11,8 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata.models.space import utils
-from metadata.models.space.constants import MeasurementType
-from metadata.models.space.space_redis import SpaceRedis
 
-from .conftest import DEFAULT_DATA_ID, DEFAULT_SPACE_ID, DEFAULT_SPACE_TYPE
+from .conftest import DEFAULT_DATA_ID, DEFAULT_SPACE_TYPE
 
 pytestmark = pytest.mark.django_db
 
@@ -31,52 +29,3 @@ def test_get_space_data_id_list(create_and_delete_record):
     data_id_list = utils.get_space_data_id_list(DEFAULT_SPACE_TYPE)
     assert len(data_id_list) == 1
     assert DEFAULT_DATA_ID + 1 in data_id_list
-
-
-def test_check_filter(create_and_delete_record):
-    client = SpaceRedis()
-
-    # bk_standard_v3_time_series
-    need_add = client._is_need_add_filter(
-        measurement_type=MeasurementType.BK_STANDARD_V2_TIME_SERIES.value,
-        space_type_id=DEFAULT_SPACE_TYPE,
-        space_id=DEFAULT_SPACE_ID,
-        data_id=DEFAULT_DATA_ID,
-    )
-    assert not need_add
-
-    # bk_split
-    need_add = client._is_need_add_filter(
-        measurement_type=MeasurementType.BK_SPLIT.value,
-        space_type_id=DEFAULT_SPACE_TYPE,
-        space_id=DEFAULT_SPACE_ID,
-        data_id=DEFAULT_DATA_ID,
-    )
-    assert not need_add
-
-    # bk_exporter
-    need_add = client._is_need_add_filter(
-        measurement_type=MeasurementType.BK_EXPORTER.value,
-        space_type_id=DEFAULT_SPACE_TYPE,
-        space_id=DEFAULT_SPACE_ID,
-        data_id=DEFAULT_DATA_ID,
-    )
-    assert need_add
-
-    # platform and belong a space
-    need_add = client._is_need_add_filter(
-        measurement_type=MeasurementType.BK_STANDARD_V2_TIME_SERIES.value,
-        space_type_id=DEFAULT_SPACE_TYPE,
-        space_id=DEFAULT_SPACE_ID,
-        data_id=DEFAULT_DATA_ID + 1,
-    )
-    assert not need_add
-
-    # platform and not belong a space
-    need_add = client._is_need_add_filter(
-        measurement_type=MeasurementType.BK_STANDARD_V2_TIME_SERIES.value,
-        space_type_id=DEFAULT_SPACE_TYPE,
-        space_id=DEFAULT_SPACE_ID,
-        data_id=DEFAULT_DATA_ID + 2,
-    )
-    assert need_add

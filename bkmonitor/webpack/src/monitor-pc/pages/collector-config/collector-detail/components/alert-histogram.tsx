@@ -30,7 +30,7 @@ import './alert-histogram.scss';
 
 const classMap = {
   0: 'green',
-  1: 'red'
+  1: 'red',
 };
 
 interface IProps {
@@ -44,7 +44,7 @@ interface IProps {
 export default class AlertHistogram extends tsc<IProps> {
   @Prop({
     type: Array,
-    default: () => []
+    default: () => [],
   })
   value: number[][];
 
@@ -115,7 +115,7 @@ export default class AlertHistogram extends tsc<IProps> {
     } else {
       this.localValue = this.value.map(item => ({
         times: [item[0]],
-        level: item[1]
+        level: item[1],
       }));
     }
   }
@@ -157,7 +157,7 @@ export default class AlertHistogram extends tsc<IProps> {
         delay: [300, 0],
         arrow: true,
         placement: 'top',
-        boundary: 'window'
+        boundary: 'window',
       });
       this.popInstance?.show();
     });
@@ -177,7 +177,7 @@ export default class AlertHistogram extends tsc<IProps> {
             class={['histogram-item', classMap[item.level]]}
             onMouseenter={e => this.handleMouseenter(e, item)}
             onMouseleave={() => this.handleMouseleave()}
-          ></div>
+          />
         ))}
         <div style={{ display: 'none' }}>
           <div

@@ -25,11 +25,12 @@
  */
 import { Component, Inject, InjectReactive, Mixins, Prop, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
-import { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { ChartLoadingMixin, ErrorMsgMixins, IntersectionMixin, LegendMixin, ResizeMixin, ToolsMxin } from '../mixins';
-import { ICommonCharts, IViewOptions, PanelModel } from '../typings';
+
+import type { ICommonCharts, IViewOptions, PanelModel } from '../typings';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IQueryData } from 'monitor-pc/pages/monitor-k8s/typings';
 
 @Component
 export class CommonSimpleChart
@@ -44,7 +45,7 @@ export class CommonSimpleChart
   implements ICommonCharts
 {
   // 时序视图panel实例
-  @Prop({ required: true }) readonly panel: PanelModel;
+  @Prop({ required: false }) readonly panel: PanelModel;
   // 高度
   height = 100;
   // 宽度度
@@ -63,7 +64,7 @@ export class CommonSimpleChart
   /** 更新queryData */
   @Inject('handleUpdateQueryData') handleUpdateQueryData: (queryData: IQueryData) => void;
   // 当前使用的业务id
-  @InjectReactive('bkBizId') readonly bkBizId: string | number;
+  @InjectReactive('bkBizId') readonly bkBizId: number | string;
 
   // 变量对应
   get scopedVars() {
@@ -73,7 +74,7 @@ export class CommonSimpleChart
       ...(this.viewOptions?.variables || {}),
       ...(this.viewOptions?.current_target || []),
       ...(this.viewOptions?.variables?.current_target || {}),
-      ...{ current_target: this.viewOptions?.filters || {} }
+      ...{ current_target: this.viewOptions?.filters || {} },
     };
   }
 
@@ -89,9 +90,9 @@ export class CommonSimpleChart
   handleTimeRangeChange() {
     this.getPanelData();
   }
-  @Watch('refleshInterval')
+  @Watch('refleshInterval', { immediate: true })
   // 数据刷新间隔
-  handleRefleshIntervalChange(v: number) {
+  handleRefreshIntervalChange(v: number) {
     if (this.refleshIntervalInstance) {
       window.clearInterval(this.refleshIntervalInstance);
     }
@@ -102,7 +103,7 @@ export class CommonSimpleChart
   }
   @Watch('refleshImmediate')
   // 立刻刷新
-  handleRefleshImmediateChange(v: string) {
+  handleRefreshImmediateChange(v: string) {
     if (v) this.getPanelData();
   }
   @Watch('timezone')
@@ -125,9 +126,51 @@ export class CommonSimpleChart
   async getPanelData(start_time?: string, end_time?: string) {
     this.beforeGetPanelData(start_time, end_time);
   }
+  /* 粒度计算 */
+  downSampleRangeComputed(downSampleRange: string, timeRange: number[], api: string) {
+    if (downSampleRange === 'raw' || !['unifyQuery', 'graphUnifyQuery'].includes(api)) {
+      return undefined;
+    }
+    if (downSampleRange === 'auto') {
+      let width = 1;
+      if (this.$refs.chart) {
+        width = (this.$refs.chart as Element).clientWidth;
+      } else {
+        width = this.$el.clientWidth - (this.panel.options?.legend?.placement === 'right' ? 320 : 0);
+      }
+      const size = (timeRange[1] - timeRange[0]) / width;
+      return size > 0 ? `${Math.ceil(size)}s` : undefined;
+    }
+    return downSampleRange;
+  }
+  commonChartTooltipsPosition(pos, params, dom, rect, size: any) {
+    const { contentSize } = size;
+    const chartRect = this.$el.getBoundingClientRect();
+    const posRect = {
+      x: chartRect.x + +pos[0],
+      y: chartRect.y + +pos[1],
+    };
+    const position = {
+      left: 0,
+      top: 0,
+    };
+    const canSetBootom = window.innerHeight - posRect.y - contentSize[1];
+    if (canSetBootom > 0) {
+      position.top = +pos[1] - Math.min(20, canSetBootom);
+    } else {
+      position.top = +pos[1] + canSetBootom - 20;
+    }
+    const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
+    if (canSetLeft > 0) {
+      position.left = +pos[0] + Math.min(20, canSetLeft);
+    } else {
+      position.left = +pos[0] - contentSize[0] - 20;
+    }
+    return position;
+  }
   render() {
     return <div />;
   }
 }
 
-export default ofType<{ panel: PanelModel }>().convert(CommonSimpleChart);
+export default ofType<{ panel?: PanelModel }>().convert(CommonSimpleChart);

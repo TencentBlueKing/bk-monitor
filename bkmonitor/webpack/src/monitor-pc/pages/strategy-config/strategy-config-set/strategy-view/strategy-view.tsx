@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/member-ordering */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
@@ -26,54 +25,59 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
 import { fetchItemStatus, getUnitInfo } from 'monitor-api/modules/strategies';
 import { asyncDebounceDecorator } from 'monitor-common/utils/debounce-decorator';
+import { concatMonitorDocsUrl, DOCS_LINK_MAP } from 'monitor-common/utils/docs';
 import { Debounce, deepClone, random, typeTools } from 'monitor-common/utils/utils';
 import Viewer from 'monitor-ui/markdown-editor/viewer';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import MonitorDivider from '../../../../components/divider/divider.vue';
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
+import { type ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
-import { IViewOptions } from '../../../monitor-k8s/typings';
 import GroupPanel from '../../strategy-config-set-new/components/group-panel';
-import { ChartType } from '../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
-import { IModelData } from '../../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
-import { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
 import {
-  dataModeType,
-  EditModeType,
-  ICommonItem,
-  IDetectionConfig,
-  ISourceData,
-  IWhereItem,
-  MetricDetail,
-  MetricType
+  type EditModeType,
+  type ICommonItem,
+  type IDetectionConfig,
+  type ISourceData,
+  type IWhereItem,
+  type MetricDetail,
+  MetricType,
+  type dataModeType,
 } from '../../strategy-config-set-new/typings/index';
-
-import StrategyChart from './strategy-chart/strategy-chart';
 import { allDescription } from './description';
+import MultipleMetricView from './multiple-metric-view';
 import NumberSelect from './number-select';
+import StrategyChart from './strategy-chart/strategy-chart';
 import StrategyViewAlarm from './strategy-view-alarm.vue';
 import StrategyViewLog from './strategy-view-log.vue';
 import StrategyViewTool from './strategy-view-tool.vue';
+import { EShortcutsType } from './typing';
 // import StrategyViewDimensions from './strategy-view-dimensions.vue';
 import ViewDimensions from './view-dimensions';
 
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IViewOptions } from '../../../monitor-k8s/typings';
+import type { ChartType } from '../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
+import type { IModelData } from '../../strategy-config-set-new/detection-rules/components/time-series-forecast/time-series-forecast';
+import type { IFunctionsValue } from '../../strategy-config-set-new/monitor-data/function-select';
+import type { IMultivariateAnomalyDetectionParams } from '../../strategy-config-set-new/type';
+
 import './strategy-view.scss';
 
-const metricUrlMap = {
-  time_series: '监控平台/产品白皮书/alarm-configurations/rules.md',
-  event: '监控平台/产品白皮书/alarm-configurations/events_monitor.md',
-  log: '监控平台/产品白皮书/alarm-configurations/log_monitor.md',
-  alert: '监控平台/产品白皮书/alarm-configurations/composite_monitor.md'
+const windowHostDataFieldsForDimensionNameMap = {
+  bk_target_ip: 'strategy-目标IP',
+  bk_target_cloud_id: 'strategy-云区域ID',
+  bk_host_id: 'strategy-主机ID',
 };
+const defaultHostDataFields = ['bk_target_ip', 'bk_target_cloud_id'];
 
 interface IStrateViewProps {
   metricData: MetricDetail[];
@@ -91,6 +95,8 @@ interface IStrateViewProps {
   isMultivariateAnomalyDetection?: boolean;
   /** 策略目标 */
   strategyTarget?: any[];
+  multivariateAnomalyDetectionParams?: IMultivariateAnomalyDetectionParams;
+  onMultivariateAnomalyRefreshView: () => void;
 }
 @Component({
   name: 'strategy-view',
@@ -101,8 +107,8 @@ interface IStrateViewProps {
     // StrategyViewDimensions,
     StrategyViewLog,
     StrategyViewAlarm,
-    CollectChart
-  }
+    CollectChart,
+  },
 })
 export default class StrategyView extends tsc<IStrateViewProps> {
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
@@ -160,12 +166,14 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   @Prop({ default: () => ({ sourceCode: '', step: 'auto' }), type: Object }) private readonly sourceData: ISourceData;
   /* 是否为场景智能检测数据 */
   @Prop({ default: false, type: Boolean }) isMultivariateAnomalyDetection: boolean;
+  /* 场景智能检测多指标视图参数 */
+  @Prop({ default: null, type: Object }) multivariateAnomalyDetectionParams: IMultivariateAnomalyDetectionParams;
 
   @Ref('tool') toolRef!: StrategyViewTool;
 
   private tools: { timeRange: TimeRangeType; refleshInterval: number } = {
     timeRange: ['now-3h', 'now'],
-    refleshInterval: 5 * 60 * 1000
+    refleshInterval: 5 * 60 * 1000,
   };
   // 原始时间范围，用于图表双击还原
   private lastTimeRange: TimeRangeType = ['now-1h', 'now'];
@@ -181,7 +189,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   private collect = {
     show: false,
     list: [],
-    count: 0
+    count: 0,
   };
   private logData = [];
   private limit = 20;
@@ -195,16 +203,18 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     lte: '<=',
     lt: '<',
     eq: '=',
-    neq: '!='
+    neq: '!=',
   };
   private metricQueryString = '';
   private alertTabActive = '';
   // 快捷方式 近20条数据或指定（指定：不变）
-  private shortcutsType: 'NEAR' | 'assign' = 'NEAR';
-  private nearNum = 20;
+  private shortcutsType: EShortcutsType = EShortcutsType.NEAR;
+  /* 实际的快捷方式 当选择了维度并且切换的指定数据则为指定类型 */
+  private realShortcutsType: EShortcutsType = EShortcutsType.NEAR;
+  private nearNum = 10;
   private shortcutsList = [
-    { id: 'NEAR', name: '' },
-    { id: 'assign', name: window.i18n.t('查看指定数据') }
+    { id: EShortcutsType.NEAR, name: '' },
+    { id: EShortcutsType.assign, name: window.i18n.t('查看指定数据') },
   ];
   // 时间范围缓存用于复位功能
   cacheTimeRange = [];
@@ -223,20 +233,33 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     }
     return {
       tool: {
-        list
+        list,
       },
       xAxis: {
         // 大于 1 天时，坐标轴标签数量建议值减少
-        splitNumber: endTime - startTime > 86400 ? 6 : 10
-      }
+        splitNumber: endTime - startTime > 86400 ? 6 : 10,
+      },
     };
   }
 
+  private get dimensionList() {
+    let list = this.legalDimensionList;
+    if (this.isMultivariateAnomalyDetection) {
+      list = (window.host_data_fields?.length ? window.host_data_fields : defaultHostDataFields).map(key => ({
+        id: key,
+        is_dimension: true,
+        name: this.$t(windowHostDataFieldsForDimensionNameMap[key]),
+        type: 'string',
+      }));
+    }
+    return list;
+  }
+
   private get dimensionData() {
-    if (!this.legalDimensionList?.length) return [];
-    return this.legalDimensionList.map(item => ({
+    if (!this.dimensionList?.length) return [];
+    return this.dimensionList.map(item => ({
       ...item,
-      list: this.dimensionsScopeMap[item.id] || []
+      list: this.dimensionsScopeMap[item.id] || [],
     }));
   }
 
@@ -260,7 +283,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   }
 
   private get metricQueryData() {
-    return this.metricData.filter(item => !item.isNullMetric);
+    const metricData = this.isMultivariateAnomalyDetection
+      ? this.multivariateAnomalyDetectionParams.metrics
+      : this.metricData;
+    return metricData.filter(item => !item.isNullMetric);
   }
 
   private get chartTitile() {
@@ -304,7 +330,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
 
   /* 是否为最近多少条数据 */
   get isNear() {
-    return this.shortcutsType === 'NEAR';
+    return this.realShortcutsType === EShortcutsType.NEAR;
   }
 
   get needNearRadio() {
@@ -322,9 +348,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
 
   deactivated() {
     // 图例查看方式还原
-    this.shortcutsType = 'NEAR';
-    this.nearNum = 20;
+    this.shortcutsType = EShortcutsType.NEAR;
+    this.nearNum = 10;
+    this.handleShortcutsTypeChange(this.shortcutsType);
   }
+
+  @Emit('multivariateAnomalyRefreshView')
+  handleMultivariateAnomalyRefreshView() {}
 
   @Watch('metricData', { deep: true })
   handleMetricDataChange(v: MetricDetail[]) {
@@ -366,8 +396,12 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     this.handleQueryChart();
   }
 
+  @Watch('multivariateAnomalyDetectionParams.metrics', { deep: true })
+  handleMultivariateAnomalyDetectionMetricChange() {
+    this.handleMultivariateAnomalyDetectionDimensionsQueryChart();
+  }
+
   handleGetQetricQueryData(data: MetricDetail[]) {
-    // eslint-disable-next-line camelcase
     return data.map(
       ({ agg_dimension, agg_interval, agg_method, agg_condition, keywords_query_string, index_set_id, functions }) => ({
         agg_dimension,
@@ -376,7 +410,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         agg_condition: agg_condition?.filter(item => item.key && item.value?.length) || [],
         keywords_query_string,
         index_set_id,
-        functions
+        functions,
       })
     );
   }
@@ -397,11 +431,12 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   @Debounce(500)
   async handleQueryChart() {
     // 没有选择监控数据，不进行图表查询
-    if (!this.metricData.length) return;
+    if (!this.metricData.length || this.isMultivariateAnomalyDetection) return;
     try {
       if (!this.needNearRadio) {
-        this.shortcutsType = 'assign';
-        this.nearNum = 20;
+        this.shortcutsType = EShortcutsType.assign;
+        this.nearNum = 10;
+        this.handleShortcutsTypeChange(this.shortcutsType);
       }
       /* 触发图表查询无需清空已选条件 */
       const keys = this.dimensionData.map(item => item.id);
@@ -424,6 +459,33 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       console.log(err);
     }
   }
+
+  // 触发场景监控图表查询
+  @Debounce(500)
+  async handleMultivariateAnomalyDetectionDimensionsQueryChart() {
+    // 没有选择监控数据，不进行图表查询
+    if (!this.multivariateAnomalyDetectionParams?.metrics?.length) return;
+    try {
+      /* 触发图表查询无需清空已选条件 */
+      const keys = this.dimensionData.map(item => item.id);
+      const temp = deepClone(this.dimensions);
+      const dimensions = {};
+      for (const key of keys) {
+        if (temp[key]) {
+          dimensions[key] = temp[key];
+        }
+      }
+      this.dimensions = dimensions;
+      // 重置数据
+      this.currentDimensionScopeMap = {};
+      this.dimensionsPanelKey = random(10);
+      await this.handleGetVariableValue();
+      this.handleMultivariateAnomalyRefreshView();
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   // 获取告警状态信息
   async getAlarmStatus(id) {
     const data = await fetchItemStatus({ metric_ids: [id] }).catch(() => ({ [id]: 0 }));
@@ -437,23 +499,26 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     const [startTime, endTime] = handleTransformToTimestamp(this.tools.timeRange);
     const commonParams = this.getQueryParams(startTime, endTime);
     // 接口不支持批量，需要逐个发请求拿维度可选值信息
-    this.legalDimensionList.forEach(item => {
+    this.dimensionList.forEach(item => {
       const queryConfigs = commonParams.query_configs.map(queryConfig => {
         const filter_dict = !!this.dimensions?.[item.id] ? queryConfig.filter_dict : {};
         return {
           ...queryConfig,
-          filter_dict
+          filter_dict,
         };
       });
       const params = {
         ...commonParams,
         query_configs: queryConfigs,
-        dimension_field: item.id
+        dimension_field: item.id,
       };
-      promiseList.push(dimensionUnifyQuery(params));
+      // promql模式下不需要再去查询维度值列表
+      if (this.editMode !== 'Source') {
+        promiseList.push(dimensionUnifyQuery(params));
+      }
     });
     const data = await Promise.all(promiseList).catch(() => []);
-    this.legalDimensionList.forEach((dimension, index) => {
+    this.dimensionList.forEach((dimension, index) => {
       if (data[index] && Array.isArray(data[index])) {
         const obj = !this.dimensions?.[dimension.id] ? this.dimensionsScopeMap : this.currentDimensionScopeMap;
         const value = data[index].map(item => ({ id: item.value, name: item.label }));
@@ -523,7 +588,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     const algorithm2Level = {
       1: 5,
       2: 4,
-      3: 3
+      3: 3,
     };
     this.detectionConfig?.data
       ?.filter(item => item?.type === 'IntelligentDetect')
@@ -551,7 +616,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
           lowBoundary,
           color: '#e6e6e6',
           stack: `boundary-${algItem?.level || ''}`,
-          z: algorithm2Level[algItem?.level] || 1
+          z: algorithm2Level[algItem?.level] || 1,
         });
         const coverData = queryData?.find(
           item =>
@@ -563,11 +628,11 @@ export default class StrategyView extends tsc<IStrateViewProps> {
           coverList.push({
             data: coverData.map((item, index) => [
               firstData?.datapoints[index][1],
-              item[0] > 0 ? firstData?.datapoints[index][0] : null
+              item[0] > 0 ? firstData?.datapoints[index][0] : null,
             ]),
             color: '#ff3d3f',
             z: algorithm2Level[algItem.level] + 10,
-            name: `cover-${algItem.level}`
+            name: `cover-${algItem.level}`,
           });
         }
       });
@@ -575,16 +640,16 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       {
         ...firstData,
         boundary: boundaryList,
-        coverSeries: coverList
-      }
+        coverSeries: coverList,
+      },
     ];
   }
   // 获取图表查询参数设置
-  getQueryParams(startTime: string | number, endTime: string | number, hasIntelligentDetect = false) {
+  getQueryParams(startTime: number | string, endTime: number | string, hasIntelligentDetect = false) {
     const timePrams = {
       start_time:
         typeof startTime === 'string' || String(startTime).length > 10 ? dayjs.tz(startTime).unix() : startTime,
-      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? dayjs.tz(endTime).unix() : endTime
+      end_time: typeof endTime === 'string' || String(startTime).length > 10 ? dayjs.tz(endTime).unix() : endTime,
     };
     if (this.editMode === 'Source') {
       const params = {
@@ -595,9 +660,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             data_source_label: 'prometheus',
             data_type_label: 'time_series',
             promql: this.sourceData.sourceCode,
-            agg_interval: this.sourceData.step
-          }
-        ]
+            agg_interval: this.sourceData.step,
+          },
+        ],
       };
       return params;
     }
@@ -624,8 +689,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
           metricMetaId,
           time_field: timeField,
           bkmonitor_strategy_id: bkmonitorStrategyId,
-          custom_event_name: customEventName,
-          curRealMetric
+          curRealMetric,
         }) => {
           dataTypeLabel = curRealMetric?.data_type_label || dataTypeLabel;
           resultTableId = curRealMetric?.result_table_id || resultTableId;
@@ -636,7 +700,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               return '_index'; // 此类情况field固定为_index
             }
             if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-              return customEventName;
+              return metricField;
             }
             return metricField || bkmonitorStrategyId;
           };
@@ -651,7 +715,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               metricMetaId === 'bk_log_search|log'
                 ? {
                     index_set_id,
-                    query_string: keywords_query_string
+                    query_string: keywords_query_string,
                   }
                 : { index_set_id: extendFields.index_set_id || '' };
           }
@@ -680,11 +744,11 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   return pre;
                 }, {}),
             functions: hasIntelligentDetect ? [] : func,
-            ...logParam
+            ...logParam,
           };
           return params;
         }
-      )
+      ),
     };
     return params;
   }
@@ -694,7 +758,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     const lineColor = {
       1: '#ea3636',
       2: '#ffd000',
-      3: '#ff8000'
+      3: '#ff8000',
     };
     let unitSeries = [];
     if (this.detectionConfig.unit) {
@@ -716,15 +780,15 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             method: cfg.method,
             condition: cfg.condition,
             lineStyle: {
-              color: lineColor[level]
+              color: lineColor[level],
             },
             label: {
-              color: lineColor[level]
+              color: lineColor[level],
             },
             itemStyle: {
               color: lineColor[level],
-              opacity: 0.1
-            }
+              opacity: 0.1,
+            },
           });
         });
       });
@@ -742,13 +806,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         agg_interval,
         agg_condition: aggCondition,
         result_table_id,
-        metric_field
-      }
+        metric_field,
+      },
     ] = metricData || this.metricQueryData;
     return {
       data_source_label,
       data_type_label,
-      group_by: this.legalDimensionList.map(item => item.id),
+      group_by: this.dimensionList.map(item => item.id),
       interval: agg_interval,
       method: agg_method,
       metric_field,
@@ -762,14 +826,24 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             }
             return pre;
           }, {}),
-      query_string: keywords_query_string
+      query_string: keywords_query_string,
     };
   }
   // 监控维度变更
   handleDimensionsChange(dimensions) {
     this.dimensions = dimensions;
+    this.handleShortcutsTypeChange(this.shortcutsType);
     this.handleGetVariableValue();
     // this.handleRefreshView();
+  }
+  // 监控场景智能监控维度变更
+  handleMultivariateAnomalyDetectionDimensionsChange(dimensions) {
+    this.dimensions = dimensions;
+    this.handleMultivariateAnomalyRefreshView();
+  }
+
+  hasDimensionValue() {
+    return Object.values(this.dimensions).some(v => !!v);
   }
   // 查询日志内容
   async handleLogQuery() {
@@ -782,8 +856,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         result_table_id: resultTableId,
         index_set_id: indexSetId,
         keywords_query_string: indexStatement,
-        bkmonitor_strategy_id: bkmonitorStrategyId
-      }
+        bkmonitor_strategy_id: bkmonitorStrategyId,
+        custom_event_name,
+      },
     ] = this.metricQueryData;
     // const { startTime, endTime } = handleTimeRange(this.tools.timeRange);
     const [startTime, endTime] = handleTransformToTimestamp(this.tools.timeRange);
@@ -794,17 +869,17 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       ? this.metricData.find(item => item.alias === this.alertTabActive)
       : this.metricData[0];
     if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-      filterDict.event_name = metricField;
+      filterDict.event_name = custom_event_name || undefined;
     }
     let extendData = {};
     if (this.isAlertStrategy) {
       extendData = {
         bkmonitor_strategy_id: metricField || bkmonitorStrategyId,
-        alert_name: metricField
+        alert_name: metricField,
       };
     } else if (metric.metricMetaId === 'bk_fta|event') {
       extendData = {
-        alert_name: metricField
+        alert_name: metricField,
       };
     }
     this.isLoading = true;
@@ -819,7 +894,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       end_time: endTime,
       limit: this.limit,
       filter_dict: filterDict,
-      ...extendData
+      ...extendData,
     }).catch(() => []);
     this.isLoading = false;
     this.logData = data;
@@ -842,10 +917,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         addition: monitorParams.where || [],
         start_time: startTime * 1000,
         end_time: endTime * 1000,
-        time_range: 'customized'
+        time_range: 'customized',
       };
       const indexSetId = this.metricQueryData[0]?.index_set_id;
-      // eslint-disable-next-line vue/max-len
+
       const queryStr = transformLogUrlQuery(retrieveParams);
       const url = `${this.$store.getters.bkLogSearchUrl}#/retrieve/${indexSetId}${queryStr}`;
       window.open(url);
@@ -864,16 +939,16 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                     const temp: IWhereItem = {
                       key,
                       method: 'eq',
-                      value: [this.chartDimensions[key]]
+                      value: [this.chartDimensions[key]],
                     };
                     index > 0 && (temp.condition = 'and');
                     return temp;
                   })
-                  .filter(item => !!item.key && item.value?.length)
+                  .filter(item => !!item.key && item.value?.length),
               };
-            })
-          }
-        }
+            }),
+          },
+        },
       ];
       window.open(
         `${location.href.replace(location.hash, '#/data-retrieval')}?targets=${encodeURIComponent(
@@ -893,13 +968,13 @@ export default class StrategyView extends tsc<IStrateViewProps> {
             alias: '',
             data: {
               expression: this.expression || 'a',
-              query_configs
-            }
-          }
+              query_configs,
+            },
+          },
         ],
         title: this.chartTitile,
-        type: 'graph'
-      }
+        type: 'graph',
+      },
     ];
     this.collect.show = true;
   }
@@ -917,199 +992,297 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     this.alertTabActive = v;
     this.handleLogQuery();
   }
+
+  handleShortcutsTypeChange(type: EShortcutsType) {
+    this.shortcutsType = type;
+    if (type === EShortcutsType.assign && this.hasDimensionValue()) {
+      this.realShortcutsType = type;
+    } else {
+      this.realShortcutsType = EShortcutsType.NEAR;
+    }
+  }
+
   render() {
     return (
       <div class='strategy-view'>
-        {this.showViewContent ? (
-          [
-            <strategy-view-tool
-              ref='tool'
-              on-change={this.handleToolPanelChange}
-              on-on-immediate-reflesh={this.handleRefreshView}
-              onTimezoneChange={this.handleRefreshView}
-            ></strategy-view-tool>,
-            <div class='strategy-view-content'>
-              {(this.metricQueryData.length > 0 &&
-                !this.loading &&
-                !this.metricQueryData.every(item => item.metricMetaId === 'bk_monitor|event')) ||
-              this.editMode === 'Source' ? (
-                [
-                  <StrategyChart
-                    metricData={this.metricQueryData}
-                    dimensions={this.editMode === 'Edit' ? this.dimensions : {}}
-                    chartType={this.chartType}
-                    aiopsChartType={this.aiopsChartType}
-                    detectionConfig={this.detectionConfig}
-                    expression={this.expression}
-                    expFunctions={this.expFunctions}
-                    editMode={this.editMode}
-                    sourceData={this.sourceData}
-                    isNear={this.isNear}
-                    nearNum={this.nearNum}
-                    strategyTarget={this.strategyTarget}
-                    onLogQuery={this.handleLogQuery}
-                  ></StrategyChart>,
-                  // 查看近20条数据
-                  !!this.needNearRadio && (
-                    <div class='radio-count-options'>
-                      <bk-radio-group v-model={this.shortcutsType}>
-                        {this.shortcutsList.map(sh => (
-                          <bk-radio value={sh.id}>
-                            {sh.id === 'NEAR' ? (
-                              <i18n
-                                path='查看{0}条数据'
-                                class='flex-center'
-                              >
-                                <NumberSelect
-                                  value={this.nearNum}
-                                  onChange={v => (this.nearNum = v)}
-                                ></NumberSelect>
-                              </i18n>
-                            ) : (
-                              <span>{sh.name}</span>
-                            )}
-                          </bk-radio>
-                        ))}
-                      </bk-radio-group>
-                    </div>
-                  ),
-                  // <monitor-divider></monitor-divider>,
-                  // (this.editMode === 'Edit'
-                  // && (this.shortcutsType !== 'NEAR_20' || this.hasTimeSeriesForecast)) ? <strategy-view-dimensions
-                  //   class={[
-                  //     'strategy-view-dimensions'
-                  //   // {
-                  //   //   'has-dimensions': !!this.dimensionData.length
-                  //   // }
-                  //   ]}
-                  //   value={this.dimensions}
-                  //   dimension-data={this.dimensionData}
-                  //   current-dimension-map={this.currentDimensionScopeMap}
-                  //   key={this.dimensionsPanelKey}
-                  //   on-change={this.handleDimensionsChange}>
-                  // </strategy-view-dimensions> : undefined,
-                  this.editMode === 'Edit' && (this.shortcutsType !== 'NEAR' || this.hasTimeSeriesForecast) ? (
+        {this.showViewContent
+          ? [
+              <strategy-view-tool
+                key='tool'
+                ref='tool'
+                on-change={this.handleToolPanelChange}
+                on-on-immediate-reflesh={this.handleRefreshView}
+                onTimezoneChange={this.handleRefreshView}
+              />,
+              <div
+                key='strategy-view-content'
+                class='strategy-view-content'
+              >
+                {(this.metricQueryData.length > 0 &&
+                  !this.loading &&
+                  !this.metricQueryData.every(item => item.metricMetaId === 'bk_monitor|event')) ||
+                this.editMode === 'Source' ? (
+                  [
+                    <StrategyChart
+                      key={'chart'}
+                      aiopsChartType={this.aiopsChartType}
+                      chartType={this.chartType}
+                      detectionConfig={this.detectionConfig}
+                      dimensions={this.editMode === 'Edit' ? this.dimensions : {}}
+                      editMode={this.editMode}
+                      expFunctions={this.expFunctions}
+                      expression={this.expression}
+                      metricData={this.metricQueryData}
+                      nearNum={this.realShortcutsType === EShortcutsType.NEAR ? this.nearNum : 10}
+                      shortcutsType={this.realShortcutsType}
+                      sourceData={this.sourceData}
+                      strategyTarget={this.strategyTarget}
+                      onLogQuery={this.handleLogQuery}
+                    />,
+                    // 查看近20条数据
+                    !!this.needNearRadio && (
+                      <div class='radio-count-options'>
+                        <bk-radio-group
+                          value={this.shortcutsType}
+                          onChange={this.handleShortcutsTypeChange}
+                        >
+                          {this.shortcutsList.map(sh => (
+                            <bk-radio
+                              key={sh.id}
+                              value={sh.id}
+                            >
+                              {sh.id === EShortcutsType.NEAR ? (
+                                <i18n
+                                  class='flex-center'
+                                  path='查看{0}条数据'
+                                >
+                                  <NumberSelect
+                                    value={this.nearNum}
+                                    onChange={v => {
+                                      this.nearNum = v;
+                                    }}
+                                  />
+                                </i18n>
+                              ) : (
+                                <span>{sh.name}</span>
+                              )}
+                            </bk-radio>
+                          ))}
+                        </bk-radio-group>
+                      </div>
+                    ),
+                    // <monitor-divider></monitor-divider>,
+                    // (this.editMode === 'Edit'
+                    // && (this.shortcutsType !== 'NEAR_20' || this.hasTimeSeriesForecast)) ? <strategy-view-dimensions
+                    //   class={[
+                    //     'strategy-view-dimensions'
+                    //   // {
+                    //   //   'has-dimensions': !!this.dimensionData.length
+                    //   // }
+                    //   ]}
+                    //   value={this.dimensions}
+                    //   dimension-data={this.dimensionData}
+                    //   current-dimension-map={this.currentDimensionScopeMap}
+                    //   key={this.dimensionsPanelKey}
+                    //   on-change={this.handleDimensionsChange}>
+                    // </strategy-view-dimensions> : undefined,
+                    this.editMode === 'Edit' &&
+                    (this.shortcutsType !== EShortcutsType.NEAR || this.hasTimeSeriesForecast) ? (
+                      <ViewDimensions
+                        key={this.dimensionsPanelKey}
+                        class='strategy-view-dimensions'
+                        dimensionData={this.dimensionData as any}
+                        value={this.dimensions}
+                        onChange={this.handleDimensionsChange}
+                      />
+                    ) : undefined,
+                  ]
+                ) : (
+                  <div class='chart-empty'>
+                    <bk-exception
+                      scene='part'
+                      type='empty'
+                    >
+                      {this.$t('暂无数据')}
+                    </bk-exception>
+                  </div>
+                )}
+                {/* <!-- 自定义事件和日志显示日志详情 --> */}
+                {this.showLogContent && (
+                  <div class='strategy-view-log'>
+                    <bk-alert
+                      class='mb10'
+                      title={this.$t('默认展示最近20条')}
+                      type='info'
+                    />
+                    <strategy-view-log
+                      v-bkloading={{ isLoading: this.isLoading }}
+                      data={this.logData}
+                      is-last={this.isLast}
+                      on-load-more={this.handleLoadMore}
+                    />
+                  </div>
+                )}
+              </div>,
+              this.needDescContent && (
+                <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
+                  {this.isEventMetric && <div class='desc-title'>{this.$t('系统事件说明')}</div>}
+                  <div class='desc-content'>
+                    {this.aiopsModelMdList.map((model, index) => (
+                      <GroupPanel
+                        key={index}
+                        defaultExpand={true}
+                        expand={index === this.activeModelMd}
+                        show-expand={true}
+                        title={`[${this.$tc('算法说明')}]${model.name}`}
+                      >
+                        {model.instruction && (
+                          <div class='desc-content-doc'>
+                            <div class='desc-content-doc-title'>{this.$t('方案描述')}</div>
+                            <Viewer
+                              class='strategy-view-desc'
+                              value={model.instruction}
+                            />
+                          </div>
+                        )}
+                        {model.document && (
+                          <div class='desc-content-doc'>
+                            <div class='desc-content-doc-title'>{this.$t('使用说明')}</div>
+                            <Viewer
+                              class='strategy-view-desc'
+                              value={model.document}
+                            />
+                          </div>
+                        )}
+                      </GroupPanel>
+                    ))}
+                    {this.isEventMetric &&
+                      this.metricQueryData.map(
+                        item =>
+                          item.metricMetaId === 'bk_monitor|event' && (
+                            <div class='strategy-view-desc'>
+                              <div class='desc-name'>{item.metric_field_name}：</div>
+                              {item.remarks.map((content, index) => (
+                                <div
+                                  key={index}
+                                  class='desc-content'
+                                >
+                                  {index + 1}. {content}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                      )}
+                  </div>
+                </div>
+              ),
+              <collect-chart
+                key='collect'
+                collect-list={this.collect.list}
+                show={this.collect.show}
+                total-count={this.collect.count}
+                is-single
+                on-close={this.handleCloseCollect}
+              />,
+            ]
+          : (() => {
+              if (this.isMultivariateAnomalyDetection && !!this.multivariateAnomalyDetectionParams?.metrics?.length) {
+                return [
+                  <div
+                    key={'tool-container'}
+                    class='strategy-view-tool'
+                  >
+                    <strategy-view-tool
+                      key='tool'
+                      ref='tool'
+                      on-change={this.handleToolPanelChange}
+                      on-on-immediate-reflesh={this.handleRefreshView}
+                      onTimezoneChange={this.handleRefreshView}
+                    />
                     <ViewDimensions
+                      key={this.dimensionsPanelKey}
                       class='strategy-view-dimensions'
                       dimensionData={this.dimensionData as any}
                       value={this.dimensions}
-                      key={this.dimensionsPanelKey}
-                      onChange={this.handleDimensionsChange}
-                    ></ViewDimensions>
-                  ) : undefined
-                ]
-              ) : (
-                <div class='chart-empty'>
-                  <i class='icon-chart icon-monitor icon-mc-line'></i>
-                  <span class='text'>{this.$t('查无数据')}</span>
-                </div>
-              )}
-              {/* <!-- 自定义事件和日志显示日志详情 --> */}
-              {this.showLogContent && (
-                <div class='strategy-view-log'>
-                  <bk-alert
-                    type='info'
-                    title={this.$t('默认展示最近20条')}
-                    class='mb10'
-                  ></bk-alert>
-                  <strategy-view-log
-                    data={this.logData}
-                    is-last={this.isLast}
-                    v-bkloading={{ isLoading: this.isLoading }}
-                    on-load-more={this.handleLoadMore}
-                  ></strategy-view-log>
-                </div>
-              )}
-            </div>,
-            this.needDescContent && (
-              <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
-                {this.isEventMetric && <div class='desc-title'>{this.$t('系统事件说明')}</div>}
-                <div class='desc-content'>
-                  {this.aiopsModelMdList.map((model, index) => (
-                    <GroupPanel
-                      title={`[${this.$tc('算法说明')}]${model.name}`}
-                      show-expand={true}
-                      expand={index === this.activeModelMd}
-                      defaultExpand={false}
-                    >
-                      {model.instruction && (
-                        <div class='desc-content-doc'>
-                          <div class='desc-content-doc-title'>{this.$t('方案描述')}</div>
-                          <Viewer
-                            value={model.instruction}
-                            class='strategy-view-desc'
-                          />
-                        </div>
-                      )}
-                      {model.document && (
-                        <div class='desc-content-doc'>
-                          <div class='desc-content-doc-title'>{this.$t('使用说明')}</div>
-                          <Viewer
-                            value={model.document}
-                            class='strategy-view-desc'
-                          />
-                        </div>
-                      )}
-                    </GroupPanel>
-                  ))}
-                  {this.isEventMetric &&
-                    this.metricQueryData.map(
-                      item =>
-                        item.metricMetaId === 'bk_monitor|event' && (
-                          <div class='strategy-view-desc'>
-                            <div class='desc-name'>{item.metric_field_name}：</div>
-                            {item.remarks.map((content, index) => (
-                              <div
-                                class='desc-content'
-                                key={index}
-                              >
-                                {index + 1}. {content}
+                      onChange={this.handleMultivariateAnomalyDetectionDimensionsChange}
+                    />
+                  </div>,
+                  <MultipleMetricView
+                    key='multiple'
+                    dimensions={this.dimensions}
+                    metrics={this.multivariateAnomalyDetectionParams.metrics}
+                    refleshKey={this.multivariateAnomalyDetectionParams.refleshKey}
+                    strategyTarget={this.strategyTarget}
+                    onRefreshCharKey={this.handleRefreshView}
+                  />,
+                  this.needDescContent && (
+                    <div class={{ 'desc-content-wrap': true, 'no-padding': this.aiopsModelMdList.length > 0 }}>
+                      <div class='desc-content'>
+                        {this.aiopsModelMdList.map((model, index) => (
+                          <GroupPanel
+                            key={index}
+                            defaultExpand={true}
+                            expand={index === this.activeModelMd}
+                            show-expand={true}
+                            title={`[${this.$tc('算法说明')}]${model.name}`}
+                          >
+                            {model.instruction && (
+                              <div class='desc-content-doc'>
+                                <div class='desc-content-doc-title'>{this.$t('方案描述')}</div>
+                                <Viewer
+                                  class='strategy-view-desc'
+                                  value={model.instruction}
+                                />
                               </div>
-                            ))}
-                          </div>
-                        )
-                    )}
-                </div>
-              </div>
-            ),
-            <collect-chart
-              show={this.collect.show}
-              collect-list={this.collect.list}
-              total-count={this.collect.count}
-              is-single
-              on-close={this.handleCloseCollect}
-            ></collect-chart>
-          ]
-        ) : (
-          <div class='description-info'>
-            <div class='title'>{this.$t('使用说明')}</div>
-            {(this.isMultivariateAnomalyDetection
-              ? allDescription.filter(item => item.type === MetricType.MultivariateAnomalyDetection)
-              : allDescription
-            ).map(item => (
-              <div
-                class={[
-                  'description-item',
-                  { active: item.type === this.descriptionType && !this.isMultivariateAnomalyDetection }
-                ]}
-              >
-                <div class='description-title'>{`${item.title}:`}</div>
-                <pre class='description-text'>
-                  {item.description}
-                  {!!metricUrlMap[item.type] && (
-                    <a
-                      class='info-url'
-                      target='blank'
-                      href={`${window.bk_docs_site_url}markdown/${metricUrlMap[item.type]}`}
+                            )}
+                            {model.document && (
+                              <div class='desc-content-doc'>
+                                <div class='desc-content-doc-title'>{this.$t('使用说明')}</div>
+                                <Viewer
+                                  class='strategy-view-desc'
+                                  value={model.document}
+                                />
+                              </div>
+                            )}
+                          </GroupPanel>
+                        ))}
+                      </div>
+                    </div>
+                  ),
+                ];
+              }
+              return (
+                <div class='description-info'>
+                  <div class='title'>{this.$t('使用说明')}</div>
+                  {(this.isMultivariateAnomalyDetection
+                    ? allDescription.filter(item => item.type === MetricType.MultivariateAnomalyDetection)
+                    : allDescription
+                  ).map(item => (
+                    <div
+                      key={item.type}
+                      class={[
+                        'description-item',
+                        { active: item.type === this.descriptionType && !this.isMultivariateAnomalyDetection },
+                      ]}
                     >
-                      {this.$t('相关文档查看')}
-                    </a>
-                  )}
-                </pre>
-              </div>
-            ))}
-          </div>
-        )}
+                      <div class='description-title'>{`${item.title}:`}</div>
+                      <pre class='description-text'>
+                        {item.description}
+                        {!!DOCS_LINK_MAP.Monitor[item.type] && (
+                          <a
+                            class='info-url'
+                            href={concatMonitorDocsUrl(DOCS_LINK_MAP.Monitor[item.type])}
+                            target='blank'
+                          >
+                            {this.$t('相关文档查看')}
+                          </a>
+                        )}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
       </div>
     );
   }

@@ -56,8 +56,8 @@
   </span>
 </template>
 <script lang="ts">
-import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 import { deepClone } from 'monitor-common/utils/utils';
+import { Component, Emit, Model, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 @Component({ name: 'monitor-select' })
 export default class MonitorSelect extends Vue {
@@ -95,7 +95,7 @@ export default class MonitorSelect extends Vue {
   emitSelect() {
     return {
       newVal: this.localValue,
-      oldVal: this.value
+      oldVal: this.value,
     };
   }
 
@@ -178,7 +178,7 @@ export default class MonitorSelect extends Vue {
 </style>
 
 <style lang="scss">
-.dropdown-content test {
+.dropdown-content .test {
   .bk-option-content,
   .bk-select-extension {
     padding: 0 10px;

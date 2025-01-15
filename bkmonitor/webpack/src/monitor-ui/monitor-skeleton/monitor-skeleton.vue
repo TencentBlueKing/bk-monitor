@@ -33,7 +33,7 @@ export default class MonitorSkeleton extends Vue {
   // 是否启用动画
   @Prop({ default: true }) animate: boolean;
   // 内容区行数 也可设置宽度的数组
-  @Prop({ default: 4 }) rows: number[] | string[] | number;
+  @Prop({ default: 4 }) rows: number | number[] | string[];
   // 是否需要titlie
   @Prop({ default: true }) needTitle: boolean;
   // 是否需要header
@@ -44,7 +44,6 @@ export default class MonitorSkeleton extends Vue {
       return this.$slots.header;
     }
   }
-
   content(h) {
     if (this.$slots.content) {
       return this.$slots.content;
@@ -53,8 +52,8 @@ export default class MonitorSkeleton extends Vue {
       'div',
       {
         class: {
-          'monitor-skeleton-content': true
-        }
+          'monitor-skeleton-content': true,
+        },
       },
       [this.title(h), this.rowList(h)]
     );
@@ -66,11 +65,11 @@ export default class MonitorSkeleton extends Vue {
     return h('h3', {
       class: {
         'content-title': true,
-        'title-animate': this.animate
+        'title-animate': this.animate,
       },
       style: {
-        width: '38%'
-      }
+        width: '38%',
+      },
     });
   }
   rowList(h) {
@@ -86,8 +85,8 @@ export default class MonitorSkeleton extends Vue {
       'ul',
       {
         class: {
-          'content-list': true
-        }
+          'content-list': true,
+        },
       },
       itemList
     );
@@ -96,11 +95,11 @@ export default class MonitorSkeleton extends Vue {
     return h('li', {
       class: {
         'content-list-item': true,
-        'item-animate': this.animate
+        'item-animate': this.animate,
       },
       style: {
-        width
-      }
+        width,
+      },
     });
   }
   render(h) {
@@ -111,8 +110,8 @@ export default class MonitorSkeleton extends Vue {
       'div',
       {
         class: {
-          'monitor-skeleton': true
-        }
+          'monitor-skeleton': true,
+        },
       },
       [this.header(h), this.content(h)]
     );
@@ -121,8 +120,8 @@ export default class MonitorSkeleton extends Vue {
 </script>
 <style lang="scss" scoped>
 @mixin skeleton-row {
-  width: 100%;
   flex: 0 0 16px;
+  width: 100%;
   height: 16px;
   background: #f2f2f2;
 }
@@ -142,40 +141,46 @@ export default class MonitorSkeleton extends Vue {
     0% {
       background-position: 100% 50%;
     }
+
     to {
       background-position: 0 50%;
     }
   }
-  &-header {
-  }
+
   &-content {
-    flex: 1;
     display: flex;
+    flex: 1;
     flex-direction: column;
+
     .content-title {
       width: 38%;
       padding: 0;
       margin: 16px 0 0 0;
 
       @include skeleton-row();
+
       &.title-animate {
         @include skeleton-row-animate;
       }
     }
+
     .content-list {
-      flex: 1;
       display: flex;
+      flex: 1;
       flex-direction: column;
       padding: 0;
       margin: 24px 0 0 0;
       list-style: none;
+
       & > li + li {
         margin-top: 16px;
       }
+
       &-item {
         flex: 1;
 
         @include skeleton-row();
+
         &.item-animate {
           @include skeleton-row-animate;
         }

@@ -28,22 +28,24 @@
     <div class="operation-upload-download">
       <div class="upload">
         <input
+          ref="uploadMetricFile"
           type="file"
           multiple
           accept=".json"
-          ref="uploadMetricFile"
-          @change="getFileInfo"
           style="display: none"
-        >
-        {{ $t('在下方自定义添加或') }} <span
+          @change="getFileInfo"
+        />
+        {{ $t('在下方自定义添加或') }}
+        <span
           class="uploadt-btn"
           @click="handleUpload"
-        > {{ $t('点击上传文件') }} </span>
+        >
+          {{ $t('点击上传文件') }}
+        </span>
       </div>
       <div class="download">
-        <span
-          v-if="isEdit"
-        ><span class="bk-icon icon-exclamation-circle risk" /> {{ $t('编辑指标/维度有风险') }}
+        <span v-if="isEdit"
+          ><span class="bk-icon icon-exclamation-circle risk" /> {{ $t('编辑指标/维度有风险') }}
         </span>
         <a
           class="download-example"
@@ -55,13 +57,14 @@
       </div>
     </div>
     <div
-      style="margin-bottom: 10px"
       v-for="(table, index) in tables"
       :key="index"
+      style="margin-bottom: 10px"
     >
       <div class="table-title">
         <div class="name">
-          <span>{{ table.name }}</span><span v-if="table.alias">({{ table.alias }})</span>
+          <span>{{ table.name }}</span
+          ><span v-if="table.alias">({{ table.alias }})</span>
         </div>
         <span class="operator">
           <svg @click="editTableName(index, table)">
@@ -124,8 +127,8 @@
                 :show-validate.sync="props.row.nameError"
               >
                 <bk-input
-                  :disabled="Boolean(props.row.sourceName)"
                   v-model.trim="props.row.name"
+                  :disabled="Boolean(props.row.sourceName)"
                   :maxlength="256"
                   :placeholder="$t('英文')"
                   @blur="checkInput(props.row, ['name', 'alias'])"
@@ -133,15 +136,15 @@
                 />
               </verify-input>
               <bk-popover
+                v-if="!(props.row.name.length || Boolean(props.row.sourceName))"
                 class="change-name"
                 placemnet="top-end"
                 trigger="mouseenter"
-                v-if="!(props.row.name.length || Boolean(props.row.sourceName))"
               >
                 <span
+                  v-show="props.row.isReservedWord"
                   class="icon-monitor icon-change"
                   @click="rename(props.row)"
-                  v-show="props.row.isReservedWord"
                 />
                 <div slot="content">
                   <p style="margin-bottom: 0; font-size: 12px">
@@ -180,9 +183,9 @@
         >
           <template slot-scope="props">
             <verify-input
+              v-if="props.row.monitorType === 'metric'"
               class="error-icon-right"
               position="right"
-              v-if="props.row.monitorType === 'metric'"
               :show-validate.sync="props.row.typeError"
             >
               <bk-select
@@ -191,8 +194,8 @@
               >
                 <bk-option
                   v-for="(dataType, typeIndex) in props.row.type.list"
-                  :key="typeIndex"
                   :id="dataType.id"
+                  :key="typeIndex"
                   :name="dataType.name"
                 />
               </bk-select>
@@ -205,8 +208,8 @@
             >
               <bk-option
                 v-for="(dataType, typeIndex) in props.row.type.list"
-                :key="typeIndex"
                 :id="dataType.id"
+                :key="typeIndex"
                 :name="dataType.name"
               />
             </bk-select>
@@ -253,8 +256,8 @@
             />
 
             <span
-              @click.stop="handleDel(table.data, props.$index, index)"
               class="bk-icon icon-minus-circle"
+              @click.stop="handleDel(table.data, props.$index, index)"
             />
           </template>
         </bk-table-column>
@@ -303,15 +306,15 @@
           :show-validate.sync="metricForm.isNameEmpty"
         >
           <bk-input
-            :placeholder="$t('英文名')"
             v-model.trim="metricForm.name"
+            :placeholder="$t('英文名')"
             @blur="metricForm.isNameEmpty = !regx.test(metricForm.name)"
           />
         </verify-input>
         <verify-input>
           <bk-input
-            :placeholder="$t('别名')"
             v-model="metricForm.alias"
+            :placeholder="$t('别名')"
           />
         </verify-input>
       </div>
@@ -322,7 +325,8 @@
           @click="handleConfirm"
           @keyup.enter="handleConfirm"
         >
-          {{ $t('确认') }} </bk-button><bk-button @click="isShow = false">
+          {{ $t('确认') }} </bk-button
+        ><bk-button @click="isShow = false">
           {{ $t('取消') }}
         </bk-button>
       </div>
@@ -340,25 +344,25 @@ import VerifyInput from '../../components/verify-input/verify-input.vue';
 export default {
   name: 'DimensionTable',
   components: {
-    VerifyInput
+    VerifyInput,
   },
   props: {
     rows: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     isImport: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isEdit: {
       type: Boolean,
-      default: false
+      default: false,
     },
     reservedWords: {
       type: Array,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   data() {
     return {
@@ -374,18 +378,18 @@ export default {
             list: [
               {
                 id: 'int',
-                name: 'int'
+                name: 'int',
               },
               {
                 id: 'double',
-                name: 'double'
+                name: 'double',
               },
               {
                 id: 'diff',
-                name: 'diff'
-              }
+                name: 'diff',
+              },
             ],
-            value: 'double'
+            value: 'double',
           },
           typeError: false,
           isReservedWord: false,
@@ -397,7 +401,7 @@ export default {
           unit: '',
           monitorType: 'metric',
           switch: true,
-          disabled: true
+          disabled: true,
         },
         {
           rowHeader: this.$t('维度(Dimension)'),
@@ -408,10 +412,10 @@ export default {
             list: [
               {
                 id: 'string',
-                name: 'string'
-              }
+                name: 'string',
+              },
             ],
-            value: 'string'
+            value: 'string',
           },
           isReservedWord: false,
           nameError: false,
@@ -421,8 +425,8 @@ export default {
           unit: '',
           monitorType: 'dimension',
           switch: true,
-          disabled: true
-        }
+          disabled: true,
+        },
       ],
       isUpload: false,
       tables: [],
@@ -431,11 +435,11 @@ export default {
         name: '',
         alias: '',
         isEdit: false,
-        isNameEmpty: false
+        isNameEmpty: false,
       },
       isExistReservedWord: false,
       isShow: false,
-      rowUnwatch: null
+      rowUnwatch: null,
     };
   },
   computed: {
@@ -451,50 +455,50 @@ export default {
               type: 'long',
               name: 'zk_znode_count',
               unit: '',
-              description: this.$t('节点数')
+              description: this.$t('节点数'),
             },
             {
               monitor_type: 'metric',
               type: 'long',
               name: 'zk_packets_sent',
               unit: '',
-              description: this.$t('包发送量')
+              description: this.$t('包发送量'),
             },
             {
               monitor_type: 'metric',
               type: 'long',
               name: 'zk_packets_received',
               unit: '',
-              description: this.$t('包接收量')
+              description: this.$t('包接收量'),
             },
             {
               monitor_type: 'metric',
               type: 'long',
               name: 'zk_open_file_descriptor_count',
               unit: '',
-              description: this.$t('文件描述符数量')
+              description: this.$t('文件描述符数量'),
             },
             {
               monitor_type: 'dimension',
               type: 'string',
               name: 'server',
               unit: '',
-              description: this.$t('服务地址')
-            }
+              description: this.$t('服务地址'),
+            },
           ],
           table_name: 'overview',
-          table_desc: this.$t('总览')
-        }
+          table_desc: this.$t('总览'),
+        },
       ];
-    }
+    },
   },
   watch: {
     rows: {
       handler(val) {
         this.handleChangeRows(val);
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   created() {
     if (!this.isEdit && !this.rows.length) {
@@ -502,8 +506,8 @@ export default {
         {
           name: 'base',
           data: JSON.parse(JSON.stringify(this.templateRows)),
-          alias: this.$t('默认分类')
-        }
+          alias: this.$t('默认分类'),
+        },
       ];
     }
   },
@@ -521,7 +525,7 @@ export default {
         if (this.import) {
           this.tables = [];
         }
-        val.forEach((item) => {
+        val.forEach(item => {
           if (!this.reservedWords.find(text => text === item.name.toLocaleUpperCase())) {
             const data = [];
             item.fields.forEach((field, i) => {
@@ -557,7 +561,7 @@ export default {
             const tableObj = {
               name: this.regx.test(item.name) ? item.name : '',
               alias: item.alias || '',
-              data
+              data,
             };
             this.insertTableData(tableIndex, tableObj);
           } else {
@@ -605,21 +609,21 @@ export default {
     async getFileInfo(e) {
       const files = Array.from(e.target.files);
       this.isUpload = true;
-      const tables = await new Promise((resolve) => {
+      const tables = await new Promise(resolve => {
         let count = 0;
         const result = [];
-        files.forEach((file) => {
+        files.forEach(file => {
           const reader = new FileReader();
-          reader.onload = (e) => {
+          reader.onload = e => {
             const contents = JSON.parse(e.target.result);
             if (!Array.isArray(contents)) {
               this.$bkMessage('error', this.$t('文件内容不符合规范'));
             } else {
-              contents.forEach((item) => {
+              contents.forEach(item => {
                 result.push({
                   fields: Array.isArray(item.fields) ? item.fields : [],
                   name: item.table_name || '',
-                  alias: item.table_desc || ''
+                  alias: item.table_desc || '',
                 });
               });
             }
@@ -654,13 +658,13 @@ export default {
     handleConfirm() {
       if (this.regx.test(this.metricForm.name) && !this.metricForm.isEdit) {
         if (
-          !this.tables.find(item => item.name === this.metricForm.name)
-          && !this.reservedWords.find(item => item === this.metricForm.name.toLocaleUpperCase())
+          !this.tables.find(item => item.name === this.metricForm.name) &&
+          !this.reservedWords.find(item => item === this.metricForm.name.toLocaleUpperCase())
         ) {
           this.tables.push({
             name: this.metricForm.name,
             alias: this.metricForm.alias || this.metricForm.name,
-            data: JSON.parse(JSON.stringify(this.templateRows))
+            data: JSON.parse(JSON.stringify(this.templateRows)),
           });
           this.isShow = false;
         } else {
@@ -692,9 +696,9 @@ export default {
     },
     getMetricParams() {
       const metricJson = [];
-      this.tables.forEach((table) => {
+      this.tables.forEach(table => {
         const fields = [];
-        table.data.forEach((row) => {
+        table.data.forEach(row => {
           if (row.name) {
             const obj = {
               type: row.type.value,
@@ -702,7 +706,7 @@ export default {
               unit: row.unit,
               name: row.name,
               source_name: row.sourceName,
-              description: row.alias
+              description: row.alias,
             };
             if (row.monitorType === 'metric') {
               obj.is_active = row.switch;
@@ -719,7 +723,7 @@ export default {
         metricJson.push({
           fields,
           table_name: table.name,
-          table_desc: table.alias
+          table_desc: table.alias,
         });
       });
       return metricJson;
@@ -727,7 +731,7 @@ export default {
     rename(row) {
       const rows = [];
       let prefix = '_';
-      this.tables.forEach((table) => {
+      this.tables.forEach(table => {
         rows.push(...table.data);
       });
       if (row.name.toLowerCase() === 'name' || row.name.toLowerCase() === 'field') {
@@ -752,8 +756,8 @@ export default {
      */
     checkDuplicateMetricName() {
       const rows = [];
-      this.tables.forEach((table) => {
-        const data = table.data.map((item) => {
+      this.tables.forEach(table => {
+        const data = table.data.map(item => {
           item.tableName = table.name;
           return item;
         });
@@ -771,8 +775,8 @@ export default {
           const tableNameTwo = copyRows[k].tableName;
           if (i !== k && rows[i].name && rows[i].name === copyRows[k].name) {
             if (
-              (rows[i].monitorType === 'metric' && copyRows[k].monitorType === 'metric')
-              || tableNameOne === tableNameTwo
+              (rows[i].monitorType === 'metric' && copyRows[k].monitorType === 'metric') ||
+              tableNameOne === tableNameTwo
             ) {
               hasDuplicateName = true;
               rows[i][key1] = true;
@@ -790,7 +794,7 @@ export default {
      */
     validateRequired(obj, keys) {
       const rules = {
-        name: (val) => {
+        name: val => {
           val = val.toUpperCase();
           obj.nameError = false;
           obj.nameErrorMsg = '';
@@ -810,7 +814,7 @@ export default {
           }
           return obj.nameError || Boolean(obj.isReservedWord);
         },
-        alias: (val) => {
+        alias: val => {
           if (val.length > 100) {
             obj.aliasError = true;
             obj.aliasErrorMsg = this.$t('注意：最大值为100个字符');
@@ -820,7 +824,7 @@ export default {
           }
           return obj.aliasError;
         },
-        type: (val) => {
+        type: val => {
           if (!val) {
             obj.typeError = true;
             obj.typeErrorMsg = true;
@@ -829,10 +833,10 @@ export default {
             obj.typeErrorMsg = '';
           }
           return obj.typeError;
-        }
+        },
       };
       const validateResult = [];
-      keys.forEach((key) => {
+      keys.forEach(key => {
         if (key !== 'type' || obj.monitorType !== 'dimension') {
           const fn = rules[key];
           const val = key === 'type' ? obj.type.value : obj[key];
@@ -849,8 +853,8 @@ export default {
     valiDateTables() {
       let validateResult = true;
       this.isExistReservedWord = false;
-      this.tables.forEach((item) => {
-        item.data.forEach((row) => {
+      this.tables.forEach(item => {
+        item.data.forEach(row => {
           const result = this.validateRequired(row, ['name', 'alias', 'type']);
           if (result) {
             validateResult = false;
@@ -861,8 +865,8 @@ export default {
         this.$bkMessage({ theme: 'error', message: this.$t('注意: 名字冲突') });
       }
       return validateResult && this.checkDuplicateMetricName();
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

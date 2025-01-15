@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
 import { Dropdown, Input } from 'bkui-vue';
-import { ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
+import { type ViewModeItem, ViewModeType } from 'monitor-ui/chart-plugins/typings/profiling-graph';
 import { debounce } from 'throttle-debounce';
 
-import { DirectionType } from '../../../../typings';
+import type { DirectionType } from '../../../../typings';
 
 import './chart-title.scss';
 
@@ -38,40 +40,44 @@ export default defineComponent({
   props: {
     activeMode: {
       type: String as PropType<ViewModeType>,
-      required: true
+      required: true,
     },
     textDirection: {
       type: String as PropType<DirectionType>,
-      default: 'ltr'
+      default: 'ltr',
     },
     isCompared: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   emits: ['modeChange', 'textDirectionChange', 'keywordChange', 'download'],
   setup(props, { emit }) {
-    const downloadTypeMaps = [
-      'png',
-      //  'json',
-      'pprof'
-      //  'html'
-    ];
+    const { t } = useI18n();
 
     const keyword = ref('');
 
     const viewModeList = computed<ViewModeItem[]>(() => {
       const list = [
-        { id: ViewModeType.Table, icon: 'table' },
-        { id: ViewModeType.Combine, icon: 'mc-fenping' },
-        { id: ViewModeType.Flame, icon: 'mc-flame' }
+        { id: ViewModeType.Table, icon: 'table', label: t('表格') },
+        { id: ViewModeType.Combine, icon: 'mc-fenping', label: t('表格和火焰图') },
+        { id: ViewModeType.Flame, icon: 'mc-flame', label: t('火焰图') },
       ];
 
       if (!props.isCompared) {
-        list.push({ id: ViewModeType.Topo, icon: 'Component' });
+        list.push({ id: ViewModeType.Topo, icon: 'Component', label: t('功能调用图') });
       }
 
       return list;
+    });
+
+    // 表格火焰图 && 火焰图 展示png下载
+    const downloadTypeMaps = computed(() => {
+      const baseTypes = ['pprof'];
+      if ([ViewModeType.Flame, ViewModeType.Combine].includes(props.activeMode)) {
+        baseTypes.unshift('png');
+      }
+      return baseTypes;
     });
 
     /** 切换视图模式 */
@@ -95,7 +101,7 @@ export default defineComponent({
       handleModeChange,
       handleEllipsisDirectionChange,
       handleKeywordChange,
-      menuClick
+      menuClick,
     };
   },
   render() {
@@ -104,16 +110,22 @@ export default defineComponent({
         <div class='view-mode button-group'>
           {this.viewModeList.map(mode => (
             <div
+              key={mode.id}
               class={`button-group-item ${this.activeMode === mode.id ? 'active' : ''}`}
+              v-bk-tooltips={{
+                content: mode.label,
+                placement: 'top',
+                delay: 300,
+              }}
               onClick={() => this.handleModeChange(mode.id)}
             >
-              <i class={`icon-monitor icon-${mode.icon}`}></i>
+              <i class={`icon-monitor icon-${mode.icon}`} />
             </div>
           ))}
         </div>
         <Input
-          type='search'
           v-model={this.keyword}
+          type='search'
           onInput={this.handleKeywordChange}
         />
         <div class='ellipsis-direction button-group'>
@@ -121,13 +133,13 @@ export default defineComponent({
             class={`button-group-item ${this.textDirection === 'ltr' ? 'active' : ''}`}
             onClick={() => this.handleEllipsisDirectionChange('ltr')}
           >
-            <i class='icon-monitor icon-AB'></i>
+            <i class='icon-monitor icon-AB' />
           </div>
           <div
             class={`button-group-item ${this.textDirection === 'rtl' ? 'active' : ''}`}
             onClick={() => this.handleEllipsisDirectionChange('rtl')}
           >
-            <i class='icon-monitor icon-YZ'></i>
+            <i class='icon-monitor icon-YZ' />
           </div>
         </div>
         {/* <div class='download-button'>
@@ -135,12 +147,12 @@ export default defineComponent({
         </div> */}
 
         <Dropdown
-          placement='bottom-end'
           v-slots={{
             content: () => (
               <Dropdown.DropdownMenu>
-                {this.downloadTypeMaps.map(item => (
+                {this.downloadTypeMaps.map((item, index) => (
                   <Dropdown.DropdownItem
+                    key={index}
                     class='profiling-view-download-menu-item'
                     onClick={() => this.menuClick(item)}
                   >
@@ -148,14 +160,15 @@ export default defineComponent({
                   </Dropdown.DropdownItem>
                 ))}
               </Dropdown.DropdownMenu>
-            )
+            ),
           }}
+          placement='bottom-end'
         >
           <div class='download-button'>
-            <i class='icon-monitor icon-xiazai1'></i>
+            <i class='icon-monitor icon-xiazai1' />
           </div>
         </Dropdown>
       </div>
     );
-  }
+  },
 });

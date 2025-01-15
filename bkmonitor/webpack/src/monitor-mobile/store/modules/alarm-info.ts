@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable new-cap */
-import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
+
 import { transformDataKey } from 'monitor-common/utils/utils';
+import { Action, getModule, Module, VuexModule } from 'vuex-module-decorators';
 
 import { getAlarmDetail, getEventGraphView, getEventList } from '../../../monitor-api/modules/mobile_event';
 import store from '../store';
@@ -37,9 +37,9 @@ class Alarm extends VuexModule {
     store.commit('app/setPageLoading', true);
     const data = await Promise.all([
       getAlarmDetail({
-        alert_collect_id: store.state.app.collectId
+        alert_collect_id: store.state.app.collectId,
       }).catch(() => []),
-      this.getEventNum()
+      this.getEventNum(),
     ]);
     store.commit('app/setPageLoading', false);
     return transformDataKey(data[0]);
@@ -55,7 +55,7 @@ class Alarm extends VuexModule {
   async getEventNum() {
     const data = await getEventList({
       bk_biz_id: store.state.app.bizId,
-      only_count: true
+      only_count: true,
     }).catch(() => false);
     store.commit('app/setAlarmNum', data?.count ? data.count.strategy : 0);
   }

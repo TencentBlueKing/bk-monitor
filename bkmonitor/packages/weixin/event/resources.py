@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 import logging
 from datetime import datetime, timedelta
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
@@ -225,6 +225,7 @@ class GetEventDetail(AlertPermissionResource, EventTargetMixin):
             "current_value": current_value,
             "anomaly_message": event.description,
             "duration": hms_string(alert.duration),
+            "dimensions": AlertDimensionFormatter.get_dimensions(alert.dimensions),
             "dimension_message": AlertDimensionFormatter.get_dimensions_str(alert.dimensions),
             "related_info": related_info,
             "target_type": event.target_type.lower() if event.target_type else "",
@@ -338,7 +339,6 @@ class GetEventList(AlertPermissionResource, EventTargetMixin):
 
         topo_links = None
         for alert in alerts:
-
             event = alert.event_document
 
             key = "{}|{}".format(alert.strategy_id, alert.severity)
@@ -480,6 +480,7 @@ class QuickShield(AlertPermissionResource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         end_time = serializers.DateTimeField(label="屏蔽结束时间", input_formats=["%Y-%m-%d %H:%M:%S"])
         description = serializers.CharField(label="屏蔽描述", allow_blank=True, default="")
+        dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
 
     @staticmethod
     def handle_scope(alert):
@@ -543,6 +544,8 @@ class QuickShield(AlertPermissionResource):
             "cycle_config": {"begin_time": "", "type": 1, "end_time": ""},
             "is_quick": True,
         }
+        if params["dimension_keys"] is not None:
+            shield_params["dimension_keys"] = params["dimension_keys"]
 
         shield_params.update(method_map[params["type"]](alert))
         return shield_params

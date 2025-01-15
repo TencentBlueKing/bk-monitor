@@ -33,6 +33,7 @@ interface Iform {
   lable?: string;
   placeholder?: string;
   subTitle?: string;
+  required?: boolean;
 }
 interface IProps {
   forms: Iform[];
@@ -61,26 +62,30 @@ export default class SimpleForm extends tsc<IProps, IEvents> {
       <div class='meal-content-simple-form'>
         {this.forms.length ? (
           this.forms.map((item, index) => [
-            <div class='title'>
-              {item.lable}
-              <span
-                class='sub-title'
-                title={item?.subTitle || ''}
-              >
-                {item?.subTitle || ''}
+            <div class={'title'}>
+              <span class={{ required: !!item?.required }}>
+                {item.lable}
+                {!!item?.subTitle && (
+                  <span
+                    class='sub-title'
+                    title={item.subTitle}
+                  >
+                    {item.subTitle}
+                  </span>
+                )}
               </span>
             </div>,
             <div class='wrap'>
               <bk-input
-                value={item.value}
-                behavior='simplicity'
                 placeholder={
                   item?.placeholder ||
                   this.$t('输入需要调试的{0}参数', [`${item.lable?.replace(/\{\{(.*?)\}\}|(\s)/g, '') || ''}`])
                 }
+                behavior='simplicity'
+                value={item.value}
                 onChange={(v: string) => this.handleInputChange(v, index)}
-              ></bk-input>
-            </div>
+              />
+            </div>,
           ])
         ) : (
           <span class='empty'>{this.$t('当前无需填写变量')}</span>

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { IRootState } from './store';
+import type { IRootState } from './store';
 
 const getters = {
   navId: (state: IRootState) => state.app.navId,
@@ -33,6 +33,8 @@ const getters = {
   siteUrl: (state: IRootState) => state.app.siteUrl,
   bkUrl: (state: IRootState) => state.app.bkUrl,
   navRouteList: (state: IRootState) => state.app.navRouteList,
-  lang: (state: IRootState) => state.app.lang
+  lang: (state: IRootState) => state.app.lang,
+  spaceUidMap: (state: IRootState) => state.app.spaceUidMap,
+  bizIdMap: (state: IRootState) => state.app.bizIdMap,
 };
 export default getters;

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+import os
 import time
 from collections import defaultdict
 
@@ -24,8 +25,10 @@ from alarm_backends.service.access.data.processor import AccessRealTimeDataProce
 from alarm_backends.service.access.tasks import (
     run_access_data,
     run_access_event_handler,
+    run_access_incident_handler,
 )
 from bkmonitor.utils.beater import MonitorBeater
+from bkmonitor.utils.common_utils import safe_int
 
 logger = logging.getLogger("access")
 REFRESH_STRATEGY_INFO = "refresh_agg_strategy_group_interval"
@@ -187,8 +190,20 @@ class AccessHandler(base.BaseHandler):
             settings.GSE_CUSTOM_EVENT_DATAID,
             settings.GSE_PROCESS_REPORT_DATAID,
         ]
+        # 新增通过环境变量控制 dataid 禁用入口
+        DISABLE_EVENT_DATAID = os.getenv("DISABLE_EVENT_DATAID", "0")
+        disabled_data_ids = [safe_int(i) for i in DISABLE_EVENT_DATAID.split(",")]
         for data_id in data_ids:
+            if data_id in disabled_data_ids:
+                logger.info(f"dataid: {data_id} has been disabled in env[DISABLE_EVENT_DATAID]: {DISABLE_EVENT_DATAID}")
+                continue
             self.run_access(run_access_event_handler, data_id)
+
+    def handle_incident(self) -> None:
+        run_access_incident_handler(
+            settings.BK_DATA_AIOPS_INCIDENT_BROKER_URL,
+            settings.BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE,
+        )
 
     def handle(self):
         if self.access_type == AccessType.Data:
@@ -197,6 +212,8 @@ class AccessHandler(base.BaseHandler):
             self.handle_real_time()
         elif self.access_type == AccessType.Event:
             self.handle_event()
+        elif self.access_type == AccessType.Incident:
+            self.handle_incident()
 
     @staticmethod
     def run_access(access_func, *args):

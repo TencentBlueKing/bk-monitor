@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.db.fields import JsonField
@@ -116,6 +116,7 @@ class MetricListCache(models.Model):
         index_together = (
             ("result_table_id", "metric_field", "bk_biz_id"),
             ("data_type_label", "data_source_label", "bk_biz_id"),
+            ("data_label", "metric_field", "bk_biz_id"),
         )
 
     @classmethod

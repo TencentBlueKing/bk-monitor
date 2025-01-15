@@ -1,38 +1,45 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
-import { Component as tsc } from 'vue-tsx-support';
 import { Component, Model, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 import { Table, TableColumn, Input, Button, Checkbox } from 'bk-magic-vue';
-import './masking-select-rule-table.scss';
-import MaskingAddRule from './masking-add-rule';
-import EmptyStatus from '../empty-status/index.vue';
-import fingerSelectColumn from '../../views/retrieve/result-table-panel/log-clustering/components/finger-select-column.vue';
-import { deepClone } from '../monitor-echarts/utils';
-import * as authorityMap from '../../common/authority-map';
+
 import $http from '../../api';
+import * as authorityMap from '../../common/authority-map';
+import fingerSelectColumn from '../../views/retrieve/result-table-panel/log-clustering/components/finger-select-column.vue';
+import EmptyStatus from '../empty-status/index.vue';
+import { deepClone } from '../monitor-echarts/utils';
+import MaskingAddRule from './masking-add-rule';
+
+import './masking-select-rule-table.scss';
 
 interface IProps {
-  value: Boolean;
+  value: boolean;
 }
 
 interface IAddRuleFieldValue {
@@ -55,8 +62,8 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     type: Object,
     default: () => ({
       field: '',
-      fieldLog: ''
-    })
+      fieldLog: '',
+    }),
   })
   addRuleFieldValue: IAddRuleFieldValue;
   @Ref('orderTips') orderTipsRef: HTMLElement;
@@ -75,12 +82,12 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     /** 每页显示数量 */
     limit: 10,
     small: true,
-    limitList: [10, 20, 50, 100]
+    limitList: [10, 20, 50, 100],
   };
 
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
-    text_replace: window.mainComponent.$t('替换')
+    text_replace: window.mainComponent.$t('替换'),
   };
 
   emptyType = 'empty';
@@ -109,9 +116,9 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       resources: [
         {
           type: 'space',
-          id: this.spaceUid
-        }
-      ]
+          id: this.spaceUid,
+        },
+      ],
     };
   }
 
@@ -202,7 +209,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         ? `${this.$t('替换为')} ${item?.params?.template_string}`
         : this.$t('保留前{0}位, 后{1}位', {
             0: item?.params?.preserve_head,
-            1: item?.params?.preserve_tail
+            1: item?.params?.preserve_tail,
           });
     return `${this.operatorMap[item?.operator]} | ${endStr}`;
   }
@@ -215,7 +222,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       const authorityRes = await this.$store.dispatch('checkAndGetData', this.authorityData);
       this.isAllowed = authorityRes.isAllowed;
       const res = await $http.request('masking/getMaskingRuleList', {
-        params
+        params,
       });
       const selectList = [];
       const otherList = [];
@@ -251,7 +258,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);
       this.changePagination({
         current: 1,
-        count: this.tableSearchList.length
+        count: this.tableSearchList.length,
       });
       this.emptyType = 'empty';
       this.searchStr = '';
@@ -266,11 +273,11 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     return h(fingerSelectColumn, {
       props: {
         value: this.checkValue,
-        disabled: this.isSyncSelect
+        disabled: this.isSyncSelect,
       },
       on: {
-        change: this.handleSelectAllItem
-      }
+        change: this.handleSelectAllItem,
+      },
     });
   }
 
@@ -290,7 +297,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
 
   searchRule() {
     this.tableSearchList = this.tableList.filter(item =>
-      item.rule_name.toString().toLowerCase().includes(this.searchStr.toLowerCase())
+      item.rule_name.toString().toLowerCase().includes(this.searchStr.toLowerCase()),
     );
     this.pageLimitChange(this.pagination.limit);
     this.selectList = this.tableSearchList.filter(v => this.selectList.includes(v.id)).map(item => item.id);
@@ -341,7 +348,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     const endIndex = newPage * limit;
     this.tableShowList = this.tableSearchList.slice(startIndex, endIndex);
     this.changePagination({
-      current: newPage
+      current: newPage,
     });
   }
 
@@ -350,7 +357,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     this.changePagination({
       limit,
       current: 1,
-      count: this.tableSearchList.length
+      count: this.tableSearchList.length,
     });
   }
 
@@ -389,7 +396,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
           {row.is_public && <span class='tag global'>{this.$t('全局')}</span>}
           {row.is_add && <span class='tag new'>{'New'}</span>}
         </div>
-      )
+      ),
     };
 
     const matchingMethodSlot = {
@@ -402,7 +409,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             {this.getMatchMethodStr(row)}
           </span>
         </div>
-      )
+      ),
     };
 
     const matchingContentSlot = {
@@ -415,7 +422,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             {this.getMatchContentStr(row)}
           </span>
         </div>
-      )
+      ),
     };
 
     const maskingRulesSlot = {
@@ -428,7 +435,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             {this.getMaskingRuleStr(row)}
           </span>
         </div>
-      )
+      ),
     };
 
     const checkBoxSlot = {
@@ -438,16 +445,16 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
           disabled={this.getCheckBoxDisable(row.id)}
           onChange={(val: boolean) => this.handleSelectItem(val, row.id)}
         ></Checkbox>
-      )
+      ),
     };
     return (
       <div class='masking-select-rule-table'>
         <div class='input-box'>
           <Button
-            outline
-            theme='primary'
             class='new-rule-btn'
             v-cursor={{ active: !this.isAllowed }}
+            theme='primary'
+            outline
             onClick={() => this.handleAddNewRule()}
           >
             <i class='bk-icon icon-plus push'></i>
@@ -455,11 +462,11 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
           </Button>
           <div class='right-box'>
             <Input
-              v-model={this.searchStr}
               class='search-input'
+              v-model={this.searchStr}
               right-icon='bk-icon icon-search'
-              onEnter={this.searchRule}
               onChange={this.handleSearchChange}
+              onEnter={this.searchRule}
             />
             <Button
               class='refresh-btn'
@@ -472,45 +479,45 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         </div>
 
         <Table
+          row-style={this.getShowRowStyle}
+          v-bkloading={{ isLoading: this.tableLoading }}
           data={this.tableShowList}
-          size='small'
-          outer-border={false}
           header-border={false}
           max-height={this.tableMaxHeight}
-          render-directive='if'
+          outer-border={false}
           pagination={this.pagination}
-          v-bkloading={{ isLoading: this.tableLoading }}
-          row-style={this.getShowRowStyle}
+          render-directive='if'
+          size='small'
           on-page-change={this.pageChange}
           on-page-limit-change={this.pageLimitChange}
         >
           <TableColumn
             width='50'
-            scopedSlots={checkBoxSlot}
             render-header={this.renderHeaderCheckBox}
+            scopedSlots={checkBoxSlot}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('规则名称')}
             key={'rule_name'}
+            label={this.$t('规则名称')}
             scopedSlots={ruleNameSlot}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('匹配方式')}
             key={'match_method'}
+            label={this.$t('匹配方式')}
             scopedSlots={matchingMethodSlot}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('匹配内容')}
             key={'match_content'}
+            label={this.$t('匹配内容')}
             scopedSlots={matchingContentSlot}
           ></TableColumn>
 
           <TableColumn
-            label={this.$t('脱敏算子')}
             key={'masking_result'}
+            label={this.$t('脱敏算子')}
             scopedSlots={maskingRulesSlot}
           ></TableColumn>
 
@@ -524,8 +531,8 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
 
         {this.isShowSubmitContent && (
           <div
-            class='submit-content'
             style={{ ...this.submitBoxStyle }}
+            class='submit-content'
           >
             <Button
               theme='primary'
@@ -545,8 +552,8 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         <MaskingAddRule
           v-model={this.isShowMaskingAddRule}
           add-rule-field-value={this.addRuleFieldValue}
-          table-str-list={this.tableStrList}
           is-public-rule={this.isPublicList}
+          table-str-list={this.tableStrList}
           on-submit-rule={(value: any) => value && this.initTableList(value.id)}
         />
       </div>

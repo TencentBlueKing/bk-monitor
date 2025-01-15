@@ -10,10 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import datetime
+import re
 from abc import abstractmethod
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
 
+from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz
@@ -125,18 +127,21 @@ class StrategyConfigParser(BaseConfigParser):
         topo_nodes: Dict[str, Dict],
         service_templates: Dict[str, Dict],
         set_templates: Dict[str, Dict],
+        dynamic_groups: Dict[str, Dict],
     ):
         super(StrategyConfigParser, self).__init__(bk_biz_id)
 
         self.topo_nodes = topo_nodes
         self.service_templates = service_templates
         self.set_templates = set_templates
+        self.dynamic_groups = dynamic_groups
         self.notice_group_ids = notice_group_ids
         self.action_ids = action_ids
 
         self.reverse_topo_nodes = {f"{v['bk_obj_id']}|{v['bk_inst_id']}": k for k, v in topo_nodes.items()}
         self.reverse_service_templates = {str(v["bk_inst_id"]): k for k, v in service_templates.items()}
         self.reverse_set_templates = {str(v["bk_inst_id"]): k for k, v in set_templates.items()}
+        self.reverse_dynamic_groups = {v["dynamic_group_id"]: k for k, v in dynamic_groups.items()}
         self.reverse_notice_group_ids = {v: k for k, v in notice_group_ids.items()}
         self.reverse_action_ids = {v: k for k, v in action_ids.items()}
 
@@ -179,6 +184,21 @@ class StrategyConfigParser(BaseConfigParser):
 
         scenario = "other_rt"
         for origin_config in config["query"]["query_configs"]:
+            # grafana类型策略处理
+            if config["query"]["data_source"] == DataSourceLabel.DASHBOARD:
+                query_configs.append(
+                    {
+                        "data_source_label": config["query"]["data_source"],
+                        "data_type_label": config["query"]["data_type"],
+                        "alias": origin_config["alias"],
+                        "dashboard_id": origin_config["dashboard_id"],
+                        "panel_id": origin_config["panel_id"],
+                        "ref_id": origin_config["ref_id"],
+                        "variables": origin_config.get("variables", {}),
+                    }
+                )
+                continue
+
             # fta依赖detect表达式进行检测
             if config["query"]["data_type"] == DataTypeLabel.ALERT:
                 detect["expression"] = config["query"]["expression"]
@@ -261,6 +281,10 @@ class StrategyConfigParser(BaseConfigParser):
             "recovery_config": recovery_config,
             "trigger_config": trigger_config,
         }
+
+        if DataTypeLabel.ALERT == config["query"]["data_type"]:
+            detect["expression"] = config["query"]["expression"]
+
         detects = [
             dict({"level": level}, **detect)
             for level_name, level in LEVEL_NAME_TO_ID.items()
@@ -306,6 +330,9 @@ class StrategyConfigParser(BaseConfigParser):
             elif target_type == "set_template":
                 field = f"{target_prefix}_set_template"
                 nodes = [self.set_templates[node] for node in target_nodes if node in self.set_templates]
+            elif target_type == "dynamic_group":
+                field = "dynamic_group"
+                nodes = [self.dynamic_groups[node] for node in target_nodes if node in self.dynamic_groups]
 
             if nodes:
                 target = [[{"field": field, "method": "eq", "value": nodes}]]
@@ -526,12 +553,19 @@ class StrategyConfigParser(BaseConfigParser):
                     if template_id not in self.reverse_set_templates:
                         continue
                     nodes.append(self.reverse_set_templates[template_id])
-            else:
+            elif target["field"] in ["ip", "bk_target_ip"]:
                 target_type = "host"
                 for value in target["value"]:
                     ip = value.get("ip") or value["bk_target_ip"]
                     bk_cloud_id = value.get("bk_cloud_id", value.get("bk_target_cloud_id", 0))
                     nodes.append(f"{ip}|{bk_cloud_id}")
+            elif target["field"] == "dynamic_group":
+                target_type = "dynamic_group"
+                for value in target["value"]:
+                    dynamic_group_id = value["dynamic_group_id"]
+                    if dynamic_group_id not in self.reverse_dynamic_groups:
+                        continue
+                    nodes.append(self.reverse_dynamic_groups[dynamic_group_id])
 
             if nodes:
                 query["target"] = {"type": target_type, "nodes": nodes}
@@ -639,7 +673,31 @@ class StrategyConfigParser(BaseConfigParser):
         data_type = query_configs[0]["data_type_label"]
         query = {"data_source": data_source, "data_type": data_type, "query_configs": []}
         for query_config in query_configs:
+            # grafana类型策略处理
+            if data_source == DataSourceLabel.DASHBOARD:
+                code_query_config = {
+                    "dashboard_id": query_config["dashboard_id"],
+                    "panel_id": query_config["panel_id"],
+                    "ref_id": query_config["ref_id"],
+                    "variables": query_config.get("variables", {}),
+                }
+                query["query_configs"].append(code_query_config)
+                continue
+
             code_query_config = {"metric": get_metric_id(data_source, data_type, query_config)}
+            # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID部分替换为 data_label
+            data_label = query_config.get("data_label", None)
+            if (
+                settings.ENABLE_DATA_LABEL_EXPORT
+                and data_label
+                and (
+                    query_config.get("data_source_label", None)
+                    in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
+                )
+            ):
+                code_query_config["metric"] = re.sub(
+                    rf"\b{query_config['result_table_id']}\b", data_label, code_query_config["metric"]
+                )
             field_mapping = {
                 "query_string": "query_string",
                 "agg_method": "method",
@@ -999,8 +1057,9 @@ class NoticeGroupConfigParser(BaseConfigParser):
 
         if not config["need_duty"]:
             notice_group["users"] = []
-            for user in config["duty_arranges"][0]["users"]:
-                notice_group["users"].append(f"group#{user['id']}" if user["type"] == "group" else user["id"])
+            if config["duty_arranges"]:
+                for user in config["duty_arranges"][0]["users"]:
+                    notice_group["users"].append(f"group#{user['id']}" if user["type"] == "group" else user["id"])
         notice_group["duty_rules"] = [
             self.reverse_duty_rules[duty_id] for duty_id in config["duty_rules"] if duty_id in self.reverse_duty_rules
         ]

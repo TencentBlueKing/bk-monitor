@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
 
-export type NavBarMode = 'copy' | 'share' | 'display';
+export type NavBarMode = 'copy' | 'display' | 'share';
 export interface INavItem {
   id: string;
-  name: string | TranslateResult;
+  name: TranslateResult | string;
   subName?: string;
   query?: Record<string, any>;
 }

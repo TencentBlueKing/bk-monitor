@@ -18,8 +18,7 @@ from importlib import import_module
 import jmespath
 from django.conf import settings
 from django.db import connections, models
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
 
 from bkmonitor.documents import AlertLog
 from bkmonitor.utils.db import JsonField
@@ -63,12 +62,12 @@ class ActionPlugin(AbstractRecordModel):
     plugin_type = models.CharField(
         "插件类型",
         choices=(
-            ("notice", _lazy("通知")),
-            ("webhook", _lazy("HTTP回调")),
-            ("job", _lazy("作业平台")),
-            ("sops", _lazy("标准运维")),
-            ("itsm", _lazy("流程服务")),
-            ("common", _lazy("通用插件")),
+            ("notice", "通知"),
+            ("webhook", "HTTP回调"),
+            ("job", "作业平台"),
+            ("sops", "标准运维"),
+            ("itsm", "流程服务"),
+            ("common", "通用插件"),
         ),
         max_length=64,
         null=False,
@@ -77,12 +76,12 @@ class ActionPlugin(AbstractRecordModel):
     plugin_key = models.CharField(
         "插件key, 一个唯一的确定值",
         choices=(
-            ("notice", _lazy("通知")),
-            ("webhook", _lazy("HTTP回调")),
-            ("job", _lazy("作业平台")),
-            ("sops", _lazy("标准运维")),
-            ("itsm", _lazy("流程服务")),
-            ("common", _lazy("通用插件")),
+            ("notice", "通知"),
+            ("webhook", "HTTP回调"),
+            ("job", "作业平台"),
+            ("sops", "标准运维"),
+            ("itsm", "流程服务"),
+            ("common", "通用插件"),
         ),
         max_length=64,
         default="common",
@@ -95,9 +94,9 @@ class ActionPlugin(AbstractRecordModel):
     plugin_source = models.CharField(
         "插件来源",
         choices=(
-            ("builtin", _lazy("内置")),
-            ("peripheral", _lazy("周边系统")),
-            ("bk_plugin", _lazy("蓝鲸插件")),
+            ("builtin", "内置"),
+            ("peripheral", "周边系统"),
+            ("bk_plugin", "蓝鲸插件"),
         ),
         max_length=64,
         default="builtin",
@@ -309,7 +308,7 @@ class ActionInstance(AbstractRecordModel):
 
     # 任务需要拆分的，需要将子任务添加到DB中，当存在子任务的时候，父任务不做任务处理，子任务都完成的时候，父任务也完成
     is_parent_action = models.BooleanField("是否为主任务", default=False, db_index=True)
-    parent_action_id = models.IntegerField("父任务ID", default=0)
+    parent_action_id = models.BigIntegerField("父任务ID", default=0)
     sub_actions = JsonField("子任务ID", default=[])
 
     assignee = JsonField("负责人", default=[])
@@ -609,6 +608,7 @@ class ActionInstance(AbstractRecordModel):
             event_id=self.es_action_id,
         )
         AlertLog.bulk_create([AlertLog(**action_log)])
+        logger.info("[fta action] action(%s), alerts(%s): %s", self.id, self.alerts, description)
 
     @classmethod
     def get_count_group_by_config(cls, bk_biz_id, begin_time: datetime, end_time: datetime = None):
@@ -690,7 +690,7 @@ class ConvergeInstance(AbstractRecordModel):
         blank=False,
         db_index=True,
         max_length=64,
-        choices=[("converge", _("收敛事件")), ("action", _("处理事件"))],
+        choices=[("converge", "收敛事件"), ("action", "处理事件")],
     )
 
     bk_biz_id = models.IntegerField("业务编码", db_index=True)
@@ -781,8 +781,8 @@ class ConvergeRelation(models.Model):
     """
 
     id = models.BigAutoField("主键", primary_key=True)
-    converge_id = models.IntegerField(null=False, blank=False, db_index=True)
-    related_id = models.IntegerField(null=False, blank=False, db_index=True)
+    converge_id = models.BigIntegerField(null=False, blank=False, db_index=True)
+    related_id = models.BigIntegerField(null=False, blank=False, db_index=True)
     related_type = models.CharField(
         null=False,
         blank=False,

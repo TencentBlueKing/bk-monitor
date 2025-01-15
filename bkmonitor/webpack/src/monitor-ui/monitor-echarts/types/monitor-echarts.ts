@@ -23,18 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
-import { BarChart, LineChart, MapChart, PieChart } from 'echarts/charts';
-import type {
-  DatasetComponentOption,
-  GridComponentOption,
-  LegendComponentOption,
-  MarkAreaComponentOption,
-  MarkLineComponentOption,
-  TitleComponentOption,
-  ToolboxComponentOption,
-  TooltipComponentOption
-} from 'echarts/components';
+import { BarChart, LineChart, MapChart, PieChart, HeatmapChart, CustomChart } from 'echarts/charts';
 import {
   GeoComponent,
   GraphicComponent,
@@ -45,24 +34,38 @@ import {
   MarkPointComponent,
   TitleComponent,
   ToolboxComponent,
-  TooltipComponent
+  TooltipComponent,
+  VisualMapComponent,
+  BrushComponent,
 } from 'echarts/components';
-import type { ComposeOption } from 'echarts/core';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 
+import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from 'echarts/charts';
+import type {
+  DatasetComponentOption,
+  GridComponentOption,
+  LegendComponentOption,
+  MarkAreaComponentOption,
+  MarkLineComponentOption,
+  TitleComponentOption,
+  ToolboxComponentOption,
+  TooltipComponentOption,
+} from 'echarts/components';
+import type { ComposeOption } from 'echarts/core';
+
 export type MonitorEchartOptions = ComposeOption<
   | BarSeriesOption
-  | LineSeriesOption
-  | PieSeriesOption
-  | TitleComponentOption
-  | TooltipComponentOption
   | DatasetComponentOption
   | GridComponentOption
-  | ToolboxComponentOption
   | LegendComponentOption
+  | LineSeriesOption
   | MarkAreaComponentOption
   | MarkLineComponentOption
+  | PieSeriesOption
+  | TitleComponentOption
+  | ToolboxComponentOption
+  | TooltipComponentOption
 >;
 export type MonitorEchartSeries = ComposeOption<BarSeriesOption | LineSeriesOption | PieSeriesOption>;
 echarts.use([
@@ -70,6 +73,8 @@ echarts.use([
   PieChart,
   LineChart,
   MapChart,
+  HeatmapChart,
+  CustomChart,
   GridComponent,
   LegendComponent,
   TitleComponent,
@@ -80,7 +85,9 @@ echarts.use([
   MarkLineComponent,
   MarkPointComponent,
   GraphicComponent,
-  GeoComponent
+  GeoComponent,
+  VisualMapComponent,
+  BrushComponent,
 ]);
 
 export { echarts };

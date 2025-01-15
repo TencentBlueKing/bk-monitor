@@ -14,8 +14,8 @@ from bkmonitor.utils.kubernetes import translate_timestamp_since
 from core.drf_resource import resource
 
 
+@pytest.mark.django_db(databases=["default", "monitor_api"])
 class TestGetKubernetesPod:
-    @pytest.mark.django_db
     def test_perform_request(self, add_bcs_cluster_item_for_update_and_delete, add_bcs_pods):
         params = {
             "bcs_cluster_id": "BCS-K8S-00000",
@@ -42,7 +42,7 @@ class TestGetKubernetesPod:
                 },
             },
             {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': '蓝鲸社区版7.0'},
-            {'key': 'namespace', 'name': '名字空间', 'type': 'string', 'value': 'bcs-system'},
+            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'bcs-system'},
             {
                 'key': 'total_container_count',
                 'name': '容器数量',
@@ -142,7 +142,6 @@ class TestGetKubernetesPod:
         ]
         assert actual == expect
 
-    @pytest.mark.django_db
     def test_perform_request_by_space_id(
         self,
         add_bcs_cluster_item_for_update_and_delete,
@@ -175,7 +174,7 @@ class TestGetKubernetesPod:
                 },
             },
             {'key': 'bk_cluster_name', 'name': '集群名称', 'type': 'string', 'value': '蓝鲸社区版7.0'},
-            {'key': 'namespace', 'name': '名字空间', 'type': 'string', 'value': 'namespace_a'},
+            {'key': 'namespace', 'name': 'NameSpace', 'type': 'string', 'value': 'namespace_a'},
             {
                 'key': 'total_container_count',
                 'name': '容器数量',

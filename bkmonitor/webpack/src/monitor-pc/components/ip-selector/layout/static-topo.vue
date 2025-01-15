@@ -50,7 +50,7 @@
 <script lang="ts">
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
-import { ISearchDataOption, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
+import type { ISearchDataOption, ITableCheckData, ITableConfig, SearchDataFuncType } from '../types/selector-type';
 
 import DynamicTopo from './dynamic-topo.vue';
 

@@ -23,22 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { CreateElement } from 'vue';
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { domain } from 'monitor-common/regex/domain';
 import { v4, v6 } from 'monitor-common/regex/ip';
 import { copyText } from 'monitor-common/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import MonitorIpSelector from '../../../../components/monitor-ip-selector/monitor-ip-selector';
-import { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
 import { transformMonitorToValue, transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
-
 import AddBtn from './add-btn';
 import CommonAddDialog from './common-add-dialog';
 import CommonCollapse from './common-collapse';
 import HttpUrlInput from './http-url-input';
+
+import type { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
+import type { CreateElement } from 'vue';
 
 import './tcp-target.scss';
 
@@ -55,22 +56,22 @@ export interface CommonItem {
 const RecordList: CommonItem[] = [
   {
     id: 'all',
-    name: window.i18n.tc('全部')
+    name: window.i18n.tc('全部'),
   },
   {
     id: 'single',
-    name: window.i18n.tc('随机')
-  }
+    name: window.i18n.tc('随机'),
+  },
 ];
 const IpTypeList: CommonItem[] = [
   {
     id: 'IPv4',
-    name: 'IPv4'
+    name: 'IPv4',
   },
   {
     id: 'IPv6',
-    name: 'IPv6'
-  }
+    name: 'IPv6',
+  },
 ];
 export const OutputFiledsMap = {
   bk_host_innerip: 'ip',
@@ -80,7 +81,7 @@ export const OutputFiledsMap = {
   ip: 'bk_host_innerip',
   ipv6: 'bk_host_innerip_v6',
   outer_ipv6: 'bk_host_outerip_v6',
-  outer_ip: 'bk_host_outerip'
+  outer_ip: 'bk_host_outerip',
 };
 export type TargetIpType = 0 | 4 | 6;
 export type DnsCheckMode = 'all' | 'single';
@@ -88,7 +89,7 @@ export const NodeTypeMap = {
   host_list: 'INSTANCE',
   node_list: 'TOPO',
   service_template_list: 'SERVICE_TEMPLATE',
-  set_template_list: 'SET_TEMPLATE'
+  set_template_list: 'SET_TEMPLATE',
 };
 interface ITcpTargetProps {
   defaultValue: {
@@ -131,7 +132,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         label: `${this.$t('外网')} IPv4`,
         renderHead: (h: CreateElement) => h('span', `${this.$t('外网')} IPv4`),
         field: 'outer_ip',
-        renderCell: (h: CreateElement, row: Record<string, any>) => h('span', row.outer_ip || '--')
+        renderCell: (h: CreateElement, row: Record<string, any>) => h('span', row.outer_ip || '--'),
       },
       {
         key: 'outer_ipv6',
@@ -140,8 +141,8 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         label: `${this.$t('外网')} IPv6`,
         renderHead: (h: CreateElement) => h('span', `${this.$t('外网')} IPv6`),
         field: 'outer_ipv6',
-        renderCell: (h: CreateElement, row: Record<string, any>) => h('span', row.outer_ipv6 || '--')
-      }
+        renderCell: (h: CreateElement, row: Record<string, any>) => h('span', row.outer_ipv6 || '--'),
+      },
     ];
   }
   // 初始化值
@@ -215,7 +216,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
     return {
       record: this.domainRecord || 'all',
       type: this.domainIpTypes?.slice() || ['IPv4'],
-      value: this.domains?.join('\n') || ''
+      value: this.domains?.join('\n') || '',
     };
   }
   // 点击添加ip
@@ -230,6 +231,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
       this.ips = v.split('\n').filter(Boolean);
       this.showAddIp = false;
       this.showIpValidateTips = false;
+      this.$emit('addTarget');
       return;
     }
     this.showIpValidateTips = true;
@@ -256,12 +258,14 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
       this.domainRecord = this.defaultDomain.record;
       this.domainIpTypes = this.defaultDomain.type.slice();
       this.showValidateDomainTips = false;
+      this.$emit('addTarget');
       return;
     }
     this.showValidateDomainTips = true;
   }
   handleIpChange(v: IIpV6Value) {
     this.cmdIpValue = v;
+    this.$emit('addTarget');
   }
   closeDialog() {
     this.showAddCmdbIp = false;
@@ -297,19 +301,19 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
    * @param {*} type
    * @return {*}
    */
-  handleDomainMenuSelect(id: string, type: 'ip' | 'domain') {
+  handleDomainMenuSelect(id: string, type: 'domain' | 'ip') {
     if (id === 'clear-all') {
       if (type === 'domain') {
         this.domains = [];
         return;
       }
       this.ips = [];
-    } else if ('copy-all') {
+    } else if (id === 'copy-all') {
       const text = type === 'ip' ? this.ips.join('\n') : this.domains.join('\n');
       copyText(text);
       this.$bkMessage({
         message: this.$t('复制成功'),
-        theme: 'success'
+        theme: 'success',
       });
     }
   }
@@ -338,7 +342,7 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
       <div class='domain-item'>
         <span class='domain-item-title'>{this.$t('DNS查询模式')}</span>
         <div class='domain-item-content'>
-          <bk-radio-group vModel={this.domainRecord}>
+          <bk-radio-group vModel={this.defaultDomain.record}>
             {RecordList.map(item => (
               <bk-radio
                 key={item.id}
@@ -378,10 +382,12 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         <div class='domain-item-content'>
           <bk-input
             class={`domain-input ${this.showValidateDomainTips ? 'is-error' : ''}`}
-            type='textarea'
             vModel={this.defaultDomain.value}
-            onFocus={() => (this.showValidateDomainTips = false)}
             placeholder={this.$tc('输入域名说明/校验规则，可通过回车区隔多个域名')}
+            type='textarea'
+            onFocus={() => {
+              this.showValidateDomainTips = false;
+            }}
           />
           {this.showValidateDomainTips && <div class='validate-tips'>{this.$t('输入正确的域名')}</div>}
         </div>
@@ -403,7 +409,9 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
           />
           <AddBtn
             text={this.$t('基于CMDB添加')}
-            onClick={() => (this.showAddCmdbIp = true)}
+            onClick={() => {
+              this.showAddCmdbIp = true;
+            }}
           />
         </div>
         <div class='tcp-target-details'>
@@ -425,11 +433,11 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
                 {this.ips.map((url, index) => (
                   <HttpUrlInput
                     key={index}
-                    value={url}
-                    validateFn={this.validateIp}
                     errorTips={this.$t('输入正常的IP')}
-                    onDelete={() => this.handleDeleteIp(index)}
+                    validateFn={this.validateIp}
+                    value={url}
                     onChange={v => this.handleIpEdit(v, index)}
+                    onDelete={() => this.handleDeleteIp(index)}
                   />
                 ))}
               </div>
@@ -457,11 +465,11 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
                 {this.domains.map((domain, index) => (
                   <HttpUrlInput
                     key={index}
-                    value={domain}
                     errorTips={this.$t('输入正确的域名')}
                     validateFn={this.validateDomain}
-                    onDelete={() => this.handleDeleteDomain(index)}
+                    value={domain}
                     onChange={v => this.handleEditDomain(v, index)}
+                    onDelete={() => this.handleDeleteDomain(index)}
                   />
                 ))}
               </div>
@@ -469,13 +477,6 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
           )}
           {/* 添加CMD IP */}
           <MonitorIpSelector
-            mode='dialog'
-            showDialog={this.showAddCmdbIp}
-            showView={true}
-            value={this.cmdIpValue}
-            outputFieldOptionalHostTableColumn={['ip', 'ipv6', 'outer_ip', 'outer_ipv6']}
-            defaultOutputFieldList={this.defaultOutFields}
-            outputFieldList={this.outputFieldList}
             hostTableRenderColumnList={[
               'ip',
               'ipv6',
@@ -488,9 +489,16 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
               'coludVerdor',
               'osType',
               'hostId',
-              'agentId'
+              'agentId',
             ]}
+            defaultOutputFieldList={this.defaultOutFields}
             hostTableCustomColumnList={this.hostTableCustomColumnList}
+            mode='dialog'
+            outputFieldList={this.outputFieldList}
+            outputFieldOptionalHostTableColumn={['ip', 'ipv6', 'outer_ip', 'outer_ipv6']}
+            showDialog={this.showAddCmdbIp}
+            showView={true}
+            value={this.cmdIpValue}
             onChange={this.handleIpChange}
             onCloseDialog={this.closeDialog}
             onOutputFieldChange={this.handleOutputFieldChange}
@@ -499,23 +507,25 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
         {/* 添加IP */}
         <CommonAddDialog
           defaultValue={this.defaultIp}
-          show={this.showAddIp}
-          title={this.$t('添加/编辑IP')}
           placeholder={this.$t('输入IP，可通过回车区隔多个IP')}
+          show={this.showAddIp}
           showValidateTips={this.showIpValidateTips}
+          title={this.$t('添加/编辑IP')}
           validateTips={this.$t('输入正常的IP')}
-          onShowChange={this.handleShowIpChange}
-          onFocus={() => (this.showIpValidateTips = false)}
           onConfirm={this.handleAddIp}
+          onFocus={() => {
+            this.showIpValidateTips = false;
+          }}
+          onShowChange={this.handleShowIpChange}
         />
         {/* 添加域名 */}
         <MonitorDialog
-          value={this.showAddDomain}
+          width='488'
           class='common-add-dialog domain-dialog'
           title={this.$t('添加/编辑域名').toString()}
-          width='488'
-          onChange={this.handleShowDomainChange}
+          value={this.showAddDomain}
           onCancel={this.handleDomainCancel}
+          onChange={this.handleShowDomainChange}
           onConfirm={this.handleDomainConfirm}
         >
           <div class='domain-header'>
@@ -523,8 +533,8 @@ export default class TcpTarget extends tsc<ITcpTargetProps> {
             {this.createIpTypeItem()}
           </div>
           <div
-            class='domain-content'
             style='marginTop: 22px'
+            class='domain-content'
           >
             {this.createDomainInput()}
           </div>

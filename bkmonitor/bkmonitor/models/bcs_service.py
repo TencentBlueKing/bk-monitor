@@ -12,7 +12,7 @@ import itertools
 
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import BCSBaseManager
 from bkmonitor.models.bcs_base import BCSBase, BCSLabel
@@ -93,7 +93,7 @@ class BCSService(BCSBase):
             [
                 {
                     "id": "namespace",
-                    "name": _("名字空间"),
+                    "name": "NameSpace",
                     "type": "string",
                     "disabled": False,
                     "checked": True,

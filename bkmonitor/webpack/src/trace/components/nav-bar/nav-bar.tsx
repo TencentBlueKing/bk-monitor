@@ -26,7 +26,7 @@
 import { computed, defineComponent, inject } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { ICommonNavBarProps, INavItem } from './type';
+import type { ICommonNavBarProps, INavItem } from './type';
 
 import './nav-bar.scss';
 
@@ -35,36 +35,36 @@ export default defineComponent({
   props: {
     routeList: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     needBack: {
       type: Boolean,
-      default: false
+      default: false,
     },
     needShadow: {
       type: Boolean,
-      default: false
+      default: false,
     },
     needCopyLink: {
       type: Boolean,
-      default: false
+      default: false,
     },
     navMode: {
       type: String,
-      default: 'share'
+      default: 'share',
     },
     positionText: {
       type: String,
-      default: ''
+      default: '',
     },
     backGotoItem: {
       type: Object,
-      default: () => ({ isBack: false })
+      default: () => ({ isBack: false }),
     },
     callbackRouterBack: {
       type: Function,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   setup(props: ICommonNavBarProps | any, { slots }) {
     const router = useRouter();
@@ -98,14 +98,14 @@ export default defineComponent({
       const len = props.routeList.length;
       return (
         <div
-          class={`navigation-bar common-nav-bar ${props.needShadow ? 'detail-bar' : ''}`}
           key='navigationBar'
+          class={`navigation-bar common-nav-bar ${props.needShadow ? 'detail-bar' : ''}`}
         >
           {!readonly && (props.needBack || ((props.needBack ?? true) && len > 1)) && (
             <span
               class='icon-monitor icon-back-left navigation-bar-back'
               onClick={() => handleBackGotoPage()}
-            ></span>
+            />
           )}
           {!!slots.custom ? (
             <div class='navigation-bar-list'>{slots.custom()}</div>
@@ -140,10 +140,10 @@ export default defineComponent({
       );
     }
     return {
-      renderFn
+      renderFn,
     };
   },
   render() {
     return this.renderFn();
-  }
+  },
 });

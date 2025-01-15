@@ -38,21 +38,21 @@
     </div>
     <div class="host-body">
       <bk-input
+        ref="selectInput"
+        v-model.trim="keyword"
         class="body-search"
         :placeholder="$t('输入')"
         clearable
         right-icon="bk-icon icon-search"
-        v-model.trim="keyword"
         @input="handleKeywordChange"
-        ref="selectInput"
       />
       <div
-        class="body-table"
         v-bkloading="{ isLoading: isLoading }"
+        class="body-table"
       >
         <bk-table
-          class="select-host-table-wrap"
           ref="hostTableRef"
+          class="select-host-table-wrap"
           :height="313"
           :virtual-render="tableData.length ? true : false"
           highlight-current-row
@@ -61,8 +61,8 @@
           @row-click="handleRowClick"
         >
           <empty-status
-            :type="emptyStatusType"
             slot="empty"
+            :type="emptyStatusType"
             @operation="handleOperation"
           />
           <bk-table-column
@@ -81,14 +81,15 @@
           <bk-table-column :label="$t('Agent状态')">
             <template slot-scope="scope">
               <span
-                :class="scope.row.agentStatus === 0 ? 'success' : 'error'"
                 v-bk-tooltips="{
                   content: `${scope.row.agentStatusName}${$t('不能进行调试')}`,
                   boundary: 'window',
                   disabled: scope.row.agentStatus === 0,
-                  allowHTML: false
+                  allowHTML: false,
                 }"
-              >{{ scope.row.agentStatusName }}</span>
+                :class="scope.row.agentStatus === 0 ? 'success' : 'error'"
+                >{{ scope.row.agentStatusName }}</span
+              >
             </template>
           </bk-table-column>
           <bk-table-column
@@ -111,7 +112,7 @@ import EmptyStatus from '../../../../../components/empty-status/empty-status';
 export default {
   name: 'SelectHost',
   components: {
-    EmptyStatus
+    EmptyStatus,
   },
   props: {
     conf: {
@@ -119,24 +120,24 @@ export default {
       default: () => ({
         isShow: false,
         id: '',
-        param: {}
-      })
+        param: {},
+      }),
     },
     getHost: Function,
-    filter: Function
+    filter: Function,
   },
   data() {
     return {
       isLoading: false,
       keyword: '', // 搜索关键字
       host: {
-        index: -1
+        index: -1,
       }, // 主机信息
       index: -1,
       tableData: [],
       allHost: [],
       handleKeywordChange: this.debounce(this.filterHost, 200), // 处理搜索关键字改变事件
-      emptyStatusType: 'empty'
+      emptyStatusType: 'empty',
     };
   },
   computed: {
@@ -144,7 +145,7 @@ export default {
       return this.conf.param?.osType === 'windows'
         ? this.$t('选择{0}调试主机', ['Windows'])
         : this.$t('选择{0}调试主机', ['Linux']);
-    }
+    },
   },
   watch: {
     'conf.param': {
@@ -152,7 +153,7 @@ export default {
         this.host = val;
         this.requestHost(this.conf.id);
       },
-      deep: true
+      deep: true,
     },
     'conf.isShow': {
       handler(val) {
@@ -162,8 +163,8 @@ export default {
             this.$refs.selectInput.focus();
           }, 300);
         }
-      }
-    }
+      },
+    },
   },
   mounted() {
     this.handleGetData();
@@ -173,7 +174,7 @@ export default {
       if (this.getHost) {
         this.isLoading = true;
         this.getHost()
-          .then((data) => {
+          .then(data => {
             this.allHost = data.map(item => ({
               osType: item.bk_os_type, // 系统类型
               agentStatus: item.agent_status, // Agent 状态代码
@@ -185,7 +186,7 @@ export default {
               bk_biz_id: item.bk_biz_id,
               bk_host_id: item.bk_host_id,
               companyId: '', // 服务商 ID
-              cloudName: item.bk_cloud_name // 云区域
+              cloudName: item.bk_cloud_name, // 云区域
             }));
             this.tableData = Object.freeze(this.allHost);
           })
@@ -217,9 +218,9 @@ export default {
       if (this.getHost) return;
       this.isLoading = true;
       hostAgentStatus({
-        bk_biz_id: id
+        bk_biz_id: id,
       })
-        .then((data) => {
+        .then(data => {
           this.allHost = Object.freeze(this.handleHostData(data));
           this.filterHost();
         })
@@ -249,7 +250,7 @@ export default {
           cloudId: item.bk_cloud_id, // cloudId
           companyId: '', // 服务商 ID
           bk_biz_id: item.bk_biz_id,
-          display_name: item.display_name || '--'
+          display_name: item.display_name || '--',
         }));
       }
       return [];
@@ -267,7 +268,7 @@ export default {
       if (row.agentStatus !== 0) {
         this.$bkMessage({
           theme: 'warning',
-          message: this.$t('无法选择Agent状态异常的服务器')
+          message: this.$t('无法选择Agent状态异常的服务器'),
         });
         this.$refs.hostTableRef.setCurrentRow();
         return;
@@ -304,11 +305,13 @@ export default {
         this.tableData = this.filter
           ? this.filter(curVal, this.allHost)
           : this.allHost
-            .filter(item => this.matchOsType(item.osType)
-              && (
-                (curVal && (item.ipv6.includes(curVal) || item.ip.includes(curVal)))
-                || (newVal && item.ipv6.includes(newVal))
-              )).sort((itemPre, itemNext) => itemPre.ip.length - itemNext.ip.length);
+              .filter(
+                item =>
+                  this.matchOsType(item.osType) &&
+                  ((curVal && (item.ipv6.includes(curVal) || item.ip.includes(curVal))) ||
+                    (newVal && item.ipv6.includes(newVal)))
+              )
+              .sort((itemPre, itemNext) => itemPre.ip.length - itemNext.ip.length);
       } else {
         this.tableData = this.filter
           ? this.filter(val, this.allHost)
@@ -333,8 +336,8 @@ export default {
         this.requestHost(this.conf.id);
         return;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -387,7 +390,7 @@ export default {
 .select-host-table-wrap {
   .bk-table-body-wrapper {
     /* stylelint-disable-next-line declaration-no-important */
-    height: initial!important;
+    height: initial !important;
   }
 }
 </style>

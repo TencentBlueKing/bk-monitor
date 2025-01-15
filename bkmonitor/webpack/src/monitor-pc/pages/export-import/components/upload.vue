@@ -30,8 +30,8 @@
   >
     <!--上传界面-->
     <section
-      class="config-upload-content"
       v-if="beforeUpload"
+      class="config-upload-content"
     >
       <slot
         name="upload-content"
@@ -44,16 +44,17 @@
     </section>
     <!--上传过程-->
     <section
-      class="config-upload-file"
       v-else
+      class="config-upload-file"
     >
       <slot
         name="upload-file"
         v-bind="{ beforeAbortUpload, file }"
       >
-        <span class="file-abort"><i
-          class="icon-monitor icon-mc-close"
-          @click="beforeAbortUpload"
+        <span class="file-abort"
+          ><i
+            class="icon-monitor icon-mc-close"
+            @click="beforeAbortUpload"
         /></span>
         <div class="file-info">
           <span class="info-icon"><i class="icon-monitor icon-mc-file" /></span>
@@ -70,16 +71,15 @@
           <span
             class="info-status"
             :class="{ 'fail-message': file.hasError }"
-          >{{
-            fileStatusMap[file.status] || file.errorMsg
-          }}</span>
+            >{{ fileStatusMap[file.status] || file.errorMsg }}</span
+          >
         </div>
       </slot>
     </section>
     <!--上传文件框-->
     <section
-      class="config-upload-input"
       v-show="beforeUpload || file.hasError"
+      class="config-upload-input"
     >
       <slot
         name="upload-input"
@@ -88,14 +88,14 @@
         <input
           ref="uploadel"
           :class="{ 'input-hide': file.hasError }"
-          @change="handleChange"
           :accept="accept"
           :multiple="false"
           :name="name"
           title=""
           :disabled="!beforeUpload && !isdrag"
           type="file"
-        >
+          @change="handleChange"
+        />
       </slot>
     </section>
     <!--上传提示-->
@@ -114,37 +114,37 @@ export default {
     // 上传至服务器的名称
     name: {
       type: String,
-      default: 'file_data'
+      default: 'file_data',
     },
     // mime类型
     accept: {
       type: String,
-      default: '.bz2,.gz,.tgz,.tbz2'
+      default: '.bz2,.gz,.tgz,.tbz2',
     },
     // 接受类型提示信息
     acceptTips: {
       type: String,
       default() {
         return this.$t('仅支持导入".gz .tgz .bz2 .tbz2"gzip或bzip2压缩格式文件');
-      }
+      },
     },
     // URL
     action: {
       required: true,
-      type: String
+      type: String,
     },
     // 最大文件大小
     maxSize: {
       type: Number,
-      default: 500 // 单位M
+      default: 500, // 单位M
     },
     // 请求头
     headers: {
-      type: [Array, Object]
+      type: [Array, Object],
     },
     withCredentials: {
       type: Boolean,
-      default: false
+      default: false,
     },
     // 文件状态
     fileStatusMap: {
@@ -152,25 +152,25 @@ export default {
       default() {
         return {
           ready: this.$t('准备中...'),
-          uploading: this.$t('正在上传...')
+          uploading: this.$t('正在上传...'),
         };
-      }
+      },
     },
     // 上传失败回调
     onUploadError: {
       type: Function,
-      default: () => {}
+      default: () => {},
     },
     // 上传成功回调
     onUploadSuccess: {
       type: Function,
-      default: () => {}
+      default: () => {},
     },
     // 上传进度回调
     onUploadProgress: {
       type: Function,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   data() {
     return {
@@ -178,7 +178,7 @@ export default {
       file: {}, // 当前文件对象
       reqsMap: {}, // 文件请求Map（用于终止）
       beforeUpload: true, // 文件上传步骤
-      fileIndex: 1 // 文件索引
+      fileIndex: 1, // 文件索引
     };
   },
   mounted() {
@@ -218,7 +218,7 @@ export default {
         originFile: file,
         status: 'ready',
         hasError: false,
-        errorMsg: ''
+        errorMsg: '',
       };
     },
     // 文件名
@@ -233,7 +233,7 @@ export default {
       if (!file) return false;
       const validate = {
         message: '',
-        success: true
+        success: true,
       };
       if (file.size > this.maxSize * 1024 * 1024) {
         validate.success = false;
@@ -247,7 +247,7 @@ export default {
         this.$bkMessage({
           theme: 'error',
           message: validate.message,
-          ellipsisLine: 0
+          ellipsisLine: 0,
         });
       }
       return validate.success;
@@ -265,17 +265,17 @@ export default {
         file: originFile,
         filename: this.name,
         action: this.action,
-        onProgress: (e) => {
+        onProgress: e => {
           this.handleHttpProgress(e, originFile);
         },
-        onSuccess: (res) => {
+        onSuccess: res => {
           this.handleHttpSuccess(res, originFile);
           delete this.reqsMap[uid];
         },
-        onError: (err) => {
+        onError: err => {
           this.handleHttpError(err, originFile);
           delete this.reqsMap[uid];
-        }
+        },
       };
       const req = this.handleHttpRequest(options);
       this.reqsMap[uid] = req;
@@ -289,7 +289,7 @@ export default {
           maskClose: true,
           confirmFn: () => {
             this.handleAbortUpload();
-          }
+          },
         });
       }
     },
@@ -308,7 +308,7 @@ export default {
 
       const xhr = new XMLHttpRequest();
       if (xhr.upload) {
-        xhr.upload.onprogress = (e) => {
+        xhr.upload.onprogress = e => {
           if (e.total > 0) {
             e.percent = Math.round((e.loaded * 100) / e.total);
           }
@@ -319,7 +319,7 @@ export default {
       const formData = new FormData();
       formData.append(option.filename, option.file, option.file.name);
       formData.append('bk_biz_id', this.$store.getters.bizId);
-      xhr.onerror = (e) => {
+      xhr.onerror = e => {
         option.onError(e);
       };
 
@@ -338,7 +338,7 @@ export default {
       const { headers } = option;
       if (headers) {
         if (Array.isArray(headers)) {
-          headers.forEach((head) => {
+          headers.forEach(head => {
             const headerKey = head.name;
             const headerVal = head.value;
             xhr.setRequestHeader(headerKey, headerVal);
@@ -397,8 +397,8 @@ export default {
       this.file.errorMsg = err.message;
       this.file.status = 'error';
       this.onUploadError(err, postFiles);
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -530,7 +530,7 @@ article {
           height: 6px;
           border-radius: 3px;
           background: $primaryFontColor;
-          transition: width .3s ease-in-out;
+          transition: width 0.3s ease-in-out;
         }
 
         .fail-background {

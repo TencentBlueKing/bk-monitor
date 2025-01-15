@@ -23,5 +23,5 @@ export default {
   getSendRecords,
   getApplyRecords,
   getVariables,
-  getExistReports
+  getExistReports,
 };

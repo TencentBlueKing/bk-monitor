@@ -24,20 +24,20 @@
  * IN THE SOFTWARE.
  */
 import { Component } from 'vue-property-decorator';
-import { Component as tsc, ofType } from 'vue-tsx-support';
+import { ofType, Component as tsc } from 'vue-tsx-support';
 
 import MyApply from './my-apply';
 
 @Component({
   components: {
-    MyApply
-  }
+    MyApply,
+  },
 })
-class MyApplyIframe extends tsc<{}> {
+class MyApplyIframe extends tsc<object> {
   render() {
     return (
       <div style='width: 100%;height: 100vh;background-color: white;'>
-        <MyApply></MyApply>;
+        <MyApply />;
       </div>
     );
   }

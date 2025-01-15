@@ -17,7 +17,6 @@ import bkmonitor.utils.db.fields
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bkmonitor", "0034_auto_20210419_1732"),
     ]
@@ -119,7 +118,7 @@ class Migration(migrations.Migration):
                 ("action_config", bkmonitor.utils.db.fields.JsonField(verbose_name="关联配置信息的快照")),
                 ("bk_biz_id", models.CharField(max_length=64, verbose_name="业务ID")),
                 ("is_parent_action", models.BooleanField(db_index=True, default=False, verbose_name="是否为主任务")),
-                ("parent_action_id", models.IntegerField(default=0, verbose_name="父任务ID")),
+                ("parent_action_id", models.BigIntegerField(default=0, verbose_name="父任务ID")),
                 ("sub_actions", bkmonitor.utils.db.fields.JsonField(default=[], verbose_name="子任务ID")),
                 ("responsible", models.CharField(max_length=128, null=True, verbose_name="负责人")),
                 (
@@ -292,8 +291,8 @@ class Migration(migrations.Migration):
             name="ConvergeRelation",
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("converge_id", models.IntegerField(db_index=True)),
-                ("related_id", models.IntegerField(db_index=True)),
+                ("converge_id", models.BigIntegerField(db_index=True)),
+                ("related_id", models.BigIntegerField(db_index=True)),
                 (
                     "related_type",
                     models.CharField(choices=[("converge", "收敛事件"), ("action", "处理事件")], db_index=True, max_length=64),

@@ -24,26 +24,30 @@
  * IN THE SOFTWARE.
  */
 import { Component, Emit, Inject, InjectReactive, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc, modifiers } from 'vue-tsx-support';
+import { modifiers, Component as tsc } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/table-chart/status-tab';
-import { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { IQueryData, IQueryDataSearch } from '../../typings';
 import {
   filterSelectorPanelSearchList,
+  transformConditionSearchList,
   transformConditionValueParams,
   transformQueryDataSearch,
-  updateBkSearchSelectName
+  updateBkSearchSelectName,
 } from '../../utils';
 import CommonStatus from '../common-status/common-status';
 
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../../components/empty-status/types';
+import type { IQueryData, IQueryDataSearch } from '../../typings';
+import type { IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+
 import './common-list.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 interface ICommonListProps {
   // 场景id
@@ -117,7 +121,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     return {
       ...(this.viewOptions || {}),
       ...(this.viewOptions?.filters || {}),
-      ...(this.viewOptions?.current_target || [])
+      ...(this.viewOptions?.current_target || []),
     };
   }
   // active id
@@ -140,7 +144,6 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
 
   /** 目标对比选中的主机id */
   get compareTargets() {
-    // eslint-disable-next-line max-len
     return (
       this.viewOptions?.compares?.targets?.map(item => this.panel.targets?.[0]?.handleCreateItemId(item, true)) || []
     );
@@ -200,11 +203,11 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
           end_time: endTime,
           condition_list: transformConditionValueParams(this.searchCondition),
           filter: this.filter === 'all' ? '' : this.filter,
-          keyword: this.keyword
+          keyword: this.keyword,
         })
         .then(data => {
           const list = Array.isArray(data) ? data : data.data;
-          this.conditionList = data.condition_list || [];
+          this.conditionList = transformConditionSearchList(data.condition_list || []);
           this.searchCondition = updateBkSearchSelectName(this.conditionList, this.searchCondition);
           this.statusList = data.filter || [];
           return list?.map?.(set => {
@@ -212,7 +215,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             return {
               ...set,
               id,
-              name: set.name || id
+              name: set.name || id,
             };
           });
         })
@@ -234,12 +237,13 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     needLoading && (this.loading = false);
   }
 
-  handleSearch() {
+  handleSearch(v) {
+    this.searchCondition = v;
     this.getPanelData();
     const selectorSearch = transformConditionValueParams(this.searchCondition);
     this.handleUpdateQueryData({
       ...this.queryData,
-      selectorSearch
+      selectorSearch,
     });
   }
   @Debounce(300)
@@ -254,7 +258,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     }
     this.handleUpdateQueryData({
       ...this.queryData,
-      keyword: v
+      keyword: v,
     });
   }
   handleRefresh() {
@@ -266,7 +270,7 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     const value = this.panel.targets[0].handleCreateCompares(data);
     viewOptions.filters = { ...(value || {}) };
     viewOptions.compares = {
-      targets: []
+      targets: [],
     };
     this.handleTitleChange(data.name);
     this.$emit('change', viewOptions);
@@ -283,8 +287,8 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
     const viewOptions: IViewOptions = {
       ...this.viewOptions,
       compares: {
-        targets: this.localCompareTargets
-      }
+        targets: this.localCompareTargets,
+      },
     };
     this.$emit('change', viewOptions);
   }
@@ -321,27 +325,26 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
       >
         <div class='list-header'>
           {this.conditionList.length ? (
-            <bk-search-select
-              placeholder={this.$t('搜索')}
-              vModel={this.searchCondition}
-              show-condition={false}
+            <SearchSelect
+              clearable={false}
               data={this.currentConditionList}
-              show-popover-tag-change={false}
+              modelValue={this.searchCondition}
+              placeholder={this.$t('搜索')}
               onChange={this.handleSearch}
             />
           ) : (
             <bk-input
               v-model={this.keyword}
-              right-icon='bk-icon icon-search'
               placeholder={this.$t('搜索')}
+              right-icon='bk-icon icon-search'
               onInput={this.handleLocalSearch}
-            ></bk-input>
+            />
           )}
           <bk-button
             class='reflesh-btn'
             onClick={this.handleRefresh}
           >
-            <i class='icon-monitor icon-shuaxin'></i>
+            <i class='icon-monitor icon-shuaxin' />
           </bk-button>
         </div>
         {this.isEnableStatusFilter && (
@@ -350,36 +353,35 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
             v-model={this.currentStatus}
             statusList={this.statusList}
             onChange={this.handleStatusFilter}
-          ></StatusTab>
+          />
         )}
         <div class='list-wrapper'>
           {this.localList?.length ? (
             <bk-virtual-scroll
               ref='virtualInstance'
-              item-height={32}
               scopedSlots={{
                 default: ({ data }) => {
                   const itemId = this.panel.targets[0]?.handleCreateItemId(data);
                   return (
                     <div
-                      onClick={() => this.handleSelectedItem(data)}
                       class={[
                         `list-wrapper-item ${data.id === this.activeId ? 'item-active' : ''}`,
                         {
-                          'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId)
-                        }
+                          'checked-target': this.isTargetCompare && this.compareTargets.includes(itemId),
+                        },
                       ]}
+                      onClick={() => this.handleSelectedItem(data)}
                     >
                       {!!data.status?.type && (
                         <CommonStatus
                           class='status-icon'
                           type={data.status.type}
-                        ></CommonStatus>
+                        />
                       )}
                       {this.isTargetCompare ? (
                         <span class='compare-btn-wrap'>
                           {this.compareTargets.includes(itemId) ? (
-                            <i class='icon-monitor icon-mc-check-small'></i>
+                            <i class='icon-monitor icon-mc-check-small' />
                           ) : (
                             <span
                               class='compare-btn-text'
@@ -398,9 +400,10 @@ export default class CommonList extends tsc<ICommonListProps, ICommonListEvent> 
                       </span>
                     </div>
                   );
-                }
+                },
               }}
-            ></bk-virtual-scroll>
+              item-height={32}
+            />
           ) : (
             <EmptyStatus
               type={this.emptyType}

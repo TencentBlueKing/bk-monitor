@@ -16,7 +16,7 @@ from collections import defaultdict
 from typing import Callable, Dict, Generator, Iterable, List, Set, Tuple
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -67,10 +67,10 @@ class GetGraphQueryConfig(Resource):
                 condition = serializers.ChoiceField(required=False, choices=("and", "or"))
                 key = serializers.CharField()
                 method = serializers.CharField()
-                value = serializers.ListField(child=serializers.CharField(allow_blank=True))
+                value = serializers.ListField(child=serializers.CharField(allow_blank=True, allow_null=True))
 
-            class FilterDictSerializer(serializers.Serializer):
-                targets = serializers.ListField(default=[], child=serializers.DictField())
+                def validate_value(self, values):
+                    return [value for value in values if value is not None]
 
             data_source_label = serializers.CharField(label="数据源标签")
             data_type_label = serializers.CharField(label="数据类型标签")
@@ -89,11 +89,18 @@ class GetGraphQueryConfig(Resource):
             where = serializers.ListField(label="查询条件", child=WhereSerializer(), required=False)
             time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, default=None)
             functions = serializers.ListField(label="计算函数参数", default=[], child=FunctionSerializer())
-            filter_dict = FilterDictSerializer(required=False, allow_null=True)
+            filter_dict = serializers.DictField(required=False, allow_null=True)
             data_label = serializers.CharField(label="数据标识", required=False, allow_blank=True, allow_null=True)
 
             # 是否展示单指标
             display = serializers.BooleanField(label="是否单独展示", default=True)
+
+            def validate_where(self, where: List[Dict]):
+                validated_where = []
+                for condition in where:
+                    if condition.get("value") is not None:
+                        validated_where.append(condition)
+                return validated_where
 
             def validate(self, attrs):
                 # 图表查询周期检查
@@ -106,6 +113,11 @@ class GetGraphQueryConfig(Resource):
                     raise ValidationError("index_set_id can not be empty.")
                 # elif attrs["data_source_label"] != DataSourceLabel.BK_LOG_SEARCH and not attrs.get("table"):
                 #     raise ValidationError("table can not be empty.")
+
+                if isinstance(attrs.get("filter_dict"), dict):
+                    if not attrs["filter_dict"].get("targets"):
+                        attrs["filter_dict"]["targets"] = []
+
                 return attrs
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -450,10 +462,17 @@ class GetGraphQueryConfig(Resource):
 
         instance_dimensions_set: Set[Tuple] = set()
         for target_instance in target_instances:
-            dimensions = tuple(sorted([(key, str(value)) for key, value in target_instance.items()]))
-            if dimensions in target_dimensions_set:
-                continue
-            instance_dimensions_set.add(dimensions)
+            dimensions_list = [{}]
+            for key, value in target_instance.items():
+                if not isinstance(value, list):
+                    value = [value]
+                for v in value:
+                    dimensions_list = [{**dimension, key: v} for dimension in dimensions_list if key not in dimension]
+            for dimensions in dimensions_list:
+                dimension_tuple = tuple(sorted([(key, str(value)) for key, value in dimensions.items()]))
+                if dimension_tuple in target_dimensions_set:
+                    continue
+                instance_dimensions_set.add(dimension_tuple)
 
         # 有查询条件的，按条件维度补全空图
         condition_dimensions_set = cls.get_condition_set(unify_query_config, dimensions_set, instance_dimensions_set)
@@ -763,6 +782,7 @@ class GetGraphQueryConfig(Resource):
                         "alias": query_config["alias"],
                         "promql": query_config["promql"],
                         "step": query_config["interval"],
+                        "filter_dict": query_config.get("filter_dict", {}),
                     }
                 )
 
@@ -819,6 +839,7 @@ class GetPromqlQueryConfig(Resource):
             promql = serializers.CharField(label="PromQL")
             step = serializers.CharField(default="auto")
             alias = serializers.CharField()
+            filter_dict = serializers.DictField(required=False, default={})
 
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_configs = serializers.ListField(label="查询配置", child=QueryConfigSerializer())
@@ -853,6 +874,7 @@ class GetPromqlQueryConfig(Resource):
                             "promql": query_config["promql"],
                             "interval": interval,
                             "alias": query_config["alias"],
+                            "filter_dict": query_config.get("filter_dict", {}),
                         }
                     ],
                     "expression": "",

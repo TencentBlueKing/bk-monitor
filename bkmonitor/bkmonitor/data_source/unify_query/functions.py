@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -75,7 +75,7 @@ class FunctionCategory:
     description: str
 
 
-CpAggMethods = dict(
+CpAggMethods: Dict[str, AggMethod] = dict(
     cp50=AggMethod(
         id="cp50",
         method="quantile",
@@ -436,6 +436,36 @@ GrafanaFunctions = dict(
         ],
         category="sort",
     ),
+)
+
+SubQueryFunctions = dict(
+    sum_over_time=Function(
+        id="sum_over_time",
+        name="sum_over_time",
+        description=_lazy("求和"),
+        time_aggregation=True,
+        params=[
+            Params(
+                id="window",
+                name="window",
+                default="2m",
+                description=_lazy("时间窗口"),
+                shortlist=["1m", "2m", "5m", "10m", "20m"],
+                type="string",
+            ),
+            # https://prometheus.io/blog/2019/01/28/subquery-support/
+            # 一般和外层的 interval 保持一致
+            Params(
+                id="step",
+                name="step",
+                default="1m",
+                description=_lazy("精度"),
+                shortlist=["1m", "2m", "5m", "10m", "20m"],
+                type="string",
+            ),
+        ],
+        category="change",
+    )
 )
 
 

@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getUnitInfo } from 'monitor-api/modules/strategies';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -39,32 +40,38 @@ import TimeSeriesForecasting from '../../../../static/images/svg/time-series-for
 import YearRound from '../../../../static/images/svg/year-round.svg';
 import { createOnlyId } from '../../../../utils';
 import {
-  dataModeType,
   DetectionRuleTypeEnum,
-  ICommonItem,
-  IDetectionTypeItem,
-  IDetectionTypeRuleData,
-  MetricDetail
+  type ICommonItem,
+  type IDetectionTypeItem,
+  type IDetectionTypeRuleData,
+  type MetricDetail,
+  type dataModeType,
+  type EditModeType,
 } from '../typings/index';
-
-import { ChartType } from './components/intelligent-detect/intelligent-detect';
 import RuleWrapper from './components/rule-wrapper/rule-wrapper';
-import { IModelData } from './components/time-series-forecast/time-series-forecast';
 import RulesSelect from './rules-select';
+
+import type { IntelligentModelsType } from '../../../../store/modules/intelligent-models';
+import type { ChartType } from './components/intelligent-detect/intelligent-detect';
+import type { IModelData } from './components/time-series-forecast/time-series-forecast';
 
 import './detection-rules.scss';
 
 interface IDetectionRules {
   unit: string;
   connector: string;
-  value: any;
-  backfillData: any;
-  readonly: boolean;
+  value?: any;
+  backfillData?: any;
+  readonly?: boolean;
   metricData: MetricDetail[];
   unitType: string;
   isEdit?: boolean;
   dataMode?: dataModeType;
   needShowUnit: boolean;
+  isKpiAnomalySdkEnabled: boolean;
+  dataTypeLabel?: string;
+  editMode?: EditModeType;
+  intelligentDetect: Map<IntelligentModelsType, Array<Record<string, any>>>;
 }
 interface IEvent {
   onUnitChange?: string;
@@ -87,6 +94,13 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   @Prop({ default: () => {}, type: Array }) metricData: MetricDetail[];
   @Prop({ default: '', type: String }) dataMode: dataModeType;
   @Prop({ default: false, type: Boolean }) needShowUnit: boolean;
+  @Prop({ default: false, type: Boolean }) isKpiAnomalySdkEnabled: boolean; // 是否支持智能监控
+  @Prop({ default: 'time_series', type: String }) dataTypeLabel: string; // 当前的数据类型
+  @Prop({ default: 'Edit', type: String }) editMode: EditModeType;
+  @Prop({ default: () => new Map(), type: Map }) intelligentDetect: Map<
+    IntelligentModelsType,
+    Array<Record<string, any>>
+  >;
 
   /** 记录编辑进入第一次localValue值更新 */
   isFirstChange = true;
@@ -95,7 +109,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
   algorithmRelationship = [
     { id: 'and', name: window.i18n.t('且') },
-    { id: 'or', name: window.i18n.t('或') }
+    { id: 'or', name: window.i18n.t('或') },
   ];
 
   /** ruleWarp实例列表 */
@@ -113,7 +127,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       tip: '算法说明待产品补充',
       modelData: undefined,
       disabled: false,
-      disabledTip: ''
+      disabledTip: '',
     },
     {
       id: DetectionRuleTypeEnum.TimeSeriesForecasting,
@@ -124,7 +138,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       tip: '算法说明待产品补充',
       modelData: undefined,
       disabled: false,
-      disabledTip: ''
+      disabledTip: '',
     },
     {
       id: DetectionRuleTypeEnum.AbnormalCluster,
@@ -135,7 +149,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       tip: '算法说明待产品补充',
       modelData: undefined,
       disabled: false,
-      disabledTip: ''
+      disabledTip: '',
     },
     {
       id: DetectionRuleTypeEnum.Threshold,
@@ -145,7 +159,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       data: undefined,
       tip: '算法说明待产品补充',
       disabled: false,
-      disabledTip: ''
+      disabledTip: '',
     },
     {
       id: DetectionRuleTypeEnum.YearRound,
@@ -153,7 +167,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         DetectionRuleTypeEnum.SimpleYearRound,
         DetectionRuleTypeEnum.AdvancedYearRound,
         DetectionRuleTypeEnum.YearRoundAmplitude,
-        DetectionRuleTypeEnum.YearRoundRange
+        DetectionRuleTypeEnum.YearRoundRange,
       ],
       type: 'convention',
       name: window.i18n.tc('同比策略'),
@@ -161,14 +175,14 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       data: undefined,
       tip: '算法说明待产品补充',
       disabled: false,
-      disabledTip: ''
+      disabledTip: '',
     },
     {
       id: DetectionRuleTypeEnum.RingRatio,
       child: [
         DetectionRuleTypeEnum.SimpleRingRatio,
         DetectionRuleTypeEnum.AdvancedRingRatio,
-        DetectionRuleTypeEnum.RingRatioAmplitude
+        DetectionRuleTypeEnum.RingRatioAmplitude,
       ],
       type: 'convention',
       name: window.i18n.tc('环比策略'),
@@ -176,7 +190,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       data: undefined,
       tip: '算法说明待产品补充',
       disabled: false,
-      disabledTip: ''
+      disabledTip: '',
     },
     {
       id: DetectionRuleTypeEnum.PartialNodes,
@@ -186,8 +200,8 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       data: undefined,
       tip: '算法说明待产品补充',
       disabled: false,
-      disabledTip: ''
-    }
+      disabledTip: '',
+    },
   ];
   /** 是否校验过 */
   hasValid = false;
@@ -207,13 +221,21 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
   /** 是否支持智能检测算法 时序预测条件一致 */
   get isCanSetAiops(): boolean {
-    const { data_source_label: dataSourceLabel, data_type_label: dataTypeLabel, functions } = this.metricData[0] || {};
-    return (
+    const {
+      data_source_label: dataSourceLabel,
+      data_type_label: dataTypeLabel,
+      functions,
+      result_table_id,
+    } = this.metricData[0] || {};
+
+    const isTimeSeries = dataTypeLabel === 'time_series' || this.dataTypeLabel === 'time_series'; // 数据类型是否为指标
+    const isValidMetricData = this.metricData.length <= 1 && this.isKpiAnomalySdkEnabled;
+    const isSingleValidSource =
       this.metricData.length === 1 &&
-      ['bk_data', 'bk_monitor'].includes(dataSourceLabel) &&
-      dataTypeLabel === 'time_series' &&
-      !functions?.length
-    );
+      (['bk_data'].includes(dataSourceLabel) ||
+        (['bk_monitor'].includes(dataSourceLabel) && result_table_id?.startsWith('system.'))) &&
+      !functions?.length;
+    return (isValidMetricData || isSingleValidSource) && isTimeSeries;
   }
 
   get getMethodList() {
@@ -225,7 +247,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       available: DetectionRuleTypeEnum.Threshold,
       task_duration: DetectionRuleTypeEnum.Threshold,
       message: DetectionRuleTypeEnum.PartialNodes,
-      response_code: DetectionRuleTypeEnum.PartialNodes
+      response_code: DetectionRuleTypeEnum.PartialNodes,
     };
     const list = this.$store.getters['strategy-config/uptimeCheckMap'];
     return list || local;
@@ -238,6 +260,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
   /** 根据条件设置算法是否禁用 */
   get detectionTypeListFilter() {
+    for (const obj of this.detectionTypeList) {
+      obj.disabled = false;
+      obj.disabledTip = '';
+    }
     const uptimeItem = this.uptimeCheckMap?.[this.uptimeCheckType];
     // 是否已选择离群算法
     const hasAbnormalCluster = this.addType.some(item => item.id === DetectionRuleTypeEnum.AbnormalCluster);
@@ -278,16 +304,18 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         [
           DetectionRuleTypeEnum.IntelligentDetect,
           DetectionRuleTypeEnum.TimeSeriesForecasting,
-          DetectionRuleTypeEnum.AbnormalCluster
+          DetectionRuleTypeEnum.AbnormalCluster,
         ].includes(item.id)
       ) {
         if (!this.isCanSetAiops) {
           item.disabled = true;
-          item.disabledTip = this.$tc('只支持监控平台和计算平台的单指标数据');
+          item.disabledTip = this.$tc('只支持计算平台的单指标数据');
         }
-        if (!window.enable_aiops) {
-          item.disabled = true;
-          item.disabledTip = this.$tc('该功能依赖AIOps平台');
+        if (!item.disabled) {
+          item.disabled = !(
+            window.enable_aiops && this.intelligentDetect.get(item.id.toString() as IntelligentModelsType)?.length > 0
+          );
+          item.disabledTip = '';
         }
       }
 
@@ -343,7 +371,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       return {
         ...type,
         key: createOnlyId(),
-        data: item
+        data: item,
       };
     });
   }
@@ -353,7 +381,9 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
    * @param val 指标数据
    */
   @Watch('metricData')
-  watchMetricDataChange() {
+  watchMetricDataChange(_newValue: MetricDetail[], oldValue: MetricDetail[]) {
+    // 编辑 && PromQL模式
+    if (this.isEdit && this.editMode === 'Source' && !oldValue.length) return;
     const val = this.addType;
     /**
      * 如果直接拿当前算法的禁用状态进行过滤，会导致一些特殊的算法规则（算法数量选择上限）被过滤掉
@@ -407,7 +437,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
     const data = await getUnitInfo({ unit_id: this.unitType }).catch(() => []);
     const list = data.unit_series.map(item => ({
       id: item.suffix,
-      name: item.unit
+      name: item.unit,
     }));
     this.unitList = list;
     !this.unit && list[0] && this.handleUnitChange(list[0].id);
@@ -420,7 +450,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   handleAddRuleType(type: IDetectionTypeItem) {
     this.addType.push({
       ...deepClone(type),
-      key: createOnlyId()
+      key: createOnlyId(),
     });
   }
 
@@ -494,21 +524,21 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         <div class='detection-header'>
           <div class='left-des'>
             <i18n
-              path='同级别的各算法之间是{0}的关系'
               class='i18n-path'
+              path='同级别的各算法之间是{0}的关系'
             >
               <bk-select
                 class='inline-select'
-                value={this.connector}
                 behavior='simplicity'
                 clearable={false}
                 readonly={this.readonly}
+                value={this.connector}
                 onChange={this.emitConnector}
               >
                 {this.algorithmRelationship.map(opt => (
                   <bk-option
-                    key={opt.id}
                     id={opt.id}
+                    key={opt.id}
                     name={opt.name}
                   />
                 ))}
@@ -519,14 +549,14 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
             <div class='right-btn'>
               <span class=''>{this.$t('单位')}:&nbsp;</span>
               <MonitorSelect
-                disabled={this.readonly}
                 class='unit-select'
+                disabled={this.readonly}
                 list={this.unitList}
                 value={this.unit}
                 onChange={this.handleUnitChange}
               >
                 {this.unitDisplay}
-                <span class='icon-monitor icon-mc-triangle-down'></span>
+                <span class='icon-monitor icon-mc-triangle-down' />
               </MonitorSelect>
             </div>
           ) : undefined}
@@ -534,26 +564,27 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         <div class='detection-list'>
           {this.addType.map((item, index) => (
             <div
+              key={index}
               class='detection-list-item'
               onClick={() => this.handleRuleClick(item)}
             >
               <RuleWrapper
                 key={item.key}
-                rule={item}
-                index={index}
-                readonly={this.readonly}
-                select-rule-data={this.localValue}
-                is-realtime={this.isRealtime}
-                is-edit={this.isEdit}
                 data={item.data}
+                index={index}
+                is-edit={this.isEdit}
+                is-realtime={this.isRealtime}
                 metricData={this.metricData}
-                unit={this.unitDisplay}
+                readonly={this.readonly}
                 resultTableId={this.metricData[0]?.intelligent_detect?.result_table_id}
-                onDelete={() => this.handleDeleteRule(index)}
-                onDataChange={val => this.handleRuleDataChange(val, item)}
-                onModelChange={data => this.handleModelChange(data, item)}
+                rule={item}
+                select-rule-data={this.localValue}
+                unit={this.unitDisplay}
                 onChartTypeChange={this.handleAiopsChartTypeChange}
+                onDataChange={val => this.handleRuleDataChange(val, item)}
+                onDelete={() => this.handleDeleteRule(index)}
                 onInitVM={val => this.ruleWrapVMInit(val, index)}
+                onModelChange={data => this.handleModelChange(data, item)}
               />
             </div>
           ))}
@@ -561,11 +592,11 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
         {/* 添加按钮 */}
         <RulesSelect
           ref='rulesAddSelectRef'
-          readonly={this.readonly}
           isFirst={this.localValue.length === 0}
+          readonly={this.readonly}
           typeList={this.detectionTypeListFilter}
           onTypeChange={this.handleAddRuleType}
-        ></RulesSelect>
+        />
 
         {this.hasValid && !this.addType.length && <p class='err-msg'>{this.$t('最少选择一个算法')}</p>}
       </div>

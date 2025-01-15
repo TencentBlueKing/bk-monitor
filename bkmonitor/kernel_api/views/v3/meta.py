@@ -311,6 +311,10 @@ class GetClustersBySpaceUidViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.GetClustersBySpaceUidResource)]
 
 
+class GetBizRelatedBkciSpacesViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetBizRelatedBkciSpacesResource)]
+
+
 class CreateSpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateSpaceResource)]
 
@@ -391,8 +395,12 @@ class QueryDataSourceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataSourceResource)]
 
 
-class QueryBizByBkBaseViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.QueryBizByBkBase)]
+class QueryDataLinkInfoViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
+
+
+class GetBCSClusterRelatedDataLinkViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetBCSClusterRelatedDataLinkResource)]
 
 
 class QueryResultTableStorageDetailViewSet(MetaViewSet):
@@ -414,3 +422,26 @@ class QueryBcsClusterVmTableIdsViewSet(MetaViewSet):
 class SwitchKafkaClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.SwitchKafkaCluster)]
 
+
+class QueryVmRtBySpaceViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryVmRtBySpace)]
+
+
+class CreateEsRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateEsRouter)]
+
+
+class UpdateEsRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.UpdateEsRouter)]
+
+
+class AddBkDataTableIdsViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.AddBkDataTableIdsResource)]
+
+
+class CreateOrUpdateEsRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateEsRouter)]
+
+
+class ModifyDataIdSourceViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.ModifyDataIdSource)]

@@ -6,36 +6,38 @@ $active-bg-blue: #e1ecff;
 
 .page-title {
   display: flex;
+  flex-direction: column;
   width: 100%;
   color: #63656e;
   background-color: white;
-  flex-direction: column;
 
   .page-header {
     display: flex;
+    flex: 0 0 50px;
+    align-items: center;
     width: 100%;
     height: 50px;
     padding: 0 24px;
-    flex: 0 0 50px;
-    align-items: center;
 
     &-name {
       display: flex;
+      align-items: center;
       height: 24px;
+      overflow: hidden;
       font-size: 16px;
       color: #313238;
-      align-items: center;
-      overflow: hidden;
     }
 
     &-tools {
       display: flex;
-      margin-left: auto;
       align-items: center;
+      margin-left: auto;
       white-space: nowrap;
+
       .tools-wrap {
         display: flex;
         align-items: center;
+
         .tools-button-groups {
           margin-left: 8px;
         }
@@ -43,11 +45,12 @@ $active-bg-blue: #e1ecff;
     }
   }
 
-  .page-filters { 
+  .page-filters {
     z-index: 1;
     display: flex;
     width: 100%;
-    box-shadow: 0px 3px 4px 0px rgba(64,112,203,.06), 0px 1px 0px 0px #dcdee5;
+    box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, .06),
+      0px 1px 0px 0px #dcdee5;
 
     &-tab {
       flex: 1;
@@ -83,15 +86,15 @@ $active-bg-blue: #e1ecff;
 
       .tab-item-count {
         display: inline-flex;
-        height: 18px;
+        align-items: center;
+        justify-content: center;
         min-width: 30px;
+        height: 18px;
         padding: 0 8px;
         margin-left: 4px;
         color: #63656e;
         background-color: #f0f1f5;
         border-radius: 11px;
-        align-items: center;
-        justify-content: center;
 
         &.item-active {
           color: #3a84ff;
@@ -101,27 +104,25 @@ $active-bg-blue: #e1ecff;
 
       .bk-tab-add-custom {
         display: inline-flex;
-        justify-content: center;
         align-items: center;
-        height: 38px!important;
-        line-height: 38px!important;
+        justify-content: center;
+        height: 38px !important;
+        line-height: 38px !important;
         background-color: initial;
         border-bottom: 0;
 
         .add-btn-wrap {
           display: inline-flex;
+          align-items: center;
+          justify-content: center;
           width: 30px;
           height: 30px;
           cursor: pointer;
           border-radius: 50%;
-          justify-content: center;
-          align-items: center;
 
           &:hover {
             background-color: #f0f1f5;
-
           }
-          
         }
 
         .icon-mc-add {
@@ -142,9 +143,9 @@ $active-bg-blue: #e1ecff;
 
     &-tools {
       display: flex;
+      align-items: center;
       margin-right: 24px;
       font-size: 16px;
-      align-items: center;
 
       .page-filters-select {
         position: relative;
@@ -180,7 +181,7 @@ $active-bg-blue: #e1ecff;
       .filter-search {
         width: 230px;
 
-        .bk-search-select {
+        .vue3-bk-search-select-container {
           border-top: 0;
           border-right: 0;
           border-left: 0;
@@ -194,8 +195,6 @@ $active-bg-blue: #e1ecff;
           max-height: 32px;
 
           .bk-select-tag-container.is-focus {
-            // background-color: white;
-            // border: 1px solid #dcdee5;
             z-index: 99;
             height: 30px !important;
           }
@@ -239,14 +238,14 @@ $active-bg-blue: #e1ecff;
         .overview,
         .list {
           display: flex;
+          align-items: center;
+          justify-content: center;
           height: 26px;
           padding: 0 8px;
-          font-size: 12px;  
+          font-size: 12px;
           color: #63656e;
           cursor: pointer;
           border: 1px solid #c4c6cc;
-          align-items: center;
-          justify-content: center;
 
           .option-icon {
             font-size: 12px;
@@ -260,8 +259,8 @@ $active-bg-blue: #e1ecff;
 
         .overview {
           border-right: 1px rgba(0, 0, 0, 0);
-          border-bottom-left-radius: 2px;
           border-top-left-radius: 2px;
+          border-bottom-left-radius: 2px;
         }
 
         .list {
@@ -303,15 +302,15 @@ $active-bg-blue: #e1ecff;
           top: -6px;
           right: -6px;
           display: flex;
-          height: 20px;
+          align-items: center;
+          justify-content: center;
           min-width: 20px;
+          height: 20px;
           font-size: 12px;
           color: #fff;
           background-color: #3a84ff;
           border: 2px solid #fff;
           border-radius: 50%;
-          justify-content: center;
-          align-items: center;
         }
       }
     }

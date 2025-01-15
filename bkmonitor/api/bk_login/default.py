@@ -42,9 +42,10 @@ class GetUserResource(UserManageAPIGWResource):
     action = "/retrieve_user/"
     method = "GET"
 
-    def perform_request(self, validated_request_data):
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(GetUserResource, self).full_request_data(validated_request_data)
         validated_request_data.update({"id": validated_request_data["bk_username"]})
-        return super(GetUserResource, self).perform_request(validated_request_data)
+        return validated_request_data
 
 
 class GetAllUserResource(UserManageAPIGWResource):
@@ -84,3 +85,21 @@ class ListProfileDepartmentsResource(UserManageAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.CharField(label="用户 ID")
         with_family = serializers.BooleanField(label="是否返回部门树", default=True)
+
+
+class UnityUserBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
+    base_url = settings.BK_USERINFO_API_BASE_URL
+    module_name = "unity-user"
+
+
+class GetUserSensitiveInfo(UnityUserBaseResource):
+    """
+    获取用户敏感信息
+    """
+
+    action = "/api/v1/open/odc-users/sensitive-info/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        usernames = serializers.CharField(required=True)
+        fields = serializers.CharField(required=True)

@@ -32,9 +32,9 @@ export default {
   props: {
     defaultData: {
       type: Object,
-      required: true
-    }
-  }
+      required: true,
+    },
+  },
 };
 </script>
 <style lang="scss" scoped></style>

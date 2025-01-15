@@ -11,8 +11,6 @@ specific language governing permissions and limitations under the License.
 
 from typing import Dict, List
 
-from monitor_web.constants import AGENT_STATUS
-
 from api.cmdb.define import Host, TopoNode
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.utils import time_tools
@@ -23,6 +21,7 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.exceptions import CustomException
+from monitor_web.constants import AGENT_STATUS
 
 
 class HostPerformanceResource(CacheResource):
@@ -122,7 +121,7 @@ class HostPerformanceResource(CacheResource):
 
         return {
             "hosts": list(host_dict.values()),
-            "update_time": time_tools.now(),
+            "update_time": time_tools.now().strftime("%Y-%m-%d %H:%M:%S%z"),
         }
 
 

@@ -1,4 +1,4 @@
-import { IExtendMetricData } from './metric';
+import type { IExtendMetricData } from './metric';
 
 /*
  * Tencent is pleased to support the open source community by making
@@ -57,17 +57,17 @@ export interface ITitleAlarm {
 }
 
 export type ChartTitleMenuType =
-  | 'save'
-  | 'screenshot'
-  | 'fullscreen'
-  | 'explore'
-  | 'strategy'
-  | 'set'
   | 'area'
   | 'drill-down'
-  | 'relate-alert'
+  | 'explore'
+  | 'export-csv'
+  | 'fullscreen'
   | 'more'
-  | 'export-csv';
+  | 'relate-alert'
+  | 'save'
+  | 'screenshot'
+  | 'set'
+  | 'strategy';
 
 export interface IChartTitleProps {
   // 指标数据

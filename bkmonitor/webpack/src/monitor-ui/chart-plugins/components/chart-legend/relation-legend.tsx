@@ -26,7 +26,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IRelationStatusItem, LegendActionType } from '../../typings';
+import type { IRelationStatusItem, LegendActionType } from '../../typings';
 
 import './relation-legend.scss';
 
@@ -89,12 +89,12 @@ export default class RelationLegend extends tsc<IRelationLegendProps, IEvents> {
           <bk-dropdown-menu
             class='option-dropdown-menu'
             trigger='click'
-            on-show={() => (this.dropdownShow = true)}
             on-hide={() => (this.dropdownShow = false)}
+            on-show={() => (this.dropdownShow = true)}
           >
             <div slot='dropdown-trigger'>
               <span class='btn-name'>{this.statistics.find(item => item.id === this.statisticsId)?.name}</span>
-              <i class={['icon-monitor', this.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']}></i>
+              <i class={['icon-monitor', this.dropdownShow ? 'icon-arrow-up' : 'icon-arrow-down']} />
             </div>
             <ul
               class='bk-dropdown-list'
@@ -109,17 +109,17 @@ export default class RelationLegend extends tsc<IRelationLegendProps, IEvents> {
           </bk-dropdown-menu>
           {this.optionData.map((item, index) => (
             <div
-              class='legend-card-item'
               key={index}
+              class='legend-card-item'
               onClick={e => this.handleLegendEvent(e, 'click', item, this.statisticsId)}
             >
               <span
-                class='circle-icon'
                 style={{
                   width: `${12 + item.size}px`,
                   height: `${12 + item.size}px`,
-                  background: item.select ? '#acacac' : '#fff'
+                  background: item.select ? '#acacac' : '#fff',
                 }}
+                class='circle-icon'
               />
               <span class='legend-name'>{item.name}</span>
             </div>
@@ -128,17 +128,17 @@ export default class RelationLegend extends tsc<IRelationLegendProps, IEvents> {
         <div class='legend-card relation-status'>
           {this.legendStatusData.map((item, index) => (
             <div
-              class='legend-card-item'
               key={index}
+              class='legend-card-item'
               onClick={e => this.handleLegendEvent(e, 'click', item, 'status')}
             >
               <span
-                class='legend-icon'
                 style={{ background: item.show ? item.color : '#ccc' }}
-              ></span>
+                class='legend-icon'
+              />
               <span
-                class='legend-name'
                 style={{ color: item.show ? '#63656e' : '#ccc' }}
+                class='legend-name'
               >
                 {item.name}
               </span>

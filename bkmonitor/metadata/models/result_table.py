@@ -19,19 +19,22 @@ import traceback
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.db.models import sql
 from django.db.transaction import atomic, on_commit
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+from tenacity import retry, stop_after_attempt, wait_exponential
 
+from core.drf_resource import api
 from metadata import config
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.utils.basic import getitems
 
-from .common import Label, OptionBase
+from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
 from .space import SpaceDataSource
+from .space.constants import EtlConfigs
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -91,6 +94,8 @@ class ResultTable(models.Model):
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
     data_label = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)
+    is_builtin = models.BooleanField("是否内置", default=False)
+    bk_biz_id_alias = models.CharField("业务ID别名", max_length=128, default="", null=True, blank=True)
 
     class Meta:
         verbose_name = "逻辑结果表"
@@ -278,6 +283,7 @@ class ResultTable(models.Model):
         time_option=None,
         create_storage=True,
         data_label: Optional[str] = None,
+        is_builtin=False,
     ):
         """
         创建一个结果表
@@ -302,12 +308,20 @@ class ResultTable(models.Model):
         :param time_option: 时间字段的配置内容
         :param create_storage: 是否创建存储，默认为 True
         :param data_label: 数据标签
+        :param is_builtin: 是否为系统内置的结果表
         :return: result_table instance | raise Exception
         """
+        logger.info(
+            "create_result_table: start to create result table for bk_data_id->[%s],table_id->[%s]," "bk_biz_id->[%s]",
+            bk_data_id,
+            table_id,
+            bk_biz_id,
+        )
         # 判断label是否真实存在的配置
         if not Label.exists_label(label_id=label, label_type=Label.LABEL_TYPE_RESULT_TABLE):
             logger.error(
-                "user->[%s] try to create rt->[%s] with label->[%s] but is not exists, " "nothing will do.",
+                "create_result_table: user->[%s] try to create rt->[%s] with label->[%s] but is not exists, "
+                "nothing will do.",
                 operator,
                 table_id,
                 label,
@@ -318,14 +332,16 @@ class ResultTable(models.Model):
         # 1. 判断data_source是否存在
         datasource_qs = DataSource.objects.filter(bk_data_id=bk_data_id)
         if not datasource_qs.exists():
-            logger.error("bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
+            logger.error("create_result_table: bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
         datasource = datasource_qs.first()
+        allow_access_v2_data_link = datasource.etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value
 
         # 非系统创建的结果表，不可以使用容器监控的表前缀名
         if operator != "system" and table_id.startswith(config.BCS_TABLE_ID_PREFIX):
             logger.error(
-                "operator->[%s] try to create table->[%s] which is reserved prefix, nothing will do.",
+                "create_result_table: operator->[%s] try to create table->[%s] which is reserved prefix, nothing will "
+                "do.",
                 operator,
                 table_id,
             )
@@ -333,7 +349,7 @@ class ResultTable(models.Model):
 
         if cls.objects.filter(table_id=table_id).exists():
             logger.error(
-                "table_id->[%s] or table_name_zh->[%s] is already exists, change and try again.",
+                "create_result_table: table_id->[%s] or table_name_zh->[%s] is already exists, change and try again.",
                 table_id,
                 table_name_zh,
             )
@@ -345,7 +361,8 @@ class ResultTable(models.Model):
             start_string = "%s_" % bk_biz_id
             if not table_id.startswith(start_string):
                 logger.error(
-                    "user->[%s] try to set table->[%s] under biz->[%s] but table_id is not start with->[%s], "
+                    "create_result_table: user->[%s] try to set table->[%s] under biz->[%s] but table_id is not start "
+                    "with->[%s],"
                     "maybe something go wrong?",
                     operator,
                     table_id,
@@ -358,7 +375,8 @@ class ResultTable(models.Model):
             # 全业务的结果表，不可以已数字下划线开头
             if re.match(r"\d+_", table_id):
                 logger.error(
-                    "user->[%s] try to create table->[%s] which is starts with number, but set table under "
+                    "create_result_table: user->[%s] try to create table->[%s] which is starts with number, "
+                    "but set table under"
                     "biz_id->[0], maybe something go wrong?",
                     operator,
                     table_id,
@@ -391,10 +409,24 @@ class ResultTable(models.Model):
         # 当业务不为 0 时，才进行空间和数据源的关联
         # 因为不会存在部分创建失败的情况，所以，仅在创建时处理即可
         space_type, space_id = None, None
+        logger.info(
+            "create_result_table: target_bk_biz_id->[%s],table_id->[%s],bk_data_id->[%s]",
+            target_bk_biz_id,
+            table_id,
+            bk_data_id,
+        )
         if target_bk_biz_id != 0:
             try:
                 from metadata.models import Space
 
+                logger.info(
+                    "create_result_table:create space data source, bk_biz_id->[%s], table_id->[%s],"
+                    "space_type->[%s], space_id->[%s]",
+                    bk_biz_id,
+                    table_id,
+                    space_type,
+                    space_id,
+                )
                 # 获取空间信息
                 space = Space.objects.get_space_info_by_biz_id(bk_biz_id=int(target_bk_biz_id))
                 # data id 已有所属记录，则不处理（dataid 和 rt 是1对多的关系）
@@ -406,7 +438,8 @@ class ResultTable(models.Model):
                 )
             except Exception as e:
                 logger.error(
-                    "create space data source error, target_bk_biz_id type: %s, value: %s, error: %s",
+                    "create_result_table: create space data source error, target_bk_biz_id type: %s, value: %s, "
+                    "error: %s",
                     type(target_bk_biz_id),
                     target_bk_biz_id,
                     e,
@@ -424,6 +457,7 @@ class ResultTable(models.Model):
             bk_biz_id=bk_biz_id,
             label=label,
             data_label=data_label,
+            is_builtin=is_builtin,
         )
 
         # 创建结果表的option内容如果option为非空
@@ -439,8 +473,8 @@ class ResultTable(models.Model):
             time_option=time_option,
         )
 
-        logger.debug(
-            "table_id->[%s] default field is created with include_cmdb_level->[%s]",
+        logger.info(
+            "create_result_table: table_id->[%s] default field is created with include_cmdb_level->[%s]",
             result_table.table_id,
             include_cmdb_level,
         )
@@ -458,7 +492,9 @@ class ResultTable(models.Model):
 
         # 4. 创建data_id和该结果表的关系
         DataSourceResultTable.objects.create(bk_data_id=bk_data_id, table_id=table_id, creator=operator)
-        logger.info("result_table->[{}] now has relate to bk_data->[{}]".format(result_table, bk_data_id))
+        logger.info(
+            "create_result_table: result_table->[{}] now has relate to bk_data->[{}]".format(result_table, bk_data_id)
+        )
 
         # 5. 创建实际结果表
         if default_storage_config is None:
@@ -474,23 +510,31 @@ class ResultTable(models.Model):
         # 7. 针对白名单中的空间及 etl_config 为 `bk_standard_v2_time_series` 的数据源接入 vm
         # 出错时，记录日志，不影响已有功能
         # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
+        # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
         try:
             # 仅针对 influxdb 类型进行过滤
             if default_storage == ClusterInfo.TYPE_INFLUXDB:
                 # 避免出现引包导致循环引用问题
                 from metadata.task.tasks import access_bkdata_vm
 
-                access_bkdata_vm.delay(int(target_bk_biz_id), table_id, datasource.bk_data_id, space_type, space_id)
-        except Exception as e:
-            logger.error("access vm error: %s", e)
+                access_bkdata_vm.delay(
+                    int(target_bk_biz_id),
+                    table_id,
+                    datasource.bk_data_id,
+                    space_type,
+                    space_id,
+                    allow_access_v2_data_link,
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("create_result_table: access vm error: %s", e)
 
         # 因为多个事务嵌套，针对 ES 的操作放在最后执行
         try:
             if default_storage == ClusterInfo.TYPE_ES:
                 es_storage = ESStorage.objects.get(table_id=table_id)
                 on_commit(lambda: es_storage.create_es_index(is_sync_db=is_sync_db))
-        except Exception as e:
-            logger.error("create es storage index error, %s", e)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("create_result_table: create es storage index error, %s", e)
 
         return result_table
 
@@ -558,7 +602,7 @@ class ResultTable(models.Model):
         return storage_list
 
     @classmethod
-    def get_result_table(cls, table_id):
+    def get_result_table(cls, table_id: str):
         """
         可以使用已有的结果表的命名规范(2_system_cpu_summary)或
         新的命名规范(system_cpu_summary | system.cpu_summary | 2_system.cpu_summary)查询结果表
@@ -566,7 +610,8 @@ class ResultTable(models.Model):
         :return: raise Exception | ResultTable object
         """
         # 0. 尝试直接查询，如果可以命中，则认为符合新的命名规范，直接返回
-        query_table_id = table_id
+        query_table_id: str = table_id
+
         try:
             return cls.objects.get(table_id=table_id, is_deleted=False)
         except cls.DoesNotExist:
@@ -917,17 +962,17 @@ class ResultTable(models.Model):
 
         return True
 
+    def get_storage(self, storage_type):
+        storage_class = self.REAL_STORAGE_DICT[storage_type]
+        return storage_class.objects.get(table_id=self.table_id)
+
     def get_storage_info(self, storage_type):
         """
         获取结果表一个指定存储的配置信息
         :param storage_type: 存储集群配置
         :return: consul config in dict | raise Exception
         """
-
-        storage_class = self.REAL_STORAGE_DICT[storage_type]
-        storage_info = storage_class.objects.get(table_id=self.table_id)
-
-        return storage_info.consul_config
+        return self.get_storage(storage_type).consul_config
 
     def raw_delete(self, qs, using=config.DATABASE_CONNECTION_NAME):
         # 考虑公开
@@ -1171,8 +1216,32 @@ class ResultTable(models.Model):
         except Exception as e:
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
+        # 刷新清洗配置
         self.refresh_etl_config()
         logger.info("table_id->[%s] updated success." % self.table_id)
+
+    @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
+    def notify_bkdata_log_data_id_changed(self, data_id):
+        """
+        通知计算平台，ES相关配置变更
+        @param data_id: 数据源ID
+        """
+        try:
+            api.bkdata.notify_log_data_id_changed(data_id=data_id)
+            logger.info(
+                "notify_log_data_id_changed table_id->{},data_id ->{},notify es config changed success.".format(
+                    self.table_id, data_id
+                )
+            )
+            return True  # 成功时返回
+        except Exception as e:
+            logger.error(
+                "notify_log_data_id_changed table_id->[%s],data_id ->[%s],notify es config changed error->[%s]",
+                self.table_id,
+                data_id,
+                e,
+            )
+            raise e
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def upgrade_result_table(self, operator):
@@ -1367,7 +1436,10 @@ class ResultTable(models.Model):
         return True
 
     def to_json(self):
-        return {
+        query_alias_settings = None
+        if self.default_storage == ClusterInfo.TYPE_ES:
+            query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+        data = {
             "table_id": self.table_id,
             "table_name_zh": _(self.table_name_zh),
             "is_custom_table": self.is_custom_table,
@@ -1388,6 +1460,10 @@ class ResultTable(models.Model):
             "is_enable": self.is_enable,
             "data_label": self.data_label,
         }
+
+        if query_alias_settings:
+            data["query_alias_settings"] = query_alias_settings
+        return data
 
     def to_json_self_only(self):
         """
@@ -2629,3 +2705,126 @@ class ResultTableFieldOption(OptionBase):
             es_config[config_name[3:]] = config_value
 
         return es_config
+
+
+class ESFieldQueryAliasOption(BaseModel):
+    """
+    ES字段关联别名配置
+    """
+
+    table_id = models.CharField("结果表名", max_length=128)
+    field_path = models.CharField("原始字段路径", max_length=256)
+    path_type = models.CharField("路径类型", max_length=128, default="keyword")
+    query_alias = models.CharField("查询别名", max_length=256)
+    is_deleted = models.BooleanField("是否已删除", default=False)
+
+    @classmethod
+    def generate_query_alias_settings(cls, table_id):
+        """
+        生成指定 table_id 的别名配置
+        :param table_id: 结果表ID
+        :return: dict -> {query_alias: {"type": "alias", "path": field_path}}
+        """
+        logger.info("Generating alias configuration for table_id=[%s]", table_id)
+        try:
+            # 获取未软删除的所有记录
+            alias_records = cls.objects.filter(table_id=table_id, is_deleted=False)
+
+            # 构建结果字典
+            alias_config = {
+                record.query_alias: {
+                    "type": "alias",
+                    "path": record.field_path,
+                }
+                for record in alias_records
+            }
+
+            logger.info("Alias configuration generated for table_id=[%s]: %s", table_id, alias_config)
+            return alias_config
+
+        except Exception as e:
+            logger.error("Error generating alias configuration for table_id=[%s]: %s", table_id, str(e), exc_info=True)
+            raise
+
+    @classmethod
+    def generate_alias_path_type_settings(cls, table_id):
+        """
+        生成指定table_id的别名路径类型配置
+        :param table_id: 结果表ID
+        :return: dict -> {field_path: path_type}
+        """
+        try:
+            alias_records = cls.objects.filter(table_id=table_id, is_deleted=False)
+            path_type_map = {
+                record.field_path: {
+                    "type": record.path_type,
+                }
+                for record in alias_records
+            }
+            return path_type_map
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("Error generating alias path type configuration for table_id->[%s],error->[%s]", table_id, e)
+            raise
+
+    @staticmethod
+    @transaction.atomic
+    def manage_query_alias_settings(table_id, query_alias_settings, operator):
+        """
+        管理ES字段关联别名配置记录（支持一个field_path对应多个alias）
+        :param table_id: 结果表ID
+        :param query_alias_settings: 用户传入的query_alias_settings列表
+        :param operator: 操作者
+        """
+        logger.info(
+            "manage_query_alias_settings: try to manage alias settings for table_id->[%s],"
+            "query_alias_settings->[%s]",
+            table_id,
+            query_alias_settings,
+        )
+        # 获取当前数据库中的记录（包括软删除记录）
+        existing_records = ESFieldQueryAliasOption.objects.filter(table_id=table_id)
+        existing_map = {(record.field_path, record.query_alias): record for record in existing_records}
+
+        # 提取用户传入的数据组合，field_path+query_alias 为唯一组合
+        incoming_combinations = {(item["field_name"], item["query_alias"]) for item in query_alias_settings}
+
+        try:
+            # 新增或更新记录
+            for item in query_alias_settings:
+                field_path = item["field_name"]
+                query_alias = item["query_alias"]
+                path_type = item.get("path_type", "keyword")
+
+                if (field_path, query_alias) in existing_map:
+                    # 更新记录
+                    record = existing_map[(field_path, query_alias)]
+                    record.is_deleted = False  # 重置软删除标记
+                    record.path_type = path_type  # 更新 path_type
+                    record.updater = operator
+                    record.save()
+                else:
+                    # 新增记录
+                    ESFieldQueryAliasOption.objects.create(
+                        table_id=table_id,
+                        field_path=field_path,
+                        query_alias=query_alias,
+                        path_type=path_type,  # 设置 path_type
+                        creator=operator,
+                        is_deleted=False,
+                    )
+
+            # 标记未提供的记录为软删除
+            for (field_path, query_alias), record in existing_map.items():
+                if (field_path, query_alias) not in incoming_combinations and not record.is_deleted:
+                    record.is_deleted = True
+                    record.updater = operator
+                    record.save()
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "manage_query_alias_settings: failed to manage alias settings for table_id->[%s], "
+                "query_alias_settings->[%s], error->[%s]",
+                table_id,
+                query_alias_settings,
+                e,
+            )
+            raise e

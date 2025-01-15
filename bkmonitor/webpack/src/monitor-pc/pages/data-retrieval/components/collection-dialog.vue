@@ -158,13 +158,15 @@
         theme="primary"
         @click="handleCollectionToDashboard(true)"
         :disabled="!Object.keys(checkedDashboard).length"
-      >{{ $t('收藏并跳转') }}</bk-button>
+        >{{ $t('收藏并跳转') }}</bk-button
+      >
       <bk-button
         :loading="loading"
         theme="primary"
         @click="handleCollectionToDashboard(false)"
         :disabled="!Object.keys(checkedDashboard).length"
-      >{{ $t('直接收藏') }}</bk-button>
+        >{{ $t('直接收藏') }}</bk-button
+      >
       <bk-button @click="handleCloseDialog">
         {{ $t('取消') }}
       </bk-button>
@@ -172,37 +174,37 @@
   </bk-dialog>
 </template>
 <script lang="ts">
-import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 import { createDashboardOrFolder, getDirectoryTree, saveToDashboard } from 'monitor-api/modules/grafana';
 import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
+import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
 
 import { Debounce } from '../../../components/ip-selector/common/util';
 import { DASHBOARD_ID_KEY } from '../../../constant/constant';
 import collapseMixin from '../../../mixins/collapseMixin';
-import MonitorVue from '../../../types/index';
-import { ICheckedDashboard } from '../index';
+import type MonitorVue from '../../../types/index';
+import type { ICheckedDashboard } from '../index';
 
 @Component({
-  name: 'collection-dialog'
+  name: 'collection-dialog',
 })
 export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> {
   @Ref() readonly groupInput!: HTMLFormElement;
   // 勾选的图表数据
   @Prop({ default: () => [] })
-    collectionList: any[];
+  collectionList: any[];
 
   @Prop({ default: false })
-    isShow: boolean;
+  isShow: boolean;
 
   loading = false;
   groupData = {
     checkId: -1,
     name: '',
-    isShow: false
+    isShow: false,
   };
   dashboard = {
     name: '',
-    isShow: false
+    isShow: false,
   };
   checkedDashboard: ICheckedDashboard = {}; // 选定的仪表盘数据
   dashBoardList = []; // 仪表盘列表
@@ -265,7 +267,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
     if (!name) return;
     const params = {
       title: name,
-      type: 'folder'
+      type: 'folder',
     };
     await createDashboardOrFolder(params).catch(() => {});
     await this.getDashboardTree();
@@ -279,7 +281,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
     const params = {
       title: name,
       type: 'dashboard',
-      folderId: id
+      folderId: id,
     };
     const { uid } = await createDashboardOrFolder(params).catch(() => {});
     await this.getDashboardTree();
@@ -288,7 +290,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
     if (groupItem) {
       const result = [];
       // 通过新增的仪表盘的uid，在列表接口数据中找到新增的仪表盘，并把它过滤出来放在首位
-      groupItem.dashboards.forEach((item) => {
+      groupItem.dashboards.forEach(item => {
         if (item.uid === uid) {
           result.unshift(item);
           this.checkedDashboard = item;
@@ -313,22 +315,26 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
   //  收藏到仪表盘
   handleCollectionToDashboard(needJump = false) {
     this.loading = true;
-    const panels = this.collectionList.map(item => ({
-      name: item.title,
-      fill: item.fill,
-      min_y_zero: item.min_y_zero,
-      queries: item.targets.map((set) => {
-        const { data } = set;
-        data.query_configs = data.query_configs.map(queryConfig => filterDictConvertedToWhere(queryConfig));
-        return {
-          ...data,
-          alias: set.alias || ''
-        };
-      })
-    }));
+    const panels = this.collectionList.map(
+      item =>
+        item?.rawQueryPanel?.toDashboardPanels() || {
+          name: item.title,
+          fill: item.fill,
+          min_y_zero: item.min_y_zero,
+          queries: item.targets.map(set => {
+            const { data } = set;
+            data.query_configs = data.query_configs.map(queryConfig => filterDictConvertedToWhere(queryConfig));
+            return {
+              ...data,
+              alias: set.alias || '',
+              expression: set.expression || 'A',
+            };
+          }),
+        }
+    );
     saveToDashboard({
       panels,
-      dashboard_uids: [this.checkedDashboard.uid]
+      dashboard_uids: [this.checkedDashboard.uid],
     })
       .then(() => {
         this.$bkMessage({ theme: 'success', message: this.$t('收藏成功') });
@@ -381,7 +387,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
         .filter(item => !!item.dashboards.filter(child => child.title.indexOf(value) > -1).length)
         .map(item => ({
           ...item,
-          dashboards: item.dashboards.filter(child => child.title.indexOf(value) > -1)
+          dashboards: item.dashboards.filter(child => child.title.indexOf(value) > -1),
         }));
     } else {
       this.searchDashBoardList = this.dashBoardList;
@@ -492,7 +498,7 @@ export default class CollectionDialog extends Mixins(collapseMixin)<MonitorVue> 
       &:hover {
         color: #3a84ff;
         cursor: pointer;
-        background: rgba(58, 132, 255, .06);
+        background: rgba(58, 132, 255, 0.06);
         border-color: #3a84ff;
       }
     }

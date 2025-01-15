@@ -25,8 +25,8 @@
 -->
 <template>
   <section
-    class="business-alarm"
     v-if="selectAlarm"
+    class="business-alarm"
   >
     <panel-card
       class="left"
@@ -43,26 +43,26 @@
     <div class="right">
       <!-- <all-overview v-if="isAllNormal" :selected-index.sync="selectedIndex" :business-alarm="businessAlarm" :alarm="selectAlarm"></all-overview> -->
       <business-alarm-panel
+        v-show="!isAllNormal"
         :title="selectTitle"
         :icon="selectAlarm.status"
-        v-show="!isAllNormal"
       >
         <keep-alive>
           <uptimecheck
-            :alarm="selectAlarm"
             v-if="selectAlarm.name === alarmMap.uptimecheck"
+            :alarm="selectAlarm"
           />
           <service
-            :alarm="selectAlarm"
             v-if="selectAlarm.name === alarmMap.service"
+            :alarm="selectAlarm"
           />
           <process
-            :alarm="selectAlarm"
             v-if="selectAlarm.name === alarmMap.process"
+            :alarm="selectAlarm"
           />
           <os
-            :alarm="selectAlarm"
             v-if="selectAlarm.name === alarmMap.os"
+            :alarm="selectAlarm"
           />
         </keep-alive>
       </business-alarm-panel>
@@ -77,7 +77,6 @@ import { alarmDetailChartData } from 'monitor-api/modules/event_center';
 import BusinessAlarmPanel from '../components/business-alarm-panel/business-alarm-panel';
 import BusinessAlarmAquare from '../components/business-alarm-square/business-alarm-square';
 import PanelCard from '../components/panel-card/panel-card';
-
 import Os from './os';
 import Process from './process';
 import Service from './service';
@@ -92,15 +91,15 @@ export default {
     Uptimecheck,
     Service,
     Os,
-    Process
+    Process,
     // AllOverview
   },
   props: {
     businessAlarm: {
       type: Array,
       required: true,
-      default: () => []
-    }
+      default: () => [],
+    },
   },
   data() {
     return {
@@ -110,35 +109,35 @@ export default {
         uptimecheck: 'uptimecheck',
         service: 'service',
         process: 'process',
-        os: 'os'
+        os: 'os',
       },
       titleMap: {
         uptimecheck: {
           serious: this.$t('拨测监控异常报告'),
           slight: this.$t('拨测监控异常报告'),
           normal: this.$t('拨测监控很健康'),
-          unset: this.$t('综合拨测 - 未配置')
+          unset: this.$t('综合拨测 - 未配置'),
         },
         service: {
           serious: this.$t('服务监控异常报告'),
           slight: this.$t('服务监控异常报告'),
           normal: this.$t('服务监控很健康'),
-          unset: this.$t('服务监控 - 未配置')
+          unset: this.$t('服务监控 - 未配置'),
         },
 
         process: {
           serious: this.$t('进程监控异常报告'),
           slight: this.$t('进程监控异常报告'),
           normal: this.$t('进程监控很健康'),
-          unset: this.$t('进程监控 - 未配置')
+          unset: this.$t('进程监控 - 未配置'),
         },
         os: {
           serious: this.$t('主机监控异常报告'),
           slight: this.$t('主机监控异常报告'),
           normal: this.$t('主机监控很健康'),
-          unset: this.$t('主机监控 - 未配置')
-        }
-      }
+          unset: this.$t('主机监控 - 未配置'),
+        },
+      },
     };
   },
   computed: {
@@ -150,15 +149,15 @@ export default {
     },
     selectLogs() {
       return this.selectAlarm.operate_records ? this.selectAlarm.operate_records[0].operate_desc : '';
-    }
+    },
   },
   watch: {
     businessAlarm: {
       handler() {
         this.handleSetIndex();
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   created() {
     if (this.businessAlarm.length) {
@@ -170,7 +169,7 @@ export default {
       alarmDetailChartData({
         alarm_id: 5838598, // 告警实例ID
         monitor_id: 364, // 监控项ID
-        chart_type: 'main' // 固定值
+        chart_type: 'main', // 固定值
       });
     },
     findIndexByStatus(status) {
@@ -188,8 +187,8 @@ export default {
         }
       }
       this.selectedIndex = selectIndex === -1 ? 0 : selectIndex;
-    }
-  }
+    },
+  },
 };
 </script>
 

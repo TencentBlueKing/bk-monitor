@@ -3,8 +3,8 @@
   height: 100%;
 
   .masking-field-box {
-    height: calc(100% - 65px);
     min-width: 1030px;
+    height: calc(100% - 65px);
     padding: 0 40px 20px;
     overflow-y: auto;
   }
@@ -15,12 +15,12 @@
     left: 0;
     z-index: 9;
     display: flex;
+    align-items: center;
     width: 100%;
-    height: 65px;
     min-width: 1030px;
+    height: 65px;
     background: #fafbfd;
     border-top: 1px solid #dde4eb;
-    align-items: center;
 
     > :first-child {
       margin-left: 40px;

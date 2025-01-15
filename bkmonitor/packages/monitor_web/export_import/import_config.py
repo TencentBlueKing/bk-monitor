@@ -14,18 +14,16 @@ import logging
 import re
 
 from django.db import transaction
-from django.utils.translation import ugettext as _
-from six.moves import map
+from django.utils.translation import gettext as _
 
-from bkmonitor.action.serializers import UserGroupDetailSlz
-from bkmonitor.models import ActionConfig, StrategyModel, UserGroup
+from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
+from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.local import local
 from core.drf_resource import api, resource
-from core.errors.collecting import SubscriptionStatusError
 from core.errors.export_import import ImportConfigError
 from monitor_web.collecting.constant import OperationResult, OperationType
-from monitor_web.collecting.resources import update_config_operation_result
+from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.export_import.constant import ConfigType, ImportDetailStatus
 from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.models import (
@@ -106,29 +104,19 @@ def import_plugin(bk_biz_id, plugin_config):
     return plugin_config
 
 
-def import_collect_without_plugin(data):
-    result = resource.collecting.save_collect_config(data)
-    collect_config = CollectConfigMeta.objects.select_related("deployment_config").get(id=result["id"])
-    try:
-        update_config_operation_result(collect_config)
-    except SubscriptionStatusError as e:
-        logger.exception(str(e))
-    return result
-
-
 def import_one_log_collect(data, bk_biz_id):
     data.pop("id")
     data["bk_biz_id"] = bk_biz_id
     data["plugin_id"] = "default_log"
     data["target_nodes"] = []
-    return import_collect_without_plugin(data)
+    return resource.collecting.save_collect_config(data)
 
 
 def import_process_collect(data, bk_biz_id):
     data.pop("id")
     data["bk_biz_id"] = bk_biz_id
     data["target_nodes"] = []
-    return import_collect_without_plugin(data)
+    return resource.collecting.save_collect_config(data)
 
 
 def check_and_change_bkdata_table_id(query_config, bk_biz_id):
@@ -190,12 +178,8 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
             "params": config["params"],
             "target_nodes": [],
             "remote_collecting_host": config.get("remote_collecting_host"),
-            "config_meta_id": 0,
         }
-        collect_config = None
-        deployment_config = None
         try:
-            deployment_config = DeploymentConfigVersion.objects.create(**deployment_config_params)
             collect_config = CollectConfigMeta(
                 bk_biz_id=config["bk_biz_id"],
                 name=config["name"],
@@ -204,32 +188,18 @@ def import_collect(bk_biz_id, import_history_instance, collect_config_list):
                 collect_type=config["collect_type"],
                 plugin=plugin_obj,
                 target_object_type=config["target_object_type"],
-                deployment_config=deployment_config,
                 label=config["label"],
             )
-            collect_config.deployment_config_id = deployment_config.id
-            collect_config.save()
-            deployment_config.config_meta_id = collect_config.id
-            deployment_config.save()
-            result = collect_config.create_subscription()
-            if result["task_id"]:
-                deployment_config.subscription_id = result["subscription_id"]
-                collect_config.operation_result = OperationResult.PREPARING
-                deployment_config.task_ids = [result["task_id"]]
-                deployment_config.save()
-                collect_config.last_operation = OperationType.STOP
-                collect_config.save()
+            installer = get_collect_installer(collect_config)
+            installer.install(deployment_config_params, operation=OperationType.STOP)
+
             import_collect_config.config_id = collect_config.id
             import_collect_config.import_status = ImportDetailStatus.SUCCESS
             import_collect_config.error_msg = ""
             import_collect_config.save()
         except Exception as e:
-            if collect_config:
-                collect_config.is_deleted = True
-                collect_config.save()
-            if deployment_config:
-                deployment_config.is_deleted = True
-                deployment_config.save()
+            collect_config.delete()
+            DeploymentConfigVersion.objects.filter(config_meta_id=collect_config.id).delete()
             import_collect_config.import_status = ImportDetailStatus.FAILED
             import_collect_config.error_msg = str(e)
             import_collect_config.config_id = None
@@ -252,6 +222,11 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
         for strategy_dict in list(StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values("name", "id"))
     }
 
+    # 已存在的轮值规则
+    existed_hash_to_rule = {
+        duty_rule.hash: duty_rule for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id, hash__isnull=False)
+    }
+
     for strategy_config in strategy_config_list:
         try:
             parse_instance = ImportParse.objects.get(id=strategy_config.parse_id)
@@ -272,23 +247,28 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             user_groups_mapping = {}
             action_list = create_config["actions"] + [create_config["notice"]]
             user_groups_dict = {}
-            user_group_ids = []
             user_groups_new = []
             for action_detail in action_list:
                 for group_detail in action_detail.get("user_group_list", []):
-                    if group_detail["id"] not in user_group_ids:
-                        user_group_ids.append(group_detail["id"])
-                        user_groups_dict[group_detail["name"]] = group_detail
+                    user_groups_dict[group_detail["name"]] = group_detail
 
-                    for duty_arrange in group_detail.get("duty_arranges") or []:
-                        duty_arrange.pop("id", None)
-                        duty_arrange.pop("user_group_id", None)
-                        duty_arrange.pop("duty_rule_id", None)
-
-            # TODO(crayon) 目前导入功能没有考虑轮值，预设方案：
-            # 1. 导出：group_detail["duty_rules_info"] 增加 duty_arranges 信息
-            # 1. 创建用户组之前，要把 group_detail["duty_rules_info"] 先创建好，得到 duty_rule_id old - new ID 映射关系
-            # 2. 将 group_detail["duty_rules"]: List[int] 按映射关系进行替换
+            # 创建用户组关联的 duty_rules 及规则关联的 duty_arranges
+            for name, group_detail in user_groups_dict.items():
+                rule_id_mapping = {}
+                for rule_info in group_detail.get("duty_rules_info") or []:
+                    # 优先沿用 hash 相同的旧 duty_rule 记录
+                    rule = existed_hash_to_rule.get(rule_info["hash"])
+                    rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
+                    rule_serializer.is_valid(raise_exception=True)
+                    new_rule = rule_serializer.save()
+                    # 记录新旧 id 对应关系
+                    rule_id_mapping[rule_info["id"]] = new_rule.id
+                # 更新用户组与规则的关联
+                group_detail["duty_rules"] = (
+                    [rule_id_mapping.get(old_id, old_id) for old_id in group_detail["duty_rules"]]
+                    if "duty_rules" in group_detail
+                    else []
+                )
 
             qs = UserGroup.objects.filter(name__in=list(user_groups_dict.keys()), bk_biz_id=bk_biz_id)
             for user_group in qs:

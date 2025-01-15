@@ -33,12 +33,12 @@ import './common-collapse.scss';
 const MenuList: CommonItem[] = [
   {
     id: 'clear-all',
-    name: window.i18n.tc('清除所有')
+    name: window.i18n.tc('清除所有'),
   },
   {
     id: 'copy-all',
-    name: window.i18n.tc('复制所有')
-  }
+    name: window.i18n.tc('复制所有'),
+  },
 ];
 interface ICommonCollapseProps {
   menuList?: CommonItem[];
@@ -51,7 +51,7 @@ export default class CommonCollapse extends tsc<ICommonCollapseProps, ICommonCol
   @Prop({
     default() {
       return MenuList;
-    }
+    },
   })
   menuList: CommonItem[];
   actived: string[] = ['common-collapse'];
@@ -66,8 +66,8 @@ export default class CommonCollapse extends tsc<ICommonCollapseProps, ICommonCol
         vModel={this.actived}
       >
         <bk-collapse-item
-          hide-arrow
           name='common-collapse'
+          hide-arrow
         >
           <div class='collapse-header'>
             <div class='header-left'>
@@ -81,25 +81,25 @@ export default class CommonCollapse extends tsc<ICommonCollapseProps, ICommonCol
               {this.$slots.headerRight}
               <bk-popover
                 ref='menuPopover'
-                transfer
-                always={false}
                 ext-cls='domain-select-tips common-collapse-tips'
                 tippy-options={{
                   arrow: false,
-                  trigger: 'click'
+                  trigger: 'click',
                 }}
+                always={false}
+                transfer
               >
                 <span class='rigth-tools'>
                   <i class='bk-icon icon-more' />
                 </span>
                 <ul
-                  slot='content'
                   class='domain-select-list'
+                  slot='content'
                 >
                   {this.menuList.map(item => (
                     <li
-                      class='domain-select-list-item'
                       key={item.id}
+                      class='domain-select-list-item'
                       onClick={() => this.handleMenuItemSelect(item.id)}
                     >
                       {item.name}

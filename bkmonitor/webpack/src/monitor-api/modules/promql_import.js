@@ -13,5 +13,5 @@ export default {
   deleteMappingConfig,
   importGrafanaDashboard,
   importAlertRule,
-  uploadFile
+  uploadFile,
 };

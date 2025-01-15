@@ -1,23 +1,27 @@
 /*
- * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * License for BK-LOG 蓝鲸日志平台:
- * --------------------------------------------------------------------
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * The above copyright notice and this permission notice shall be included in all copies or substantial
- * portions of the Software.
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
- * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
- * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
 
 /**
@@ -25,9 +29,10 @@
  * @author  <>
  */
 
-import html2canvas from 'html2canvas';
-import JSONBigNumber from 'json-bignumber';
+import { set } from 'vue';
+
 import dayjs from 'dayjs';
+import JSONBigNumber from 'json-bignumber';
 
 import store from '../store';
 /**
@@ -100,9 +105,9 @@ export function randomColor(baseColor, count) {
   // 生成 count 组颜色，色差 20 * Math.random
   for (let i = 0; i < count; i++) {
     ret[i] = `#${Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16
+      16,
     )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16
+      16,
     )}${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
   }
   return ret;
@@ -132,25 +137,25 @@ export function catchErrorHandler(err, ctx) {
     if (!data.code || data.code === 404) {
       ctx.exceptionCode = {
         code: '404',
-        msg: '当前访问的页面不存在'
+        msg: '当前访问的页面不存在',
       };
     } else if (data.code === 403) {
       ctx.exceptionCode = {
         code: '403',
-        msg: 'Sorry，您的权限不足!'
+        msg: 'Sorry，您的权限不足!',
       };
     } else {
       console.error(err);
       ctx.bkMessageInstance = ctx.$bkMessage({
         theme: 'error',
-        message: err.message || err.data.msg || err.statusText
+        message: err.message || err.data.msg || err.statusText,
       });
     }
   } else {
     console.error(err);
     ctx.bkMessageInstance = ctx.$bkMessage({
       theme: 'error',
-      message: err.message || err.data.msg || err.statusText
+      message: err.message || err.data.msg || err.statusText,
     });
   }
 }
@@ -360,6 +365,7 @@ export function deepAssign(target, ...sources) {
     target = {};
   }
   if (length === 0) {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     target = this;
   }
 
@@ -381,26 +387,6 @@ export function deepAssign(target, ...sources) {
   return target;
 }
 
-/**
- * 将dom解析成png图片并下载
- * @param {Element} element
- * @param {String} filename 默认文件名
- */
-export function convertDomToPng(element, filename = 'download') {
-  let imgUrl;
-  html2canvas(element)
-    .then(canvas => {
-      imgUrl = canvas.toDataURL('image/png');
-    })
-    .finally(() => {
-      const eleLink = document.createElement('a');
-      eleLink.href = imgUrl;
-      eleLink.download = filename;
-      document.body.appendChild(eleLink);
-      eleLink.click();
-      document.body.removeChild(eleLink);
-    });
-}
 export function projectManage(menuProject, projectName, childName) {
   let project = '';
   try {
@@ -451,8 +437,12 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   const rowWidth = [];
   visibleFieldsList.forEach(item => {
     const key = item.field_name;
-    // eslint-disable-next-line camelcase
-    const maxLength = fieldsWidthInfo[key]?.max_length || 0;
+
+    const mlength = fieldsWidthInfo[key]?.max_length || 0;
+    let maxLength = mlength;
+    if (mlength._isBigNumber) {
+      maxLength = mlength.toNumber() ?? 0;
+    }
     rowObj[key] = maxLength;
     rowWidth.push(maxLength);
   });
@@ -486,11 +476,11 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
 }
 
 /**
- * 返回日期格式 2020-04-13 09:15:14
+ * 返回日期格式 2020-04-13 09:15:14.123
  * @param {Number | String | Date} val
  * @return {String}
  */
-export function formatDate(val, isTimzone = true) {
+export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -499,7 +489,16 @@ export function formatDate(val, isTimzone = true) {
   }
 
   if (isTimzone) {
-    return dayjs.tz(Number(val)).format('YYYY-MM-DD HH:mm:ss');
+    // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
+    if (val.toString().length === 10) val *= 1000;
+    // 获取毫秒部分的最后三位
+    const milliseconds = val % 1000;
+    // 创建 dayjs 对象
+    const date = dayjs.tz(Number(val));
+
+    // 如果毫秒部分不为 000，展示毫秒精度的时间
+    const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+    return date.format(formatStr);
   }
 
   const yyyy = date.getFullYear();
@@ -507,14 +506,6 @@ export function formatDate(val, isTimzone = true) {
   const dd = `0${date.getDate()}`.slice(-2);
   const time = date.toTimeString().slice(0, 8);
   return `${yyyy}-${mm}-${dd} ${time}`;
-}
-/**
- * @desc: days时间格式化
- * @param {String} val
- * @returns {String}
- */
-export function daysFormatDate(val) {
-  return dayjs(val).format('YYYY-MM-DD HH:mm:ss');
 }
 
 /**
@@ -526,9 +517,12 @@ export function formatDateNanos(val) {
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
   const dateTimeToMilliseconds = dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');
+  // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
+  const microseconds = nanoseconds % 1000;
+  const newNanoseconds = microseconds !== 0 ? nanoseconds : nanoseconds.slice(0, 3);
 
   // 组合dayjs格式化的日期时间到毫秒和独立处理的纳秒部分
-  const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${nanoseconds}`;
+  const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${newNanoseconds}`;
 
   return formattedDateTimeWithNanoseconds;
 }
@@ -583,6 +577,7 @@ export function readBlobRespToJson(resp) {
 }
 
 export function bigNumberToString(value) {
+  // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
   return (value || {})._isBigNumber ? (value.toString().length < 16 ? Number(value) : value.toString()) : value;
 }
 
@@ -596,11 +591,11 @@ export function formatBigNumListValue(value) {
       obj[opt] =
         Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
           ? formatBigNumListValue(obj[opt])
-          : bigNumberToString(value[opt] || '');
+          : bigNumberToString(value[opt] ?? '');
     });
     return obj;
   }
-  return bigNumberToString(value || '');
+  return bigNumberToString(value ?? '');
 }
 
 export function parseBigNumberList(lsit) {
@@ -608,19 +603,20 @@ export function parseBigNumberList(lsit) {
     Object.keys(item || {}).reduce((output, key) => {
       return {
         ...output,
-        [key]: formatBigNumListValue(item[key])
+        [key]: formatBigNumListValue(item[key]),
       };
-    }, {})
+    }, {}),
   );
 }
 
 /**
  * 生成随机数
  * @param {Number} n
+ * @param str,默认26位字母及数字
  */
-export const random = n => {
+export const random = (n, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
   // 生成n位长度的字符串
-  const str = 'abcdefghijklmnopqrstuvwxyz0123456789'; // 可以作为常量放到random外面
+  // const str = 'abcdefghijklmnopqrstuvwxyz0123456789' // 可以作为常量放到random外面
   let result = '';
   for (let i = 0; i < n; i++) {
     result += str[parseInt(Math.random() * str.length, 10)];
@@ -664,7 +660,7 @@ export const base64Decode = str => {
     atob(str)
       .split('')
       .map(c => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
-      .join('')
+      .join(''),
   );
 };
 
@@ -694,7 +690,7 @@ export class Storage {
     const data = {
       value,
       updateTime: Date.now(),
-      express
+      express,
     };
     localStorage.setItem(key, JSON.stringify(data));
   }
@@ -768,6 +764,7 @@ export const renderHeader = (h, { column }) => {
  * @returns {Boolean} 两个对象是否相同
  */
 export const deepEqual = (object1, object2, ignoreArr = []) => {
+  if (object1 === object2) return true;
   const keys1Arr = Object.keys(object1);
   const keys2Arr = Object.keys(object2);
   if (keys1Arr.length !== keys2Arr.length) return false;
@@ -790,7 +787,7 @@ export const deepEqual = (object1, object2, ignoreArr = []) => {
 // 是否是ipv6
 export const isIPv6 = (str = '') => {
   return /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/.test(
-    str
+    str,
   );
 };
 
@@ -843,6 +840,19 @@ export const Debounce =
     return descriptor;
   };
 
+export const formatDateTimeField = (data, fieldType) => {
+  if (fieldType === 'date') {
+    return formatDate(Number(data)) || data || emptyCharacter;
+  }
+
+  // 处理纳秒精度的UTC时间格式
+  if (fieldType === 'date_nanos') {
+    return formatDateNanos(data) || emptyCharacter;
+  }
+
+  return data;
+};
+
 /**
  * 获取 row[key] 内容
  * @example return row.a.b || row['a.b']
@@ -858,7 +868,7 @@ export const parseTableRowData = (
   key,
   fieldType,
   isFormatDate = store.state.isFormatDate,
-  emptyCharacter = '--'
+  emptyCharacter = '--',
 ) => {
   const keyArr = key.split('.');
   let data;
@@ -911,21 +921,26 @@ export const parseTableRowData = (
     return JSON.stringify(data);
   }
 
-  return data || data === 0 ? data : emptyCharacter;
+  return data === null || data === undefined || data === '' ? emptyCharacter : data;
 };
+
+/** 表格内字体样式 */
+export const TABLE_FOUNT_FAMILY = 'Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace';
 
 /**
  * @desc: 计算字符串像素长度
  * @param {String} str 字符串
  * @param {String} fontSize 像素大小 默认12px
+ * @param {String} fontFamily 字体样式
  * @returns {Number} 两个对象是否相同
  */
-export const getTextPxWidth = (str, fontSize = '12px') => {
+export const getTextPxWidth = (str, fontSize = '12px', fontFamily = null) => {
   let result = 10;
   const ele = document.createElement('span');
   // 字符串中带有换行符时，会被自动转换成<br/>标签，若需要考虑这种情况，可以替换成空格，以获取正确的宽度
   // str = str.replace(/\\n/g,' ').replace(/\\r/g,' ');
   ele.innerText = str;
+  if (fontFamily) ele.style.fontFamily = fontFamily;
   // 不同的大小和不同的字体都会导致渲染出来的字符串宽度变化，可以传入尽可能完备的样式信息
   ele.style.fontSize = fontSize;
   // 由于父节点的样式会影响子节点，这里可按需添加到指定节点上
@@ -952,30 +967,37 @@ export const calculateTableColsWidth = (field, list) => {
       parseTableRowData(a, field.field_name, field.field_type).length
     );
   });
+
+  // 字段名长度 需保证字段名完全显示
+  const fieldNameLen = getTextPxWidth(field.field_name, '12px', TABLE_FOUNT_FAMILY);
+  const minWidth = fieldNameLen + 80;
   if (firstLoadList[0]) {
-    if (['ip', 'serverIp'].includes(field.field_name)) return 124;
-    if (field.field_name === 'dtEventTimeStamp') return 256;
-    if (field.field_name === 'time') return 175;
+    if (['ip', 'serverIp'].includes(field.field_name)) return [124, minWidth];
+    if (field.field_name === 'dtEventTimeStamp') return [256, minWidth];
+    if (/time/i.test(field.field_name)) return [256, minWidth];
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
+    // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
     // 实际字段值长度
-    const fieldValueLen = getTextPxWidth(fieldValue);
-    // 字段名长度 需保证字段名完全显示
-    const fieldNameLen = getTextPxWidth(field.field_name);
+    const fieldValueLen = getTextPxWidth(fieldValue, '12px', TABLE_FOUNT_FAMILY);
 
-    // 600为默认自适应最大宽度
-    if (fieldValueLen > 600) return 600;
+    if (field.field_type === 'text') {
+      // 800为默认自适应最大宽度
+      if (fieldValueLen > 800) return [800, minWidth];
+    }
+
+    if (fieldValueLen > 480) return [480, minWidth];
 
     // 当内容长度小于字段名长度 要保证表头字段名显示完整 80为 padding、排序icon、隐藏列icon
-    if (fieldValueLen < fieldNameLen + 80) return fieldNameLen + 80;
+    if (fieldValueLen < minWidth) return [minWidth, minWidth];
 
     // 默认计算长度 40为padding
-    return fieldValueLen + 40;
+    return [fieldValueLen + 40, minWidth];
   }
 
-  return field.width;
+  return [field.width, minWidth];
 };
 
 /**
@@ -989,7 +1011,7 @@ export const getFlatObjValues = (currentObject, previousKeyName = '') => {
   const newFlatObj = {
     newKeyStrList: [],
     newValueList: [],
-    newObject: {}
+    newObject: {},
   };
   flatObjTypeFiledKeys(currentObject, newFlatObj, previousKeyName);
   return newFlatObj;
@@ -1043,31 +1065,44 @@ export const utcFormatDate = val => {
 
   if (isNaN(date.getTime())) {
     console.warn('无效的时间');
-    return '';
+    return val;
   }
 
   return formatDate(date.getTime());
 };
 
 // 首次加载设置表格默认宽度自适应
-export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null) => {
+export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
   try {
     if (tableData.length && visibleFields.length) {
-      visibleFields.forEach((field, index) => {
+      visibleFields.forEach(field => {
+        const [fieldWidth, minWidth] = calculateTableColsWidth(field, tableData);
+        let width = fieldWidth < minWidth ? minWidth : fieldWidth;
         if (catchFieldsWidthObj) {
-          const catchWidth = catchFieldsWidthObj[index];
-          field.width = catchWidth ?? calculateTableColsWidth(field, tableData);
-        } else {
-          field.width = calculateTableColsWidth(field, tableData);
+          const catchWidth = catchFieldsWidthObj[field.field_name];
+          width = catchWidth ?? fieldWidth;
         }
+
+        set(field, 'width', width);
+        set(field, 'minWidth', minWidth);
       });
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
-      // 如果当前表格所有列总和小于表格实际宽度 则对小于600（最大宽度）的列赋值 defalut 使其自适应
-      if (tableElem && columnsWidth && columnsWidth < tableElem.clientWidth - 115) {
-        visibleFields.forEach(field => {
-          field.width = field.width < 300 ? 'default' : field.width;
-        });
+      // 如果当前表格所有列总和小于表格实际宽度 则对小于800（最大宽度）的列赋值 defalut 使其自适应
+      const availableWidth = tableElem.clientWidth - staticWidth;
+      if (tableElem && columnsWidth && columnsWidth < availableWidth) {
+        const longFiels = visibleFields.filter(item => item.width >= 800);
+        if (longFiels.length) {
+          const addWidth = (availableWidth - columnsWidth) / longFiels.length;
+          longFiels.forEach(item => {
+            set(item, 'width', item.width + Math.ceil(addWidth));
+          });
+        } else {
+          const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
+          visibleFields.forEach(field => {
+            set(field, 'width', field.width + Math.ceil(addWidth));
+          });
+        }
       }
     }
 
@@ -1109,5 +1144,79 @@ export const xssFilter = str => {
           return '&quot;';
       }
     }) || str
+  );
+};
+/** 数字千分位处理 */
+export const formatNumberWithRegex = number => {
+  var parts = number.toString().split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return parts.join('.');
+};
+/** 上下文，实时日志高亮颜色 */
+export const contextHighlightColor = [
+  {
+    dark: '#FFB401',
+    light: '#FFF6E1',
+  },
+  {
+    dark: '#1CAB88',
+    light: '#E8FFF5',
+  },
+  {
+    dark: '#3A84FF',
+    light: '#F0F5FF',
+  },
+  {
+    dark: '#FF5656',
+    light: '#FFEEEE',
+  },
+  {
+    dark: '#00CBCB',
+    light: '#E1FCFD',
+  },
+];
+
+export const getOperatorKey = operator => `operator:${operator}`;
+
+/**
+ * 获取字符长度，汉字两个字节
+ * @param str 需要计算长度的字符
+ * @returns 字符长度
+ */
+export const getCharLength = str => {
+  const len = str.length;
+  let bitLen = 0;
+
+  for (let i = 0; i < len; i++) {
+    if ((str.charCodeAt(i) & 0xff00) !== 0) {
+      bitLen += 1;
+    }
+    bitLen += 1;
+  }
+
+  return bitLen;
+};
+
+export const getRegExp = (searchValue, flags = 'ig') => {
+  return new RegExp(`${searchValue}`.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), flags);
+};
+
+/** url中没有索引集indexID时候，拿浏览器存储的最后一次选中的索引集进行初始化 */
+export const getStorageIndexItem = indexList => {
+  const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
+  if (catchIndexSetStr) {
+    const catchIndexSetList = JSON.parse(catchIndexSetStr);
+    const spaceUid = store.state.spaceUid;
+    if (catchIndexSetList[spaceUid] && indexList.some(item => item.index_set_id === catchIndexSetList[spaceUid])) {
+      return catchIndexSetList[spaceUid];
+    }
+  }
+  return getHaveValueIndexItem(indexList);
+};
+
+/** 获取非无数据的索引集 */
+export const getHaveValueIndexItem = indexList => {
+  return (
+    indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
   );
 };

@@ -25,21 +25,27 @@
 -->
 <template>
   <div
-    class="service-classify"
     v-monitor-loading="{ isLoading: loading }"
+    class="service-classify"
   >
     <div class="service-classify-tool">
       <bk-button
         class="tool-btn mc-btn-add"
         theme="primary"
         @click="handleShowAddView"
-      > {{ $t('新建') }} </bk-button>
+      >
+        {{ $t('新建') }}
+      </bk-button>
       <div class="tool-explanation">
         <i class="icon-monitor icon-tips" /><span>
-          {{ $t('修改或删除分类请') }} <span
+          {{ $t('修改或删除分类请') }}
+          <span
             class="tool-span"
             @click="handleToCMDB"
-          > {{ $t('前往CMDB') }} </span></span>
+          >
+            {{ $t('前往CMDB') }}
+          </span></span
+        >
       </div>
       <bk-input
         class="tool-search"
@@ -51,9 +57,9 @@
     <div class="service-classify-panel">
       <ul class="panel-tab">
         <li
-          class="panel-tab-item"
           v-for="(item, index) in panel.data"
           :key="index"
+          class="panel-tab-item"
           :class="{ 'tab-active': index === panel.active }"
           @click="index !== panel.active && handleTabItemClick(index)"
         >
@@ -66,9 +72,9 @@
     <div class="service-classify-table">
       <bk-table
         :empty-text="$t('无数据')"
-        @row-mouse-enter="(i) => (table.hoverIndex = i)"
-        @row-mouse-leave="(i) => (table.hoverIndex = -1)"
         :data="table.data"
+        @row-mouse-enter="i => (table.hoverIndex = i)"
+        @row-mouse-leave="i => (table.hoverIndex = -1)"
       >
         <bk-table-column
           v-if="false"
@@ -88,9 +94,10 @@
           <template slot-scope="scope">
             <div class="table-row">
               <span
-                class="col-edit"
                 v-if="scope.$index !== table.editIndex"
-              >{{ scope.row.second }}</span>
+                class="col-edit"
+                >{{ scope.row.second }}</span
+              >
               <!-- <bk-input v-if="scope.$index === table.editIndex" :ref="'label-' + scope.$index"
                                         :maxlength="50"
                                         v-model="table.editName"
@@ -110,9 +117,8 @@
                 class="col-btn"
                 :class="{ zero: !scope.row.metricCount }"
                 @click="handleToTarget(scope.row)"
-              >{{
-                scope.row.metricCount
-              }}</span>
+                >{{ scope.row.metricCount }}</span
+              >
             </div>
           </template>
         </bk-table-column>
@@ -189,9 +195,9 @@
             :limit="tableInstance.pageSize"
             :count="tableInstance.total"
             :limit-list="tableInstance.pageList"
+            show-total-count
             @change="handlePageChange"
             @limit-change="handleLimitChange"
-            show-total-count
           />
         </template>
       </div>
@@ -205,7 +211,6 @@ import { debounce } from 'throttle-debounce';
 
 import { commonPageSizeMixin } from '../../common/mixins';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
 import * as serviceClassifyAuth from './authority-map';
 import TableStore from './store';
 
@@ -217,7 +222,7 @@ export default {
       serviceClassifyAuth,
       header: {
         keyword: '',
-        handelSearch() {}
+        handelSearch() {},
       },
       loading: true,
       panel: {
@@ -226,13 +231,13 @@ export default {
         data: [
           {
             name: this.$t('服务分类'),
-            total: 0
-          }
+            total: 0,
+          },
           // {
           //     name: '主机分类',
           //     total: '29'
           // }
-        ]
+        ],
       },
       table: {
         data: [],
@@ -240,10 +245,10 @@ export default {
         loading: false,
         hoverIndex: -1,
         editIndex: -1,
-        editName: ''
+        editName: '',
       },
       tableInstance: null,
-      bizList: []
+      bizList: [],
     };
   },
   created() {
@@ -255,7 +260,7 @@ export default {
     handleGetListData(needLoading = true) {
       this.loading = needLoading;
       serviceCategoryList()
-        .then((data) => {
+        .then(data => {
           const biz = this.bizList.find(item => item.id === this.$store.getters.bizId);
           this.tableInstance = new TableStore(data, biz.text);
           this.panel.data[0].total = this.tableInstance.total || 0;
@@ -288,8 +293,8 @@ export default {
       this.$router.push({
         name: 'collect-config',
         params: {
-          serviceCategory: `${data.first}-${data.second}`
-        }
+          serviceCategory: `${data.first}-${data.second}`,
+        },
       });
     },
     handleToStrategyConfig(data) {
@@ -297,18 +302,18 @@ export default {
       this.$router.push({
         name: 'strategy-config',
         params: {
-          serviceCategory: `${data.first}-${data.second}`
-        }
+          serviceCategory: `${data.first}-${data.second}`,
+        },
       });
     },
     handleConfigurationExport(row) {
       const params = {
         first: row.first,
-        second: row.second
+        second: row.second,
       };
       this.$router.push({
         name: 'export-configuration',
-        params
+        params,
       });
     },
     handlePageChange(page) {
@@ -323,8 +328,8 @@ export default {
     },
     handleShowAddView() {
       window.open(`${this.$store.getters.cmdbUrl}/#/business/${this.$store.getters.bizId}/service/cagetory`, '_blank');
-    }
-  }
+    },
+  },
 };
 </script>
 

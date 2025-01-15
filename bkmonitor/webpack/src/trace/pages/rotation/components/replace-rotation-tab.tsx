@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, reactive, watch } from 'vue';
+import { type PropType, defineComponent, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Button } from 'bkui-vue';
 import { random } from 'lodash';
 
 import { RotationSelectTypeEnum } from '../typings/common';
-
-import ReplaceRotationTableItem, { ReplaceItemDataModel } from './replace-rotation-table-item';
+import ReplaceRotationTableItem, { type ReplaceItemDataModel } from './replace-rotation-table-item';
 
 import './replace-rotation-tab.scss';
 
@@ -43,8 +43,8 @@ export default defineComponent({
   props: {
     data: {
       type: Object as PropType<ReplaceDataModel[]>,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   emits: ['change', 'drop'],
   setup(props, { emit }) {
@@ -62,7 +62,7 @@ export default defineComponent({
         }
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -78,21 +78,21 @@ export default defineComponent({
           customWorkDays: [],
           periodSettings: {
             unit: 'day',
-            duration: 1
+            duration: 1,
           },
           value: [
             {
               key: random(8, true),
               workTime: [],
-              workDays: [1, 2, 3, 4, 5]
-            }
-          ]
+              workDays: [1, 2, 3, 4, 5],
+            },
+          ],
         },
         users: {
           groupType: 'specified',
           groupNumber: 1,
-          value: [{ key: random(8, true), value: [], orderIndex: 0 }]
-        }
+          value: [{ key: random(8, true), value: [], orderIndex: 0 }],
+        },
       };
     }
 
@@ -126,15 +126,15 @@ export default defineComponent({
       handleAddItem,
       handleDelItem,
       handleEmitDrop,
-      handleEmitData
+      handleEmitData,
     };
   },
   render() {
     return (
       <table
         class='replace-table-wrap-content-component'
-        cellspacing='0'
         cellpadding='0'
+        cellspacing='0'
       >
         <tr class='table-header'>
           <th class='title-content'>
@@ -150,9 +150,9 @@ export default defineComponent({
         </tr>
         {this.localValue.map((item, index) => (
           <ReplaceRotationTableItem
+            key={item.key}
             class='table-item'
             data={item}
-            key={item.key}
             onChange={val => this.handleDataChange(val, index)}
             onDrop={this.handleEmitDrop}
           >
@@ -161,7 +161,7 @@ export default defineComponent({
                 class='delete-btn'
                 onClick={() => this.handleDelItem(index)}
               >
-                <i class='icon-monitor icon-mc-delete-line'></i>
+                <i class='icon-monitor icon-mc-delete-line' />
               </div>
             )}
           </ReplaceRotationTableItem>
@@ -176,12 +176,12 @@ export default defineComponent({
               text
               onClick={this.handleAddItem}
             >
-              <i class='icon-monitor icon-plus-line add-icon'></i>
+              <i class='icon-monitor icon-plus-line add-icon' />
               {this.t('新增值班组')}
             </Button>
           </td>
         </tr>
       </table>
     );
-  }
+  },
 });

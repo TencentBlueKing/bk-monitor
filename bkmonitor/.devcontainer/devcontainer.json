@@ -1,0 +1,58 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+	"name": "Monitor Web App",
+	"workspaceFolder": "/app/code/bkmonitor",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": ".."
+	},
+	"mounts": [
+		{
+			"source": "${localWorkspaceFolder}/..",
+			"target": "/app/code",
+			"type": "bind"
+		}
+	],
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [
+		8000
+	],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "bash /app/code/bkmonitor/.devcontainer/create_venv.sh",
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"terminal.integrated.inheritEnv": true,
+			"extensions": [
+				"ms-python.python",
+				"ms-python.debugpy",
+				"ms-python.vscode-pylance",
+				"donjayamanne.git-extension-pack",
+				"ms-python.black-formatter",
+				"ms-azuretools.vscode-docker"
+			],
+			"settings": {
+				"python.analysis.autoFormatStrings": true,
+				"python.defaultInterpreterPath": "/app/code/venv/bin/python",
+				"python.languageServer": "Pylance",
+				"python.analysis.importFormat": "absolute",
+				"python.analysis.autoImportCompletions": true,
+				"files.autoSave": "afterDelay",
+				"files.autoSaveDelay": 1000,
+				"[python]": {
+					"diffEditor.ignoreTrimWhitespace": false,
+					"editor.formatOnType": true,
+					"editor.wordBasedSuggestions": "off",
+					"editor.formatOnSave": true,
+					"editor.formatOnPaste": true,
+					"editor.formatOnSaveMode": "file"
+				}
+			}
+		}
+	},
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	"remoteUser": "root"
+}

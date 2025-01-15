@@ -24,29 +24,27 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <div
-    class="collector-add"
-  >
+  <div class="collector-add">
     <div class="add-step">
       <ul class="step-list">
         <li
-          class="step-list-item"
           v-for="(item, index) in stepConf.list"
-          :key="index"
+          class="step-list-item"
           :class="[
             `step-list-item-${index + 1}`,
             {
               'is-active': stepConf.active === index,
-              'is-done': item.done
-            }
+              'is-done': item.done,
+            },
           ]"
+          :key="index"
         >
           <div
             :class="[
               'list-item-content',
               {
-                'is-active-arrow': stepConf.active === index
-              }
+                'is-active-arrow': stepConf.active === index,
+              },
             ]"
           >
             {{ item.name }}
@@ -56,16 +54,17 @@
     </div>
     <div class="add-container">
       <component
-        @target="target"
+        :config.sync="config"
         :hosts.sync="hosts"
         :is="currentView"
         :is-clone="isClone"
-        :config.sync="config"
         :password-input-change-set="passwordInputChangeSet"
-        @previous="handlePrevious"
+        :type.sync="componentType"
         @next="handleNext"
         @passwordInputName="handlePasswordInputName"
-        :type.sync="componentType"
+        @previous="handlePrevious"
+        @target="target"
+        @tencentCloudNext="handleTencentCloudNext"
       />
     </div>
   </div>
@@ -77,7 +76,6 @@ import { createNamespacedHelpers } from 'vuex';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import { SET_INFO_DATA } from '../../../store/modules/collector-config';
 import * as collectAuth from '../authority-map';
-
 import ConfigDelivery from './config-delivery/config-delivery';
 import ConfigDone from './config-done/config-done';
 import ConfigSelect from './config-select/config-select';
@@ -90,15 +88,20 @@ export default {
     ConfigSet,
     ConfigSelect,
     ConfigDelivery,
-    ConfigDone
+    ConfigDone,
   },
   mixins: [authorityMixinCreate(collectAuth)],
   provide() {
     return {
       authority: this.authority,
       handleShowAuthorityDetail: this.handleShowAuthorityDetail,
-      collectAuth
+      collectAuth,
     };
+  },
+  beforeRouteLeave(to, from, next) {
+    // 清除新建配置info缓存
+    to.name !== 'plugin-add' && this[SET_INFO_DATA](null);
+    next();
   },
   data() {
     return {
@@ -111,24 +114,24 @@ export default {
           {
             name: this.$t('配置'),
             done: false,
-            component: 'config-set'
+            component: 'config-set',
           },
           {
             name: this.$t('选择目标'),
             done: false,
-            component: 'config-select'
+            component: 'config-select',
           },
           {
             name: this.$t('采集下发'),
             done: false,
-            component: 'config-delivery'
+            component: 'config-delivery',
           },
           {
             name: this.$t('完成'),
             done: false,
-            component: 'config-done'
-          }
-        ]
+            component: 'config-done',
+          },
+        ],
       },
       config: {
         mode: 'add',
@@ -137,22 +140,17 @@ export default {
         select: {},
         delivery: {},
         done: {},
-        target: {}
+        target: {},
       },
-      passwordInputChangeSet: new Set() // 父组件维护一个用于判断密码框有无发生变更的set，用于判断提交表单时是否需要将该密码表单pop出去
+      passwordInputChangeSet: new Set(), // 父组件维护一个用于判断密码框有无发生变更的set，用于判断提交表单时是否需要将该密码表单pop出去
     };
-  },
-  beforeRouteLeave(to, from, next) {
-    // 清除新建配置info缓存
-    to.name !== 'plugin-add' && this[SET_INFO_DATA](null);
-    next();
   },
   computed: {
     ...mapGetters(['addParams']),
     /** 是否为克隆采集 */
     isClone() {
       return this.$route.name === 'collect-config-clone';
-    }
+    },
   },
   created() {
     const { params } = this.$route;
@@ -161,15 +159,15 @@ export default {
         ...this.addParams,
         data: {
           updateParams: {
-            pluginId: params.pluginId
-          }
+            pluginId: params.pluginId,
+          },
         },
         mode: 'add',
         set: {},
         select: {},
         delivery: {},
         done: {},
-        target: {}
+        target: {},
       };
       this.componentType = 'ADD';
       if (typeof params.id !== 'undefined') {
@@ -184,8 +182,8 @@ export default {
       'app/SET_NAV_TITLE',
       params.id && !this.isClone
         ? `${this.$t('route-' + '编辑配置').replace('route-', '')} - #${this.$route.params.id} ${
-          this.$route.params.title
-        }`
+            this.$route.params.title
+          }`
         : this.$t('新建配置')
     );
   },
@@ -208,13 +206,17 @@ export default {
       this.changeView(active + 1);
       stepConf.list[active].done = true;
     },
+    handleTencentCloudNext() {
+      this.changeView(2);
+      this.stepConf.list[1].done = true;
+    },
     target(v) {
       this.config.target = v;
     },
     handlePasswordInputName(val) {
       this.passwordInputChangeSet.add(val);
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -222,23 +224,23 @@ export default {
 @import '../../home/common/mixins';
 
 .collector-add {
-  min-height: calc(100vh - 110px);
-  background: #fff;
   display: flex;
-  border-radius: 2px;
+  min-height: calc(100vh - 110px);
+  margin: 20px;
+  background: #fff;
   border: 1px solid #dcdee5;
   border-right: 0;
-  margin: 20px;
+  border-radius: 2px;
 
   .add-step {
     flex: 0 0 202px;
     background: $defaultBgColor;
-    border-radius: 2px 0px 0px 0px;
     border-right: 1px solid $defaultBorderColor;
+    border-radius: 2px 0px 0px 0px;
 
     .step-list {
-      margin-left: 45px;
       padding: 40px 0 0 0;
+      margin-left: 45px;
 
       @for $i from 1 through 4 {
         &-item-#{$i} {
@@ -254,23 +256,23 @@ export default {
 
       .step-list-item {
         position: relative;
-        border-left: 1px dashed $defaultBorderColor;
         height: 70px;
         padding-left: 25px;
         color: $defaultFontColor;
+        border-left: 1px dashed $defaultBorderColor;
 
         &:before {
+          position: absolute;
+          top: -5px;
+          left: -15px;
+          display: inline-block;
           width: 26px;
           height: 26px;
           line-height: 26px;
-          display: inline-block;
-          position: absolute;
-          border-radius: 50%;
-          left: -15px;
-          top: -5px;
+          color: $defaultFontColor;
           text-align: center;
           background: #fff;
-          color: $defaultFontColor;
+          border-radius: 50%;
 
           @include border-1px(#c4c6cc);
         }
@@ -304,8 +306,8 @@ export default {
 
           /* stylelint-disable-next-line */
           font-family: 'icon-monitor' !important;
-          background: #dcdee5;
           color: #fff;
+          background: #dcdee5;
           border: 1px solid #dcdee5;
         }
 

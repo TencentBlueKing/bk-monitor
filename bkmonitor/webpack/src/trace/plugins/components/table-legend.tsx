@@ -25,16 +25,16 @@
  */
 import { defineComponent, ref, watch } from 'vue';
 
-import { ILegendItem, TableLegendHeadType } from '../typings';
-
 import { commonLegendEmits, commonLegendProps, useCommonLegend } from './common-legend';
+
+import type { ILegendItem, TableLegendHeadType } from '../typings';
 
 import './table-legend.scss';
 
 export default defineComponent({
   name: 'TableLegend',
   props: {
-    ...commonLegendProps
+    ...commonLegendProps,
   },
   emits: [...commonLegendEmits],
   setup(props, { emit }) {
@@ -80,7 +80,7 @@ export default defineComponent({
       sort,
       sortTitle,
       handleSortChange,
-      handleLegendEvent
+      handleLegendEvent,
     };
   },
   render() {
@@ -100,13 +100,13 @@ export default defineComponent({
                 {title}
                 <span class='caret-wrapper'>
                   <i
-                    onClick={() => this.handleSortChange(title, 1)}
                     class={{ 'sort-caret is-asc': true, active: this.sortTitle === title && this.sort === 1 }}
-                  ></i>
+                    onClick={() => this.handleSortChange(title, 1)}
+                  />
                   <i
-                    onClick={() => this.handleSortChange(title, 2)}
                     class={{ 'sort-caret is-desc': true, active: this.sortTitle === title && this.sort === 2 }}
-                  ></i>
+                    onClick={() => this.handleSortChange(title, 2)}
+                  />
                 </span>
               </th>
             ))}
@@ -128,13 +128,13 @@ export default defineComponent({
                           // onMouseleave={e => this.handleLegendEvent(e, 'downplay', item) }
                         >
                           <span
-                            class='metric-label'
                             style={{ backgroundColor: item.show ? item.color : '#ccc' }}
-                          ></span>
+                            class='metric-label'
+                          />
                           <span
-                            v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
-                            class='metric-name'
                             style={{ color: item.show ? '#63656e' : '#ccc' }}
+                            class='metric-name'
+                            v-bk-overflow-tips={{ placement: 'top', offset: '100, 0' }}
                           >
                             {item.name}
                           </span>
@@ -150,5 +150,5 @@ export default defineComponent({
         </tbody>
       </table>
     );
-  }
+  },
 });

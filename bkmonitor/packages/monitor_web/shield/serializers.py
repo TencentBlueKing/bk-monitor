@@ -38,6 +38,7 @@ class BaseSerializer(serializers.Serializer):
     notice_config = NoticeConfigSlz(required=False, label="通知配置")
     description = serializers.CharField(required=False, label="屏蔽原因", allow_blank=True)
     is_quick = serializers.BooleanField(required=False, label="是否是快捷屏蔽", default=False)
+    label = serializers.CharField(required=False, label="标签", default="", allow_blank=True)
 
 
 class ScopeSerializer(BaseSerializer):
@@ -72,13 +73,19 @@ class EventSerializer(BaseSerializer):
         id = serializers.CharField(required=True)
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
+    # 用于移动端，快捷屏蔽，动态删除维度
+    dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
+
 
 
 class AlertSerializer(BaseSerializer):
     class DimensionConfig(serializers.Serializer):
         alert_ids = serializers.ListField(required=True, child=serializers.CharField(allow_blank=False))
+        dimensions = serializers.DictField(required=False)
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
+    # 用于移动端，快捷屏蔽，动态删除维度
+    dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
 
 
 class DimensionSerializer(BaseSerializer):

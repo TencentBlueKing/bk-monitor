@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,24 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Ref } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 import { Debounce, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import { MONITOR_BAR_OPTIONS } from '../../constants';
-import { MonitorEchartOptions, PanelModel } from '../../typings';
-import { ITableDataItem } from '../../typings/table-chart';
-import { downFile } from '../../utils';
+import { type CustomChartConnector, downFile } from '../../utils';
 import { VariablesService } from '../../utils/variable';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
+
+import type { MonitorEchartOptions, PanelModel } from '../../typings';
+import type { ITableDataItem } from '../../typings/table-chart';
+import type { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './related-log-chart.scss';
 
@@ -50,7 +51,7 @@ const option: MonitorEchartOptions = {
   color: ['#A3C5FD'],
   xAxis: {
     show: true,
-    type: 'time'
+    type: 'time',
   },
   yAxis: {
     type: 'value',
@@ -58,11 +59,11 @@ const option: MonitorEchartOptions = {
       show: true,
       lineStyle: {
         color: '#F0F1F5',
-        type: 'solid'
-      }
-    }
+        type: 'solid',
+      },
+    },
   },
-  series: []
+  series: [],
 };
 
 interface IRelationLogChartProps {
@@ -71,7 +72,9 @@ interface IRelationLogChartProps {
 
 @Component
 class RelatedLogChart extends CommonSimpleChart {
-  @Ref() baseChart: HTMLDivElement;
+  @Ref('chart') baseChart: HTMLDivElement;
+
+  @InjectReactive('customChartConnector') customChartConnector: CustomChartConnector;
 
   empty = true;
   emptyText = window.i18n.tc('加载中...');
@@ -92,17 +95,17 @@ class RelatedLogChart extends CommonSimpleChart {
   relatedIndexSetList = [];
   /** 柱状图配置 */
   customOptions: MonitorEchartOptions = deepmerge(MONITOR_BAR_OPTIONS, option, {
-    arrayMerge: (_, srcArr) => srcArr
+    arrayMerge: (_, srcArr) => srcArr,
   });
   /** 汇聚周期 */
-  chartInterval: number | 'auto' = 'auto';
+  chartInterval: 'auto' | number = 'auto';
   /** 汇聚周期选项 */
   intervalList = [
     { id: 'auto', name: 'auto' },
     { id: '1m', name: '1m' },
     { id: '5m', name: '5m' },
     { id: '1h', name: '1h' },
-    { id: '1d', name: '1d' }
+    { id: '1d', name: '1d' },
   ];
   /** 表格数据 */
   tableData: ITableDataItem[] = [];
@@ -111,13 +114,23 @@ class RelatedLogChart extends CommonSimpleChart {
   pagination = {
     offset: 0,
     count: 100,
-    limit: 30
+    limit: 30,
   };
   /** 滚动加载记录时间间隔 */
   localTimeRange: number[] = [0, 0];
   /** 是否滚动加载状态 */
   isScrollLoadTableData = false;
   tableRenderKey = random(6);
+
+  isFilterError = false;
+
+  /* 用于customChartConnector */
+  chartId = random(8);
+
+  /* 是否为精简模式 */
+  get isSimpleChart() {
+    return !!this.panel.options?.related_log_chart?.isSimpleChart;
+  }
 
   /**
    * @description: 获取图表数据
@@ -132,7 +145,7 @@ class RelatedLogChart extends CommonSimpleChart {
     const predicateLogTarget = this.panel.targets.find(item => item.dataType === 'log_predicate');
     if (predicateLogTarget) {
       const variablesService = new VariablesService({
-        ...this.viewOptions
+        ...this.viewOptions,
       });
       const params = variablesService.transformVariables(predicateLogTarget.data);
       (this as any).$api[predicateLogTarget.apiModule]
@@ -147,7 +160,7 @@ class RelatedLogChart extends CommonSimpleChart {
               const payload = variablesService.transformVariables(conditionTarget.data);
               (this as any).$api[conditionTarget.apiModule]
                 [conditionTarget.apiFunc](payload, {
-                  needMessage: false
+                  needMessage: false,
                 })
                 .then(res => {
                   if (res.length) {
@@ -162,7 +175,6 @@ class RelatedLogChart extends CommonSimpleChart {
           } else {
             this.empty = true;
             this.emptyText = '';
-            this.handleLoadingChange(false);
           }
           this.clearErrorMsg();
         })
@@ -170,6 +182,8 @@ class RelatedLogChart extends CommonSimpleChart {
           this.empty = true;
           this.handleErrorMsgChange(error.msg || error.message);
           this.emptyText = window.i18n.tc('出错了');
+        })
+        .finally(() => {
           this.handleLoadingChange(false);
         });
     }
@@ -187,6 +201,38 @@ class RelatedLogChart extends CommonSimpleChart {
       this.thirdPartyLog = indexSetId;
     }
   }
+
+  handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
+    let formatterFunc = null;
+    const [firstItem] = seriesData;
+    const lastItem = seriesData[seriesData.length - 1];
+    const val = new Date('2010-01-01').getTime();
+    const getXVal = (timeVal: any) => {
+      if (!timeVal) return timeVal;
+      return timeVal[0] > val ? timeVal[0] : timeVal[1];
+    };
+    const minX = Array.isArray(firstItem) ? getXVal(firstItem) : getXVal(firstItem?.value);
+    const maxX = Array.isArray(lastItem) ? getXVal(lastItem) : getXVal(lastItem?.value);
+    if (minX && maxX) {
+      formatterFunc = (v: any) => {
+        const duration = dayjs.tz(maxX).diff(dayjs.tz(minX), 'second');
+        if (onlyBeginEnd && v > minX && v < maxX) {
+          return '';
+        }
+        if (duration < 60 * 60 * 24 * 1) {
+          return dayjs.tz(v).format('HH:mm');
+        }
+        if (duration < 60 * 60 * 24 * 6) {
+          return dayjs.tz(v).format('MM-DD HH:mm');
+        }
+        if (duration <= 60 * 60 * 24 * 30 * 12) {
+          return dayjs.tz(v).format('MM-DD');
+        }
+        return dayjs.tz(v).format('YYYY-MM-DD');
+      };
+    }
+    return formatterFunc;
+  }
   /**
    * @desc 更新柱状图数据
    */
@@ -200,10 +246,10 @@ class RelatedLogChart extends CommonSimpleChart {
         end_time: end_time ? dayjs.tz(end_time).unix() : endTime,
         interval: this.chartInterval,
         index_set_id: this.relatedIndexSetId,
-        keyword: this.keyword
+        keyword: this.keyword,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
       this.panel.targets
         .filter(item => item.dataType === 'time_series')
@@ -214,8 +260,13 @@ class RelatedLogChart extends CommonSimpleChart {
                 ...variablesService.transformVariables(item.data),
                 ...params,
                 view_options: {
-                  ...this.viewOptions
-                }
+                  ...this.viewOptions,
+                },
+                ...(this.isSimpleChart
+                  ? {
+                      is_filter_error: this.isFilterError,
+                    }
+                  : {}),
               },
               { needMessage: false }
             )
@@ -229,12 +280,67 @@ class RelatedLogChart extends CommonSimpleChart {
                       type: 'bar',
                       colorBy: 'data',
                       name: 'COUNT ',
-                      zlevel: 100
-                    }
-                  ]
+                      zlevel: 100,
+                      ...(this.isSimpleChart
+                        ? {
+                            itemStyle: {
+                              color: '#699DF4',
+                            },
+                          }
+                        : {}),
+                    },
+                  ],
                 };
+                const formatterFunc = this.handleSetFormatterFunc(res.series?.[0].datapoints);
                 const updateOption = deepmerge(option, data);
-                this.customOptions = deepmerge(this.customOptions, updateOption);
+                this.customOptions = deepmerge(this.customOptions, {
+                  ...updateOption,
+                  ...(this.isSimpleChart
+                    ? {
+                        xAxis: {
+                          axisLabel: {
+                            formatter: formatterFunc || '{value}',
+                          },
+                          show: true,
+                          type: 'time',
+                          splitNumber: 3,
+                        },
+                        yAxis: {
+                          type: 'value',
+                          splitNumber: 2,
+                          splitLine: {
+                            show: false,
+                          },
+                        },
+                        toolbox: {
+                          feature: {
+                            dataZoom: {
+                              show: false,
+                            },
+                          },
+                        },
+                        tooltip: {
+                          className: 'log-chart-simple-chart-tooltip',
+                          show: true,
+                          trigger: 'axis',
+                          appendToBody: true,
+                          padding: [8, 8, 8, 8],
+                          transitionDuration: 0,
+                          formatter: params => {
+                            const time = dayjs(params[0].value[0]).format('YYYY-MM-DD HH:mm:ss');
+                            const value = params[0].value[1];
+                            return `
+                    <div class="time-text">${time}</div>
+                    <div class="value-text">
+                      <div class="color-point"></div>
+                      <div>${this.$t('日志数')} : ${value}</div>
+                    </div>
+                    `;
+                          },
+                        },
+                      }
+                    : {}),
+                });
                 this.emptyChart = false;
               } else {
                 this.emptyChart = true;
@@ -242,6 +348,9 @@ class RelatedLogChart extends CommonSimpleChart {
             })
             .finally(() => {
               this.handleLoadingChange(false);
+              setTimeout(() => {
+                this.setChartInstance();
+              }, 100);
             })
         );
       this.clearErrorMsg();
@@ -258,8 +367,8 @@ class RelatedLogChart extends CommonSimpleChart {
     try {
       this.unregisterOberver();
 
-      let startTime;
-      let endTime;
+      let startTime = undefined;
+      let endTime = undefined;
       if (this.isScrollLoadTableData) {
         // 分页请求
         [startTime, endTime] = this.localTimeRange;
@@ -275,10 +384,10 @@ class RelatedLogChart extends CommonSimpleChart {
         keyword: this.keyword,
         limit: this.pagination.limit,
         offset: this.pagination.offset,
-        index_set_id: this.relatedIndexSetId
+        index_set_id: this.relatedIndexSetId,
       };
       const variablesService = new VariablesService({
-        ...this.scopedVars
+        ...this.scopedVars,
       });
       await this.panel.targets
         .filter(item => item.dataType === 'table-chart')
@@ -288,8 +397,8 @@ class RelatedLogChart extends CommonSimpleChart {
               ...variablesService.transformVariables(item.data),
               ...params,
               view_options: {
-                ...this.viewOptions
-              }
+                ...this.viewOptions,
+              },
             })
             .then(data => {
               if (this.isScrollLoadTableData) {
@@ -306,7 +415,7 @@ class RelatedLogChart extends CommonSimpleChart {
               this.handleLoadingChange(false);
             })
         );
-    } catch (e) {}
+    } catch {}
   }
   /** 滚动至底部分页加载 */
   handleScrollEnd() {
@@ -350,6 +459,7 @@ class RelatedLogChart extends CommonSimpleChart {
   handleQueryTable() {
     this.pagination.offset = 0;
     this.updateTableData();
+    this.updateBarChartData();
   }
   /**
    * @desc 链接跳转
@@ -369,7 +479,7 @@ class RelatedLogChart extends CommonSimpleChart {
     // const url = location.href.replace(location.hash, hash);
     // window.open(url, '_blank');
     const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
-      this.bkBizId || this.relatedBkBizId
+      this.bkBizId || (this.relatedBkBizId === -1 ? window.cc_biz_id : this.relatedBkBizId)
     }`;
     window.open(url);
   }
@@ -383,160 +493,253 @@ class RelatedLogChart extends CommonSimpleChart {
   }
 
   get selectedOptionAlias() {
-    // eslint-disable-next-line eqeqeq
-    const target = this.relatedIndexSetList.find(item => item.index_set_id == this.relatedIndexSetId);
+    const target = this.relatedIndexSetList.find(item => item.index_set_id === this.relatedIndexSetId);
     return target?.index_set_name ?? '';
+  }
+
+  handleIsFilterError() {
+    this.updateBarChartData();
+  }
+
+  /* 与非echarts图联动时需要调用此函数（存储实例） */
+  setChartInstance() {
+    if (this.panel.dashboardId === this.customChartConnector?.groupId) {
+      this.customChartConnector.setChartInstance(this.chartId, this.$refs?.baseChart);
+    }
+  }
+
+  /* 与非echarts图联动时需要调用此函数 (联动动作) */
+  handleUpdateAxisPointer(event) {
+    if (this.panel.dashboardId === this.customChartConnector?.groupId) {
+      this.customChartConnector.updateAxisPointer(this.chartId, event?.axesInfo?.[0]?.value || 0);
+    }
+  }
+
+  contentRender() {
+    if (this.isSimpleChart) {
+      return (
+        <div class='log-chart-simple'>
+          <div class='chart-simple-header'>
+            <div
+              class='left'
+              /*               v-bk-tooltips={{
+                content: this.$tc('跳转查看详情'),
+              }} */
+              onClick={() => this.goLink()}
+            >
+              <span
+                class='name-text'
+                title={this.selectedOptionAlias}
+              >
+                {this.selectedOptionAlias}
+              </span>
+              <span class='icon-monitor icon-fenxiang' />
+            </div>
+            <div class='right'>
+              {/* <bk-checkbox
+                v-model={this.isFilterError}
+                onChange={this.handleIsFilterError}
+              >
+                Error
+              </bk-checkbox> */}
+            </div>
+          </div>
+          {!this.emptyChart ? (
+            <div
+              ref='chart'
+              class='chart-instance'
+            >
+              <BaseEchart
+                ref='baseChart'
+                width={this.width}
+                height={this.height}
+                class='base-chart'
+                hoverAllTooltips={true}
+                options={this.customOptions}
+                onDataZoom={this.dataZoom}
+                onDblClick={this.handleDblClick}
+                onUpdateAxisPointer={this.handleUpdateAxisPointer}
+              />
+            </div>
+          ) : (
+            <bk-exception
+              scene='part'
+              type='empty'
+            >
+              {this.$t('暂无数据')}
+            </bk-exception>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div style='position:relative;height:100%;'>
+        <div class='related-alert-info'>
+          {this.alertText && (
+            <bk-alert showIcon={false}>
+              <div slot='title'>
+                <span class='alter-text'>{this.alertText}</span>
+                {this.isBkLog ? (
+                  <span
+                    class='link'
+                    onClick={() => this.goLink()}
+                  >
+                    {this.$t('route-日志检索')}
+                    <i class='icon-monitor icon-fenxiang' />
+                  </span>
+                ) : (
+                  <span
+                    class='link'
+                    onClick={() => this.goLink()}
+                  >
+                    <i class='icon-monitor icon-mc-target-link' />
+                    <span>{this.thirdPartyLog}</span>
+                  </span>
+                )}
+              </div>
+            </bk-alert>
+          )}
+        </div>
+        {this.isBkLog && (
+          <div class='related-log-chart-main'>
+            <div class='log-chart-collapse'>
+              <div class='collapse-header'>
+                <span class='collapse-title'>
+                  <span class='title'>{this.$t('总趋势')}</span>
+                  {!this.emptyChart && (
+                    <div class='title-tool'>
+                      <span class='interval-label'>{this.$t('汇聚周期')}</span>
+                      <bk-select
+                        class='interval-select'
+                        behavior='simplicity'
+                        clearable={false}
+                        size='small'
+                        value={this.chartInterval}
+                        onChange={this.handleIntervalChange}
+                      >
+                        {this.intervalList.map(item => (
+                          <bk-option
+                            id={item.id}
+                            key={item.id}
+                            name={item.name}
+                          >
+                            {item.name}
+                          </bk-option>
+                        ))}
+                      </bk-select>
+                    </div>
+                  )}
+                </span>
+                {!this.emptyChart && (
+                  <i
+                    class='icon-monitor icon-mc-camera'
+                    v-bk-tooltips={{ content: this.$t('截图到本地') }}
+                    onClick={() => this.handleSavePng()}
+                  />
+                )}
+              </div>
+              <div class='collapse-content'>
+                <div class='monitor-echart-common-content'>
+                  {!this.emptyChart ? (
+                    <div
+                      ref='chart'
+                      class='chart-instance'
+                    >
+                      <BaseEchart
+                        width={this.width}
+                        height={this.height}
+                        class='base-chart'
+                        options={this.customOptions}
+                        onDataZoom={this.dataZoom}
+                        onDblClick={this.handleDblClick}
+                      />
+                    </div>
+                  ) : (
+                    <div class='empty-chart empty-chart-text'>{this.$t('查无数据')}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div class='query-tool'>
+              <bk-select
+                class='table-search-select'
+                v-model={this.relatedIndexSetId}
+                v-bk-tooltips={{
+                  content: this.selectedOptionAlias,
+                  theme: 'light',
+                  placement: 'top-start',
+                  allowHTML: false,
+                }}
+                clearable={false}
+                onSelected={v => this.handleSelectIndexSet(v)}
+              >
+                {this.relatedIndexSetList.map(option => (
+                  <bk-option
+                    id={option.index_set_id}
+                    key={option.index_set_id}
+                    name={option.index_set_name}
+                  />
+                ))}
+              </bk-select>
+              <bk-input
+                class='table-search-input'
+                vModel={this.keyword}
+                onClear={() => this.handleSearchChange('')}
+                onEnter={this.handleSearchChange}
+              />
+              <bk-button
+                theme='primary'
+                onClick={this.handleQueryTable}
+              >
+                {this.$t('查询')}
+              </bk-button>
+            </div>
+            {this.columns.length ? (
+              <CommonTable
+                key={this.tableRenderKey}
+                height='100%'
+                class='related-log-table'
+                checkable={false}
+                columns={this.columns}
+                data={this.tableData}
+                hasColumnSetting={false}
+                jsonViewerDataKey='source'
+                pagination={null}
+                showExpand={true}
+                onScrollEnd={this.handleScrollEnd}
+              />
+            ) : (
+              ''
+            )}
+          </div>
+        )}
+      </div>
+    );
   }
 
   render() {
     return (
-      <div class='related-log-chart-wrap'>
+      <div class={['related-log-chart-wrap', { 'simple-wrap': this.isSimpleChart }]}>
         {!this.empty ? (
-          <div style='position:relative;height:100%;'>
-            <div class='related-alert-info'>
-              {this.alertText && (
-                <bk-alert showIcon={false}>
-                  <div slot='title'>
-                    <span class='alter-text'>{this.alertText}</span>
-                    {this.isBkLog ? (
-                      <span
-                        class='link'
-                        onClick={() => this.goLink()}
-                      >
-                        {this.$t('route-日志检索')}
-                        <i class='icon-monitor icon-fenxiang'></i>
-                      </span>
-                    ) : (
-                      <span
-                        class='link'
-                        onClick={() => this.goLink()}
-                      >
-                        <i class='icon-monitor icon-mc-target-link'></i>
-                        <span>{this.thirdPartyLog}</span>
-                      </span>
-                    )}
-                  </div>
-                </bk-alert>
-              )}
-            </div>
-            {this.isBkLog && (
-              <div class='related-log-chart-main'>
-                <div class='log-chart-collapse'>
-                  <div class='collapse-header'>
-                    <span class='collapse-title'>
-                      <span class='title'>{this.$t('总趋势')}</span>
-                      {!this.emptyChart && (
-                        <div class='title-tool'>
-                          <span class='interval-label'>{this.$t('汇聚周期')}</span>
-                          <bk-select
-                            class='interval-select'
-                            size='small'
-                            behavior='simplicity'
-                            clearable={false}
-                            value={this.chartInterval}
-                            onChange={this.handleIntervalChange}
-                          >
-                            {this.intervalList.map(item => (
-                              <bk-option
-                                id={item.id}
-                                key={item.id}
-                                name={item.name}
-                              >
-                                {item.name}
-                              </bk-option>
-                            ))}
-                          </bk-select>
-                        </div>
-                      )}
-                    </span>
-                    {!this.emptyChart && (
-                      <i
-                        class='icon-monitor icon-mc-camera'
-                        v-bk-tooltips={{ content: this.$t('截图到本地') }}
-                        onClick={() => this.handleSavePng()}
-                      />
-                    )}
-                  </div>
-                  <div class='collapse-content'>
-                    <div class='monitor-echart-common-content'>
-                      {!this.emptyChart ? (
-                        <div
-                          class='chart-instance'
-                          ref='baseChart'
-                        >
-                          <BaseEchart
-                            class='base-chart'
-                            height={this.height}
-                            width={this.width}
-                            options={this.customOptions}
-                            onDataZoom={this.dataZoom}
-                            onDblClick={this.handleDblClick}
-                          />
-                        </div>
-                      ) : (
-                        <div class='empty-chart'>{this.$t('查无数据')}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div class='query-tool'>
-                  <bk-select
-                    class='table-search-select'
-                    v-model={this.relatedIndexSetId}
-                    clearable={false}
-                    onSelected={v => this.handleSelectIndexSet(v)}
-                    v-bk-tooltips={{
-                      content: this.selectedOptionAlias,
-                      theme: 'light',
-                      placement: 'top-start',
-                      allowHTML: false
-                    }}
-                  >
-                    {this.relatedIndexSetList.map(option => (
-                      <bk-option
-                        key={option.index_set_id}
-                        id={option.index_set_id}
-                        name={option.index_set_name}
-                      ></bk-option>
-                    ))}
-                  </bk-select>
-                  <bk-input
-                    class='table-search-input'
-                    vModel={this.keyword}
-                    onEnter={this.handleSearchChange}
-                    onClear={() => this.handleSearchChange('')}
-                  />
-                  <bk-button
-                    theme='primary'
-                    onClick={this.handleQueryTable}
-                  >
-                    {this.$t('查询')}
-                  </bk-button>
-                </div>
-                {this.columns.length ? (
-                  <CommonTable
-                    key={this.tableRenderKey}
-                    class='related-log-table'
-                    checkable={false}
-                    height='100%'
-                    hasColnumSetting={false}
-                    showExpand={true}
-                    data={this.tableData}
-                    columns={this.columns}
-                    jsonViewerDataKey='source'
-                    pagination={null}
-                    onScrollEnd={this.handleScrollEnd}
-                  />
-                ) : (
-                  ''
-                )}
-              </div>
-            )}
-          </div>
+          this.contentRender()
         ) : (
           <div class='empty-chart'>
             {this.emptyText ? (
               this.emptyText
+            ) : this.isSimpleChart ? (
+              <bk-exception type='empty'>
+                <span class='empty-text'>{this.$t('暂无关联日志')}</span>
+                <div class='text-wrap'>
+                  <span class='text-row'>{this.$t('可前往配置页去配置相关日志')}</span>
+                  <bk-button
+                    theme='primary'
+                    text
+                    onClick={() => this.handleRelated()}
+                  >
+                    {this.$t('去配置')}
+                  </bk-button>
+                </div>
+              </bk-exception>
             ) : (
               <bk-exception type='building'>
                 <span>{this.$t('暂无关联日志')}</span>

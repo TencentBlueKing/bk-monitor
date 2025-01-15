@@ -25,18 +25,18 @@
 -->
 <template>
   <article
-    class="import-config"
     v-bkloading="{ isLoading: loading }"
+    class="import-config"
   >
     <!--按钮组（统计信息）-->
     <section class="import-config-tag fix-same-code">
       <div class="config-tag fix-same-code">
         <div class="bk-button-group fix-same-code">
           <bk-button
-            :class="{ 'is-selected': tag.active === item.status }"
             v-for="item in tag.list"
-            @click="handleTagClick(item)"
             :key="item.status"
+            :class="{ 'is-selected': tag.active === item.status }"
+            @click="handleTagClick(item)"
           >
             {{ `${item.name}(${item.num})` }}
           </bk-button>
@@ -53,17 +53,17 @@
     </section>
     <!--折叠内容-->
     <section
+      ref="collapse"
       class="import-config-content"
       :style="{ marginBottom: isScroll ? '34px' : '' }"
-      ref="collapse"
     >
       <bk-collapse v-model="collapse.activeName">
         <bk-collapse-item
           v-for="item in collapse.list"
+          v-show="tableData(item.name).length !== 0"
           :key="item.name"
           :name="item.name"
           ext-cls="collapse-item"
-          v-show="tableData(item.name).length !== 0"
         >
           <!--折叠title-->
           <template #default>
@@ -75,22 +75,27 @@
               />
               <span class="collapse-item-title">{{ countData(item) }}</span>
               <span
-                class="collapse-item-mark"
                 v-if="item.markName"
-              >{{ item.markName }}</span>
+                class="collapse-item-mark"
+                >{{ item.markName }}</span
+              >
             </div>
             <!--右侧状态-->
             <div
-              class="collapse-item-right"
               v-show="table.statistics && table.statistics[item.name]"
+              class="collapse-item-right"
             >
               <!-- eslint-disable-next-line vue/no-v-html -->
               <span>
                 <template v-for="(val, key) in statusMap">
                   <i18n
-                    v-if="table.statistics[item.name] && table.statistics[item.name][key] && (tag.active === 'total' || tag.active === key)"
-                    :path="key === 'success' ? '{0}个成功' : key === 'failed' ? '{0}个失败' : '{0}个导入中'"
+                    v-if="
+                      table.statistics[item.name] &&
+                      table.statistics[item.name][key] &&
+                      (tag.active === 'total' || tag.active === key)
+                    "
                     :key="key"
+                    :path="key === 'success' ? '{0}个成功' : key === 'failed' ? '{0}个失败' : '{0}个导入中'"
                   >
                     <span :class="`total-${key}`">{{ table.statistics[item.name][key] }}</span>
                   </i18n>
@@ -101,9 +106,9 @@
           <!--折叠表格-->
           <template #content>
             <bk-table
-              max-height="410"
-              :ref="item.name"
               v-show="tableData(item.name)"
+              :ref="item.name"
+              max-height="410"
               :data="tableData(item.name)"
             >
               <bk-table-column
@@ -126,23 +131,23 @@
                 <template #default="{ row }">
                   <!--运行、成功、失败状态-->
                   <div
-                    class="status-col fix-same-code"
                     v-if="statusMap[row.status]"
+                    class="status-col fix-same-code"
                   >
                     <span
                       v-if="row.status === 'importing'"
                       class="status-runing fix-same-code icon-monitor icon-loading"
                     />
                     <span
-                      :class="'status-' + row.status"
                       v-else
+                      :class="'status-' + row.status"
                     />
                     <span>{{ statusMap[row.status].name }}</span>
                   </div>
                   <!--未知状态-->
                   <div
-                    class="status-col fix-same-code"
                     v-else
+                    class="status-col fix-same-code"
                   >
                     <span class="status-failed fix-same-code" />
                     <span> {{ $t('状态未知') }} </span>
@@ -155,8 +160,8 @@
                     <span>{{ row.errorMsg ? row.errorMsg : '--' }}</span>
                     <!--失败重试-->
                     <bk-button
-                      ext-cls="detail-col-button"
                       v-show="row.status === 'failed' && item.name !== 'bkmonitor.models.fta.plugin'"
+                      ext-cls="detail-col-button"
                       text
                       @click="handleRetry(row.uuid)"
                     >
@@ -172,8 +177,8 @@
     </section>
     <!--空数据-->
     <section
-      class="import-config-empty"
       v-show="isShowEmpty"
+      class="import-config-empty"
     >
       <content-empty
         :title="$t('无数据')"
@@ -194,8 +199,8 @@
           theme="primary"
           class="mr10"
           :class="{ 'footer-button1': isScroll }"
-          @click="handleImportClick"
           :disabled="disabledConfirmBtn"
+          @click="handleImportClick"
         >
           {{ $t('前往添加统一监控目标') }}
         </bk-button>
@@ -215,21 +220,20 @@
 import { mapActions, mapGetters } from 'vuex';
 
 import ContentEmpty from '../components/content-empty';
-
 import mixin from './import-mixin';
 
 export default {
   name: 'ImportConfigurationImporting',
   components: {
-    ContentEmpty
+    ContentEmpty,
   },
   mixins: [mixin],
   props: {
     // history id
     id: {
       type: [Number, String],
-      default: 0
-    }
+      default: 0,
+    },
   },
   data() {
     return {
@@ -239,46 +243,46 @@ export default {
           {
             name: this.$t('全部'),
             num: 0,
-            status: 'total'
+            status: 'total',
           },
           {
             name: this.$t('成功'),
             num: 0,
-            status: 'success'
+            status: 'success',
           },
           {
             name: this.$t('失败'),
             num: 0,
-            status: 'failed'
+            status: 'failed',
           },
           {
             name: this.$t('执行中'),
             num: 0,
-            status: 'importing'
-          }
+            status: 'importing',
+          },
         ],
-        active: 'total'
+        active: 'total',
       },
       // 当前statusMap
       statusMap: {
         success: {
           name: this.$t('成功'),
-          status: 'success'
+          status: 'success',
         },
         failed: {
           name: this.$t('失败'),
-          status: 'failed'
+          status: 'failed',
         },
         importing: {
           name: this.$t('导入中'),
-          status: 'importing'
-        }
+          status: 'importing',
+        },
       },
       // 私有表格属性（公共属性在mixin中）
       table: {
         runingQueue: [],
         timer: null,
-        interval: 2000
+        interval: 2000,
       },
       // 批量重试loading
       batchRetryLoading: false,
@@ -289,7 +293,7 @@ export default {
       // 统一监控对象名称
       targetType: '',
       // 历史ID
-      historyId: this.id
+      historyId: this.id,
     };
   },
   computed: {
@@ -297,8 +301,8 @@ export default {
     // 批量重试按钮禁用状态
     disabledBatchRetryBtn() {
       return (
-        this.table.runingQueue.length !== 0
-        || this.table.list.filter(item => item.status === 'failed' && item.type !== 'bkmonitor.models.fta.plugin')
+        this.table.runingQueue.length !== 0 ||
+        this.table.list.filter(item => item.status === 'failed' && item.type !== 'bkmonitor.models.fta.plugin')
           .length === 0
       );
     },
@@ -306,22 +310,23 @@ export default {
     disabledConfirmBtn() {
       // 监控对象不一致、没有成功任务、有导入任务下都禁用
       return (
-        !this.isRepeat
-        || !this.table.list.some(item => item.status === 'success')
-        || this.table.list.some(item => item.status === 'importing')
+        !this.isRepeat ||
+        !this.table.list.some(item => item.status === 'success') ||
+        this.table.list.some(item => item.status === 'importing')
       );
     },
     // 计算各个分类的表格数据
     tableData() {
       // 从list中筛选出每个表格的数据
-      return type => this.table.list.filter((item) => {
-        const isCurTag = this.tag.active === 'total' || item.status === this.tag.active;
-        return item.type === type && isCurTag;
-      });
+      return type =>
+        this.table.list.filter(item => {
+          const isCurTag = this.tag.active === 'total' || item.status === this.tag.active;
+          return item.type === type && isCurTag;
+        });
     },
     // 统计表格数据
     countData() {
-      return (collapse) => {
+      return collapse => {
         const checkedCount = this.tableData(collapse.name).length;
         return `${collapse.title}（${this.$t('共 {0} 个', [checkedCount])}）`;
       };
@@ -329,7 +334,7 @@ export default {
     // 是否显示空界面
     isShowEmpty() {
       return !this.table.list.filter(item => this.tag.active === 'total' || item.status === this.tag.active).length;
-    }
+    },
   },
   watch: {
     'table.runingQueue': {
@@ -344,7 +349,7 @@ export default {
           this.table.timer = null;
         }
       },
-      immediate: true
+      immediate: true,
     },
     id: {
       handler(v, o) {
@@ -352,8 +357,8 @@ export default {
           this.historyId = v;
           this.handleInit();
         }
-      }
-    }
+      },
+    },
   },
   created() {
     // just do it
@@ -383,13 +388,13 @@ export default {
         this.loading = false;
       });
       // 表格数据
-      this.table.list = data.configList.map((item) => {
+      this.table.list = data.configList.map(item => {
         item.status = item.importStatus;
         return item;
       });
       // 统计数据
       this.table.statistics = this.handleCountData(data);
-      this.tag.list.forEach((item) => {
+      this.tag.list.forEach(item => {
         item.num = this.table.statistics.allCount[item.status] || 0;
       });
       // 检测监控目标是否统一
@@ -407,7 +412,7 @@ export default {
       const hasRepeat = {};
       this.isRepeat = this.table.list
         .filter(item => item.type !== 'bkmonitor.models.fta.plugin' && item.status === 'success')
-        .every((item) => {
+        .every(item => {
           if (!Object.keys(hasRepeat).length && item.targetType) {
             hasRepeat[item.targetType] = true;
             this.targetType = item.targetType;
@@ -419,7 +424,7 @@ export default {
      * 运行轮询任务
      */
     async handleRunTimer() {
-      const interval = (cb) => {
+      const interval = cb => {
         const fn = async () => {
           if (this.table.runingQueue.length === 0) {
             clearTimeout(this.table.timer);
@@ -445,7 +450,7 @@ export default {
      */
     handlePushRuningTask() {
       const uuids = this.table.list
-        .filter((item) => {
+        .filter(item => {
           const notInclude = !this.table.runingQueue.includes(item.uuid);
           return item.status === 'importing' && notInclude;
         })
@@ -459,7 +464,7 @@ export default {
      */
     handleChangeStatus(data) {
       if (!data || !data.configList.length) return;
-      this.table.list = data.configList.map((item) => {
+      this.table.list = data.configList.map(item => {
         item.status = item.importStatus;
         // 如果当前状态不为importing则移除
         if (this.table.runingQueue.includes(item.uuid) && item.status !== 'importing') {
@@ -469,7 +474,7 @@ export default {
         return item;
       });
       this.table.statistics = this.handleCountData(data);
-      this.tag.list.forEach((item) => {
+      this.tag.list.forEach(item => {
         item.num = this.table.statistics.allCount[item.status] || 0;
       });
       this.handleDetectionTarget();
@@ -488,7 +493,7 @@ export default {
       // 获取失败任务ID并设置任务状态（为了防止接口返回慢导致任务状态扭转卡顿）
       const uuids = this.table.list
         .filter(item => item.status === 'failed' && item.type !== 'bkmonitor.models.fta.plugin')
-        .map((item) => {
+        .map(item => {
           item.status = 'importing';
           return item.uuid;
         });
@@ -524,16 +529,16 @@ export default {
           failed: 0,
           importing: 0,
           success: 0,
-          total: 0
-        }
+          total: 0,
+        },
       };
-      this.table.list.forEach((item) => {
+      this.table.list.forEach(item => {
         if (!countData[item.type]) {
           countData[item.type] = {
             failed: 0,
             importing: 0,
             success: 0,
-            total: 0
+            total: 0,
           };
         }
         countData.allCount.total += 1;
@@ -543,7 +548,7 @@ export default {
       });
       // 统计数据
       this.table.statistics = countData;
-      this.tag.list.forEach((item) => {
+      this.tag.list.forEach(item => {
         item.num = this.table.statistics.allCount[item.status] || 0;
       });
     },
@@ -567,8 +572,8 @@ export default {
           name: 'import-configuration-target',
           params: {
             targetType,
-            historyId
-          }
+            historyId,
+          },
         });
       };
       if (existTarget) {
@@ -580,14 +585,14 @@ export default {
             {
               style: {
                 fontSize: '12px',
-                textAlign: 'center'
-              }
+                textAlign: 'center',
+              },
             },
             this.$t('导入的配置有些已经存在监控目标，重新设置会覆盖原来的监控目标，确认覆盖请继续！')
           ),
           okText: this.$t('继续'),
           cancelText: this.$t('取消'),
-          confirmFn: handleGoToTarget
+          confirmFn: handleGoToTarget,
         });
       } else {
         handleGoToTarget();
@@ -609,8 +614,8 @@ export default {
             {
               style: {
                 fontSize: '12px',
-                textAlign: 'center'
-              }
+                textAlign: 'center',
+              },
             },
             this.$t('导入的采集配置和策略配置处于停用状态，需到列表页单独设置后才可以使用！')
           ),
@@ -618,7 +623,7 @@ export default {
           cancelText: this.$t('取消'),
           confirmFn: () => {
             this.$router.push({ name: 'export-import' });
-          }
+          },
         });
       }
     },
@@ -631,7 +636,7 @@ export default {
           theme: 'add-target',
           content: this.$t('监控对象不一致，无法添加统一监控目标'),
           lazy: false,
-          arrow: true
+          arrow: true,
         });
       } else {
         this.popoverInstance.setContent('监控对象不一致，无法添加统一监控目标');
@@ -645,8 +650,8 @@ export default {
       this.popoverInstance?.hide(1);
       this.popoverInstance?.destroy();
       this.popoverInstance = null;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

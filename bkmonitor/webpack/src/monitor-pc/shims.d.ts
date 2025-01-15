@@ -23,18 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable camelcase */
-import VueI18n, { TranslateResult } from 'vue-i18n';
-import * as base from 'vue-tsx-support/types/base';
-import * as builtin from 'vue-tsx-support/types/builtin-components';
 
-import { IBizItem, ISpaceItem } from './types';
+import type { IBizItem, ISpaceItem } from './types';
+import type VueI18n from 'vue-i18n';
+import type { TranslateResult } from 'vue-i18n';
+import type * as base from 'vue-tsx-support/types/base';
+import type * as builtin from 'vue-tsx-support/types/builtin-components';
 
 interface IBkInfoProps {
   title: unknown;
   zIndex: number;
-  width: string | number;
+  width: number | string;
   type: string;
+  container: Element | string;
   maskClose: boolean;
   confirmLoading: boolean;
   subHeader?: any;
@@ -49,9 +50,9 @@ interface IBkInfoProps {
 }
 declare module 'vue/types/vue' {
   interface Vue {
-    $bkInfo?: (p: Partial<IBkInfoProps>) => void;
-    $bkMessage?: (p: Partial<{}>) => void;
-    $bkPopover?: (...Object) => void;
+    $bkInfo?: (p: Partial<IBkInfoProps>) => { close: () => void };
+    $bkMessage?: (p: Partial<object>) => void;
+    $bkPopover?: (...object) => void;
     $bkToPinyin?: (str: string, lowerCase?: boolean, separator?: string) => string;
     $bkLoading?: any;
     $api?: any;
@@ -59,7 +60,13 @@ declare module 'vue/types/vue' {
 }
 declare module '*/store';
 declare module '*.svg';
-
+interface ShowLoginModalOption {
+  loginUrl: string;
+  width?: number;
+  height?: number;
+  maskColor?: string;
+  maskZIndex?: number;
+}
 declare global {
   interface Window {
     site_url: string;
@@ -70,15 +77,14 @@ declare global {
     space_list: ISpaceItem[];
     bk_biz_list: IBizItem[];
     csrf_cookie_name: string;
-    cc_biz_id: string | number;
-    bk_biz_id: string | number;
+    cc_biz_id: number | string;
+    bk_biz_id: number | string;
     space_uid: string;
     Vue?: any;
     i18n: VueI18n;
     enable_aiops: boolean;
     enable_apm: boolean;
     ce_url?: string;
-    LoginModal?: any;
     enable_message_queue: boolean;
     is_superuser: boolean;
     job_url: string;
@@ -91,6 +97,7 @@ declare global {
     bk_log_search_url: string;
     cluster_setup_url: string;
     bk_docs_site_url: string;
+    bk_doc_version: string;
     agent_setup_url: string;
     bk_component_api_url: string;
     bk_domain: string;
@@ -110,6 +117,9 @@ declare global {
     source_app: string;
     bk_bcs_url: string;
     __BK_WEWEB_DATA__: Record<string, any>;
+    __POWERED_BY_BK_WEWEB__?: boolean;
+    rawDocument: Document;
+    rawWindow: Window;
     token?: string;
     enable_create_chat_group: boolean;
     __bk_zIndex_manager: {
@@ -122,6 +132,24 @@ declare global {
     bk_paas_host: string;
     docUrlMap: Record<string, string>;
     page_title: string;
+    wxwork_bot_send_image?: boolean;
+    showLoginModal: (option: ShowLoginModalOption) => void;
+    BLUEKING?: Record<string, any>;
+    bk_shared_res_url: string;
+    footer_version: string;
+    __AuthMap__: Map<string, Map<string, boolean>>;
+    csrf_token: string;
+    enable_ai_assistant?: boolean;
+    graph_watermark?: boolean;
+    k8s_v2_biz_list?: number[]; // 开启 k8s v2 版本的业务列表
+    // 以下为日志全局变量配置
+    mainComponent: any;
+    AJAX_URL_PREFIX: string;
+    BK_DOC_URL?: string;
+    FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
+  }
+  interface HTMLElement {
+    ___zrEVENTSAVED?: Record<string, any>; // echarts zrender instance
   }
   namespace VueTsxSupport.JSX {
     type Element = base.Element;
@@ -132,10 +160,10 @@ declare global {
           base.PropsOf<V>,
           base.PrefixedEventsOf<V>,
           base.OnOf<V>,
-          V extends { $scopedSlots: infer X } ? X : {},
+          V extends { $scopedSlots: infer X } ? X : object,
           base.IsPropsObjectAllowed<V>
         > &
-          (V extends { _tsxattrs: infer T } ? T : {})
+          (V extends { _tsxattrs: infer T } ? T : object)
       : P;
 
     interface IntrinsicElements extends base.IntrinsicElements {
@@ -143,9 +171,16 @@ declare global {
       [name: string]: any;
 
       // builtin components
-      transition: base.CombinedTsxComponentAttrs<builtin.TransitionProps, {}, {}, {}, {}, true>;
-      'transition-group': base.CombinedTsxComponentAttrs<builtin.TransitionGroupProps, {}, {}, {}, {}, true>;
-      'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, {}, {}, {}, {}, true>;
+      transition: base.CombinedTsxComponentAttrs<builtin.TransitionProps, object, object, object, object, true>;
+      'transition-group': base.CombinedTsxComponentAttrs<
+        builtin.TransitionGroupProps,
+        object,
+        object,
+        object,
+        object,
+        true
+      >;
+      'keep-alive': base.CombinedTsxComponentAttrs<builtin.KeepAliveProps, object, object, object, object, true>;
     }
   }
 }

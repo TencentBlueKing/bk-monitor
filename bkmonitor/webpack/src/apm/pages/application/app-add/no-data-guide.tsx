@@ -25,6 +25,7 @@
  */
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { applicationInfoByAppName, metaConfigInfo, pushUrl, queryBkDataToken } from 'monitor-api/modules/apm_meta';
 import { copyText } from 'monitor-common/utils/utils';
 import Collapse from 'monitor-pc/components/collapse/collapse';
@@ -32,9 +33,8 @@ import svgIcon from 'monitor-pc/components/svg-icon/svg-icon.vue';
 import MarkdowViewer from 'monitor-ui/markdown-editor/viewer';
 
 import * as authorityMap from '../../home/authority-map';
-
 import SelectCardItem from './select-card-item';
-import { ICardItem, IListDataItem, SystemData } from './utils';
+import { type ICardItem, type IListDataItem, SystemData } from './utils';
 
 import './no-data-guide.scss';
 
@@ -49,8 +49,8 @@ interface IPushUrlItem {
 }
 @Component({
   components: {
-    svgIcon
-  }
+    svgIcon,
+  },
 })
 export default class NoDataGuide extends tsc<IProps> {
   @Prop({ type: String, default: 'noData' }) type: IProps['type'];
@@ -70,11 +70,11 @@ export default class NoDataGuide extends tsc<IProps> {
   /** 无数据指引提示 */
   stepTipsList = [
     {
-      message: window.i18n.t('当前页面暂无数据显示，你可以跟随安装指引将应用安装至你的网站。')
+      message: window.i18n.t('当前页面暂无数据显示，你可以跟随安装指引将应用安装至你的网站。'),
     },
     {
-      message: window.i18n.t('假如数据一直未能显示，请联系平台管理员。')
-    }
+      message: window.i18n.t('假如数据一直未能显示，请联系平台管理员。'),
+    },
   ];
 
   /** md文档说明 */
@@ -152,13 +152,13 @@ export default class NoDataGuide extends tsc<IProps> {
     copyText(text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
@@ -187,7 +187,7 @@ export default class NoDataGuide extends tsc<IProps> {
             //   }
             // }}
           >
-            <i class={['icon-monitor icon-mc-triangle-down', { 'is-collapse': this.isCollapse }]}></i>
+            <i class={['icon-monitor icon-mc-triangle-down', { 'is-collapse': this.isCollapse }]} />
             {name}
           </div>
         )}
@@ -201,13 +201,13 @@ export default class NoDataGuide extends tsc<IProps> {
           !cardItem.hidden && (
             <SelectCardItem
               class='system-select-list-item'
-              title={cardItem.title}
-              theme={cardItem.theme}
-              multiple={row.multiple}
-              img={cardItem.img}
-              mode='small'
               checked={cardItem.checked}
               descData={cardItem.descData}
+              img={cardItem.img}
+              mode='small'
+              multiple={row.multiple}
+              theme={cardItem.theme}
+              title={cardItem.title}
               onClick={() => this.handleCheckedCardItem(cardItem, row, !cardItem.checked)}
             />
           )
@@ -224,10 +224,10 @@ export default class NoDataGuide extends tsc<IProps> {
               <div class='step-tips-wrap'>
                 <Collapse
                   defaultHeight={56}
+                  expand={this.expandStepTips}
                   maxHeight={96}
                   needCloseButton={false}
                   renderAnimation={false}
-                  expand={this.expandStepTips}
                 >
                   <div class='step-tips-content'>
                     {this.stepTipsList.map((item, index) => (
@@ -244,7 +244,7 @@ export default class NoDataGuide extends tsc<IProps> {
                     onClick={this.handleExpandStepTips}
                   >
                     <span>{this.$t(this.expandStepTips ? '收起' : '展开')}</span>
-                    <i class={['icon-monitor icon-arrow-up', { 'is-hidden': !this.expandStepTips }]}></i>
+                    <i class={['icon-monitor icon-arrow-up', { 'is-hidden': !this.expandStepTips }]} />
                   </span>
                 </div>
               </div>
@@ -260,10 +260,10 @@ export default class NoDataGuide extends tsc<IProps> {
                     {(this.showSecureKey ? this.secureKey : '********') || '●●●●●●●●●●'}
                     {!this.secureKey ? (
                       <span class={['handle-btn', { 'btn-loading': this.secureKeyLoading }]}>
-                        <span class='loading'></span>
+                        <span class='loading' />
                         <span
-                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           class='handle-text'
+                          v-authority={{ active: !this.authority.MANAGE_AUTH }}
                           onClick={() => {
                             this.authority
                               ? this.handleGetSecureKey()
@@ -279,7 +279,7 @@ export default class NoDataGuide extends tsc<IProps> {
                           <i
                             class='icon-monitor icon-mc-copy copy-icon'
                             onClick={() => this.handleCopy(this.secureKey)}
-                          ></i>
+                          />
                         )}
                       </span>
                     )}
@@ -346,13 +346,13 @@ export default class NoDataGuide extends tsc<IProps> {
                 {this.mdData ? (
                   <MarkdowViewer
                     class='md-viwer'
-                    value={this.mdData}
                     flowchartStyle={true}
-                  ></MarkdowViewer>
+                    value={this.mdData}
+                  />
                 ) : (
                   <bk-exception
-                    type='empty'
                     scene='part'
+                    type='empty'
                   >
                     {this.$t('选择语言和环境')}
                   </bk-exception>

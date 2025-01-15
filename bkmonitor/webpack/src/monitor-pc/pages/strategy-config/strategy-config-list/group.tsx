@@ -23,24 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 /*
  * @Date: 2021-06-14 15:39:58
  * @LastEditTime: 2021-06-15 16:45:02
  * @Description:
  */
-import { VNode } from 'vue';
-import { TranslateResult } from 'vue-i18n';
-import { Component, Emit, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import type { VNode } from 'vue';
+import type { TranslateResult } from 'vue-i18n';
 
 import './group.scss';
 
 export interface IGroupData {
-  id: string | number;
+  id: number | string;
   name: TranslateResult;
   data: any[]; // data为自定义分组数据
 }
-type themeType = 'filter' | 'bold';
+type themeType = 'bold' | 'filter';
 type titleSlotType = (item: IGroupData) => VNode;
 
 interface IGroupProps {
@@ -58,13 +59,13 @@ interface IGroupSlots {
   default: { item: IGroupData };
 }
 
-type TActiveName = (string | number)[];
+type TActiveName = (number | string)[];
 
 /**
  * 插件分组信息
  */
 @Component({
-  name: 'Group'
+  name: 'Group',
 })
 export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
   @Prop({ type: Array, default: () => [] }) readonly data: IGroupData[];
@@ -97,7 +98,7 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
   boldTitleSlot(item: IGroupData): VNode {
     return (
       <div class='group-title bold'>
-        <i class={['bk-icon icon-angle-right', { expand: this.activeName?.includes(item.id) }]}></i>
+        <i class={['bk-icon icon-angle-right', { expand: this.activeName?.includes(item.id) }]} />
         <span class='name'>{item.name}</span>
       </div>
     );
@@ -112,13 +113,14 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
     return (
       <div class='group-title filter'>
         <div class='title-left'>
-          <i class={['bk-icon icon-angle-right', { expand: this.activeName.includes(item.id) }]}></i>
+          <i class={['bk-icon icon-angle-right', { expand: this.activeName.includes(item.id) }]} />
           <span class='name'>{item.name}</span>
         </div>
         <i
           class='icon-monitor icon-mc-clear'
+          v-bk-tooltips={{ content: this.$t('清除已勾选') }}
           onClick={event => this.handleClearChecked(event, item)}
-        ></i>
+        />
       </div>
     );
   }
@@ -135,15 +137,15 @@ export default class Group extends tsc<IGroupProps, IGroupEvents, IGroupSlots> {
         {this.data?.map(item =>
           item.data.length > 0 ? (
             <bk-collapse-item
-              ext-cls={`collapse-item collapse-item-${this.theme}`}
-              hide-arrow
               key={item.id}
-              name={item.id}
+              ext-cls={`collapse-item collapse-item-${this.theme}`}
               scopedSlots={{
                 default: () => this.titleSlot(item),
-                content: () => this.$scopedSlots?.default?.({ item })
+                content: () => this.$scopedSlots?.default?.({ item }),
               }}
-            ></bk-collapse-item>
+              name={item.id}
+              hide-arrow
+            />
           ) : undefined
         )}
       </bk-collapse>

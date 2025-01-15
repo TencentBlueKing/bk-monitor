@@ -23,33 +23,39 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
 import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
 import { destroyUserGroup, listDutyRule, listUserGroup } from 'monitor-api/modules/model';
+import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import DeleteSubtitle from '../../strategy-config/strategy-config-common/delete-subtitle';
 import AlarmGroupDetail from '../alarm-group-detail/alarm-group-detail';
 import * as authorityMap from '../authority-map';
 import TableStore from '../store';
 
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
+import type { VNode } from 'vue';
+
 import './alarm-group.scss';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const { i18n } = window;
 
-type TGroupType = 'monitor' | 'fta';
+type TGroupType = 'fta' | 'monitor';
 interface IGroupList {
-  type: TGroupType;
-  fromRouterName: string;
-  needReflesh: boolean;
+  type?: TGroupType;
+  fromRouterName?: string;
+  needReflesh?: boolean;
 }
 
 @Component({
-  name: 'AlarmGroupList'
+  name: 'AlarmGroupList',
 })
 export default class AlarmGroup extends tsc<IGroupList> {
   @Inject('authority') authority;
@@ -67,7 +73,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   tableSize = 'small';
   detail = {
     show: false,
-    id: null
+    id: null,
   };
   emptyType: EmptyStatusType = 'empty';
   // 表格列数据
@@ -81,7 +87,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 100,
       width: null,
       props: { 'show-overflow-tooltip': true },
-      formatter: () => {}
+      formatter: () => {},
     },
     {
       label: i18n.t('分派规则数'),
@@ -90,7 +96,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: () => {}
+      formatter: () => {},
     },
     {
       label: i18n.t('应用策略数'),
@@ -99,7 +105,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: () => {}
+      formatter: () => {},
     },
     {
       label: i18n.t('轮值规则'),
@@ -109,7 +115,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 200,
       width: null,
       props: {},
-      formatter: row => this.dutyRulesRender(row.dutyRuleNames)
+      formatter: row => this.dutyRulesRender(row.dutyRuleNames),
     },
     {
       label: i18n.t('说明'),
@@ -119,7 +125,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 180,
       width: null,
       props: { 'show-overflow-tooltip': true },
-      formatter: row => row.desc || '--'
+      formatter: row => row.desc || '--',
     },
     {
       label: i18n.t('最近更新人'),
@@ -128,7 +134,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: row => row.update_user || '--'
+      formatter: row => row.update_user || '--',
     },
     {
       label: i18n.t('最近更新时间'),
@@ -137,7 +143,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 220,
       props: {},
-      formatter: row => (row.update_time ? dayjs.tz(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--')
+      formatter: row => (row.update_time ? dayjs(row.update_time).format('YYYY-MM-DD HH:mm:ss') : '--'),
     },
     {
       label: i18n.t('配置来源'),
@@ -147,7 +153,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 70,
       width: 170,
       props: {},
-      formatter: row => row.config_source || '--'
+      formatter: row => row.config_source || '--',
     },
     {
       label: i18n.t('配置分组'),
@@ -157,7 +163,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: 70,
       width: 170,
       props: {},
-      formatter: row => row.app || '--'
+      formatter: row => row.app || '--',
     },
     {
       label: i18n.t('操作'),
@@ -167,10 +173,10 @@ export default class AlarmGroup extends tsc<IGroupList> {
       minWidth: null,
       width: 130,
       props: {
-        fixed: 'right'
+        fixed: 'right',
       },
-      formatter: () => {}
-    }
+      formatter: () => {},
+    },
   ];
 
   settingFields = [];
@@ -178,7 +184,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
 
   searchCondition = [];
 
-  handleSearch: Function = () => {};
+  handleSearch: (() => void) | debounce<(val: string) => void> = () => {};
 
   get isMonitor(): boolean {
     return this.type === 'monitor';
@@ -215,23 +221,23 @@ export default class AlarmGroup extends tsc<IGroupList> {
       rules_count: this.cellRulesCount,
       strategy_count: this.cellStrategyCount,
       handle: this.cellHandle,
-      update: this.cellUpdate
+      update: this.cellUpdate,
     };
     this.tableColumnsList.forEach(column => {
       const { prop } = column;
-      // eslint-disable-next-line no-param-reassign
+
       fnMap[prop] && (column.formatter = fnMap[prop]);
     });
     this.settingFields = this.tableColumnsList.map(item => ({
       label: item.label,
       id: item.prop,
-      disabled: item.disabled
+      disabled: item.disabled,
     }));
     this.selectedFields = this.tableColumnsList
       .filter(item => item.checked)
       .map(item => ({
         label: item.label,
-        id: item.prop
+        id: item.prop,
       }));
   }
   cellName(row) {
@@ -284,10 +290,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
   cellHandle(row) {
     return [
       <bk-button
-        text={true}
-        disabled={!row.edit_allowed}
+        key='1'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
+        disabled={!row.edit_allowed}
+        text={true}
         onClick={() =>
           this.authority.MANAGE_AUTH
             ? this.handleShowAddView('edit', row)
@@ -297,18 +304,26 @@ export default class AlarmGroup extends tsc<IGroupList> {
         {this.$t('button-编辑')}
       </bk-button>,
       <bk-button
-        text={true}
-        disabled={!row.delete_allowed}
+        key='2'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
+        disabled={!row.delete_allowed}
+        text={true}
         onClick={() =>
           this.authority.MANAGE_AUTH
             ? this.handleDeleteRow(row.id, row.name)
             : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
         }
       >
-        {this.$t('删除')}
-      </bk-button>
+        <span
+          v-bk-tooltips={{
+            content: this.$t('存在关联的策略，不可删除'),
+            disabled: row.delete_allowed,
+          }}
+        >
+          {this.$t('删除')}
+        </span>
+      </bk-button>,
     ];
   }
 
@@ -329,8 +344,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
         name: 'alarm-group-edit',
         params: {
           id: row.id,
-          title: `${this.$t('编辑')} - #${row.id} ${row.name}`
-        }
+          title: `${this.$t('编辑')} - #${row.id} ${row.name}`,
+        },
       });
     } else {
       this.$router.push({ name: 'alarm-group-add' });
@@ -358,7 +373,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   async getNoticeGroupList() {
     this.loading = true;
     const query = {
-      type: this.type
+      type: this.type,
     };
     const ruleMap = new Map();
     const ruleList = await listDutyRule().catch(() => []);
@@ -376,9 +391,9 @@ export default class AlarmGroup extends tsc<IGroupList> {
           const name = ruleMap.get(d) || '';
           return {
             id: d,
-            name
+            name,
           };
-        }) || []
+        }) || [],
     }));
     if (!this.tableInstance) {
       this.tableInstance = new TableStore(data);
@@ -387,18 +402,19 @@ export default class AlarmGroup extends tsc<IGroupList> {
       this.tableInstance.total = data.length;
     }
     this.tableInstance.page = 1;
-    if (!!this.$route.query?.dutyRule) {
+    this.tableInstance.pageSize = commonPageSizeGet();
+    if (this.$route.query?.dutyRule) {
       const dutyId = this.$route.query.dutyRule;
       const searchCondition = [
         {
           id: 'rule',
           name: window.i18n.t('轮值规则'),
-          values: [{ id: dutyId, name: dutyId }]
-        }
+          values: [{ id: dutyId, name: dutyId }],
+        },
       ];
       this.handleSearchCondition(searchCondition);
       this.$router.replace({
-        query: undefined
+        query: undefined,
       });
     }
     this.tableData = this.tableInstance.getTableData();
@@ -416,8 +432,8 @@ export default class AlarmGroup extends tsc<IGroupList> {
       title: this.$t('确认要删除？'),
       subHeader: () => (
         <DeleteSubtitle
-          title={this.$tc('名称')}
           name={name}
+          title={this.$tc('名称')}
         />
       ),
       maskClose: true,
@@ -429,7 +445,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
           })
           .finally(() => (this.loading = false));
-      }
+      },
     });
   }
 
@@ -450,6 +466,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
   handleLimitChange(limit: number) {
     this.tableInstance.page = 1;
     this.tableInstance.pageSize = limit;
+    commonPageSizeSet(limit);
     this.tableData = this.tableInstance.getTableData();
   }
 
@@ -468,7 +485,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     if (!rulesCount) return;
     this.$router.push({
       name: 'alarm-dispatch',
-      query: { groupName: name }
+      query: { groupName: name },
     });
   }
 
@@ -477,7 +494,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
     if (!strategyCount) return;
     this.$router.push({
       name: 'strategy-config',
-      params: { noticeName: name }
+      params: { noticeName: name },
     });
   }
 
@@ -524,11 +541,14 @@ export default class AlarmGroup extends tsc<IGroupList> {
             boundary: 'window',
             content: rules.map(item => item.name).join('、'),
             delay: 200,
-            allowHTML: false
+            allowHTML: false,
           }}
         >
-          {rules.map(item => (
-            <span class='wrap-label'>
+          {rules.map((item, index) => (
+            <span
+              key={index}
+              class='wrap-label'
+            >
               <span class='text-overflow'>{item.name}</span>
             </span>
           ))}
@@ -547,44 +567,43 @@ export default class AlarmGroup extends tsc<IGroupList> {
           <div
             // class={['alarm-group-list-wrap', { pd0: this.isMonitor }]}
             class='alarm-group-list-wrap'
-            v-bkloading={{ isLoading: this.loading }}
+            // v-bkloading={{ isLoading: this.loading }}
           >
             <div class='alarm-group-tool'>
               <bk-button
                 class='tool-btn mc-btn-add'
-                theme='primary'
                 v-authority={{ active: !this.authority.MANAGE_AUTH }}
+                theme='primary'
                 onClick={() =>
                   this.authority.MANAGE_AUTH
                     ? this.handleShowAddView('add')
                     : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
                 }
               >
-                <span class='icon-monitor icon-plus-line mr-6'></span>
+                <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
-              <bk-search-select
+              <SearchSelect
                 class='tool-search'
-                values={this.searchCondition}
-                placeholder={this.$t('ID / 告警组名称')}
                 data={[
                   {
                     name: 'ID',
-                    id: 'id'
+                    id: 'id',
                   },
                   {
                     name: this.$t('告警组名称'),
-                    id: 'name'
+                    id: 'name',
                   },
                   {
                     name: this.$t('轮值规则'),
-                    id: 'rule'
-                  }
+                    id: 'rule',
+                  },
                 ]}
-                strink={false}
-                show-condition={false}
+                modelValue={this.searchCondition}
+                placeholder={this.$t('ID / 告警组名称')}
+                uniqueSelect={true}
                 onChange={this.handleSearchCondition}
-              ></bk-search-select>
+              />
               {/* <bk-input
             class='tool-search'
             placeholder={this.$t('ID / 告警组名称')}
@@ -593,67 +612,77 @@ export default class AlarmGroup extends tsc<IGroupList> {
             right-icon='bk-icon icon-search'
           ></bk-input> */}
             </div>
-            <bk-table
-              class='alarm-group-table'
-              data={this.tableData}
-              outer-border={false}
-              header-border={false}
-              size={this.tableSize}
-            >
-              <div slot='empty'>
-                <EmptyStatus
-                  type={this.emptyType}
-                  onOperation={this.handleOperation}
-                />
-              </div>
-              {this.tableColumnsList
-                .filter(item => this.selectedColumn.includes(item.prop))
-                .map(item => (
-                  <bk-table-column
-                    key={item.prop}
-                    label={item.label}
-                    prop={item.prop}
-                    {...{ props: item.props }}
-                    width={item.width}
-                    min-width={item.minWidth}
-                    show-overflow-tooltip={item.prop !== 'duty_rules'}
-                    formatter={item.formatter}
-                  />
-                ))}
-              <bk-table-column
-                type='setting'
-                tippy-options={{ zIndex: 999 }}
-              >
-                <bk-table-setting-content
-                  fields={this.settingFields}
-                  selected={this.selectedFields}
+            {this.loading ? (
+              <TableSkeleton class='mt-16' />
+            ) : (
+              [
+                <bk-table
+                  key='alarm-group-table'
+                  class='alarm-group-table'
+                  data={this.tableData}
+                  header-border={false}
+                  outer-border={false}
                   size={this.tableSize}
-                  on-setting-change={this.handleSettingChange}
-                ></bk-table-setting-content>
-              </bk-table-column>
-            </bk-table>
-            <div class='alarm-group-pagination'>
-              {this.tableInstance ? (
-                <bk-pagination
-                  class='config-pagination list-pagination'
-                  align='right'
-                  size='small'
-                  current={this.tableInstance.page}
-                  limit={this.tableInstance.pageSize}
-                  count={this.tableInstance.total}
-                  limit-list={this.tableInstance.pageList}
-                  on-change={this.handlePageChange}
-                  on-limit-change={this.handleLimitChange}
-                  show-total-count
-                ></bk-pagination>
-              ) : undefined}
-            </div>
+                >
+                  <div slot='empty'>
+                    <EmptyStatus
+                      type={this.emptyType}
+                      onOperation={this.handleOperation}
+                    />
+                  </div>
+                  {this.tableColumnsList
+                    .filter(item => this.selectedColumn.includes(item.prop))
+                    .map(item => (
+                      <bk-table-column
+                        key={item.prop}
+                        label={item.label}
+                        prop={item.prop}
+                        {...{ props: item.props }}
+                        width={item.width}
+                        formatter={item.formatter}
+                        min-width={item.minWidth}
+                        show-overflow-tooltip={item.prop !== 'duty_rules'}
+                      />
+                    ))}
+                  <bk-table-column
+                    tippy-options={{ zIndex: 999 }}
+                    type='setting'
+                  >
+                    <bk-table-setting-content
+                      fields={this.settingFields}
+                      selected={this.selectedFields}
+                      size={this.tableSize}
+                      on-setting-change={this.handleSettingChange}
+                    />
+                  </bk-table-column>
+                </bk-table>,
+                <div
+                  key={'alarm-group-pagination'}
+                  class='alarm-group-pagination'
+                >
+                  {this.tableInstance ? (
+                    <bk-pagination
+                      class='config-pagination list-pagination'
+                      align='right'
+                      count={this.tableInstance.total}
+                      current={this.tableInstance.page}
+                      limit={this.tableInstance.pageSize}
+                      limit-list={this.tableInstance.pageList}
+                      size='small'
+                      show-total-count
+                      on-change={this.handlePageChange}
+                      on-limit-change={this.handleLimitChange}
+                    />
+                  ) : undefined}
+                </div>,
+              ]
+            )}
           </div>
         </div>
         <AlarmGroupDetail
           id={this.detail.id}
           v-model={this.detail.show}
-        ></AlarmGroupDetail>
+        />
       </div>
     );
   }

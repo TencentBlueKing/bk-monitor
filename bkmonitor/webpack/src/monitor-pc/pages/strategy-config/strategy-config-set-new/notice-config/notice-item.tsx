@@ -23,22 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './notice-item.scss';
 
 interface IProps {
   value: boolean;
-  title: string | TranslateResult;
-  subTitle: string | TranslateResult;
+  title: TranslateResult | string;
+  subTitle: TranslateResult | string;
   onChange?: (v: boolean) => void;
   clearError: () => void;
 }
 
 @Component({
-  name: 'NoticeItem'
+  name: 'NoticeItem',
 })
 export default class NoticeItem extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) value: boolean;
@@ -56,12 +57,12 @@ export default class NoticeItem extends tsc<IProps> {
         <div class='notice-item-warp'>
           <div class='notice-header-warp'>
             <bk-checkbox
+              value={this.value}
               onChange={value => {
                 this.valueChange(value);
                 this.clearError();
               }}
-              value={this.value}
-            ></bk-checkbox>
+            />
             <div
               class='title'
               v-bk-overflow-tips
@@ -69,7 +70,7 @@ export default class NoticeItem extends tsc<IProps> {
               {this.title}
             </div>
             <div class='subTitle'>
-              <i class='icon-monitor icon-hint'></i>
+              <i class='icon-monitor icon-hint' />
               <span v-bk-overflow-tips> {this.subTitle}</span>
             </div>
             {this.$slots.header && <span class='header-right'>{this.$slots.header}</span>}

@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import { applyGuidePage } from '../../common';
 import { VIEW_AUTH } from '../../pages/custom-scenes/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const CustomScenes = () => import(/* webpackChunkName: 'CustomScenes' */ '../../pages/custom-scenes/custom-scenes');
 const CustomScenesView = () =>
@@ -40,22 +40,22 @@ export default applyGuidePage([
       title: '自定义场景',
       navId: 'custom-scenes',
       route: {
-        parent: 'scenes'
+        parent: 'scenes',
       },
       noNavBar: true,
       authority: {
-        page: VIEW_AUTH
-      }
-    }
+        page: VIEW_AUTH,
+      },
+    },
   },
   {
     path: '/custom-scenes/view/:id',
     name: 'custom-scenes-view',
     components: {
-      noCache: CustomScenesView
+      noCache: CustomScenesView,
     },
     props: {
-      noCache: true
+      noCache: true,
     },
     meta: {
       title: '可视化',
@@ -64,11 +64,11 @@ export default applyGuidePage([
       customContent: true,
       noNavBar: true,
       route: {
-        parent: 'custom-scenes'
+        parent: 'custom-scenes',
       },
       authority: {
-        page: VIEW_AUTH
-      }
-    }
-  }
+        page: VIEW_AUTH,
+      },
+    },
+  },
 ] as RouteConfig[]);

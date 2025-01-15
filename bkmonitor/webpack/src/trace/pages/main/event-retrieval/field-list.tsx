@@ -23,14 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, ref, toRefs, watch } from 'vue';
+import { type PropType, defineComponent, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Collapse, Progress } from 'bkui-vue';
 import { EnlargeLine, NarrowLine } from 'bkui-vue/lib/icon';
 import { deepClone } from 'monitor-common/utils/utils';
-import { type FieldListType, type FieldValue } from 'monitor-pc/pages/data-retrieval/typings';
 
 import { SPAN_KIND_MAPS, SPAN_STATUS_CODE } from '../../../store/constant';
+
+import type { FieldListType, FieldValue } from 'monitor-pc/pages/data-retrieval/typings';
 
 import './field-list.scss';
 
@@ -54,18 +56,18 @@ const TOP_NUM = 5;
 const IProps = {
   value: {
     type: Array as PropType<TraceFieldValue[]>,
-    default: () => []
+    default: () => [],
   },
   total: {
     // 记录总数
     type: Number,
-    default: 0
+    default: 0,
   },
   allowDisplay: {
     // 允许控制显示隐藏
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 };
 
 export default defineComponent({
@@ -96,7 +98,7 @@ export default defineComponent({
       emit('checkedChange', {
         index,
         checked: !item.checked,
-        field: item.field
+        field: item.field,
       });
     };
 
@@ -110,7 +112,7 @@ export default defineComponent({
         key: item.field,
         method,
         value: [val.id],
-        condition: 'and'
+        condition: 'and',
       });
     };
 
@@ -133,7 +135,7 @@ export default defineComponent({
         interface_name: t('接口名'),
         interface_service_name: t('所属Service'),
         service_name_in_service_statistic: 'Service',
-        service_type_in_service_statistic: t('服务类型')
+        service_type_in_service_statistic: t('服务类型'),
       };
       return aliasMap[key] || key;
     };
@@ -152,14 +154,14 @@ export default defineComponent({
       total,
       allowDisplay,
       localValue,
-      handleChangeShowMore
+      handleChangeShowMore,
     };
   },
   render() {
     const titleSlot = (item: TraceFieldValue, index: number) => (
       <div class={['collapse-item-title', { 'is-expanded': this.expandedData.includes(item.key) }]}>
         <span class='title-left'>
-          <i class={['icon-monitor', 'icon-mc-triangle-down']}></i>
+          <i class={['icon-monitor', 'icon-mc-triangle-down']} />
           {/* <span class="type-icon">#</span> */}
           <span class='field-name'>{item.fieldName}</span>
           <span class='field-value-count'>{item.total}</span>
@@ -222,11 +224,11 @@ export default defineComponent({
                   <span class='percent'>{val.percent}%</span>
                 </div>
                 <Progress
-                  theme='success'
                   percent={val.percent}
                   show-text={false}
                   stroke-width={4}
-                ></Progress>
+                  theme='success'
+                />
               </div>
               <div class='icon-box'>
                 <EnlargeLine
@@ -258,12 +260,12 @@ export default defineComponent({
       <Collapse
         class='collapse-wrap collapse-wrap-event'
         v-model={this.expandedData}
-        list={this.localValue}
-        idFiled='key'
         v-slots={{
           default: (item: TraceFieldValue, index: number) => titleSlot(item, index),
-          content: (item: TraceFieldValue) => contentSlot(item)
+          content: (item: TraceFieldValue) => contentSlot(item),
         }}
+        idFiled='key'
+        list={this.localValue}
       >
         {/* <div class="collapse-wrap collapse-wrap-event">
           {
@@ -283,5 +285,5 @@ export default defineComponent({
         </div> */}
       </Collapse>
     );
-  }
+  },
 });

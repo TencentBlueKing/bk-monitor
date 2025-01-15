@@ -12,7 +12,7 @@ import time
 from typing import List
 
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django_elasticsearch_dsl.registries import registry
 from elasticsearch_dsl import InnerDoc, Search, field
 
@@ -264,7 +264,7 @@ class AlertDocument(BaseDocument):
 
     @property
     def common_dimension_tuple(self) -> tuple:
-        return tuple(sorted([(d.key, d.value) for d in self.common_dimensions], key=lambda x: x[0]))
+        return tuple(sorted([(d["key"], d["value"]) for d in self.common_dimensions], key=lambda x: x[0]))
 
     @property
     def is_composite_strategy(self):

@@ -1,3 +1,6 @@
+import { RecoveryConfigStatusSetter } from './strategy-config-set-new/judging-condition/judging-condition';
+import { MetricType, type MetricDetail } from './strategy-config-set-new/typings';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -34,7 +37,7 @@ export const handleSetTargetDesc = (
 ) => {
   const targetResult = {
     message: '',
-    subMessage: ''
+    subMessage: '',
   };
   // const [{ objectType }] = this.metricData;
   const allHost = new Set();
@@ -42,17 +45,18 @@ export const handleSetTargetDesc = (
     const len = nodeCount || targetList.length;
     let count = 0;
     let instanceCount = 0;
-    if (['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(bkTargetType)) {
-      targetList.forEach(item => {
+    if (['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE', 'DYNAMIC_GROUP'].includes(bkTargetType)) {
+      for (const item of targetList) {
         item?.all_host?.forEach(id => allHost.add(id));
         count = allHost.size;
         instanceCount += item?.instances_count || 0;
-      });
+      }
       count = instance_count || instanceCount || count;
       const textMap = {
         TOPO: '{0}个拓扑节点',
         SERVICE_TEMPLATE: '{0}个服务模板',
-        SET_TEMPLATE: '{0}个集群模板'
+        SET_TEMPLATE: '{0}个集群模板',
+        DYNAMIC_GROUP: '{0}个动态分组',
       };
       targetResult.message = i18n.t(textMap[bkTargetType], [len]) as string;
       const subText = objectType === 'SERVICE' ? '{0}个实例' : '{0}台主机';
@@ -65,4 +69,15 @@ export const handleSetTargetDesc = (
     targetResult.subMessage = '';
   }
   return targetResult;
+};
+
+// 判断 是否非时序数据（指标数据）
+export const IS_TIME_SERIES = [MetricType.TimeSeries];
+export const isRecoveryDisable = (metricData: MetricDetail[]) => {
+  return !(metricData.length && metricData.some(v => IS_TIME_SERIES.includes(v?.data_type_label as MetricType)));
+};
+
+// 判断 恢复条件是否选择 无数据
+export const isStatusSetterNoData = (v: RecoveryConfigStatusSetter) => {
+  return v === RecoveryConfigStatusSetter.RECOVERY_NODATA;
 };

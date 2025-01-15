@@ -9,5 +9,5 @@ export default {
   fetchAiSetting,
   saveAiSetting,
   hostIntelligenAnomaly,
-  hostIntelligenAnomalyRange
+  hostIntelligenAnomalyRange,
 };

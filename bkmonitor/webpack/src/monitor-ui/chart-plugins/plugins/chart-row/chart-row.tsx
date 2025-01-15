@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { PanelModel } from '../../typings';
+import type { PanelModel } from '../../typings';
 
 import './chart-row.scss';
 
@@ -54,7 +54,7 @@ export default class ChartRow extends tsc<IChartRowProps, IChartRowEvent> {
   render() {
     return (
       <div
-        class={`chart-row ${this.panel.collapsed ? 'is-collapsed' : ''} `}
+        class={'chart-row'}
         onClick={this.handleCollapsed}
       >
         <i class='bk-icon icon-right-shape chart-row-icon' />

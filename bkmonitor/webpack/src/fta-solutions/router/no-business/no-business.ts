@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
+import type { RouteConfig } from 'vue-router';
 
 const NoBusiness = () => import(/* webpackChunkName: 'no-business' */ 'monitor-pc/pages/no-business/no-business.vue');
 export default [
@@ -31,12 +31,12 @@ export default [
     name: 'no-business',
     path: '/no-business',
     components: {
-      noCache: NoBusiness
+      noCache: NoBusiness,
     },
     meta: {
       title: '无业务',
       navId: '',
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

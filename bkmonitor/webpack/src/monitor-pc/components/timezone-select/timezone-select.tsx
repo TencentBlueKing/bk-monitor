@@ -44,7 +44,7 @@ export default class TimezoneSelect extends tsc<IProps> {
   curInfo = {
     name: '',
     z: '',
-    Z: ''
+    Z: '',
   };
 
   toggle = false;
@@ -69,16 +69,16 @@ export default class TimezoneSelect extends tsc<IProps> {
   render() {
     return (
       <bk-select
+        class='time-select-component'
         v-model={this.localValue}
         ext-popover-cls={'timezone-select-component-pop'}
-        class='time-select-component'
         searchable
         onSelected={this.handleSelected}
         onToggle={this.handleToggle}
       >
         <div
-          slot='trigger'
           class='input-wrap'
+          slot='trigger'
         >
           <div class='left'>
             {!!this.curInfo.name ? (
@@ -90,14 +90,14 @@ export default class TimezoneSelect extends tsc<IProps> {
           <div class='right'>
             {!!this.curInfo.name && <bk-tag>{`UTC${this.curInfo.Z}`}</bk-tag>}
             <div class='icon-wrap'>
-              <span class={['icon-monitor icon-arrow-down', { active: this.toggle }]}></span>
+              <span class={['icon-monitor icon-arrow-down', { active: this.toggle }]} />
             </div>
           </div>
         </div>
         {timezoneList.map(item => (
           <bk-option
-            key={item.name}
             id={item.name}
+            key={item.name}
             name={item.name}
           >
             <span class='timezone-option'>

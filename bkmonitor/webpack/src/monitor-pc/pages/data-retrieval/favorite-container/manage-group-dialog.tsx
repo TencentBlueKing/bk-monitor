@@ -27,6 +27,7 @@
 import VueJsonPretty from 'vue-json-pretty';
 import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import {
   bulkDeleteFavorite,
@@ -34,12 +35,12 @@ import {
   createFavoriteGroup,
   destroyFavorite,
   listFavorite,
-  listFavoriteGroup
+  listFavoriteGroup,
 } from 'monitor-api/modules/model';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import 'vue-json-pretty/lib/styles.css';
 import './manage-group-dialog.scss';
+import 'vue-json-pretty/lib/styles.css';
 
 interface IProps {
   value?: boolean;
@@ -69,25 +70,25 @@ const settingFields = [
   {
     id: 'name',
     label: window.i18n.t('收藏名'),
-    disabled: true
+    disabled: true,
   },
   {
     id: 'group_name',
     label: window.i18n.t('所属组'),
-    disabled: true
+    disabled: true,
   },
   {
     id: 'visible_type',
-    label: window.i18n.t('可见范围')
+    label: window.i18n.t('可见范围'),
   },
   {
     id: 'updated_by',
-    label: window.i18n.t('最近更新人')
+    label: window.i18n.t('最近更新人'),
   },
   {
     id: 'updated_at',
-    label: window.i18n.t('最近更新时间')
-  }
+    label: window.i18n.t('最近更新时间'),
+  },
 ];
 
 @Component
@@ -114,7 +115,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
   tippyOption = {
     trigger: 'click',
     interactive: true,
-    theme: 'light'
+    theme: 'light',
   };
   cannotComparedData = [
     // 不进行对比的字段 （前端操作缓存自加的字段）
@@ -124,25 +125,25 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
     'is_group_disabled',
     'visible_type',
     'isShowJsonKeywords',
-    'config'
+    'config',
   ];
   sourceFilters = []; // 所属组数组
   updateSourceFilters = []; // 更变人过滤数组
 
   unPrivateOptionList = [
     // 非本人创建的收藏的可见范围数组
-    { name: window.i18n.t('公开'), id: 'public' }
+    { name: window.i18n.t('公开'), id: 'public' },
   ];
   allOptionList = [
     // 本人创建的收藏的可见范围数组
     { name: window.i18n.t('公开'), id: 'public' },
-    { name: window.i18n.t('仅本人'), id: 'private' }
+    { name: window.i18n.t('仅本人'), id: 'private' },
   ];
 
   tableSetting = {
     // table设置字段
     fields: settingFields,
-    selectedFields: settingFields.slice(0, 3)
+    selectedFields: settingFields.slice(0, 3),
   };
 
   get selectCount() {
@@ -280,12 +281,12 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           visible_option,
           is_group_disabled,
           visible_type,
-          isShowJsonKeywords: false
+          isShowJsonKeywords: false,
         };
       });
       this.updateSourceFilters = [...updateSourceFiltersSet].map(item => ({
         text: item,
-        value: item
+        value: item,
       }));
       this.tableList = res.map(item => ({ ...item, group_id: String(item.group_id) }));
       this.operateTableList = initList;
@@ -303,13 +304,13 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
       const res = await listFavoriteGroup({ type: this.favoriteSearchType });
       this.groupList = res.map(item => ({
         group_id: item.id,
-        group_name: item.name
+        group_name: item.name,
       }));
       this.unPrivateList = this.groupList.slice(1); // 去除个人组的列表
       this.privateList = this.groupList.slice(0, 1); // 个人组列表
       this.sourceFilters = res.map(item => ({
         text: item.name,
-        value: item.id
+        value: item.id,
       }));
     } catch (error) {
       console.warn(error);
@@ -327,7 +328,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
       createFavoriteGroup({
         bk_biz_id: this.bizId,
         type: this.favoriteSearchType,
-        name: this.groupName
+        name: this.groupName,
       }).then(async () => {
         await this.getGroupList();
         this.operateTableList.forEach(item => {
@@ -348,7 +349,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
       visible_type: nVal,
       is_group_disabled: nVal === 'private',
       group_name,
-      group_id
+      group_id,
     });
   }
   /** 单独修改组 */
@@ -417,7 +418,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
         const index = this.selectFavoriteList.findIndex(item => item === row.id);
         if (index >= 0) this.selectFavoriteList.splice(index, 1);
         destroyFavorite(row.id, { type: this.favoriteSearchType }).catch(err => console.warn(err));
-      }
+      },
     });
   }
   /** 点击确定提交管理弹窗数据 */
@@ -441,7 +442,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
       const data = {
         bk_biz_id: this.bizId,
         type: this.favoriteSearchType,
-        ids: this.deleteTableIDList
+        ids: this.deleteTableIDList,
       };
       await bulkDeleteFavorite(data);
     } catch (error) {}
@@ -455,12 +456,12 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
       const configs = this.submitTableList.map(item => ({
         id: item.id,
         name: item.name,
-        group_id: item.group_id === null ? null : Number(item.group_id)
+        group_id: item.group_id === null ? null : Number(item.group_id),
       }));
       const data = {
         bk_biz_id: this.bizId,
         type: this.favoriteSearchType,
-        configs
+        configs,
       };
       await bulkUpdateFavorite(data);
     } catch (error) {}
@@ -495,7 +496,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             {this.favoriteSearchType === 'metric' ? metricKeywordsSlot(row) : eventKeywordsSlot(row)}
           </div>
         </div>
-      )
+      ),
     };
 
     const metricKeywordsSlot = row => (
@@ -503,9 +504,9 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
         {row.isShowJsonKeywords ? (
           <div class='view-content'>
             <VueJsonPretty
-              deep={5}
               data={row.config}
-            ></VueJsonPretty>
+              deep={5}
+            />
           </div>
         ) : (
           <span
@@ -527,26 +528,26 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             class='group-check-box'
             checked={this.getCheckedStatus(row)}
             on-change={status => this.handleRowCheckChange(row, status)}
-          ></bk-checkbox>
+          />
           <div class='manage-input'>
             <bk-input
               vModel={row.name}
               onBlur={val => this.handleChangeFavoriteName(row, val)}
-            ></bk-input>
+            />
           </div>
-        </div>
-      ]
+        </div>,
+      ],
     };
 
     const groupSlot = {
       default: ({ row }) => [
         <bk-select
           vModel={row.group_id}
-          searchable
           clearable={false}
           disabled={row.is_group_disabled}
           ext-popover-cls='add-new-page-container'
           popover-min-width={200}
+          searchable
           on-change={id => this.handleChangeGroup(row, id)}
         >
           {row[row.visible_type === 'private' ? 'group_option_private' : 'group_option'].map(item => (
@@ -554,7 +555,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               id={`${item.group_id}`}
               key={`${item.group_id}`}
               name={item.group_name}
-            ></bk-option>
+            />
           ))}
           <div slot='extension'>
             {this.isShowAddGroup ? (
@@ -563,7 +564,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
                 onClick={() => (this.isShowAddGroup = false)}
               >
                 <div>
-                  <i class='bk-icon icon-plus-circle'></i>
+                  <i class='bk-icon icon-plus-circle' />
                   {this.$t('新增')}
                 </div>
               </div>
@@ -571,45 +572,45 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               <li class='add-new-page-input'>
                 <bk-input
                   vModel={this.groupName}
-                  maxlength={30}
                   behavior={'simplicity'}
-                ></bk-input>
+                  maxlength={30}
+                />
                 <div class='operate-button'>
                   <span
                     class='bk-icon icon-check-line'
                     onClick={() => this.handleAddGroupName()}
-                  ></span>
+                  />
                   <span
                     class='bk-icon icon-close-line-2'
                     onClick={() => {
                       this.isShowAddGroup = true;
                       this.groupName = '';
                     }}
-                  ></span>
+                  />
                 </div>
               </li>
             )}
           </div>
-        </bk-select>
-      ]
+        </bk-select>,
+      ],
     };
 
     const visibleSlot = {
       default: ({ row }) => [
         <bk-select
           vModel={row.visible_type}
-          on-selected={nVal => this.handleSelectVisible(row, nVal)}
           clearable={false}
+          on-selected={nVal => this.handleSelectVisible(row, nVal)}
         >
           {row.visible_option.map(item => (
             <bk-option
               id={item.id}
               key={item.id}
               name={item.name}
-            ></bk-option>
+            />
           ))}
-        </bk-select>
-      ]
+        </bk-select>,
+      ],
     };
 
     const switchSlot = {
@@ -619,33 +620,33 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             class='delete'
             onClick={() => this.handleDeleteFavorite(row)}
           >
-            <span class='bk-icon icon-delete'></span>
+            <span class='bk-icon icon-delete' />
           </div>
-        </div>
-      ]
+        </div>,
+      ],
     };
 
     const renderHeader = () => (
       <bk-checkbox
         class='all-check-box'
-        value={this.checkValue === 2}
-        indeterminate={this.checkValue === 1}
-        on-change={this.handleSelectionChange}
         disabled={this.searchAfterList.length === 0}
-      ></bk-checkbox>
+        indeterminate={this.checkValue === 1}
+        value={this.checkValue === 2}
+        on-change={this.handleSelectionChange}
+      />
     );
 
     return (
       <bk-dialog
-        value={this.value}
-        title={this.$t('管理')}
-        header-position='left'
-        render-directive='if'
-        mask-close={false}
-        ext-cls='manage-group'
         width={750}
-        position={{ top: this.positionTop }}
+        ext-cls='manage-group'
         confirm-fn={this.handleSubmitTableData}
+        header-position='left'
+        mask-close={false}
+        position={{ top: this.positionTop }}
+        render-directive='if'
+        title={this.$t('管理')}
+        value={this.value}
         on-value-change={this.handleValueChange}
       >
         <div class={`top-operate ${!this.selectCount && 'is-not-select'}`}>
@@ -658,12 +659,12 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           </div>
           <bk-input
             class='operate-input'
-            rightIcon='bk-icon icon-search'
             vModel={this.searchValue}
+            placeholder={this.$t('输入')}
+            rightIcon='bk-icon icon-search'
             onEnter={this.handleSearchFilter}
             onKeyup={this.handleInputSearchFavorite}
             onRightIconClick={this.handleSearchFilter}
-            placeholder={this.$t('输入')}
           />
         </div>
         {this.selectCount ? (
@@ -680,7 +681,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               >
                 <span class='operate-click'>
                   ，&nbsp;{this.$t('移至分组')}
-                  <span class='bk-icon icon-down-shape'></span>
+                  <span class='bk-icon icon-down-shape' />
                 </span>
               </div>
               <div
@@ -697,96 +698,96 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           </div>
         ) : undefined}
         <bk-table
-          data={this.searchAfterList}
-          size='small'
-          header-border={true}
-          border={true}
-          max-height={this.maxHeight}
-          empty-text={this.$t('查无数据')}
-          v-bkloading={{ isLoading: this.tableLoading }}
           ext-cls={`${!this.selectCount && 'is-not-select'}`}
+          v-bkloading={{ isLoading: this.tableLoading }}
+          border={true}
+          data={this.searchAfterList}
+          empty-text={this.$t('查无数据')}
+          header-border={true}
+          max-height={this.maxHeight}
+          size='small'
         >
           <bk-table-column
             width='64'
-            type='expand'
             render-header={renderHeader}
             scopedSlots={expandSlot}
-          ></bk-table-column>
+            type='expand'
+          />
 
           <bk-table-column
-            label={this.$t('收藏名')}
             key={'column_name'}
             width='200'
-            prop={'name'}
             class-name='group-input'
+            label={this.$t('收藏名')}
             label-class-name='group-title'
+            prop={'name'}
             scopedSlots={nameSlot}
-          ></bk-table-column>
+          />
 
           {this.checkFields('group_name') ? (
             <bk-table-column
-              label={this.$t('所属组')}
-              min-width='112'
               key={'column_group_name'}
+              class-name='group-select'
+              filter-method={this.sourceFilterMethod}
+              filter-multiple={false}
+              filters={this.sourceFilters}
+              label={this.$t('所属组')}
+              label-class-name='group-title'
+              min-width='112'
               prop={'group_id'}
               scopedSlots={groupSlot}
-              label-class-name='group-title'
-              class-name='group-select'
-              filters={this.sourceFilters}
-              filter-multiple={false}
-              filter-method={this.sourceFilterMethod}
-            ></bk-table-column>
+            />
           ) : undefined}
 
           {this.checkFields('visible_type') ? (
             <bk-table-column
-              label={this.$t('可见范围')}
-              min-width='112'
               key={'column_visible_type'}
+              class-name='group-select'
+              label={this.$t('可见范围')}
+              label-class-name='group-title'
+              min-width='112'
               prop={'visible_type'}
               scopedSlots={visibleSlot}
-              label-class-name='group-title'
-              class-name='group-select'
-            ></bk-table-column>
+            />
           ) : undefined}
 
           {this.checkFields('updated_by') ? (
             <bk-table-column
+              key={'column_update_by'}
+              filter-method={this.sourceFilterMethod}
+              filter-multiple={false}
+              filters={this.updateSourceFilters}
               label={this.$t('最近更新人')}
               prop={'update_user'}
-              key={'column_update_by'}
-              filters={this.updateSourceFilters}
-              filter-multiple={false}
-              filter-method={this.sourceFilterMethod}
-            ></bk-table-column>
+            />
           ) : undefined}
 
           {this.checkFields('updated_at') ? (
             <bk-table-column
-              label={this.$t('最近更新时间')}
-              prop={'update_time'}
               key={'column_update_time'}
               scopedSlots={{
-                default: ({ row }) => [<span>{this.getShowTime(row.update_time)}</span>]
+                default: ({ row }) => [<span>{this.getShowTime(row.update_time)}</span>],
               }}
-            ></bk-table-column>
+              label={this.$t('最近更新时间')}
+              prop={'update_time'}
+            />
           ) : undefined}
 
           <bk-table-column
-            class-name='group-input'
-            width='1'
-            label-class-name='group-title'
             key={'column_switch'}
+            width='1'
+            class-name='group-input'
+            label-class-name='group-title'
             scopedSlots={switchSlot}
-          ></bk-table-column>
+          />
 
           <bk-table-column type='setting'>
             <bk-table-setting-content
               fields={this.tableSetting.fields}
-              size={this.tableSetting.size}
               selected={this.tableSetting.selectedFields}
+              size={this.tableSetting.size}
               on-setting-change={this.handleSettingChange}
-            ></bk-table-setting-content>
+            />
           </bk-table-column>
         </bk-table>
       </bk-dialog>

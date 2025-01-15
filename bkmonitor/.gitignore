@@ -65,6 +65,7 @@ coverage.xml
 *.log
 local_settings.py
 db.sqlite3
+ieod_script/
 
 # Flask stuff:
 instance/
@@ -221,6 +222,7 @@ static/monitor/
 static/weixin/
 static/trace/
 static/apm/
+static/external/
 
 # develop config
 conf/platform/ieod.py

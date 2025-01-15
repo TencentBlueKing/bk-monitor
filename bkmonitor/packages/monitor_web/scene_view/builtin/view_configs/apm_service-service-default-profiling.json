@@ -33,24 +33,5 @@
     }
   ],
   "order": [],
-  "options": {
-    "overview_detail_panel": {
-      "title": "workload",
-      "type": "info",
-      "targets": [
-        {
-          "datasource": "info",
-          "dataType": "info",
-          "api": "apm_profile.queryServicesDetail",
-          "data": {
-            "start_time": "$start_time",
-            "end_time": "$end_time",
-            "app_name": "$app_name",
-            "service_name": "$service_name",
-            "view_mode": "sidebar"
-          }
-        }
-      ]
-    }
-  }
+  "options": {}
 }

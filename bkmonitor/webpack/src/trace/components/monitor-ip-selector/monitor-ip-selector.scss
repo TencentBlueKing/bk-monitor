@@ -1,0 +1,14 @@
+/* stylelint-disable declaration-no-important */
+.bk-ip-selector-preview-dialog,
+.bk-ip-selector-box {
+  .bk-dialog-content {
+    max-height: inherit;
+    padding: initial;
+    margin-top: initial;
+    margin-bottom: initial;
+
+    .node-talbe-wrapper {
+      max-height: fit-content !important;
+    }
+  }
+}

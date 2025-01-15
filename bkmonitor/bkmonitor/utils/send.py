@@ -14,12 +14,13 @@ import hashlib
 import json
 import logging
 from os import path
+from typing import Dict
 
 import requests
 from django.conf import settings
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from bkmonitor.models import GlobalConfig
 from bkmonitor.utils.template import AlarmNoticeTemplate, AlarmOperateNoticeTemplate
@@ -102,15 +103,22 @@ class BaseSender(object):
 
     def handle_content_length(self, content_template, context_dict):
         content_limit = self.get_content_limit(self.notice_way)
+        # 渲染后的总提长度: self.content（这里做了特殊字符的replace, 一个特殊字符占1个长度)
         content_length = get_content_length(self.content, self.encoding)
         if not content_limit or content_limit >= content_length:
             # 不需要限制长度
             return
+        # 计算扣除 user_content 后剩余模板内容的长度（这里user_content的特殊字符 占2个长度）
         template_content_length = content_length - get_content_length(
             context_dict.get("user_content", ""), self.encoding
         )
         self.context["limit"] = True
-        self.context["user_content_length"] = content_limit - template_content_length
+        # content_length 基于self.content 计算（经过了\\n, \\t的转换， 因此实际长度比context_dict["user_content"]中的原始长度小
+        # template_content_length 这里长度计算少了
+        # 重新渲染的长度，要减去特殊字符的个数。
+        self.context["user_content_length"] = (
+            content_limit - template_content_length - 1 - self.content.count("\n") - self.content.count("\t")
+        )
         self.content = content_template.render(self.get_context_dict())
 
     @staticmethod
@@ -151,16 +159,24 @@ class BaseSender(object):
         处理接口返回结果
         """
         notice_result = {}
-        message = api_result.get("message", "")
+        message: str = api_result.get("message", "")
         msg_id = api_result.get("data", {}).get("msg_id")
+        message_details: Dict[str, str] = api_result.get("message_detail", {})
         if msg_id:
             # 记录msg_id信息
             message = f"{message} msg_id: {msg_id}"
+
         for notice_receiver in notice_receivers:
             if notice_receiver in api_result["username_check"]["invalid"]:
                 notice_result[notice_receiver] = {"message": message, "result": False, "msg_id": msg_id}
             else:
                 notice_result[notice_receiver] = {"message": message, "result": True, "msg_id": msg_id}
+
+        # 针对有具体详情的用户更新其内容
+        if message_details:
+            for notice_receiver, message_detail in message_details.items():
+                notice_result[notice_receiver]["message"] = message_detail
+                notice_result[notice_receiver]["result"] = False
         return notice_result
 
     @classmethod
@@ -259,7 +275,7 @@ class BaseSender(object):
             if succeed_count:
                 metrics.ACTION_NOTICE_API_CALL_COUNT.labels(
                     notice_way=notice_way, status=metrics.StatusEnum.SUCCESS
-                ).inc(failed_count)
+                ).inc(succeed_count)
 
         return notice_results
 
@@ -397,7 +413,7 @@ class Sender(BaseSender):
         except Exception as e:
             result = False
             message = str(e)
-            logger.error("send.voice failed, {}".format(e))
+            logger.exception("send.voice failed, {}".format(e))
 
         notice_result[notice_receivers] = {"message": message, "result": result}
         return notice_result
@@ -538,7 +554,7 @@ class Sender(BaseSender):
             except Exception as e:
                 result = False
                 message = str(e)
-                logger.error("send.wxwork_group failed, {}".format(e))
+                logger.exception("send.wxwork_group failed, {}".format(e))
 
             if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE:
                 # 只有告警通知才发送图片，执行不做图片发送
@@ -556,7 +572,7 @@ class Sender(BaseSender):
                             )
                         )
                 except Exception as e:
-                    logger.error("send.wxwork_group image failed, {}".format(e))
+                    logger.exception("send.wxwork_group image failed, {}".format(e))
 
         for notice_receiver in notice_receivers:
             notice_result[notice_receiver] = {"message": message, "result": result}

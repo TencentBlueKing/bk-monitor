@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Mixins } from 'vue-property-decorator';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
 import AlarmDispatchConfig from './alarm-dispatch-config';
 import * as authorityMap from './authority-map';
 
@@ -34,9 +33,6 @@ Component.registerHooks(['beforeRouteLeave']);
 
 @Component
 export default class AlarmDispatchConfigPage extends Mixins(authorityMixinCreate(authorityMap)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
   get isEffect() {
     return this.$refs.alarmDispatchConfig?.isEffect;
   }
@@ -72,12 +68,12 @@ export default class AlarmDispatchConfigPage extends Mixins(authorityMixinCreate
         },
         cancelFn: () => {
           resolve(false);
-        }
+        },
       });
     });
   }
 
   render() {
-    return <AlarmDispatchConfig ref='alarmDispatchConfig'></AlarmDispatchConfig>;
+    return <AlarmDispatchConfig ref='alarmDispatchConfig' />;
   }
 }

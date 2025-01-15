@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -92,6 +91,8 @@ export default {
   批量修改生效时间段成功: 'Bulk modify effective time period successful',
   批量修改告警恢复通知成功: 'Bulk modify alarm recovery notification successful',
   批量修改告警风暴开关成功: 'Bulk modify alarm storm switch successful',
+  批量修改通知升级成功: 'Batch modification notification upgrade successful',
+  批量修改算法成功: 'Batch modification algorithm successful',
   更新成功: 'Update successful',
   成功: 'Success',
   成功时: 'Success',
@@ -162,7 +163,7 @@ export default {
   网络错误: 'Network Error',
   出错了: 'Error',
   出错信息: 'Error message',
-  '恭喜，创建告警屏蔽成功': 'Congratulations, alarm mute successfully',
+  创建告警屏蔽成功: 'Aalarm mute successfully',
   '经过努力，新的插件生成了，恭喜': 'Congratulations, a new plugin has been generated',
   模型输出异常: 'Abnormal model output',
   '成功导入 {num} 个拨测任务': 'Imported {num} checks successful',
@@ -230,7 +231,10 @@ export default {
   无数据: 'No data',
   暂无权限: 'No permission',
   暂无数据: 'No Data',
+  没有数据: 'No Data',
   查无数据: 'No data',
+  暂无接口: 'No API',
+  暂无进程: 'No Process',
   暂无收藏: 'No favorite',
   暂无搜索: 'No search result',
   无需认证: 'No authentication',
@@ -249,7 +253,7 @@ export default {
   无数据指引: 'No data guide',
   暂无拨测任务: 'No probe tasks',
   暂无拨测节点: 'No probe nodes',
-  暂无任何视图: 'No views',
+  将已有视图拖拽至此: 'Drag an existing view here',
   无法给予帮助: 'Cannot provide help',
   无匹配的数据: 'No matching data',
   '暂无指标/维度': 'No metrics/dimensions',
@@ -283,6 +287,7 @@ export default {
   '当前数据无维度，所以没有变量选择': 'No variables available as there are no dimensions for the current data',
   '你当前有 {0} 个业务权限，暂无告警事件':
     'You currently have {0} business permissions, and there are no alarm events temporarily',
+  '你当前有 {0} 个业务权限，暂无故障': 'You currently have {0} business permissions and there are no incidents yet.',
   '本次操作未选择目标，无下发操作记录': 'No target selected for this operation, no records of issuance',
   无法选择Agent状态异常的服务器: 'Cannot select server with abnormal Agent status',
   '当前拨测任务状态良好，无告警事件产生': 'The current dialing task is in good condition and has no alarm events',
@@ -291,8 +296,9 @@ export default {
   '{0}当数据连续丢失{1}个周期触发无数据告警':
     'No-Data alarm triggered when {0} data is lost continuously for {1} cycles',
   只有监控指标及日志关键字可配置无数据: 'Only monitoring metrics and log keywords can be configured without data',
+  只有监控指标关键字可配置无数据: 'Only monitoring metrics keywords can be configured without data',
   '由于插件定义时未定义参数，此处无需填写。':
-    'Because there is no parameter defined when the plug-in is defined, there is no need to fill in here. ',
+    'Because there is no parameter defined when the plugin is defined, there is no need to fill in here. ',
   '可能出现下发失败或无数据上报，是否继续下发':
     'There may be issuance failures or no data reported, do you want to continue issuing?',
   '已配置全天24小时生效时段，无需额外添加生效时段':
@@ -421,6 +427,7 @@ export default {
   '是否启用{0}脚本采集?': 'Enable {0} script collection?',
   '是否开始迁移仪表盘？': 'Start migrating dashboard?',
   '是否启用了采样，采样不保证全量数据': 'Is sampling enabled? Sampling does not guarantee full data',
+  '确认采集下发?': 'Confirm collection issuance?',
 
   '取消订阅该邮件，且不再显示？': 'Unsubscribe this email and never show again?',
   '已命中一条已有维度，是否填入其经验': 'A dimension has already been hit, would you like to fill in its experience?',
@@ -444,5 +451,55 @@ export default {
   '是否取消 {0} 的订阅?': 'Do you want to unsubscribe {0}?',
   '是否重新订阅 {0} ?': 'Do you want to re-subscribe {0}?',
   取消订阅成功: 'Unsubscribe successful',
-  重新订阅成功: 'Re-subscribe successful'
+  重新订阅成功: 'Re-subscribe successful',
+
+  标记成功: 'Marked successfully',
+  分派成功: 'Dispatched successfully',
+
+  取消反馈成功: 'Feedback canceled successfully',
+  '当前业务下没有可使用的处理套餐，请前往{0}页面配置':
+    'There are no available handling packages under the current business, please go to the {0} page for configuration',
+  '按通知次数的指数递增，依次按N，2N，4N，8N,依次类推执行，最大24小时':
+    '按通知次数的指数递增，依次按N，2N，4N，8N, accordingly executing, maximum 24 hours',
+  暂无告警视图: 'No views',
+  观察中: 'Under observation',
+  已解决: 'Resolved',
+  暂无更多数据: 'No more data',
+  '采集下发中， 请耐心等待': 'Collection issuance in progress, please wait patiently',
+  已成功下发采集配置: 'Successfully issued collection configuration',
+  '内容正在生成中...': 'Content is being generated...',
+  '您可以键入“/”查看更多提问示例': 'You can type "/" to view more question examples',
+  '监控策略如何使用？': 'How to use bkmonitor strategy?',
+  '是否将该业务设为默认业务？': 'Should this business be set as the default business?',
+  '是否取消默认业务？': 'Should the default business be cancelled?',
+  '设为默认后，每次进入监控平台将会默认选中该业务': 
+    'After setting it as default, the monitoring platform will default to this business every time you enter',
+  '取消默认业务后，每次进入监控平台将会默认选中最近使用的业务而非当前默认业务':
+    'After canceling the default business, the monitoring platform will default to the most recently used business instead of the current default business every time you enter',
+
+  // 调用分析
+  '仅展示前 30 条数据': 'Only the first 30 data are displayed',
+  查看关联调用链: 'View related call chains',
+  P50: 'P50',
+  P90: 'P90',
+  P95: 'P95',
+  P99: 'P99',
+  单视角: 'single',
+  多视角: 'multiple',
+  '近{n}天': 'In the last {n} days',
+  服务未接入: 'Service not connected',
+  '查看当前「{preText}」在{perAfterString}分析的数据':
+    'View the data for the current "{preText}" in {perAfterString} analysis',
+  '当前「{preText}」在{perAfterString}分析无调用记录':
+    'No call records for the current "{preText}" in {perAfterString} analysis',
+  '跳转到「{intersection}」拓扑页面': 'Jump to the "{intersection}" topology page',
+  '跳转到「{intersection}」调用分析页面': 'Jump to the "{intersection}" call analysis page',
+  '成功/异常/超时率': 'Success/Exception/Timeout Rate',
+  '耗时（ms）': 'Time consuming (ms)',
+  下钻至: 'Drill down to',
+  等于: 'equal',
+  不等于: 'not equal',
+  前匹配: 'match before',
+  后匹配: 'match after',
+  当前维度外层已选中: 'The outer layer of the current dimension is selected',
 };

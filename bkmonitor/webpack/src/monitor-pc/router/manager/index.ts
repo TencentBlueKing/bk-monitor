@@ -42,5 +42,5 @@ export default [
   ...alarmDispath,
   ...aiSettingsRoutes,
   ...rotationRoutes,
-  ...newReportRoutes
+  ...newReportRoutes,
 ];

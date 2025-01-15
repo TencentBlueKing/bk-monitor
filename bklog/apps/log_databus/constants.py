@@ -217,6 +217,9 @@ CACHE_KEY_CLUSTER_INFO = "bulk_cluster_info_{}"
 
 DEFAULT_COLLECTOR_LENGTH = 2
 
+# 解析失败字段名
+PARSE_FAILURE_FIELD = "__parse_failure"
+
 
 class AsyncStatus(object):
     RUNNING = "RUNNING"
@@ -339,6 +342,12 @@ class EtlConfig(object):
     CUSTOM = "custom"
 
 
+class MetadataTypeEnum(ChoicesEnum):
+    PATH = "path"
+
+    _choices_labels = ((PATH, _("路径元数据")),)
+
+
 class EtlConfigChoices(ChoicesEnum):
     _choices_labels = (
         (EtlConfig.BK_LOG_TEXT, _("直接入库")),
@@ -440,7 +449,7 @@ class LabelSelectorOperator(object):
 
 
 # 容器采集配置项转yaml时需要排除的字段
-CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS = ("container", "label_selector")
+CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS = ("container", "label_selector", "annotation_selector")
 
 
 class CheckStatusEnum(ChoicesEnum):
@@ -631,4 +640,33 @@ class SyslogFilterFieldEnum(ChoicesEnum):
         (SEVERITY_LABEL, _("严重级别")),
         (PROGRAM, _("进程")),
         (PID, _("进程标识符")),
+    )
+
+
+class KafkaInitialOffsetEnum(ChoicesEnum):
+    """
+    1. 控制是否从头开始消费 默认为 newest（消费最新的数据）
+    2. 只针对初始化一个新的消费组时生效
+    """
+
+    OLDEST = "oldest"
+    NEWEST = "newest"
+
+    _choices_labels = (
+        (OLDEST, _("最旧")),
+        (NEWEST, _("最新")),
+    )
+
+
+class CollectorBatchOperationType(ChoicesEnum):
+    STOP = "stop"
+    START = "start"
+    MODIFY_STORAGE = "modify_storage"
+    QUERY_STORAGE = "query_storage"
+
+    _choices_labels = (
+        (STOP, _("停用")),
+        (START, _("启用")),
+        (MODIFY_STORAGE, _("修改存储配置")),
+        (QUERY_STORAGE, _("查询存储")),
     )

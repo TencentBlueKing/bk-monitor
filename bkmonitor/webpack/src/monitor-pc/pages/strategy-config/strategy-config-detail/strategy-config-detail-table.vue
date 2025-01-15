@@ -32,15 +32,15 @@
       <!-- 表格 -->
       <bk-table
         v-if="targetType === 'INSTANCE'"
-        :empty-text="$t('无数据')"
-        :outer-border="false"
-        :header-border="false"
         :data="tableData"
+        :empty-text="$t('无数据')"
+        :header-border="false"
+        :outer-border="false"
       >
         <bk-table-column
           label="IP"
-          prop="ip"
           min-width="120"
+          prop="ip"
         />
         <bk-table-column
           :label="$t('Agent状态')"
@@ -50,16 +50,15 @@
             <span
               v-if="scope.row.agentStatus"
               :style="{ color: statusColorMap[scope.row.agentStatus] }"
-            >{{
-              statusMap[scope.row.agentStatus]
-            }}</span>
+              >{{ statusMap[scope.row.agentStatus] }}</span
+            >
             <span v-else>--</span>
           </template>
         </bk-table-column>
         <bk-table-column
           :label="$t('管控区域')"
-          prop="bkCloudName"
           min-width="250"
+          prop="bkCloudName"
         >
           <template slot-scope="scope">
             <span>{{ scope.row.bkCloudName || '--' }}</span>
@@ -67,14 +66,35 @@
         </bk-table-column>
       </bk-table>
       <bk-table
-        :empty-text="$t('无数据')"
+        v-else-if="['DYNAMIC_GROUP'].includes(targetType)"
         :data="tableData"
-        v-else-if="['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(targetType) || objType === 'SERVICE'"
+        :empty-text="$t('无数据')"
       >
         <bk-table-column
           :label="$t('节点名称')"
-          prop="nodePath"
           min-width="120"
+          prop="name"
+        />
+        <bk-table-column
+          :label="$t('主机数')"
+          min-width="100"
+        >
+          <template slot-scope="scope">
+            <div class="target-count">
+              {{ scope.row.count }}
+            </div>
+          </template>
+        </bk-table-column>
+      </bk-table>
+      <bk-table
+        v-else-if="['TOPO', 'SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(targetType) || objType === 'SERVICE'"
+        :data="tableData"
+        :empty-text="$t('无数据')"
+      >
+        <bk-table-column
+          :label="$t('节点名称')"
+          min-width="120"
+          prop="nodePath"
         />
         <bk-table-column
           v-if="objType === 'SERVICE'"
@@ -106,8 +126,8 @@
             <div class="monitoring-target">
               <div
                 v-for="(item, index) in scope.row.labels"
-                :key="index"
                 class="target-labels"
+                :key="index"
               >
                 <div class="label-first">
                   {{ item.first }}
@@ -155,35 +175,35 @@ export default {
     // 表格数据
     tableData: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
     targetType: String,
-    objType: String
+    objType: String,
   },
   data() {
     return {
       statusColorMap: {
         normal: '#2DCB56',
         abnormal: '#EA3636',
-        not_exist: '#C4C6CC'
+        not_exist: '#C4C6CC',
       },
       statusMap: {
         normal: `Agent ${this.$t('正常')}`,
         abnormal: `Agent ${this.$t('异常')}`,
-        not_exist: `Agent ${this.$t('未安装')}`
+        not_exist: `Agent ${this.$t('未安装')}`,
       },
       strategyTarget: {
         type: '',
         data: [],
         tableData: [],
-        loading: false
+        loading: false,
       },
       tableInstance: {
         page: 1,
         pageSize: 10,
         pageList: [10, 20, 50, 100],
-        total: 0
-      }
+        total: 0,
+      },
     };
   },
   watch: {
@@ -191,11 +211,12 @@ export default {
       handler() {
         this.tableData && this.handleTableData(false);
       },
-      immediate: true
-    }
+      immediate: true,
+    },
   },
   methods: {
     // table数据变更事件
+    // biome-ignore lint/style/useDefaultParameterLast: <explanation>
     handleTableData(needLoading = true, time) {
       this.strategyTarget.loading = needLoading;
       const { tableInstance } = this;
@@ -221,8 +242,8 @@ export default {
       this.tableInstance.page = 1;
       this.tableInstance.pageSize = limit;
       this.handleTableData(false, 50);
-    }
-  }
+    },
+  },
 };
 </script>
 

@@ -29,13 +29,14 @@ import { Component as tsc } from 'vue-tsx-support';
 import { destroyTimezone } from '../../../i18n/dayjs';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import CommonPage from '../../monitor-k8s/components/common-page';
-import { IMenuItem, INavItem, IViewOptions } from '../../monitor-k8s/typings';
+
+import type { IMenuItem, INavItem, IViewOptions } from '../../monitor-k8s/typings';
 
 import './event-view.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class EventView extends tsc<{}> {
+export default class EventView extends tsc<object> {
   @Prop({ type: [String, Number], default: '' }) id: string;
 
   viewOptions: IViewOptions = {};
@@ -49,8 +50,8 @@ export default class EventView extends tsc<{}> {
     {
       id: 'source-manage',
       name: this.$t('数据源管理') as string,
-      show: true
-    }
+      show: true,
+    },
   ];
 
   handleMenuSelect({ id }) {
@@ -59,8 +60,8 @@ export default class EventView extends tsc<{}> {
         name: 'custom-detail-event',
         params: {
           id: this.$route.params.id || '',
-          type: 'customEvent'
-        }
+          type: 'customEvent',
+        },
       });
     }
   }
@@ -75,8 +76,8 @@ export default class EventView extends tsc<{}> {
         {
           id: '',
           name: '',
-          subName: ''
-        }
+          subName: '',
+        },
       ];
       // vm.routeList[1].name = to.query.name || '';
       vm.viewOptions = {};
@@ -93,21 +94,21 @@ export default class EventView extends tsc<{}> {
       <div class='event-view'>
         {this.sceneId && (
           <CommonPage
-            sceneId={this.sceneId}
-            sceneType={'detail'}
             defaultViewOptions={this.viewOptions}
-            title={this.$tc('自定义事件')}
             isMergeMenuList={true}
             menuList={this.menuList}
+            sceneId={this.sceneId}
+            sceneType={'detail'}
+            title={this.$tc('自定义事件')}
             onMenuSelect={this.handleMenuSelect}
             onTitleChange={this.headerTitleChange}
           >
             <CommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={true}
+              needShadow={true}
+              routeList={this.routeList}
+              needCopyLink
             />
           </CommonPage>
         )}

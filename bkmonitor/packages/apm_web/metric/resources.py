@@ -8,80 +8,106 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import datetime
+import functools
 import json
 import logging
+import math
 import operator
 from collections import defaultdict
-from typing import List
+from enum import Enum
+from json import JSONDecodeError
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+from django.conf import settings
+from django.core.cache import cache
+from django.db.models import Q
+from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
-from django.utils.translation import ugettext as _
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from rest_framework import serializers
 
+from api.cmdb.define import Host
 from apm_web.constants import (
-    APDEX_VIEW_ITEM_LEN,
     COLLECT_SERVICE_CONFIG_KEY,
-    COLUMN_KEY_PROFILING_DATA_COUNT,
-    DEFAULT_EMPTY_NUMBER,
     AlertLevel,
     AlertStatus,
-    Apdex,
-    CategoryEnum,
+    ApdexCachedEnum,
+    ApmCacheKey,
+    CategoryCachedEnum,
     DataStatus,
     SceneEventKey,
     ServiceStatus,
+    ServiceStatusCachedEnum,
     TopoNodeKind,
+    component_filter_mapping,
     component_where_mapping,
 )
+from apm_web.db.db_utils import get_service_from_params
+from apm_web.handlers import metric_group
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
+from apm_web.handlers.metric_group import PreCalculateHelper
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.icon import get_icon
+from apm_web.metric.constants import (
+    ErrorMetricCategory,
+    SeriesAliasType,
+    StatisticsMetric,
+)
+from apm_web.metric.handler.statistics import ServiceMetricStatistics
 from apm_web.metric.handler.top_n import get_top_n_query_type, load_top_n_handler
 from apm_web.metric_handler import (
     ApdexInstance,
     ApdexRange,
     AvgDurationInstance,
-    ErrorCountInstance,
+    DurationBucket,
     ErrorRateInstance,
     RequestCountInstance,
 )
-from apm_web.metrics import (
-    COMPONENT_DATA_STATUS,
-    ENDPOINT_DETAIL_LIST,
-    ENDPOINT_LIST,
-    INSTANCE_LIST,
-    REMOTE_SERVICE_DATA_STATUS,
-    REMOTE_SERVICE_LIST,
-    SERVICE_DATA_STATUS,
-    SERVICE_LIST,
-)
+from apm_web.metrics import ENDPOINT_DETAIL_LIST, ENDPOINT_LIST, INSTANCE_LIST
 from apm_web.models import ApmMetaConfig, Application
-from apm_web.profile.doris.querier import QueryTemplate
 from apm_web.resources import (
     AsyncColumnsListResource,
     ServiceAndComponentCompatibleResource,
 )
-from apm_web.serializers import (
-    AsyncSerializer,
-    ComponentInstanceIdDynamicField,
-    ServiceParamsSerializer,
+from apm_web.serializers import AsyncSerializer, ComponentInstanceIdDynamicField
+from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
+from apm_web.utils import (
+    Calculator,
+    fill_series,
+    get_bar_interval_number,
+    handle_filter_fields,
 )
-from apm_web.utils import Calculator, group_by, handle_filter_fields
+from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions, q_to_dict
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils import group_by
 from bkmonitor.utils.request import get_request
-from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import ApmMetrics, OtlpKey, SpanKind
+from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
+from bkmonitor.utils.time_tools import (
+    get_datetime_range,
+    parse_time_compare_abbreviation,
+)
+from constants.apm import (
+    ApmMetrics,
+    MetricTemporality,
+    OtlpKey,
+    SpanKindCachedEnum,
+    TelemetryDataType,
+)
 from core.drf_resource import Resource, api, resource
 from core.unit import load_unit
+from monitor_web.collecting.constant import CollectStatus
+from monitor_web.scene_view.resources import GetHostOrTopoNodeDetailResource
 from monitor_web.scene_view.resources.base import PageListResource
 from monitor_web.scene_view.table_format import (
     CollectTableFormat,
     CustomProgressTableFormat,
+    DataPointsTableFormat,
+    DataStatusTableFormat,
     LinkListTableFormat,
     LinkTableFormat,
     NumberTableFormat,
@@ -97,6 +123,36 @@ from monitor_web.scene_view.table_format import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def format_percent(
+    percent: Union[int, float], precision: int = 2, sig_fig_cnt: int = 2, readable_precision=6
+) -> Union[int, float]:
+    if isinstance(percent, int):
+        return percent
+
+    sign: int = 0
+    sign = (-1, 1)[percent > 0]
+    percent = abs(percent)
+
+    def _with_sign(_f: float) -> float:
+        return sign * _f
+
+    # 如果数据小于可读精度，直接范围可读精度最小值，突出异常比
+    if 0.0 < percent < 10**-readable_precision:
+        return _with_sign(10**-readable_precision)
+
+    # 如果数据小于最小精度，保留两位有效数字
+    if percent < 10**-precision:
+        return _with_sign(float(format(percent, f".{sig_fig_cnt}g")))
+
+    rounded_percent: float = float(format(percent, f".{precision}f"))
+    # 如果超精度四舍五入进位，例如 99.9999 -> 100，则采用截断而不是保留位数的方式处理为 99.999，避免数据失真
+    if rounded_percent - percent < (10 ** -(precision + 1)) * 5:
+        factor = 10.0**precision
+        return _with_sign(math.trunc(percent * factor) / factor)
+
+    return _with_sign(rounded_percent)
 
 
 class UnifyQueryResource(Resource):
@@ -125,24 +181,122 @@ class UnifyQueryResource(Resource):
         return resource.grafana.graph_unify_query(validated_request_data["unify_query_param"])
 
 
-class DynamicUnifyQueryResource(Resource):
+class ProcessorHookType(Enum):
+    """处理器钩子类型"""
+
+    BEFORE_REQUEST = "before_request"
+    AFTER_RESPONSE = "after_response"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.BEFORE_REQUEST.value, cls.BEFORE_REQUEST.value),
+            (cls.AFTER_RESPONSE.value, cls.AFTER_RESPONSE.value),
+        ]
+
+
+class PreCalculateHelperMixin:
+
+    DEFAULT_APP_CONFIG_KEY: str = "APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG"
+
+    @classmethod
+    def get_helper_or_none(
+        cls, bk_biz_id: str, app_name: str, app_config_key: Optional[str] = None
+    ) -> Optional[PreCalculateHelper]:
+        try:
+            app_config: Dict[str, Any] = getattr(settings, app_config_key or cls.DEFAULT_APP_CONFIG_KEY)
+            pre_calculate_config: Dict[str, Any] = app_config[f"{bk_biz_id}-{app_name}"]["pre_calculate"]
+        except (KeyError, AttributeError):
+            return None
+
+        return PreCalculateHelper(pre_calculate_config)
+
+
+class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
     """
     组件指标值查询
-    不同分类的组件 查询unify-query参数会有所变化 此接口提供给apm_service-component-*.json使用
+    不同分类的组件 查询unify-query参数会有所变化
+    支持以下类型：
+    1. 普通服务：不处理
+    2. 组件服务：增加 predicate_value 等查询参数
+    3. 自定义服务：增加 peer_service 等查询参数
+    参数解释:
+    alias_prefix / alias_suffix: 用于控制主被调需要调转的时候 例如进入了 xxx-mysql 时页面显示的是被调但是实际查询走的是主调查询
+    fill_bar: 补充柱子，让页面上所有指标图标的柱子数量一致，能够让页面实现多图表联动
+    extra_filter_dict: 额外的查询条件，有时候只知道 service_name 并不能获取所有的查询条件。
+                       例如在接口页面，接口区分了类型(如 celery等)但是此时 node 并没有这个信息所有需要别的地方传进来。
     """
 
     class RequestSerializer(serializers.Serializer):
-        app_name = serializers.CharField(label="应用名称")
-        service_name = serializers.CharField(label="服务名称")
-        category = serializers.CharField(label="分类")
-        kind = serializers.CharField(label="类型")
-        predicate_value = serializers.CharField(label="具体值", allow_blank=True)
-        unify_query_param = serializers.DictField(label="unify-query参数")
+        class GroupByLimitSerializer(serializers.Serializer):
+            class OptionsSerializer(serializers.Serializer):
+                class TrpcSerializer(serializers.Serializer):
+                    kind = serializers.ChoiceField(label="调用类型", choices=SeriesAliasType.get_choices(), required=True)
+                    temporality = serializers.ChoiceField(
+                        label="时间性", required=True, choices=MetricTemporality.choices()
+                    )
 
+                trpc = TrpcSerializer(label="tRPC 配置", required=False)
+
+            limit = serializers.IntegerField(label="查询数量", default=10, required=False)
+            filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+            where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+            method = serializers.ChoiceField(
+                label="计算类型",
+                required=False,
+                default=metric_group.CalculationType.TOP_N,
+                choices=[metric_group.CalculationType.TOP_N, metric_group.CalculationType.BOTTOM_N],
+            )
+            metric_group_name = serializers.ChoiceField(
+                label="指标组", required=True, choices=metric_group.GroupEnum.choices()
+            )
+            metric_cal_type = serializers.ChoiceField(
+                label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
+            )
+            options = OptionsSerializer(label="配置", required=False, default={})
+            enabled = serializers.BooleanField(label="是否可用", required=False, default=True)
+
+            def validate(self, attrs):
+                # 合并查询条件
+                attrs["filter_dict"] = q_to_dict(
+                    conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+                )
+                return attrs
+
+        class ProcessorSerializer(serializers.Serializer):
+            hook = serializers.ChoiceField(label="处理器钩子", required=True, choices=ProcessorHookType.choices())
+            name = serializers.CharField(label="处理器名称", required=True)
+            options = serializers.DictField(label="处理器参数", required=False, default={})
+
+        app_name = serializers.CharField(label="应用名称")
+        service_name = serializers.CharField(label="服务名称", default=False)
+        unify_query_param = serializers.DictField(label="unify-query参数")
         bk_biz_id = serializers.IntegerField(label="业务ID")
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
         component_instance_id = ComponentInstanceIdDynamicField(required=False, label="组件实例id(组件页面下有效)")
+        unit = serializers.CharField(label="图表单位(多指标计算时手动返回)", default=False)
+        fill_bar = serializers.BooleanField(label="是否需要补充柱子(用于特殊配置的场景 仅影响 interval)", required=False)
+        processors = serializers.ListField(label="处理器列表", child=ProcessorSerializer(), required=False, default=[])
+        alias_prefix = serializers.ChoiceField(
+            label="动态主被调当前值",
+            choices=SeriesAliasType.get_choices(),
+            required=False,
+        )
+        alias_suffix = serializers.CharField(label="动态 alias 后缀", required=False)
+        extra_filter_dict = serializers.DictField(label="额外查询条件", required=False, default={})
+        group_by_limit = GroupByLimitSerializer(label="聚合排序", required=False)
+
+        # 预处理参数
+        hook_processors = serializers.DictField(label="每个 hook 对应的处理器列表", required=False, default={})
+
+        def validate(self, attrs):
+            hook_processors: Dict[str, Any] = {}
+            for processor in attrs.get("processors") or []:
+                hook_processors.setdefault(processor["hook"], []).append(processor)
+
+            attrs["hook_processors"] = hook_processors
+            return attrs
 
     def perform_request(self, validate_data):
         unify_query_params = {
@@ -152,47 +306,307 @@ class DynamicUnifyQueryResource(Resource):
             "bk_biz_id": validate_data["bk_biz_id"],
         }
 
-        resource.monitor_web.grafana.graph_unify_query.RequestSerializer(data=unify_query_params).is_valid(
-            raise_exception=True
+        require_fill_series = False
+
+        # 替换自定义统计指标方法
+        custom_metric_methods = validate_data["unify_query_param"].pop("custom_metric_methods", None)
+        if custom_metric_methods:
+            for config in unify_query_params["query_configs"]:
+                self.fill_custom_metric_method(config, custom_metric_methods)
+
+        if validate_data.get("fill_bar"):
+            interval = get_bar_interval_number(
+                validate_data["start_time"],
+                validate_data["end_time"],
+            )
+            for config in unify_query_params["query_configs"]:
+                config["interval"] = interval
+
+            require_fill_series = True
+
+        if validate_data.get("group_by_limit") and validate_data["group_by_limit"].get("enabled", True):
+            group_limit_filter_dict = QueryDimensionsByLimitResource().perform_request(
+                {
+                    "bk_biz_id": validate_data["bk_biz_id"],
+                    "app_name": validate_data["app_name"],
+                    "method": validate_data["group_by_limit"]["method"],
+                    "metric_group_name": validate_data["group_by_limit"]["metric_group_name"],
+                    "metric_cal_type": validate_data["group_by_limit"]["metric_cal_type"],
+                    "group_by": unify_query_params["query_configs"][0]["group_by"],
+                    "limit": validate_data["group_by_limit"]["limit"],
+                    "filter_dict": validate_data["group_by_limit"]["filter_dict"],
+                    "options": validate_data["group_by_limit"]["options"],
+                    "start_time": validate_data["start_time"],
+                    "end_time": validate_data["end_time"],
+                    "with_filter_dict": True,
+                }
+            )["extra_filter_dict"]
+            validate_data["extra_filter_dict"].update(group_limit_filter_dict)
+
+        if validate_data.get("extra_filter_dict"):
+            for config in unify_query_params["query_configs"]:
+                config["filter_dict"].update(validate_data["extra_filter_dict"])
+
+        self._run_processors(ProcessorHookType.BEFORE_REQUEST.value, unify_query_params, None, validate_data)
+
+        if not validate_data.get("service_name"):
+            return self.fill_unit_and_series(
+                unify_query_params,
+                resource.grafana.graph_unify_query(unify_query_params),
+                validate_data,
+                require_fill_series,
+            )
+
+        node = ServiceHandler.get_node(
+            validate_data["bk_biz_id"],
+            validate_data["app_name"],
+            validate_data["service_name"],
+            raise_exception=False,
         )
+        if not node:
+            return self.fill_unit_and_series(
+                unify_query_params,
+                resource.grafana.graph_unify_query(unify_query_params),
+                validate_data,
+                require_fill_series,
+            )
 
-        # 替换service_name
-        pure_service_name = ComponentHandler.get_component_belong_service(
-            validate_data["service_name"], validate_data["predicate_value"]
-        )
+        if ComponentHandler.is_component_by_node(node):
+            # 替换service_name
+            pure_service_name = ComponentHandler.get_component_belong_service(validate_data["service_name"])
 
-        if validate_data["category"] not in component_where_mapping:
-            raise ValueError(_lazy(f"组件指标值查询不支持{validate_data['category']}分类"))
+            if node["extra_data"]["category"] not in component_where_mapping:
+                raise ValueError(_lazy(f"组件指标值查询不支持{validate_data['category']}分类"))
 
-        # 追加where条件
-        for config in unify_query_params["query_configs"]:
-            # 增加组件实例查询条件
-            if validate_data.get("component_instance_id"):
-                component_filter = ComponentHandler.get_component_instance_query_params(
-                    validate_data["bk_biz_id"],
-                    validate_data["app_name"],
-                    validate_data["kind"],
-                    validate_data["category"],
-                    validate_data["component_instance_id"],
-                    config["where"],
-                    template=ComponentHandler.unify_query_operator,
-                    key_generator=OtlpKey.get_metric_dimension_key,
-                )
-                config["where"] += component_filter
-            else:
-                # 没有组件实例时 单独添加组件类型的条件
-                where = component_where_mapping[validate_data["category"]]
-                if validate_data.get("predicate_value"):
-                    config["where"].append(
-                        json.loads(json.dumps(where).replace("{predicate_value}", validate_data["predicate_value"]))
+            # 追加where条件
+            for config in unify_query_params["query_configs"]:
+                # 增加组件实例查询条件
+                if validate_data.get("component_instance_id"):
+                    contain_or_condition = any(i.get("condition", "and") == "or" for i in config["where"])
+                    if contain_or_condition:
+                        # 如果包含 or 条件 那么不能使用 where 构建查询了因为 where 不支持 (a OR b) AND c 的查询
+                        filter_dict = ComponentHandler.get_component_instance_query_dict(
+                            validate_data["bk_biz_id"],
+                            validate_data["app_name"],
+                            node["extra_data"]["kind"],
+                            node["extra_data"]["category"],
+                            validate_data["component_instance_id"],
+                        )
+                        config["filter_dict"].update(filter_dict)
+                    else:
+                        component_filter = ComponentHandler.get_component_instance_query_params(
+                            validate_data["bk_biz_id"],
+                            validate_data["app_name"],
+                            node["extra_data"]["kind"],
+                            node["extra_data"]["category"],
+                            validate_data["component_instance_id"],
+                            config["where"],
+                            template=ComponentHandler.unify_query_operator,
+                            key_generator=OtlpKey.get_metric_dimension_key,
+                        )
+                        config["where"] += component_filter
+
+                else:
+                    # 没有组件实例时 单独添加组件类型的条件
+                    filter_dict = component_filter_mapping[node["extra_data"]["category"]]
+                    config["filter_dict"].update(
+                        json.loads(
+                            json.dumps(filter_dict).replace("{predicate_value}", node["extra_data"]["predicate_value"])
+                        )
                     )
 
-        # 替换service名称
-        unify_query_params = json.loads(
-            json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
+            # 替换service名称
+            unify_query_params = json.loads(
+                json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
+            )
+        elif ServiceHandler.is_remote_service_by_node(node):
+            pure_service_name = ServiceHandler.get_remote_service_origin_name(validate_data["service_name"])
+            for config in unify_query_params["query_configs"]:
+                config["filter_dict"]["peer_service"] = pure_service_name
+                config["filter_dict"].pop("service_name", None)
+            # 替换service名称
+            unify_query_params = json.loads(
+                json.dumps(unify_query_params).replace(validate_data["service_name"], pure_service_name)
+            )
+
+        return self.fill_unit_and_series(
+            unify_query_params,
+            resource.grafana.graph_unify_query(unify_query_params),
+            validate_data,
+            require_fill_series,
+            node=node,
         )
 
-        return resource.grafana.graph_unify_query(unify_query_params)
+    @classmethod
+    def _process_map(cls) -> Dict[str, Callable]:
+        return {
+            "format_percent": cls.format_percent,
+            "fill_empty_dimensions": cls.fill_empty_dimensions,
+            "recovery_query_metadata": cls._recovery_query_metadata,
+            "process_pre_calculate": cls._process_rpc_pre_calculate,
+        }
+
+    @classmethod
+    def _run_processors(cls, hook: str, query_params, response, validate_data):
+        processor_map = cls._process_map()
+        for processor_info in validate_data["hook_processors"].get(hook) or []:
+            processor = processor_map.get(processor_info["name"])
+            if processor is None:
+                continue
+            processor(query_params, response, validate_data, **processor_info.get("options", {}))
+
+    @classmethod
+    def _process_rpc_pre_calculate(cls, query_params, response, validate_data, app_config_key=None):
+        """预计算处理
+        处理流程
+        1）在给定的 app_config_key 下找到应用配置。
+        2）尝试找到预计算指标。
+        3）查询参数处理：替换 rt / 指标、去掉可能存在的 increase。
+        :param query_params:
+        :param response:
+        :param validate_data:
+        :param app_config_key:
+        :return:
+        """
+        helper: Optional[PreCalculateHelper] = cls.get_helper_or_none(
+            validate_data["bk_biz_id"], validate_data["app_name"], app_config_key
+        )
+        if helper is None:
+            return
+
+        # 备份原查询
+        validate_data["table_map"] = {}
+        validate_data["metric_map"] = {}
+        validate_data["backup_query_params"] = copy.deepcopy(query_params)
+
+        used_labels: List[str] = []
+        for query_config in query_params["query_configs"]:
+            used_labels.extend(query_config.get("group_by") or [])
+            for cond in query_config.get("where") or []:
+                used_labels.append(cond["key"])
+
+            table_id: str = query_config["table"]
+            metric: str = query_config["metrics"][0]["field"]
+            result: Dict[str, Any] = helper.router(table_id, metric, used_labels)
+
+            if not result["is_hit"]:
+                continue
+
+            # 预计算是聚合后的 Gauge 指标，需要去掉 increase
+            query_config["functions"] = [
+                func for func in query_config.get("functions") or [] if func["id"] != "increase"
+            ]
+            # 更换 rt 及 metric
+            validate_data["table_map"][result["table_id"]] = query_config["table"]
+            validate_data["metric_map"][result["metric"]] = query_config["metrics"][0]["field"]
+
+            query_config["table"] = result["table_id"]
+            query_config["metrics"][0]["field"] = result["metric"]
+
+    @classmethod
+    def fill_empty_dimensions(cls, query_params, response, validate_data, **kwargs):
+        try:
+            dimension_fields: List[str] = validate_data["unify_query_param"]["query_configs"][0]["group_by"]
+        except (IndexError, KeyError):
+            # 找不到 group by，就不做填充了
+            return
+
+        for i in response.get("series", []):
+            if "dimensions" not in i:
+                continue
+            # 不存在的维度补空值（""）、按 groupBy 顺序对齐 dimensions
+            i["dimensions"] = {dimension: i["dimensions"].get(dimension) or "" for dimension in dimension_fields}
+
+    @classmethod
+    def format_percent(cls, query_params, response, validate_data, precision: int = 2, sig_fig_cnt: int = 2):
+        for i in response.get("series", []):
+            datapoints = []
+            for dp in i.get("datapoints") or []:
+                percent, timestamp = dp
+                if percent is None:
+                    datapoints.append(dp)
+                else:
+                    datapoints.append(
+                        (format_percent(percent, precision=precision, sig_fig_cnt=sig_fig_cnt), timestamp)
+                    )
+            i["datapoints"] = datapoints
+
+    @classmethod
+    def _recovery_query_metadata(cls, query_params, response, validate_data):
+        """还原查询元数据信息
+        预计算等逻辑对指标、结果表的路由查询不应暴露给用户，跳转数据检索/告警配置正常还是走原指标。
+        """
+        backup_query_params: Optional[Dict[str, Any]] = validate_data.get("backup_query_params")
+        if not backup_query_params:
+            return
+
+        response["query_config"] = backup_query_params
+
+        table_metric_map: Dict[str, str] = {**validate_data.get("table_map", {}), **validate_data.get("metric_map", {})}
+        if not table_metric_map:
+            return
+
+        recovery_metrics: List[Dict[str, Any]] = []
+        for metric in response.get("metrics") or []:
+            metric_json = json.dumps(metric)
+            for old, new in table_metric_map.items():
+                metric_json = metric_json.replace(old, new)
+            recovery_metrics.append(json.loads(metric_json))
+
+        response["metrics"] = recovery_metrics
+
+    @classmethod
+    def fill_unit_and_series(cls, query_params, response, validate_data, require_fill_series=False, node=None):
+        """补充单位、时间点、展示名称"""
+        unit = validate_data.get("unit")
+        start_time = validate_data["start_time"]
+        end_time = validate_data["end_time"]
+
+        if require_fill_series:
+            interval = get_bar_interval_number(
+                validate_data["start_time"],
+                validate_data["end_time"],
+            )
+            response = {
+                "metrics": response.get("metrics"),
+                "series": fill_series(response.get("series", []), start_time, end_time, interval),
+            }
+
+        if validate_data.get("unit"):
+            for i in response.get("series", []):
+                i["unit"] = unit
+
+        if validate_data.get("alias_prefix") and node:
+            # 如果同时配置了 alias 判断类型和后缀 则进行更名
+            prefix = validate_data["alias_prefix"]
+            suffix = validate_data.get("alias_suffix", "")
+
+            if ComponentHandler.is_component_by_node(node) or ServiceHandler.is_remote_service_by_node(node):
+                prefix = SeriesAliasType.get_choice_label(SeriesAliasType.get_opposite(prefix).value)
+                # 如果是组件类服务或者自定义服务 将图表的主调改为被调
+            else:
+                prefix = SeriesAliasType.get_choice_label(prefix)
+            for i in response.get("series", []):
+                i["target"] = prefix + _(f"{suffix}")
+
+        # 添加处理后的 unifyQuery 参数 用于给前端实现跳转到指标检索
+        response["query_config"] = query_params
+
+        cls._run_processors(ProcessorHookType.AFTER_RESPONSE.value, query_params, response, validate_data)
+
+        return response
+
+    @classmethod
+    def fill_custom_metric_method(cls, config, custom_metric_methods):
+        if not custom_metric_methods:
+            return
+        metric_functions = {func["id"]: func for func in config.get("functions", []) if func.get("id")}
+        for metric in config.get("metrics", []):
+            if metric["method"] in custom_metric_methods:
+                custom_method_config = custom_metric_methods[metric["method"]]
+                metric["method"] = custom_method_config["method"]
+                metric_functions[custom_method_config["function"]["id"]] = custom_method_config["function"]
+        config["functions"] = list(metric_functions.values())
 
 
 class ServiceListResource(PageListResource):
@@ -202,30 +616,24 @@ class ServiceListResource(PageListResource):
         return [
             CollectTableFormat(
                 id="collect",
-                name=_lazy("收藏"),
+                name="",
                 checked=True,
-                width=80,
+                width=40,
                 api="apm_metric.collectService",
                 params_get=lambda item: {
                     "service_name": item["service_name"],
                     "app_name": item["app_name"],
                 },
-                filterable=True,
+                filterable=False,
                 disabled=True,
             ),
             SyncTimeLinkTableFormat(
                 id="service_name",
-                width=200,
+                min_width=200,
                 name=_lazy("服务名称"),
                 checked=True,
-                url_format="/service/?filter-service_name={service_name}"
-                "&filter-app_name={app_name}"
-                "&filter-category={category}"
-                "&filter-kind={kind}"
-                "&filter-predicate_value={predicate_value}",
-                icon_get=lambda row: get_icon(row["service_name"].split(":")[0])
-                if row["kind"] == TopoNodeKind.REMOTE_SERVICE
-                else get_icon(row["category"]),
+                url_format="/service/?filter-service_name={service_name}&filter-app_name={app_name}",
+                icon_get=lambda row: get_icon(row["category"]),
                 sortable=True,
                 disabled=True,
             ),
@@ -243,18 +651,90 @@ class ServiceListResource(PageListResource):
                 filterable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
-            StatusTableFormat(
-                id="status", name=_lazy("Tracing 状态"), checked=True, status_map_cls=DataStatus, filterable=True
+            DataPointsTableFormat(
+                id="request_count",
+                name=_lazy("调用次数"),
+                checked=True,
+                asyncable=True,
+                min_width=160,
             ),
-            NumberTableFormat(id="request_count", name=_lazy("调用次数"), checked=True, sortable=True, asyncable=True),
-            ProgressTableFormat(id="error_rate", name=_lazy("错误率"), sortable=True, asyncable=True),
-            NumberTableFormat(
+            DataPointsTableFormat(
+                id="error_rate",
+                name=_lazy("错误率"),
+                checked=True,
+                asyncable=True,
+                unit="percentunit",
+                min_width=160,
+            ),
+            DataPointsTableFormat(
                 id="avg_duration",
                 name=_lazy("平均响应耗时"),
                 checked=True,
                 unit="ns",
+                asyncable=True,
+                min_width=160,
+            ),
+            NumberTableFormat(
+                id="p50",
+                name=_lazy("P50"),
+                checked=True,
+                unit="ns",
                 decimal=2,
-                sortable=True,
+                asyncable=True,
+                width=80,
+            ),
+            NumberTableFormat(
+                id="p90",
+                name=_lazy("P90"),
+                checked=True,
+                unit="ns",
+                decimal=2,
+                asyncable=True,
+                width=80,
+            ),
+            # 四个数据状态 ↓
+            DataStatusTableFormat(
+                id="metric_data_status",
+                name=_lazy("指标"),
+                width=55,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+                asyncable=True,
+            ),
+            DataStatusTableFormat(
+                id="log_data_status",
+                name=_lazy("日志"),
+                width=55,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+                asyncable=True,
+            ),
+            DataStatusTableFormat(
+                id="trace_data_status",
+                name=_lazy("调用链"),
+                width=70,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
+                asyncable=True,
+            ),
+            DataStatusTableFormat(
+                id="profiling_data_status",
+                name=_lazy("性能分析"),
+                width=80,
+                checked=True,
+                filterable=False,
+                props={
+                    "align": "center",
+                },
                 asyncable=True,
             ),
             NumberTableFormat(
@@ -262,31 +742,16 @@ class ServiceListResource(PageListResource):
                 name=_lazy("策略数"),
                 checked=True,
                 decimal=0,
-                sortable=True,
+                asyncable=True,
                 display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
             StatusTableFormat(
                 id="alert_status",
                 name=_lazy("告警状态"),
                 checked=True,
-                status_map_cls=ServiceStatus,
-                filterable=True,
-                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
-            ),
-            StatusTableFormat(
-                id="profiling_data_status",
-                name=_lazy("Profiling 状态"),
-                checked=True,
-                status_map_cls=DataStatus,
-                filterable=True,
-            ),
-            NumberTableFormat(
-                id="profiling_data_count",
-                name=_lazy("数据量"),
-                checked=True,
-                decimal=0,
-                sortable=True,
+                status_map_cls=ServiceStatusCachedEnum,
                 asyncable=True,
+                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
             LinkListTableFormat(
                 id="operation",
@@ -300,8 +765,8 @@ class ServiceListResource(PageListResource):
                     ),
                 ],
                 disabled=True,
+                width=80,
                 link_handler=lambda i: i.get("kind") in [TopoNodeKind.SERVICE, TopoNodeKind.REMOTE_SERVICE],
-                display_handler=lambda d: d.get("view_mode") == self.RequestSerializer.VIEW_MODE_SERVICES,
             ),
         ]
 
@@ -315,6 +780,10 @@ class ServiceListResource(PageListResource):
             (VIEW_MODE_SERVICES, "服务列表页"),
         )
 
+        class FieldConditionSerializer(serializers.Serializer):
+            key = serializers.CharField()
+            value = serializers.ListField(child=serializers.CharField(), min_length=1)
+
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称")
         keyword = serializers.CharField(required=False, label="查询关键词", allow_blank=True)
@@ -323,8 +792,11 @@ class ServiceListResource(PageListResource):
         page = serializers.IntegerField(required=False, label="页码")
         page_size = serializers.IntegerField(required=False, label="每页条数")
         sort = serializers.CharField(required=False, label="排序方式", allow_blank=True)
-        filter = serializers.CharField(required=False, label="筛选条件", allow_blank=True)
+        filter = serializers.CharField(required=False, label="分类过滤条件", default="all", allow_blank=True)
         filter_dict = serializers.DictField(required=False, label="筛选条件", default={})
+        field_conditions = serializers.ListField(
+            required=False, default=[], label="or 条件列表", child=FieldConditionSerializer()
+        )
         view_mode = serializers.ChoiceField(
             required=False,
             label="展示模式",
@@ -332,192 +804,340 @@ class ServiceListResource(PageListResource):
             default=VIEW_MODE_SERVICES,
         )
 
-        def validate_filter(self, value):
-            if value == CategoryEnum.ALL:
-                return ""
-            return value
+        def validate(self, attrs):
+            res = super(ServiceListResource.RequestSerializer, self).validate(attrs)
+            if not res.get("filter"):
+                # 兼容服务 tab 页面前端无法传递 all 的问题
+                res["filter"] = "all"
+            return res
 
     def get_filter_fields(self):
-        return ["service_name", "language", "http"]
+        return ["service_name", "language", "type"]
 
     def get_sort_fields(self):
-        return ["-collect", "-strategy_count", "-error_rate", "-avg_duration", "-request_count"]
+        return ["-collect"]
 
-    def combine_data(
-        self,
-        services: List[dict],
-        config: ApmMetaConfig,
-        app_name: str,
-        strategy_service_map: dict,
-        strategy_alert_map: dict,
-        request_count_info: dict,
-        profiling_count_info: dict,
-    ):
-        return [
-            {
-                "collect": service["topo_key"] in config.config_value,
-                "service_name": service["topo_key"],
-                "type": CategoryEnum.get_label_by_key(service["extra_data"]["category"]),
-                "language": service["extra_data"]["service_language"],
-                "strategy_count": strategy_service_map.get(service["topo_key"], DEFAULT_EMPTY_NUMBER),
-                "alert_status": strategy_alert_map.get(service["topo_key"], ServiceStatus.NORMAL),
-                "category": service["extra_data"]["category"],
-                "kind": service["extra_data"]["kind"],
-                "operation": {
-                    "config": _lazy("配置"),
-                    "relation": _lazy("关联"),
+    class FieldStatistics:
+        """根据字段统计"""
+
+        key = None
+        all_fields = None
+        ignore_ids = {}
+
+        @classmethod
+        def list_filter_fields(cls, services):
+            count_mapping = defaultdict(int)
+            for item in services:
+                if item.get(cls.key):
+                    count_mapping[item[cls.key]] += 1
+            res = []
+            if cls.all_fields:
+                for f in cls.all_fields:
+                    if f["id"] in cls.ignore_ids:
+                        continue
+
+                    res.append(
+                        {
+                            "id": f["id"],
+                            "name": f["name"],
+                            "count": count_mapping[f["id"]],
+                        }
+                    )
+            else:
+                for k, v in count_mapping.items():
+                    res.append(
+                        {
+                            "id": k,
+                            "name": k,
+                            "count": v,
+                        }
+                    )
+            return res
+
+        @classmethod
+        def filter_by_fields(cls, values, services):
+            res = []
+            for i in services:
+                if i.get(cls.key) in values:
+                    res.append(i)
+            return res
+
+    class StatisticsCategory(FieldStatistics):
+        key = "category"
+        name = _("分类")
+        all_fields = CategoryCachedEnum.get_filter_fields()
+        ignore_ids = ["all"]
+
+    class StatisticsLanguage(FieldStatistics):
+        key = "language"
+        name = _("语言")
+
+    class StatisticsApplyModule:
+        key = "apply_module"
+        name = _("数据上报")
+
+        @classmethod
+        def list_filter_fields(cls, services):
+            count_mapping = defaultdict(int)
+            # 只要功能开启了 就计数
+            valid_data_status = [DataStatus.NORMAL, DataStatus.NO_DATA]
+            for item in services:
+                if item.get("metric_data_status") in valid_data_status:
+                    count_mapping["metric"] += 1
+                if item.get("log_data_status") in valid_data_status:
+                    count_mapping["log"] += 1
+                if item.get("trace_data_status") in valid_data_status:
+                    count_mapping["trace"] += 1
+                if item.get("profiling_data_status") in valid_data_status:
+                    count_mapping["profiling"] += 1
+            res = []
+            for f in TelemetryDataType.get_filter_fields():
+                res.append(
+                    {
+                        "id": f["id"],
+                        "name": f["name"],
+                        "count": count_mapping[f["id"]],
+                    }
+                )
+            return res
+
+        @classmethod
+        def filter_by_fields(cls, values, services):
+            res = []
+            valid_data_status = [DataStatus.NORMAL, DataStatus.NO_DATA]
+            for i in services:
+                for j in values:
+                    if j == "metric" and i.get("metric_data_status") in valid_data_status:
+                        res.append(i)
+                    elif j == "log" and i.get("log_data_status") in valid_data_status:
+                        res.append(i)
+                    elif j == "trace" and i.get("trace_data_status") in valid_data_status:
+                        res.append(i)
+                    elif j == "profiling" and i.get("profiling_data_status") in valid_data_status:
+                        res.append(i)
+            return res
+
+    class StatisticsHaveData:
+        key = "have_data"
+        name = _("数据状态")
+
+        @classmethod
+        def list_filter_fields(cls, services):
+            # 区分有数据 / 无数据
+            module_fields = ["metric", "log", "trace", "profiling"]
+            return [
+                {
+                    "id": "true",
+                    "name": _("有数据"),
+                    "count": len(
+                        [
+                            i
+                            for i in services
+                            if any(i.get(f"{j}_data_status") == DataStatus.NORMAL for j in module_fields)
+                        ]
+                    ),
                 },
-                "app_name": app_name,
-                "predicate_value": service["extra_data"]["predicate_value"],
-                "status": DataStatus.NORMAL
-                if request_count_info.get(service["topo_key"], {}).get("request_count")
-                else DataStatus.NO_DATA,
-                "profiling_data_status": DataStatus.NORMAL
-                if profiling_count_info.get(service["topo_key"], {}).get("profiling_data_count")
-                else DataStatus.NO_DATA,
-            }
-            for service in services
-        ]
-
-    def keyword_filter(self, data: List, keyword: str = None, filter_param: str = None):
-        if not keyword and not filter_param:
-            return data
-        if filter_param:
-            data = [service_data for service_data in data if service_data["category"] == filter_param]
-        return data
-
-    def has_service_condition(self, strategy: dict):
-        resp = [False, set()]
-        # 逐条遍历 items
-        for item in strategy.get("items", []):
-            for query_config in item.get("query_configs", []):
-                for condition in query_config.get("agg_condition", []):
-                    # 含有 service name
-                    if condition.get("key") == "service_name":
-                        resp[0] = True
-                        resp[1].update(condition.get("value", []))
-        return resp
-
-    def combine_strategy_with_alert(self, app: Application, start_time: int, end_time: int):
-        # 获取策略信息
-        query_params = {
-            "bk_biz_id": app.bk_biz_id,
-            "conditions": [
                 {
-                    "key": "metric_id",
-                    "value": [f"custom.{app.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
-                }
-            ],
-            "page": 0,
-        }
-        strategies = resource.strategies.get_strategy_list_v2(**query_params).get("strategy_config_list", [])
-        strategy_map = {strategy["id"]: strategy for strategy in strategies}
-        # 获取告警信息
-        query_params = {
-            "bk_biz_ids": [app.bk_biz_id],
-            "conditions": [
-                {
-                    "key": "metric_id",
-                    "value": [f"custom.{app.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
-                }
-            ],
-            "start_time": start_time,
-            "end_time": end_time,
-        }
-        alert_infos = resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
-        # 组装告警信息到策略信息中
-        for alert_info in alert_infos:
-            strategy = strategy_map.get(alert_info["strategy_id"])
-            # 只展示未处理的最高级别告警
-            if (
-                strategy is not None
-                and not alert_info["is_handled"]
-                and strategy.get("severity", ServiceStatus.NORMAL) > alert_info["severity"]
-            ):
-                strategy["severity"] = alert_info["severity"]
-        return strategy_map
+                    "id": "false",
+                    "name": _("无数据"),
+                    "count": len(
+                        [
+                            i
+                            for i in services
+                            if all(i.get(f"{j}_data_status") != DataStatus.NORMAL for j in module_fields)
+                        ]
+                    ),
+                },
+            ]
 
-    def batch_query_info(self, app, start_time, end_time):
-        """
-        获取信息
-        """
-        pool = ThreadPool()
-        # 获取应用的服务列表
-        services_res = pool.apply_async(ServiceHandler.list_services, args=(app,))
-        # 获取服务的收藏信息
-        config_res = pool.apply_async(CollectServiceResource.get_collect_config, args=(app,))
-        # # 获取策略信息
-        strategy_map_res = pool.apply_async(self.combine_strategy_with_alert, args=(app, start_time, end_time))
-        # 仅获取状态列
-        service_data_status_res = pool.apply_async(
-            SERVICE_DATA_STATUS, kwds={"application": app, "start_time": start_time, "end_time": end_time}
-        )
-        remote_service_data_status_res = pool.apply_async(
-            REMOTE_SERVICE_DATA_STATUS, kwds={"application": app, "start_time": start_time, "end_time": end_time}
-        )
-        service_component_res = pool.apply_async(
-            ComponentHandler.get_service_component_name_metrics,
-            args=(app, start_time, end_time, COMPONENT_DATA_STATUS),
-        )
-        pool.close()
-        pool.join()
+        @classmethod
+        def filter_by_fields(cls, values, services):
+            module_fields = ["metric", "log", "trace", "profiling"]
+            res = []
+            for i in services:
+                ds = any(i.get(f"{j}_data_status") == DataStatus.NORMAL for j in module_fields)
+                # 因为前端传过来是字符串 这里进行一次转换
+                ds = "true" if ds else "false"
+                if ds in values:
+                    res.append(i)
 
-        return (
-            services_res.get(),
-            config_res.get(),
-            strategy_map_res.get(),
-            {
-                **service_data_status_res.get(),
-                **remote_service_data_status_res.get(),
-                **service_component_res.get(),
-            },
-        )
+            return res
+
+    class Labels:
+        key = "labels"
+        name = _("自定义标签")
+
+        @classmethod
+        def list_filter_fields(cls, services):
+            count_mapping = defaultdict(int)
+            for i in services:
+                for j in i.get("labels", []):
+                    count_mapping[j] += 1
+            res = []
+            for label, c in count_mapping.items():
+                res.append({"id": label, "name": label, "count": c})
+            return res
+
+        @classmethod
+        def filter_by_fields(cls, values, services):
+            res = []
+            for i in services:
+                for v in values:
+                    if v in i.get("labels", []):
+                        res.append(i)
+
+            return res
+
+    def _get_filter_fields_by_services(self, services, mode=None):
+        """根据服务数据获取筛选项目"""
+        field_groups = {
+            "sync": [
+                self.StatisticsCategory,
+                self.StatisticsLanguage,
+                self.Labels,
+            ],
+            "async": [
+                self.StatisticsApplyModule,
+                self.StatisticsHaveData,
+            ],
+        }
+        fields = field_groups.get(mode) or [field for group in field_groups.values() for field in group]
+        res = []
+        for f in fields:
+            res.append({"id": f.key, "name": f.name, "data": f.list_filter_fields(services)})
+        return res
+
+    def _filter_by_fields(self, services, field_conditions):
+        """根据字段过滤进行过滤服务"""
+        key_mapping = {
+            i.key: i
+            for i in [
+                self.StatisticsCategory,
+                self.StatisticsLanguage,
+                self.StatisticsApplyModule,
+                self.StatisticsHaveData,
+                self.Labels,
+            ]
+        }
+        res = []
+        for condition in field_conditions:
+            instance = key_mapping.get(condition["key"])
+            if instance:
+                res.extend(instance.filter_by_fields(condition["value"], services))
+
+        return list({i["service_name"]: i for i in res}.values())
 
     def perform_request(self, validate_data):
-        start_time = validate_data["start_time"]
-        end_time = validate_data["end_time"]
-        # 获取应用
-        app = Application.objects.filter(
-            bk_biz_id=validate_data["bk_biz_id"], app_name=validate_data["app_name"]
-        ).first()
-        if not app:
-            raise ValueError(_lazy("应用{}不存在").format(validate_data['app_name']))
+        bk_biz_id = validate_data["bk_biz_id"]
+        app_name = validate_data["app_name"]
+        application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
 
-        services, config, strategy_map, request_count_info = self.batch_query_info(app, start_time, end_time)
+        if not application.trace_result_table_id or not application.metric_result_table_id:
+            # 接入中应用 返回空数据
+            filter_fields = []
+            # 获取顶部过滤项 (服务 tab 页)
+            if validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_SERVICES:
+                filter_fields = CategoryCachedEnum.get_filter_fields()
+            elif validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_HOME:
+                filter_fields = self._get_filter_fields_by_services([])
 
-        strategy_service_map = defaultdict(int)
-        strategy_alert_map = defaultdict(ServiceStatus.get_default)
-        for strategy in strategy_map.values():
-            has_service, service_list = self.has_service_condition(strategy)
-            if has_service:
-                for name in service_list:
-                    strategy_service_map[name] += 1
-                    # 已有告警级别没有策略告警级别高才更新
-                    if strategy_alert_map[name] > strategy.get("severity", ServiceStatus.NORMAL):
-                        strategy_alert_map[name] = strategy.get("severity", ServiceStatus.NORMAL)
+            paginated_data = self.get_pagination_data([], validate_data)
+            paginated_data["filter"] = filter_fields
+            return paginated_data
 
-        # 获取 profile 服务指标
-        if app.is_enabled_profiling:
-            profiling_request_info = QueryTemplate(
-                validate_data["bk_biz_id"], validate_data["app_name"]
-            ).list_services_request_info(validate_data["start_time"] * 1000, validate_data["end_time"] * 1000)
-        else:
-            profiling_request_info = {}
+        # 1. 获取服务列表
+        services = ServiceHandler.list_services(application)
+        service_names = [i["topo_key"] for i in services]
 
-        # 处理响应数据
-        raw_data = self.combine_data(
-            services,
-            config,
-            validate_data["app_name"],
-            strategy_service_map,
-            strategy_alert_map,
-            request_count_info,
-            profiling_request_info,
+        # 主动更新一下缓存，防止出现服务数和缓存里数量不一致的问题
+        # 这里通过 update 方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name).update(
+            service_count=len(services)
         )
 
-        filtered_data = self.keyword_filter(raw_data, validate_data["keyword"], validate_data["filter"])
-        paginated_data = self.get_pagination_data(filtered_data, validate_data)
-        paginated_data["filter"] = CategoryEnum.get_filter_fields()
+        # 2. 获取服务收藏列表
+        collects = CollectServiceResource.get_collect_config(application).config_value
+
+        res = []
+        data_status_mapping = {}
+        # 如果存在数据状态相关的filter筛选, 加载data_status数据
+        field_condition_keys = {condition.get("key") for condition in validate_data["field_conditions"]}
+        if not field_condition_keys.isdisjoint({"apply_module", "have_data"}):
+            data_status_list = (
+                ServiceListAsyncResource()
+                .perform_request(
+                    validated_data={
+                        "bk_biz_id": validate_data["bk_biz_id"],
+                        "app_name": validate_data["app_name"],
+                        "start_time": validate_data["start_time"],
+                        "end_time": validate_data["end_time"],
+                        "column": "data_status",
+                        "service_names": service_names,
+                    }
+                )
+                .get("data", [])
+            )
+            data_status_mapping = {data_status["service_name"]: data_status for data_status in data_status_list}
+        labels_mapping = group_by(
+            ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, service_names, "labels"),
+            operator.attrgetter("level_key"),
+        )
+        for service in services:
+            # 分类过滤
+            if validate_data["filter"] != "all" and validate_data["filter"] != service["extra_data"]["category"]:
+                continue
+            name = service["topo_key"]
+            labels = []
+            if ApmMetaConfig.get_service_level_key(bk_biz_id, app_name, name) in labels_mapping:
+                labels = json.loads(
+                    labels_mapping[ApmMetaConfig.get_service_level_key(bk_biz_id, app_name, name)][0].config_value,
+                )
+            res_item = {
+                "app_name": application.app_name,
+                "collect": name in collects,
+                "service_name": name,
+                "type": CategoryCachedEnum.from_value(service["extra_data"]["category"]).label,
+                "language": service["extra_data"]["service_language"] or _("其他语言"),
+                "operation": {
+                    "config": _lazy("配置"),
+                },
+                # category 附加数据 不显示
+                "category": service["extra_data"]["category"],
+                # kind 附加数据 不显示
+                "kind": service["extra_data"]["kind"],
+                "labels": labels,
+            }
+            if data_status_mapping:
+                res_item.update(
+                    {
+                        "metric_data_status": data_status_mapping.get(name, {})
+                        .get(f"{TelemetryDataType.METRIC.value}_data_status", {})
+                        .get("icon", DataStatus.DISABLED),
+                        "log_data_status": data_status_mapping.get(name, {})
+                        .get(f"{TelemetryDataType.LOG.value}_data_status", {})
+                        .get("icon", DataStatus.DISABLED),
+                        "trace_data_status": data_status_mapping.get(name, {})
+                        .get(f"{TelemetryDataType.TRACE.value}_data_status", {})
+                        .get("icon", DataStatus.DISABLED),
+                        "profiling_data_status": data_status_mapping.get(name, {})
+                        .get(f"{TelemetryDataType.PROFILING.value}_data_status", {})
+                        .get("icon", DataStatus.DISABLED),
+                    }
+                )
+            res.append(res_item)
+
+        filter_fields = []
+        # 获取顶部过滤项 (服务 tab 页)
+        if validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_SERVICES:
+            filter_fields = CategoryCachedEnum.get_filter_fields()
+        elif validate_data["view_mode"] == self.RequestSerializer.VIEW_MODE_HOME:
+            filter_fields = self._get_filter_fields_by_services(res, mode="sync")
+
+        if validate_data["field_conditions"]:
+            res = self._filter_by_fields(res, validate_data["field_conditions"])
+
+        paginated_data = self.get_pagination_data(res, validate_data)
+        paginated_data["filter"] = filter_fields
         return paginated_data
 
 
@@ -527,10 +1147,35 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
     """
 
     METRIC_MAP = {
-        "avg_duration": AvgDurationInstance,
-        "error_count": ErrorCountInstance,
-        "request_count": RequestCountInstance,
-        "error_rate": ErrorRateInstance,
+        "avg_duration": {"metric": AvgDurationInstance, "type": "range"},
+        "request_count": {"metric": RequestCountInstance, "type": "range"},
+        "error_rate": {"metric": ErrorRateInstance, "ignore_keys": ["status_code"], "type": "range"},
+        "p50": {
+            "metric": functools.partial(
+                DurationBucket,
+                functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.5"}]}],
+            ),
+            "ignore_keys": ["le"],
+            "type": "instant",
+        },
+        "p90": {
+            "metric": functools.partial(
+                DurationBucket,
+                functions=[{"id": "histogram_quantile", "params": [{"id": "scalar", "value": "0.9"}]}],
+            ),
+            "ignore_keys": ["le"],
+            "type": "instant",
+        },
+        # strategy_count 特殊处理
+        "strategy_count": {},
+        # alert_status 特殊处理
+        "alert_status": {},
+        # data_status相关 特殊处理
+        "data_status": {},
+        "metric_data_status": {},
+        "log_data_status": {},
+        "trace_data_status": {},
+        "profiling_data_status": {},
     }
 
     SyncResource = ServiceListResource
@@ -540,95 +1185,244 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         service_names = serializers.ListSerializer(child=serializers.CharField(), default=[], label="服务列表")
         start_time = serializers.IntegerField(required=True, label="数据开始时间")
         end_time = serializers.IntegerField(required=True, label="数据结束时间")
+        filter_keys = serializers.ListSerializer(child=serializers.CharField(), default=[], label="异步加载的过滤器类表")
 
     @classmethod
-    def get_metric_service_data(cls, validated_data, app: Application, column: str):
+    def _get_column_metric_mapping(cls, column_metric, metric_params):
         """
-        获取指标数据及服务数据
-        只查单个指标
+        获取服务异步列数据映射 (指标)
         """
-        if column == COLUMN_KEY_PROFILING_DATA_COUNT:
-            services = ServiceHandler.list_services(app)
-            return {}, {}, services
 
-        metric_handler_cls = []
-        if column in cls.METRIC_MAP:
-            metric_handler_cls.append(cls.METRIC_MAP[column])
+        if column_metric.get("type") == "instant":
+            return ServiceHandler.get_service_metric_instant_mapping(
+                column_metric["metric"],
+                **metric_params,
+                ignore_keys=column_metric.get("ignore_keys"),
+            )
 
-        service_metric_param = {
+        interval = get_bar_interval_number(metric_params["start_time"], metric_params["end_time"])
+        response = ServiceHandler.get_service_metric_range_mapping(
+            column_metric["metric"],
+            **metric_params,
+            ignore_keys=column_metric.get("ignore_keys"),
+            extra_params={"interval": interval},
+        )
+        # 添加上补空逻辑
+        res = {}
+        for k, v in response.items():
+            res[k] = fill_series(
+                [{"datapoints": v}],
+                metric_params["start_time"],
+                metric_params["end_time"],
+                interval=interval,
+            )[0]["datapoints"]
+        return res
+
+    @classmethod
+    def _get_condition_service_names(cls, strategy: dict):
+        """获取策略配置的条件，检查是否有配置 service_name=xxx"""
+        service_names = []
+        for item in strategy.get("items", []):
+            for query_config in item.get("query_configs", []):
+                for condition in query_config.get("agg_condition", []):
+                    if condition.get("key") == "service_name" and condition.get("value"):
+                        service_names.extend(condition["value"])
+        return service_names
+
+    @classmethod
+    def _get_data_status_mapping(cls, service_names, application, **kwargs) -> tuple:
+        """获取服务的数据状态"""
+        # 先获取缓存数据
+        data_status_type = kwargs.get("data_status_type")
+        filter_keys = kwargs.get("filter_keys", [])
+        filter_fields = []
+        # 需要异步加载数据状态filter时, 全量查询，设置缓存
+        fetch_service_names = service_names
+        if filter_keys:
+            fetch_service_names = [i["topo_key"] for i in ServiceHandler.list_services(application)]
+        cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
+        data_status_mapping = cache.get(cache_key)
+        if data_status_mapping:
+            try:
+                data_status_mapping = json.loads(data_status_mapping)
+            except JSONDecodeError:
+                pass
+        if not data_status_mapping:
+            # 数据状态是指最新的一个状态，所以这里使用无数据周期配置，而不是页面选择的起止时间
+            start_time, end_time = get_datetime_range("minute", application.no_data_period)
+            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+            data_status_mapping = ServiceHandler.get_service_data_status_mapping(
+                application,
+                start_time,
+                end_time,
+                [{"topo_key": service_name} for service_name in fetch_service_names],
+                data_status_type=data_status_type,
+            )
+            if filter_keys:
+                cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
+
+        if data_status_type:
+            filtered_mapping = {}
+            for service_name, status_mapping in data_status_mapping.items():
+                filtered_mapping[service_name] = status_mapping[data_status_type]
+            data_status_mapping = filtered_mapping
+
+        if filter_keys:
+            res = []
+            for name in fetch_service_names:
+                res.append(
+                    {
+                        "metric_data_status": data_status_mapping.get(name, {}).get(
+                            TelemetryDataType.METRIC.value, DataStatus.DISABLED
+                        ),
+                        "log_data_status": data_status_mapping.get(name, {}).get(
+                            TelemetryDataType.LOG.value, DataStatus.DISABLED
+                        ),
+                        "trace_data_status": data_status_mapping.get(name, {}).get(
+                            TelemetryDataType.TRACE.value, DataStatus.DISABLED
+                        ),
+                        "profiling_data_status": data_status_mapping.get(name, {}).get(
+                            TelemetryDataType.PROFILING.value, DataStatus.DISABLED
+                        ),
+                    }
+                )
+            filter_fields = ServiceListResource()._get_filter_fields_by_services(res, mode="async")  #
+
+        return data_status_mapping, filter_fields
+
+    @classmethod
+    def _get_service_strategy_mapping(cls, column, application, start_time, end_time):
+        """获取服务的策略和告警信息"""
+        query_params = {
+            "bk_biz_id": application.bk_biz_id,
+            "conditions": [
+                {
+                    "key": "metric_id",
+                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
+                }
+            ],
+            "page": 0,
+            "page_size": 1000,
+        }
+        strategies = resource.strategies.get_strategy_list_v2(**query_params).get("strategy_config_list", [])
+        # 获取指标的告警事件
+        query_params = {
+            "bk_biz_ids": [application.bk_biz_id],
+            "query_string": f"metric: custom.{application.metric_result_table_id}.*",
+            "start_time": start_time,
+            "end_time": end_time,
+            "page_size": 1000,
+        }
+        alert_infos = resource.fta_web.alert.search_alert(**query_params).get("alerts", [])
+
+        strategy_events_mapping = {}
+        service_alert_level_count_mapping = defaultdict(
+            lambda: {
+                AlertLevel.ERROR: 0,
+                AlertLevel.WARN: 0,
+                AlertLevel.INFO: 0,
+            }
+        )
+        for strategy in strategies:
+            events = [i for i in alert_infos if i["strategy_id"] == strategy["id"]]
+            strategy_events_mapping[strategy["id"]] = {
+                "info": strategy,
+                "events": events,
+            }
+
+        service_strategy_count_mapping = defaultdict(int)
+        for items in strategy_events_mapping.values():
+            # Step1: 检查策略配置中是否包含服务的值 记录为服务的策略数
+            service_names = cls._get_condition_service_names(items["info"])
+            for name in service_names:
+                service_strategy_count_mapping[name] += 1
+
+            # Step2: 检查告警事件中是否包含服务的值 记录为服务的告警数
+            for alert in items["events"]:
+                alert_service_name = next(
+                    (i.get("value") for i in alert.get("dimensions", []) if i.get("key") == "tags.service_name"), None
+                )
+                if not alert_service_name:
+                    continue
+
+                service_alert_level_count_mapping[alert_service_name][alert["severity"]] += 1
+
+        service_alert_status_mapping = defaultdict(int)
+        for svr, alert_status in service_alert_level_count_mapping.items():
+            err_count = alert_status[AlertLevel.ERROR]
+            warn_count = alert_status[AlertLevel.WARN]
+            info_count = alert_status[AlertLevel.INFO]
+            if err_count:
+                service_alert_status_mapping[svr] = ServiceStatus.FATAL
+            elif warn_count:
+                service_alert_status_mapping[svr] = ServiceStatus.WARNING
+            elif info_count:
+                service_alert_status_mapping[svr] = ServiceStatus.REMIND
+            else:
+                service_alert_status_mapping[svr] = ServiceStatus.NORMAL
+
+        return {"strategy_count": service_strategy_count_mapping, "alert_status": service_alert_status_mapping}.get(
+            column, {}
+        )
+
+    def perform_request(self, validated_data) -> dict:
+        result_data = {"data": []}
+        column = validated_data["column"]
+        if column not in self.METRIC_MAP or not validated_data.get("service_names"):
+            return result_data
+
+        res = []
+        filter_fields = []
+        m: Dict = self.METRIC_MAP[column]
+        app = Application.objects.get(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
+        metric_params = {
             "application": app,
             "start_time": validated_data["start_time"],
             "end_time": validated_data["end_time"],
         }
 
-        component_metric_param = {
-            "app": app,
-            "start_time": validated_data["start_time"],
-            "end_time": validated_data["end_time"],
-        }
+        multi_sub_columns = None
+        default_value = None
+        service_names = validated_data["service_names"]
+        filter_keys = validated_data.get("filter_keys", [])
 
-        if metric_handler_cls:
-            service_metric_param["metric_handler_cls"] = metric_handler_cls
-            component_metric_param["metric_handler_cls"] = metric_handler_cls
-
-        pool = ThreadPool()
-        service_list_res = pool.apply_async(SERVICE_LIST, kwds=service_metric_param)
-        remote_service_list_res = pool.apply_async(REMOTE_SERVICE_LIST, kwds=service_metric_param)
-        component_metric_res = pool.apply_async(
-            ComponentHandler.get_service_component_metrics, kwds=component_metric_param
-        )
-        services_res = pool.apply_async(ServiceHandler.list_services, args=(app,))
-        pool.close()
-        pool.join()
-
-        service_metric_info = {**service_list_res.get(), **remote_service_list_res.get()}
-        component_metric_info = component_metric_res.get()
-        services = services_res.get()
-        return service_metric_info, component_metric_info, services
-
-    def perform_request(self, validated_data):
-        res = []
-        if not validated_data.get("service_names"):
-            return res
-
-        app = Application.objects.filter(
-            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
-        ).first()
-        if not app:
-            raise ValueError(_("应用{}不存在").format(validated_data['app_name']))
-
-        column = validated_data["column"]
-        service_metric_info, component_metric_info, services = self.get_metric_service_data(validated_data, app, column)
-
-        if app.is_enabled_profiling and column == COLUMN_KEY_PROFILING_DATA_COUNT:
-            profiling_metric_info = QueryTemplate(
-                validated_data["bk_biz_id"], validated_data["app_name"]
-            ).list_services_request_info(validated_data["start_time"] * 1000, validated_data["end_time"] * 1000)
+        if column in ["data_status"]:
+            info_mapping, filter_fields = self._get_data_status_mapping(
+                service_names, filter_keys=filter_keys, **metric_params
+            )
+            multi_sub_columns = TelemetryDataType.values()
+            default_value = DataStatus.DISABLED
+        elif column in [f"{data_type}_data_status" for data_type in TelemetryDataType.values()]:
+            data_status_type = column.split("_data_status")[0]
+            info_mapping, filter_fields = self._get_data_status_mapping(
+                service_names, data_status_type=data_status_type, **metric_params
+            )
+        elif column in ["strategy_count", "alert_status"]:
+            info_mapping = self._get_service_strategy_mapping(column, **metric_params)
         else:
-            profiling_metric_info = {}
+            info_mapping = self._get_column_metric_mapping(m, metric_params)
 
-        for service_name in validated_data["service_names"]:
-            service = next((i for i in services if i["topo_key"] == service_name), None)
-            if not service:
-                continue
-
-            metric_info = {}
-            if service["extra_data"]["kind"] == TopoNodeKind.REMOTE_SERVICE:
-                metric_info = service_metric_info.get(service_name.split(":")[-1], {})
-            elif service["extra_data"]["kind"] == TopoNodeKind.SERVICE:
-                metric_info = service_metric_info.get(service_name, {})
-            elif service["extra_data"]["kind"] == TopoNodeKind.COMPONENT:
-                metric_info = component_metric_info.get(service["from_service"], {}).get(
-                    service["extra_data"]["predicate_value"], {}
-                )
-
-            if service["topo_key"] in profiling_metric_info:
-                # 补充 profiling 数据
-                metric_info.update(profiling_metric_info[service["topo_key"]])
-
-            res.append({"service_name": service_name, **self.get_async_column_item(metric_info, column)})
-
-        return self.get_async_data(res, validated_data["column"])
+        for service_name in service_names:
+            res.append(
+                {
+                    "service_name": service_name,
+                    **self.get_async_column_item(
+                        {column: info_mapping.get(service_name)},
+                        column,
+                        multi_sub_columns=multi_sub_columns,
+                        default_value=default_value,
+                    ),
+                }
+            )
+        multi_output_columns = (
+            [f"{sub_column}_{column}" for sub_column in multi_sub_columns] if multi_sub_columns else None
+        )
+        result_data["data"] = self.get_async_data(
+            res, validated_data["column"], multi_output_columns=multi_output_columns
+        )
+        if filter_fields:
+            result_data["filter"] = filter_fields
+        return result_data
 
 
 class CollectServiceResource(Resource):
@@ -688,53 +1482,39 @@ class CollectServiceResource(Resource):
 
 
 class InstanceListResource(Resource):
+    """获取实例列表"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称", required=False, allow_blank=True)
         keyword = serializers.CharField(label="关键字", required=False, allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
-        category = serializers.ListField(label="分类", required=False, default=[])
+        category = serializers.CharField(label="分类", required=False)
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
 
-    def perform_request(self, validated_request_data):
-        query_dict = {"bk_biz_id": validated_request_data["bk_biz_id"], "app_name": validated_request_data["app_name"]}
-        if "service_name" in validated_request_data.keys():
-            query_dict["service_name"] = [validated_request_data["service_name"]]
+    def perform_request(self, validated_data):
+        instances = RelationMetricHandler.list_instances(
+            validated_data["bk_biz_id"],
+            validated_data["app_name"],
+            validated_data["start_time"],
+            validated_data["end_time"],
+            service_name=validated_data.get("service_name"),
+            filter_component=True,
+        )
+        return self.convert_to_response(validated_data["app_name"], validated_data.get("keyword"), instances)
 
-        if ComponentHandler.is_component(validated_request_data.get("service_params")):
-            service_params = validated_request_data["service_params"]
-            if "service_name" in query_dict:
-                query_dict["service_name"] = [
-                    ComponentHandler.get_component_belong_service(
-                        query_dict["service_name"][0], service_params["predicate_value"]
-                    )
-                ]
-            query_dict["filters"] = {
-                "instance_topo_kind": TopoNodeKind.COMPONENT,
-                "component_instance_category": service_params["category"],
-                "component_instance_predicate_value": service_params["predicate_value"],
-            }
-        elif validated_request_data.get("category"):
-            query_dict["filters"] = {
-                "component_instance_category__in": validated_request_data.get("category"),
-                "instance_topo_kind": TopoNodeKind.COMPONENT,
-            }
-        else:
-            query_dict["filters"] = {"instance_topo_kind": TopoNodeKind.SERVICE}
-
-        instances = api.apm_api.query_instance(query_dict).get("data", [])
+    def convert_to_response(self, app_name, keyword, instances):
         data = []
         for instance in instances:
             data.append(
                 {
-                    "id": instance["instance_id"],
-                    "name": instance["instance_id"],
-                    "topo_node_key": instance["topo_node_key"],
-                    "service_name": instance["topo_node_key"],
-                    "app_name": validated_request_data["app_name"],
+                    "id": instance["apm_service_instance_name"],
+                    "name": instance["apm_service_instance_name"],
+                    "app_name": app_name,
                 }
             )
-        return self.filter_keyword(data, validated_request_data.get("keyword"))
+        return self.filter_keyword(data, keyword)
 
     def filter_keyword(self, data, keyword):
         if not keyword:
@@ -776,11 +1556,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             target="blank",
             event_key=SceneEventKey.SWITCH_SCENES_TYPE,
             filterable=True,
-            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}"
-            + "&filter-app_name={app_name}&"
-            "filter-category={service_category}&"
-            "filter-kind={service_kind}&"
-            "filter-predicate_value={service_predicate_value}",
+            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}&filter-app_name={app_name}",
             min_width=120,
         )
         if column_type:
@@ -792,9 +1568,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
                 filterable=True,
                 url_format="/service/?filter-service_name={service}" + "&filter-app_name={app_name}&"
-                "filter-category={service_category}&"
-                "filter-kind={service_kind}&"
-                "filter-predicate_value={service_predicate_value}&"
                 "dashboardId=service-default-overview&sceneId=apm_service&sceneType=overview",
                 min_width=120,
             )
@@ -821,7 +1594,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 name=_lazy("分类"),
                 checked=True,
                 filterable=True,
-                label_getter=CategoryEnum.get_label_by_key,
+                label_getter=CategoryCachedEnum,
                 icon_getter=lambda row: get_icon(row["category"]),
                 min_width=120,
             ),
@@ -847,7 +1620,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                         name=_lazy("调用链"),
                         url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                         + '&search_type=scope'
-                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&start_time={start_time}&end_time={end_time}'
                         + '&conditionList={{"resource.service.name": '
                         '{{"selectedCondition": {{"label": "=","value": "equal"}},'
                         '"selectedConditionValue": ["{service}"]}},'
@@ -876,7 +1649,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         filter_fields = serializers.DictField(required=False, label="匹配条件", default={})
         check_filter_dict = serializers.DictField(required=False, label="勾选条件", default={})
         status = serializers.CharField(required=False, label="状态筛选")
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
 
         def validate_filter(self, value):
             if value == "all":
@@ -910,13 +1682,20 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             query_params["category"] = data["filter"]
 
         if data["service_name"]:
-            # 如果是服务下错误->判断此服务是否是自定义服务
-            if ServiceHandler.is_remote_service(bk_biz_id, app_name, data["service_name"]):
+            node = ServiceHandler.get_node(bk_biz_id, app_name, data["service_name"], raise_exception=False)
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    data["bk_biz_id"],
+                    data["app_name"],
+                    data["service_name"],
+                    query_params["filter_params"],
+                )
+            elif ServiceHandler.is_remote_service_by_node(node):
                 query_params["filter_params"].append(
                     {
                         "key": OtlpKey.get_attributes_key(SpanAttributes.PEER_SERVICE),
                         "op": "=",
-                        "value": [data["service_name"].split(":")[-1]],
+                        "value": [ServiceHandler.get_remote_service_origin_name(data["service_name"])],
                     }
                 )
             else:
@@ -928,9 +1707,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                     }
                 )
 
-        ComponentHandler.build_component_filter_params(
-            data["bk_biz_id"], data["app_name"], query_params["filter_params"], data.get("service_params")
-        )
         return api.apm_api.query_span(query_params)
 
     def format_time(self, time_int):
@@ -971,10 +1747,8 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         times = set()
         exception_types = set()
 
-        error_count = DEFAULT_EMPTY_NUMBER
         has_exception = False
         for error in errors:
-            error_count += 1
             times.add(error["time"])
             exception_types |= {i.get("attributes", {}).get("exception.type") for i in error.get("events", [])}
             if not has_exception:
@@ -996,7 +1770,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 "is_stack": _lazy("有Stack") if has_exception else _lazy("没有Stack"),
             },
             "category": service_mappings.get(service, {}).get("extra_data", {}).get("category"),
-            "error_count": error_count,
+            "error_count": len(errors),
             "service": service,
             "trace_id": trace_id,
             "app_name": self.app_name,
@@ -1018,13 +1792,9 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
 
     def parse_errors(self, bk_biz_id, error_spans):
         # 获取service
-        service_mappings = {
-            i["topo_key"]: i for i in api.apm_api.query_topo_node({"bk_biz_id": bk_biz_id, "app_name": self.app_name})
-        }
+        service_mappings = {i["topo_key"]: i for i in ServiceHandler.list_nodes(bk_biz_id, self.app_name)}
 
         error_map = {}
-
-        has_event_trace_id = [i["trace_id"] for i in error_spans if i.get("events")]
 
         for span in error_spans:
             service = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME)
@@ -1044,8 +1814,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             else:
                 exception_type = self.UNKNOWN_EXCEPTION_TYPE
                 key = (service, endpoint, exception_type)
-                if span["trace_id"] not in has_event_trace_id:
-                    self.handle_error_map(error_map, key, service, endpoint, span)
+                self.handle_error_map(error_map, key, service, endpoint, span)
 
         return [
             self.combine_errors(bk_biz_id, service_mappings, **service_error_map)
@@ -1096,30 +1865,6 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         paginated_data["filter"] = self.get_status_filter()
         return paginated_data
 
-    def get_pagination_data(self, origin_data, params, column_type=None):
-        data = super(ErrorListResource, self).get_pagination_data(origin_data, params, column_type)
-
-        # 因为在组件页面下 点击侧边栏需要传递额外参数 所以这里兼容组件的页面配置(见组件错误页面配置selector_panel.target.fields)
-        component_extra_data = ["category", "kind", "predicate_value", "service_name"]
-
-        param = {
-            **params.get("service_params", {}),
-            "service_name": params.get("service_name"),
-        }
-
-        is_all_exists = all(bool(param.get(i)) for i in component_extra_data)
-        if not is_all_exists:
-            return data
-
-        add_data = {}
-        for key in component_extra_data:
-            add_data[f"component_{key}"] = param[key]
-
-        for i in data["data"]:
-            i.update(add_data)
-
-        return data
-
 
 class TopNQueryResource(ApiAuthResource):
     class RequestSerializer(serializers.Serializer):
@@ -1130,7 +1875,6 @@ class TopNQueryResource(ApiAuthResource):
         size = serializers.IntegerField(label="查询数量", default=5)
         query_type = serializers.ChoiceField(label="查询类型", choices=get_top_n_query_type())
         filter_dict = serializers.DictField(label="过滤条件", required=False)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
 
     def perform_request(self, validated_request_data):
         start_time = validated_request_data["start_time"]
@@ -1147,7 +1891,6 @@ class TopNQueryResource(ApiAuthResource):
             end_time,
             validated_request_data["size"],
             validated_request_data.get("filter_dict"),
-            validated_request_data.get("service_params"),
         ).get_topo_n_data()
         return {"data": result}
 
@@ -1170,8 +1913,19 @@ class ApdexQueryResource(ApiAuthResource):
             raise ValueError("Application does not exist")
 
         if ApplicationHandler.have_data(application, start_time, end_time):
-            interval = (end_time - start_time) // APDEX_VIEW_ITEM_LEN
-            return ApdexRange(application, start_time, end_time, interval=interval).query_range()
+            response = ApdexRange(
+                application, start_time, end_time, interval=get_bar_interval_number(start_time, end_time)
+            ).query_range()
+            return {
+                "metrics": [],
+                "series": fill_series(
+                    response.get("series", []),
+                    start_time,
+                    end_time,
+                    interval=get_bar_interval_number(start_time, end_time),
+                ),
+            }
+
         return {"metrics": [], "series": []}
 
 
@@ -1304,9 +2058,9 @@ class EndpointDetailListResource(Resource):
                     },
                 ],
                 "sort": [
-                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数量"), "tips": _lazy("请求数量")},
-                    {"id": "error_count", "status": "error_count", "name": _lazy("错误数量"), "tips": _lazy("错误数量")},
-                    {"id": "avg_duration", "status": "avg_duration", "name": _lazy("响应耗时"), "tips": _lazy("响应耗时")},
+                    {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                    {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
+                    {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
                 ],
             }
 
@@ -1365,9 +2119,9 @@ class EndpointDetailListResource(Resource):
                 {"id": "disabled", "status": "disabled", "name": status_count["disabled"], "tips": _lazy("1小时内无数据")},
             ],
             "sort": [
-                {"id": "request_count", "status": "request_count", "name": _lazy("请求数量"), "tips": _lazy("请求数量")},
-                {"id": "error_count", "status": "error_count", "name": _lazy("错误数量"), "tips": _lazy("错误数量")},
-                {"id": "avg_duration", "status": "avg_duration", "name": _lazy("响应耗时"), "tips": _lazy("响应耗时")},
+                {"id": "request_count", "status": "request_count", "name": _lazy("请求数"), "tips": _lazy("请求数")},
+                {"id": "error_count", "status": "error_count", "name": _lazy("错误数"), "tips": _lazy("错误数")},
+                {"id": "avg_duration", "status": "avg_duration", "name": _lazy("耗时"), "tips": _lazy("耗时")},
             ],
         }
 
@@ -1394,9 +2148,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         filter_fields = serializers.DictField(required=False, label="匹配条件", default={})
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
         status = serializers.CharField(required=False, label="状态过滤", allow_blank=True)
-        category = serializers.CharField(label="分类(服务视图下)", required=False)
-        kind = serializers.CharField(label="类型(服务视图下)", required=False)
-        predicate_value = serializers.CharField(label="分类具体值(服务视图下)", required=False)
 
     def get_sort_fields(self):
         return ["request_count", "error_rate", "error_count", "avg_duration"]
@@ -1431,11 +2182,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             target="blank",
             filterable=True,
             event_key=SceneEventKey.SWITCH_SCENES_TYPE,
-            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}"
-            + "&filter-app_name={app_name}&"
-            "filter-category={service_category}&"
-            "filter-kind={service_kind}&"
-            "filter-predicate_value={service_predicate_value}",
+            url_format="/?bizId={bk_biz_id}/#/apm/service/?filter-service_name={service}&filter-app_name={app_name}",
         )
         if column_type:
             service_format = ServiceComponentAdaptLinkFormat(
@@ -1446,12 +2193,10 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 target="event",
                 filterable=True,
                 event_key=SceneEventKey.SWITCH_SCENES_TYPE,
-                url_format="/service/?filter-service_name={service}" + "&filter-app_name={app_name}&"
-                "filter-category={service_category}&"
-                "filter-kind={service_kind}&"
-                "filter-predicate_value={service_predicate_value}&"
+                url_format="/service/?filter-service_name={service}&filter-app_name={app_name}&"
                 "dashboardId=service-default-overview&sceneId=apm_service&sceneType=overview",
             )
+        # columns 默认顺序: 接口、调用类型、调用次数、错误次数、错误率、平均响应时间、状态、类型、分类、服务、操作
         columns = [
             OverviewDataTableFormat(
                 id="endpoint_name",
@@ -1463,31 +2208,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 min_width=120,
                 max_width=300,
             ),
-            StatusTableFormat(
-                id="apdex",
-                name=_lazy("状态"),
-                checked=True,
-                status_map_cls=Apdex,
-                filterable=True,
-                min_width=120,
-            ),
-            StringTableFormat(
-                id="category_kind",
-                name=_lazy("类型"),
-                checked=True,
-                filterable=True,
-                min_width=120,
-            ),
-            StringLabelTableFormat(
-                id="category",
-                name=_lazy("分类"),
-                checked=True,
-                filterable=True,
-                label_getter=CategoryEnum.get_label_by_key,
-                icon_getter=lambda row: get_icon(row["category"]),
-                min_width=120,
-            ),
-            service_format,
             StringTableFormat(
                 id="kind",
                 name=_lazy("调用类型"),
@@ -1529,6 +2249,31 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 unit="ns",
                 decimal=2,
             ),
+            StatusTableFormat(
+                id="apdex",
+                name=_lazy("Apdex"),
+                checked=True,
+                status_map_cls=ApdexCachedEnum,
+                filterable=True,
+                min_width=120,
+            ),
+            StringTableFormat(
+                id="category_kind",
+                name=_lazy("类型"),
+                checked=True,
+                filterable=True,
+                min_width=120,
+            ),
+            StringLabelTableFormat(
+                id="category",
+                name=_lazy("分类"),
+                checked=True,
+                filterable=True,
+                label_getter=CategoryCachedEnum,
+                icon_getter=lambda row: get_icon(row["category"]),
+                min_width=120,
+            ),
+            service_format,
             LinkListTableFormat(
                 id="operation",
                 name=_lazy("操作"),
@@ -1540,7 +2285,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                         name=_lazy("调用链"),
                         url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                         + '&search_type=scope'
-                        + '&start_tiem={start_time}&end_tiem={end_time}'
+                        + '&start_time={start_time}&end_time={end_time}'
                         + '&conditionList={{"resource.service.name": {{'
                         '"selectedCondition": {{"label": "=","value": "equal"}},'
                         '"selectedConditionValue": ["{service_name}"]}},'
@@ -1562,18 +2307,22 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         return columns
 
     @classmethod
-    def _build_group_key(cls, endpoint):
+    def _build_group_key(cls, endpoint, ignore_index=None, overwrite_service_name=None):
         category = []
-        for category_k in cls._get_category_keys():
+        for category_k in CategoryCachedEnum.list_span_keys():
             if category_k == endpoint["category_kind"]["key"]:
                 category.append(str(endpoint["category_kind"]["value"]))
                 continue
             category.append("")
+
+        if ignore_index:
+            category = category[:ignore_index]
+
         return "|".join(
             [
                 endpoint["endpoint_name"],
                 str(endpoint["kind"]),
-                endpoint["service_name"],
+                overwrite_service_name or endpoint["service_name"],
             ]
             + category
         )
@@ -1581,7 +2330,7 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
     @classmethod
     def _build_status_count_group_key(cls, endpoint, value_getter=lambda i: i):
         category = []
-        for category_k in cls._get_category_keys():
+        for category_k in CategoryCachedEnum.list_span_keys():
             if category_k == endpoint["origin_category_kind"]["key"]:
                 category.append(str(endpoint["origin_category_kind"]["value"]))
                 continue
@@ -1595,85 +2344,16 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             + category
         )
 
-    @classmethod
-    def _get_category_keys(cls):
-        return [
-            SpanAttributes.DB_SYSTEM,
-            SpanAttributes.MESSAGING_SYSTEM,
-            SpanAttributes.RPC_SYSTEM,
-            SpanAttributes.HTTP_METHOD,
-            SpanAttributes.MESSAGING_DESTINATION,
-        ]
-
-    def _batch_query_list_endpoints(self, validate_data, from_service_names):
-        """
-        批量获取 list_endpoints
-        """
-
-        res = []
-        endpoints_metrics = {}
-        # 采用多线程方式，获取多服务指标
-        futures = []
-        pool = ThreadPool()
-        for service_name in from_service_names:
-            futures.append(pool.apply_async(self.list_endpoints, args=(validate_data, service_name)))
-
-        for future in futures:
-            try:
-                r, m = future.get()
-                res += r
-                endpoints_metrics.update(m)
-            except Exception as e:
-                logger.exception(e)
-        return res, endpoints_metrics
-
     def perform_request(self, validate_data):
-        bk_biz_id = validate_data["bk_biz_id"]
-        app_name = validate_data["app_name"]
         service_name = validate_data["service_name"]
 
-        if ServiceHandler.is_remote_service(bk_biz_id, app_name, service_name):
-            # 如果为远程服务 -> 获取所有调用方的数据
-            response = api.apm_api.query_topo_relation(bk_biz_id=bk_biz_id, app_name=app_name, to_topo_key=service_name)
-            from_service_names = {i["from_topo_key"] for i in response}
-            if len(from_service_names) >= 2:
-                res, endpoints_metrics = self._batch_query_list_endpoints(validate_data, from_service_names)
-            else:
-                res = []
-                endpoints_metrics = {}
-                for service_name in from_service_names:
-                    r, m = self.list_endpoints(validate_data, service_name)
-                    res += r
-                    endpoints_metrics.update(m)
-
-            # 根据调用方进行过滤接口
-            query_params = {
-                "bk_biz_id": bk_biz_id,
-                "app_name": app_name,
-                "topo_node_key": service_name,
-            }
-            if validate_data.get("filter"):
-                query_params["category"] = validate_data["filter"]
-
-            relations = api.apm_api.query_remote_service_relation(**query_params)
-            driving_endpoints = [i["from_endpoint_name"] for i in relations]
-            res = [r for r in res if r["endpoint_name"] in driving_endpoints]
-
-            status_count = self.calc_status_count(res, endpoints_metrics)
-            res = self.filter_status(validate_data, res)
-            res = handle_filter_fields(res, validate_data.get("filter_fields"))
-            data = self.get_pagination_data(res, validate_data, True)
-            data["filter"] = self.get_filter(status_count)
-            return data
-
-        else:
-            endpoints, metric = self.list_endpoints(validate_data, service_name)
-            status_count = self.get_status_count(validate_data, endpoints, service_name, metric)
-            endpoints = self.filter_status(validate_data, endpoints)
-            endpoints = handle_filter_fields(endpoints, validate_data.get("filter_fields"))
-            res = self.get_pagination_data(endpoints, validate_data, service_name)
-            res["filter"] = self.get_filter(status_count)
-            return res
+        endpoints, metric = self.list_endpoints(validate_data, service_name)
+        status_count = self.get_status_count(validate_data, endpoints, service_name, metric)
+        endpoints = self.filter_status(validate_data, endpoints)
+        endpoints = handle_filter_fields(endpoints, validate_data.get("filter_fields"))
+        res = self.get_pagination_data(endpoints, validate_data, service_name)
+        res["filter"] = self.get_filter(status_count)
+        return res
 
     def get_status_count(self, params, endpoints, service_name, metric):
         # 获取过滤数量 需要根据keyword、filter_dict过滤
@@ -1732,7 +2412,6 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         query_param = {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
-            "service_name": service_name,
         }
         if "bk_instance_id" in data.get("view_options", {}):
             query_param["bk_instance_id"] = data["view_options"]["bk_instance_id"]
@@ -1740,28 +2419,44 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         if data.get("filter"):
             query_param["category"] = data["filter"]
 
-        if ComponentHandler.is_component(data):
-            predicate_value = data["predicate_value"]
-            query_param["category"] = data["category"]
-            service_name = ComponentHandler.get_component_belong_service(service_name, predicate_value)
-            query_param["service_name"] = service_name
-            query_param["category_kind_value"] = predicate_value
-
         application = Application.objects.get(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"])
-        # ENDPOINT_LIST 服务过滤条件
-        where = []
-        if service_name:
-            where.append({"key": "service_name", "method": "eq", "value": [service_name]})
 
-        endpoint_list_param = {
+        node_mapping = {}
+        pool = ThreadPool()
+        endpoint_metrics_param = {
             "application": application,
             "start_time": data["start_time"],
             "end_time": data["end_time"],
-            "where": where,
         }
-        pool = ThreadPool()
+        if service_name:
+            endpoints_metric_res = pool.apply_async(
+                ServiceHandler.get_service_metric,
+                kwds={
+                    "metric": ENDPOINT_LIST,
+                    "application": application,
+                    "start_time": data["start_time"],
+                    "end_time": data["end_time"],
+                    "service_name": service_name,
+                    "bk_instance_id": query_param.get("bk_instance_id"),
+                    "raise_exception": False,
+                },
+            )
+
+            node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
+            if ComponentHandler.is_component_by_node(node):
+                query_param["category"] = node["extra_data"]["category"]
+                query_param["service_name"] = ComponentHandler.get_component_belong_service(service_name)
+                query_param["category_kind_value"] = node["extra_data"]["predicate_value"]
+            else:
+                # 自定义服务 / 普通服务
+                query_param["service_name"] = service_name
+
+            node_mapping[service_name] = node
+        else:
+            # 如果无指定服务 需要在数据获取时获取服务信息
+            endpoints_metric_res = pool.apply_async(ENDPOINT_LIST, kwds=endpoint_metrics_param)
+
         endpoints_res = pool.apply_async(api.apm_api.query_endpoint, kwds=query_param)
-        endpoints_metric_res = pool.apply_async(ENDPOINT_LIST, kwds=endpoint_list_param)
         pool.close()
         pool.join()
 
@@ -1773,7 +2468,19 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         error_all_count = 0
         duration_all_count = 0
         for i in endpoints:
-            metric = endpoints_metric.get(self._build_group_key(i), {})
+            node_name = i["service_name"]
+            if i.get("category_kind", {}).get("key") in [SpanAttributes.DB_SYSTEM, SpanAttributes.MESSAGING_SYSTEM]:
+                node_name = ComponentHandler.generate_component_name(node_name, i["category_kind"]["value"])
+
+            if node_name not in node_mapping:
+                node_mapping[node_name] = ServiceHandler.get_node(
+                    bk_biz_id,
+                    app_name,
+                    node_name,
+                    raise_exception=False,
+                )
+            metric = self.get_endpoint_metric(endpoints_metric, node_mapping.get(node_name), i)
+
             request_all_count += metric.get("request_count", 0)
             error_all_count += metric.get("error_count", 0)
             duration_all_count += metric.get("avg_duration", 0)
@@ -1781,13 +2488,29 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
         logger.info(f"[apm] endpoint_list request_all_count: {request_all_count}")
 
         for endpoint in endpoints:
-            metric = endpoints_metric.get(self._build_group_key(endpoint), {})
+            node_name = endpoint["service_name"]
+
+            # 添加额外的查询条件 让右侧图标查询指标时查到正确的数据(通过图标配置中 metric_condition 指定)
+            extra_filter_dict = {"kind": endpoint["kind"]}
+            category_kind_key = endpoint.get("category_kind", {}).get("key")
+            if category_kind_key in CategoryCachedEnum.list_component_generate_keys():
+                # 如果此接口是 db\messaging 类型 那么需要获取这个接口的服务名称(添加上后缀)
+                node_name = ComponentHandler.generate_component_name(node_name, endpoint["category_kind"]["value"])
+                extra_filter_dict.update(
+                    {
+                        OtlpKey.get_metric_dimension_key(category_kind_key): endpoint["category_kind"]["value"],
+                    }
+                )
+            # 放入 value 字段中(兼容前端的格式)
+            endpoint["extra_filter_dict"] = {"value": extra_filter_dict}
+
+            metric = self.get_endpoint_metric(endpoints_metric, node_mapping.get(node_name), endpoint)
 
             request_count = metric.get("request_count")
             if request_count:
                 request_count_percent = round((request_count / request_all_count) * 100, 2) if request_all_count else 0
                 endpoint["request_count"] = {"value": request_count_percent, "label": request_count}
-            elif request_count == 0:
+            else:
                 endpoint["request_count"] = {"value": 0, "label": 0}
 
             error_count = metric.get("error_count")
@@ -1795,15 +2518,16 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
                 error_count_percent = round((error_count / error_all_count) * 100, 2) if error_all_count else 0
                 endpoint["error_count"] = {"value": error_count_percent, "label": error_count}
             else:
-                if request_count:
-                    endpoint["error_count"] = {"value": 0, "label": 0}
+                endpoint["error_count"] = {"value": 0, "label": 0}
 
-            avg_duration = metric.get("avg_duration", 0)
+            avg_duration = metric.get("avg_duration")
             if avg_duration:
                 endpoint["avg_duration"] = avg_duration
+            else:
+                endpoint["avg_duration"] = None
 
             endpoint["origin_kind"] = endpoint["kind"]
-            endpoint["kind"] = SpanKind.get_label_by_key(endpoint["kind"])
+            endpoint["kind"] = SpanKindCachedEnum.from_value(endpoint["kind"]).label
             endpoint["app_name"] = application.app_name
             endpoint["operation"] = {"trace": _lazy("调用链")}
             endpoint["origin_category_kind"] = endpoint["category_kind"]
@@ -1813,10 +2537,53 @@ class EndpointListResource(ServiceAndComponentCompatibleResource):
             endpoint["service"] = endpoint["service_name"]
             if metric.get("apdex"):
                 endpoint["apdex"] = metric.get("apdex")
-            if metric.get("error_rate"):
+            else:
+                endpoint["apdex"] = None
+            if metric.get("error_rate") is not None:
                 endpoint["error_rate"] = metric.get("error_rate")
+            else:
+                endpoint["error_rate"] = None
 
         return endpoints, endpoints_metric
+
+    @classmethod
+    def get_endpoint_metric(cls, metric, node, endpoint):
+        if node and ServiceHandler.is_remote_service_by_node(node):
+            # 自定义服务需要忽略掉调用方的服务名称来匹配指标
+            remote_service_prefix = "|".join([endpoint["endpoint_name"], str(endpoint["kind"])])
+            remote_service_suffix = "|".join([endpoint["category_kind"]["value"], ""])
+            return next(
+                (
+                    v
+                    for k, v in metric.items()
+                    if k.startswith(remote_service_prefix) and k.endswith(remote_service_suffix)
+                ),
+                {},
+            )
+        elif node and ComponentHandler.is_component_by_node(node):
+            if node["extra_data"]["category"] == CategoryCachedEnum.DB.value:
+                # 如果是 DB 类服务 则直接对比所有项目 服务名称需要改为原始名称
+                component_prefix = cls._build_group_key(
+                    endpoint,
+                    overwrite_service_name=ComponentHandler.get_component_belong_service(node["topo_key"]),
+                )
+            elif node["extra_data"]["category"] == CategoryCachedEnum.MESSAGING.value:
+                # 如果是 Messaging 类服务 不对比最后一项
+                # (messaging.destination, 因为消息队列场景中可能同时存在 message.system 和 message.destination
+                # 又因为拓扑发现中没有针对多个category_kind场景做处理所以这里忽略最后一项)
+                component_prefix = cls._build_group_key(
+                    endpoint,
+                    ignore_index=-1,
+                    overwrite_service_name=ComponentHandler.get_component_belong_service(node["topo_key"]),
+                )
+            else:
+                component_prefix = cls._build_group_key(endpoint)
+
+            # 组件类服务因为 endpoints 表已经根据特征字段(predicate_key)进行区分 所以直接对比前三项即可
+            return next((v for k, v in metric.items() if k.startswith(component_prefix)), {})
+
+        else:
+            return metric.get(cls._build_group_key(endpoint), {})
 
 
 class AlertQueryResource(Resource):
@@ -1834,6 +2601,8 @@ class AlertQueryResource(Resource):
         red_time_list = {}
         # 黄色预警-时刻
         yellow_time_list = {}
+        # 蓝色提醒-时刻
+        blue_time_list = {}
         # 存储各个时刻的颜色
         result_time = []
         for level in alert_level_result:
@@ -1850,8 +2619,10 @@ class AlertQueryResource(Resource):
                             if level == AlertLevel.ERROR:
                                 red_time_list[item_data[0]] = num
                                 # red_time_list.append(item_data[0])
-                            else:
+                            elif level == AlertLevel.WARN:
                                 yellow_time_list[item_data[0]] = num
+                            else:
+                                blue_time_list[item_data[0]] = num
                                 # yellow_time_list.append(item_data[0])
                 # 用"提示"-"已恢复"的时刻列表，去获取所有的时刻列表
                 elif level == AlertLevel.INFO and name == AlertStatus.RECOVERED:
@@ -1861,28 +2632,25 @@ class AlertQueryResource(Resource):
 
         for time, value in all_time_list.items():
             if time in red_time_list:
-                # item = {"value": [time, 1], "status": AlertColor.RED}
                 item = [[1, red_time_list[time]], time]
             elif time in yellow_time_list:
-                # item = {"value": [time, 1], "status": AlertColor.YELLOW}
                 item = [[2, yellow_time_list[time]], time]
+            elif time in blue_time_list:
+                item = [[3, blue_time_list[time]], time]
             else:
-                # item = {"value": [time, 1], "status": AlertColor.GREEN}
-                item = [[3, 0], time]
+                item = [[4, 0], time]
             result_time.append(item)
 
         return result_time
 
     def get_alert_params(self, *params):
         application, bk_biz_id, start_time, end_time, level, strategy_id = params
-        database, _ = application.metric_result_table_id.split(".")
-        interval = (end_time - start_time) // APDEX_VIEW_ITEM_LEN
         para = {
             "bk_biz_ids": [bk_biz_id],
             "start_time": start_time,
             "end_time": end_time,
-            "interval": interval,
-            "query_string": f"metric: custom.{database}*",
+            "interval": get_bar_interval_number(start_time, end_time),
+            "query_string": f"metric: custom.{application.metric_result_table_id}.*",
             "conditions": [
                 {"key": "severity", "value": [level]},
             ],
@@ -1897,8 +2665,12 @@ class AlertQueryResource(Resource):
         alert_level_result = {}
         for level in alert_level:
             para = self.get_alert_params(application, bk_biz_id, start_time, end_time, level, strategy_id)
-            series = resource.fta_web.alert.alert_date_histogram(para)
-            alert_level_result[level] = series
+            response = resource.fta_web.alert.alert_date_histogram(para)
+            series = []
+            for i in response["series"]:
+                # 查询告警这个接口会返回多一个点 这里将时间点控制为符合 bar_size 的个数
+                series.append({**i, "data": i["data"]})
+            alert_level_result[level] = {"series": series, "unit": ""}
         return alert_level_result
 
     def perform_request(self, validated_request_data):
@@ -1916,7 +2688,7 @@ class AlertQueryResource(Resource):
         if ApplicationHandler.have_data(application, start_time, end_time):
             format_alert_data = self.get_alert_data(application, bk_biz_id, start_time, end_time, strategy_id)
             time_list = self.format_alert_data(format_alert_data)
-            series = [{"datapoints": time_list, "dimensions": {}, "target": "alert", "type": "bar", "unit": ""}]
+            series = [{"datapoints": time_list[:-1], "dimensions": {}, "target": "alert", "type": "bar", "unit": ""}]
 
         return {
             "metrics": [],
@@ -1944,7 +2716,6 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
         filter_dict = serializers.DictField(required=False, label="筛选条件", default={})
         filter_fields = serializers.DictField(required=False, label="匹配条件", default={})
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
 
     def get_columns(self, column_type=None):
         return [
@@ -1962,7 +2733,7 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
                 id="apdex",
                 name=_lazy("状态"),
                 checked=True,
-                status_map_cls=Apdex,
+                status_map_cls=ApdexCachedEnum,
                 filterable=True,
                 min_width=120,
             ),
@@ -2015,23 +2786,19 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
             "service_name": [validated_request_data["service_name"]],
         }
 
-        if ComponentHandler.is_component(validated_request_data.get("service_params")):
-            service_params = validated_request_data["service_params"]
-            if "service_name" in query_dict:
-                query_dict["service_name"] = [
-                    ComponentHandler.get_component_belong_service(
-                        query_dict["service_name"][0], service_params["predicate_value"]
-                    )
-                ]
-            query_dict["filters"] = {
-                "instance_topo_kind": TopoNodeKind.COMPONENT,
-                "component_instance_category": service_params["category"],
-                "component_instance_predicate_value": service_params["predicate_value"],
-            }
+        node = ServiceHandler.get_node(
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            validated_request_data["service_name"],
+            raise_exception=False,
+        )
+
+        if ComponentHandler.is_component_by_node(node):
             metric_data = ComponentHandler.get_service_component_instance_metrics(
                 application,
-                service_params["kind"],
-                service_params["category"],
+                ComponentHandler.get_component_belong_service(node["topo_key"]),
+                node["extra_data"]["kind"],
+                node["extra_data"]["category"],
                 validated_request_data["start_time"],
                 validated_request_data["end_time"],
             )
@@ -2047,14 +2814,20 @@ class ServiceInstancesResource(ServiceAndComponentCompatibleResource):
                 end_time=validated_request_data["end_time"],
             )
 
-        instances = api.apm_api.query_instance(query_dict).get("data", [])
+        instances = RelationMetricHandler.list_instances(
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            validated_request_data["start_time"],
+            validated_request_data["end_time"],
+            service_name=validated_request_data["service_name"],
+        )
 
         for instance in instances:
             instance["app_name"] = validated_request_data["app_name"]
-            instance["bk_instance_id"] = instance.pop("instance_id")
+            instance["bk_instance_id"] = instance["apm_service_instance_name"]
             instance["service"] = validated_request_data["service_name"]
 
-            instance.update(metric_data.get(instance["bk_instance_id"], {}))
+            instance.update(metric_data.get(instance["apm_service_instance_name"], {}))
 
         instances = handle_filter_fields(instances, validated_request_data.get("filter_fields"))
         return self.get_pagination_data(instances, validated_request_data)
@@ -2071,7 +2844,6 @@ class ServiceQueryExceptionResource(PageListResource):
         filter_dict = serializers.DictField(required=False, label="过滤条件", default={})
         filter_params = serializers.DictField(required=False, label="过滤参数", default={})
         sort = serializers.CharField(required=False, label="排序条件", allow_blank=True)
-        service_params = ServiceParamsSerializer(required=False, label="服务节点额外参数")
         component_instance_id = serializers.CharField(required=False, label="组件实例id(组件页面下有效)")
 
     def get_columns(self, column_type=None):
@@ -2084,7 +2856,7 @@ class ServiceQueryExceptionResource(PageListResource):
                 url_format='/?bizId={bk_biz_id}/#/trace/home/?app_name={app_name}'
                 + '&search_type=scope'
                 + '&listType=trace'
-                + '&start_tiem={start_time}&end_tiem={end_time}'
+                + '&start_time={start_time}&end_time={end_time}'
                 + '&query=status.code:+2+'
                 + '&conditionList={{"resource.service.name": '
                 + '{{"selectedCondition": {{"label": "=","value": "equal"}},'
@@ -2111,13 +2883,17 @@ class ServiceQueryExceptionResource(PageListResource):
 
     def perform_request(self, data):
         filter_params = self.build_filter_params(data["filter_params"])
-        ComponentHandler.build_component_filter_params(
-            data["bk_biz_id"],
-            data["app_name"],
-            filter_params,
-            data.get("service_params"),
-            data.get("component_instance_id"),
-        )
+        service_name = get_service_from_params(filter_params)
+        if service_name:
+            node = ServiceHandler.get_node(data["bk_biz_id"], data["app_name"], service_name)
+            if ComponentHandler.is_component_by_node(node):
+                ComponentHandler.build_component_filter_params(
+                    data["bk_biz_id"],
+                    data["app_name"],
+                    service_name,
+                    filter_params,
+                    data.get("component_instance_id"),
+                )
 
         query_dict = {
             "start_time": data["start_time"],
@@ -2380,37 +3156,505 @@ class ErrorListByTraceIdsResource(PageListResource):
             res += ErrorListResource().get_data(request_data)
 
         paginated_data = self.get_pagination_data(res, validated_request_data)
-        paginated_data["filter"] = CategoryEnum.get_filter_fields()
+        paginated_data["filter"] = CategoryCachedEnum.get_filter_fields()
         paginated_data["check_filter"] = []
 
         return paginated_data
 
 
+class HostDetailResource(GetHostOrTopoNodeDetailResource):
+    """主机详情"""
+
+    class RequestSerializer(GetHostOrTopoNodeDetailResource.RequestSerializer):
+        source_type = serializers.CharField(label="主机关联来源")
+
+    def perform_request(self, params):
+        # 此接口的作用是在主机详情的基础上增加一个关联来源字段 用在页面显示
+        response = GetHostOrTopoNodeDetailResource()(**params)
+        if not response or not isinstance(response, list):
+            return response
+        response.append(
+            {"name": _("关联来源"), "type": "string", "value": HostHandler.SourceType.get_label(params["source_type"])}
+        )
+        return response
+
+
 class HostInstanceDetailListResource(Resource):
+    """关联主机列表"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
         service_name = serializers.CharField(label="服务名称")
         keyword = serializers.CharField(label="关键字", allow_blank=True, required=False)
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, data):
         keyword = data.pop("keyword", None)
 
         host_instances = HostHandler.list_application_hosts(**data)
 
-        host_instance = [
-            {"id": index, "name": f"{i['bk_host_innerip']}({i['bk_cloud_id']})", **i}
-            for index, i in enumerate(host_instances, 1)
-        ]
-        return {"data": self.filter_keyword(host_instance, keyword), "filter": [], "sort": []}
+        host_mapping = {
+            int(i["bk_host_id"]): {
+                **i,
+                "id": i["bk_host_id"],
+                "name": i["bk_host_innerip"],
+                "status": CollectStatus.NODATA,
+                "app_name": data["app_name"],
+                "service_name": data["service_name"],
+            }
+            for i in host_instances
+        }
+        res = self.filter_keyword(host_mapping, keyword)
+        self.add_status(data["bk_biz_id"], res)
+        return list(res.values())
+
+    def add_status(self, bk_biz_id, hosts):
+        """添加主机 agent 状态字段"""
+        resource.performance.search_host_metric.get_agent_status(
+            bk_biz_id,
+            [
+                Host(
+                    bk_host_innerip=hosts[i]["bk_host_innerip"],
+                    bk_cloud_id=hosts[i]["bk_cloud_id"],
+                    bk_host_id=hosts[i]["bk_host_id"],
+                )
+                for i in hosts
+            ],
+            hosts,
+        )
+        # 根据 status 字段
+        for k in hosts:
+            status = hosts[k].get("status")
+            if status is None:
+                continue
+            if status == 0:
+                hosts[k]["status"] = CollectStatus.SUCCESS
+            else:
+                hosts[k]["status"] = CollectStatus.NODATA
 
     def filter_keyword(self, data, keyword):
         if not keyword:
             return data
 
-        res = []
-        for item in data:
-            if keyword in item["bk_host_innerip"]:
-                res.append(item)
-
+        res = {}
+        for i in data:
+            for k, v in data[i].items():
+                if keyword in v:
+                    res[i] = data[i]
         return res
+
+
+class MetricDetailStatisticsResource(Resource):
+    """获取指标详情表格"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+        service_name = serializers.CharField(label="服务名称过滤", required=False)
+        option_kind = serializers.CharField(label="选项主调/被调")
+        data_type = serializers.ChoiceField(label="指标类型", choices=StatisticsMetric.get_choices())
+        # 请求数无维度 错误数维度为 总数量+状态码 响应耗时维度为 平均耗时+MAX/MIN/P90/...
+        dimension = serializers.CharField(label="下拉框维度", required=False, default="default")
+        dimension_category = serializers.ChoiceField(
+            label="下拉框维度分类",
+            choices=ErrorMetricCategory.get_choices(),
+            required=False,
+        )
+
+    def perform_request(self, validated_data):
+        template = ServiceMetricStatistics.get_template(
+            validated_data["data_type"],
+            validated_data.get("option_kind"),
+            validated_data.pop("dimension"),
+            validated_data.get("service_name"),
+            validated_data.get("dimension_category"),
+        )
+        s = ServiceMetricStatistics(**validated_data)
+        return s.list(template)
+
+
+class GetFieldOptionValuesResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+        limit = serializers.IntegerField(label="查询数量", default=10000, required=False)
+        field = serializers.CharField(label="字段")
+        metric_field = serializers.CharField(label="指标")
+        filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+        where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+
+        def validate(self, attrs):
+            # 合并查询条件
+            attrs["filter_dict"] = q_to_dict(
+                conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+            )
+            return attrs
+
+    def perform_request(self, validated_request_data):
+        metric_helper: metric_group.MetricHelper = metric_group.MetricHelper(
+            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        )
+        option_values: List[str] = metric_helper.get_field_option_values(
+            metric_field=validated_request_data["metric_field"],
+            field=validated_request_data["field"],
+            filter_dict=validated_request_data.get("filter_dict"),
+            limit=validated_request_data["limit"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+        )
+        return [{"value": value, "text": value} for value in sorted(option_values)]
+
+
+class RecordHelperMixin:
+    @classmethod
+    def _process_sorted(cls, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not records:
+            return []
+        if "time" in records[0].get("dimensions") or {}:
+            return sorted(records, key=lambda _d: -_d.get("dimensions", {}).get("time", 0))
+        return records
+
+    @classmethod
+    def format_value(cls, metric_cal_type: str, value: Any) -> float:
+        try:
+            value = float(value)
+        except Exception:  # pylint: disable=broad-except
+            value = 0
+
+        if metric_cal_type == metric_group.CalculationType.REQUEST_TOTAL:
+            # 请求量必须是整型
+            value = int(value)
+        elif metric_cal_type in [
+            metric_group.CalculationType.TIMEOUT_RATE,
+            metric_group.CalculationType.SUCCESS_RATE,
+            metric_group.CalculationType.EXCEPTION_RATE,
+        ]:
+            value = format_percent(value, precision=3, sig_fig_cnt=2)
+        else:
+            value = round(value, 2)
+
+        return value
+
+
+class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMixin):
+    class RequestSerializer(serializers.Serializer):
+        ZERO_TIME_SHIFT: str = "0s"
+
+        class OptionsSerializer(serializers.Serializer):
+            class TrpcSerializer(serializers.Serializer):
+                kind = serializers.ChoiceField(
+                    label="调用类型",
+                    choices=SeriesAliasType.get_choices(),
+                    required=True,
+                )
+                temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
+
+            trpc = TrpcSerializer(label="tRPC 配置", required=False)
+
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        metric_group_name = serializers.ChoiceField(
+            label="指标组", required=True, choices=metric_group.GroupEnum.choices()
+        )
+        metric_cal_type = serializers.ChoiceField(
+            label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
+        )
+
+        baseline = serializers.CharField(label="对比基准", required=False, default=ZERO_TIME_SHIFT)
+        time_shifts = serializers.ListSerializer(
+            label="时间偏移", required=False, default=[], child=serializers.CharField()
+        )
+        filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+        where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+        group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
+        options = OptionsSerializer(label="配置", required=False, default={})
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+
+        def validate(self, attrs):
+            attrs["time_shifts"] = list(set(attrs["time_shifts"]))
+            if self.ZERO_TIME_SHIFT not in attrs["time_shifts"]:
+                attrs["time_shifts"].append(self.ZERO_TIME_SHIFT)
+
+            # 当前时间不计入对比次数
+            if len(attrs["time_shifts"]) > 3:
+                raise ValueError(_("最多支持两次时间对比"))
+
+            # 合并查询条件
+            attrs["filter_dict"] = q_to_dict(
+                conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+            )
+            return attrs
+
+    @classmethod
+    def _merge(
+        cls,
+        metric_cal_type: str,
+        group_fields: List[str],
+        alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]],
+    ) -> List[Dict[str, Any]]:
+        group_key_record_map: Dict[Tuple, Dict[str, Any]] = {}
+        # 多个对比时间维度数量可能存在差异，此处合并取维度数的交集
+        for alias, records in alias_aggregated_records_map.items():
+            for record in records:
+                record["time"] = record["_time_"] // 1000
+                group_key: Tuple = tuple((field, record.get(field) or "") for field in group_fields)
+                group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
+
+        merged_records: List[Dict[str, Any]] = []
+        aliases: List[str] = list(alias_aggregated_records_map.keys())
+        for group_key, record in group_key_record_map.items():
+            # 确保 dimensions 以 group_fields 为序
+            dimensions: Dict[str, Any] = dict(group_key)
+            processed_record: Dict[str, Any] = {"dimensions": {}}
+            for field in group_fields:
+                processed_record["dimensions"][field] = dimensions.get(field) or ""
+
+            # 对合并后不存在的数值补 None
+            for alias in aliases:
+                processed_record[alias] = record.get(alias)
+                if processed_record[alias] is None:
+                    continue
+                processed_record[alias] = cls.format_value(metric_cal_type, processed_record[alias])
+            merged_records.append(processed_record)
+        return merged_records
+
+    @classmethod
+    def _process_growth_rates(cls, baseline: str, aliases: List[str], records: List[Dict[str, Any]]):
+        for record in records:
+            for alias in aliases:
+                growth_rate: Optional[float] = None
+
+                if record[baseline] == 0 and record[alias] == 0:
+                    # 两个数据都为 0 时，设定增长率为 0%
+                    growth_rate = 0
+                elif not record[alias] and record[baseline]:
+                    # 往期无数据，同比正增长 100%
+                    growth_rate = 100
+                elif record[alias] and not record[baseline]:
+                    # 当前无数据，同比负增长 100%
+                    growth_rate = -100
+                elif record[alias] and record[baseline]:
+                    # 设置 4 位可读精度，非 0 展示 0.0001
+                    growth_rate = format_percent(
+                        (record[baseline] - record[alias]) / record[alias] * 100,
+                        precision=2,
+                        sig_fig_cnt=1,
+                        readable_precision=4,
+                    )
+
+                record.setdefault("growth_rates", {})[alias] = growth_rate
+
+    @classmethod
+    def _process_proportions(cls, aliases: List[str], records: List[Dict[str, Any]]):
+        alias_total_map: Dict[str, int] = defaultdict(int)
+        for record in records:
+            for alias in aliases:
+                alias_total_map[alias] += record[alias] or 0
+
+        for record in records:
+            for alias in aliases:
+                if alias_total_map[alias] == 0 or record[alias] is None:
+                    # 总数为 0 或者 数据为空 的情况下，直接置空
+                    record.setdefault("proportions", {})[alias] = None
+                    continue
+                record.setdefault("proportions", {})[alias] = format_percent(
+                    (record[alias] / alias_total_map[alias]) * 100, precision=2, sig_fig_cnt=1, readable_precision=4
+                )
+
+    def perform_request(self, validated_request_data):
+        def _collect(_alias: Optional[str], **_kwargs):
+            _group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
+                group_name,
+                validated_request_data["bk_biz_id"],
+                validated_request_data["app_name"],
+                group_by=group_fields,
+                filter_dict=validated_request_data.get("filter_dict"),
+                time_shift=_alias,
+                pre_calculate_helper=pre_calculate_helper,
+                **(validated_request_data["options"].get(group_name) or {}),
+            )
+            alias_aggregated_records_map[_alias] = _group.handle(metric_cal_type, **_kwargs)
+
+        baseline: str = validated_request_data["baseline"]
+        metric_cal_type: str = validated_request_data["metric_cal_type"]
+        alias_aggregated_records_map: Dict[str, List[Dict[str, Any]]] = {}
+        group_name: str = validated_request_data["metric_group_name"]
+        group_fields: List[str] = validated_request_data.get("group_by") or []
+        pre_calculate_helper: Optional[PreCalculateHelper] = self.get_helper_or_none(
+            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        )
+
+        run_threads(
+            [
+                InheritParentThread(
+                    target=_collect,
+                    args=(time_shift,),
+                    kwargs={
+                        "start_time": validated_request_data.get("start_time"),
+                        "end_time": validated_request_data.get("end_time"),
+                    },
+                )
+                for time_shift in validated_request_data["time_shifts"]
+            ]
+        )
+
+        # 合并数据
+        merged_records: List[Dict[str, Any]] = self._merge(metric_cal_type, group_fields, alias_aggregated_records_map)
+
+        aliases: List[str] = list(alias_aggregated_records_map.keys())
+        # 计算增长率
+        self._process_growth_rates(baseline, aliases, merged_records)
+        if validated_request_data["metric_cal_type"] == metric_group.CalculationType.REQUEST_TOTAL:
+            # 计算占比
+            self._process_proportions(aliases, merged_records)
+
+        return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
+
+
+class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHelperMixin):
+    ZERO_TIME_SHIFT: str = "0s"
+    CALCULATION_TYPE: str = metric_group.CalculationType.TOP_N
+
+    class RequestSerializer(serializers.Serializer):
+        class OptionsSerializer(serializers.Serializer):
+            class TrpcSerializer(serializers.Serializer):
+                kind = serializers.ChoiceField(
+                    label="调用类型",
+                    choices=SeriesAliasType.get_choices(),
+                    required=True,
+                )
+                temporality = serializers.ChoiceField(label="时间性", required=True, choices=MetricTemporality.choices())
+                ret_code_as_exception = serializers.BooleanField(label="非 0 返回码是否当成异常", required=False, default=False)
+
+            trpc = TrpcSerializer(label="tRPC 配置", required=False)
+
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+        limit = serializers.IntegerField(label="查询数量", default=10, required=False)
+        filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+        where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+        group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
+        method = serializers.ChoiceField(
+            label="计算类型",
+            required=False,
+            default=metric_group.CalculationType.TOP_N,
+            choices=[metric_group.CalculationType.TOP_N, metric_group.CalculationType.BOTTOM_N],
+        )
+        metric_group_name = serializers.ChoiceField(
+            label="指标组", required=True, choices=metric_group.GroupEnum.choices()
+        )
+        metric_cal_type = serializers.ChoiceField(
+            label="指标计算类型", required=True, choices=metric_group.CalculationType.choices()
+        )
+        time_shift = serializers.CharField(label="时间偏移", required=False)
+        start_time = serializers.IntegerField(label="开始时间", required=False)
+        end_time = serializers.IntegerField(label="结束时间", required=False)
+        options = OptionsSerializer(label="配置", required=False, default={})
+        with_filter_dict = serializers.BooleanField(label="是否提供过滤条件", required=False, default=False)
+
+        def validate(self, attrs):
+            # 合并查询条件
+            attrs["filter_dict"] = q_to_dict(
+                conditions_to_q(filter_dict_to_conditions(attrs.get("filter_dict") or {}, attrs.get("where") or []))
+            )
+            return attrs
+
+    @classmethod
+    def _format(cls, time_shift: str, group_fields: List[str], records: List[Dict[str, Any]]):
+        group_key_result_map: Dict[Tuple, Any] = {}
+        time_offset_sec: int = parse_time_compare_abbreviation(time_shift)
+        for record in records:
+            # 时间偏移场景，需要转为字符串时间
+            record["time"] = datetime.datetime.fromtimestamp(record["_time_"] // 1000 + time_offset_sec).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+            group_key: Tuple = tuple((field, record.get(field)) for field in group_fields)
+            group_key_result_map[group_key] = record["_result_"]
+
+        processed_records: List[Dict[str, Any]] = []
+        for group_key, result in group_key_result_map.items():
+            processed_records.append({"dimensions": dict(group_key), "result": result})
+        return processed_records
+
+    @classmethod
+    def _display_format(
+        cls, metric_cal_type: str, group_fields: List[str], records: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        total: float = 0
+        processed_records: List[Dict[str, Any]] = []
+        for record in records:
+            value: float = cls.format_value(metric_cal_type, record["result"])
+            total += value
+
+            group_values: List[str] = []
+            processed_record: Dict[str, Any] = {"value": value, "dimensions": {}}
+            for field in group_fields:
+                # 按 GroupBy 序处理
+                processed_record["dimensions"][field] = record["dimensions"].get(field) or ""
+                group_values.append(processed_record["dimensions"][field])
+
+            processed_record["name"] = "|".join(group_values)
+            processed_records.append(processed_record)
+
+        for record in processed_records:
+            # 分母为 0，占比也设置为 0
+            if total == 0:
+                record["proportion"] = 0
+                continue
+
+            record["proportion"] = format_percent(
+                (record["value"] / total) * 100, precision=2, sig_fig_cnt=1, readable_precision=4
+            )
+
+        return processed_records
+
+    @classmethod
+    def _get_extra_filter_dict(cls, records: List[Dict[str, Any]]) -> Dict[str, Any]:
+        q: Q = Q()
+        for record in records:
+            # 处理维度值为 None 的情况，改写为 xx=“”，避免忽略掉这条线
+            kv: Dict[str, Any] = {k: v or "" for k, v in record["dimensions"].items()}
+            if kv:
+                q = q | Q(**kv)
+        return q_to_dict(q)
+
+    def perform_request(self, validated_request_data):
+        group_name: str = validated_request_data["metric_group_name"]
+        metric_cal_type: str = validated_request_data["metric_cal_type"]
+        time_shift: str = validated_request_data.get("time_shift") or "0s"
+        group_fields: List[str] = validated_request_data.get("group_by") or []
+        pre_calculate_helper: Optional[PreCalculateHelper] = self.get_helper_or_none(
+            validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        )
+        group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
+            group_name,
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            time_shift=time_shift,
+            group_by=group_fields,
+            filter_dict=validated_request_data.get("filter_dict"),
+            pre_calculate_helper=pre_calculate_helper,
+            **(validated_request_data["options"].get(group_name) or {}),
+        )
+        records: List[Dict[str, Any]] = group.handle(
+            validated_request_data["method"],
+            qs_type=metric_cal_type,
+            limit=validated_request_data["limit"],
+            start_time=validated_request_data.get("start_time"),
+            end_time=validated_request_data.get("end_time"),
+        )
+        records = self._format(time_shift, group_fields, records)
+
+        result: Dict[str, Any] = {"data": self._display_format(metric_cal_type, group_fields, records)}
+        if validated_request_data.get("with_filter_dict"):
+            result["extra_filter_dict"] = self._get_extra_filter_dict(records)
+        return result

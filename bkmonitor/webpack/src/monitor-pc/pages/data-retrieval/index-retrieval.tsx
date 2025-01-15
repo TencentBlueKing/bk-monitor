@@ -24,19 +24,19 @@
  * IN THE SOFTWARE.
  */
 import { Component, Mixins, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
-import { Route } from 'vue-router';
 
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { NEW_DASHBOARD_AUTH as GRAFANA_MANAGE_AUTH } from '../grafana/authority-map';
-
 import * as dataRetrievalAuthMap from './authority-map';
 import DataRetrieval from './data-retrieval';
+
+import type { Route } from 'vue-router';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 const authMap = {
   ...dataRetrievalAuthMap,
-  GRAFANA_MANAGE_AUTH
+  GRAFANA_MANAGE_AUTH,
 };
 
 @Component
@@ -46,9 +46,15 @@ export default class IndexRetrieval extends Mixins(authorityMixinCreate(authMap)
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap;
 
-  beforeRouteEnter(to: Route, from: Route, next: Function) {
-    next((vm: IndexRetrieval) => {
-      vm.dataRetrieval.handleBeforeRouteEnter(to, from);
+  // beforeRouteEnter(to: Route, from: Route, next: Function) {
+  //   next((vm: IndexRetrieval) => {
+  //     vm.dataRetrieval.handleBeforeRouteEnter(to, from);
+  //   });
+  // }
+  created() {
+    this.$nextTick(() => {
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      this.dataRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -56,6 +62,11 @@ export default class IndexRetrieval extends Mixins(authorityMixinCreate(authMap)
     next();
   }
   render() {
-    return <DataRetrieval ref='dataRetrieval' />;
+    return (
+      <DataRetrieval
+        key={this.$store.getters.bizId}
+        ref='dataRetrieval'
+      />
+    );
   }
 }

@@ -26,13 +26,14 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IGroupData } from './group';
-import StatusTips, { MapType, StatusType } from './status-tips';
+import StatusTips, { type MapType, type StatusType } from './status-tips';
+
+import type { IGroupData } from './group';
 
 import './content-group-item.scss';
 
 // 插件 安装、详情、启用、禁用
-export type OperateType = 'install' | 'detail' | 'enabled' | 'config';
+export type OperateType = 'config' | 'detail' | 'enabled' | 'install';
 interface IContentGroupItemProps {
   data: IGroupData;
 }
@@ -73,7 +74,7 @@ export interface IPluginDetail {
 export default class ContentGroupItem extends tsc<IContentGroupItemProps, IContentGroupItemEvents> {
   @Prop({ type: Object, default: () => ({}) }) readonly data: IGroupData;
 
-  activePanel: string | number = '';
+  activePanel: number | string = '';
 
   render() {
     return (
@@ -84,7 +85,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
               {/* 插件分组：事件插件 | 周边服务 */}
               {item.name ? (
                 <div class='group-item-title'>
-                  <span class='title-tips mr5'></span>
+                  <span class='title-tips mr5' />
                   {item.name}
                 </div>
               ) : null}
@@ -94,9 +95,9 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
                   item.data.map(item => this.pluginPanelRender(item))
                 ) : (
                   <bk-exception
-                    type='empty'
-                    scene='part'
                     class='empty'
+                    scene='part'
+                    type='empty'
                   >
                     {this.$t('暂无事件源')}
                   </bk-exception>
@@ -107,9 +108,9 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
         ) : (
           <div class='group-item'>
             <bk-exception
-              type='empty'
-              scene='part'
               class='empty'
+              scene='part'
+              type='empty'
             >
               {this.$t('暂无事件源')}
             </bk-exception>
@@ -127,19 +128,19 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
   pluginPanelRender(item: IPluginDetail) {
     return (
       <div
-        class='plugin-panel mb15 mr15'
         style={{ display: item.show ? 'flex' : 'none' }}
+        class='plugin-panel mb15 mr15'
         onMouseenter={() => this.handleCardMouseEnter(item)}
         onMouseleave={this.handleCardMouseLeave}
       >
         {/* 插件状态 */}
-        <StatusTips status={item.status}></StatusTips>
+        <StatusTips status={item.status} />
         {/* 插件ICON和名称 */}
         <div class='plugin-panel-content'>
           {item.logo ? (
             <img
-              alt=''
               class='img-logo'
+              alt=''
               src={`data:image/png;base64,${item.logo}`}
             />
           ) : (
@@ -153,12 +154,12 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
           {/* 插件来源 */}
           <span class='footer-left'>
             {item.author}
-            {item.is_official ? <i class='icon-monitor icon-mc-official'></i> : null}
+            {item.is_official ? <i class='icon-monitor icon-mc-official' /> : null}
           </span>
           {/* 插件热度 */}
           <span class='footer-right'>
             {item.popularity}
-            <i class='icon-monitor icon-mc-heat'></i>
+            <i class='icon-monitor icon-mc-heat' />
           </span>
         </div>
         {/* 插件描述 */}
@@ -208,14 +209,14 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
             class='operate-btn detail pr20'
             onClick={() => this.pluginOperate(item, 'detail')}
           >
-            <i class='mt4 icon-monitor icon-tips'></i>
+            <i class='mt4 icon-monitor icon-tips' />
             {this.$t('详情')}
           </span>
           <span
             class='operate-btn pl20'
             onClick={() => this.pluginOperate(item, 'enabled')}
           >
-            <i class='mt4 icon-monitor icon-bofang'></i>
+            <i class='mt4 icon-monitor icon-bofang' />
             {this.$t('启用')}
           </span>
         </span>
@@ -233,18 +234,18 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
             class='operate-btn detail pr20'
             onClick={() => this.pluginOperate(item, 'detail')}
           >
-            <i class='mt4 icon-monitor icon-tips'></i>
+            <i class='mt4 icon-monitor icon-tips' />
             {this.$t('详情')}
           </span>
           <span
             class='operate-btn pl20'
             onClick={() => this.pluginOperate(item, 'install')}
           >
-            <i class='mt4 icon-monitor icon-mc-add'></i>
+            <i class='mt4 icon-monitor icon-mc-add' />
             {this.$t('安装')}
           </span>
         </span>
-      )
+      ),
     };
 
     if (item.is_installed)
@@ -253,7 +254,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
           class='plugin-operate operate-btn'
           onClick={() => this.pluginOperate(item, 'config')}
         >
-          <i class='icon-monitor icon-menu-config'></i>
+          <i class='icon-monitor icon-menu-config' />
           {this.$t('配置')}
         </span>
       );
@@ -279,7 +280,7 @@ export default class ContentGroupItem extends tsc<IContentGroupItemProps, IConte
   pluginOperate(item: IPluginDetail, type: OperateType) {
     return {
       item,
-      type
+      type,
     };
   }
 

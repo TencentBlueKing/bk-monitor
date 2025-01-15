@@ -1,4 +1,3 @@
-/* eslint-disable codecc/comment-ratio */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -92,7 +91,7 @@ export default {
   展开: 'Expand',
   退出登录: 'Sign out',
   产品文档: 'Documentation',
-  版本日志: 'Release note',
+  版本日志: 'Release Notes',
   问题反馈: 'Feedback',
   操作: 'Actions',
   'Trace 视角': 'Trace List',
@@ -110,6 +109,8 @@ export default {
   新建组: 'New Group',
   自动转换: 'Auto Conversion',
   修改后重试: 'Retry after modification',
+  设为默认: 'Set as default',
+  取消默认: 'Remove default',
 
   // 规范：平台特性 术语
   新建节点: 'New Probe',
@@ -166,7 +167,7 @@ export default {
   新建订阅: 'New Subscription',
   上传文件: 'Upload File',
   上传内容: 'Upload Content',
-  修改时间: 'Mofidy Time',
+  修改时间: 'Modify Time',
   修改标签: 'Modify Tag',
   修改目标: 'Modify Target',
   创建分组: 'Create Group',
@@ -201,6 +202,7 @@ export default {
   新增消息通知渠道: 'Add Notification Channel',
   新增后会进行回填: 'Auto-Filling will be done',
   新建仪表盘: 'New Dashboard',
+  复制仪表盘: 'Copy Dashboard',
   新建目录: 'New Directory',
   新建拨测任务: 'New Probe Task',
   新建拨测节点: 'New Probe Node',
@@ -299,6 +301,11 @@ export default {
   添加授权: 'Add',
   编辑授权: 'Edit',
   变更授权人: 'Change Auth Person',
+  表格: 'Table',
+  表格和火焰图: 'Tables and Flamegraph',
+  功能调用图: 'GraphViz',
+  当前查询项: 'Current Query Item',
+  参照查询项: 'Comparison Item',
 
   // 查看
   查看变更记录: 'Changelog',
@@ -368,6 +375,7 @@ export default {
   // 导出
   导出CSV: 'Export CSV',
   导出Yaml: 'Export Yaml',
+  '导出Yaml（As Code功能）': 'Export YAML (As Code function)',
 
   // 设置
   设为公共插件: 'Public Plugin',
@@ -410,11 +418,12 @@ export default {
   观测: 'Observe',
   使用文档: 'Documents',
   'Profile 接入指引': 'Profile Access Guide',
+  查看接入指引: 'View access instructions',
 
   更新执行历史: 'Update Execution History',
   告警分析: 'Analysis',
   关联事件: 'Related Events',
-  告警确认: 'Confirm',
+  告警确认: 'Alarm Confirm',
   解除: 'Unmute',
   拉群: 'WeCom',
   连通性测试: 'Connectivity test',
@@ -458,5 +467,37 @@ export default {
   测试发送: 'Test Send',
   跳转至场景查看: 'Jump to Scene View',
   发送给自己: 'Send to yourself',
-  查看单据详情: 'View document details'
+  查看单据详情: 'View document details',
+
+  // 故障根因
+  请调整筛选条件: 'Please adjust filter criteria',
+  设置聚合维度: 'Set aggregate dimension',
+  标记已解决: 'Marked as resolved',
+  故障已解决: 'The issue has been solved',
+  查看操作指引: 'View operation instructions',
+
+  '故障已恢复，才可以标记已解决': 'The incident can be marked as resolved only after it has been restored',
+  '故障持续时间：': 'Incident duration:',
+  故障群: 'Incident Group',
+  故障处理: 'Incident Handle',
+  故障流转: 'Incident Flow',
+  我处理: 'I handled ',
+
+  // 故障流转
+  修改故障属性: 'Modify Incident Attribute',
+  '反馈/取消反馈根因': 'Feedback/Cancel feedback root cause',
+  故障生成: 'Generate Incident',
+  人工操作: 'Manual Operation',
+  编辑告警策略: 'Editing an alert policy',
+  任务终止: 'Task Termination',
+  失败重试: 'Failure Retry',
+  保存并接入服务: 'Save and Access Service',
+  K8S对象列表: 'K8S Object List',
+  指标视图: 'Metric View',
+  K8S集群数据详情: 'K8S Cluster Data Details',
+  回到旧版: 'Back to Legacy',
+  切换新版: 'Switch to New Version',
+  CPU使用率: 'CPU Usage',
+  '新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看':
+    'The new version of container monitoring does not fully cover the legacy features yet. You can switch to the legacy version to view them if necessary',
 };

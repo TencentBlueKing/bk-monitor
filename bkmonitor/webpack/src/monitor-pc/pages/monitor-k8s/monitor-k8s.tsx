@@ -23,25 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { skipToDocsLink } from 'monitor-common/utils/docs';
 import { random } from 'monitor-common/utils/utils';
 
-import { handleGotoLink } from '../../common/constant';
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
 import { destroyTimezone } from '../../i18n/dayjs';
-
 import CommonNavBar from './components/common-nav-bar';
 import CommonPage from './components/common-page-new';
-import { INavItem, IViewOptions, SceneType } from './typings';
+
+import type { INavItem, IViewOptions, SceneType } from './typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './monitor-k8s.scss';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
-export default class MonitorK8s extends tsc<{}> {
+export default class MonitorK8s extends tsc<object> {
   @Prop({ type: String, default: '' }) id: string;
   @InjectReactive('readonly') readonly readonly: boolean;
   viewOptions: IViewOptions = {};
@@ -73,15 +74,15 @@ export default class MonitorK8s extends tsc<{}> {
       vm.routeList = [
         {
           id: 'k8s',
-          name: 'Kubernetes',
-          subName: ''
-        }
+          name: '容器监控',
+          subName: '',
+        },
       ];
       const { sceneId = 'kubernetes', sceneType = 'overview' } = to.query;
       vm.sceneId = sceneId;
       vm.sceneType = sceneType;
       vm.viewOptions = {
-        method: 'sum_without_time'
+        method: 'sum_without_time',
       };
     });
   }
@@ -103,31 +104,41 @@ export default class MonitorK8s extends tsc<{}> {
     this.sceneType = type;
   }
   handleAddCluster() {
-    handleGotoLink('addClusterMd');
+    skipToDocsLink('addClusterMd');
+  }
+  handleGotoNew() {
+    this.$router.push({ name: 'k8s-new', query: {} });
   }
   render() {
     if (this.showGuidePage) return <GuidePage guideData={introduce.data.k8s.introduce} />;
     return (
       <div class='monitor-k8s'>
         <CommonPage
+          backToOverviewKey={this.backToOverviewKey}
+          defaultViewOptions={this.viewOptions}
           sceneId={this.sceneId}
           sceneType={this.sceneType}
-          defaultViewOptions={this.viewOptions}
-          backToOverviewKey={this.backToOverviewKey}
-          onSceneTypeChange={this.handleSecendTypeChange}
-          tab2SceneType
           toggleTabSearchFilterKeys={['bcs_cluster_id']}
-          onTitleChange={this.handleTitleChange}
+          tab2SceneType
+          onSceneTypeChange={this.handleSecendTypeChange}
           onTabChange={this.handleSceneTabChange}
+          onTitleChange={this.handleTitleChange}
         >
           <CommonNavBar
             slot='nav'
-            routeList={this.routeList}
-            needShadow={true}
             callbackRouterBack={this.handleRouterBack}
-            needCopyLink
+            needShadow={true}
             positionText={this.positonText}
+            routeList={this.routeList}
+            needCopyLink
           />
+          <bk-button
+            slot='prependTools'
+            onClick={this.handleGotoNew}
+          >
+            <i class='icon-monitor icon-mc-change-version change-version' />
+            {this.$t('切换新版')}
+          </bk-button>
           {!this.readonly && (
             <bk-button
               style='margin-left: 8px;'
@@ -137,7 +148,7 @@ export default class MonitorK8s extends tsc<{}> {
               onClick={this.handleAddCluster}
             >
               <span class='add-btn'>
-                <i class='icon-monitor icon-mc-add add-icon'></i>
+                <i class='icon-monitor icon-mc-add add-icon' />
                 <span>{this.$t('新建集群')}</span>
               </span>
             </bk-button>

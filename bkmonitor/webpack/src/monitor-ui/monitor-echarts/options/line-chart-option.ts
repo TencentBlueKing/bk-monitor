@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,16 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable no-mixed-operators */
-/* eslint-disable prefer-const */
+
 // @ts-ignore
 import deepMerge from 'deepmerge';
 
-import { getValueFormat, ValueFormatter } from '../valueFormats';
-
+import { type ValueFormatter, getValueFormat } from '../valueFormats';
 import MonitorBaseSeries from './base-chart-option';
 import { lineOrBarOptions } from './echart-options-config';
-import { IChartInstance, ILegendItem } from './type-interface';
+
+import type { IChartInstance, ILegendItem } from './type-interface';
 
 export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
   public defaultOption: any;
@@ -47,9 +45,9 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           yAxis: {
             axisLabel: {
               color: '#979BA5',
-              formatter: this.handleYxisLabelFormatter
-            }
-          }
+              formatter: this.handleYxisLabelFormatter,
+            },
+          },
         },
         { arrayMerge: this.overwriteMerge }
       ),
@@ -67,8 +65,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const { series } = data || {};
     const { boundary, coverSeries } = series?.[0];
     const hasSeries = series && series.length > 0;
-    const formatterFunc =
-      hasSeries && series[0].data && series[0].data.length ? this.handleSetFormatterFunc(series[0].data) : null;
+    const formatterFunc = hasSeries && series[0].data?.length ? this.handleSetFormatterFunc(series[0].data) : null;
     let { series: newSeries, legendData } = this.getSeriesData(series);
     // 上下边界处理
     let minBase = 0;
@@ -76,11 +73,11 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       boundary.forEach((item: any) => {
         const base = -item.lowBoundary.reduce(
           (min: number, val: any) => (val[1] !== null ? Math.floor(Math.min(min, val[1])) : min),
-          Infinity
+          Number.POSITIVE_INFINITY
         );
         minBase = Math.max(base, minBase);
       });
-      const boundarySeries = boundary.map((item: any) => this.handleBoundarySeries(item, minBase)).flat();
+      const boundarySeries = boundary.flatMap((item: any) => this.handleBoundarySeries(item, minBase));
       newSeries = newSeries.map((item: any) => ({
         ...item,
         minBase,
@@ -90,9 +87,9 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           }
           return {
             ...set,
-            value: [set.value[0], set.value[1] !== null ? set.value[1] + minBase : null]
+            value: [set.value[0], set.value[1] !== null ? set.value[1] + minBase : null],
           };
-        })
+        }),
       }));
       newSeries = [...newSeries.map((item: any) => ({ ...item, z: 6 })), ...boundarySeries];
       legendData.push(...boundarySeries.map((item: any) => ({ name: item.name, hidden: true })));
@@ -118,7 +115,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               }
               return v;
             }
-          : (v: number) => this.handleYxisLabelFormatter(v - minBase)
+          : (v: number) => this.handleYxisLabelFormatter(v - minBase),
       },
       max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
       min: (v: { min: number; max: number }) => Math.min(v.min, minThreshold),
@@ -128,9 +125,9 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
         label: {
           formatter(params: any) {
             return params.value - minBase;
-          }
-        }
-      }
+          },
+        },
+      },
     });
     /* 是否包含trace信息 */
     const hasScatterTraceInfo = series.some(
@@ -149,7 +146,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
                 }
                 return v;
               }
-            : (v: number) => this.handleYxisLabelFormatter(v - minBase)
+            : (v: number) => this.handleYxisLabelFormatter(v - minBase),
         },
         max: (v: { min: number; max: number }) => v.max,
         min: (v: { min: number; max: number }) => v.min,
@@ -159,28 +156,28 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           label: {
             formatter(params: any) {
               return params.value - minBase;
-            }
-          }
-        }
+            },
+          },
+        },
       });
     }
     const options = {
       yAxis,
       xAxis: {
         axisLabel: {
-          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}'
-        }
+          formatter: hasSeries && formatterFunc ? formatterFunc : '{value}',
+        },
       },
       legend: {
-        show: false
+        show: false,
       },
-      series: hasSeries ? newSeries : []
+      series: hasSeries ? newSeries : [],
     };
     return {
       options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
-        arrayMerge: this.overwriteMerge
+        arrayMerge: this.overwriteMerge,
       }),
-      legendData
+      legendData,
     };
   }
   /** 获取series data
@@ -201,7 +198,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
         avg: 0,
         total: 0,
         color: item.color || this.colors[index % this.colors.length],
-        show: true
+        show: true,
       };
       const unitFormatter = item.unit !== 'none' ? getValueFormat(item.unit || '') : (v: any) => ({ text: v });
       const precision = this.handleGetMinPrecision(
@@ -212,7 +209,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       /** 需要加强点的数据 */
       const markPointData = [];
       let dataLength = 0;
-      let markPointList = [];
+      const markPointList = [];
       item.data.forEach((seriesItem: any, seriesIndex: number) => {
         if (seriesItem?.length && typeof seriesItem[1] === 'number') {
           const pre = item.data[seriesIndex - 1];
@@ -230,22 +227,22 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               borderWidth: 6,
               enabled: true,
               shadowBlur: 0,
-              opacity: 1
+              opacity: 1,
             };
             item.data[seriesIndex] = {
               value: [seriesItem[0], seriesItem[1]],
-              itemStyle
+              itemStyle,
             };
             markPointData.push({
               xAxis: markPonit[1],
-              yAxis: seriesItem[1]
+              yAxis: seriesItem[1],
             });
           } else {
             const hasNoBrother =
               (!pre && !next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
             if (item.type === 'scatter') {
               /* trace散点图 */
-              let scatterData = {};
+              const scatterData = {};
               item.columns.forEach((c, cIndex) => {
                 scatterData[c] = item.data_points[seriesIndex][cIndex];
               });
@@ -254,9 +251,9 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
                 itemStyle: {
                   borderColor: '#699DF4',
                   color: '#E1ECFF',
-                  opacity: 1
+                  opacity: 1,
                 },
-                scatterData
+                scatterData,
               };
             } else {
               if (hasNoBrother) {
@@ -269,8 +266,8 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
                     borderWidth: 2,
                     enabled: true,
                     shadowBlur: 0,
-                    opacity: 1
-                  }
+                    opacity: 1,
+                  },
                 });
               } else {
                 item.data[seriesIndex] = {
@@ -279,8 +276,8 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
                     borderWidth: 1,
                     enabled: true,
                     shadowBlur: 0,
-                    opacity: 1
-                  }
+                    opacity: 1,
+                  },
                 };
               }
             }
@@ -297,7 +294,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
         markPoint = {
           symbol: 'circle',
           symbolSize: 12,
-          data: markPointData
+          data: markPointData,
         };
         showSymbol = false;
       }
@@ -310,14 +307,14 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           yAxisIndex: 1,
           name: 'bk_trace_value',
           cursor: 'pointer',
-          z: 5
+          z: 5,
         };
       } else {
         seriesItem = {
           ...item,
           markPoint: {
             ...markPoint,
-            data: [...markPointList, ...((markPoint as any)?.data || [])]
+            data: [...markPointList, ...((markPoint as any)?.data || [])],
           },
           showSymbol,
           type: this.chartType,
@@ -327,8 +324,8 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
           unitFormatter,
           precision,
           lineStyle: {
-            width: this.lineWidth || 1
-          }
+            width: this.lineWidth || 1,
+          },
         };
       }
       if (item?.markTimeRange?.length) {
@@ -352,66 +349,170 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     });
     return { legendData, series };
   }
-  /**
-   * @description: 设置阈值线
-   * @param {any} thresholdLine
-   * @return {*}
-   */
-  handleSetThresholdLine(thresholdLine: any[]) {
-    return {
-      symbol: [],
-      label: {
-        show: true,
-        position: 'insideStartTop'
-      },
-      lineStyle: {
-        color: '#FD9C9C',
-        type: 'dashed',
-        distance: 3,
-        width: 1
-      },
-      emphasis: {
-        label: {
-          show: true,
-          formatter(v: any) {
-            return `${v.name || ''}: ${v.value}`;
-          }
-        }
-      },
-      data: thresholdLine.map((item: any) => ({
-        ...item,
-        label: {
-          show: true,
-          formatter() {
-            return '';
-          }
-        }
-      }))
-    };
-  }
-  // 设置阈值面板
-  handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
-    return {
-      silent: true,
-      show: true,
-      itemStyle: {
-        color: '#FFF5EC',
-        borderWidth: 1,
-        borderColor: '#FFE9D5',
-        shadowColor: '#FFF5EC',
-        shadowBlur: 0
-      },
-      data: plotBands.map(item => [
-        {
-          xAxis: item.from,
-          y: 'max'
+  handleBoundarySeries(item: any, base: number) {
+    return [
+      {
+        name: `lower-${item.stack}-no-tips`,
+        type: 'line',
+        data: item.lowBoundary.map((item: any) => [item[0], item[1] === null ? null : item[1] + base]),
+        lineStyle: {
+          opacity: 0,
         },
-        {
-          xAxis: item.to || 'max',
-          y: '0%'
+        stack: item.stack,
+        symbol: 'none',
+        z: item.z || 4,
+      },
+      {
+        name: `upper-${item.stack}-no-tips`,
+        type: 'line',
+        data: item.upBoundary.map((set: any, index: number) => [
+          set[0],
+          set[1] === null ? null : set[1] - item.lowBoundary[index][1],
+        ]),
+        lineStyle: {
+          opacity: 0,
+        },
+        areaStyle: {
+          color: item.color || '#e6e6e6',
+        },
+        stack: item.stack,
+        symbol: 'none',
+        z: item.z || 4,
+      },
+    ];
+  }
+  handleCoverSeries(item: any, base: number, { boundary, data }: any) {
+    if (!(boundary?.length && boundary[0]?.upBoundary?.length && boundary[0]?.lowBoundary?.length && data?.length)) {
+      return [];
+    }
+    const resultData: {
+      symbol: string;
+      symbolSize: number;
+      value: any[];
+      itemStyle: {
+        borderWidth: number;
+        borderColor: any;
+        enabled: boolean;
+        shadowBlur: number;
+        color: string;
+        opacity: number;
+      };
+    }[] = [];
+    // 暂时只做一个上下边界 后期需求再实现
+    const [{ upBoundary, lowBoundary }] = boundary;
+    const len = item.data.length;
+    const commonPoint = {
+      symbol: 'circle',
+      symbolSize: 8,
+      itemStyle: {
+        borderWidth: 2,
+        borderColor: item.color,
+        enabled: true,
+        shadowBlur: 0,
+        color: item.color,
+        opacity: 1,
+      },
+    };
+    for (let seriesIndex = 0; seriesIndex < len; seriesIndex++) {
+      const seriesItem = item.data[seriesIndex];
+      if (seriesItem?.length && seriesItem[1]) {
+        const curX = seriesItem[0];
+        const curY = seriesItem[1];
+        const curUpperY = upBoundary.find((set: any[]) => set[0] === curX)?.[1];
+        const curLowerY = lowBoundary.find((set: any[]) => set[0] === curX)?.[1];
+        const hasNext = !!item.data[seriesIndex + 1]?.[1];
+        const hasPre = !!item.data[seriesIndex - 1]?.[1];
+        if (curUpperY === null || curUpperY === undefined || curLowerY === null || curLowerY === undefined) continue;
+        // 如果是独立点则加强显示
+        if ((curY === curUpperY || curY === curLowerY) && !hasNext && !hasPre) {
+          resultData.push({
+            value: [curX, curY + base],
+            symbol: 'circle',
+            symbolSize: 8,
+            itemStyle: {
+              borderWidth: 2,
+              borderColor: item.color,
+              enabled: true,
+              shadowBlur: 0,
+              color: 'white',
+              opacity: 1,
+            },
+          });
+          continue;
         }
-      ]),
-      opacity: 0.1
+        if (seriesIndex > 0) {
+          const preX = item.data[seriesIndex - 1][0];
+          const preY = data.find((set: any[]) => set[0] === preX)[1];
+          const upperPreY = upBoundary.find((set: any[]) => set[0] === preX)?.[1];
+          const lowerPreY = lowBoundary.find((set: any[]) => set[0] === preX)?.[1];
+          const isWithUpper = upperPreY > preY && curY > curUpperY;
+          const isWithLower = lowerPreY < preY && curY < curLowerY;
+          // 与上边界、下边界交点
+          if (isWithUpper || isWithLower) {
+            const [x, y] = this.segmentsIntr({
+              a: { x: preX, y: preY },
+              b: { x: curX, y: curY },
+              c: { x: preX, y: isWithUpper ? upperPreY : lowerPreY },
+              d: { x: curX, y: isWithUpper ? curUpperY : curLowerY },
+            });
+            resultData.push({
+              ...commonPoint,
+              value: [x, y + base],
+              symbolSize: 0,
+            });
+          }
+        }
+        if (seriesIndex < len - 1) {
+          const nextX = item.data[seriesIndex + 1][0];
+          const nextY = data.find((set: any[]) => set[0] === nextX)[1];
+          const upperNextY = upBoundary.find((set: any[]) => set[0] === nextX)?.[1];
+          const lowerNextY = lowBoundary.find((set: any[]) => set[0] === nextX)?.[1];
+          const isWithUpper = nextY < upperNextY && curY > curUpperY;
+          const isWithLower = nextY > lowerNextY && curY < curLowerY;
+          if (isWithUpper || isWithLower) {
+            const [x, y] = this.segmentsIntr({
+              a: { x: curX, y: curY },
+              b: { x: nextX, y: nextY },
+              c: { x: curX, y: isWithUpper ? curUpperY : curLowerY },
+              d: { x: nextX, y: isWithUpper ? upperNextY : lowerNextY },
+            });
+            resultData.push({
+              ...commonPoint,
+              value: [curX, curY + base],
+              symbolSize: 0.5,
+            });
+            resultData.push({
+              value: [x, y + base],
+              ...commonPoint,
+              symbolSize: 0,
+            });
+            // 如果是连续的上下边界 则中断两点连接
+            if (hasNext) {
+              resultData.push([x + (nextX - curX) / 3, null] as any);
+            }
+            continue;
+          }
+        }
+        resultData.push({
+          value: [curX, curY + base],
+          ...commonPoint,
+          symbolSize: 0.5,
+        });
+      } else {
+        resultData.push(seriesItem);
+      }
+    }
+    return {
+      ...item,
+      type: this.chartType,
+      showSymbol: false,
+      symbol: 'circle',
+      smooth: 0,
+      lineStyle: {
+        width: this.lineWidth || 1,
+      },
+      data: resultData,
+      name: `${item.name}-no-tips`,
     };
   }
 
@@ -436,7 +537,6 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     sampling.push(data[len - 1]);
     sampling = Array.from(new Set(sampling.filter(n => n !== undefined)));
     while (precision < 5) {
-      // eslint-disable-next-line no-loop-func
       const samp = sampling.reduce((pre, cur) => {
         pre[formattter(cur, precision).text] = 1;
         return pre;
@@ -461,7 +561,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     return {
       canScale: thresholdList.every((set: number) => set > 0),
       minThreshold: Math.min(...thresholdList),
-      maxThreshold: Math.max(...thresholdList)
+      maxThreshold: Math.max(...thresholdList),
     };
   }
 
@@ -469,9 +569,9 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const data = this.handleSetThresholdAreaData(thresholdLine);
     return {
       label: {
-        show: false
+        show: false,
       },
-      data
+      data,
     };
   }
   /**
@@ -486,7 +586,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     const closedInterval = ['lte', 'lt']; // 闭区间
 
     const data = [];
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
     for (let index = 0; index < threshold.length; index++) {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
@@ -519,180 +619,76 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
       yAxis !== undefined &&
         data.push([
           {
-            ...current
+            ...current,
           },
           {
             yAxis,
-            y: yAxis === 'max' ? '0%' : ''
-          }
+            y: yAxis === 'max' ? '0%' : '',
+          },
         ]);
     }
     return data;
   }
-  handleBoundarySeries(item: any, base: number) {
-    return [
-      {
-        name: `lower-${item.stack}-no-tips`,
-        type: 'line',
-        data: item.lowBoundary.map((item: any) => [item[0], item[1] === null ? null : item[1] + base]),
-        lineStyle: {
-          opacity: 0
-        },
-        stack: item.stack,
-        symbol: 'none',
-        z: item.z || 4
-      },
-      {
-        name: `upper-${item.stack}-no-tips`,
-        type: 'line',
-        data: item.upBoundary.map((set: any, index: number) => [
-          set[0],
-          set[1] === null ? null : set[1] - item.lowBoundary[index][1]
-        ]),
-        lineStyle: {
-          opacity: 0
-        },
-        areaStyle: {
-          color: item.color || '#e6e6e6'
-        },
-        stack: item.stack,
-        symbol: 'none',
-        z: item.z || 4
-      }
-    ];
-  }
-  handleCoverSeries(item: any, base: number, { boundary, data }: any) {
-    if (!(boundary?.length && boundary[0]?.upBoundary?.length && boundary[0]?.lowBoundary?.length && data?.length)) {
-      return [];
-    }
-    const resultData: {
-      symbol: string;
-      symbolSize: number;
-      value: any[];
-      itemStyle: {
-        borderWidth: number;
-        borderColor: any;
-        enabled: boolean;
-        shadowBlur: number;
-        color: string;
-        opacity: number;
-      };
-    }[] = [];
-    // 暂时只做一个上下边界 后期需求再实现
-    const [{ upBoundary, lowBoundary }] = boundary;
-    const len = item.data.length;
-    const commonPoint = {
-      symbol: 'circle',
-      symbolSize: 8,
-      itemStyle: {
-        borderWidth: 2,
-        borderColor: item.color,
-        enabled: true,
-        shadowBlur: 0,
-        color: item.color,
-        opacity: 1
-      }
-    };
-    for (let seriesIndex = 0; seriesIndex < len; seriesIndex++) {
-      const seriesItem = item.data[seriesIndex];
-      if (seriesItem?.length && seriesItem[1]) {
-        const curX = seriesItem[0];
-        const curY = seriesItem[1];
-        const curUpperY = upBoundary.find((set: any[]) => set[0] === curX)?.[1];
-        const curLowerY = lowBoundary.find((set: any[]) => set[0] === curX)?.[1];
-        const hasNext = !!item.data[seriesIndex + 1]?.[1];
-        const hasPre = !!item.data[seriesIndex - 1]?.[1];
-        if (curUpperY === null || curUpperY === undefined || curLowerY === null || curLowerY === undefined) continue;
-        // 如果是独立点则加强显示
-        if ((curY === curUpperY || curY === curLowerY) && !hasNext && !hasPre) {
-          resultData.push({
-            value: [curX, curY + base],
-            symbol: 'circle',
-            symbolSize: 8,
-            itemStyle: {
-              borderWidth: 2,
-              borderColor: item.color,
-              enabled: true,
-              shadowBlur: 0,
-              color: 'white',
-              opacity: 1
-            }
-          });
-          continue;
-        }
-        if (seriesIndex > 0) {
-          const preX = item.data[seriesIndex - 1][0];
-          const preY = data.find((set: any[]) => set[0] === preX)[1];
-          const upperPreY = upBoundary.find((set: any[]) => set[0] === preX)?.[1];
-          const lowerPreY = lowBoundary.find((set: any[]) => set[0] === preX)?.[1];
-          const isWithUpper = upperPreY > preY && curY > curUpperY;
-          const isWithLower = lowerPreY < preY && curY < curLowerY;
-          // 与上边界、下边界交点
-          if (isWithUpper || isWithLower) {
-            const [x, y] = this.segmentsIntr({
-              a: { x: preX, y: preY },
-              b: { x: curX, y: curY },
-              c: { x: preX, y: isWithUpper ? upperPreY : lowerPreY },
-              d: { x: curX, y: isWithUpper ? curUpperY : curLowerY }
-            });
-            resultData.push({
-              ...commonPoint,
-              value: [x, y + base],
-              symbolSize: 0
-            });
-          }
-        }
-        if (seriesIndex < len - 1) {
-          const nextX = item.data[seriesIndex + 1][0];
-          const nextY = data.find((set: any[]) => set[0] === nextX)[1];
-          const upperNextY = upBoundary.find((set: any[]) => set[0] === nextX)?.[1];
-          const lowerNextY = lowBoundary.find((set: any[]) => set[0] === nextX)?.[1];
-          const isWithUpper = nextY < upperNextY && curY > curUpperY;
-          const isWithLower = nextY > lowerNextY && curY < curLowerY;
-          if (isWithUpper || isWithLower) {
-            const [x, y] = this.segmentsIntr({
-              a: { x: curX, y: curY },
-              b: { x: nextX, y: nextY },
-              c: { x: curX, y: isWithUpper ? curUpperY : curLowerY },
-              d: { x: nextX, y: isWithUpper ? upperNextY : lowerNextY }
-            });
-            resultData.push({
-              ...commonPoint,
-              value: [curX, curY + base],
-              symbolSize: 0.5
-            });
-            resultData.push({
-              value: [x, y + base],
-              ...commonPoint,
-              symbolSize: 0
-            });
-            // 如果是连续的上下边界 则中断两点连接
-            if (hasNext) {
-              resultData.push([x + (nextX - curX) / 3, null] as any);
-            }
-            continue;
-          }
-        }
-        resultData.push({
-          value: [curX, curY + base],
-          ...commonPoint,
-          symbolSize: 0.5
-        });
-      } else {
-        resultData.push(seriesItem);
-      }
-    }
+  // 设置阈值面板
+  handleSetThresholdBand(plotBands: { to: number; from: number }[]) {
     return {
-      ...item,
-      type: this.chartType,
-      showSymbol: false,
-      symbol: 'circle',
-      smooth: 0,
-      lineStyle: {
-        width: this.lineWidth || 1
+      silent: true,
+      show: true,
+      itemStyle: {
+        color: '#FFF5EC',
+        borderWidth: 1,
+        borderColor: '#FFE9D5',
+        shadowColor: '#FFF5EC',
+        shadowBlur: 0,
       },
-      data: resultData,
-      name: `${item.name}-no-tips`
+      data: plotBands.map(item => [
+        {
+          xAxis: item.from,
+          y: 'max',
+        },
+        {
+          xAxis: item.to || 'max',
+          y: '0%',
+        },
+      ]),
+      opacity: 0.1,
+    };
+  }
+  /**
+   * @description: 设置阈值线
+   * @param {any} thresholdLine
+   * @return {*}
+   */
+  handleSetThresholdLine(thresholdLine: any[]) {
+    return {
+      symbol: [],
+      label: {
+        show: true,
+        position: 'insideStartTop',
+      },
+      lineStyle: {
+        color: '#FD9C9C',
+        type: 'dashed',
+        distance: 3,
+        width: 1,
+      },
+      emphasis: {
+        label: {
+          show: true,
+          formatter(v: any) {
+            return `${v.name || ''}: ${v.value}`;
+          },
+        },
+      },
+      data: thresholdLine.map((item: any) => ({
+        ...item,
+        label: {
+          show: true,
+          formatter() {
+            return '';
+          },
+        },
+      })),
     };
   }
   segmentsIntr({ a, b, c, d }: any) {

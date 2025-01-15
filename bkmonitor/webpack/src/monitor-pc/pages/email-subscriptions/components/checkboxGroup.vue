@@ -43,12 +43,12 @@
 <script lang="ts">
 import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
-import { IGraphValueItem } from '../types';
+import type { IGraphValueItem } from '../types';
 /**
  * 图表多选组件
  */
 @Component({
-  name: 'checkbox-group'
+  name: 'checkbox-group',
 })
 export default class CheckboxGroup extends Vue {
   // value双向绑定
@@ -79,7 +79,7 @@ export default class CheckboxGroup extends Vue {
     if (v) {
       this.localValue.push({
         id: v,
-        name: item.title
+        name: item.title,
       });
     } else {
       const index = this.localValue.findIndex(item => item.id === ov);

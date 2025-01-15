@@ -24,15 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, PropType } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 
 import { useTraceStore } from '../../../store/modules/trace';
-import { ITraceTree } from '../../../typings';
-import { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
-
 import CanvasSpanGraph from './canvas-span-graph';
 import TickLabels from './tick-labels';
 import ViewingLayer from './viewing-layer';
+
+import type { ITraceTree } from '../../../typings';
+import type { IViewRange, Span, TUpdateViewRangeTimeFunction, ViewRangeTimeUpdate } from '../typings';
 
 interface ComplexMessage {
   valueWidth: number;
@@ -47,13 +47,13 @@ const TIMELINE_TICK_INTERVAL = 4;
 
 const SpanGraphProps = {
   height: {
-    type: Number
+    type: Number,
   },
   viewRange: {
-    type: Object as PropType<IViewRange>
+    type: Object as PropType<IViewRange>,
   },
   updateViewRangeTime: Function as PropType<TUpdateViewRangeTimeFunction>,
-  updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>
+  updateNextViewRangeTime: Function as PropType<(update: ViewRangeTimeUpdate) => void>,
 };
 
 export default defineComponent({
@@ -67,19 +67,19 @@ export default defineComponent({
     const items = computed(() =>
       (spans.value || []).map(item => ({
         valueOffset: item.relativeStartTime,
-        // eslint-disable-next-line max-len
+
         valueWidth:
           item.group_info && item.group_info.id === item.span_id && !item.is_expand
             ? item.group_info.duration
             : item.duration,
         serviceName: item.process.serviceName,
         color: item.color,
-        isVirtual: item.is_virtual
+        isVirtual: item.is_virtual,
       }))
     );
     return {
       items,
-      trace
+      trace,
     };
   },
 
@@ -93,23 +93,23 @@ export default defineComponent({
     return (
       <div class='span-graph'>
         <TickLabels
-          numTicks={TIMELINE_TICK_INTERVAL}
           duration={this.trace.duration || 0}
+          numTicks={TIMELINE_TICK_INTERVAL}
         />
         <div style='position:relative;'>
           <CanvasSpanGraph
-            valueWidth={this.trace.duration}
             items={this.items as ComplexMessage[]}
+            valueWidth={this.trace.duration}
           />
           <ViewingLayer
-            viewRange={viewRange}
-            numTicks={TIMELINE_TICK_INTERVAL}
             height={height || DEFAULT_HEIGHT}
-            updateViewRangeTime={updateViewRangeTime}
+            numTicks={TIMELINE_TICK_INTERVAL}
             updateNextViewRangeTime={updateNextViewRangeTime}
+            updateViewRangeTime={updateViewRangeTime}
+            viewRange={viewRange}
           />
         </div>
       </div>
     );
-  }
+  },
 });

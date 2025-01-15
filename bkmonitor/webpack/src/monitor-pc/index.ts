@@ -23,19 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable max-len */
-/* eslint-disable no-param-reassign */
 
-// eslint-disable-next-line simple-import-sort/imports
 import './public-path';
 import 'monitor-common/polyfill';
-import Vue from 'vue';
+
 import i18n from './i18n/i18n';
+import Vue from 'vue';
 
 import './common/import-magicbox-ui';
-import 'monitor-ui/directive/index';
-import './common/global';
 import 'monitor-static/svg-icons';
+import 'monitor-ui/directive/index';
 
 import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
@@ -43,19 +40,24 @@ import { setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-wroker';
 import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
 
+import './common/global-login';
 import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
-import 'monitor-static/icons/monitor-icons.css';
-import './static/css/reset.scss';
+
 import './static/css/global.scss';
+import './static/css/reset.scss';
+import 'monitor-static/icons/monitor-icons.css';
+// import './tailwind.css';
 // todo: 子应用externals
 // import './common/externals';
 // app 标识
 window.source_app = 'monitor';
 // 全局图表数量变量
 window.slimit = 500;
+window.AJAX_URL_PREFIX = '/apm_log_forward/bklog/api/v1';
+Vue.config.ignoredElements = ['custom-incident-detail'];
 setVue(Vue);
 const hasRouteHash = getUrlParam('routeHash');
 const spaceUid = getUrlParam('space_uid');
@@ -71,7 +73,7 @@ if (hasRouteHash) {
   }`;
   /* 如果包含批量操作则需要将batchAction带过去 */
   const hasBatchAction = getUrlParam('batchAction');
-  if (!!hasBatchAction) {
+  if (hasBatchAction) {
     url = `${url}&batchAction=${hasBatchAction}`;
   }
   location.href = url;
@@ -80,16 +82,18 @@ if (hasRouteHash) {
   if (process.env.APP !== 'external' && !window.__POWERED_BY_BK_WEWEB__ && pathname !== window.site_url) {
     location.pathname = window.site_url || '/';
   } else {
+    const appLoadingNode: HTMLDivElement = document.body.querySelector('#__app_loading__');
     Api.model
       .enhancedContext({
         space_uid: spaceUid || undefined,
         bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
-        context_type: 'basic'
+        context_type: 'basic',
       })
       .then(data => {
-        Object.keys(data).forEach(key => {
-          window[key.toLocaleLowerCase()] = data[key];
-        });
+        appLoadingNode && (appLoadingNode.style.display = 'none');
+        for (const [key, value] of Object.entries(data)) {
+          window[key.toLocaleLowerCase()] = value;
+        }
         mergeSpaceList(window.space_list);
         window.user_name = window.uin;
         window.username = window.uin;
@@ -98,7 +102,7 @@ if (hasRouteHash) {
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();
         if (bizId === false) return;
-        document.title = window.page_title;
+        // document.title = window.page_title;
         store.commit('app/SET_APP_STATE', {
           userName: window.user_name,
           isSuperUser: window.is_superuser,
@@ -113,15 +117,16 @@ if (hasRouteHash) {
           bkNodemanHost: window.bk_nodeman_host,
           enable_cmdb_level: !!window.enable_cmdb_level,
           bkPaasHost: window.bk_paas_host,
-          jobUrl: window.bk_job_url
+          jobUrl: window.bk_job_url,
+          k8sV2EnableList: (!data.K8S_V2_BIZ_LIST?.length ? [] : data.K8S_V2_BIZ_LIST).slice(),
+          defaultBizId: window.default_biz_id || '',
         });
-        // eslint-disable-next-line no-new
-        new Vue({
+        window.mainComponent = new Vue({
           el: '#app',
           router,
           store,
           i18n,
-          render: h => h(App)
+          render: h => h(App),
         });
         Vue.prototype.$bus = new Vue();
         Vue.prototype.$platform = window.platform;
@@ -133,20 +138,21 @@ if (hasRouteHash) {
           .enhancedContext({
             space_uid: spaceUid || undefined,
             bk_biz_id: bizId,
-            context_type: 'extra'
+            context_type: 'extra',
           })
           .then(data => {
-            Object.keys(data).forEach(key => {
-              window[key.toLocaleLowerCase()] = data[key];
-            });
+            for (const [key, value] of Object.entries(data)) {
+              window[key.toLocaleLowerCase()] = value;
+            }
             store.commit('app/SET_APP_STATE', {
-              collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE
+              collectingConfigFileMaxSize: data.COLLECTING_CONFIG_FILE_MAXSIZE,
             });
           });
       })
       .catch(e => console.error(e))
       .finally(() => {
         immediateRegister();
+        appLoadingNode?.remove();
       });
   }
 }

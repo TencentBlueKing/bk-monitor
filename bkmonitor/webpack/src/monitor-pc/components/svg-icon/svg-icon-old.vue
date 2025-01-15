@@ -36,18 +36,18 @@ export default {
   props: {
     iconClass: {
       type: String,
-      required: true
+      required: true,
     },
     size: {
       type: Number,
-      default: 16
-    }
+      default: 16,
+    },
   },
   computed: {
     className() {
       return `svg-icon-${this.iconClass}`;
-    }
-  }
+    },
+  },
 };
 </script>
 

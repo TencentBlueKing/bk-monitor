@@ -15,7 +15,7 @@ import re
 from typing import Dict
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.access.base import Filter
 
@@ -114,3 +114,8 @@ class DiskFullEvent(GSEBaseAlarmEventRecord):
             "file_system": data.get("file_system", ""),
             "fstype": data.get("fstype", ""),
         }
+
+    def clean_dimension_fields(self):
+        dimension_fields = super().clean_dimension_fields()
+        dimension_fields.extend(["file_system", "fstype", "disk"])
+        return dimension_fields

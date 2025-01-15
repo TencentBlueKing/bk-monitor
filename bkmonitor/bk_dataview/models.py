@@ -284,3 +284,14 @@ class Role(models.Model):
         app_label = APP_LABEL
         managed = False
         unique_together = (("org_id", "name"),)
+
+
+class Star(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    user_id = models.BigIntegerField()
+    dashboard_id = models.BigIntegerField()
+
+    class Meta:
+        db_table = "star"
+        app_label = APP_LABEL
+        managed = False

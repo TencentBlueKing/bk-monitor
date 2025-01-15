@@ -11,5 +11,5 @@ export default {
   updateShareToken,
   deleteShareToken,
   getShareTokenList,
-  getShareParams
+  getShareParams,
 };

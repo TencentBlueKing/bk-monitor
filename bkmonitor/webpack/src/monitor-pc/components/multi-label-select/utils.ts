@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { IList, ITreeItem } from './types';
+import type { IList, ITreeItem } from './types';
 
 /**
  * 标签数组转树形结构
@@ -37,7 +37,7 @@ export const labelListToTreeData = (list: IList[]): ITreeItem[] => {
       name: getNodeName(node.labelName),
       id: node.id,
       key: node.labelName,
-      parentKey
+      parentKey,
     };
     localList.push(item);
     map[item.key] = item;

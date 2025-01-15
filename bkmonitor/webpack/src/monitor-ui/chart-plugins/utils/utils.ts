@@ -25,9 +25,10 @@
  */
 import dayjs from 'dayjs';
 import { getUnitInfo } from 'monitor-api/modules/strategies';
-import { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import { random } from 'monitor-common/utils';
 
-import { IViewOptions } from '../typings';
+import type { IViewOptions } from '../typings';
+import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 
 export const isEqualObject = (v: Record<string, any>, o: Record<string, any>, keys: string[] = []): boolean => {
   if (v === o) return true;
@@ -79,7 +80,22 @@ export const createImg = (url: string) => {
   img.src = url;
   return img;
 };
-
+/**
+ *
+ * @param obj
+ * @param result
+ * @returns
+ */
+export const flattenObject = (obj: Record<string, any>, result = {}): Record<string, any> => {
+  for (const [key, value] of Object.entries(obj || {})) {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      flattenObject(value, result);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
 /**
  * @description: 将viewOptions传入queryConfig用于跳转到其他页面
  * @param {any} queryConfig
@@ -90,7 +106,8 @@ export const queryConfigTransform = (queryConfig: any, viewOptions: IViewOptions
   ...queryConfig,
   group_by: viewOptions?.group_by?.length ? viewOptions?.group_by : queryConfig?.group_by,
   interval: viewOptions?.interval || queryConfig?.interval,
-  method: viewOptions?.method || queryConfig?.method
+  method: viewOptions?.method || queryConfig?.method,
+  filter_dict: flattenObject(queryConfig?.filter_dict || {}),
 });
 
 export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) => {
@@ -110,7 +127,9 @@ export const isShadowEqual = (v: Record<string, any>, o: Record<string, any>) =>
 };
 
 export const specialEqual = (v: any, o: any) => {
+  // biome-ignore lint/suspicious/noDoubleEquals: <explanation>
   if (v === o || v == o) return true;
+  // biome-ignore lint/suspicious/noDoubleEquals: <explanation>
   if ([[], null, undefined, 0, {}].some(i => i == v) && [[], null, undefined, 0, {}].some(i => i == o)) return true;
   if (Array.isArray(v) && Array.isArray(o)) {
     return JSON.stringify(v.slice().sort()) === JSON.stringify(o.slice().sort());
@@ -126,7 +145,7 @@ const methodMap = {
   lte: '<=',
   lt: '<',
   eq: '=',
-  neq: '!='
+  neq: '!=',
 };
 /** 处理阈值线画图数据 */
 export const handleThreshold = async (detectionsConfig: IDetectionConfig, yAxisNeedUnit = true) => {
@@ -135,7 +154,7 @@ export const handleThreshold = async (detectionsConfig: IDetectionConfig, yAxisN
   const markArea = getMarkArea(thresholdLine);
   return {
     markLine,
-    markArea
+    markArea,
   };
 };
 // 获取阈值信息
@@ -144,7 +163,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
   const lineColor = {
     1: '#ea3636',
     2: '#ffd000',
-    3: '#ff8000'
+    3: '#ff8000',
   };
   let unitSeries = [];
   if (detectionsConfig.unit && yAxisNeedUnit) {
@@ -155,7 +174,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
   /**
    * 根据阈值生成阈值的配置
    */
-  const handleThresholdOption = (list, level, unitConversion, title?: Function) => {
+  const handleThresholdOption = (list, level, unitConversion, title?: () => void) => {
     const result = [];
     list.forEach(cfg => {
       const thresholdVal = unitConversion ? unitConversion.unit_conversion * +cfg.threshold : +cfg.threshold;
@@ -167,15 +186,15 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
         method: cfg.method,
         condition: cfg.condition,
         lineStyle: {
-          color: lineColor[level]
+          color: lineColor[level],
         },
         label: {
-          color: lineColor[level]
+          color: lineColor[level],
         },
         itemStyle: {
           color: lineColor[level],
-          opacity: 0.1
-        }
+          opacity: 0.1,
+        },
       });
     });
     return result;
@@ -191,7 +210,7 @@ export const getThresholds = async (detectionsConfig: IDetectionConfig, yAxisNee
         ...handleThresholdOption(config?.thresholds?.[0], level, unitConversion, val => {
           const value = unitConversion ? unitConversion.unit_conversion * val.threshold : val.threshold;
           return `${window.i18n.tc('阈值')}(${methodMap[val.method]}${value})`;
-        })
+        }),
       ];
       // config?.[0].forEach((cfg) => {
       //   const thresholdTitle = methodMap[cfg.method] ? `(${methodMap[cfg.method]}${cfg.threshold})` : '';
@@ -231,21 +250,21 @@ const getMarkLine = (thresholdLine: any[]) => {
     symbol: [],
     label: {
       show: true,
-      position: 'insideStartTop'
+      position: 'insideStartTop',
     },
     lineStyle: {
       color: '#FD9C9C',
       type: 'dashed',
       distance: 3,
-      width: 1
+      width: 1,
     },
     emphasis: {
       label: {
         show: true,
         formatter(v: any) {
           return `${v.name || ''}: ${v.value}`;
-        }
-      }
+        },
+      },
     },
     data: thresholdLine.map((item: any) => ({
       ...item,
@@ -253,9 +272,9 @@ const getMarkLine = (thresholdLine: any[]) => {
         show: true,
         formatter() {
           return '';
-        }
-      }
-    }))
+        },
+      },
+    })),
   };
   return markLine;
 };
@@ -269,7 +288,7 @@ const getMarkArea = (thresholdLine: any[]) => {
     const closedInterval = ['lte', 'lt']; // 闭区间
 
     const data = [];
-    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+
     for (let index = 0; index < threshold.length; index++) {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
@@ -302,22 +321,22 @@ const getMarkArea = (thresholdLine: any[]) => {
       yAxis !== undefined &&
         data.push([
           {
-            ...current
+            ...current,
           },
           {
             yAxis,
-            y: yAxis === 'max' ? '0%' : ''
-          }
+            y: yAxis === 'max' ? '0%' : '',
+          },
         ]);
     }
     return data;
   };
   const markArea = {
     label: {
-      show: false
+      show: false,
     },
     silent: true,
-    data: handleSetThresholdAreaData(thresholdLine)
+    data: handleSetThresholdAreaData(thresholdLine),
   };
   return markArea;
 };
@@ -332,22 +351,38 @@ export const filterDictConvertedToWhere = (
   excludes: string[] = ['bk_biz_id']
 ): Record<string, any> => {
   try {
+    const filterDict = structuredClone(queryConfig.filter_dict || {});
     const filterDictTargets = queryConfig.filter_dict?.targets || [];
-    let where = [];
-    if (!!filterDictTargets.length) {
-      where = Object.entries(filterDictTargets[0]).reduce((total, item) => {
-        const [key, value] = item;
-        if (value === undefined || value === 'undefined') return total;
-        const res = {
-          key,
-          condition: 'and',
-          method: 'eq',
-          value: Array.isArray(value) ? value.map(val => `${val}`) : [`${value}`]
-        };
-        if (!excludes.includes(key)) total.push(res);
-        return total;
-      }, []);
+    if ('targets' in filterDict) {
+      filterDict.targets = undefined;
     }
+    let where = [];
+    const flatFilterDict = flattenObject(queryConfig.filter_dict || {});
+    where = Object.entries({
+      ...flatFilterDict,
+      ...filterDictTargets[0],
+    }).reduce((total, item) => {
+      const [key, value] = item;
+      if (
+        value === undefined ||
+        value === 'undefined' ||
+        value === null ||
+        value === '' ||
+        (Array.isArray(value) && (value.length === 0 || value.some(v => typeof v === 'object'))) ||
+        (typeof value === 'object' && !Object.keys(value).length)
+      ) {
+        return total;
+      }
+
+      const res = {
+        key,
+        condition: 'and',
+        method: 'eq',
+        value: Array.isArray(value) ? value.map(val => `${val}`) : [`${value}`],
+      };
+      if (!excludes.includes(key)) total.push(res);
+      return total;
+    }, []);
     queryConfig.where = [...(queryConfig?.where || []), ...where];
   } catch (error) {
     console.error(error);
@@ -394,12 +429,13 @@ export const parseMetricId = (metricId: string) => {
   const splitFieldList = metricId.split('.');
   const dataSourceLabel = splitFieldList[0];
   switch (dataSourceLabel) {
+    // biome-ignore lint/suspicious/noFallthroughSwitchClause: <explanation>
     case 'bk_monitor':
       if (splitFieldList[1] === 'log') {
         return {
           data_source_label: dataSourceLabel,
           data_type_label: 'log',
-          result_table_id: splitFieldList[2]
+          result_table_id: splitFieldList[2],
         };
       }
       if (splitFieldList.length === 2) {
@@ -407,14 +443,14 @@ export const parseMetricId = (metricId: string) => {
           data_source_label: dataSourceLabel,
           data_type_label: 'event',
           result_table_id: 'system.event',
-          metric_field: splitFieldList[1]
+          metric_field: splitFieldList[1],
         };
       }
       if (splitFieldList[1] === 'alert') {
         return {
           data_source_label: dataSourceLabel,
           data_type_label: 'alert',
-          metric_field: splitFieldList[2]
+          metric_field: splitFieldList[2],
         };
       }
       if ([3, 4].includes(splitFieldList.length)) {
@@ -422,7 +458,7 @@ export const parseMetricId = (metricId: string) => {
           data_source_label: dataSourceLabel,
           data_type_label: 'time_series',
           result_table_id: splitFieldList.slice(1, -1).join('.'),
-          metric_field: splitFieldList.slice(-1).join('')
+          metric_field: splitFieldList.slice(-1).join(''),
         };
       }
     case 'custom':
@@ -431,55 +467,55 @@ export const parseMetricId = (metricId: string) => {
           data_source_label: dataSourceLabel,
           data_type_label: 'event',
           result_table_id: splitFieldList[2],
-          metric_field: splitFieldList[3]
+          metric_field: splitFieldList[3],
         };
       }
       return {
         data_source_label: dataSourceLabel,
         data_type_label: 'time_series',
         result_table_id: splitFieldList.slice(1, 3).join('.'),
-        metric_field: splitFieldList[3]
+        metric_field: splitFieldList[3],
       };
     case 'bk_log_search':
       if (splitFieldList.length === 3) {
         return {
           data_source_label: dataSourceLabel,
           data_type_label: 'log',
-          index_set_id: splitFieldList[2]
+          index_set_id: splitFieldList[2],
         };
       }
       return {
         data_source_label: dataSourceLabel,
         data_type_label: 'time_series',
         index_set_id: splitFieldList[2],
-        metric_field: splitFieldList[3]
+        metric_field: splitFieldList[3],
       };
     case 'bk_data':
       return {
         data_source_label: dataSourceLabel,
         data_type_label: 'time_series',
         result_table_id: splitFieldList[1],
-        metric_field: splitFieldList[2]
+        metric_field: splitFieldList[2],
       };
     case 'bk_fta':
       return {
         data_source_label: dataSourceLabel,
         data_type_label: splitFieldList[1],
-        metric_field: splitFieldList.slice(2).join('.')
+        metric_field: splitFieldList.slice(2).join('.'),
       };
     case 'apm':
       if (splitFieldList[1] === 'log') {
         return {
           data_source_label: dataSourceLabel,
           data_type_label: 'log',
-          result_table_id: splitFieldList[2]
+          result_table_id: splitFieldList[2],
         };
       }
       return {
         data_source_label: dataSourceLabel,
         data_type_label: 'time_series',
         result_table_id: splitFieldList[1],
-        metric_field: splitFieldList[2]
+        metric_field: splitFieldList[2],
       };
     default:
       return {};
@@ -488,7 +524,7 @@ export const parseMetricId = (metricId: string) => {
 export const MAX_PONIT_COUNT = 2880;
 export const MIN_PONIT_COUNT = 1440;
 export const INTERVAL_CONTANT_LIST = [10, 30, 60, 2 * 60, 5 * 60, 10 * 60, 30 * 60, 60 * 60];
-export const reviewInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const reviewInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     reviewInterval = interval;
@@ -503,12 +539,12 @@ export const reviewInterval = (interval: number | 'auto' | string, timeRange: nu
   return reviewInterval;
 };
 
-export const recheckInterval = (interval: number | 'auto' | string, timeRange: number, step: number) => {
+export const recheckInterval = (interval: 'auto' | number | string, timeRange: number, step: number) => {
   let reviewInterval = interval;
   if (interval === 'auto') {
     const minInterval = (timeRange / (step || 60) / MAX_PONIT_COUNT) * 60;
     const maxInterval = (timeRange / (step || 60) / MIN_PONIT_COUNT) * 60;
-    let minStep = Infinity;
+    let minStep = Number.POSITIVE_INFINITY;
     let val: number;
     INTERVAL_CONTANT_LIST.forEach(v => {
       const step1 = Math.abs(v - minInterval);
@@ -530,7 +566,7 @@ export const recheckInterval = (interval: number | 'auto' | string, timeRange: n
 
 export const flattenObj = obj => {
   const res = {};
-  // eslint-disable-next-line no-restricted-syntax
+
   for (const key in obj) {
     if (typeof obj[key] === 'object' && obj[key] !== null) {
       flatten(res, obj[key], `${key}`);
@@ -540,7 +576,6 @@ export const flattenObj = obj => {
   }
 
   function flatten(res, obj, keyname) {
-    // eslint-disable-next-line no-restricted-syntax
     for (const key in obj) {
       if (typeof obj[key] === 'object' && obj[key] !== null) {
         flatten(res, obj[key], `${keyname}.${key}`);
@@ -550,4 +585,314 @@ export const flattenObj = obj => {
     }
   }
   return res;
+};
+
+function getTextWidth(text: string, fontSize: number): number {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  context.font = `${fontSize}px sans-serif`; // 设置字体样式
+  const metrics = context.measureText(text); // 测量文本的宽度
+  return metrics.width; // 返回文本的宽度
+}
+
+/**
+ * @description 将文字填充到指定宽度
+ * @param targetText
+ * @param widthInPx
+ * @returns
+ */
+export function padTextToWidth(targetText: string, widthInPx: number): string {
+  if (!widthInPx) {
+    return targetText;
+  }
+  const textWidth = getTextWidth(targetText, 12); // 获取目标文本的实际宽度（假设这个函数可以获取文本的宽度）
+  // console.log(textWidth);
+  if (textWidth >= widthInPx) {
+    return targetText; // 如果目标文本宽度已经大于或等于目标宽度，直接返回目标文本
+  }
+  const padLength = Math.round((widthInPx - textWidth) / 3.56); // 假设字符的宽度为 3.56px
+  const paddedText = String(targetText).padStart(padLength + String(targetText).length, ' '); // 向前填充空格
+  return paddedText;
+}
+
+/**
+ * @description 格式化时间单位和值
+ * @param value
+ * @param unit
+ * @returns
+ */
+export const formatTimeUnitAndValue = (value: number, unit: string) => {
+  const units = [
+    {
+      unit: 'μs',
+      value: 1,
+    },
+    {
+      unit: 'ms',
+      value: 1000,
+    },
+    {
+      unit: 's',
+      value: 1000000,
+    },
+    {
+      unit: 'min',
+      value: 60000000,
+    },
+    {
+      unit: 'hour',
+      value: 3600000000,
+    },
+    {
+      unit: 'day',
+      value: 86400000000,
+    },
+  ];
+  let curValue = value;
+  let curUnit = unit;
+  if (!units.map(item => item.unit).includes(unit)) {
+    return {
+      value: curValue,
+      unit: curUnit,
+    };
+  }
+  while (Math.abs(curValue) >= 1000 && curUnit !== 'day') {
+    const index = units.findIndex(item => item.unit === curUnit);
+    curValue = value / units[index + 1].value;
+    curUnit = units[index + 1].unit;
+  }
+  return {
+    value: curValue.toFixed(2),
+    unit: curUnit,
+  };
+};
+
+export const createMenuList = (
+  menuList: { id: string; name: string }[],
+  position: { x: number; y: number },
+  clickHandler: (id: string) => void,
+  instance: any
+) => {
+  const id = 'contextmenu-list-pop-wrapper';
+  const removeEl = () => {
+    const remove = document.getElementById(id);
+    if (remove) {
+      remove.remove();
+      setTimeout(() => {
+        instance?.dispatchAction({
+          type: 'restore',
+        });
+        instance?.dispatchAction({
+          type: 'takeGlobalCursor',
+          key: 'dataZoomSelect',
+          dataZoomSelectActive: true,
+        });
+      }, 500);
+    }
+    document.removeEventListener('wheel', removeWrapWheel);
+  };
+  removeEl();
+  const el = document.createElement('div');
+  el.className = id;
+  el.id = id;
+  el.style.left = `${(() => {
+    const { clientWidth } = document.body;
+    if (position.x + 110 > clientWidth) {
+      return position.x - 110;
+    }
+    return position.x;
+  })()}px`;
+  el.style.top = `${(() => {
+    const { clientHeight } = document.body;
+    if (position.y + 32 * menuList.length > clientHeight) {
+      return position.y - 32 * menuList.length;
+    }
+    return position.y;
+  })()}px`;
+  el.addEventListener('click', (e: any | Event) => {
+    if (e.target.classList.contains('contextmenu-list-item')) {
+      clickHandler?.(e.target.dataset.id);
+      document.removeEventListener('click', removeWrap);
+      removeEl();
+    }
+  });
+  const listEl = menuList
+    .map(item => `<div class="contextmenu-list-item" data-id="${item.id}">${item.name}</div>`)
+    .join('');
+  el.innerHTML = listEl;
+  document.body.appendChild(el);
+  const eventHasId = (event: any | Event, id: string) => {
+    let target = event.target;
+    let has = false;
+    while (target) {
+      if (target.id === id) {
+        has = true;
+        break;
+      }
+      target = target?.parentNode;
+    }
+    return has;
+  };
+  function removeWrap(event: MouseEvent) {
+    if (!eventHasId(event, id)) {
+      removeEl();
+    }
+  }
+  function removeWrapWheel(event: WheelEvent) {
+    if (Math.abs(event.deltaY) > 10) {
+      removeEl();
+    }
+  }
+  document.addEventListener('click', removeWrap);
+  document.addEventListener('wheel', removeWrapWheel);
+};
+
+/* 用于echarts 与非echarts图表的联动处理， 利用provide inject进行数据传递 */
+export class CustomChartConnector {
+  curTime = 0;
+  customInstanceMap = new Map(); // 存储自定义实例
+  groupId = ''; // 存储groupId
+  instanceMap = new Map(); // 存储实例
+  constructor(groupId) {
+    this.groupId = groupId;
+  }
+  // 删除所有实例
+  removeChartInstance() {
+    this.instanceMap = new Map();
+    this.customInstanceMap = new Map();
+  }
+  // 存储echarts 图的实例
+  setChartInstance(id, instance) {
+    this.instanceMap.set(id, instance);
+  }
+  // 存储自定图的实例
+  setCustomChartInstance(id, instance) {
+    this.customInstanceMap.set(id, instance);
+  }
+  // 更新echart图的hover坐标
+  updateAxisPointer(id, time) {
+    try {
+      this.curTime = time;
+      for (const [chartId, instance] of this.customInstanceMap) {
+        if (chartId !== id) {
+          instance?.dispatchAction({
+            type: 'showTip',
+            x: time,
+          });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  // 更新自定图的hover坐标
+  updateCustomAxisPointer(id, time) {
+    try {
+      this.curTime = time;
+      this.updateAxisPointer(id, time);
+      for (const [chartId, instance] of this.instanceMap) {
+        if (chartId !== id) {
+          if (instance) {
+            if (time) {
+              let seriesIndex = -1;
+              for (const seriesItem of instance?.options?.series || []) {
+                seriesIndex += 1;
+                let dataIndex = -1;
+                let is = false;
+                for (const dataItem of seriesItem.data) {
+                  dataIndex += 1;
+                  const valueTime = Array.isArray(dataItem) ? dataItem?.[0] : dataItem?.value?.[0];
+                  if (valueTime === time) {
+                    instance?.dispatchAction({
+                      type: 'showTip',
+                      seriesIndex,
+                      dataIndex,
+                    });
+                    is = true;
+                    break;
+                  }
+                }
+                if (is) {
+                  break;
+                }
+              }
+            } else {
+              instance?.dispatchAction({
+                type: 'hideTip',
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+}
+
+// 根据传入的 field 去重
+export const deduplicateByField = (arr, field = 'id') => {
+  const map = new Map();
+
+  for (const item of arr) {
+    // 去重
+    item[field] && map.set(item[field], item);
+  }
+
+  // 从 map 的 values 中生成去重后的数组
+  return Array.from(map.values());
+};
+
+// 将时间字符串转换为秒
+export const convertToSeconds = (timeString: string): number => {
+  // 定义不同时间单位对应的秒数
+  const timeUnits: { [key: string]: number } = {
+    s: 1, // 秒
+    m: 60, // 分钟
+    h: 3600, // 小时
+    d: 86400, // 天
+  };
+
+  // 使用正则表达式解析输入字符串
+  const regex = /^(\d+)([smhd])$/;
+  const match = timeString.match(regex);
+
+  if (!match) {
+    return 60;
+  }
+
+  const value = Number.parseInt(match[1], 10);
+  const unit = match[2];
+
+  // 计算并返回总秒数
+  return value * timeUnits[unit];
+};
+
+/**
+ * 为数据节点及其子节点分配唯一 ID。
+ *
+ * @param data - 目标数据，可以是单个节点或节点数组。
+ * @param idProperty - 用于存储 ID 的属性名称，默认为 'id'。
+ * @param idLength - 生成 ID 的长度，默认为 8。
+ *
+ * 此函数会递归地为每个节点及其所有子节点生成唯一的 ID，
+ * 并将其存储在指定的属性中。适用于层级结构的数据。
+ */
+export const assignUniqueIds = (data, idProperty = 'id', idLength = 8) => {
+  const assignId = obj => {
+    obj[idProperty] = random(idLength);
+    if (obj.children && Array.isArray(obj.children)) {
+      for (const child of obj.children) {
+        assignId(child);
+      }
+    }
+  };
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      assignId(item);
+    }
+  } else {
+    assignId(data);
+  }
 };

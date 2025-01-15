@@ -28,23 +28,23 @@ import {
   exportPackage,
   historyDetail,
   historyList,
-  importConfig
+  importConfig,
 } from 'monitor-api/modules/export_import';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 export const SET_CURRENT_HIS_REQ = 'SET_CURRENT_HIS_REQ';
 const state = {
-  cancelReq: null
+  cancelReq: null,
 };
 const getters = {
   cancelReq(state) {
     return state.cancelReq;
-  }
+  },
 };
 const mutations = {
   [SET_CURRENT_HIS_REQ](state, req) {
     state.cancelReq = req;
-  }
+  },
 };
 const actions = {
   /**
@@ -67,7 +67,7 @@ const actions = {
   async handleImportConfig(store, params) {
     const importParams = {
       uuid_list: params.uuids,
-      is_overwrite_mode: params.isOverwriteMode
+      is_overwrite_mode: params.isOverwriteMode,
     };
     // 历史ID存在就丢给后端
     if (params.historyId) {
@@ -89,7 +89,7 @@ const actions = {
       commit(SET_CURRENT_HIS_REQ, c);
     };
     const data = await historyDetail({ import_history_id: id }, { needCancel: true, cancelFn }).catch(() => ({
-      configList: []
+      configList: [],
     }));
     return transformDataKey(data);
   },
@@ -110,12 +110,12 @@ const actions = {
   async exportPackage(store, params) {
     const data = await exportPackage(params).catch(err => err);
     return transformDataKey(data);
-  }
+  },
 };
 export default {
   namespaced: true,
   state,
   getters,
   mutations,
-  actions
+  actions,
 };

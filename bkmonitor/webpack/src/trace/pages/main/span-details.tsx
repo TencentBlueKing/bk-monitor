@@ -23,21 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, provide, reactive, ref, watch } from 'vue';
+import { type PropType, computed, defineComponent, provide, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
-import { Button, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
+
+import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
-import ExceptionGuide, { IGuideInfo } from '../../components/exception-guide/exception-guide';
+import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
-import { Span } from '../../components/trace-view/typings';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
 import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
+import { useIsEnabledProfilingInject } from '../../plugins/hooks';
 import { BookMarkModel } from '../../plugins/typings';
 import EmptyEvent from '../../static/img/empty-event.svg';
 import { SPAN_KIND_MAPS } from '../../store/constant';
@@ -45,13 +46,15 @@ import { useAppStore } from '../../store/modules/app';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   EListItemType,
-  IInfo,
-  IStageTimeItem,
-  IStageTimeItemContent,
-  ITagContent,
-  ITagsItem
+  type IInfo,
+  type IStageTimeItem,
+  type IStageTimeItemContent,
+  type ITagContent,
+  type ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+
+import type { Span } from '../../components/trace-view/typings';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
@@ -62,8 +65,8 @@ const guideInfoData: Record<string, IGuideInfo> = {
     icon: EmptyEvent,
     title: window.i18n.t('当前无异常事件'),
     subTitle: window.i18n.t('异常事件获取来源\n1. events.attributes.exception_stacktrace 字段\n2. status.message 字段'),
-    link: null
-  }
+    link: null,
+  },
   // Log: {},
   // Host: {},
   // Process: {},
@@ -71,17 +74,19 @@ const guideInfoData: Record<string, IGuideInfo> = {
   // Index: {}
 };
 
-type TabName = 'BasicInfo' | 'Event' | 'Log' | 'Host' | 'Process' | 'Container' | 'Index' | 'Profiling';
+type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
 export default defineComponent({
   name: 'SpanDetails',
   props: {
     show: { type: Boolean, default: false },
+    isShowPrevNextButtons: { type: Boolean, default: false }, // 是否展示上一跳/下一跳
     withSideSlider: { type: Boolean, default: true }, // 详情信息在侧滑弹窗展示
     spanDetails: { type: Object as PropType<Span>, default: () => null },
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
-    isPageLoading: { type: Boolean, default: false }
+    isPageLoading: { type: Boolean, default: false },
+    activeTab: { type: String, default: 'BasicInfo' },
   },
-  emits: ['show'],
+  emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
     const store = useTraceStore();
     const { t } = useI18n();
@@ -93,9 +98,9 @@ export default defineComponent({
       header: {
         title: '',
         timeTag: '',
-        others: []
+        others: [],
       },
-      list: []
+      list: [],
     };
     const info = reactive<IInfo>(deepClone(tempInfo));
 
@@ -103,7 +108,7 @@ export default defineComponent({
     const showOriginalData = ref(false);
 
     /** 原始数据 */
-    const originalData = ref<Record<string, any> | null>(null);
+    const originalData = ref<null | Record<string, any>>(null);
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
@@ -112,7 +117,10 @@ export default defineComponent({
 
     const bizId = computed(() => useAppStore().bizId || 0);
 
-    const countOfInfo = ref<Record<TabName, number> | {}>({});
+    const spans = computed(() => store.spanGroupTree);
+
+    // const countOfInfo = ref<object | Record<TabName, number>>({});
+    const enableProfiling = useIsEnabledProfilingInject();
 
     // 20230807 当前 span 开始和结束时间。用作 主机（host）标签下请求接口的时间区间参数。
     const startTimeProvider = ref('');
@@ -123,6 +131,17 @@ export default defineComponent({
     // 服务、应用 名在日志 tab 里能用到
     provide('serviceName', serviceNameProvider);
     provide('appName', appName);
+
+    // 用于关联日志跳转信息
+    const traceId = ref('');
+    provide('traceId', traceId);
+    const originSpanStartTime = ref(0);
+    provide('originSpanStartTime', originSpanStartTime);
+    const originSpanEndTime = ref(0);
+    provide('originSpanEndTime', originSpanEndTime);
+
+    const spanId = computed(() => props.spanDetails.span_id);
+    provide('spanId', spanId);
 
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
@@ -144,7 +163,7 @@ export default defineComponent({
         } else {
           isInvokeOnceFlag = true;
           activeTab.value = 'BasicInfo';
-          countOfInfo.value = {};
+          // countOfInfo.value = {};
         }
       }
     );
@@ -163,7 +182,7 @@ export default defineComponent({
     watch(
       () => props.spanDetails,
       val => {
-        if (val && !props.withSideSlider) {
+        if (val && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
           getDetails();
         }
       },
@@ -208,17 +227,26 @@ export default defineComponent({
         error,
         message,
         /* eslint-disable-next-line @typescript-eslint/naming-convention */
-        stage_duration
-      } = props.spanDetails as Span | any;
+        stage_duration,
+      } = props.spanDetails as any | Span;
       // 服务、应用 名在日志 tab 里能用到
       serviceNameProvider.value = serviceName;
       const originalDataList = [...store.traceData.original_data, ...store.compareTraceOriginalData];
       // 根据span_id获取原始数据
       const curSpan = originalDataList.find((data: any) => data.span_id === originalSpanId);
+      if (!curSpan) return;
       startTimeProvider.value = `${formatDate(curSpan.start_time)} ${formatTime(curSpan.start_time)}`;
       endTimeProvider.value = `${formatDate(curSpan.end_time)} ${formatTime(curSpan.end_time)}`;
+      originSpanStartTime.value = Math.floor(startTime / 1000);
+      originSpanEndTime.value = Math.floor((startTime + duration) / 1000);
       if (curSpan) originalData.value = handleFormatJson(curSpan);
-      const { kind, trace_id: traceId, resource, is_virtual: isVirtual } = originalData.value as Record<string, any>;
+      const {
+        kind,
+        trace_id: originTraceId,
+        resource,
+        is_virtual: isVirtual,
+      } = originalData.value as Record<string, any>;
+      traceId.value = originTraceId;
 
       info.title = `Span ID：${originalSpanId}`;
       /** 头部基本信息 */
@@ -235,14 +263,14 @@ export default defineComponent({
               >
                 <img
                   class='span-icon'
-                  src={icon}
                   alt=''
+                  src={icon}
                 />
                 <span>{serviceName}</span>
                 <i class='icon-monitor icon-fenxiang' />
               </span>
             ),
-            title: serviceName
+            title: serviceName,
           },
           {
             label: t('应用'),
@@ -255,48 +283,48 @@ export default defineComponent({
                 <i class='icon-monitor icon-fenxiang' />
               </span>
             ),
-            title: appName
+            title: appName,
           },
           // { label: '日志', content: logs.length ? '有日志' :  '无日志' },
           {
             label: t('开始时间'),
             content: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
-            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss')
+            title: dayjs.tz(startTime / 1e3).format('YYYY-MM-DD HH:mm:ss'),
           },
           {
             label: t('来源'),
             content: source || '--',
-            title: source || ''
+            title: source || '',
           },
           {
             label: t('类型'),
             content: (
               <span>
-                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`}></i>}
+                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />}
                 <span>{getTypeText()}</span>
               </span>
             ),
-            title: SPAN_KIND_MAPS[kind]
+            title: SPAN_KIND_MAPS[kind],
           },
           {
-            label: t('版本'),
+            label: t('SDK 版本'),
             content: resource['telemetry.sdk.version'] || '--',
-            title: resource['telemetry.sdk.version'] || ''
+            title: resource['telemetry.sdk.version'] || '',
           },
           {
             label: t('所属Trace'),
             content: (
               <span
                 class='link'
-                onClick={() => handleToTraceQuery(traceId)}
+                onClick={() => handleToTraceQuery(traceId.value)}
               >
-                <span>{traceId}</span>
+                <span>{traceId.value}</span>
                 <i class='icon-monitor icon-fenxiang' />
               </span>
             ),
-            title: traceId
-          }
-        ]
+            title: traceId.value,
+          },
+        ],
       };
       info.list = [];
       /** Tags 信息 */
@@ -304,7 +332,7 @@ export default defineComponent({
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
-          title: 'Tags',
+          title: 'Attributes',
           [EListItemType.tags]: {
             list:
               attributes.map(
@@ -314,10 +342,10 @@ export default defineComponent({
                   type: item.type,
                   isFormat: false,
                   query_key: item.query_key,
-                  query_value: item.query_value
+                  query_value: item.query_value,
                 })
-              ) || []
-          }
+              ) || [],
+          },
         });
       }
       /** Events信息 来源：status_message & events */
@@ -328,7 +356,7 @@ export default defineComponent({
             isExpan: false,
             header: {
               date: `${formatDate(startTime)} ${formatTime(startTime)}`,
-              name: 'status_message'
+              name: 'status_message',
             },
             content: [
               {
@@ -338,36 +366,39 @@ export default defineComponent({
                 isFormat: false,
                 // 这里固定写死
                 query_key: 'status.message',
-                query_value: message
-              }
-            ]
+                query_value: message,
+              },
+            ],
           });
         }
         if (events?.length) {
           eventList.push(
-            ...events.map(
-              (item: {
-                timestamp: number;
-                duration: number;
-                name: any;
-                attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
-              }) => ({
-                isExpan: false,
-                header: {
-                  date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
-                  duration: formatDuration(item.duration),
-                  name: item.name
-                },
-                content: item.attributes.map(attribute => ({
-                  label: attribute.key,
-                  content: attribute.value || '--',
-                  type: attribute.type,
-                  isFormat: false,
-                  query_key: attribute?.query_key || '',
-                  query_value: attribute?.query_value || ''
-                }))
-              })
-            )
+            ...events
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .map(
+                (item: {
+                  timestamp: number;
+                  duration: number;
+                  name: any;
+                  attributes: { key: string; value: string; type: string; query_key?: string; query_value?: any }[];
+                }) => ({
+                  isExpan: false,
+                  header: {
+                    timestamp: item.timestamp,
+                    date: `${formatDate(item.timestamp)} ${formatTime(item.timestamp)}`,
+                    duration: formatDuration(item.duration),
+                    name: item.name,
+                  },
+                  content: item.attributes.map(attribute => ({
+                    label: attribute.key,
+                    content: attribute.value || '--',
+                    type: attribute.type,
+                    isFormat: false,
+                    query_key: attribute?.query_key || '',
+                    query_value: attribute?.query_value || '',
+                  })),
+                })
+              )
           );
         }
         info.list.push({
@@ -375,8 +406,8 @@ export default defineComponent({
           isExpan: true,
           title: 'Events',
           [EListItemType.events]: {
-            list: eventList
-          }
+            list: eventList,
+          },
         });
       }
       /** 阶段耗时信息 */
@@ -393,14 +424,14 @@ export default defineComponent({
                 id: stage_duration.left.type,
                 label: stage_duration.left.label,
                 error: stage_duration.left.error,
-                errorMsg: stage_duration.left.error_message
+                errorMsg: stage_duration.left.error_message,
               },
               {
                 id: stage_duration.right.type,
                 label: stage_duration.right.label,
                 error: stage_duration.right.error,
-                errorMsg: stage_duration.right.error_message
-              }
+                errorMsg: stage_duration.right.error_message,
+              },
             ],
             content: {
               [active]: [
@@ -415,17 +446,17 @@ export default defineComponent({
                       `receive: ${formatDate(stage_duration.right.start_time)} ${formatTime(
                         stage_duration.right.start_time,
                         true
-                      )}`
+                      )}`,
                     ],
                     gap: {
                       type: 'toRight',
-                      value: formatDuration(stage_duration.right.start_time - stage_duration.left.start_time)
-                    }
-                  }
+                      value: formatDuration(stage_duration.right.start_time - stage_duration.left.start_time),
+                    },
+                  },
                 },
                 {
                   type: 'gapTime',
-                  gapTime: formatDuration(stage_duration.right.end_time - stage_duration.right.start_time)
+                  gapTime: formatDuration(stage_duration.right.end_time - stage_duration.right.start_time),
                 },
                 {
                   type: 'useTime',
@@ -438,17 +469,17 @@ export default defineComponent({
                       `send: ${formatDate(stage_duration.right.end_time)} ${formatTime(
                         stage_duration.right.end_time,
                         true
-                      )}`
+                      )}`,
                     ],
                     gap: {
                       type: 'toLeft',
-                      value: formatDuration(stage_duration.left.end_time - stage_duration.right.end_time)
-                    }
-                  }
-                }
-              ]
-            }
-          }
+                      value: formatDuration(stage_duration.left.end_time - stage_duration.right.end_time),
+                    },
+                  },
+                },
+              ],
+            },
+          },
         });
       }
       /** process信息 */
@@ -456,7 +487,7 @@ export default defineComponent({
         info.list.push({
           type: EListItemType.tags,
           isExpan: true,
-          title: 'Process',
+          title: 'Resource',
           [EListItemType.tags]: {
             list:
               process?.tags.map(
@@ -466,19 +497,19 @@ export default defineComponent({
                   type: item.type,
                   isFormat: false,
                   query_key: item.query_key,
-                  query_value: item.query_value
+                  query_value: item.query_value,
                 })
-              ) || []
-          }
+              ) || [],
+          },
         });
       }
 
-      // TODO：先统计事件的数量
-      info.list.forEach(item => {
-        if (item.type === EListItemType.events) {
-          countOfInfo.value = Object.assign({}, { Event: item?.Events?.list?.length || 0 });
-        }
-      });
+      // // TODO：先统计事件的数量
+      // info.list.forEach(item => {
+      //   if (item.type === EListItemType.events) {
+      //     countOfInfo.value = Object.assign({}, { Event: item?.Events?.list?.length || 0 });
+      //   }
+      // });
     }
 
     /** 递归检测符合json格式的字符串并转化 */
@@ -505,7 +536,7 @@ export default defineComponent({
           }
         });
         return newData;
-      } catch (error) {
+      } catch {
         return obj;
       }
     }
@@ -514,6 +545,12 @@ export default defineComponent({
     const handleHiddenChange = () => {
       localShow.value = false;
       emit('show', localShow.value);
+    };
+
+    /* 上一跳/下一跳 */
+    const handlePrevNextClick = val => {
+      handleActiveTabChange();
+      emit('prevNextClicked', val);
     };
 
     /* 展开收起 */
@@ -527,7 +564,6 @@ export default defineComponent({
 
     /** 添加查询语句查询 */
     const handleKvQuery = (content: ITagContent) => {
-      // eslint-disable-next-line no-useless-escape
       const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
       const url = location.href.replace(
         location.hash,
@@ -538,14 +574,13 @@ export default defineComponent({
 
     /* 复制kv部分文本 */
     const handleCopy = (content: ITagContent) => {
-      // eslint-disable-next-line no-useless-escape
       const queryStr = `${content.query_key}: "${String(content.query_value)?.replace(/\"/g, '\\"') ?? ''}"`; // value转义双引号
       copyText(
         queryStr,
         (msg: string) => {
           Message({
             message: msg,
-            theme: 'error'
+            theme: 'error',
           });
           return;
         },
@@ -554,7 +589,7 @@ export default defineComponent({
       Message({
         theme: 'success',
         message: t('复制成功'),
-        width: 200
+        width: 200,
       });
     };
 
@@ -583,7 +618,6 @@ export default defineComponent({
 
     /** 跳转traceId精确查询 */
     function handleToTraceQuery(traceId: string) {
-      // eslint-disable-next-line no-useless-escape
       const hash = `#/trace/home?app_name=${appName.value}&search_type=accurate&trace_id=${traceId}`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
@@ -598,25 +632,34 @@ export default defineComponent({
     function handleTitleCopy(content: string) {
       let text = '';
       const { spanID } = props.spanDetails;
-      if (content === 'text') {
-        text = spanID;
-      } else {
-        const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
-          appName.value
-        }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
-        text = location.href.replace(location.hash, hash);
+      switch (content) {
+        case 'text': {
+          text = spanID;
+          break;
+        }
+        case 'original': {
+          text = JSON.stringify(originalData.value);
+          break;
+        }
+        default: {
+          const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
+            appName.value
+          }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
+          text = location.href.replace(location.hash, hash);
+          break;
+        }
       }
       copyText(text, (msg: string) => {
         Message({
           message: msg,
-          theme: 'error'
+          theme: 'error',
         });
         return;
       });
       Message({
         message: window.i18n.t('复制成功'),
         width: 200,
-        theme: 'success'
+        theme: 'success',
       });
     }
 
@@ -625,6 +668,7 @@ export default defineComponent({
       isExpan: boolean,
       title: string | undefined,
       content: any,
+      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -633,7 +677,7 @@ export default defineComponent({
           class='expan-item-head'
           onClick={() => expanChange(isExpan)}
         >
-          <span class={['icon-monitor icon-mc-triangle-down', { active: isExpan }]}></span>
+          <span class={['icon-monitor icon-mc-triangle-down', { active: isExpan }]} />
           <span class='expan-item-title'>{title}</span>
           {subTitle || undefined}
         </div>
@@ -646,6 +690,7 @@ export default defineComponent({
       isExpan: boolean,
       title: string,
       content: any,
+      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -654,7 +699,7 @@ export default defineComponent({
           class={['expan-item-small-head', 'grey']}
           onClick={() => expanChange(isExpan)}
         >
-          <span class={['icon-monitor icon-arrow-down', { active: isExpan }]}></span>
+          <span class={['icon-monitor icon-arrow-down', { active: isExpan }]} />
           <span
             class='title'
             title={title}
@@ -672,7 +717,7 @@ export default defineComponent({
       if (typeof str === 'string') {
         try {
           return typeof JSON.parse(str) === 'object';
-        } catch (e) {
+        } catch {
           return false;
         }
       }
@@ -681,8 +726,8 @@ export default defineComponent({
     };
 
     const formatContent = (content?: string, isFormat?: boolean) => {
-      if (!isJson(content)) return content;
-
+      if (typeof content === 'number' || typeof content === 'undefined') return content;
+      if (!isJson(content)) return typeof content === 'string' ? content : JSON.stringify(content);
       const data = JSON.parse(content || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
@@ -698,65 +743,78 @@ export default defineComponent({
     };
 
     /* kv 结构数据展示 */
-    const tagsTemplate = (data: ITagsItem['list']) => (
-      <div class='tags-template'>
-        {data.map((item, index) => (
-          <div class={['tags-row', { grey: !(index % 2) }]}>
-            <span class='left'>
-              {item.label}
-              <div class='operator'>
-                <EnlargeLine
-                  class='icon-add-query'
-                  onClick={() => handleKvQuery(item)}
-                />
+    const tagsTemplate = (data: ITagsItem['list']) => {
+      data.sort(({ label: labelA }, { label: labelB }) => {
+        return labelA.toUpperCase() >= labelB.toUpperCase() ? 1 : -1;
+      });
+      return (
+        <div class='tags-template'>
+          {data.map((item, index) => (
+            <div
+              key={index}
+              class={['tags-row', { grey: !(index % 2) }]}
+            >
+              <span class='left'>
                 <span
-                  class='icon-monitor icon-mc-copy'
-                  onClick={() => handleCopy(item)}
-                ></span>
-              </div>
-            </span>
-            {item.type === 'error' ? (
-              <div class='right'>
-                <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
-                <span class='icon-monitor icon-mind-fill'></span>
-              </div>
-            ) : (
-              <div class='right'>{formatContent(item.content, item.isFormat)}</div>
-            )}
-            {isJson(item.content) && (
-              <Button
-                class='format-button'
-                theme='primary'
-                size='small'
-                outline={!item.isFormat}
-                // eslint-disable-next-line no-param-reassign
-                onClick={() => (item.isFormat = !item.isFormat)}
-              >
-                <i class='icon-monitor icon-code'></i>
-                {t('格式化')}
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-    );
+                  class='left-title'
+                  v-bk-overflow-tips
+                >
+                  {item.label}
+                </span>
+                <div class='operator'>
+                  <EnlargeLine
+                    class='icon-add-query'
+                    onClick={() => handleKvQuery(item)}
+                  />
+                  <span
+                    class='icon-monitor icon-mc-copy'
+                    onClick={() => handleCopy(item)}
+                  />
+                </div>
+              </span>
+              {item.type === 'error' ? (
+                <div class='right'>
+                  <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
+                  <span class='icon-monitor icon-mind-fill' />
+                </div>
+              ) : (
+                <div class='right'>{formatContent(item.content, item.isFormat)}</div>
+              )}
+              {isJson(item.content) && (
+                <Button
+                  class='format-button'
+                  outline={!item.isFormat}
+                  size='small'
+                  theme='primary'
+                  onClick={() => (item.isFormat = !item.isFormat)}
+                >
+                  <i class='icon-monitor icon-code' />
+                  {t('格式化')}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    };
 
     /* 阶段耗时 */
     const stageTimeTemplate = (active: string, list: IStageTimeItem['list'], content: IStageTimeItemContent[]) => (
       <div class='stage-time'>
         <div class='stage-time-list'>
-          {list.map(item => (
+          {list.map((item, index) => (
             <Popover
+              key={index}
+              content={item.errorMsg}
               disabled={!item.error || !item.errorMsg}
               placement={'left'}
-              content={item.errorMsg}
             >
               <div class={['list-item', { active: active === item.id }]}>
                 <span class='title'>{item.id}</span>
                 <div class='content'>
                   {item.error ? (
                     <span class='err-point'>
-                      <span class='red-point'></span>
+                      <span class='red-point' />
                     </span>
                   ) : undefined}
                   {item.label}
@@ -775,14 +833,36 @@ export default defineComponent({
                   <span class='center'>
                     {times.gap.type === 'toLeft'
                       ? [
-                          <span class='to-left'></span>,
-                          <span class='center-text'>{times.gap.value}</span>,
-                          <span class='line'></span>
+                          <span
+                            key={1}
+                            class='to-left'
+                          />,
+                          <span
+                            key={2}
+                            class='center-text'
+                          >
+                            {times.gap.value}
+                          </span>,
+                          <span
+                            key={3}
+                            class='line'
+                          />,
                         ]
                       : [
-                          <span class='line'></span>,
-                          <span class='center-text'>{times.gap.value}</span>,
-                          <span class='to-right'></span>
+                          <span
+                            key={1}
+                            class='line'
+                          />,
+                          <span
+                            key={2}
+                            class='center-text'
+                          >
+                            {times.gap.value}
+                          </span>,
+                          <span
+                            key={3}
+                            class='to-right'
+                          />,
                         ]}
                   </span>
                   <span class='right'>{times.tags[1]}</span>
@@ -792,9 +872,9 @@ export default defineComponent({
             if (item.type === 'gapTime') {
               return (
                 <div class='gap-time'>
-                  <div class='top'></div>
+                  <div class='top' />
                   <div class='center'>{item[item.type]}</div>
-                  <div class='bottom'></div>
+                  <div class='bottom' />
                 </div>
               );
             }
@@ -806,23 +886,31 @@ export default defineComponent({
 
     const activeTab = ref<TabName>('BasicInfo');
     provide('SpanDetailActiveTab', activeTab);
+
+    watch(
+      () => props.activeTab,
+      val => {
+        activeTab.value = val as TabName;
+      }
+    );
+
     const tabList = [
       {
         label: t('基础信息'),
-        name: 'BasicInfo'
+        name: 'BasicInfo',
       },
       {
-        label: t('异常事件'),
-        name: 'Event'
+        label: t('事件'),
+        name: 'Event',
       },
       {
         label: t('日志'),
-        name: 'Log'
+        name: 'Log',
       },
       {
         label: t('主机'),
-        name: 'Host'
-      }
+        name: 'Host',
+      },
       // 20230525 这期暂时不需要
       // {
       //   label: t('进程'),
@@ -849,6 +937,14 @@ export default defineComponent({
           : true)
       );
     });
+    // 第一个span禁用上一跳
+    const isDisabledPre = computed(
+      () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === 0
+    );
+    // 最后一个span禁用下一跳
+    const isDisabledNext = computed(
+      () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === spans.value.length - 1
+    );
     const isTabPanelLoading = ref(false);
     const handleActiveTabChange = async () => {
       isTabPanelLoading.value = true;
@@ -859,10 +955,22 @@ export default defineComponent({
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
           apm_service_name: props.spanDetails.service_name,
-          apm_span_id: props.spanDetails.span_id
+          apm_span_id: props.spanDetails.span_id,
         })
           .catch(console.log)
           .finally(() => (isTabPanelLoading.value = false));
+        if (result?.overview_panels?.length) {
+          result.overview_panels[0] = {
+            ...result.overview_panels[0],
+            type: 'monitor-trace-log',
+          };
+          result.overview_panels[0].options = {
+            ...result.overview_panels[0].options,
+            related_log_chart: {
+              defaultKeyword: traceId.value || '',
+            },
+          };
+        }
         sceneData.value = new BookMarkModel(result);
       }
       if (activeTab.value === 'Host') {
@@ -871,7 +979,7 @@ export default defineComponent({
           id: activeTab.value.toLowerCase(),
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
-          apm_span_id: props.spanDetails.span_id
+          apm_span_id: props.spanDetails.span_id,
         })
           .catch(console.log)
           .finally(() => (isTabPanelLoading.value = false));
@@ -890,15 +998,15 @@ export default defineComponent({
 
     const titleInfoElem = () => (
       <div
-        class='title-info'
         key={props.spanDetails?.span_id}
+        class='title-info'
       >
         <span class='trace-id'>Span ID:&nbsp;&nbsp;{props.spanDetails?.span_id}</span>
         <span class='tag'>{info.header.timeTag}</span>
         <Popover
-          theme='light'
-          placement='right'
           content={t('复制 Span ID')}
+          placement='right'
+          theme='light'
         >
           <span
             class='icon-monitor icon-mc-copy'
@@ -906,9 +1014,9 @@ export default defineComponent({
           />
         </Popover>
         <Popover
-          theme='light'
-          placement='right'
           content={t('复制链接')}
+          placement='right'
+          theme='light'
         >
           <span
             class='icon-monitor icon-copy-link'
@@ -917,287 +1025,382 @@ export default defineComponent({
         </Popover>
       </div>
     );
+
+    // 复制json字符串数据的icon
+    const copyOriginalElem = () => (
+      <div class='json-head'>
+        <Popover
+          content={t('复制')}
+          placement='right'
+          theme='light'
+        >
+          <span
+            class='icon-monitor icon-mc-copy'
+            onClick={() => handleTitleCopy('original')}
+          />
+        </Popover>
+      </div>
+    );
     if (window.enable_apm_profiling) {
       tabList.push({
         label: t('性能分析'),
-        name: 'Profiling'
+        name: 'Profiling',
       });
     }
-    const detailsMain = () => (
-      <Loading
-        loading={props.isPageLoading}
-        style='height: 100%;'
-      >
-        {props.withSideSlider && showOriginalData.value ? (
-          <div class='json-text-style'>
-            <VueJsonPretty data={originalData.value} />
-          </div>
-        ) : (
-          <div class={`span-details-sideslider-content ${!props.withSideSlider ? 'is-main' : ''}`}>
-            {!props.withSideSlider && (
-              <div class='header-tool'>
-                <Switcher
-                  v-model={showOriginalData.value}
-                  class='switcher'
-                  theme='primary'
-                  size='small'
-                  onChange={handleOriginalDataChange}
-                />
-                <span>{t('原始数据')}</span>
-                <Button
-                  class='download-btn'
-                  size='small'
-                  onClick={handleExportOriginData}
-                >
-                  <i class='icon-monitor icon-xiazai1'></i>
-                  <span>{t('下载')}</span>
-                </Button>
-              </div>
-            )}
-            {showOriginalData.value ? (
-              <div class='accurate-original-panel'>
-                {titleInfoElem()}
-                <div class='json-text-style'>
-                  <VueJsonPretty data={originalData.value} />
+    const detailsMain = () => {
+      // profiling 查询起始时间根据 span 开始时间前后各推半小时
+      const halfHour = 18 * 10 ** 8;
+      const profilingRerieveStartTime = originalData.value?.start_time - halfHour;
+      const profilingRerieveEndTime = originalData.value?.start_time + halfHour;
+      return (
+        <Loading
+          style='height: 100%;'
+          loading={props.isPageLoading}
+        >
+          {props.withSideSlider && showOriginalData.value ? (
+            <div class='json-text-style'>
+              {copyOriginalElem()}
+              <VueJsonPretty data={originalData.value} />
+            </div>
+          ) : (
+            <div class={`span-details-sideslider-content ${!props.withSideSlider ? 'is-main' : ''}`}>
+              {!props.withSideSlider && (
+                <div class='header-tool'>
+                  <Switcher
+                    class='switcher'
+                    v-model={showOriginalData.value}
+                    size='small'
+                    theme='primary'
+                    onChange={handleOriginalDataChange}
+                  />
+                  <span>{t('原始数据')}</span>
+                  <Button
+                    class='download-btn'
+                    size='small'
+                    onClick={handleExportOriginData}
+                  >
+                    <i class='icon-monitor icon-xiazai1' />
+                    <span>{t('下载')}</span>
+                  </Button>
                 </div>
-              </div>
-            ) : (
-              [
-                <div class='header'>
-                  {props.withSideSlider ? (
-                    <div class='title'>
-                      <span
-                        class='name'
-                        title={info.header.title}
-                      >
-                        {info.header.title}
-                      </span>
-                      <span class='tag'>{info.header.timeTag}</span>
-                    </div>
-                  ) : (
-                    titleInfoElem()
-                  )}
-                  <div class='others'>
-                    {info.header.others.map(item => (
-                      <span class='other-item'>
-                        <span class='label'>{`${item.label}: `}</span>
-                        <span
-                          class='content'
-                          title={item.title}
-                        >
-                          {item.content}
-                        </span>
-                      </span>
-                    ))}
+              )}
+              {showOriginalData.value ? (
+                <div class='accurate-original-panel'>
+                  {titleInfoElem()}
+                  <div class='json-text-style'>
+                    {copyOriginalElem()}
+                    <VueJsonPretty data={originalData.value} />
                   </div>
-                </div>,
-
-                <MonitorTab
-                  active={activeTab.value}
-                  onTabChange={v => {
-                    activeTab.value = v;
-                    handleActiveTabChange();
-                  }}
-                  class='info-tab'
-                >
-                  {tabList.map(item => (
-                    <Tab.TabPanel
-                      name={item.name}
-                      v-slots={{
-                        label: () => (
-                          <div style='display: flex;'>
-                            <span>{item.label}</span>
-                            {countOfInfo.value?.[item.name] ? (
-                              <span
-                                class={{
-                                  'num-badge': true,
-                                  'num-badge-active': activeTab.value === item.name
-                                }}
-                              >
-                                {countOfInfo.value[item.name]}
-                              </span>
-                            ) : (
-                              ''
-                            )}
-                          </div>
-                        )
-                      }}
-                    />
-                  ))}
-                </MonitorTab>,
-
-                <div
-                  class={{
-                    'content-list': true,
-                    // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
-                    'is-log-tab': activeTab.value === 'Log',
-                    'is-host-tab': activeTab.value === 'Host'
-                  }}
-                >
-                  {info.list.map((item, index) => {
-                    if (item.type === EListItemType.tags && activeTab.value === 'BasicInfo') {
-                      const content = item[EListItemType.tags];
-                      return expanItem(
-                        item.isExpan,
-                        item.title,
-                        tagsTemplate(content.list),
-                        <span class='expan-item-subtitle'>
-                          {item.isExpan ? '' : content.list.map(kv => `${kv.label} = ${kv.content}`).join('  |  ')}
-                        </span>,
-                        isExpan => handleExpanChange(isExpan, index)
-                      );
-                    }
-                    if (item.type === EListItemType.events && activeTab.value === 'Event') {
-                      const content = item[EListItemType.events];
-                      const isException =
-                        content?.list.some(val => val.header?.name === 'exception') && props.spanDetails?.error;
-                      return (
-                        <div>
-                          {isException && (
-                            <Button
-                              onClick={handleEventErrLink}
-                              style='margin-top: 16px;'
-                            >
-                              {t('错误分析')}
-                              <span
-                                class='icon-monitor icon-fenxiang'
-                                style='margin-left: 8px;'
-                              ></span>
-                            </Button>
-                          )}
-                          {content.list.map((child, childIndex) => {
-                            // 默认开启第一个
-                            if (childIndex === 0 && isInvokeOnceFlag) {
-                              isInvokeOnceFlag = false;
-                              handleSmallExpanChange(false, index, childIndex);
-                            }
-                            return (
-                              <div style='margin-top: 16px;'>
-                                {expanItemSmall(
-                                  child.isExpan,
-                                  child.header.name,
-                                  tagsTemplate(child.content),
-                                  [
-                                    <span class='time'>{child.header.date}</span>,
-                                    child.header.duration ? <span class='tag'>{child.header.duration}</span> : ''
-                                  ],
-                                  isExpan => handleSmallExpanChange(isExpan, index, childIndex)
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    }
-                    if (item.type === EListItemType.stageTime && activeTab.value === 'BasicInfo') {
-                      const content = item[EListItemType.stageTime];
-                      return expanItem(
-                        item.isExpan,
-                        item.title,
-                        stageTimeTemplate(
-                          content.active,
-                          content.list,
-                          content.content[content.active]
-                          // stageItem => handleStageTimeChange(stageItem, index)
-                        ),
-                        '',
-                        isExpan => handleExpanChange(isExpan, index)
-                      );
-                    }
-                    return undefined;
-                  })}
-                  {
-                    // 日志 部分
-                    activeTab.value === 'Log' && (
-                      <Loading
-                        loading={isTabPanelLoading.value}
-                        style='height: 100%;'
-                      >
-                        {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
-                        {!isTabPanelLoading.value && (
-                          <div>
-                            <FlexDashboardPanel
-                              isSingleChart={isSingleChart.value}
-                              needOverviewBtn={!!sceneData.value?.list?.length}
-                              id={random(10)}
-                              dashboardId={random(10)}
-                              panels={sceneData.value.overview_panels}
-                              column={0}
-                            ></FlexDashboardPanel>
-                          </div>
-                        )}
-                      </Loading>
-                    )
-                  }
-                  {
-                    // 主机 部分
-                    activeTab.value === 'Host' && (
-                      <Loading
-                        loading={isTabPanelLoading.value}
-                        style='height: 100%;'
-                      >
-                        {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
-                        {!isTabPanelLoading.value && (
-                          <div>
-                            <FlexDashboardPanel
-                              isSingleChart={isSingleChart.value}
-                              needOverviewBtn={!!sceneData.value?.list?.length}
-                              id={random(10)}
-                              dashboardId={random(10)}
-                              panels={sceneData.value.overview_panels}
-                              column={3}
-                            ></FlexDashboardPanel>
-                          </div>
-                        )}
-                      </Loading>
-                    )
-                  }
-                  {
-                    // 火焰图 部分
-                    activeTab.value === 'Profiling' && (
-                      <Loading
-                        loading={isTabPanelLoading.value}
-                        style='height: 100%;'
-                      >
-                        <ProfilingFlameGraph
-                          appName={appName.value}
-                          serviceName={serviceNameProvider.value}
-                          profileId={originalData.value.span_id}
-                          start={originalData.value.start_time}
-                          end={originalData.value.end_time}
-                          bizId={bizId.value}
-                          textDirection={ellipsisDirection.value}
-                          onUpdate:loading={val => (isTabPanelLoading.value = val)}
-                        />
-                      </Loading>
-                    )
-                  }
-                  {showEmptyGuide() && <ExceptionGuide guideInfo={guideInfoData[activeTab.value]} />}
                 </div>
-              ]
-            )}
-          </div>
-        )}
-      </Loading>
-    );
+              ) : (
+                [
+                  <div
+                    key='header'
+                    class='header'
+                  >
+                    {props.withSideSlider ? (
+                      <div class='title'>
+                        <span
+                          class='name'
+                          title={info.header.title}
+                        >
+                          {info.header.title}
+                        </span>
+                        <span class='tag'>{info.header.timeTag}</span>
+                      </div>
+                    ) : (
+                      titleInfoElem()
+                    )}
+                    <div class='others'>
+                      {info.header.others.map((item, index) => (
+                        <span
+                          key={index}
+                          class='other-item'
+                        >
+                          <span class='label'>{`${item.label}: `}</span>
+                          <span
+                            class='content'
+                            title={item.title}
+                          >
+                            {item.content}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>,
+                  <MonitorTab
+                    key='info-tab'
+                    class='info-tab'
+                    active={activeTab.value}
+                    onTabChange={v => {
+                      activeTab.value = v;
+                      handleActiveTabChange();
+                    }}
+                  >
+                    {tabList.map((item, index) => (
+                      <Tab.TabPanel
+                        key={index}
+                        v-slots={{
+                          label: () => (
+                            <div style='display: flex;'>
+                              <span>{item.label || '-'}</span>
+                              {/* {countOfInfo.value?.[item.name] ? (
+                                <span
+                                  class={{
+                                    'num-badge': true,
+                                    'num-badge-active': activeTab.value === item.name,
+                                  }}
+                                >
+                                  {countOfInfo.value[item.name]}
+                                </span>
+                              ) : (
+                                ''
+                              )} */}
+                            </div>
+                          ),
+                        }}
+                        name={item.name}
+                      />
+                    ))}
+                  </MonitorTab>,
+                  <div
+                    key='content-list'
+                    class={{
+                      'content-list': true,
+                      // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
+                      'is-log-tab': activeTab.value === 'Log',
+                      'is-host-tab': activeTab.value === 'Host',
+                    }}
+                  >
+                    {info.list.map((item, index) => {
+                      if (item.type === EListItemType.tags && activeTab.value === 'BasicInfo') {
+                        const content = item[EListItemType.tags];
+                        return expanItem(
+                          item.isExpan,
+                          item.title,
+                          tagsTemplate(content.list),
+                          <span class='expan-item-subtitle'>
+                            {item.isExpan ? '' : content.list.map(kv => `${kv.label} = ${kv.content}`).join('  |  ')}
+                          </span>,
+                          isExpan => handleExpanChange(isExpan, index)
+                        );
+                      }
+                      if (item.type === EListItemType.events && activeTab.value === 'Event') {
+                        const content = item[EListItemType.events];
+                        const isException =
+                          content?.list.some(val => val.header?.name === 'exception') && props.spanDetails?.error;
+                        return (
+                          <div>
+                            {isException && (
+                              <Button
+                                style='margin-top: 16px;'
+                                onClick={handleEventErrLink}
+                              >
+                                {t('错误分析')}
+                                <span
+                                  style='margin-left: 8px;'
+                                  class='icon-monitor icon-fenxiang'
+                                />
+                              </Button>
+                            )}
+                            {content.list.map((child, childIndex) => {
+                              // 默认开启第一个
+                              if (childIndex === 0 && isInvokeOnceFlag) {
+                                isInvokeOnceFlag = false;
+                                handleSmallExpanChange(false, index, childIndex);
+                              }
+                              return (
+                                <div
+                                  key={childIndex}
+                                  style='margin-top: 16px;'
+                                >
+                                  {expanItemSmall(
+                                    child.isExpan,
+                                    child.header.name,
+                                    tagsTemplate(child.content),
+                                    [
+                                      <span
+                                        key='subtitle'
+                                        class='expan-item-small-subtitle'
+                                      >
+                                        {child.isExpan
+                                          ? ''
+                                          : child.content.map(kv => `${kv.label} = ${kv.content}`).join('  |  ')}
+                                      </span>,
+                                      <span
+                                        key='time'
+                                        class='time'
+                                      >
+                                        {child.header.date}
+                                      </span>,
+                                      child.header.duration ? (
+                                        <span
+                                          key='tag'
+                                          class='tag'
+                                        >
+                                          {child.header.duration}
+                                        </span>
+                                      ) : (
+                                        ''
+                                      ),
+                                    ],
+                                    isExpan => handleSmallExpanChange(isExpan, index, childIndex)
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      }
+                      if (item.type === EListItemType.stageTime && activeTab.value === 'BasicInfo') {
+                        const content = item[EListItemType.stageTime];
+                        return expanItem(
+                          item.isExpan,
+                          item.title,
+                          stageTimeTemplate(
+                            content.active,
+                            content.list,
+                            content.content[content.active]
+                            // stageItem => handleStageTimeChange(stageItem, index)
+                          ),
+                          '',
+                          isExpan => handleExpanChange(isExpan, index)
+                        );
+                      }
+                      return undefined;
+                    })}
+                    {
+                      // 日志 部分
+                      activeTab.value === 'Log' && (
+                        <Loading
+                          style='height: 100%;'
+                          loading={isTabPanelLoading.value}
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div>
+                              <FlexDashboardPanel
+                                id={random(10)}
+                                column={0}
+                                dashboardId={random(10)}
+                                isSingleChart={isSingleChart.value}
+                                needOverviewBtn={!!sceneData.value?.list?.length}
+                                panels={sceneData.value.overview_panels}
+                              />
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // 主机 部分
+                      activeTab.value === 'Host' && (
+                        <Loading
+                          style='height: 100%;'
+                          loading={isTabPanelLoading.value}
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div>
+                              <FlexDashboardPanel
+                                id={random(10)}
+                                column={3}
+                                dashboardId={random(10)}
+                                isSingleChart={isSingleChart.value}
+                                needOverviewBtn={!!sceneData.value?.list?.length}
+                                panels={sceneData.value.overview_panels}
+                              />
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // 火焰图 部分
+                      activeTab.value === 'Profiling' && (
+                        <Loading
+                          style='height: 100%;'
+                          loading={enableProfiling.value && isTabPanelLoading.value}
+                        >
+                          {enableProfiling.value ? (
+                            <ProfilingFlameGraph
+                              appName={appName.value}
+                              bizId={bizId.value}
+                              end={profilingRerieveEndTime}
+                              profileId={originalData.value.span_id}
+                              serviceName={serviceNameProvider.value}
+                              start={profilingRerieveStartTime}
+                              textDirection={ellipsisDirection.value}
+                              onUpdate:loading={val => (isTabPanelLoading.value = val)}
+                            />
+                          ) : (
+                            <div class='exception-guide-wrap'>
+                              <Exception type='building'>
+                                <span>{t('暂未开启 Profiling 功能')}</span>
+                                <div class='text-wrap'>
+                                  <pre class='text-row'>{t('该服务所在 APM 应用未开启 Profiling 功能')}</pre>
+                                </div>
+                              </Exception>
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {showEmptyGuide() && <ExceptionGuide guideInfo={guideInfoData[activeTab.value]} />}
+                  </div>,
+                ]
+              )}
+            </div>
+          )}
+        </Loading>
+      );
+    };
 
     const renderDom = () => (
       <Sideslider
-        v-model={[localShow.value, 'isShow']}
-        quick-close
         width={960}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
-        onHidden={handleHiddenChange}
-        show-mask
-        transfer={document.querySelector('.trace-list-wrapper') ?? true}
+        v-model={[localShow.value, 'isShow']}
         v-slots={{
           header: () => (
             <div class='sideslider-header'>
-              <span>{info.title}</span>
+              <div>
+                <span>{info.title}</span>
+                {props.isShowPrevNextButtons ? (
+                  <>
+                    <div
+                      class={['arrow-wrap', { disabled: isDisabledPre.value }]}
+                      v-bk-tooltips={{
+                        content: isDisabledPre.value ? t('已经是第一个span') : t('上一跳'),
+                      }}
+                      onClick={() => {
+                        if (!isDisabledPre.value) {
+                          handlePrevNextClick('previous');
+                        }
+                      }}
+                    >
+                      <span class='icon-monitor icon-arrow-up' />
+                    </div>
+                    <div
+                      class={['arrow-wrap', { disabled: isDisabledNext.value }]}
+                      v-bk-tooltips={{
+                        content: isDisabledNext.value ? t('已经是最后一个span') : t('下一跳'),
+                      }}
+                      onClick={() => {
+                        if (!isDisabledNext.value) {
+                          handlePrevNextClick('next');
+                        }
+                      }}
+                    >
+                      <span class='icon-monitor icon-arrow-down' />
+                    </div>
+                  </>
+                ) : null}
+              </div>
               <div class='header-tool'>
                 <Switcher
-                  v-model={showOriginalData.value}
                   class='switcher'
+                  v-model={showOriginalData.value}
                   theme='primary'
                   onChange={handleOriginalDataChange}
                 />
@@ -1207,13 +1410,17 @@ export default defineComponent({
                   size='small'
                   onClick={handleExportOriginData}
                 >
-                  <i class='icon-monitor icon-xiazai1'></i>
+                  <i class='icon-monitor icon-xiazai1' />
                   <span>{t('下载')}</span>
                 </Button>
               </div>
             </div>
-          )
+          ),
         }}
+        transfer={(document.querySelector('.trace-list-wrapper') as HTMLDivElement) ?? true}
+        quick-close
+        show-mask
+        onHidden={handleHiddenChange}
       >
         {detailsMain()}
       </Sideslider>
@@ -1224,10 +1431,10 @@ export default defineComponent({
       info,
       detailsMain,
       renderDom,
-      countOfInfo
+      // countOfInfo,
     };
   },
   render() {
     return this.$props.withSideSlider ? this.renderDom() : this.detailsMain();
-  }
+  },
 });

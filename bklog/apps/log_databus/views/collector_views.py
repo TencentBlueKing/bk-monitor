@@ -38,6 +38,7 @@ from apps.iam.handlers.drf import (
 )
 from apps.log_databus.constants import Environment, EtlConfig
 from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler
 from apps.log_databus.models import CollectorConfig
@@ -45,6 +46,7 @@ from apps.log_databus.serializers import (
     BatchSubscriptionStatusSerializer,
     BCSCollectorSerializer,
     CleanStashSerializer,
+    CollectorBatchOperationSerializer,
     CollectorCreateSerializer,
     CollectorDataLinkListSerializer,
     CollectorEtlSerializer,
@@ -529,7 +531,7 @@ class CollectorViewSet(ModelViewSet):
         @apiDescription 创建采集项
         @apiGroup 10_Collector
         @apiParam {Int} bk_biz_id 所属业务
-        @apiParam {String} collector_scenario_id 日志类型 可选字段`row, section, win_event, syslog`
+        @apiParam {String} collector_scenario_id 日志类型 可选字段`row, section, win_event, syslog, kafka`
         @apiParam {String} collector_config_name 采集项名称
         @apiParam {Int} data_link_id 数据链路id
         @apiParam {String} category_id 数据分类 GlobalsConfig.category读取
@@ -613,7 +615,13 @@ class CollectorViewSet(ModelViewSet):
                 "winlog_source": ["Microsoft-Windows-Security-Auditing"],
                 "winlog_content": ["aaa", "bbb", "ccc"],
                 "syslog_protocol": "tcp",
-                "syslog_port": 514
+                "syslog_port": 514,
+                "kafka_hosts": ['127.0.0.1: 9092', '127.0.0.2: 9092'],
+                "kafka_username": "admin",
+                "kafka_password": "xxxxx",
+                "kafka_topics": ['topic_1', 'topic_2'],
+                "kafka_group_id": 'group_1',
+                "kafka_initial_offset": 'newest'
             },
         }
         @apiSuccess {Int} collector_config_id 采集配置ID
@@ -1874,8 +1882,12 @@ class CollectorViewSet(ModelViewSet):
         "message": ""
         }
         """
+        if request.GET.get("space_uid", ""):
+            request.GET["bk_biz_id"] = space_uid_to_bk_biz_id(request.GET["space_uid"])
+
         response = super().list(request, *args, **kwargs)
         response.data = CollectorHandler.add_cluster_info(response.data)
+        response.data = CollectorHandler.add_tags_info(response.data)
         return response
 
     @detail_route(methods=["POST"], url_path="close_clean")
@@ -2098,7 +2110,11 @@ class CollectorViewSet(ModelViewSet):
             raise BkJwtVerifyException()
         data = self.params_valid(BCSCollectorSerializer)
         rule_id = int(collector_config_id)
-        return Response(CollectorHandler().update_bcs_container_config(data=data, rule_id=rule_id))
+        return Response(
+            CollectorHandler().update_bcs_container_config(
+                data=data, rule_id=rule_id, bk_app_code=auth_info["bk_app_code"]
+            )
+        )
 
     @detail_route(methods=["POST"], url_path="retry_bcs_collector")
     def retry_bcs_collector(self, request, collector_config_id=None):
@@ -2230,6 +2246,7 @@ class CollectorViewSet(ModelViewSet):
                 namespaces=data.get("namespaces", []),
                 namespaces_exclude=data.get("namespaces_exclude", []),
                 label_selector=data.get("label_selector"),
+                annotation_selector=data.get("annotation_selector"),
                 container=data.get("container"),
             )
         )
@@ -2412,6 +2429,7 @@ class CollectorViewSet(ModelViewSet):
                 CollectorHandler.container_dict_configs_to_yaml(
                     container_configs=data["configs"],
                     add_pod_label=data["add_pod_label"],
+                    add_pod_annotation=data["add_pod_annotation"],
                     extra_labels=data["extra_labels"],
                 ).encode("utf-8")
             )
@@ -2424,3 +2442,10 @@ class CollectorViewSet(ModelViewSet):
     @list_route(methods=["GET"], url_path="report_host")
     def report_host(self, request):
         return Response(CollectorHandler().get_report_host())
+
+    @list_route(methods=["POST"], url_path="bulk_operation")
+    def collector_batch_operation(self, request):
+        params = self.params_valid(CollectorBatchOperationSerializer)
+        collector_config_ids = params["collector_config_ids"]
+        operation_type = params["operation_type"]
+        return Response(CollectorBatchHandler(collector_config_ids, operation_type).batch_operation(params))

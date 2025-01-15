@@ -30,7 +30,8 @@
         <span
           v-if="system === 'linux_aarch64'"
           class="item-icon icon-arm"
-        >ARM</span>
+          >ARM</span
+        >
         <span
           v-else
           :class="['item-icon', 'icon-monitor', `icon-${system}`]"
@@ -48,7 +49,9 @@
         <span
           v-if="!fileName"
           class="upload-btn"
-        > {{ $t('点击上传文件') }} </span>
+        >
+          {{ $t('点击上传文件') }}
+        </span>
         <div
           v-else
           class="file-name"
@@ -58,15 +61,17 @@
             <span
               v-show="progress === 100 || isEdit"
               v-bk-tooltips.top="toolTipsConf"
-              @click="handleClear"
               :class="['bk-icon', monitorIcon]"
+              @click="handleClear"
             />
             <span v-show="progress && progress !== 100">{{ `${progress}%` }} </span>
           </div>
           <div
             v-show="fileName"
             class="progress"
-          ><div :style="{ width: `${progress}%` }" /></div>
+          >
+            <div :style="{ width: `${progress}%` }" />
+          </div>
         </div>
       </div>
     </div>
@@ -76,7 +81,7 @@
       type="file"
       :accept="accept"
       @change="handleSelectFile"
-    >
+    />
   </div>
 </template>
 <script>
@@ -93,8 +98,8 @@ export default {
     collector: Object,
     isEdit: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
@@ -104,8 +109,8 @@ export default {
       progress: 0,
       toolTipsConf: {
         content: '',
-        disable: true
-      }
+        disable: true,
+      },
     };
   },
   computed: {
@@ -124,15 +129,15 @@ export default {
         return 'icon-close-circle-shape clear-icon';
       }
       return '';
-    }
+    },
   },
   watch: {
     collector: {
       handler(v) {
         this.setFileData(v);
       },
-      deep: true
-    }
+      deep: true,
+    },
   },
   created() {
     this.setFileData(this.collector);
@@ -148,7 +153,6 @@ export default {
       }
     },
     setFileData(v) {
-      // eslint-disable-next-line camelcase
       if (v?.file_name) {
         this.fileDesc = v;
         this.fileName = v.file_name;
@@ -176,7 +180,7 @@ export default {
       const params = {
         file_data: file,
         file_name: file.name,
-        os: this.system
+        os: this.system,
       };
       if (this.isEdit) {
         params.plugin_id = this.pluginId;
@@ -191,11 +195,11 @@ export default {
       }
       this.handleProgress();
       ajax(params)
-        .then((data) => {
+        .then(data => {
           this.fileDesc = {
             file_name: data.actual_filename || data.file_name,
             file_id: data.file_id,
-            md5: data.file_md5 || data.md5
+            md5: data.file_md5 || data.md5,
           };
           if (isDataDog) {
             this.fileDesc.datadog_check_name = data.datadog_check_name;
@@ -207,14 +211,14 @@ export default {
             clearInterval(timer);
           }, 300);
         })
-        .catch((e) => {
+        .catch(e => {
           this.progress = 100;
           this.toolTipsConf.content = e.message || this.$t('网络错误');
           this.toolTipsConf.disable = false;
         });
       e.target.value = '';
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -269,7 +273,7 @@ export default {
             left: 6px;
             font-size: 12px;
             color: #fff;
-            transform: scale(.8);
+            transform: scale(0.8);
           }
         }
       }

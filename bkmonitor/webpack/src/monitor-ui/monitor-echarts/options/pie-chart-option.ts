@@ -27,7 +27,8 @@ import deepMerge from 'deepmerge';
 
 import MonitorBaseSeries from './base-chart-option';
 import { pieOptions } from './echart-options-config';
-import { IChartInstance, ILegendItem } from './type-interface';
+
+import type { IChartInstance, ILegendItem } from './type-interface';
 
 export default class MonitorPieSeries extends MonitorBaseSeries implements IChartInstance {
   public defaultOption: any;
@@ -37,7 +38,7 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
       deepMerge(
         pieOptions,
         {
-          color: this.colors
+          color: this.colors,
         },
         { arrayMerge: this.overwriteMerge }
       ),
@@ -61,7 +62,7 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
                 avg: 0,
                 total: 0,
                 color: this.colors[index % this.colors.length],
-                show: true
+                show: true,
               };
               if (seriesItem?.name) {
                 const curValue = +seriesItem.value;
@@ -79,23 +80,23 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
               avoidLabelOverlap: false,
               label: {
                 show: false,
-                position: 'center'
+                position: 'center',
               },
               labelLine: {
-                show: false
+                show: false,
               },
               type: this.chartType,
-              ...item
+              ...item,
             };
             return seriesItem;
           })
-        : []
+        : [],
     };
     return {
       options: deepMerge(deepMerge(this.defaultOption, otherOptions, { arrayMerge: this.overwriteMerge }), options, {
-        arrayMerge: this.overwriteMerge
+        arrayMerge: this.overwriteMerge,
       }),
-      legendData
+      legendData,
     };
   }
 }

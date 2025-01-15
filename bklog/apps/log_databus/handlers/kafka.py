@@ -21,9 +21,10 @@ the project delivered to anyone in the future.
 """
 import json
 
-from apps.log_databus.exceptions import KafkaConnectException, KafkaPartitionException
 from django.conf import settings
 from kafka import KafkaConsumer, TopicPartition
+
+from apps.log_databus.exceptions import KafkaConnectException, KafkaPartitionException
 
 
 class KafkaConsumerHandle(object):
@@ -39,11 +40,13 @@ class KafkaConsumerHandle(object):
         ssl_cafile=None,
         ssl_certfile=None,
         ssl_keyfile=None,
+        sasl_mechanism=None,
     ):
         self.server = server
         self.port = int(port)
         self.topic = topic
         self.kafka_server = server + ":" + str(port)
+        self.sasl_mechanism = sasl_mechanism
 
         if is_ssl_verify:
             if username:
@@ -61,7 +64,7 @@ class KafkaConsumerHandle(object):
                 self.topic,
                 bootstrap_servers=self.kafka_server,
                 security_protocol=security_protocol,
-                sasl_mechanism="PLAIN" if username else None,
+                sasl_mechanism=sasl_mechanism or ("PLAIN" if username else None),
                 sasl_plain_username=username,
                 sasl_plain_password=password,
                 request_timeout_ms=5000,
@@ -86,19 +89,24 @@ class KafkaConsumerHandle(object):
         topic_partitions = self.consumer.partitions_for_topic(self.topic)
         if not topic_partitions:
             raise KafkaPartitionException()
+        # 创建TopicPartition对象列表
+        partitions = [TopicPartition(self.topic, p) for p in topic_partitions]
 
+        # 获取每个分区的最早可用偏移量
+        beginning_offsets = self.consumer.beginning_offsets(partitions)
         log_content = []
         for _partition in topic_partitions:
-
             # 获取该分区最大偏移量
             tp = TopicPartition(topic=self.topic, partition=_partition)
+            begin_offset = beginning_offsets[tp]
             end_offset = self.consumer.end_offsets([tp])[tp]
             if not end_offset:
                 continue
 
             # 设置消息消费偏移量
             if end_offset >= message_count:
-                self.consumer.seek(tp, end_offset - message_count)
+                use_offset = end_offset - message_count
+                self.consumer.seek(tp, use_offset if use_offset > begin_offset else begin_offset)
             else:
                 self.consumer.seek_to_beginning()
 

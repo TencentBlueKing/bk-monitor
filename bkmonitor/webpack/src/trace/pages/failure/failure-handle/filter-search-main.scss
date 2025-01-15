@@ -1,0 +1,89 @@
+@mixin ellipsis() {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.failure-search-main {
+    width: 100%;
+
+    .main-top {
+        display: flex;
+        width: 100%;
+        height: 32px;
+        margin-bottom: 4px;
+
+        .main-select {
+            width: 100%;
+
+            .bk-input--text {
+                padding: 0 5px;
+                color: #63656E;
+                background: #fff3e2;
+            }
+            &.error {
+                .bk-input {
+                    border: 1px solid #ff5656; 
+                }
+            }
+        }
+    }
+}
+
+.main-select-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 7px 0 12px;
+    font-size: 12px;
+    cursor: pointer;
+
+    .mr5 {
+        margin-right: 5px;
+    }
+
+    .item-name {
+        display: inline-flex;
+        flex: 1;
+        flex-wrap: nowrap;
+        align-items: center;
+        @include ellipsis();
+    }
+  
+    .name {
+      margin-right: 6px;
+      color: #63656e;
+
+      @include ellipsis();
+
+      &.disabled {
+        color: #c4c6cc;
+      }
+    }
+
+    .id {
+      color: #c4c6cc;
+
+      @include ellipsis();
+    }
+
+    .space-tags {
+        position: absolute;
+        right: 10px;
+        display: flex;
+
+        .space-tags-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 22px;
+          padding: 0 10px;
+          border-radius: 2px;
+
+          &:not(:last-child) {
+            margin-right: 8px;
+        }
+        } 
+    }
+}

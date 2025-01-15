@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { random } from 'monitor-common/utils/utils';
 
 import loadingIcon from '../../../icons/spinner.svg';
-import { IQueryParams, PanelModel } from '../../../typings';
+import { type IQueryParams, PanelModel, type TimeSeriesType } from '../../../typings';
 import TimeSeries from '../../time-series/time-series';
 import TraceChart from '../trace-chart/trace-chart';
 
@@ -40,19 +41,28 @@ const DEFAULT_PANEL_CONFIG = {
     x: 16,
     y: 16,
     w: 8,
-    h: 4
+    h: 4,
   },
   type: 'graph',
-  targets: []
+  targets: [],
 };
 
 interface ITrendChartProps {
   queryParams: IQueryParams;
+  diffDate: number[][];
+}
+
+interface ITrendChartEvents {
+  onSeriesData(series: any[]): void;
+  onOptionsLoaded(): void;
+  onLoading(loading: boolean): void;
 }
 
 @Component
-export default class TrendChart extends tsc<ITrendChartProps> {
+export default class TrendChart extends tsc<ITrendChartProps, ITrendChartEvents> {
   @Prop({ default: () => ({}), type: Object }) queryParams: IQueryParams;
+  @Prop({ default: () => [], type: Array }) diffDate: number[][];
+  @Ref() chartRef;
 
   loading = false;
   chartType = 'all';
@@ -66,22 +76,21 @@ export default class TrendChart extends tsc<ITrendChartProps> {
 
   @Watch('queryParams', { deep: true })
   handleQueryParamsChange() {
-    let type;
-    let targetApi;
-    let targetData;
-    const alias = this.queryParams.is_compared ? '' : 'Sample 数';
+    let type: TimeSeriesType = 'bar';
+    let targetApi = undefined;
+    let targetData = undefined;
     if (this.chartType === 'all') {
       type = 'line';
       targetApi = 'apm_profile.query';
       targetData = {
         ...this.queryParams,
-        diagram_types: ['tendency']
+        diagram_types: ['tendency'],
       };
     } else {
       type = 'bar';
       targetApi = 'apm_profile.queryProfileBarGraph';
       targetData = {
-        ...this.queryParams
+        ...this.queryParams,
       };
     }
 
@@ -93,28 +102,79 @@ export default class TrendChart extends tsc<ITrendChartProps> {
         {
           api: targetApi,
           datasource: 'time_series',
-          alias,
-          data: targetData
-        }
-      ]
+          alias: '',
+          data: targetData,
+        },
+      ],
     });
+  }
+
+  @Watch('diffDate')
+  handleDiffDateChange() {
+    this.handleSetMarkArea();
+  }
+
+  handleSetMarkArea() {
+    if (!this.chartRef.options) return;
+    const { series, ...params } = this.chartRef.options;
+    this.chartRef.setOptions({
+      ...params,
+      series: series.map((item, ind) => ({
+        ...item,
+        markArea: {
+          show: !!this.diffDate[ind]?.length,
+          itemStyle: {
+            color: ['rgba(58, 132, 255, 0.1)', 'rgba(255, 86, 86, 0.1)'][ind],
+          },
+          data: [
+            [
+              {
+                xAxis: this.diffDate[ind]?.[0] || 0,
+              },
+              {
+                xAxis: this.diffDate[ind]?.[1] || 0,
+              },
+            ],
+          ],
+        },
+      })),
+    });
+  }
+
+  @Emit('optionsLoaded')
+  handleOptionsLoaded() {}
+
+  @Emit('seriesData')
+  handleSeriesData(data) {
+    return data.series || [];
+  }
+
+  @Emit('loading')
+  handleLoading(val) {
+    this.loading = val;
   }
 
   render() {
     const chartHtml =
       this.chartType === 'all' ? (
         <TimeSeries
+          ref='chartRef'
           panel={this.panel}
           showChartHeader={false}
           showHeaderMoreTool={false}
-          onLoading={val => (this.loading = val)}
+          onLoading={this.handleLoading}
+          onOptionsLoaded={this.handleOptionsLoaded}
+          onSeriesData={this.handleSeriesData}
         />
       ) : (
         <TraceChart
+          ref='chartRef'
           panel={this.panel}
           showChartHeader={false}
           showHeaderMoreTool={false}
-          onLoading={val => (this.loading = val)}
+          onLoading={this.handleLoading}
+          onOptionsLoaded={this.handleOptionsLoaded}
+          onSeriesData={this.handleSeriesData}
         />
       );
 
@@ -123,10 +183,10 @@ export default class TrendChart extends tsc<ITrendChartProps> {
         <bk-collapse v-model={this.collapse}>
           <bk-collapse-item
             ext-cls='trend-chart-collapse'
-            name='trend'
             scopedSlots={{
-              content: () => <div class='trend-chart-wrap'>{this.collapse && this.panel && chartHtml}</div>
+              content: () => <div class='trend-chart-wrap'>{this.collapse && this.panel && chartHtml}</div>,
             }}
+            name='trend'
           >
             <div
               class='trend-chart-header'
@@ -134,15 +194,15 @@ export default class TrendChart extends tsc<ITrendChartProps> {
             >
               <div class='bk-button-group'>
                 <bk-button
-                  size='small'
                   class={`${this.chartType === 'all' ? 'is-selected' : ''}`}
+                  size='small'
                   onClick={() => (this.chartType = 'all')}
                 >
                   {this.$t('总趋势')}
                 </bk-button>
                 <bk-button
-                  size='small'
                   class={`${this.chartType === 'trace' ? 'is-selected' : ''}`}
+                  size='small'
                   onClick={() => (this.chartType = 'trace')}
                 >
                   {this.$t('Trace 数据')}
@@ -151,8 +211,9 @@ export default class TrendChart extends tsc<ITrendChartProps> {
               {this.loading ? (
                 <img
                   class='chart-loading-icon'
+                  alt='loading'
                   src={loadingIcon}
-                ></img>
+                />
               ) : undefined}
             </div>
           </bk-collapse-item>

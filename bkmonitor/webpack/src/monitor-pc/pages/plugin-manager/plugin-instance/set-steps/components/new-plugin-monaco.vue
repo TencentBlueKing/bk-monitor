@@ -107,14 +107,14 @@
   </div>
 </template>
 <script lang="ts">
-import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 import { debounce } from 'throttle-debounce';
+import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import MonacoEditor from '../../../../../components/editors/monaco-editor.vue';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import MonitorVue from '../../../../../types/index';
+import type MonitorVue from '../../../../../types/index';
 // eslint-disable-next-line no-unused-vars
-import { ILanguage, ISystem, IValues } from '../../../../../types/plugin-manager/index';
+import type { ILanguage, ISystem, IValues } from '../../../../../types/plugin-manager/index';
 import ShellSideNotice from '../../../../shell-collector/set-data-source/set-data-steps/shell-side-notice.vue';
 
 const descPanelWidth = 368;
@@ -122,8 +122,8 @@ const expandedElWidth = 25;
 @Component({
   components: {
     MonacoEditor,
-    ShellSideNotice
-  }
+    ShellSideNotice,
+  },
 })
 export default class NewPluginMonaco extends Vue<MonitorVue> {
   languageList: ILanguage[] = [
@@ -131,93 +131,94 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
       name: 'Shell',
       lang: 'shell',
       text:
-        '#!/bin/sh\n'
-        + '#\n'
-        + 'export LC_ALL=C\n'
-        + 'export LANG=C\n'
-        + '#default language is C \n'
-        + '#\n'
-        + '# Text format:\n'
-        + '# metric_name{label_name="lable_value"} metric_value timestamp\n'
-        + '#\n'
-        + '# Example:\n'
-        + '# echo "disk_usage{disk_name=\\"/data\\"} 0.8"\n',
+        '#!/bin/sh\n' +
+        '#\n' +
+        'export LC_ALL=C\n' +
+        'export LANG=C\n' +
+        '#default language is C \n' +
+        '#\n' +
+        '# Text format:\n' +
+        '# metric_name{label_name="lable_value"} metric_value timestamp\n' +
+        '#\n' +
+        '# Example:\n' +
+        '# echo "disk_usage{disk_name=\\"/data\\"} 0.8"\n',
       abb: 'sh',
-      active: false
+      active: false,
     },
     {
       name: 'Bat',
       lang: 'bat',
       abb: 'bat',
       text:
-        '::\n'
-        + ':: Text format:\n'
-        + ':: metric_name{label_name="lable_value"} metric_value timestamp\n'
-        + '::\n'
-        + ':: Example:\n'
-        + ':: echo disk_usage{disk_name=\\"/data\\"} 0.8\n',
-      active: false
+        '::\n' +
+        ':: Text format:\n' +
+        ':: metric_name{label_name="lable_value"} metric_value timestamp\n' +
+        '::\n' +
+        ':: Example:\n' +
+        ':: echo disk_usage{disk_name=\\"/data\\"} 0.8\n',
+      active: false,
     },
     {
       name: 'Python',
       lang: 'python',
       abb: 'py',
       text:
-        '#!/usr/bin/env python\n'
-        + '#\n'
-        + '# Text format:\n'
-        + '# metric_name{label_name="lable_value"} metric_value timestamp\n'
-        + '#\n'
-        + '# Example:\n'
-        + '# print("disk_usage{disk_name=\\"/data\\"} 0.8")\n',
-      active: false
+        '#!/usr/bin/env python\n' +
+        '#\n' +
+        '# Text format:\n' +
+        '# metric_name{label_name="lable_value"} metric_value timestamp\n' +
+        '#\n' +
+        '# Example:\n' +
+        '# print("disk_usage{disk_name=\\"/data\\"} 0.8")\n',
+      active: false,
     },
     {
       name: 'Perl',
       lang: 'perl',
       abb: 'pl',
       text:
-        '#!/usr/bin/env perl\n'
-        + '#\n'
-        + '# Text format:\n'
-        + '# metric_name{label_name="lable_value"} metric_value timestamp\n'
-        + '#\n'
-        + '# Example:\n'
-        + '# print "disk_usage{disk_name=\\"/data\\"} 0.8;"\n',
-      active: false
+        '#!/usr/bin/env perl\n' +
+        '#\n' +
+        '# Text format:\n' +
+        '# metric_name{label_name="lable_value"} metric_value timestamp\n' +
+        '#\n' +
+        '# Example:\n' +
+        '# print "disk_usage{disk_name=\\"/data\\"} 0.8;"\n',
+      active: false,
     },
     {
       name: 'Powershell',
       lang: 'powershell',
       abb: 'ps1',
-      text: '#\n'
-                        + '# Text format:\n'
-                        + '# metric_name{label_name="lable_value"} metric_value timestamp\n'
-                        + '#\n'
-                        + '# Example:\n'
-                        + '# write-host "disk_usage{disk_name=`"/data`"} 0.8"\n',
-      active: false
+      text:
+        '#\n' +
+        '# Text format:\n' +
+        '# metric_name{label_name="lable_value"} metric_value timestamp\n' +
+        '#\n' +
+        '# Example:\n' +
+        '# write-host "disk_usage{disk_name=`"/data`"} 0.8"\n',
+      active: false,
     },
     {
       name: 'Vbs',
       lang: 'vbs',
       abb: 'vbs',
       text:
-        '\'\n'
-        + '\' Text format:\n'
-        + '\' metric_name{label_name="lable_value" metric_value timestamp\n'
-        + '\'\n'
-        + '\' Example:\n'
-        + '\' wscript.echo "disk_usage{disk_name=\\"/data\\"} 0.8\'\n',
-      active: false
+        "'\n" +
+        "' Text format:\n" +
+        '\' metric_name{label_name="lable_value" metric_value timestamp\n' +
+        "'\n" +
+        "' Example:\n" +
+        '\' wscript.echo "disk_usage{disk_name=\\"/data\\"} 0.8\'\n',
+      active: false,
     },
     {
       name: 'Custom',
       lang: 'custom',
       abb: '',
       text: '',
-      active: false
-    }
+      active: false,
+    },
   ];
 
   systemList: ISystem[] = [];
@@ -225,7 +226,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
   editorInstance = null;
   sideNotice: { left: boolean; width: number } = {
     left: true,
-    width: 368
+    width: 368,
   };
 
   otherPluginType: string[] = ['JMX', 'DataDog'];
@@ -233,16 +234,16 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
   handleInput = debounce(300, (text: string) => this.scriptChange(text));
   // 传进来的系统列表
   @Prop(Array)
-    systems: string[];
+  systems: string[];
 
   @Prop(Object)
-    value: IValues;
+  value: IValues;
 
   @Prop(Number)
-    width: number;
+  width: number;
 
   @Prop({ type: String, default: 'Script' })
-    type: string;
+  type: string;
 
   @Prop({ type: String, default: 'create ' }) mode; // 新建编辑模式 create | edit
 
@@ -258,7 +259,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
     // 由于服务端要求提交参数需要调整，这里做一次映射。
     const languageMapping = {
       // Monaco Editor 需要 vb 参数才能高亮。
-      vbs: 'vb'
+      vbs: 'vb',
     };
     return languageMapping[this.currentLanguage.lang] ?? this.currentLanguage.lang;
   }
@@ -290,7 +291,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
   @Watch('systems')
   onSystemListChange(systems: string[]): void {
     if (systems.length) {
-      systems.forEach((sys) => {
+      systems.forEach(sys => {
         let languageList: ILanguage[] = [];
         languageList = this.languageList
           .filter(lang => sys === 'windows' || !['Yaml', 'Bat', 'Powershell', 'Vbs'].includes(lang.name))
@@ -323,15 +324,15 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
       lang: 'yaml',
       abb: 'yaml',
       text:
-        'username: {{ username }}\n'
-        + 'password: {{ password }}\n'
-        + 'jmxUrl: {{ jmx_url }}\n'
-        + 'ssl: false\n'
-        + 'startDelaySeconds: 0\n'
-        + 'lowercaseOutputName: true\n'
-        + 'lowercaseOutputLabelNames: true\n'
-        + 'whitelistObjectNames: ["java.lang:*"]\n',
-      active: true
+        'username: {{ username }}\n' +
+        'password: {{ password }}\n' +
+        'jmxUrl: {{ jmx_url }}\n' +
+        'ssl: false\n' +
+        'startDelaySeconds: 0\n' +
+        'lowercaseOutputName: true\n' +
+        'lowercaseOutputLabelNames: true\n' +
+        'whitelistObjectNames: ["java.lang:*"]\n',
+      active: true,
     };
     this.otherLanguage.JMX = { ...language };
     this.otherLanguage.DataDog = { ...language, text: '' };
@@ -377,7 +378,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
    * @description 切换语言
    */
   handleLangChange(lang: ILanguage): void {
-    this.currentLanguageList.forEach((item) => {
+    this.currentLanguageList.forEach(item => {
       item.active = item.name === lang.name;
     });
   }
@@ -417,7 +418,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
       const timer: number = setTimeout(() => {
         this.$bkMessage({
           theme: 'error',
-          message: this.$t('{0}的{1}脚本内容不能为空', [sys.name, lang.name])
+          message: this.$t('{0}的{1}脚本内容不能为空', [sys.name, lang.name]),
         });
         clearTimeout(timer);
       });
@@ -447,7 +448,7 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
     }
     const errors: boolean[] = [];
     const langs = [];
-    this.systemList.forEach((sys) => {
+    this.systemList.forEach(sys => {
       if (sys.enable) {
         const result = this.checkScriptContent(sys);
         errors.push(result.empty);
@@ -470,11 +471,11 @@ export default class NewPluginMonaco extends Vue<MonitorVue> {
     if (this.isOther) {
       this.otherLanguage[this.type].text = values[this.type].text;
     } else {
-      this.systemList.forEach((sys) => {
+      this.systemList.forEach(sys => {
         const value = values[sys.name];
         if (value) {
           sys.enable = !!values[sys.name];
-          sys.languageList.forEach((item) => {
+          sys.languageList.forEach(item => {
             if (item.lang === value.lang) {
               item.text = value.text;
               item.active = true;

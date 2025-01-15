@@ -415,6 +415,7 @@ class GetAgentStatus(GseBaseResource):
 
     action = "get_agent_status"
     method = "POST"
+    base_url = f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/gse/"
     backend_cache_type = CacheType.GSE
 
     class RequestSerializer(serializers.Serializer):

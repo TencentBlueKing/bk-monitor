@@ -26,13 +26,14 @@
 import { Component, Emit, InjectReactive, Model, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { IOption } from '../../pages/monitor-k8s/typings';
 import { getPopoverWidth } from '../../utils';
+
+import type { IOption } from '../../pages/monitor-k8s/typings';
 
 import './custom-select.scss';
 
 export interface ICustomSelectProps {
-  value?: string[] | string;
+  value?: (number | string)[] | number | string;
   multiple?: boolean;
   options?: IOption[];
   searchable?: boolean;
@@ -45,7 +46,7 @@ export interface ICustomSelectEvents {
  */
 @Component
 export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectEvents> {
-  @Model('emitValue') value: string | string[];
+  @Model('emitValue') value: (number | string)[] | number | string;
   @Prop({ default: () => [], type: Array }) options: IOption[];
   @Ref() bkSelectRef: any;
   // 是否只读模式
@@ -75,9 +76,9 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
             this.isShow = false;
             this.handleShowChange(false);
             return true;
-          }
+          },
         },
-        searchable: true
+        searchable: true,
       },
       this.$attrs
     );
@@ -91,6 +92,14 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
     this.isShow = true;
     this.handleShowChange(true);
   }
+  /**
+   * @description: 隐藏下拉弹层
+   */
+  handleHideDropDown() {
+    this.bkSelectRef.handleClose();
+    this.isShow = false;
+    this.handleShowChange(false);
+  }
 
   render() {
     return (
@@ -102,7 +111,7 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
           {this.$slots.target ??
             (!this.readonly && (
               <span class='custom-select-add'>
-                <i class='icon-monitor icon-mc-add'></i>
+                <i class='icon-monitor icon-mc-add' />
               </span>
             ))}
         </span>
@@ -111,8 +120,8 @@ export default class CustomSelect extends tsc<ICustomSelectProps, ICustomSelectE
           {...{
             props: this.props,
             on: {
-              ...this.$listeners
-            }
+              ...this.$listeners,
+            },
           }}
           class='bk-select-wrap'
         >

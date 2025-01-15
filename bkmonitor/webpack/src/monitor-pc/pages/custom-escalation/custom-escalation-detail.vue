@@ -37,8 +37,8 @@
       class="common-nav-bar-single"
       :need-back="true"
       :need-copy-link="true"
-      nav-mode="copy"
       :route-list="$store.getters.navRouteList"
+      nav-mode="copy"
     >
       <template slot="append">
         <span
@@ -54,9 +54,11 @@
         path="数据上报好了，去 {0}"
       >
         <span
-          style="color: #3a84ff; cursor: pointer;"
+          style="color: #3a84ff; cursor: pointer"
           @click="handleJump"
-        >{{ $t('查看数据') }}</span>
+        >
+          {{ $t('查看数据') }}
+        </span>
       </i18n>
     </bk-alert>
     <div class="custom-detail-page">
@@ -68,19 +70,31 @@
           </div>
           <div class="detail-information-row">
             <span class="row-label">{{ $t('数据ID') }} : </span>
-            <span class="row-content">{{ detailData.bk_data_id }}</span>
+            <span
+              class="row-content"
+              v-bk-overflow-tips
+              >{{ detailData.bk_data_id }}</span
+            >
           </div>
           <div class="detail-information-row">
             <span class="row-label">Token : </span>
-            <span class="row-content">{{ detailData.access_token }}</span>
+            <span
+              class="row-content"
+              v-bk-overflow-tips
+              >{{ detailData.access_token }}</span
+            >
           </div>
           <div class="detail-information-row">
             <span class="row-label">{{ $t('名称') }} : </span>
             <div
               v-if="!isShowEditName"
-              style="display: flex"
+              style="display: flex; min-width: 0"
             >
-              <span class="row-content">{{ detailData.name }}</span>
+              <span
+                class="row-content"
+                v-bk-overflow-tips
+                >{{ detailData.name }}</span
+              >
               <i
                 v-if="detailData.name && !isReadonly"
                 class="icon-monitor icon-bianji edit-name"
@@ -89,19 +103,23 @@
             </div>
             <bk-input
               v-else
-              v-model="copyName"
-              style="width: 240px"
-              @blur="handleEditName"
               ref="nameInput"
+              style="width: 240px"
+              v-model="copyName"
+              @blur="handleEditName"
             />
           </div>
           <div class="detail-information-row">
             <span class="row-label">{{ $t('英文名') }} : </span>
             <div
               v-if="!isShowEditDataLabel"
-              style="display: flex"
+              style="display: flex; min-width: 0"
             >
-              <span class="row-content">{{ detailData.data_label || '--' }}</span>
+              <span
+                class="row-content"
+                v-bk-overflow-tips
+                >{{ detailData.data_label || '--' }}</span
+              >
               <i
                 v-if="!isShowEditDataLabel && !isReadonly"
                 class="icon-monitor icon-bianji edit-name"
@@ -110,32 +128,39 @@
             </div>
             <bk-input
               v-else
-              v-model="copyDataLabel"
-              style="width: 240px"
-              @blur="handleEditDataLabel"
               ref="dataLabelInput"
+              style="width: 240px"
+              v-model="copyDataLabel"
+              @blur="handleEditDataLabel"
             />
           </div>
           <div class="detail-information-row">
             <span class="row-label">{{ $t('监控对象') }} : </span>
-            <span class="row-content">{{ scenario }}</span>
+            <span
+              class="row-content"
+              v-bk-overflow-tips
+              >{{ scenario }}</span
+            >
           </div>
           <div
-            class="detail-information-row"
             v-if="type !== 'customEvent'"
+            class="detail-information-row"
           >
             <span class="row-label">{{ $t('上报协议') }} : </span>
             <span
-              class="row-content"
               v-if="detailData.protocol"
-            >{{ detailData.protocol === 'json' ? 'JSON' : 'Prometheus'}}</span>
+              class="row-content"
+              v-bk-overflow-tips
+            >
+              {{ detailData.protocol === 'json' ? 'JSON' : 'Prometheus' }}
+            </span>
             <span v-else> -- </span>
           </div>
           <div
             class="detail-information-row"
             :class="type === 'customEvent' ? 'last-row' : ''"
           >
-            <span class="row-label">{{type === 'customEvent' ? $t('是否为平台事件') : $t('作用范围') }}  : </span>
+            <span class="row-label">{{ type === 'customEvent' ? $t('是否为平台事件') : $t('作用范围') }} : </span>
             <bk-checkbox
               v-if="type === 'customEvent'"
               v-model="copyIsPlatform"
@@ -143,16 +168,43 @@
               @change="handleIsPlatformChange"
             />
             <span
-              class="row-content"
               v-else
-            >{{ copyIsPlatform === false ? $t('本业务') : $t('全平台') }}</span>
+              class="row-content"
+              v-bk-overflow-tips
+            >
+              {{ copyIsPlatform === false ? $t('本业务') : $t('全平台') }}
+            </span>
           </div>
           <div
-            class="detail-information-row last-row"
             v-if="type !== 'customEvent'"
+            class="detail-information-row last-row"
           >
             <span class="row-label">{{ $t('描述') }} : </span>
-            <span class="row-content">{{ detailData.desc || '--' }}</span>
+            <div
+              v-if="!isShowEditDesc"
+              style="display: flex; min-width: 0"
+            >
+              <span
+                class="row-content"
+                v-bk-overflow-tips
+                >{{ detailData.desc || '--' }}</span
+              >
+              <i
+                v-if="!isReadonly"
+                class="icon-monitor icon-bianji edit-name"
+                @click="handleShowEditDes"
+              />
+            </div>
+            <bk-input
+              v-else
+              ref="describeInput"
+              style="width: 440px"
+              class="form-content-textarea"
+              v-model="copyDescribe"
+              :rows="3"
+              type="textarea"
+              @blur="handleEditDescribe"
+            />
           </div>
         </div>
         <!-- 自定义事件展示 -->
@@ -167,10 +219,10 @@
                 {{ $t('事件列表') }}
               </div>
               <bk-button
-                v-bk-tooltips="{
-                  content: $tc('刷新')
-                }"
                 class="list-header-immediately"
+                v-bk-tooltips="{
+                  content: $tc('刷新'),
+                }"
                 icon="icon-monitor icon-mc-alarm-recovered"
                 @click="() => handleRefreshNow(true)"
               />
@@ -182,34 +234,38 @@
               >
                 <bk-option
                   v-for="(opt, index) in refreshList.list"
+                  :id="opt.value"
                   :key="index"
                   :name="opt.name"
-                  :id="opt.value"
                 />
               </bk-select>
               <bk-select
-                :popover-min-width="110"
                 class="list-header-date"
                 v-model="shortcuts.value"
                 :clearable="false"
+                :popover-min-width="110"
                 @change="handleTimeChange"
               >
                 <bk-option
                   v-for="(opt, index) in shortcuts.list"
+                  :id="opt.value"
                   :key="index"
                   :name="opt.name"
-                  :id="opt.value"
                 />
               </bk-select>
             </div>
             <bk-table
+              class="custom-event-table"
               :data="eventData"
+              :height="tableVirtualRenderHeight"
               :outer-border="false"
+              row-key="custom_event_id"
+              virtual-render
             >
               <bk-table-column
                 :label="$t('事件名称')"
-                prop="custom_event_name"
                 min-width="100"
+                prop="custom_event_name"
               />
               <bk-table-column
                 :label="$t('目标数量')"
@@ -239,7 +295,9 @@
                   <span
                     :class="['num-set', { 'col-btn': row.related_strategies.length > 0 }]"
                     @click="handleGotoStrategy(row)"
-                  >{{ row.related_strategies.length }}</span>
+                  >
+                    {{ row.related_strategies.length }}
+                  </span>
                   <!-- <div class="num-set"> {{ row.related_strategies.length }}</div> -->
                 </template>
               </bk-table-column>
@@ -283,18 +341,18 @@
             :width="656"
           >
             <div
-              slot="header"
               class="sideslider-title"
+              slot="header"
             >
               <span>{{ sideslider.title + $t(' - 原始数据') }}</span>
               <span class="title-explain">{{ $t('（仅支持查看当前事件中最近一条的原始数据信息）') }}</span>
             </div>
             <div slot="content">
               <monaco-editor
-                :language="'json'"
-                :value="JSON.stringify(sideslider.data, null, '\t')"
-                :options="{ readOnly: true }"
                 style="height: calc(100vh - 61px)"
+                :language="'json'"
+                :options="{ readOnly: true }"
+                :value="JSON.stringify(sideslider.data, null, '\t')"
               />
             </div>
           </bk-sideslider>
@@ -306,7 +364,7 @@
               <div class="list-header-title">
                 <span>{{ $t('时序列表') }}</span>
                 <span class="title-desc">
-                  {{ `（${$t('包括{0}个指标,{1}个维度', [metricNum,dimensionNum])}）` }}
+                  {{ `（${$t('包括{0}个指标,{1}个维度', [metricNum, dimensionNum])}）` }}
                 </span>
               </div>
             </div>
@@ -315,13 +373,17 @@
                 <bk-button
                   class="mr10"
                   @click="() => handleShowGroupManage(true)"
-                >{{ $t('分组管理') }}</bk-button>
-                <bk-search-select
-                  v-model="metricSearchValue"
-                  :data="metricSearchData"
-                  :show-condition="false"
-                  @change="handleMetricSearchValue"
-                />
+                >
+                  {{ $t('分组管理') }}
+                </bk-button>
+                <div class="search-select-wrap">
+                  <search-select
+                    :clearable="false"
+                    :data="metricSearchData"
+                    :model-value="metricSearchValue"
+                    @change="handleMetricSearchValue"
+                  />
+                </div>
                 <!-- <group-select
                   :list="groupSelectList"
                   :disabled="!selectionLeng"
@@ -347,14 +409,14 @@
                 </monitor-export> -->
               </div>
               <monitor-import
-                style="margin-right: 24px;"
-                accept=".csv"
-                :return-text="true"
+                style="margin-right: 24px"
                 :base64="false"
+                :return-text="true"
+                accept=".csv"
                 @change="handleImportMetric"
               >
                 <span class="icon-monitor icon-xiazai2 link" />
-                <span class="link">{{$t('导入')}}</span>
+                <span class="link">{{ $t('导入') }}</span>
               </monitor-import>
               <!-- <monitor-export @click="handleExportMetric"
                               style="margin-right: 24px;">
@@ -390,14 +452,15 @@
                 >
                   <div
                     v-if="!!selectionLeng"
-                    slot="prepend"
                     class="table-prepend"
+                    slot="prepend"
                   >
                     <span class="add-msg">
                       <i18n path="当前已选择{0}条数据">
-                        <span>{{selectionLeng}}</span>
+                        <span>{{ selectionLeng }}</span>
                       </i18n>
-                    </span>，
+                    </span>
+                    ,
                     <group-select-multiple
                       :list="groupSelectList"
                       :value="batchGroupValue"
@@ -414,7 +477,7 @@
                           @click="() => handleShowGroupManage(true)"
                         >
                           <span class="icon-monitor icon-shezhi" />
-                          <span>{{$t('分组管理')}}</span>
+                          <span>{{ $t('分组管理') }}</span>
                         </div>
                       </template>
                     </group-select-multiple>
@@ -432,8 +495,8 @@
                     </group-select> -->
                   </div>
                   <bk-table-column
-                    :render-header="renderSelectionHeader"
                     width="80"
+                    :render-header="renderSelectionHeader"
                     align="center"
                   >
                     <template #default="{ row }">
@@ -446,9 +509,9 @@
                   </bk-table-column>
                   <!-- 指标/维度 -->
                   <bk-table-column
-                    :render-header="renderMetricHeader"
-                    :label="$t('指标/维度')"
                     width="150"
+                    :label="$t('指标/维度')"
+                    :render-header="renderMetricHeader"
                   >
                     <template slot-scope="scope">
                       {{ scope.row.monitor_type === 'metric' ? $t('指标') : $t('维度') }}
@@ -456,28 +519,28 @@
                   </bk-table-column>
                   <!-- 分组 -->
                   <bk-table-column
-                    :render-header="renderGroupHeader"
                     :label="$t('分组')"
+                    :render-header="renderGroupHeader"
                     min-width="160"
                   >
                     <template slot-scope="scope">
                       <div style="display: flex">
                         <template v-if="scope.row.monitor_type === 'metric'">
                           <group-select-multiple
-                            :list="groupSelectList"
-                            :value="scope.row.labels.map(item => item.name)"
                             :groups-map="groupsMap"
+                            :list="groupSelectList"
                             :metric-name="scope.row.name"
-                            @change="(v) => handleSelectGroup(v, scope.$index)"
+                            :value="scope.row.labels.map(item => item.name)"
+                            @change="v => handleSelectGroup(v, scope.$index)"
                             @toggle="handleGroupSelectToggle"
                           >
                             <template v-if="scope.row.labels && scope.row.labels.length">
                               <div class="table-group-tags">
                                 <span
+                                  v-for="item in scope.row.labels.map(item => item.name)"
                                   class="table-group-tag"
-                                  v-for="(item) in scope.row.labels.map(item => item.name)"
                                   :key="item"
-                                  @mouseenter="(e) => handleGroupTagTip(e, item)"
+                                  @mouseenter="e => handleGroupTagTip(e, item)"
                                   @mouseleave="handleRemoveGroupTip"
                                 >
                                   {{ item }}
@@ -495,7 +558,7 @@
                                 @click="() => handleShowGroupManage(true)"
                               >
                                 <span class="icon-monitor icon-shezhi" />
-                                <span>{{$t('分组管理')}}</span>
+                                <span>{{ $t('分组管理') }}</span>
                               </div>
                             </template>
                           </group-select-multiple>
@@ -510,9 +573,7 @@
                             </div>
                           </group-select> -->
                         </template>
-                        <template v-else>
-                          --
-                        </template>
+                        <template v-else> -- </template>
                       </div>
                     </template>
                   </bk-table-column>
@@ -526,7 +587,9 @@
                       <div
                         class="overflow-tips"
                         v-bk-overflow-tips
-                      >{{ scope.row.name }}</div>
+                      >
+                        {{ scope.row.name }}
+                      </div>
                     </template>
                   </bk-table-column>
                   <!-- 别名 -->
@@ -539,16 +602,16 @@
                       <div class="cell-margin name">
                         <bk-input
                           v-model="scope.row.description"
-                          size="small"
-                          :placeholder="scope.row.monitor_type === 'metric' ? $t('输入指标别名') : $t('输入维度别名')"
-                          @blur="handleCheckDescName(scope.row, scope.$index)"
                           :class="{ 'input-err': scope.row.descReValue }"
+                          :placeholder="scope.row.monitor_type === 'metric' ? $t('输入指标别名') : $t('输入维度别名')"
+                          size="small"
+                          @blur="handleCheckDescName(scope.row, scope.$index)"
                         />
                         <bk-popover
                           class="change-name"
+                          :tippy-options="{ a11y: false }"
                           placemnet="top-start"
                           trigger="mouseenter"
-                          :tippy-options="{ a11y: false }"
                         >
                           <i
                             v-if="scope.row.descReValue"
@@ -565,37 +628,39 @@
                   </bk-table-column>
                   <!-- 类型 -->
                   <bk-table-column
-                    :label="$t('类型')"
                     width="120"
+                    :label="$t('类型')"
                     prop="type"
                   />
                   <!-- 单位 -->
                   <bk-table-column
-                    :label="$t('单位')"
                     width="170"
+                    :label="$t('单位')"
+                    :render-header="renderUnitHeader"
                     prop="unit"
                   >
                     <template slot-scope="scope">
                       <div
-                        class="cell-margin"
                         v-if="unit.value && unit.index === scope.$index && scope.row.monitor_type === 'metric'"
+                        class="cell-margin"
                         @mouseleave="handleMouseLeave"
                       >
                         <bk-select
                           v-model="scope.row.unit"
                           :clearable="false"
                           :popover-width="180"
+                          searchable
                           @toggle="handleToggleChange"
                         >
                           <bk-option-group
                             v-for="(group, index) in unitList"
-                            :name="group.name"
                             :key="index"
+                            :name="group.name"
                           >
                             <bk-option
                               v-for="option in group.formats"
-                              :key="option.id"
                               :id="option.id"
+                              :key="option.id"
                               :name="option.name"
                             />
                           </bk-option-group>
@@ -611,12 +676,22 @@
                     </template>
                   </bk-table-column>
                   <!-- 空数据 -->
-                  <div
-                    slot="empty"
+                  <!-- <div
                     class="empty"
+                    slot="empty"
                   >
                     <i class="icon-monitor icon-remind empty-icon" />
                     <div>{{ $t('暂无指标/维度') }}</div>
+                  </div> -->
+                  <div slot="empty">
+                    <empty-status
+                      :text-map="{
+                        empty: $t('暂无指标/维度'),
+                        'search-empty': $t('搜索结果为空'),
+                      }"
+                      :type="emptyType"
+                      @operation="handleEmptyOperation"
+                    ></empty-status>
                   </div>
                 </bk-table>
               </div>
@@ -629,9 +704,7 @@
                   <li class="host-type">
                     {{ $t('数据') }}
                   </li>
-                  <li class="data-time">
-                    {{ $t('数据时间:') }}{{ detailData.last_time || $t('无数据') }}
-                  </li>
+                  <li class="data-time">{{ $t('数据时间:') }}{{ detailData.last_time || $t('无数据') }}</li>
                 </ul>
                 <template v-if="metricTable.length">
                   <div v-bkloading="{ isLoading: dataLoading }">
@@ -640,8 +713,8 @@
                       class="space-item"
                     />
                     <div
-                      class="data-preview"
                       v-for="(item, index) in metricTable"
+                      class="data-preview"
                       :key="index"
                     >
                       {{ allDataPreview[item.name] || $t('近5分钟无数据上报') }}
@@ -655,18 +728,18 @@
               </div>
             </div>
             <bk-pagination
-              v-show="metricTable.length"
               class="list-pagination"
-              align="right"
-              size="small"
-              show-total-count
-              pagination-able
-              @change="handlePageChange"
-              @limit-change="handleLimitChange"
+              v-show="metricTable.length"
+              :count="pagination.total"
               :current="pagination.page"
               :limit="pagination.pageSize"
-              :count="pagination.total"
               :limit-list="pagination.pageList"
+              align="right"
+              size="small"
+              pagination-able
+              show-total-count
+              @change="handlePageChange"
+              @limit-change="handleLimitChange"
             />
           </div>
         </template>
@@ -676,18 +749,20 @@
           v-bk-tooltips="{
             content: $tc('非当前业务，不允许操作'),
             placements: ['top'],
-            disabled: !isReadonly
+            disabled: !isReadonly,
           }"
         >
           <bk-button
             v-if="type === 'customTimeSeries'"
-            @click="
-              authority.MANAGE_CUSTOM_METRIC ? handleSubmit() : handleShowAuthorityDetail(customAuthMap.MANAGE_CUSTOM_METRIC)
-            "
+            class="mc-btn-add"
             v-authority="{ active: !authority.MANAGE_CUSTOM_METRIC }"
             :disabled="isReadonly"
             theme="primary"
-            class="mc-btn-add"
+            @click="
+              authority.MANAGE_CUSTOM_METRIC
+                ? handleSubmit()
+                : handleShowAuthorityDetail(customAuthMap.MANAGE_CUSTOM_METRIC)
+            "
           >
             {{ $t('提交') }}
           </bk-button>
@@ -701,8 +776,8 @@
         <!-- 右边展开收起按钮 -->
         <div
           class="right-button"
-          @click="isShowRightWindow = !isShowRightWindow"
           :class="{ 'active-buttom': isShowRightWindow }"
+          @click="isShowRightWindow = !isShowRightWindow"
         >
           <i
             v-if="isShowRightWindow"
@@ -732,9 +807,13 @@
           <div
             class="content-title"
             :class="detailData.protocol !== 'prometheus' ? 'content-interval' : ''"
-          >{{ $t('使用方法') }}</div>
+          >
+            {{ $t('使用方法') }}
+          </div>
           <div class="content-row">
-            <span>{{ detailData.protocol === 'prometheus' ? $t('不同云区域上报端点信息') : $t('不同云区域Proxy信息') }}</span>
+            <span>{{
+              detailData.protocol === 'prometheus' ? $t('不同云区域上报端点信息') : $t('不同云区域Proxy信息')
+            }}</span>
             <div class="content-example">
               <div
                 v-for="(item, index) in proxyInfo"
@@ -745,13 +824,11 @@
             </div>
           </div>
           <div
-            class="content-row"
             v-if="detailData.protocol !== 'prometheus'"
+            class="content-row"
           >
             <span>{{ $t('命令行直接调用样例') }}</span>
-            <div class="content-example">
-              curl -g -X POST http://${PROXY_IP}:10205/v2/push/ -d '${REPORT_DATA}'
-            </div>
+            <div class="content-example">curl -g -X POST http://${PROXY_IP}:10205/v2/push/ -d "${REPORT_DATA}"</div>
           </div>
           <div v-if="detailData.protocol === 'prometheus'">
             <div class="content-title content-interval">
@@ -759,41 +836,55 @@
             </div>
             <div class="content-row">
               <pre class="content-example">
-http://${PROXY_IP}:4318
-</pre>
+                http://${PROXY_IP}:4318
+              </pre>
             </div>
             <div class="content-row mt10">
               <div class="content-title content-interval">
                 {{ $t('sdk接入流程') }}
               </div>
-              <div>{{ $t('用户使用 prometheus 原始 SDK 上报即可，不过需要指定蓝鲸的上报端点（$host:$port）以及 HTTP Headers。') }}</div>
+              <div>
+                {{
+                  $t(
+                    '用户使用 prometheus 原始 SDK 上报即可，不过需要指定蓝鲸的上报端点（$host:$port）以及 HTTP Headers。'
+                  )
+                }}
+              </div>
               <pre class="content-example">
-X-BK-TOKEN=$TOKEN
-</pre>
+              X-BK-TOKEN=$TOKEN
+              </pre>
               <div class="mt10">
-                {{$t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/')}}
+                {{ $t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/') }}
               </div>
             </div>
 
             <div class="content-row mt10">
-              <div>{{ $t('各语言接入示例') }} : </div>
+              <div>{{ $t('各语言接入示例') }} :</div>
+              <div class="mt5">Golang</div>
               <div class="mt5">
-                Golang
+                {{
+                  $t(
+                    '1. 补充 headers，用于携带 token 信息。定义 Client 行为，由于 prometheus sdk 没有提供新增或者修改 Headers 的方法，所以需要实现 Do() interface，代码示例如下：'
+                  )
+                }}
               </div>
               <div class="mt5">
-                {{ $t('1. 补充 headers，用于携带 token 信息。定义 Client 行为，由于 prometheus sdk 没有提供新增或者修改 Headers 的方法，所以需要实现 Do() interface，代码示例如下：')}}
-              </div>
-              <div class="mt5">
-                {{$t('2. 填写上报端点，在 `push.New("$endpoint", name)` 里指定。然后需要将自定义的 client 传入到 `pusher.Client($bkClient{})` 里面。')}}
+                {{
+                  $t(
+                    '2. 填写上报端点，在 `push.New("$endpoint", name)` 里指定。然后需要将自定义的 client 传入到 `pusher.Client($bkClient{})` 里面。'
+                  )
+                }}
               </div>
               <div class="content-prometheus">
                 <pre class="content-example">
-{{sdkData.preGoOne}}
-</pre>
+                  {{ sdkData.preGoOne }}
+                </pre>
                 <div
                   class="content-copy-prometheus"
                   @click="handleCopyPrometheus('golangCopy')"
-                >{{ $t('复制') }}</div>
+                >
+                  <i class="icon-monitor icon-mc-copy"></i>
+                </div>
                 <textarea
                   ref="golangCopy"
                   class="copy-textarea"
@@ -803,17 +894,25 @@ X-BK-TOKEN=$TOKEN
             <div class="content-row">
               <div>Python</div>
               <div class="mt5">
-                {{ $t('1. 补充 headers，用于携带 token 信息。实现一个自定义的 handler。')}}
+                {{ $t('1. 补充 headers，用于携带 token 信息。实现一个自定义的 handler。') }}
               </div>
-              <div>{{ $t('2. 填写上报端点，在 `push_to_gateway("$endpoint", ...)` 里指定。然后将自定义的 handler 传入到函数里。')}}</div>
+              <div>
+                {{
+                  $t(
+                    '2. 填写上报端点，在 `push_to_gateway("$endpoint", ...)` 里指定。然后将自定义的 handler 传入到函数里。'
+                  )
+                }}
+              </div>
               <div class="content-prometheus">
                 <pre class="content-example">
-{{sdkData.prePythonOne}}
-</pre>
+                  {{ sdkData.prePythonOne }}
+                </pre>
                 <div
                   class="content-copy-prometheus"
                   @click="handleCopyPrometheus('pythonCopy')"
-                >{{ $t('复制') }}</div>
+                >
+                  <i class="icon-monitor icon-mc-copy"></i>
+                </div>
                 <textarea
                   ref="pythonCopy"
                   class="copy-textarea"
@@ -822,17 +921,19 @@ X-BK-TOKEN=$TOKEN
             </div>
           </div>
           <div
-            class="content-row"
             v-else
+            class="content-row"
           >
             <span>{{ $t('数据上报格式样例') }}</span>
             <pre class="content-example">
-{{ preData }}
-</pre>
+              {{ preData }}
+            </pre>
             <div
               class="content-copy"
               @click="handleCopyData"
-            >{{ $t('复制') }}</div>
+            >
+              <i class="icon-monitor icon-mc-copy"></i>
+            </div>
             <textarea
               ref="textCopy"
               class="copy-textarea"
@@ -843,46 +944,57 @@ X-BK-TOKEN=$TOKEN
     </div>
     <group-manage-dialog
       v-if="type === 'customTimeSeries'"
-      :show="groupManage.show"
-      :metric-list="metricList"
       :groups="groupList"
       :id="detailData.time_series_group_id"
-      @show="handleShowGroupManage"
+      :metric-list="metricList"
+      :show="groupManage.show"
       @change="handleGroupListChange"
+      @show="handleShowGroupManage"
     />
   </div>
 </template>
 
 <script lang="ts">
-import { CreateElement } from 'vue';
 import { Component, Mixins, Ref } from 'vue-property-decorator';
+
+import SearchSelect from '@blueking/search-select-v3/vue2';
 import dayjs from 'dayjs';
-import {   createOrUpdateGroupingRule,  customTsGroupingRuleList,
+import {
+  createOrUpdateGroupingRule,
+  customTsGroupingRuleList,
   modifyCustomTsGroupingRuleList,
   validateCustomEventGroupLabel,
-  validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
+  validateCustomTsGroupLabel,
+  modifyCustomTimeSeriesDesc,
+} from 'monitor-api/modules/custom_report';
 
 import MonacoEditor from '../../components/editors/monaco-editor.vue';
+import EmptyStatus from '../../components/empty-status/empty-status';
 import MonitorExport from '../../components/monitor-export/monitor-export.vue';
 import MonitorImport from '../../components/monitor-import/monitor-import.vue';
 import TableFiter from '../../components/table-filter/table-filter-new.vue';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_NAV_ROUTE_LIST } from '../../store/modules/app';
-import {
+import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
+import ColumnCheck from '../performance/column-check/column-check.vue';
+import { downCsvFile } from '../view-detail/utils';
+import * as customAuth from './authority-map';
+import GroupManageDialog, { matchRuleFn } from './group-manage-dialog';
+import GroupSelectMultiple from './group-select-multiple';
+import { csvToArr } from './utils';
+
+import type { EmptyStatusOperationType } from '../../components/empty-status/types';
+import type {
   IDetailData,
   IEditParams,
   IParams,
   IRefreshList,
   IShortcuts,
-  ISideslider } from '../../types/custom-escalation/custom-escalation-detail';
-import CommonNavBar from '../monitor-k8s/components/common-nav-bar';
-import ColumnCheck from '../performance/column-check/column-check.vue';
-import { downCsvFile } from '../view-detail/utils';
+  ISideslider,
+} from '../../types/custom-escalation/custom-escalation-detail';
+import type { CreateElement } from 'vue';
 
-import * as customAuth from './authority-map';
-import GroupManageDialog, { matchRuleFn } from './group-manage-dialog';
-import GroupSelectMultiple from './group-select-multiple';
-import { csvToArr } from './utils';
+import '@blueking/search-select-v3/vue2/vue2.css';
 
 const NULL_LABEL = '__null_label__';
 
@@ -900,12 +1012,15 @@ interface IGroupListItem {
     MonitorImport,
     CommonNavBar,
     GroupManageDialog,
-    GroupSelectMultiple
-  }
+    GroupSelectMultiple,
+    SearchSelect,
+    EmptyStatus,
+  },
 })
 export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(customAuth)) {
   @Ref('nameInput') readonly nameInput!: HTMLInputElement;
   @Ref() readonly dataLabelInput!: HTMLInputElement;
+  @Ref() readonly describeInput!: HTMLInputElement;
   @Ref('textCopy') readonly textCopy!: HTMLTextAreaElement;
   @Ref('golangCopy') readonly golangCopy!: HTMLTextAreaElement;
   @Ref('pythonCopy') readonly pythonCopy!: HTMLTextAreaElement;
@@ -915,11 +1030,13 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   // type = 'customEvent' // 展示类型：customEvent 自定义事件 customTimeSeries 自定义指标
   copyName = ''; // 修改的名字
   copyDataLabel = ''; // 修改的英文名
+  copyDescribe = ''; // 修改的描述
   copyIsPlatform = false; // 是否为平台指标、事件
   isShowEditName = false; // 是否显示名字编辑框
   isShowRightWindow = true; // 是否显示右侧帮助栏
   isShowEditDataLabel = false; // 是否展示英文名编辑框
   isShowEditIsPlatform = false; // 是否展示平台师表
+  isShowEditDesc = false; // 是否展示描述编辑框
   scenario = ''; // 分类
   protocol = ''; // 上报协议
   proxyInfo = []; // 云区域分类数据
@@ -936,14 +1053,14 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     data_label: '',
     is_platform: false,
     protocol: '',
-    last_time: ''
+    last_time: '',
   };
 
   //  侧滑栏内容数据 事件数据
   sideslider: ISideslider = {
     isShow: false,
     title: '',
-    data: {} //  原始数据
+    data: {}, //  原始数据
   };
 
   //  事件列表数据 事件数据
@@ -956,20 +1073,20 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   unit = {
     value: true,
     index: -1,
-    toggle: false
+    toggle: false,
   };
 
   //  时间选择器选择项
   shortcuts: IShortcuts = {
     list: [],
-    value: 1
+    value: 1,
   };
   refreshList: IRefreshList;
   pagination = {
     page: 1,
     pageSize: 20,
     total: 100,
-    pageList: [10, 20, 50, 100]
+    pageList: [10, 20, 50, 100],
   };
   tableId = '';
   metricValue = {};
@@ -980,39 +1097,27 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   groupSelectList: any = [
     {
       id: '',
-      name: '未分组'
-    }
+      name: '未分组',
+    },
   ];
 
   allCheckValue: 0 | 1 | 2 = 0; // 0: 取消全选 1: 半选 2: 全选
   metricCheckList: any = [];
   groupFilterList: string[] = [];
   metricFilterList: string[] = [];
+  unitFilterList: string[] = [];
   groupManage = {
-    show: false
+    show: false,
   };
   metricSearchValue = [];
   /* 筛选条件(简化) */
   metricSearchObj = {
     type: [],
-    name: []
+    name: [],
+    enName: [],
+    unit: [],
+    text: [],
   };
-  metricSearchData = [{
-    name: window.i18n.t('匹配方式'),
-    id: 'type',
-    multiable: false,
-    children: [
-      { id: 'auto', name: window.i18n.t('自动') },
-      { id: 'manual', name: window.i18n.t('手动') }
-    ]
-  },
-  {
-    name: window.i18n.t('组名'),
-    id: 'name',
-    multiable: false,
-    children: []
-  }];
-
   /* 分组管理列表 */
   groupList: IGroupListItem[] = [];
   /* 每个匹配规则包含指标 */
@@ -1032,6 +1137,43 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   allDataPreview = {};
 
   eventDataLoading = false;
+
+  /* 所有单位数据 */
+  allUnitList = [];
+  /* 列表中已选的单位数据 */
+  tableAllUnitList = [];
+
+  get metricSearchData() {
+    return [
+      {
+        name: window.i18n.t('匹配方式'),
+        id: 'type',
+        multiple: false,
+        children: [
+          { id: 'auto', name: window.i18n.t('自动') },
+          { id: 'manual', name: window.i18n.t('手动') },
+        ],
+      },
+      {
+        name: window.i18n.t('组名'),
+        id: 'name',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('英文名'),
+        id: 'enName',
+        multiple: false,
+        children: [],
+      },
+      {
+        name: window.i18n.t('单位'),
+        id: 'unit',
+        multiple: false,
+        children: this.allUnitList,
+      },
+    ];
+  }
   //  指标数量
   get metricNum() {
     return this.metricData.filter(item => item.monitor_type === 'metric').length;
@@ -1047,26 +1189,78 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     return this.metricData.map(item => item.description);
   }
   get metricTable() {
-    const labelsMatchTypes = (labels) => {
+    const labelsMatchTypes = labels => {
       let temp = [];
-      labels.forEach((item) => {
+      for (const item of labels) {
         temp = temp.concat(item.match_type);
-      });
+      }
       temp = [...new Set(temp)];
       return temp;
     };
+    // 模糊匹配
+    const fuzzyMatch = (str: string, pattern: string) => {
+      const lowerStr = String(str).toLowerCase();
+      const lowerPattern = String(pattern).toLowerCase();
+      return lowerStr.includes(lowerPattern);
+    };
     const leng1 = this.groupFilterList.length;
     const leng2 = this.metricFilterList.length;
+    const leng3 = this.unitFilterList.length;
     const typeLeng = this.metricSearchObj.type.length;
     const nameLeng = this.metricSearchObj.name.length;
-    const fiterList = this.metricData
-      .filter(item => (leng1 ? this.groupFilterList.some(g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)) && item.monitor_type === 'metric' : true))
-      .filter(item => (leng2 ? this.metricFilterList.includes(item.monitor_type) : true))
-      .filter(item => (typeLeng ? (item.monitor_type === 'metric' && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))) : true))
-      .filter(item => (nameLeng ? (item.monitor_type === 'metric' && this.metricSearchObj.name.some(n => item.labels.map(l => l.name).includes(n))) : true));
-    this.changePageCount(fiterList.length);
+    const enNameLeng = this.metricSearchObj.enName.length;
+    const unitLeng = this.metricSearchObj.unit.length;
+    const textleng = this.metricSearchObj.text.length;
+    const filterList = this.metricData.filter(item => {
+      const isMetric = item.monitor_type === 'metric';
+      return (
+        (leng1
+          ? this.groupFilterList.some(
+              g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+            ) && isMetric
+          : true) &&
+        (leng2 ? this.metricFilterList.includes(item.monitor_type) : true) &&
+        (leng3
+          ? this.unitFilterList.some(u => {
+              if (u === 'none') {
+                return isMetric && (item.unit === 'none' || !item.unit);
+              }
+              if (u === '--') {
+                return !isMetric;
+              }
+              return item.unit === u;
+            })
+          : true) &&
+        (typeLeng
+          ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
+          : true) &&
+        (nameLeng
+          ? isMetric && this.metricSearchObj.name.some(n => item.labels.some(l => fuzzyMatch(l.name, n)))
+          : true) &&
+        (enNameLeng ? this.metricSearchObj.enName.some(n => fuzzyMatch(item.name, n)) : true) &&
+        (unitLeng
+          ? isMetric && this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || (isMetric ? 'none' : ''), u))
+          : true) &&
+        (textleng
+          ? this.metricSearchObj.text.some(t => {
+              const monitorType = {
+                指标: 'metric',
+                维度: 'dimension',
+              };
+              return (
+                item.monitor_type === t ||
+                monitorType?.[t] === item.monitor_type ||
+                (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+                fuzzyMatch(item.name, t) ||
+                fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
+              );
+            })
+          : true)
+      );
+    });
+    this.changePageCount(filterList.length);
     // this.handleGroupList(fiterList);
-    return fiterList.slice(
+    return filterList.slice(
       this.pagination.pageSize * (this.pagination.page - 1),
       this.pagination.pageSize * this.pagination.page
     );
@@ -1083,6 +1277,24 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
 
   get isReadonly() {
     return !!this.detailData.is_readonly;
+  }
+
+  get emptyType() {
+    let emptyType = 'empty';
+    for (const key in this.metricSearchObj) {
+      if (this.metricSearchObj[key].length) {
+        emptyType = 'search-empty';
+        break;
+      }
+    }
+    if (this.groupFilterList.length || this.metricFilterList.length || this.unitFilterList.length) {
+      emptyType = 'search-empty';
+    }
+    return emptyType;
+  }
+
+  get tableVirtualRenderHeight() {
+    return this.eventData.length ? Math.min(600, (this.eventData.length + 1) * 43 + 10) : undefined;
   }
 
   // @Watch('metricTable')
@@ -1112,37 +1324,37 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     this.shortcuts.list = [
       {
         value: 1,
-        name: this.$tc('近 1 小时')
+        name: this.$tc('近 1 小时'),
       },
       {
         value: 12,
-        name: this.$tc('近 12 小时')
+        name: this.$tc('近 12 小时'),
       },
       {
         value: 24,
-        name: this.$tc('近 1 天')
+        name: this.$tc('近 1 天'),
       },
       {
         value: 168,
-        name: this.$tc('近 7 天')
-      }
+        name: this.$tc('近 7 天'),
+      },
     ];
     this.refreshList = {
       list: [
         {
           value: 0,
-          name: this.$tc('不刷新')
+          name: this.$tc('不刷新'),
         },
         {
           value: 60,
-          name: this.$tc('每分钟')
+          name: this.$tc('每分钟'),
         },
         {
           value: 300,
-          name: this.$tc('每五分钟')
-        }
+          name: this.$tc('每五分钟'),
+        },
       ],
-      value: 0
+      value: 0,
     };
   }
 
@@ -1156,17 +1368,17 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       props: {
         title: this.$t('分组'),
         value: this.groupFilterList,
-        list: [{ id: NULL_LABEL, name: this.$t('未分组') }, ...this.groupSelectList]
+        list: [{ id: NULL_LABEL, name: this.$t('未分组') }, ...this.groupSelectList],
       },
       on: {
-        change: (v) => {
+        change: v => {
           setTimeout(() => {
             this.pagination.page = 1;
             this.groupFilterList = v;
             this.updateAllSelection();
           }, 300);
-        }
-      }
+        },
+      },
     });
   }
 
@@ -1177,18 +1389,18 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
         value: this.metricFilterList,
         list: [
           { id: 'metric', name: this.$t('指标') },
-          { id: 'dimension', name: this.$t('维度') }
-        ]
+          { id: 'dimension', name: this.$t('维度') },
+        ],
       },
       on: {
-        change: (v) => {
+        change: v => {
           setTimeout(() => {
             this.pagination.page = 1;
             this.metricFilterList = v;
             this.updateAllSelection();
           }, 300);
-        }
-      }
+        },
+      },
     });
   }
 
@@ -1197,11 +1409,30 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       props: {
         list: [],
         value: this.allCheckValue,
-        defaultType: 'current'
+        defaultType: 'current',
       },
       on: {
-        change: this.handleCheckChange
-      }
+        change: this.handleCheckChange,
+      },
+    });
+  }
+
+  renderUnitHeader(h: CreateElement) {
+    return h(TableFiter, {
+      props: {
+        title: this.$t('单位'),
+        value: this.unitFilterList,
+        list: this.tableAllUnitList,
+      },
+      on: {
+        change: v => {
+          setTimeout(() => {
+            this.pagination.page = 1;
+            this.unitFilterList = v;
+            this.updateAllSelection();
+          }, 300);
+        },
+      },
     });
   }
 
@@ -1274,8 +1505,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   //  从新建和列表页进来会去获取最近 1小时 拉取的事件
   getTimeParams() {
     const dateNow = dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
-    const lastDate = dayjs.tz(dateNow).add(-this.shortcuts.value, 'h')
-      .format('YYYY-MM-DD HH:mm:ss');
+    const lastDate = dayjs.tz(dateNow).add(-this.shortcuts.value, 'h').format('YYYY-MM-DD HH:mm:ss');
     return `${lastDate} -- ${dateNow}`;
   }
 
@@ -1291,13 +1521,15 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       const params: IParams = {
         // 自定义事件初次进入会请求最近1小时的数据
         time_range: this.getTimeParams(),
-        bk_event_group_id: this.$route.params.id
+        bk_event_group_id: this.$route.params.id,
       };
       promiseItem.push(this.$store.dispatch('custom-escalation/getCustomEventDetail', params));
     } else {
-      promiseItem.push(this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
-        time_series_group_id: this.$route.params.id
-      }));
+      promiseItem.push(
+        this.$store.dispatch('custom-escalation/getCustomTimeSeriesDetail', {
+          time_series_group_id: this.$route.params.id,
+        })
+      );
       promiseItem.push(this.$store.dispatch('strategy-config/getUnitList'));
     }
     try {
@@ -1308,15 +1540,56 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
       this.updateNavData(`${this.$t('查看')} ${this.detailData.name}`);
       if (this.type === 'customTimeSeries') {
         [, , this.unitList] = data; // 单位list
-        // eslint-disable-next-line vue/max-len
+        const allUnitList = [];
+        const allUnitListMap = new Map();
+        for (const groupItem of this.unitList) {
+          for (const unitItem of groupItem?.formats || []) {
+            if (unitItem.id) {
+              allUnitList.push({
+                id: unitItem.id,
+                name: unitItem.name,
+              });
+              allUnitListMap.set(unitItem.id, unitItem.name);
+            }
+          }
+        }
+        this.allUnitList = allUnitList;
         title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${
           this.detailData.time_series_group_id
         } ${this.detailData.name}`;
-        this.metricList = this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
+        this.metricList =
+          this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
+
+        // 获取表格内的单位数据
+        const tempSet = new Set();
+        const tableAllUnitList = [];
+        for (const metricItem of this.metricList) {
+          if (!tempSet.has(metricItem.unit)) {
+            const unitName = allUnitListMap.get(metricItem.unit);
+            if (unitName) {
+              tableAllUnitList.push({
+                id: metricItem.unit,
+                name: unitName,
+              });
+            }
+          }
+          tempSet.add(metricItem.unit);
+        }
+        this.tableAllUnitList = [
+          ...tableAllUnitList,
+          {
+            id: 'none',
+            name: 'none',
+          },
+          {
+            id: '--',
+            name: '--',
+          },
+        ];
+
         await this.getGroupList();
         await this.getAllDataPreview(this.detailData.metric_json[0].fields, this.detailData.table_id);
       } else {
-        // eslint-disable-next-line vue/max-len
         title = `${this.$tc('route-' + '自定义事件').replace('route-', '')} - #${this.detailData.bk_event_group_id} ${
           this.detailData.name
         }`;
@@ -1332,11 +1605,12 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
   /* 获取分组管理数据 */
   async getGroupList() {
     const data = await customTsGroupingRuleList({
-      time_series_group_id: this.detailData.time_series_group_id }).catch(() => []);
+      time_series_group_id: this.detailData.time_series_group_id,
+    }).catch(() => []);
     this.groupList = data.map(item => ({
       name: item.name,
       matchRules: item.auto_rules,
-      manualList: item.manual_list
+      manualList: item.manual_list,
     }));
     this.groupsDataTidy();
   }
@@ -1346,29 +1620,32 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     const metricNames = this.metricList.map(item => item.name);
     const allMatchRulesSet = new Set();
     const metricGroupsMap = new Map();
-    this.groupList.forEach((item) => {
-      item.matchRules.forEach((rule) => {
+    this.groupList.forEach(item => {
+      item.matchRules.forEach(rule => {
         allMatchRulesSet.add(rule);
       });
     });
     const allMatchRules = Array.from(allMatchRulesSet);
     /* 整理每个匹配规则配的指标数据 */
-    allMatchRules.forEach((rule) => {
-      this.matchRulesMap.set(rule, metricNames.filter(name => matchRuleFn(name, rule)));
+    allMatchRules.forEach(rule => {
+      this.matchRulesMap.set(
+        rule,
+        metricNames.filter(name => matchRuleFn(name, rule))
+      );
     });
     /* 整理每个组包含的指标 */
-    this.groupList.forEach((item) => {
+    this.groupList.forEach(item => {
       const tempSet = new Set();
-      item.matchRules.forEach((rule) => {
+      item.matchRules.forEach(rule => {
         const metrics = this.matchRulesMap.get(rule) || [];
-        metrics.forEach((m) => {
+        metrics.forEach(m => {
           tempSet.add(m);
         });
       });
       const matchRulesOfMetrics = Array.from(tempSet) as string[];
       this.groupsMap.set(item.name, {
         ...item,
-        matchRulesOfMetrics
+        matchRulesOfMetrics,
       });
       /* 写入每个指标包含的组 */
       const setMetricGroup = (m, type) => {
@@ -1377,36 +1654,36 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           const { groups, matchType } = metricItem;
           const targetGroups = [...new Set(groups.concat([item.name]))];
           const targetMatchType = JSON.parse(JSON.stringify(matchType));
-          targetGroups.forEach((t) => {
+          targetGroups.forEach(t => {
             if (t === item.name) {
               targetMatchType[t as string] = [...new Set((matchType[t as string] || []).concat([type]))];
             }
           });
           metricGroupsMap.set(m, {
             groups: targetGroups,
-            matchType: targetMatchType
+            matchType: targetMatchType,
           });
         } else {
           const matchTypeObj = {
-            [item.name]: [type]
+            [item.name]: [type],
           };
           metricGroupsMap.set(m, {
             groups: [item.name],
-            matchType: matchTypeObj
+            matchType: matchTypeObj,
           });
         }
       };
-      matchRulesOfMetrics.forEach((m) => {
+      matchRulesOfMetrics.forEach(m => {
         setMetricGroup(m, 'auto');
       });
-      item.manualList.forEach((m) => {
+      item.manualList.forEach(m => {
         setMetricGroup(m, 'manual');
       });
     });
     this.metricGroupsMap = metricGroupsMap;
     this.groupSelectList = this.groupList.map(item => ({
       id: item.name,
-      name: item.name
+      name: item.name,
     }));
   }
 
@@ -1419,7 +1696,7 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     ];
     routeList.push({
       name,
-      id: ''
+      id: '',
     });
     this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
   }
@@ -1434,8 +1711,9 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           ...item,
           selection: false,
           descReValue: false,
-          labels: []
-        }));
+          labels: [],
+        })
+      );
       this.setMetricDataLabels();
       this.pagination.total = this.metricData.length;
       if (!this.metricData.length) {
@@ -1446,15 +1724,17 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
     this.eventData = detailData.event_info_list;
     this.copyName = this.detailData.name;
     this.copyDataLabel = this.detailData.data_label || '';
+    this.copyDescribe = this.detailData.desc || '';
     this.copyIsPlatform = this.detailData.is_platform ?? false;
-    const str = this.type === 'customEvent'
-      ? `# ${this.$t('事件标识名，最大长度128')}
+    const str =
+      this.type === 'customEvent'
+        ? `# ${this.$t('事件标识名，最大长度128')}
                 "event_name": "input_your_event_name",
                 "event": {
                     # ${this.$t('事件内容，必需项')}
                     "content": "user xxx login failed"
                 },`
-      : `# ${this.$t('指标，必需项')}
+        : `# ${this.$t('指标，必需项')}
         "metrics": {
             "cpu_load": 10
         },`;
@@ -1539,16 +1819,17 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   }
 
   /* 获取所有数据预览数据 */
-  async getAllDataPreview(fields: { monitor_type: 'metric' | 'dimension', name: string }[], tableId) {
+  async getAllDataPreview(fields: { monitor_type: 'dimension' | 'metric'; name: string }[], tableId) {
     const fieldList = fields.filter(item => item.monitor_type === 'metric').map(item => item.name);
     const data = await this.$store.dispatch('custom-escalation/getCustomTimeSeriesLatestDataByFields', {
       result_table_id: tableId,
-      fields_list: fieldList
+      fields_list: fieldList,
     });
     this.allDataPreview = data?.fields_value || {};
-    this.detailData.last_time = typeof data?.last_time === 'number'
-      ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
-      : data?.last_time;
+    this.detailData.last_time =
+      typeof data?.last_time === 'number'
+        ? dayjs.tz(data.last_time * 1000).format('YYYY-MM-DD HH:mm:ss')
+        : data?.last_time;
   }
 
   //  点击icon展示name编辑
@@ -1563,6 +1844,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.isShowEditDataLabel = true;
     this.$nextTick(() => {
       this.dataLabelInput.focus();
+    });
+  }
+  /** 点击显示描述的编辑 */
+  handleShowEditDes() {
+    this.isShowEditDesc = true;
+    this.$nextTick(() => {
+      this.describeInput.focus();
     });
   }
   /** 编辑是否为平台指标、事件 */
@@ -1586,15 +1874,16 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       this.$bkMessage({ theme: 'error', message: this.$tc('输入非中文符号') });
       return;
     }
-    const ExistPass = this.type === 'customEvent'
-      ? await validateCustomEventGroupLabel({
-        data_label: this.copyDataLabel,
-        bk_event_group_id: this.detailData.bk_event_group_id
-      }).catch(() => false)
-      : await validateCustomTsGroupLabel({
-        data_label: this.copyDataLabel,
-        time_series_group_id: this.detailData.time_series_group_id
-      }).catch(() => false);
+    const ExistPass =
+      this.type === 'customEvent'
+        ? await validateCustomEventGroupLabel({
+            data_label: this.copyDataLabel,
+            bk_event_group_id: this.detailData.bk_event_group_id,
+          }).catch(() => false)
+        : await validateCustomTsGroupLabel({
+            data_label: this.copyDataLabel,
+            time_series_group_id: this.detailData.time_series_group_id,
+          }).catch(() => false);
     if (!ExistPass) {
       return;
     }
@@ -1616,17 +1905,20 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
     //  名字是否重复校验
     let isOkName = true;
-    const res =      this.type === 'customEvent'
-      ? await this.$store
-        .dispatch('custom-escalation/validateCustomEventName', {
-          params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id }
-        }).then(res => res.result ?? true)
-        .catch(() => false)
-      : await this.$store
-        .dispatch('custom-escalation/validateCustomTimetName', {
-          params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id }
-        }).then(res => res.result ?? true)
-        .catch(() => false);
+    const res =
+      this.type === 'customEvent'
+        ? await this.$store
+            .dispatch('custom-escalation/validateCustomEventName', {
+              params: { name: this.copyName, bk_event_group_id: this.detailData.bk_event_group_id },
+            })
+            .then(res => res.result ?? true)
+            .catch(() => false)
+        : await this.$store
+            .dispatch('custom-escalation/validateCustomTimetName', {
+              params: { name: this.copyName, time_series_group_id: this.detailData.time_series_group_id },
+            })
+            .then(res => res.result ?? true)
+            .catch(() => false);
     if (!res) {
       isOkName = false;
     }
@@ -1642,7 +1934,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         bk_event_group_id: this.detailData.bk_event_group_id,
         name: this.copyName,
         scenario: this.detailData.scenario,
-        is_enable: true
+        is_enable: true,
       };
       this.loading = true;
       await this.$store.dispatch('custom-escalation/editCustomEvent', params);
@@ -1650,7 +1942,36 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.detailData.name = this.copyName;
     this.isShowEditName = false;
     this.loading = false;
-  };
+  }
+
+  /* 保存描述信息 */
+  async handleSaveDesc() {
+    const params = {
+      bk_biz_id: this.detailData.bk_biz_id,
+      time_series_group_id: this.detailData.time_series_group_id,
+      desc: this.copyDescribe,
+    };
+    return await modifyCustomTimeSeriesDesc(params).catch(({ message }) => {
+      this.$bkMessage({ message, theme: 'error' });
+    });
+  }
+
+  // 编辑描述
+  async handleEditDescribe() {
+    if (!this.copyDescribe.trim() || this.copyDescribe.trim() === this.detailData.desc) {
+      this.copyDescribe = this.detailData.desc;
+      this.isShowEditDesc = false;
+      return;
+    }
+    this.isShowEditDesc = false;
+    const data = await this.handleSaveDesc();
+    if (data) {
+      this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+      this.detailData.desc = this.copyDescribe;
+      return;
+    }
+    this.copyDescribe = this.detailData.desc;
+  }
 
   /** 保存自定义事件编辑 */
   handleSave(data: Record<string, any> = {}) {
@@ -1660,7 +1981,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       data_label: this.detailData.data_label ?? '',
       is_platform: this.detailData.is_platform ?? false,
       scenario: this.detailData.scenario,
-      is_enable: true
+      is_enable: true,
     };
     Object.assign(params, data);
     this.loading = true;
@@ -1683,13 +2004,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       method: 'COUNT',
       metric_field: row.custom_event_name,
       result_table_id: this.detailData.table_id,
-      result_table_label: this.detailData.scenario
+      result_table_label: this.detailData.scenario,
     };
     this.$router.push({
       name: 'strategy-config-add',
       params: {
-        data
-      }
+        data,
+      },
     });
   }
   // 跳转关联策略
@@ -1698,8 +2019,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.$router.push({
       name: 'strategy-config',
       params: {
-        bkStrategyId: row.related_strategies.map(id => id)
-      }
+        bkStrategyId: row.related_strategies.map(id => id),
+      },
     });
   }
 
@@ -1708,7 +2029,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     if (value === 0) return;
     clearTimeout(this.timer);
     this.timer = null;
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
     this.timer = setTimeout(async () => {
       await this.handleRefreshNow();
       this.handleRefreshChange(value);
@@ -1721,7 +2042,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       // 自定义事件初次进入会请求最近半小时的数据
       time_range: this.getTimeParams(),
       bk_event_group_id: this.$route.params.id,
-      need_refresh: isRefreshNow ? true : undefined
+      need_refresh: isRefreshNow ? true : undefined,
     };
     const detailData = await this.$store.dispatch('custom-escalation/getCustomEventDetail', params);
     this.eventData = detailData.event_info_list;
@@ -1733,7 +2054,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     const timeRange = this.getTimeParams();
     const params: IParams = {
       bk_event_group_id: this.$route.params.id,
-      time_range: timeRange
+      time_range: timeRange,
     };
     try {
       this.detailData = await this.$store.dispatch('custom-escalation/getCustomEventDetail', params);
@@ -1746,12 +2067,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
 
   //  复制数据上报样例
   handleCopyData() {
-    const str =      this.type === 'customEvent'
-      ? `"event_name": "input_your_event_name",
+    const str =
+      this.type === 'customEvent'
+        ? `"event_name": "input_your_event_name",
         "event": {
             "content": "user xxx login failed"
         },`
-      : `"metrics": {
+        : `"metrics": {
             "cpu_load": 10
         },`;
     const example = `{
@@ -1772,7 +2094,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     document.execCommand('copy');
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('样例复制成功')
+      message: this.$t('样例复制成功'),
     });
   }
 
@@ -1783,7 +2105,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     document.execCommand('copy');
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('样例复制成功')
+      message: this.$t('样例复制成功'),
     });
   }
   //  自定义指标保存
@@ -1791,7 +2113,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     if (!this.copyDataLabel) {
       this.$bkMessage({
         theme: 'error',
-        message: this.$t('填写英文名')
+        message: this.$t('填写英文名'),
       });
       return;
     }
@@ -1807,12 +2129,15 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       is_platform: this.copyIsPlatform,
       metric_json: [
         {
-          fields: this.metricData
-            .map(item => ({ ...item, label: (item?.labels?.map(l => l.name) || []), labels: undefined })),
+          fields: this.metricData.map(item => ({
+            ...item,
+            label: item?.labels?.map(l => l.name) || [],
+            labels: undefined,
+          })),
           table_name: 'base',
-          table_desc: '默认分类'
-        }
-      ]
+          table_desc: '默认分类',
+        },
+      ],
     };
     await this.handleSaveGroupManage();
     const data = await this.$store.dispatch('custom-escalation/editCustomTime', params);
@@ -1856,7 +2181,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   //  找到单位值对应的name
   handleFindUnitName(id) {
     let name = 'none';
-    this.unitList.forEach((group) => {
+    this.unitList.forEach(group => {
       const res = group.formats.find(item => item.id === id);
       if (res) {
         name = res.name;
@@ -1872,14 +2197,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     //     `${this.detailData.name}-${dayjs.tz().format('YYYY-MM-DD HH-mm-ss')}.json`
     //   );
     const allUnit = [];
-    this.unitList.forEach((group) => {
-      group.formats.forEach((item) => {
+    this.unitList.forEach(group => {
+      group.formats.forEach(item => {
         allUnit.push(item.id);
       });
     });
     let i = 0;
     let unitStr = ';';
-    allUnit.forEach((item) => {
+    allUnit.forEach(item => {
       i += 1;
       unitStr += `${item}、`;
       if (i > 4) {
@@ -1888,29 +2213,43 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
     });
     // const allUnitStr = allUnit.join('、');
-    const descStr = [this.$t('"单位可选类型: {unitStr}\n分组分隔方式(仅;分隔). \n导入时-表示不更新. 空单元格表示置空"', { unitStr }), '', '', '', '', ''].join(',');
+    const descStr = [
+      this.$t('"单位可选类型: {unitStr}\n分组分隔方式(仅;分隔). \n导入时-表示不更新. 空单元格表示置空"', { unitStr }),
+      '',
+      '',
+      '',
+      '',
+      '',
+    ].join(',');
     const transformTableDataToCsvStr = (tableThArr: string[], tableTdArr: Array<string[]>): string => {
       const csvList = [];
       csvList.push(descStr);
       csvList.push(['', '', '', '', '', '']);
       csvList.push(tableThArr.join(','));
-      tableTdArr.forEach((row) => {
+      tableTdArr.forEach(row => {
         const rowString = row.reduce((str, item, index) => str + (!!index ? ',' : '') + item, '');
         csvList.push(rowString);
       });
       const csvString = csvList.join('\n');
       return csvString;
     };
-    const thArr = [this.$t('指标/维度'), this.$t('分组'), this.$t('英文名'), this.$t('别名'), this.$t('类型'), this.$t('单位')];
+    const thArr = [
+      this.$t('指标/维度'),
+      this.$t('分组'),
+      this.$t('英文名'),
+      this.$t('别名'),
+      this.$t('类型'),
+      this.$t('单位'),
+    ];
     const tdArr = [];
-    this.metricData.forEach((item) => {
+    this.metricData.forEach(item => {
       const row = [
         item.monitor_type,
         item.labels.map(l => l.name).join(';') || '-',
         item.name,
         item.description || '-',
         item.type || '-',
-        item.unit || '-'
+        item.unit || '-',
       ];
       tdArr.push(row);
     });
@@ -1920,38 +2259,38 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   /* 导入数据时不在分组管理的分组需要自动新建此分组 */
   concatLabels(metricName: string, oldLabels: { name: string; match_type: string[] }[], target: string[]) {
     /* 添加分组 */
-    const addGroup = (name) => {
+    const addGroup = name => {
       this.groupList.push({
         manualList: [metricName],
         matchRules: [],
-        name
+        name,
       });
       this.groupsMap.set(name, {
         manualList: [metricName],
         matchRules: [],
         matchRulesOfMetrics: [],
-        name
+        name,
       });
       const params = {
         time_series_group_id: this.detailData.time_series_group_id,
         name,
         manual_list: [metricName],
-        auto_rules: []
+        auto_rules: [],
       };
       createOrUpdateGroupingRule(params);
     };
     const labels = [];
     labels.push(...oldLabels);
     const tempLabels = labels.map(item => item.name);
-    target.forEach((item) => {
-      if (!(/^[\u4E00-\u9FA5A-Za-z0-9_-]+$/g.test(item))) return;
+    target.forEach(item => {
+      if (!/^[\u4E00-\u9FA5A-Za-z0-9_-]+$/g.test(item)) return;
       if (tempLabels.includes(item)) {
         const setLabel = labels.find(l => l.name === item);
         setLabel.match_type = [...new Set(setLabel.match_type.concat(['manual']))];
       } else {
         labels.push({
           name: item,
-          match_type: ['manual']
+          match_type: ['manual'],
         });
       }
       if (!this.groupsMap.has(item)) {
@@ -1960,7 +2299,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     });
     const autoLabels = labels.filter(item => item.match_type.includes('auto')).map(item => item.name);
     const targetLabels = [];
-    labels.forEach((item) => {
+    labels.forEach(item => {
       if (autoLabels.includes(item.name) || target.includes(item.name)) {
         targetLabels.push(item);
       }
@@ -1970,13 +2309,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   /* 导入数据 */
   handleImportMetric(data: string) {
     const allUnit = [];
-    this.unitList.forEach((group) => {
-      group.formats.forEach((item) => {
+    this.unitList.forEach(group => {
+      group.formats.forEach(item => {
         allUnit.push(item.id);
       });
     });
     const arr = csvToArr(data);
-    arr.slice(3).forEach((row) => {
+    arr.slice(3).forEach(row => {
       const name = row[2];
       const unitNeedUpdate = row[5] !== '-';
       const unit = row[5] || '';
@@ -2009,12 +2348,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   handleSelectGroup(value, index) {
     const metricName = this.metricTable[index].name;
     const labels = [];
-    this.groupList.forEach((item) => {
-      const groupItem =  this.groupsMap.get(item.name);
+    this.groupList.forEach(item => {
+      const groupItem = this.groupsMap.get(item.name);
       const { matchRulesOfMetrics, manualList } = groupItem;
       const tempObj = {
         name: item.name,
-        match_type: []
+        match_type: [],
       };
       if (matchRulesOfMetrics.includes(metricName)) {
         tempObj.match_type.push('auto');
@@ -2023,12 +2362,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         tempObj.match_type.push('manual');
         this.groupsMap.set(item.name, {
           ...groupItem,
-          manualList: [...new Set(manualList.concat([metricName]))]
+          manualList: [...new Set(manualList.concat([metricName]))],
         });
       } else {
         this.groupsMap.set(item.name, {
           ...groupItem,
-          manualList: manualList.filter(m => m !== metricName)
+          manualList: manualList.filter(m => m !== metricName),
         });
       }
       if (tempObj.match_type.length) labels.push(tempObj);
@@ -2041,13 +2380,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   handleGroupListChange(groupList) {
     this.groupList = groupList;
     this.groupsDataTidy();
-    this.metricData.forEach((item) => {
+    this.metricData.forEach(item => {
       if (item.monitor_type === 'metric') {
         const groupItem = this.metricGroupsMap.get(item.name);
         if (groupItem) {
           item.labels = groupItem.groups.map(g => ({
             name: g,
-            match_type: groupItem.matchType[g]
+            match_type: groupItem.matchType[g],
           }));
         } else {
           item.labels = [];
@@ -2059,7 +2398,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
   updateGroupList() {
     this.groupList = this.groupList.map(item => ({
       ...item,
-      manualList: this.groupsMap.get(item.name)?.manualList || []
+      manualList: this.groupsMap.get(item.name)?.manualList || [],
     }));
   }
   /* 保存分组管理 */
@@ -2069,11 +2408,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       group_list: this.groupList.map(item => ({
         name: item.name,
         manual_list: item.manualList,
-        auto_rules: item.matchRules
-      }))
+        auto_rules: item.matchRules,
+      })),
     };
     await modifyCustomTsGroupingRuleList(params).catch(() => false);
   }
+
   /* 选择分组下拉框收起展开 */
   handleGroupSelectToggle(v: boolean) {
     if (!v) {
@@ -2093,11 +2433,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       placement: 'top',
       boundary: 'window',
       arrow: true,
-      content: `<div>${this.$t('手动分配指标数')}：${manualCount}</div><div>${
-        this.$t('匹配规则')}：${matchRules.length
-        ? matchRules.join(',')
-        : '--'
-      }</div>`
+      content: `<div>${this.$t('手动分配指标数')}：${manualCount}</div><div>${this.$t('匹配规则')}：${
+        matchRules.length ? matchRules.join(',') : '--'
+      }</div>`,
     });
     this.groupTagInstance.show();
   }
@@ -2121,30 +2459,43 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     }
   }
   /* 搜索 */
-  handleMetricSearchValue() {
+  handleMetricSearchValue(v) {
+    this.metricSearchValue = v;
     const search = {
       type: [],
-      name: []
+      name: [],
+      enName: [],
+      unit: [],
+      text: [],
     };
-    this.metricSearchValue.forEach((item) => {
+    for (const item of this.metricSearchValue) {
       if (item.id === 'type') {
         search.type = [...new Set(search.type.concat(item.values.map(v => v.id)))];
       }
       if (item.id === 'name') {
         search.name = [...new Set(search.name.concat(item.values.map(v => v.id)))];
       }
-    });
+      if (item.id === 'enName') {
+        search.enName = [...new Set(search.enName.concat(item.values.map(v => v.id)))];
+      }
+      if (item.id === 'unit') {
+        search.unit = [...new Set(search.unit.concat(item.values.map(v => v.id)))];
+      }
+      if (item.type === 'text') {
+        search.text = [...new Set(search.text.concat([item.id]))];
+      }
+    }
     this.metricSearchObj = search;
   }
   /* 通过分组管理计算每个指标包含的组 */
   setMetricDataLabels() {
-    this.metricData.forEach((item) => {
+    this.metricData.forEach(item => {
       if (item.monitor_type === 'metric') {
         const groupItem = this.metricGroupsMap.get(item.name);
         if (groupItem) {
           item.labels = groupItem.groups.map(g => ({
             name: g,
-            match_type: groupItem.matchType[g]
+            match_type: groupItem.matchType[g],
           }));
         } else {
           item.labels = [];
@@ -2159,18 +2510,30 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         this.$router.push({
           name: 'custom-escalation-event-view',
           params: { id: String(this.detailData.bk_event_group_id) },
-          query: { name: this.detailData.name }
+          query: { name: this.detailData.name },
         });
       },
       customTimeSeries: () => {
         this.$router.push({
           name: 'custom-escalation-view',
           params: { id: String(this.detailData.time_series_group_id) },
-          query: { name: this.detailData.name }
+          query: { name: this.detailData.name },
         });
-      }
+      },
     };
     toView[this.type]();
+  }
+
+  handleEmptyOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      for (const key in this.metricSearchObj) {
+        this.metricSearchValue = [];
+        this.metricSearchObj[key] = [];
+        this.metricFilterList = [];
+        this.unitFilterList = [];
+        this.groupFilterList = [];
+      }
+    }
   }
 }
 </script>
@@ -2241,9 +2604,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       padding: 20px 20px 4px 37px;
       border-radius: 2px;
       background: $whiteColor;
-      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .1);
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
       margin-bottom: 16px;
-      @include  border-1px($color: $defaultBorderColor);
+      @include border-1px($color: $defaultBorderColor);
       &-title {
         font-weight: bold;
         color: $defaultFontColor;
@@ -2251,6 +2614,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
       &-row {
         height: 32px;
+        width: 576px;
         margin-bottom: 4px;
         display: flex;
         align-items: center;
@@ -2259,9 +2623,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           text-align: right;
           width: 100px;
           margin-right: 26px;
+          flex-shrink: 0;
         }
         .row-content {
           color: #313238;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .edit-name {
           color: $defaultBorderColor;
@@ -2273,7 +2642,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         }
       }
       .last-row {
-        margin-bottom: 12px;
+        margin-bottom: 72px;
       }
     }
     .detail-list {
@@ -2308,6 +2677,11 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           width: 110px;
         }
       }
+      :deep(.custom-event-table) {
+        .bk-virtual-render.bk-scroll-x {
+          overflow-x: hidden;
+        }
+      }
       .mb16 {
         margin-bottom: 16px;
       }
@@ -2319,7 +2693,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           flex: 1;
           display: flex;
           .search-select-wrap {
-            min-width: 240px;
+            width: 240px;
           }
         }
         .export-btn {
@@ -2351,7 +2725,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       }
       :deep(.table-box) {
         display: flex;
-        overflow-y: hidden;
+        overflow: hidden;
         .bk-form-input,
         .bk-select {
           border: 1px solid #fff;
@@ -2382,7 +2756,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         .left-table {
           margin-right: 4px;
           width: 100%;
-          transition: width .5s;
+          transition: width 0.5s;
           .overflow-tips {
             text-overflow: ellipsis;
             overflow: hidden;
@@ -2430,7 +2804,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             align-items: center;
             .table-group-tag {
               height: 22px;
-              background: #F0F1F5;
+              background: #f0f1f5;
               border-radius: 2px;
               padding: 0 10px;
               display: flex;
@@ -2439,7 +2813,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               white-space: nowrap;
               margin-right: 8px;
               &:hover {
-                background: #DCDEE5;
+                background: #dcdee5;
               }
             }
           }
@@ -2470,12 +2844,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             align-items: center;
             justify-content: center;
             height: 32px;
-            background: #F5F7FA;
+            background: #f5f7fa;
             .group-select-wrap {
               min-height: auto;
             }
             .prepend-add-btn {
-              color: #3A84FF;
+              color: #3a84ff;
               cursor: pointer;
               display: flex;
               align-items: center;
@@ -2483,6 +2857,11 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 font-size: 16px;
               }
             }
+          }
+          .bk-table-empty-block {
+            min-height: 300px;
+            position: relative;
+            top: -90px;
           }
         }
         .left-active {
@@ -2505,7 +2884,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
               background: #313238;
               position: relative;
               &:after {
-                content: "";
+                content: '';
                 width: 71px;
                 height: 2px;
                 position: absolute;
@@ -2521,7 +2900,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           }
           .space-item {
             height: 34px;
-            background: #63656E;
+            background: #63656e;
           }
           .data-preview {
             height: 43px;
@@ -2532,7 +2911,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             border-bottom: 1px solid #3b3c42;
           }
           .no-data-preview {
-            height: 93px;
+            height: 305px;
             width: 420px;
             background: #313238;
           }
@@ -2557,11 +2936,15 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         font-size: 12px;
       }
     }
-    ::-webkit-scrollbar {
-      display: none;
-    }
+    // ::-webkit-scrollbar {
+    //   display: none;
+    // }
     .submit-div {
       display: inline-block;
+    }
+    .form-content-textarea {
+      position: relative;
+      bottom: -30px;
     }
   }
   .right-window {
@@ -2595,13 +2978,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         height: 24px;
         border-radius: 50%;
         &:hover {
-          background: #EAEBF0;
+          background: #eaebf0;
           cursor: pointer;
         }
         .line {
           width: 9px;
           height: 2px;
-          background: #63656E;
+          background: #63656e;
         }
       }
     }
@@ -2632,15 +3015,39 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           position: absolute;
           top: 30px;
           right: 10px;
+          width: 20px;
+          height: 20px;
+          text-align: center;
+          line-height: 20px;
+          background: #ffffff;
+          box-shadow: 0 2px 4px 0 #1919290d;
+          border-radius: 2px;
           @include hover($cursor: pointer);
+
+          .icon-mc-copy {
+            font-size: 12px;
+            color: #3a84ff;
+          }
         }
-        .content-prometheus{
+        .content-prometheus {
           position: relative;
-          .content-copy-prometheus{
+          .content-copy-prometheus {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            background: #ffffff;
+            box-shadow: 0 2px 4px 0 #1919290d;
+            border-radius: 2px;
             @include hover($cursor: pointer);
+
+            .icon-mc-copy {
+              font-size: 12px;
+              color: #3a84ff;
+            }
           }
         }
 
@@ -2664,14 +3071,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #EAEBF0;
-      border: 1px solid #DCDEE5;
+      background: #eaebf0;
+      border: 1px solid #dcdee5;
       border-radius: 4px 0 0 4px;
 
       @include hover($cursor: pointer);
       .icon {
         font-size: 24px;
-        color: #979BA5;
+        color: #979ba5;
       }
       div {
         margin: -4px 0 0 6px;

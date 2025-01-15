@@ -25,32 +25,33 @@
  */
 import { Component, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { deleteExperience, getExperience, saveExperience } from 'monitor-api/modules/alert';
 import { getMetricListV2 } from 'monitor-api/modules/strategies';
 import { random, transformDataKey } from 'monitor-common/utils/utils';
 import DeleteSubtitle from 'monitor-pc/pages/strategy-config/strategy-config-common/delete-subtitle';
 import ConditionInput, {
-  IConditionItem
+  type IConditionItem,
 } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/monitor-data/condition-input';
 import Editor from 'monitor-ui/markdown-editor/editor';
 
 import TipMsg from '../../setting/components/tip-msg';
-
 import Viewer from './custom-view';
-import { IDetail } from './type';
 import WhereDisplay from './where-display';
+
+import type { IDetail } from './type';
 
 import './handle-experiences.scss';
 
 enum EType {
+  DIMENSION = 'dimension',
   METRIC = 'metric',
-  DIMENSION = 'dimension'
 }
 
 const bindList = [
   { id: EType.METRIC, name: window.i18n.tc('指标') },
-  { id: EType.DIMENSION, name: window.i18n.tc('维度') }
+  { id: EType.DIMENSION, name: window.i18n.tc('维度') },
 ];
 
 interface IHandleExperienceProps {
@@ -72,7 +73,7 @@ interface IExperience {
 }
 
 @Component({
-  name: 'HandleExperience'
+  name: 'HandleExperience',
 })
 export default class HandleExperience extends tsc<IHandleExperienceProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -85,7 +86,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   // 条件数据
   conditionList: IConditionItem[] = [];
   // 是否为编辑模式
-  mode: 'list' | 'edit' | 'add' = 'list';
+  mode: 'add' | 'edit' | 'list' = 'list';
   // 当前md文档内容
   curDescription = '';
   // 当前经验列表
@@ -155,7 +156,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       bk_biz_id: this.detail.bk_biz_id,
       page: 1,
       page_size: metricIds.length,
-      conditions: [{ key: 'metric_id', value: metricIds }]
+      conditions: [{ key: 'metric_id', value: metricIds }],
     }).catch(() => []);
     metricList.forEach(item => {
       if (!dataSourceType) dataSourceType = item.data_source_label;
@@ -180,28 +181,50 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
           id: item.key,
           name: item.display_key,
           is_dimension: true,
-          type: 'string'
+          type: 'string',
         })) || [];
     }
     this.metricMeta = {
       data_source_label: dataSourceType,
       data_type_label: dataTypeLabel,
       metric_field: metricField,
-      result_table_id: resultTableId
+      result_table_id: resultTableId,
     };
     this.experienceList = await getExperience({
-      alert_id: this.detail.id
+      alert_id: this.detail.id,
     }).catch(() => []);
     this.isLoading = false;
   }
+
+  /* 初始化维度信息 */
+  initDimensionData(needCondition = true) {
+    const additionalCondition = needCondition ? { condition: 'and' } : {};
+
+    this.conditionList = this.detail.dimensions
+      .filter(item => item.display_value) // 过滤掉没有display_value的项
+      .map(item => {
+        if (this.dimensionList.findIndex(dimension => dimension.id === item.display_key) === -1) {
+          this.dimensionList.push({ id: item.display_key, name: item.display_key });
+        }
+        return {
+          key: item.display_key,
+          value: [item.display_value],
+          method: 'eq',
+          ...additionalCondition,
+        };
+      });
+  }
+
   /* 点击添加按钮 */
   handleAdd() {
-    const hasMetric = this.experienceList.some(item => item.type === EType.METRIC);
-    this.curBind = hasMetric ? EType.DIMENSION : EType.METRIC;
+    // 检查是否有维度信息
+    const showDimension = this.detail?.dimensions?.filter(item => item.display_value).length;
+    this.curBind = showDimension ? EType.DIMENSION : EType.METRIC;
     this.curDescription = '';
-    if (hasMetric) {
+    if (showDimension) {
       this.errConditions = '';
       this.conditionList = [];
+      this.initDimensionData();
       this.curUpdateInfo = '';
       this.dimensionDataChange();
     } else {
@@ -221,6 +244,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         this.metricDataChange();
       } else if (v === EType.DIMENSION) {
         this.conditionList = [];
+        this.initDimensionData();
         this.curDescription = '';
         this.curUpdateInfo = '';
         this.dimensionDataChange();
@@ -244,7 +268,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         },
         cancelFn: () => {
           this.selectKey = random(8);
-        }
+        },
       });
       return;
     }
@@ -292,7 +316,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         title: window.i18n.tc('已命中一条已有维度，是否填入其经验'),
         maskClose: true,
         escClose: true,
-        confirmFn: () => confirm()
+        confirmFn: () => confirm(),
       });
     }
   }
@@ -331,7 +355,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   handleDelete(v: IExperience, index: number) {
     const titleMap = {
       [EType.METRIC]: v.metric.length ? this.$tc('指标') : this.$tc('告警名称'),
-      [EType.DIMENSION]: this.$tc('维度')
+      [EType.DIMENSION]: this.$tc('维度'),
     };
     const h = this.$createElement;
     this.$bkInfo({
@@ -345,10 +369,10 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                 props: {
                   value: v.conditions,
                   groupByList: this.dimensionList,
-                  metric: this.metricMeta
-                }
-              })
-        ])
+                  metric: this.metricMeta,
+                },
+              }),
+        ]),
       ]),
       maskClose: true,
       escClose: true,
@@ -361,7 +385,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
             }
           })
           .catch(() => false);
-      }
+      },
     });
   }
 
@@ -383,7 +407,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
       alert_id: this.detail.id,
       description: this.curDescription,
       type: this.curBind,
-      conditions: this.curBind === EType.METRIC ? undefined : JSON.parse(JSON.stringify(this.conditionList))
+      conditions: this.curBind === EType.METRIC ? undefined : JSON.parse(JSON.stringify(this.conditionList)),
     };
     const item = await saveExperience(params).catch(() => false);
     if (!item) return;
@@ -414,7 +438,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   }
   /* 输入md文档 */
   handleInputContent(v: string) {
-    this.errMsg = !!v ? '' : this.$tc('注意: 必填字段不能为空');
+    this.errMsg = v ? '' : this.$tc('注意: 必填字段不能为空');
     this.curDescription = v;
   }
 
@@ -428,10 +452,10 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   render() {
     return (
       <div
-        v-bkloading={{ isLoading: this.isLoading }}
         class={['event-detail-handleexperiences', { displaynone: !this.show }]}
+        v-bkloading={{ isLoading: this.isLoading }}
       >
-        <TipMsg msg={this.$tc('处理经验可以与指标和维度进行绑定，可以追加多种处理经验方便经验的共享。')}></TipMsg>
+        <TipMsg msg={this.$tc('处理经验可以与指标和维度进行绑定，可以追加多种处理经验方便经验的共享。')} />
         {/* 添加按钮 */}
         {!this.readonly && this.mode === 'list' && (
           <div
@@ -439,7 +463,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
             onClick={this.handleAdd}
           >
             <div class='center-text'>
-              <span class='icon-monitor icon-mc-add'></span>
+              <span class='icon-monitor icon-mc-add' />
               <span class='text'>{this.$t('新增处理建议')}</span>
             </div>
           </div>
@@ -448,8 +472,8 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
         {!this.experienceList.length && this.mode === 'list' && (
           <div>
             <bk-exception
-              type='empty'
               class='empty-bg'
+              type='empty'
             >
               <span>{this.$t('当前暂无处理经验')}</span>
             </bk-exception>
@@ -460,13 +484,13 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
           <div class='experience-list'>
             {this.experienceList.map((item, index) => (
               <div
-                class='experience-item'
                 key={index}
+                class='experience-item'
               >
                 <div class='item-header'>
                   {item.type === EType.METRIC && (
                     <div class='metric-title'>
-                      <div class='bookmarks'></div>
+                      <div class='bookmarks' />
                       {item.metric.length
                         ? `${this.$t('指标')} - ${item.metric.map(id => this.metricNameMap[id] || id).join(',')}`
                         : `${this.$t('告警名称')} - ${item.alert_name}`}
@@ -478,12 +502,12 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                       {Boolean(this.metricMeta) && (
                         <WhereDisplay
                           class='condition-readonly'
-                          value={item.conditions as any}
+                          allWhereValueMap={this.allWhereValueMap}
                           groupByList={this.dimensionList}
                           metric={this.metricMeta as any}
-                          allWhereValueMap={this.allWhereValueMap}
+                          value={item.conditions as any}
                           onValueMapChange={v => (this.allWhereValueMap = v)}
-                        ></WhereDisplay>
+                        />
                       )}
                     </div>
                   )}
@@ -493,19 +517,19 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                     <span
                       class='icon-monitor icon-bianji'
                       onClick={() => this.handleEdit(item)}
-                    ></span>
+                    />
                     <span
                       class='icon-monitor icon-mc-delete-line'
                       onClick={() => this.handleDelete(item, index)}
-                    ></span>
+                    />
                   </div>
                 </div>
                 <div class='item-content'>
                   {item.description ? (
                     <Viewer
-                      value={item.description}
                       key={item.description.length}
-                    ></Viewer>
+                      value={item.description}
+                    />
                   ) : undefined}
                 </div>
               </div>
@@ -525,23 +549,23 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                     placements: ['top'],
                     boundary: 'window',
                     disabled: this.mode !== 'edit',
-                    allowHTML: false
+                    allowHTML: false,
                   }}
                 >
                   <bk-select
+                    key={this.selectKey}
                     class='bind-select'
-                    value={this.curBind}
                     clearable={false}
                     readonly={this.mode === 'edit'}
-                    key={this.selectKey}
+                    value={this.curBind}
                     onSelected={this.handleBindSelect}
                   >
                     {bindList.map(item => (
                       <bk-option
+                        id={item.id}
                         key={item.id}
                         name={item.name}
-                        id={item.id}
-                      ></bk-option>
+                      />
                     ))}
                   </bk-select>
                 </div>
@@ -554,18 +578,18 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
                   (this.mode === 'edit' ? (
                     <WhereDisplay
                       class='condition-readonly'
-                      value={this.conditionList as any}
                       groupByList={this.dimensionList}
                       metric={this.metricMeta as any}
-                    ></WhereDisplay>
+                      value={this.conditionList as any}
+                    />
                   ) : (
                     <ConditionInput
-                      metricMeta={transformDataKey(this.metricMeta)}
-                      dimensionsList={this.dimensionList}
                       conditionList={this.conditionList}
                       defaultValue={this.defalutDimensionValue}
+                      dimensionsList={this.dimensionList}
+                      metricMeta={transformDataKey(this.metricMeta)}
                       on-change={this.handleCondition}
-                    ></ConditionInput>
+                    />
                   ))}
                 {!!this.errConditions && this.mode === 'add' ? (
                   <div class='err-red'>{this.errConditions}</div>
@@ -577,13 +601,13 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
               <Editor
                 value={this.curDescription}
                 on-input={(v: string) => this.handleInputContent(v)}
-              ></Editor>
+              />
               {this.errMsg ? <div class='err-red'>{this.errMsg}</div> : undefined}
             </div>
             <div class='content-bottom'>
               <bk-button
-                theme='primary'
                 class='save'
+                theme='primary'
                 onClick={this.handleSave}
               >
                 {this.$t('保存')}

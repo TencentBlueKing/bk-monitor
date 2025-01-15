@@ -21,8 +21,10 @@ the project delivered to anyone in the future.
 """
 import functools
 import operator
+from typing import Any, Dict, List
 
-from typing import List, Dict, Any
+from apps.log_search.constants import DEFAULT_TIME_FIELD
+from apps.utils.local import get_request_external_username, get_request_username
 
 
 def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=lambda x: x) -> List[Dict[str, Any]]:
@@ -34,12 +36,10 @@ def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=l
     """
 
     def _sort_compare(x: Dict[str, Any], y: Dict[str, Any]) -> int:
-
         x = key_func(x)
         y = key_func(y)
 
         def _get_value(keys: str, _data: Dict[str, Any]) -> Any:
-
             try:
                 _value = functools.reduce(operator.getitem, keys.split("."), _data)
             except (KeyError, TypeError):
@@ -60,6 +60,10 @@ def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=l
                 continue
 
             try:
+                if field_name == DEFAULT_TIME_FIELD:
+                    # 转化为相同的数据类型
+                    _x_value = str(_x_value)
+                    _y_value = str(_y_value)
                 if _x_value != _y_value:
                     if order == "desc":
                         return (_x_value < _y_value) - (_x_value > _y_value)
@@ -71,3 +75,75 @@ def sort_func(data: List[Dict[str, Any]], sort_list: List[List[str]], key_func=l
         return 0
 
     return sorted(data, key=functools.cmp_to_key(_sort_compare))
+
+
+def create_context_should_query(order, body_should_data, sort_fields, sort_fields_value):
+    """
+    上下文or查询构造
+    请求参数
+    :param order: 排序方式 -或+
+    :param body_should_data: 父级查询参数
+    :param sort_fields: 排序字段
+    :param sort_fields_value: 排序字段对应的值
+    """
+    if order not in ["-", "+"]:
+        return
+
+    if order == "+":
+        sort_fields_num = len(sort_fields)
+        range_op = "gt" if sort_fields_num > 1 else "gte"
+    else:
+        range_op = "lt"
+
+    # 需要进行term查询的字段
+    term_fields = []
+    # 构造查询语句
+    for index, (range_field, range_field_value) in enumerate(zip(sort_fields, sort_fields_value)):
+        if index == 0:
+            body_should_data.append(
+                {
+                    "range": {
+                        range_field: {
+                            range_op: range_field_value,
+                        }
+                    }
+                }
+            )
+        else:
+            body_should_data.append(
+                {
+                    "bool": {
+                        "filter": [
+                            {"term": {_term_range_field["range_field"]: _term_range_field["range_field_value"]}}
+                            for _term_range_field in term_fields
+                        ]
+                    }
+                }
+            )
+            # 升序时最后一个字段操作符设置为大于等于
+            if order == "+" and index + 1 == sort_fields_num:
+                range_op = "gte"
+
+            body_should_data[index]["bool"]["filter"].append(
+                {
+                    "range": {
+                        range_field: {
+                            range_op: range_field_value,
+                        }
+                    }
+                }
+            )
+        term_fields.append({"range_field": range_field, "range_field_value": range_field_value})
+
+
+def fetch_request_username():
+    """
+    1.如果存在外部用户,则优先取外部用户名.
+    2.如果是外部用户,则加上external_前缀,避免外部用户名和内部用户名相同引起问题
+    """
+    request_username = get_request_external_username()
+    if request_username:
+        request_username = f"external_{request_username}"
+    else:
+        request_username = get_request_username()
+    return request_username

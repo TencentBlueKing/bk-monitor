@@ -23,25 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, PropType, provide, Ref, ref, watch } from 'vue';
+import { type PropType, type Ref, computed, defineComponent, inject, provide, ref, watch } from 'vue';
+
 import { Collapse, Radio } from 'bkui-vue';
 import { random } from 'monitor-common/utils/utils';
-import { getDefautTimezone } from 'monitor-pc/i18n/dayjs';
+import { getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { setTraceTooltip } from 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/util';
-import { IQueryParams, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import {
   REFLESH_IMMEDIATE_KEY,
   REFLESH_INTERVAL_KEY,
+  TIMEZONE_KEY,
   TIME_OFFSET_KEY,
   TIME_RANGE_KEY,
-  TIMEZONE_KEY,
-  VIEWOPTIONS_KEY
+  VIEWOPTIONS_KEY,
 } from '../../../plugins/hooks';
 import { PanelModel } from '../../../plugins/typings';
-import { SearchType, ToolsFormData } from '../typings';
+import { SearchType, type ToolsFormData } from '../typings';
+
+import type { IQueryParams } from '../../../typings/trace';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './trend-chart.scss';
 import 'monitor-ui/chart-plugins/plugins/profiling-graph/trace-chart/trace-chart.scss';
@@ -52,10 +55,10 @@ const DEFAULT_PANEL_CONFIG = {
     x: 16,
     y: 16,
     w: 8,
-    h: 4
+    h: 4,
   },
   type: 'graph',
-  targets: []
+  targets: [],
 };
 
 export default defineComponent({
@@ -63,18 +66,24 @@ export default defineComponent({
   props: {
     content: {
       type: String,
-      default: ''
+      default: '',
+    },
+    comparisonDate: {
+      type: Array as PropType<[number, number][]>,
+      default: () => [],
     },
     queryParams: {
       type: Object as PropType<IQueryParams>,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
-  setup(props) {
+  emits: ['chartData', 'loading'],
+  setup(props, { emit }) {
     const toolsFormData = inject<Ref<ToolsFormData>>('toolsFormData');
     const searchType = inject<Ref<SearchType>>('profilingSearchType');
+    const timeSeriesChartRef = ref();
 
-    const timezone = ref<string>(getDefautTimezone());
+    const timezone = ref<string>(getDefaultTimezone());
     const refleshImmediate = ref<number | string>('');
     const defaultViewOptions = ref<IViewOptions>({});
     const collapse = ref(true);
@@ -82,6 +91,7 @@ export default defineComponent({
     const chartType = ref('all');
     const loading = ref(false);
     const chartRef = ref<Element>();
+    const chartData = ref([]);
 
     const timeRange = computed(() => toolsFormData.value.timeRange);
     const refreshInterval = computed(() => toolsFormData.value.refreshInterval);
@@ -102,11 +112,11 @@ export default defineComponent({
     watch(
       () => [props.queryParams, chartType.value],
       () => {
-        const alias = (props.queryParams as IQueryParams).is_compared ? '' : 'Sample 数';
         const { start, end, ...rest } = props.queryParams as IQueryParams;
         const allTrend = chartType.value === 'all'; // 根据类型构造图表配置
         const type = allTrend ? 'line' : 'bar';
         const targetApi = allTrend ? 'apm_profile.query' : 'apm_profile.queryProfileBarGraph';
+        // if (JSON.stringify(newVal) === JSON.stringify(oldVal)) return;
         const targetData = {
           ...rest,
           ...(allTrend ? { diagram_types: ['tendency'] } : {}),
@@ -114,10 +124,10 @@ export default defineComponent({
           /** 文件信息的时间单位为 μs（微秒），图表插件需要统一单位为 s（秒），故在此做转换 */
           ...(searchType.value === SearchType.Upload
             ? {
-                start_time: parseInt(String(start / Math.pow(10, 6)), 10),
-                end_time: parseInt(String(end / Math.pow(10, 6)), 10)
+                start_time: Number.parseInt(String(start / 10 ** 6), 10),
+                end_time: Number.parseInt(String(end / 10 ** 6), 10),
               }
-            : {})
+            : {}),
         };
 
         panel.value = new PanelModel({
@@ -128,64 +138,110 @@ export default defineComponent({
             {
               api: targetApi,
               datasource: 'time_series',
-              alias,
-              data: targetData
-            }
-          ]
+              alias: '',
+              data: targetData,
+            },
+          ],
         });
       },
       {
         immediate: true,
-        deep: true
+        deep: true,
       }
     );
+
+    watch(props.comparisonDate, () => {
+      handleSetMarkArea();
+    });
 
     function handleCollapseChange(v) {
       collapse.value = v;
     }
+
+    function handleSetMarkArea() {
+      const { series, ...params } = timeSeriesChartRef.value.options;
+      timeSeriesChartRef.value.setOptions({
+        ...params,
+        series: series.map((item, ind) => ({
+          ...item,
+          markArea: {
+            show: !!props.comparisonDate[ind]?.length,
+            itemStyle: {
+              color: ['rgba(58, 132, 255, 0.1)', 'rgba(255, 86, 86, 0.1)'][ind],
+            },
+            data: [
+              [
+                {
+                  xAxis: props.comparisonDate[ind]?.[0] || 0,
+                },
+                {
+                  xAxis: props.comparisonDate[ind]?.[1] || 0,
+                },
+              ],
+            ],
+          },
+        })),
+      });
+    }
+
+    function handleChartData(data) {
+      chartData.value = data;
+      emit('chartData', data);
+    }
+
+    function handleLoading(v) {
+      loading.value = v;
+      emit('loading', v);
+    }
+
     return {
       chartRef,
+      timeSeriesChartRef,
       chartType,
       panel,
       collapse,
       handleCollapseChange,
       loading,
-      chartCustomTooltip
+      chartCustomTooltip,
+      handleChartData,
+      handleLoading,
     };
   },
   render() {
     return (
       <div class='trend-chart'>
         <Collapse.CollapsePanel
-          modelValue={this.collapse}
-          onUpdate:modelValue={this.handleCollapseChange}
           v-slots={{
             content: () => (
               <div
-                class='trend-chart-wrap'
                 ref='chartRef'
+                class='trend-chart-wrap'
               >
                 {this.collapse && this.panel && (
                   <TimeSeries
                     key={this.chartType}
+                    ref='timeSeriesChartRef'
+                    customTooltip={this.chartCustomTooltip}
                     panel={this.panel}
                     showChartHeader={false}
                     showHeaderMoreTool={false}
-                    onLoading={val => (this.loading = val)}
-                    customTooltip={this.chartCustomTooltip}
+                    onChartData={this.handleChartData}
+                    onLoading={this.handleLoading}
                   />
                 )}
               </div>
-            )
+            ),
           }}
+          modelValue={this.collapse}
+          onUpdate:modelValue={this.handleCollapseChange}
         >
           <div
             class='trend-chart-header'
             onClick={e => e.stopPropagation()}
           >
             <Radio.Group
-              type='capsule'
               v-model={this.chartType}
+              type='capsule'
             >
               <Radio.Button label='all'>{this.$t('总趋势')}</Radio.Button>
               <Radio.Button label='trace'>{this.$t('Trace 数据')}</Radio.Button>
@@ -193,12 +249,13 @@ export default defineComponent({
             {this.loading ? (
               <img
                 class='chart-loading-icon'
+                alt='loading'
                 src={loadingIcon}
-              ></img>
+              />
             ) : undefined}
           </div>
         </Collapse.CollapsePanel>
       </div>
     );
-  }
+  },
 });

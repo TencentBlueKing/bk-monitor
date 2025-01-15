@@ -73,7 +73,7 @@ const COLORS_HEX = [
   '#C0A7E0',
   '#E0A7BA',
   '#EBCB8D',
-  '#CBDB95'
+  '#CBDB95',
 ];
 
 // TS needs the precise return type
@@ -84,7 +84,7 @@ function strToRgb(s: string): [number, number, number] {
   const r = s.slice(1, 3);
   const g = s.slice(3, 5);
   const b = s.slice(5);
-  return [parseInt(r, 16), parseInt(g, 16), parseInt(b, 16)];
+  return [Number.parseInt(r, 16), Number.parseInt(g, 16), Number.parseInt(b, 16)];
 }
 
 export class ColorGenerator {
@@ -107,7 +107,7 @@ export class ColorGenerator {
     if (i === undefined) {
       i = this.currentIdx;
       this.cache.set(key, this.currentIdx);
-      // eslint-disable-next-line no-plusplus
+
       this.currentIdx = ++this.currentIdx % this.colorsHex.length;
     }
 

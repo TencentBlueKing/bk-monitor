@@ -25,5 +25,5 @@ export default {
   fileImportUptimeCheck,
   selectUptimeCheckNode,
   selectCarrierOperator,
-  uptimeCheckTargetDetail
+  uptimeCheckTargetDetail,
 };

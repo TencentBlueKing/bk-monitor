@@ -26,7 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ITableItemStatus } from '../../typings';
+import type { ITableItemStatus } from '../../typings';
 
 import './common-status.scss';
 
@@ -58,10 +58,10 @@ export default class CommonStatus extends tsc<IProps> {
           delay: 300,
           theme: 'light',
           disabled: !this.tips,
-          allowHTML: false
+          allowHTML: false,
         }}
       >
-        <span class={['common-status-icon', this.icon ? `${this.icon} status-icon` : `status-${this.type}`]}></span>
+        <span class={['common-status-icon', this.icon ? `${this.icon} status-icon` : `status-${this.type}`]} />
         {!!this.text && <span class='common-status-name'>{this.text}</span>}
       </span>
     );

@@ -45,11 +45,11 @@ export interface IListItem {
   space_code?: string;
   space_type_id?: string;
   space_id?: string;
-  tags?: ItagsItem[];
+  tags?: ITagsItem[];
   children?: IListItem[];
   bk_biz_id?: number;
 }
-interface ItagsItem {
+interface ITagsItem {
   id: string;
   name: string;
   type: ETagsType;
@@ -88,13 +88,16 @@ export default class List extends tsc<IProps, IEvents> {
   render() {
     return (
       <div>
-        {!!this.list.length ? (
-          this.list.map(item => (
-            <div class={['list-group', { 'no-name': !item.name }]}>
+        {this.list.length ? (
+          this.list.map((item, index) => (
+            <div
+              key={index}
+              class={['list-group', { 'no-name': !item.name }]}
+            >
               {
                 <bk-checkbox
-                  checked={this.isSelectAll}
                   ext-cls={'list-item-checkbox'}
+                  checked={this.isSelectAll}
                   onChange={(status: boolean) => this.handleSelectAll(status)}
                 >
                   <div class={['checkbox-item', { checked: this.selectList.includes('*') }]}>
@@ -104,8 +107,9 @@ export default class List extends tsc<IProps, IEvents> {
               }
               {item.children.map(child => (
                 <bk-checkbox
-                  checked={this.selectList.includes(child.bk_biz_id)}
+                  key={child.bk_biz_id}
                   ext-cls={'list-item-checkbox'}
+                  checked={this.selectList.includes(child.bk_biz_id)}
                   onChange={() => this.handleCheckBoxChange(child.bk_biz_id)}
                 >
                   <div
@@ -129,8 +133,9 @@ export default class List extends tsc<IProps, IEvents> {
                     <span class='list-item-right'>
                       {child.tags?.map?.(tag => (
                         <span
-                          class='list-item-tag'
+                          key={tag.id}
                           style={{ ...SPACE_TYPE_MAP[tag.id]?.light }}
+                          class='list-item-tag'
                         >
                           {tag.name}
                         </span>
@@ -144,8 +149,8 @@ export default class List extends tsc<IProps, IEvents> {
         ) : (
           <bk-exception
             class='no-data'
-            type='search-empty'
             scene='part'
+            type='search-empty'
           />
         )}
       </div>

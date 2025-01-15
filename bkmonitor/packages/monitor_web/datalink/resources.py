@@ -11,29 +11,163 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import time
+from collections import OrderedDict
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Tuple
+
+from django.db.models import Q
 
 from bkmonitor.action.serializers.strategy import UserGroupSlz
 from bkmonitor.models.strategy import UserGroup
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from common.log import logger
-from constants.alert import EventStatus, EVENT_STATUS_DICT
+from constants.alert import EVENT_STATUS_DICT, EventStatus
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
-from core.errors.datalink import CollectorPluginMetaError
 from fta_web.alert.handlers.alert import AlertQueryHandler
+from metadata import models
+from metadata.models.space.space_data_source import get_real_biz_id
 from monitor_web.datalink.storage import get_storager
 from monitor_web.models.collecting import CollectConfigMeta
-from monitor_web.models.plugin import PluginVersionHistory
+from monitor_web.models.plugin import CollectorPluginMeta, PluginVersionHistory
 from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
     DataLinkStage,
     DatalinkStrategy,
     DataLinkStrategyInfo,
 )
+
+
+class QueryBizByBkBase(Resource):
+    """
+    根据计算平台相关信息（RT/data_id），查询对应业务信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_base_data_id_list = serializers.ListField(
+            label="计算平台data_id列表", child=serializers.IntegerField(), required=False, default=[]
+        )
+        bk_base_vm_table_id_list = serializers.ListField(
+            label="计算平台RT列表", child=serializers.CharField(), required=False, default=[]
+        )
+
+        def validate(self, data: OrderedDict) -> OrderedDict:
+            # 判断参数不能同时为空
+            if not (data.get("bk_base_data_id_list") or data.get("bk_base_vm_table_id_list")):
+                raise ValueError("params is null")
+            return data
+
+    def perform_request(self, data):
+        bk_base_data_id_list = data.get("bk_base_data_id_list") or []
+        bk_base_vm_table_id_list = data.get("bk_base_vm_table_id_list") or []
+
+        # 获取 table id
+        table_id_bk_base_data_ids = self.get_table_id_bk_base_data_ids(bk_base_data_id_list, bk_base_vm_table_id_list)
+
+        # 获取对应的业务信息
+        table_id_biz_ids = self.get_table_id_biz_ids(table_id_bk_base_data_ids.keys())
+
+        # 获取0业务的真实业务ID
+        bk_base_data_id_biz_id = self.get_zero_biz_id_mapping(table_id_biz_ids, table_id_bk_base_data_ids)
+
+        return bk_base_data_id_biz_id  # 最终返回一个字典{data_id: bk_biz_id} 数据类型均为int
+
+    def get_table_id_bk_base_data_ids(self, bk_base_data_id_list, bk_base_vm_table_id_list):
+        return {
+            qs["result_table_id"]: qs["bk_base_data_id"]
+            for qs in models.AccessVMRecord.objects.filter(
+                Q(bk_base_data_id__in=bk_base_data_id_list) | Q(vm_result_table_id__in=bk_base_vm_table_id_list)
+            ).values("result_table_id", "bk_base_data_id")
+        }
+
+    def get_table_id_biz_ids(self, table_ids):
+        return {
+            qs["table_id"]: qs["bk_biz_id"]
+            for qs in models.ResultTable.objects.filter(table_id__in=table_ids).values("table_id", "bk_biz_id")
+        }
+
+    def get_zero_biz_id_mapping(self, table_id_biz_ids, table_id_bk_base_data_ids):
+        zero_biz_table_id_list = [table_id for table_id, biz_id in table_id_biz_ids.items() if biz_id == 0]
+
+        # 获取对应的 data id
+        table_id_data_ids = self.get_table_id_data_ids(zero_biz_table_id_list)
+
+        # 获取 data name 和 space_uid
+        data_id_names, data_id_space_uid_map = self.get_data_names_and_space_uids(table_id_data_ids.values())
+
+        # 查询是否在指定的表中
+        data_id_ts_group_flag = self.get_data_id_group_flag(models.TimeSeriesGroup, zero_biz_table_id_list)
+        data_id_event_group_flag = self.get_data_id_group_flag(models.EventGroup, zero_biz_table_id_list)
+
+        bk_base_data_id_biz_id = {}
+
+        # 获取对应的数据
+        for table_id, bk_biz_id in table_id_biz_ids.items():
+            # 跳过没有匹配到数据
+            bk_base_data_id = table_id_bk_base_data_ids.get(table_id)
+            if not bk_base_data_id:
+                continue
+            # NOTE: 应该不会有小于 0 的业务，当业务 ID 大于 0 时，直接返回
+            if bk_biz_id > 0:
+                bk_base_data_id_biz_id[bk_base_data_id] = bk_biz_id
+                continue
+
+            # 获取 0 业务对应的真实业务 ID
+            data_id = table_id_data_ids.get(table_id)
+            if not data_id:
+                bk_base_data_id_biz_id[bk_base_data_id] = 0
+                continue
+
+            data_name = data_id_names.get(data_id)
+            space_uid = data_id_space_uid_map.get(data_id)
+            is_in_ts_group = data_id_ts_group_flag.get(data_id) or False
+            is_in_event_group = data_id_event_group_flag.get(data_id) or False
+            bk_biz_id = get_real_biz_id(data_name, is_in_ts_group, is_in_event_group, space_uid)
+            # 若业务ID仍然为0，则去SaaS侧CollectorPluginMeta查询插件业务ID
+            if bk_biz_id == 0:
+                bk_biz_id = self.get_biz_id_from_collector_plugin_meta(table_id)
+            bk_base_data_id_biz_id[bk_base_data_id] = bk_biz_id
+
+        return bk_base_data_id_biz_id
+
+    def get_table_id_data_ids(self, zero_biz_table_id_list):
+        return {
+            qs["table_id"]: qs["bk_data_id"]
+            for qs in models.DataSourceResultTable.objects.filter(table_id__in=zero_biz_table_id_list).values(
+                "bk_data_id", "table_id"
+            )
+        }
+
+    def get_data_names_and_space_uids(self, data_ids):
+        data_id_names = {}
+        data_id_space_uid_map = {}
+        for qs in models.DataSource.objects.filter(bk_data_id__in=data_ids).values(
+            "bk_data_id", "data_name", "space_uid"
+        ):
+            data_id_names[qs["bk_data_id"]] = qs["data_name"]
+            data_id_space_uid_map[qs["bk_data_id"]] = qs["space_uid"]
+        return data_id_names, data_id_space_uid_map
+
+    def get_data_id_group_flag(self, model, zero_biz_table_id_list):
+        return {
+            obj["bk_data_id"]: True
+            for obj in model.objects.filter(table_id__in=zero_biz_table_id_list).values("bk_data_id")
+        }
+
+    def get_biz_id_from_collector_plugin_meta(self, table_id: str) -> int:
+        """
+        @summary: 若在元数据中无法找到VM对应的业务ID，则去空间插件表中查询
+        @param table_id: 元数据中的RT
+        @return: 业务ID
+        """
+        try:
+            real_key = table_id.split('_', 1)[-1].rsplit('.', 1)[0]  # 根据插件规则，将RT转换为对应的plugin_id
+            plugin_meta = CollectorPluginMeta.objects.get(plugin_id=real_key)
+            return plugin_meta.bk_biz_id
+        except Exception:  # pylint: disable=broad-except
+            return 0
 
 
 class BaseStatusResource(Resource):
@@ -96,7 +230,7 @@ class BaseStatusResource(Resource):
 
     def get_metrics_json(self) -> List[Dict]:
         """查询采集插件配置的指标维度信息"""
-        metric_json = copy.deepcopy(self.collect_config.deployment_config.metrics)
+        metric_json: List[dict] = copy.deepcopy(self.collect_config.deployment_config.metrics)
         plugin = self.collect_config.plugin
         # 如果插件id在time_series_group能查到，则可以认为是分表的，否则走原有逻辑
         group_list = api.metadata.query_time_series_group(
@@ -114,10 +248,6 @@ class BaseStatusResource(Resource):
                     continue
                 metric_names.append(field["name"])
             table["metric_names"] = metric_names
-        if len(metric_json) == 0:
-            raise CollectorPluginMetaError(
-                "No metric config in collector plugin({})".format(self.collect_config.plugin.plugin_id)
-            )
         return metric_json
 
     def get_result_table_id(self, table_name: str) -> str:
@@ -191,27 +321,35 @@ class UpdateAlertUserGroupsResource(BaseStatusResource):
 
 class CollectingTargetStatusResource(BaseStatusResource):
     class RequestSerilizer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         self.init_data(validated_request_data["collect_config_id"], DataLinkStage.COLLECTING)
 
-        instance_status = resource.collecting.collect_instance_status(id=self.collect_config_id)
+        instance_status = resource.collecting.collect_instance_status(
+            id=self.collect_config_id, bk_biz_id=self.collect_config.bk_biz_id
+        )
         # 提取关联的所有主机ID
         bk_host_ids = []
         for group in instance_status["contents"]:
             for child in group["child"]:
+                if "bk_host_id" not in child:
+                    continue
                 bk_host_ids.append(str(child["bk_host_id"]))
 
         targets_alert_histogram = {}
-        if self.has_strategies():
+        if self.has_strategies() and bk_host_ids:
             alert_histogram = self.search_target_alert_histogram(bk_host_ids)
             targets_alert_histogram = alert_histogram["targets"]
 
         # 填充主机的告警信息
         for group in instance_status["contents"]:
             for child in group["child"]:
-                child["alert_histogram"] = targets_alert_histogram.get(str(child["bk_host_id"]), None)
+                if "bk_host_id" not in child:
+                    child["alert_histogram"] = None
+                else:
+                    child["alert_histogram"] = targets_alert_histogram.get(str(child["bk_host_id"]), None)
         return instance_status
 
     def search_target_alert_histogram(self, targets: List[str], time_range: int = 3600) -> Dict:
@@ -322,18 +460,18 @@ class TransferCountSeriesResource(BaseStatusResource):
             interval = 1440
             interval_unit = "m"
 
-        # 读取采集相关的指标列表
+        # 读取采集相关的指标列表, 最多20个表
         promqls = [
             """sum(count_over_time({{
                 __name__=~"bkmonitor:{table_id}:.*",
                 bk_collect_config_id="{collect_config_id}"}}[{interval}{unit}])) or vector(0)
             """.format(
-                table_id=table["table_id"],
+                table_id=table.split('.')[0] if not table.endswith(".__default__") else table,
                 collect_config_id=self.collect_config_id,
                 interval=interval,
                 unit=interval_unit,
             )
-            for table in self.get_metrics_json()
+            for table in {t["table_id"] for t in self.get_metrics_json()[-1:]}
         ]
 
         # 没有指标配置，返回空序列
@@ -369,14 +507,13 @@ class TransferLatestMsgResource(BaseStatusResource):
     def perform_request(self, validated_request_data):
         self.init_data(validated_request_data["collect_config_id"])
         messages = []
-        for table in self.get_metrics_json():
-            for metric_name in table["metric_names"]:
-                messages.extend(self.query_latest_metric_msg(table["table_id"], metric_name))
-                if len(messages) > 10:
-                    return messages[:10]
+        for table in {t["table_id"] for t in self.get_metrics_json()}:
+            messages.extend(self.query_latest_metric_msg(table))
+            if len(messages) > 10:
+                return messages[:10]
         return messages
 
-    def query_latest_metric_msg(self, table_id: str, metric_name: str, time_range: int = 600) -> List[str]:
+    def query_latest_metric_msg(self, table_id: str, time_range: int = 600) -> List[str]:
         """查询一个指标最近10分钟的最新数据"""
         start_time, end_time = int(time.time() - time_range), int(time.time())
         query_params = {
@@ -385,10 +522,10 @@ class TransferLatestMsgResource(BaseStatusResource):
                 {
                     "data_source_label": "prometheus",
                     "data_type_label": "time_series",
-                    "promql": "bkmonitor:{table}:{metric}{{{conds}}}[1m]".format(
-                        table=table_id.replace('.', ':'),
-                        metric=metric_name,
-                        conds=f"bk_collect_config_id=\"{self.collect_config_id}\"",
+                    "promql": """
+                    topk(10, {{__name__=~"bkmonitor:{table_id}:.*",
+                     bk_collect_config_id="{bk_collect_config_id}"}})""".format(
+                        table_id=table_id.replace('.', ':'), bk_collect_config_id=self.collect_config_id
                     ),
                     "interval": 60,
                     "alias": "a",
@@ -404,6 +541,7 @@ class TransferLatestMsgResource(BaseStatusResource):
         series = resource.grafana.graph_unify_query(query_params)["series"]
         msgs = []
         for s in series:
+            metric_name = s["dimensions"]["__name__"]
             val = s["datapoints"][-1][0]
             ts = s["datapoints"][-1][1]
             target = s["target"]
@@ -430,9 +568,25 @@ class StorageStatusResource(BaseStatusResource):
     class RequestSerilizer(serializers.Serializer):
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
-    def perform_request(self, validated_request_data):
-        self.init_data(validated_request_data["collect_config_id"])
-        metric_json = self.get_metrics_json()
+    def perform_request(self, params):
+        try:
+            collect_config = CollectConfigMeta.objects.select_related("plugin").get(id=params["collect_config_id"])
+        except CollectConfigMeta.DoesNotExist:
+            return {}
+
+        plugin = collect_config.plugin
+
+        group_list = api.metadata.query_time_series_group(
+            time_series_group_name=f"{plugin.plugin_type}_{plugin.plugin_id}"
+        )
+        if group_list:
+            table_id = PluginVersionHistory.get_result_table_id(plugin, "__default__")
+        else:
+            metric_json = collect_config.deployment_config.metrics
+            if not metric_json:
+                return {}
+            table_id = PluginVersionHistory.get_result_table_id(plugin, metric_json[0]["table_name"])
+
         # 同一个采集项下所有表存储配置都是一致的，取第一个结果表即可
-        storager = get_storager(metric_json[0]["table_id"])
+        storager = get_storager(table_id=table_id)
         return {"info": storager.get_info(), "status": storager.get_status()}

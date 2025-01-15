@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { ISpaceItem } from '../typings';
-
-import { LOCAL_BIZ_STORE_KEY } from './constant';
+import { LOCAL_BIZ_STORE_KEY, COMMON_PAGE_SIZE_KEY } from './constant';
 import { getUrlParam } from './utils';
+
+import type { ISpaceItem } from '../typings';
 
 // merge space list width biz list
 export function mergeSpaceList(spaceList: ISpaceItem[]) {
@@ -39,7 +39,7 @@ export function mergeSpaceList(spaceList: ISpaceItem[]) {
     ...item,
     id: item.bk_biz_id,
     text: item.space_name,
-    name: item.space_name
+    name: item.space_name,
   }));
   window.space_list = list;
   return list;
@@ -51,7 +51,10 @@ export const setGlobalBizId = () => {
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
   const isSpicialEvent = !!getUrlParam('specEvent');
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
+
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
+  const defaultBizId = Number(window.default_biz_id) || '';
+
   const bizList = window.space_list || [];
   const authList = bizList.filter(item => !item.is_demo);
   const hasAuth = id => authList.some(item => +id === +item.bk_biz_id);
@@ -59,17 +62,20 @@ export const setGlobalBizId = () => {
   const isDemo = id => bizList.some(item => +item.bk_biz_id === +id && item.is_demo);
   const spaceUid = getUrlParam('space_uid');
   const spaceItem = spaceUid ? bizList.find(item => item.space_uid === spaceUid) : undefined;
+  if (spaceItem?.bk_biz_id) {
+    bizId = spaceItem.bk_biz_id;
+  }
   const isCanAllIn =
     ['#/', '#/event-center'].includes(location.hash.replace(/\?.*/, '')) ||
     /^#\/(event-center\/detail|share)\//.test(location.hash) ||
     !!window.__BK_WEWEB_DATA__?.token;
   const hasBizId = () => !(!bizId || bizId === -1);
-  const setBizId = (id: string | number) => {
+  const setBizId = (id: number | string) => {
     window.cc_biz_id = +id;
     window.bk_biz_id = +id;
     !isDemo(id) && localStorage.setItem(LOCAL_BIZ_STORE_KEY, id.toString());
   };
-  const setLocationSearch = (bizId: string | number) => {
+  const setLocationSearch = (bizId: number | string) => {
     if (location.search) {
       location.search = location.search.replace(/(space_uid|bizId)=([^#&/]+)/gim, `bizId=${bizId}`);
     } else {
@@ -78,9 +84,10 @@ export const setGlobalBizId = () => {
     return false;
   };
   if (bizId !== window.bk_biz_id && !isInSpaceList(bizId) && hasAuth(window.bk_biz_id)) {
-    if (hasAuth(localBizId)) {
-      window.bk_biz_id = +localBizId;
-      window.cc_biz_id = +localBizId;
+    const newBizId = defaultBizId || localBizId;
+    if (hasAuth(newBizId)) {
+      window.bk_biz_id = +newBizId;
+      window.cc_biz_id = +newBizId;
     }
     const url = new URL(window.location.href);
     const { searchParams } = url;
@@ -98,7 +105,8 @@ export const setGlobalBizId = () => {
     if (isNoBusiness && !bizList.length) {
       return true;
     }
-    const newBizId = spaceItem?.bk_biz_id || window.cc_biz_id;
+    // 设置过默认id时，优先取defaultBizId
+    const newBizId = defaultBizId || spaceItem?.bk_biz_id || window.cc_biz_id;
     // search with space_uid
     if (spaceUid) {
       window.space_uid = spaceUid;
@@ -176,7 +184,7 @@ export const setGlobalBizId = () => {
  */
 export const lightenDarkenColor = (color: string, amt: number): string => {
   // 从颜色字符串中删除 '#' 并将其转换为数字
-  const num = parseInt(color.replace(/^#/, ''), 16);
+  const num = Number.parseInt(color.replace(/^#/, ''), 16);
 
   // 辅助函数，确保颜色值保持在有效范围（0 到 255）内
   const clamp = (value: number): number => Math.max(0, Math.min(255, value));
@@ -189,7 +197,28 @@ export const lightenDarkenColor = (color: string, amt: number): string => {
   // 返回修改后的颜色，格式与输入颜色相同（"#" 开头或不带 "#"）
   return (color.startsWith('#') ? '#' : '') + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 };
+
+/**
+ * @description 设置通用分页大小
+ * @param size
+ */
+export const commonPageSizeSet = (size: number) => {
+  localStorage.setItem(COMMON_PAGE_SIZE_KEY, `${size || 10}`);
+};
+
+/**
+ * @description 获取通用分页大小
+ */
+export const commonPageSizeGet = () => {
+  const size = localStorage.getItem(COMMON_PAGE_SIZE_KEY);
+  const sizeNum = Number(size);
+  if (size && !isNaN(sizeNum)) {
+    return sizeNum;
+  }
+  commonPageSizeSet(10);
+  return 10;
+};
+
 export * from './constant';
-export * from './docs-link';
 export * from './utils';
 export * from './xss';

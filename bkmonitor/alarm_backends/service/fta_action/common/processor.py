@@ -16,7 +16,7 @@ from importlib import import_module
 import jmespath
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from alarm_backends.service.fta_action import (
     ActionAlreadyFinishedError,
@@ -74,7 +74,7 @@ class ActionProcessor(BaseActionProcessor):
         params.update(ActionPlugin.PUBLIC_PARAMS)
         return params
 
-    def execute(self):
+    def execute(self, failed_times=0):
         """
         执行
         :return:

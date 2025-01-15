@@ -1,0 +1,23 @@
+.failure-edit-dialog {
+  .ml10 {
+    margin-left: 10px;
+  }
+
+  .radio-icon {
+    margin-right: 4px;
+    font-size: 14px;
+    vertical-align: middle;
+
+    &.danger {
+      color: #ea3636;
+    }
+
+    &.mind-fill {
+      color: #ff9c01;
+    }
+
+    &.tips {
+      color: #3a84ff;
+    }
+  }
+}

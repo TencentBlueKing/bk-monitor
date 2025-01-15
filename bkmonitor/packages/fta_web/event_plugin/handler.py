@@ -16,7 +16,7 @@ from uuid import uuid4
 import yaml
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from core.errors.event_plugin import PluginParseError
 

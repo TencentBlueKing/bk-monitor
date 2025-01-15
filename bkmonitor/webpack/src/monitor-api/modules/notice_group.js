@@ -13,5 +13,5 @@ export default {
   noticeGroupConfig,
   deleteNoticeGroup,
   noticeGroupList,
-  noticeGroupDetail
+  noticeGroupDetail,
 };

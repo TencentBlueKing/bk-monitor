@@ -32,7 +32,6 @@ from apps.decorators import user_operation_record
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_COLLECTOR_ITSM
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
-from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.constants import (
     ETL_PARAMS,
@@ -174,15 +173,15 @@ class EtlHandler(object):
         is_add = False if self.data.table_id else True
 
         if self.data.is_clustering:
-            clustering_handler = ClusteringConfigHandler(collector_config_id=self.data.collector_config_id)
-            ClusteringConfigHandler.pre_check_fields(
-                fields=fields, etl_config=etl_config, clustering_fields=clustering_handler.data.clustering_fields
+            handler = ClusteringConfigHandler(collector_config_id=self.data.collector_config_id)
+            update_clustering_clean.delay(
+                collector_config_id=self.data.collector_config_id,
+                fields=fields,
+                etl_config=etl_config,
+                etl_params=etl_params,
             )
-            if clustering_handler.data.bkdata_etl_processing_id:
-                DataAccessHandler().create_or_update_bkdata_etl(self.data.collector_config_id, fields, etl_params)
-            update_clustering_clean.delay(index_set_id=clustering_handler.data.index_set_id)
 
-            if clustering_handler.data.bkdata_data_id != self.data.bk_data_id:
+            if handler.data.bkdata_data_id and handler.data.bkdata_data_id != self.data.bk_data_id:
                 # 旧版聚类链路，由于入库链路不是独立的，需要更新 transfer 的结果表配置；新版则无需更新
                 etl_params["etl_flat"] = True
                 etl_params["separator_node_action"] = ""
@@ -274,6 +273,11 @@ class EtlHandler(object):
         """
         fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
         fmt = fmts.get(time_format)
+
+        if fmt.get("is_custom"):
+            # 自定义格式跳过校验
+            return {"epoch_millis": f"{arrow.now().timestamp}000"}
+
         if fmt["name"] in [ISO_8601_TIME_FORMAT_NAME, "ISO8601"]:
             try:
                 epoch_second = arrow.get(data, tzinfo=f"GMT{time_zone}").timestamp
@@ -293,7 +297,15 @@ class EtlHandler(object):
         return {"epoch_millis": f"{epoch_second}000"}
 
     @transaction.atomic()
-    def _update_or_create_index_set(self, etl_config, storage_cluster_id, view_roles=None, username=""):
+    def _update_or_create_index_set(
+            self,
+            etl_config,
+            storage_cluster_id,
+            view_roles=None,
+            username="",
+            sort_fields=None,
+            target_fields=None,
+    ):
         """
         创建索引集
         """
@@ -319,6 +331,8 @@ class EtlHandler(object):
                 category_id=self.data.category_id,
                 indexes=indexes,
                 username=username,
+                sort_fields=sort_fields,
+                target_fields=target_fields,
             )
         else:
             if not view_roles:

@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -22,7 +22,7 @@ class ConditionSerializer(serializers.Serializer):
     field = serializers.CharField(label="匹配字段")
     value = serializers.ListField(label="匹配值", child=serializers.CharField(allow_blank=True))
     method = serializers.ChoiceField(
-        label="匹配方法", choices=["eq", "neq", "include", "exclude", "reg", "nreg"], default="eq"
+        label="匹配方法", choices=["eq", "neq", "include", "exclude", "reg", "nreg", "issuperset"], default="eq"
     )
     condition = serializers.ChoiceField(label="复合条件", choices=["and", "or", ""], default="")
 
@@ -32,6 +32,14 @@ class TagSerializer(serializers.Serializer):
     value = serializers.CharField(label="值", required=True)
     display_key = serializers.CharField(label="字段显示值", default="")
     display_value = serializers.CharField(label="字段值的显示值", default="")
+
+    def validate(self, attrs):
+        unsafe_chars = {"<", ">", "&", '"', "'", "`"}
+        for value in attrs.values():
+            value = set(value)
+            if value & unsafe_chars:
+                raise ValidationError(detail=_("不能包含特殊字符"))
+        return attrs
 
 
 class UpgradeConfigSerializer(serializers.Serializer):

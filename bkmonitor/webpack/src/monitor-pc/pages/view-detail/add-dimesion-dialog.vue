@@ -46,22 +46,22 @@
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+import { Component, Prop, Vue } from 'vue-property-decorator';
 
 @Component({
   name: 'add-dimesion-dialog',
   components: {
-    MonitorDialog
-  }
+    MonitorDialog,
+  },
 })
 export default class AddDimesionDialog extends Vue {
   @Prop({ default: false })
-    isShow: boolean;
+  isShow: boolean;
   @Prop({ default: () => [] })
-    dimensionsList: any[];
+  dimensionsList: any[];
   @Prop({ default: () => [] })
-    checkedDimensions: [];
+  checkedDimensions: [];
 
   aaa = [];
   created() {

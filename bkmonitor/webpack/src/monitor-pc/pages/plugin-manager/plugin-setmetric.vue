@@ -37,19 +37,18 @@
 import { retrieveCollectorPlugin } from 'monitor-api/modules/model';
 
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
-import MetricDimension from './plugin-instance/set-steps/metric-dimension/metric-dimension-dialog.vue';
 import * as pluginManageAuth from './authority-map';
+import MetricDimension from './plugin-instance/set-steps/metric-dimension/metric-dimension-dialog.vue';
 
 export default {
   name: 'PluginSetmetric',
   components: {
-    MetricDimension
+    MetricDimension,
   },
   provide() {
     return {
       authority: this.authority,
-      handleShowAuthorityDetail: this.handleShowAuthorityDetail
+      handleShowAuthorityDetail: this.handleShowAuthorityDetail,
     };
   },
   mixins: [authorityMixinCreate(pluginManageAuth)],
@@ -58,7 +57,7 @@ export default {
       loading: false,
       metricData: [],
       pluginData: {},
-      pluginType: null // 插件类型
+      pluginType: null, // 插件类型
     };
   },
   created() {
@@ -71,7 +70,7 @@ export default {
       let detailData = {};
       this.$store.commit('app/SET_NAV_TITLE', this.$t('加载中...'));
       await retrieveCollectorPlugin(this.$route.params.pluginId)
-        .then((data) => {
+        .then(data => {
           detailData = data;
           this.$store.commit(
             'app/SET_NAV_TITLE',
@@ -83,8 +82,8 @@ export default {
         });
       this.metricData = detailData.metric_json;
       this.pluginType = detailData.plugin_type;
-      this.metricData.forEach((group) => {
-        group.fields.forEach((item) => {
+      this.metricData.forEach(group => {
+        group.fields.forEach(item => {
           item.isCheck = false;
           item.isDel = true;
           item.errValue = false;
@@ -103,13 +102,13 @@ export default {
         plugin_id: detailData.plugin_id,
         plugin_type: detailData.plugin_type,
         config_version: detailData.config_version,
-        info_version: detailData.info_version
+        info_version: detailData.info_version,
       };
     },
     handleSowNav() {
       const routeList = [];
       const {
-        options: { routes }
+        options: { routes },
       } = this.$router;
       const { meta, name } = this.$route;
       this.showNav = !meta.noNavBar && !!name;
@@ -117,9 +116,10 @@ export default {
         this.needCopyLink = meta.needCopyLink ?? false;
         this.needBack = meta.needBack ?? false;
         routeList.unshift({ name: this.$t(`route-${meta.title}`), id: name });
-        const getRouteItem = (meta) => {
+        const getRouteItem = meta => {
           const parentRoute = routes.find(item => item.name === meta?.route?.parent);
-          parentRoute && routeList.unshift({ name: this.$t(`route-${parentRoute?.meta?.title}`), id: parentRoute.name });
+          parentRoute &&
+            routeList.unshift({ name: this.$t(`route-${parentRoute?.meta?.title}`), id: parentRoute.name });
           if (parentRoute?.meta?.route?.parent) {
             getRouteItem(parentRoute?.meta);
           }
@@ -128,7 +128,7 @@ export default {
       }
       /** 设置默认的路由 */
       this.$store.commit('app/SET_NAV_ROUTE_LIST', routeList);
-    }
-  }
+    },
+  },
 };
 </script>

@@ -59,11 +59,11 @@ def is_run_time(frequency, run_time_strings: list) -> bool:
     是否到执行时间
     """
     now_time = arrow.now()
-    one_minute_ago = TimeMatch.convert_datetime_to_arrow(datetime.datetime.now() - datetime.timedelta(minutes=1))
+    ten_minute_ago = TimeMatch.convert_datetime_to_arrow(datetime.datetime.now() - datetime.timedelta(minutes=10))
     time_match_class = TIME_MATCH_CLASS_MAP.get(frequency["type"], TimeMatchBySingle)
-    frequency["begin_time"] = one_minute_ago.format("HH:mm:ss")
+    frequency["begin_time"] = ten_minute_ago.format("HH:mm:ss")
     frequency["end_time"] = now_time.format("HH:mm:ss")
-    time_check = time_match_class(frequency, one_minute_ago, now_time)
+    time_check = time_match_class(frequency, ten_minute_ago, now_time)
 
     for run_time in run_time_strings:
         run_time = TimeMatch.convert_datetime_to_arrow(datetime.datetime.strptime(run_time, "%Y-%m-%d %H:%M:%S"))

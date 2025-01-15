@@ -18,6 +18,7 @@ bkmonitorbeat:
   event_buffer_size: 10
   mode: daemon
   keep_one_dimension: true
+  max_execution_time: 5m
   heart_beat:
     global_dataid: 101178
     child_dataid: 111110

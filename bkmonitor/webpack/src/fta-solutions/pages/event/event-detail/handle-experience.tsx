@@ -25,6 +25,7 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getExperience, saveExperience } from 'monitor-api/modules/alert';
 import Editor from 'monitor-ui/markdown-editor/editor';
 
@@ -37,7 +38,7 @@ interface IHandleExperienceProps {
 }
 
 @Component({
-  name: 'HandleExperience'
+  name: 'HandleExperience',
 })
 export default class HandleExperience extends tsc<IHandleExperienceProps> {
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -66,7 +67,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
     const params = {
       bk_biz_id: this.bkBizId,
       alert_id: this.alertId,
-      description: this.text
+      description: this.text,
     };
     const data = await saveExperience(params).finally(() => (this.isLoading = false));
     this.text = data.description;
@@ -75,11 +76,11 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
   render() {
     return (
       <div
-        v-bkloading={{ isLoading: this.isLoading }}
         class={['event-detail-handleexperience', { displaynone: !this.show }]}
+        v-bkloading={{ isLoading: this.isLoading }}
       >
         <div class='handleexperience-tip'>
-          <span class='icon-monitor icon-hint'></span>
+          <span class='icon-monitor icon-hint' />
           <span class='tip-text'>
             {this.$t('处理经验是与指标绑定出现的，如果同一个指标有多种情况，可以追加多种处理经验方便经验的共享。')}
           </span>
@@ -88,7 +89,7 @@ export default class HandleExperience extends tsc<IHandleExperienceProps> {
           height='400px'
           class='detail-content-editor'
           v-model={this.text}
-        ></Editor>
+        />
         <bk-button
           ext-cls={'handleexperience-btn'}
           theme='primary'

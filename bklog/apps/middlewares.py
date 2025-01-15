@@ -26,6 +26,8 @@ import json
 import os
 import traceback
 
+from apigw_manager.apigw.authentication import ApiGatewayJWTGenericMiddleware
+from apigw_manager.apigw.providers import SettingsPublicKeyProvider
 from blueapps.core.exceptions.base import BlueException
 
 try:
@@ -36,13 +38,14 @@ except ImportError:
     except ImportError:
         from _thread import get_ident
 
-from apps.exceptions import BaseException
-from apps.utils.log import logger
 from django.conf import settings
 from django.dispatch import Signal
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.translation import ugettext as _
+
+from apps.exceptions import BaseException
+from apps.utils.log import logger
 
 
 class AccessorSignal(Signal):
@@ -205,3 +208,25 @@ class HttpsMiddleware(MiddlewareMixin):
             return None
         if not request.is_secure() and settings.DEFAULT_HTTPS_HOST:
             return HttpResponseIndexRedirect(request.path)
+
+
+class SettingsExternalPublicKeyProvider(SettingsPublicKeyProvider):
+    def provide(self, api_name, jwt_issuer=None):
+        """Return the public key specified by Settings"""
+        public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
+        if not public_key:
+            logger.warning(
+                "No `EXTERNAL_APIGW_PUBLIC_KEY` can be found in settings, you should either configure it "
+                "with a valid value or remove `ApiGatewayJWTExternalMiddleware` middleware entirely"
+            )
+        return public_key
+
+
+class ApiGatewayJWTMiddleware(ApiGatewayJWTGenericMiddleware):
+    def __call__(self, request):
+        is_external = request.headers.get("Is-External", "false")
+        if is_external == "true":
+            self.provider.public_key_provider = SettingsExternalPublicKeyProvider(
+                default_gateway_name=self.provider.default_gateway_name
+            )
+        return super(ApiGatewayJWTMiddleware, self).__call__(request)

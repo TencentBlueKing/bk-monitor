@@ -9,5 +9,5 @@ export default {
   statistics,
   favorite,
   sticky,
-  bizWithAlertStatistics
+  bizWithAlertStatistics,
 };

@@ -31,9 +31,7 @@
     </div>
   </div>
 </template>
-<script>
-
-</script>
+<script></script>
 <style lang="scss" scoped>
 .top-hint {
   display: flex;

@@ -40,8 +40,8 @@
         :class="[
           'selected-item',
           {
-            active: DragData.toActive === index || selectedActive === item.id
-          }
+            active: DragData.toActive === index || selectedActive === item.id,
+          },
         ]"
         draggable="true"
         @click="handleSelectItem(item)"
@@ -57,7 +57,8 @@
           <span
             class="des"
             v-bk-tooltips="{ content: handleBelonging(item), delay: 300, allowHTML: false }"
-          >&nbsp;{{ `- ${$t('所属:')}${handleBelonging(item)}` }}</span>
+            >&nbsp;{{ `- ${$t('所属:')}${handleBelonging(item)}` }}</span
+          >
         </span>
         <span
           @click.stop="handleDelSelected(index)"
@@ -72,7 +73,8 @@
       <span
         class="add-btn"
         @click="handleAddChart"
-      ><span class="icon-monitor icon-mc-add" />{{ $t('添加图表') }}</span>
+        ><span class="icon-monitor icon-mc-add" />{{ $t('添加图表') }}</span
+      >
     </div>
     <div
       class="select-tool-wrap"
@@ -171,11 +173,13 @@
             theme="primary"
             :disabled="false"
             @click="handleComfirm"
-          >{{ $t('确认') }}</bk-button>
+            >{{ $t('确认') }}</bk-button
+          >
           <bk-button
             size="small"
             @click="handleCancel"
-          >{{ $t('取消') }}</bk-button>
+            >{{ $t('取消') }}</bk-button
+          >
         </div>
       </div>
     </div>
@@ -183,13 +187,19 @@
 </template>
 
 <script lang="ts">
-import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
 import { getDashboardList } from 'monitor-api/modules/grafana';
 import { buildInMetric, getPanelsByDashboard } from 'monitor-api/modules/report';
 import { deepClone } from 'monitor-common/utils/utils';
+import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
 
 import SpaceSelect from '../../../components/space-select/space-select';
-import { IAddChartToolData, IChartDataItem, IChartListAllItem, IDefaultRadioList, IGraphValueItem } from '../types';
+import type {
+  IAddChartToolData,
+  IChartDataItem,
+  IChartListAllItem,
+  IDefaultRadioList,
+  IGraphValueItem,
+} from '../types';
 
 import checkboxGroup from './checkboxGroup.vue';
 import { defaultRadioList } from './store';
@@ -201,8 +211,8 @@ import { defaultRadioList } from './store';
   name: 'select-chart',
   components: {
     checkboxGroup,
-    SpaceSelect
-  }
+    SpaceSelect,
+  },
 })
 export default class SelectChart extends Vue {
   // value双向绑定
@@ -216,8 +226,8 @@ export default class SelectChart extends Vue {
     active: 'grafana',
     tabList: [
       { name: 'default', label: window.i18n.t('内置') },
-      { name: 'grafana', label: window.i18n.t('仪表盘') }
-    ]
+      { name: 'grafana', label: window.i18n.t('仪表盘') },
+    ],
   };
 
   // active状态与列表数据
@@ -239,7 +249,7 @@ export default class SelectChart extends Vue {
   DragData: any = {
     from: null,
     to: null,
-    toActive: null
+    toActive: null,
   };
 
   get leftList(): IChartListAllItem[] {
@@ -266,8 +276,8 @@ export default class SelectChart extends Vue {
       ...this.defaultRadioList,
       ...this.bizIdList.map(item => ({
         id: String(item.id),
-        text: item.text
-      }))
+        text: item.text,
+      })),
     ];
   }
 
@@ -293,7 +303,7 @@ export default class SelectChart extends Vue {
     await Promise.all([this.getChartList(), this.getBuildInMetric()]).finally(() => (this.isLoading = false));
     this.bizIdList = this.$store.getters.bizList.map(item => ({
       id: String(item.id),
-      text: item.text
+      text: item.text,
     }));
   }
 
@@ -301,7 +311,7 @@ export default class SelectChart extends Vue {
    * 获取内置图表数据
    */
   getBuildInMetric() {
-    return buildInMetric().then((list) => {
+    return buildInMetric().then(list => {
       this.allDefaultList = list;
     });
   }
@@ -310,7 +320,7 @@ export default class SelectChart extends Vue {
    * 获取图表的panels列表数据
    */
   getPanelsList(uid: string) {
-    return getPanelsByDashboard({ uid }).finally(() => this.isRightListLoading = false);
+    return getPanelsByDashboard({ uid }).finally(() => (this.isRightListLoading = false));
   }
 
   /**
@@ -321,7 +331,7 @@ export default class SelectChart extends Vue {
     if (+this.curBizId === -1) return;
     needLoading && (this.isLoading = true);
     return getDashboardList({ bk_biz_id: this.curBizId })
-      .then((list) => {
+      .then(list => {
         this.allGrafanaListMap = Array.isArray(list) ? list : list[this.curBizId] || [];
       })
       .catch(() => [])
@@ -380,7 +390,7 @@ export default class SelectChart extends Vue {
     } else {
       graphPanelsList = await this.getPanelsList(this.leftActive);
     }
-    graphPanelsList.forEach((panel) => {
+    graphPanelsList.forEach(panel => {
       const bizId = this.tool.active === 'default' ? this.DefaultCurBizIdList.sort().join(',') : this.curBizId;
       panel.fatherId = item.uid;
       panel.key = `${bizId}-${this.leftActive}-${panel.id}`;
@@ -445,9 +455,7 @@ export default class SelectChart extends Vue {
 
   handleBelonging(item) {
     const res = item.id.split('-');
-    const str = this.radioMap.includes(res[0])
-      ? this.defaultRadioList.find(item => item.id === res[0])?.title
-      : res[0];
+    const str = this.radioMap.includes(res[0]) ? this.defaultRadioList.find(item => item.id === res[0])?.title : res[0];
     return str;
   }
 
@@ -465,7 +473,7 @@ export default class SelectChart extends Vue {
     this.DragData = {
       from: null,
       to: null,
-      toActive: null
+      toActive: null,
     };
   }
   handleDrop() {
@@ -487,7 +495,7 @@ export default class SelectChart extends Vue {
 <style lang="scss" scoped>
 .select-chart-wrap {
   .flip-list-move {
-    transition: transform .5s;
+    transition: transform 0.5s;
   }
 
   .selected-list-wrap {
@@ -594,7 +602,6 @@ export default class SelectChart extends Vue {
       border-right: 1px solid #dcdee5;
 
       .tab-wrap {
-
         height: 32px;
         background-color: #fafbfd;
         border-bottom: 1px solid #dcdee5;
@@ -631,6 +638,7 @@ export default class SelectChart extends Vue {
           width: 100%;
           padding: 0 20px;
 
+          /* stylelint-disable-next-line no-descending-specificity */
           .bk-tab-label-item {
             flex: 1;
             min-width: 0;

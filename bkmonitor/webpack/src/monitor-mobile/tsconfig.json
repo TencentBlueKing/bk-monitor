@@ -1,45 +1,16 @@
 {
-  "include": [
-    "./**/*.ts",
-    "./**/*.vue",
-    "./**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ],
+  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js"],
+  "exclude": ["node_modules"],
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "importHelpers": true,
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "module": "esnext",
-    "target": "esnext",
-    "outDir": "dist",
-    "moduleResolution": "node",
-    "sourceMap": true,
-    "pretty": true,
-    "jsx": "preserve",
     "jsxFactory": "VueTsxSupport",
-    "lib": ["es2018", "dom"],
-    "removeComments": false,
+    "outDir": "./dist",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@router/*": [
-        "./router/*"
-      ],
-      "@store/*": [
-        "./store/*"
-      ],
-      "@page/*": [
-        "./page/*"
-      ],
-      "@static/*": [
-        "./static/*"
-      ]
+      "@/*": ["./*"],
+      "@router/*": ["./router/*"],
+      "@store/*": ["./store/*"],
+      "@page/*": ["./page/*"],
+      "@static/*": ["./static/*"]
     }
   }
 }

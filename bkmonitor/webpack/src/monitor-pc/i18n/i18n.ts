@@ -25,22 +25,16 @@
  */
 import Vue from 'vue';
 import VueI18n from 'vue-i18n';
-import { lang, locale } from 'bk-magic-vue';
-import { LANGUAGE_COOKIE_KEY } from 'monitor-common/utils/constant';
-import { docCookies } from 'monitor-common/utils/utils';
 
-import './dayjs';
+import { lang, locale } from 'bk-magic-vue';
 
 import { mergeI18nJson } from './commmon';
-// 获取语言偏好设置
-const currentLang = docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zhCN';
-
-// 判断当前语言是否为英文
-export const isEn = currentLang === 'en';
+import './dayjs';
+import { currentLang, isEn } from './lang';
 document.documentElement.setAttribute('lang', currentLang);
 
 // 设置网页标题
-document.title = window.page_title || (isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云');
+// document.title = window.page_title || (isEn ? 'BKMonitor | Tencent BlueKing' : '监控平台 | 腾讯蓝鲸智云');
 
 // 设置 VueI18n 使用的语言
 const i18nLocale = isEn ? 'enUS' : 'zhCN';
@@ -58,8 +52,8 @@ const i18n = new VueI18n({
   silentTranslationWarn: false, // 是否警告翻译缺失
   messages: {
     // 翻译文件
-    ...mergeI18nJson()
-  }
+    ...mergeI18nJson(),
+  },
 });
 
 // 将 VueI18n 实例挂载到全局变量 window.i18n 上

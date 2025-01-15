@@ -13,9 +13,10 @@ import copy
 import logging
 
 import arrow
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from six import string_types
 
+from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from alarm_backends.core.cache.key import NOTICE_SHIELD_KEY_LOCK
 from alarm_backends.core.context.utils import get_business_roles
 from alarm_backends.core.control.strategy import Strategy
@@ -31,6 +32,7 @@ from bkmonitor.utils.range.conditions import AndCondition, EqualCondition, OrCon
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
 from constants.shield import ScopeType, ShieldCategory
+from core.errors.alarm_backends import StrategyNotFound
 
 logger = logging.getLogger("fta_action")
 
@@ -54,14 +56,6 @@ class ShieldObj(object):
     @property
     def is_dimension_scope(self):
         return self.config["category"] == ShieldCategory.DIMENSION
-
-    def is_biz_topo(self, node):
-        """
-        判断是否是业务拓扑
-        :param node:
-        :return:
-        """
-        return len(node) == 1 and node[0]["bk_obj_id"] == ScopeType.BIZ
 
     def _parse_cycle_config(self):
         """
@@ -119,8 +113,27 @@ class ShieldObj(object):
             # 如果是按照节点进行屏蔽，则需要判断是否是按照业务屏蔽的
             if self.config["scope_type"] == ScopeType.NODE:
                 bk_topo_node = clean_dimension.pop("bk_topo_node", [])
-                if not self.is_biz_topo(bk_topo_node):
+                if not (len(bk_topo_node) == 1 and bk_topo_node[0]["bk_obj_id"] == ScopeType.BIZ):
                     clean_dimension["bk_topo_node"] = bk_topo_node
+
+        # 解析动态分组配置
+        if self.config["scope_type"] == ScopeType.DYNAMIC_GROUP:
+            dynamic_group_ids = set()
+            for dg in clean_dimension.pop("dynamic_group", []):
+                dynamic_group_ids.add(dg["dynamic_group_id"])
+            dynamic_group_ids = list(dynamic_group_ids)
+
+            # 查询动态分组所属的主机
+            dynamic_groups = []
+            if dynamic_group_ids:
+                dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
+
+            bk_host_ids = set()
+            for dynamic_group in dynamic_groups:
+                if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+                    bk_host_ids.update(dynamic_group["bk_inst_ids"])
+            if bk_host_ids:
+                clean_dimension["bk_host_id"] = list(bk_host_ids)
 
         for k, v in list(clean_dimension.items()):
             field = load_field_instance(k, v)
@@ -176,7 +189,6 @@ class ShieldObj(object):
             del_key.append("category")
 
         for key, value in list(dimension.items()):
-
             # 2. 找出value包含00的维度
             # 3. 找出key以下划线打头的维度
             if is_contains_00(value) or is_start_with__(key):
@@ -382,11 +394,17 @@ class AlertShieldObj(ShieldObj):
         dimension["bk_topo_node"] = dimension.get("bk_topo_node") or [
             node for node in alert.event_document.bk_topo_node
         ]
+        dimension["bk_host_id"] = dimension.get("bk_host_id") or alert.event_document.bk_host_id
+        dimension["bk_biz_id"] = alert.event_document.bk_biz_id
         metric_ids = []
 
         if alert.strategy_id:
             # 需要判断当前的alert是否有策略ID
             strategy = Strategy(alert.strategy_id, default_config=alert.strategy)
+            # 策略缓存获取不到，则无法后续判定，此时 直接抛出异常
+            if not strategy.config:
+                raise StrategyNotFound(key=alert.strategy_id)
+
             for query_config in strategy.config["items"][0]["query_configs"]:
                 metric_ids.append(query_config["metric_id"])
 

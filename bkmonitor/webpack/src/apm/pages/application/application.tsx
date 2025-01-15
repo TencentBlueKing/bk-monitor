@@ -23,25 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
-import { Component, InjectReactive, Mixins, Prop, Provide, Ref } from 'vue-property-decorator';
+import { Component, InjectReactive, Mixins, Prop, Ref } from 'vue-property-decorator';
+
+import { listApplicationInfo, simpleServiceList } from 'monitor-api/modules/apm_meta';
 import { random } from 'monitor-common/utils/utils';
-import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone } from 'monitor-pc/i18n/dayjs';
+import authorityMixinCreate from 'monitor-pc/mixins/authorityMixin';
 import CommonAlert from 'monitor-pc/pages/monitor-k8s/components/common-alert';
-import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
-import CommonPage, { SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
-import { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
-import { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import CommonPage, { type SceneType } from 'monitor-pc/pages/monitor-k8s/components/common-page-new';
 
-import ListMenu, { IMenuItem } from '../../components/list-menu/list-menu';
-import authorityMixinCreate from '../../mixins/authorityMixin';
+import ApmCommonNavBar, {
+  type INavItem,
+  type ISelectItem,
+} from '../../components/apm-common-nav-bar/apm-common-nav-bar';
+import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import applicationStore from '../../store/modules/application';
 import AppAddForm from '../home/app-add-form';
-
 import * as authorityMap from './../home/authority-map';
-import NoDataGuide from './app-add/no-data-guide';
+
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './application.scss';
 
@@ -51,9 +54,6 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   @Prop({ type: String, default: '' }) id: string;
 
   @Ref() commonPageRef: CommonPage;
-
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   // 是否是只读模式
   @InjectReactive('readonly') readonly readonly: boolean;
   sceneType: SceneType = 'overview';
@@ -63,12 +63,10 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   viewOptions: IViewOptions = {};
   // 导航条设置
   routeList: INavItem[] = [];
-
+  /** common-page组件key */
+  pageKey = 0;
   // 是否展示引导页
   showGuidePages = false;
-
-  // 显示无数据指引弹窗
-  showGuideDialog = false;
 
   /** 视图无数据 */
   viewHasNoData = true;
@@ -76,6 +74,12 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
 
   /** 应用名 */
   appName = '';
+  /** 应用列表 */
+  appList = [];
+  /** 服务列表 */
+  serviceList = [];
+  /** 服务列表缓存 */
+  serviceMapCache = new Map();
   /** 选中的插件id */
   pluginId = '';
   /** 新建应用弹窗 */
@@ -91,22 +95,22 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   menuList: IMenuItem[] = [
     {
       id: 'basicConfiguration',
-      name: window.i18n.tc('基础配置')
+      name: window.i18n.tc('基础配置'),
     },
-    {
-      id: 'customService',
-      name: window.i18n.tc('自定义服务')
-    },
+    // {
+    //   id: 'customService',
+    //   name: window.i18n.tc('自定义服务'),
+    // },
     {
       id: 'storageState',
-      name: window.i18n.tc('存储状态')
+      name: window.i18n.tc('存储状态'),
     },
     {
       id: 'dataStatus',
-      name: window.i18n.tc('数据状态')
-    }
+      name: window.i18n.tc('数据状态'),
+    },
   ];
-
+  dashboardId = '';
   get pluginsList() {
     return applicationStore.pluginsListGetter || [];
   }
@@ -115,11 +119,9 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     return { application_name: this.$route.query?.['filter-app_name'] || '' };
   }
   get positonText() {
-    // eslint-disable-next-line no-nested-ternary
     const value =
       this.sceneType === 'overview'
-        ? // eslint-disable-next-line no-nested-ternary
-          this.tabName === window.i18n.tc('服务')
+        ? this.tabName === window.i18n.tc('服务')
           ? window.i18n.tc('列表')
           : this.tabId === 'topo'
             ? window.i18n.tc('拓扑')
@@ -131,23 +133,49 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   beforeRouteEnter(to, from, next) {
     const { query } = to;
     const appName = query['filter-app_name'] as string;
+
     next(async (vm: Application) => {
       vm.routeList = [
         {
           id: 'home',
-          name: 'APM'
+          name: 'APM',
+          query: {
+            app_name: appName,
+          },
         },
         {
           id: 'application',
           name: `${window.i18n.tc('应用')}：${appName}`,
-          subName: ''
-        }
+          subName: '',
+          notLink: true,
+          selectOption: {
+            value: appName,
+            selectList: [],
+          },
+        },
+        {
+          id: 'service',
+          name: window.i18n.tc('选择服务'),
+          class: 'placeholder',
+          selectOption: {
+            value: '',
+            selectList: [],
+            loading: false,
+          },
+        },
       ];
-      vm.viewOptions = {};
+      vm.viewOptions = {
+        filters: {
+          app_name: appName,
+        },
+      };
       const { query } = to;
       vm.appName = query['filter-app_name'] as string;
+      vm.dashboardId = query.dashboardId || 'overview';
       applicationStore.getPluginList();
       vm.handleGetAppInfo();
+      vm.getApplicationList();
+      vm.getServiceList();
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -158,9 +186,81 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   handelTimeRangeChange() {
     this.handleGetAppInfo();
   }
+  /** 获取应用列表 */
+  async getApplicationList() {
+    const listData = await listApplicationInfo().catch(() => []);
+    this.appList = listData.map(item => ({
+      id: item.app_name,
+      name: `${item.app_name}(${item.app_alias})`,
+      ...item,
+    }));
+    this.routeList[1].selectOption.selectList = this.appList;
+  }
+  /** 获取服务列表 */
+  async getServiceList() {
+    if (!this.appName) return;
+    let serviceList = [];
+    if (this.serviceMapCache.get(this.appName)) {
+      serviceList = this.serviceMapCache.get(this.appName);
+    } else {
+      this.routeList[2].selectOption.loading = true;
+      serviceList = await simpleServiceList({ app_name: this.appName }).catch(() => []);
+      this.routeList[2].selectOption.loading = false;
+    }
+    this.serviceList = serviceList.map(item => ({
+      id: item.service_name,
+      name: item.service_name,
+      ...item,
+    }));
+    this.routeList[2].selectOption.selectList = this.serviceList;
+  }
+  /** 导航栏下拉选择 */
+  async handleNavSelect(item: ISelectItem, navId: string) {
+    if (navId === 'application') {
+      this.appName = item.id;
+      this.getServiceList();
+      const { to, from, interval, timezone, refleshInterval, dashboardId } = this.$route.query;
+      this.viewOptions = {
+        filters: {
+          app_name: this.appName,
+        },
+      };
+      this.$router.replace({
+        name: this.$route.name,
+        query: {
+          to,
+          from,
+          interval,
+          timezone,
+          refleshInterval,
+          dashboardId,
+          'filter-app_name': this.appName,
+        },
+      });
+      this.routeList[0].query = { app_name: this.appName };
+      this.routeList[1].name = `${this.$tc('应用')}：${this.appName}`;
+      this.routeList[1].selectOption.value = this.appName;
+      this.pageKey += 1;
+      this.handleGetAppInfo();
+    } else {
+      const dashboardId = this.$route.query.dashboardId;
+      this.$router.push({
+        name: 'service',
+        query: {
+          'filter-app_name': item.app_name,
+          'filter-service_name': item.service_name,
+          'filter-category': item.category,
+          'filter-kind': item.kind,
+          'filter-predicate_value': item.predicate_value,
+          dashboardId,
+        },
+      });
+    }
+  }
+
   /** 获取应用信息 */
   async handleGetAppInfo() {
-    let queryTimeRange;
+    let queryTimeRange: [number, number];
     const { from, to } = this.$route.query;
     if (from && to) {
       const timeRanges = [from, to];
@@ -174,13 +274,13 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     const params = {
       app_name: this.appName,
       start_time: startTime,
-      end_time: endTime
+      end_time: endTime,
     };
     const data = await applicationStore.getAppInfo(params);
 
     if (data) {
       this.appInfo = data;
-      this.viewHasNoData = this.appInfo.data_status === 'no_data';
+      this.viewHasNoData = this.appInfo.trace_data_status === 'no_data';
       this.isReady = true;
     }
   }
@@ -189,8 +289,8 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     this.$router.push({
       name: 'service-add',
       params: {
-        appName: this.appName
-      }
+        appName: this.appName,
+      },
     });
   }
   handleSecendTypeChange(type) {
@@ -205,6 +305,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
   }
   handleSceneTabChange(id, name = '') {
     this.tabId = id;
+    this.dashboardId = id;
     this.tabName = ['topo', 'overview'].includes(id) ? this.$t('应用') : name;
   }
   /** 更多设置 */
@@ -212,56 +313,74 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
     this.$router.push({
       name: 'application-config',
       params: {
-        id: this.appInfo.application_id
+        appName: this.appInfo.app_name,
       },
       query: {
-        active: option.id
-      }
+        active: option.id,
+      },
     });
   }
-  handleCloseGuideDialog() {
-    this.showGuideDialog = false;
+
+  handleGotoServiceApply() {
+    this.$router.push({
+      name: 'service-add',
+      params: {
+        appName: this.appName,
+      },
+    });
   }
+
   render() {
     return (
       <div class='application'>
         {
           <CommonPage
+            key={this.pageKey}
             ref='commonPageRef'
+            backToOverviewKey={this.backToOverviewKey}
+            defaultDashboardId={this.dashboardId}
+            defaultViewOptions={this.viewOptions}
+            isShowSplitPanel={false}
             sceneId={'apm_application'}
             sceneType={'overview'}
-            isShowSplitPanel={false}
-            defaultViewOptions={this.viewOptions}
-            backToOverviewKey={this.backToOverviewKey}
             tab2SceneType
+            onSceneTypeChange={this.handleSecendTypeChange}
             onTabChange={this.handleSceneTabChange}
             onTimeRangeChange={this.handelTimeRangeChange}
-            onSceneTypeChange={this.handleSecendTypeChange}
             onTitleChange={this.handleTitleChange}
           >
-            <CommonNavBar
+            <ApmCommonNavBar
               slot='nav'
-              routeList={this.routeList}
-              needShadow={true}
-              needCopyLink
               needBack={false}
+              needShadow={true}
               positionText={this.positonText}
+              routeList={this.routeList}
+              needCopyLink
+              onNavSelect={this.handleNavSelect}
             />
             {this.isReady && this.viewHasNoData && (
               <div slot='noData'>
                 <CommonAlert class='no-data-alert'>
                   <div slot='title'>
-                    <bk-spin
-                      theme='warning'
-                      size='mini'
-                    />
-                    {this.$t('当前数据还未加载完成，如数据长时间未加载出来可')}
-                    <span
-                      class='link'
-                      onClick={() => (this.showGuideDialog = true)}
-                    >
-                      {this.$t('查看操作指引')}
-                    </span>
+                    {this.appInfo.service_count ? (
+                      [
+                        <bk-spin
+                          key='1'
+                          size='mini'
+                          theme='warning'
+                        />,
+                        <span key='2'>{this.$t('数据统计中，请耐心等待')}</span>,
+                      ]
+                    ) : (
+                      <i18n path='尚未接入服务{0}'>
+                        <span
+                          class='link'
+                          onClick={this.handleGotoServiceApply}
+                        >
+                          {this.$t('去接入服务')}
+                        </span>
+                      </i18n>
+                    )}
                   </div>
                 </CommonAlert>
               </div>
@@ -277,7 +396,7 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
                   onClick={this.handleAddService}
                 >
                   <span class='add-service-btn'>
-                    <i class='icon-monitor icon-mc-add add-service-icon'></i>
+                    <i class='icon-monitor icon-mc-add add-service-icon' />
                     <span>{this.$t('接入服务')}</span>
                   </span>
                 </bk-button>
@@ -292,23 +411,9 @@ export default class Application extends Mixins(authorityMixinCreate(authorityMa
           </CommonPage>
         }
         <AppAddForm
-          pluginId={this.pluginId}
           v-model={this.showAddDialog}
-        ></AppAddForm>
-        <bk-dialog
-          value={this.showGuideDialog}
-          mask-close={true}
-          ext-cls='no-data-guide-dialog'
-          width={1280}
-          position={{ top: 50 }}
-          show-footer={false}
-          on-cancel={this.handleCloseGuideDialog}
-        >
-          <NoDataGuide
-            type='noData'
-            appName={this.appInfo?.app_name}
-          />
-        </bk-dialog>
+          pluginId={this.pluginId}
+        />
       </div>
     );
   }

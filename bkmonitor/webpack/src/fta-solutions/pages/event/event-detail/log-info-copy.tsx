@@ -25,14 +25,15 @@
  */
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { listIndexByHost } from 'monitor-api/modules/alert_events';
 import CommonTable from 'monitor-pc/pages/monitor-k8s/components/common-table';
-import { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import TipMsg from '../../setting/components/tip-msg';
 
-import { IDetail } from './type';
+import type { IDetail } from './type';
+import type { ITableColumn } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './log-info.scss';
 
@@ -40,17 +41,17 @@ import './log-info.scss';
 const collectorScenarioIdMap = {
   log: window.i18n.tc('采集接入'),
   bkdata: window.i18n.tc('计算平台'),
-  es: window.i18n.tc('第三方ES')
+  es: window.i18n.tc('第三方ES'),
 };
 
-type TStatus = 'RUNNING' | 'SUCCESS' | 'FAILED' | 'PARTFAILED' | 'TERMINATED' | 'UNKNOWN' | 'PREPARE';
+type TStatus = 'FAILED' | 'PARTFAILED' | 'PREPARE' | 'RUNNING' | 'SUCCESS' | 'TERMINATED' | 'UNKNOWN';
 
 const logTableColumns: ITableColumn[] = [
   { id: 'index_set_name', name: window.i18n.tc('索引集名称'), type: 'string' },
   { id: 'index_set_scenario_id', name: window.i18n.tc('索引来源'), type: 'scoped_slots' },
   { id: 'status', name: window.i18n.tc('数据状态'), type: 'scoped_slots' },
   { id: 'retention', name: window.i18n.tc('过期时间'), type: 'scoped_slots' },
-  { id: 'operate', name: window.i18n.tc('操作'), type: 'scoped_slots' }
+  { id: 'operate', name: window.i18n.tc('操作'), type: 'scoped_slots' },
 ];
 
 interface IProps {
@@ -73,7 +74,7 @@ export default class LogInfo extends tsc<IProps> {
   pagination = {
     current: 1,
     count: 0,
-    limit: 10
+    limit: 10,
   };
   loading = false;
 
@@ -97,7 +98,7 @@ export default class LogInfo extends tsc<IProps> {
     this.allData = await listIndexByHost({
       ip: this.ip,
       bk_cloud_id: cloudId,
-      bk_biz_id: this.detail.bk_biz_id
+      bk_biz_id: this.detail.bk_biz_id,
     }).catch(() => []);
     this.pagination.count = this.allData.length;
     this.pagination.limit = 10;
@@ -139,10 +140,10 @@ export default class LogInfo extends tsc<IProps> {
           {
             ip: this.ip,
             bk_cloud_id: this.cloudId,
-            bk_supplier_id: ''
-          }
+            bk_supplier_id: '',
+          },
         ],
-        target_node_type: 'INSTANCE'
+        target_node_type: 'INSTANCE',
       };
     }
     const url = `${host}#/retrieve/${row.index_set_id}?bizId=${
@@ -156,7 +157,7 @@ export default class LogInfo extends tsc<IProps> {
   getStatusLabel(status: TStatus, text: string) {
     return (
       <span class='run-status'>
-        <span class={['status', status]}></span>
+        <span class={['status', status]} />
         <span class='status-msg'>{text || ''}</span>
       </span>
     );
@@ -174,16 +175,11 @@ export default class LogInfo extends tsc<IProps> {
         v-bkloading={{ isLoading: this.loading }}
       >
         {this.allData.length ? (
-          <TipMsg msg={this.$t('通过目标{0}，找到日志检索集可以进行检索', [this.ip]) as string}></TipMsg>
+          <TipMsg msg={this.$t('通过目标{0}，找到日志检索集可以进行检索', [this.ip]) as string} />
         ) : undefined}
         {this.allData.length ? (
           <CommonTable
             class='log-table'
-            columns={logTableColumns}
-            data={this.tableData}
-            checkable={false}
-            hasColnumSetting={false}
-            pagination={this.pagination}
             scopedSlots={{
               index_set_scenario_id: row =>
                 collectorScenarioIdMap[row.index_set_scenario_id] || row.index_set_scenario_id,
@@ -196,11 +192,16 @@ export default class LogInfo extends tsc<IProps> {
                 >
                   {this.$t('检索')}
                 </span>
-              )
+              ),
             }}
-            onPageChange={this.handlePageChange}
+            checkable={false}
+            columns={logTableColumns}
+            data={this.tableData}
+            hasColumnSetting={false}
+            pagination={this.pagination}
             onLimitChange={this.handleLimitChange}
-          ></CommonTable>
+            onPageChange={this.handlePageChange}
+          />
         ) : (
           <div class='no-data'>
             <bk-exception type='building'>

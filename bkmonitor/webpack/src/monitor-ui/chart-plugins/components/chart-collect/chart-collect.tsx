@@ -25,23 +25,26 @@
  */
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collection-view-dialog';
-import { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 import ViewDetail from 'monitor-pc/pages/view-detail/index';
 import { isEnFn } from 'monitor-pc/utils';
 
-import { IPanelModel, IViewOptions, ObservablePanelField, PanelModel } from '../../typings';
 import { reviewInterval } from '../../utils';
 import { VariablesService } from '../../utils/variable';
+
+import type { CallOptions } from '../../plugins/apm-service-caller-callee/type';
+import type { IPanelModel, IViewOptions, ObservablePanelField, PanelModel } from '../../typings';
+import type { PanelToolsType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './chart-collect.scss';
 
 const isEn = isEnFn();
 
 export interface ICheckPanel {
-  id: string | number;
+  id: number | string;
   panels?: ICheckPanel[];
 }
 
@@ -59,7 +62,7 @@ interface IChartCollectEvent {
 }
 
 @Component({
-  name: 'ChartCollect'
+  name: 'ChartCollect',
 })
 export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectEvent> {
   @Prop({ type: Array, default: () => [] }) localPanels: PanelModel[];
@@ -72,6 +75,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
   @InjectReactive('compareType') readonly compareType!: PanelToolsType.CompareId;
   // 图表特殊参数
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
+  @InjectReactive('callOptions') readonly callOptions: CallOptions;
 
   showCollectionDialog = false; // 展示收藏弹窗
   showDetail = false;
@@ -97,21 +101,30 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
               ...(this.viewOptions.filters?.current_target || {}),
               ...this.viewOptions,
               ...this.viewOptions.variables,
-              interval
-            })
-          }
-        }))
+              ...this.callOptions,
+              interval,
+            }),
+          },
+        })),
       };
     };
     const checkList = [];
+    // biome-ignore lint/complexity/noForEach: <explanation>
     this.localPanels?.forEach(item => {
       const { checked } = this.observablePanelsField?.[item.id] || item;
       if (item.type !== 'row' && item.canSetGrafana && checked) {
-        checkList.push(transformVariables(JSON.parse(JSON.stringify({ ...item }))));
+        checkList.push({
+          ...transformVariables(JSON.parse(JSON.stringify({ ...item }))),
+          rawQueryPanel: item,
+        });
       }
+      // biome-ignore lint/complexity/noForEach: <explanation>
       item.panels?.forEach(panel => {
         if (panel.checked) {
-          checkList.push(transformVariables(JSON.parse(JSON.stringify({ ...panel }))));
+          checkList.push({
+            ...transformVariables(JSON.parse(JSON.stringify({ ...panel }))),
+            rawQueryPanel: panel,
+          });
         }
       });
     });
@@ -160,7 +173,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
   // 跳转至数据检索
   handleToDataRetrieval() {
     let targets = this.checkList.reduce((pre, item) => {
-      pre.push(...item.targets);
+      pre.push(...(item?.rawQueryPanel?.toDataRetrieval?.() || item.targets));
       return pre;
     }, []);
     const variablesService = new VariablesService(this.viewOptions);
@@ -169,7 +182,7 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
         ...this.viewOptions.filters,
         ...(this.viewOptions.filters?.current_target || {}),
         ...this.viewOptions,
-        ...this.viewOptions.variables
+        ...this.viewOptions.variables,
       })
     );
     window.open(
@@ -181,29 +194,27 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
 
   // 查看大图
   handleViewDetail() {
-    const config = this.checkList.reduce((config, item) => {
-      if (!config) {
-        // eslint-disable-next-line no-param-reassign
-        config = item;
-      } else {
-        config.targets.push(...item.targets);
-        config.title = window.i18n.tc('对比');
-        config.subTitle = '';
+    const config = this.checkList.reduce((acc, item) => {
+      if (!acc) {
+        return item;
       }
-      return config;
+      acc.targets.push(...item.targets);
+      acc.title = window.i18n.tc('对比');
+      acc.subTitle = '';
+      return acc;
     }, null);
     this.viewDetailConfig = {
       config,
       compareValue: {
         compare: {
           type: this.compareType,
-          value: this.compareType === 'time' ? this.timeOffset : ''
+          value: this.compareType === 'time' ? this.timeOffset : '',
         },
         tools: {
-          timeRange: this.timeRange
+          timeRange: this.timeRange,
         },
-        type: ['time', 'metric'].includes(this.compareType) ? this.compareType : 'none'
-      }
+        type: ['time', 'metric'].includes(this.compareType) ? this.compareType : 'none',
+      },
     };
     this.showDetail = true;
   }
@@ -238,32 +249,34 @@ export default class ChartCollect extends tsc<IChartCollectProps, IChartCollectE
                 >
                   {window.i18n.t('route-数据探索')}
                 </span>
-                <span
-                  class={['view-collection-btn', isEn ? 'mr24' : 'mr5']}
-                  onClick={this.handleViewDetail}
-                >
-                  {window.i18n.t('对比')}
-                </span>
+                {this.checkList.length > 1 ? (
+                  <span
+                    class={['view-collection-btn', isEn ? 'mr24' : 'mr5']}
+                    onClick={this.handleViewDetail}
+                  >
+                    {window.i18n.t('对比')}
+                  </span>
+                ) : undefined}
               </div>
               <i
                 class='icon-monitor icon-mc-close-fill'
                 onClick={this.handleCheckClose}
-              ></i>
+              />
             </div>
           ) : undefined}
         </transition>
         <CollectionDialog
-          isShow={this.showCollectionDialog}
           collectionList={this.checkList}
-          onShow={(v: boolean) => this.handleShowCollectEmit(v)}
+          isShow={this.showCollectionDialog}
           onOnCollectionSuccess={() => this.handleCollectSuccess}
-        ></CollectionDialog>
+          onShow={(v: boolean) => this.handleShowCollectEmit(v)}
+        />
         {this.showDetail && (
           <ViewDetail
             showModal={this.showDetail}
             viewConfig={this.viewDetailConfig}
             on-close-modal={this.handleCloseDetail}
-          ></ViewDetail>
+          />
         )}
       </div>
     );

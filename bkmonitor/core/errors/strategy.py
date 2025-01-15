@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext_lazy as _lazy
 
 from core.errors import Error
 
@@ -71,3 +71,9 @@ class IntelligentModelNotFound(StrategyError):
     code = 3313010
     name = _lazy("智能异常检测模型不存在")
     message_tpl = _lazy("智能异常检测模型不存在：{model_id}")
+
+
+class StrategyNameExist(StrategyError):
+    code = 3313011
+    name = _lazy("策略名称已存在")
+    message_tpl = _lazy("策略名称 [{name}] 已存在")

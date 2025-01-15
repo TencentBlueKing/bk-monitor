@@ -27,7 +27,7 @@ class EventStatus(object):
     事件状态
     """
 
-    CLOSED = "CLOSED"  # 已关闭，对应数据表 10
+    CLOSED = "CLOSED"  # 已失效，对应数据表 10
     RECOVERED = "RECOVERED"  # 已恢复，对应数据表 20
     ABNORMAL = "ABNORMAL"  # 异常事件，对应数据表 30
     ABNORMAL_ACK = "ABNORMAL_ACK"  # 未恢复已确认，对应(status=EventStatus.ABNORMAL, is_ack=True)

@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import type { TranslateResult } from 'vue-i18n';
 
 import './operate-options.scss';
 
@@ -44,6 +45,8 @@ interface IOptions {
 
 interface IOperateOptionsProps {
   options?: IOptions;
+  isMouseOverShow?: boolean;
+  isClickShow?: boolean;
 }
 
 interface IOperateOptionsEvents {
@@ -51,12 +54,14 @@ interface IOperateOptionsEvents {
 }
 
 @Component({
-  name: 'OperateOptions'
+  name: 'OperateOptions',
 })
 export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOptionsEvents> {
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
 
   @Prop({ type: Object, default: () => ({}) }) options: IOptions;
+  @Prop({ type: Boolean, default: false }) isMouseOverShow: boolean;
+  @Prop({ type: Boolean, default: true }) isClickShow: boolean;
 
   @Ref('moreItems') moreItemsRef: HTMLDivElement;
 
@@ -64,6 +69,7 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
 
   @Emit('optionClick')
   handleOptionClick(id: string) {
+    this.isMouseOverShow && this.handleHidden();
     return id;
   }
 
@@ -73,19 +79,24 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
       this.popoverInstance = this.$bkPopover(e.target, {
         content: this.moreItemsRef,
         arrow: false,
-        trigger: 'click',
+        trigger: this.isMouseOverShow ? 'mouseenter' : 'click',
+        interactive: this.isMouseOverShow,
         placement: 'bottom',
         theme: 'light common-monitor',
         maxWidth: 520,
         duration: [200, 0],
         onHidden: () => {
-          document.querySelector('#directive-ele')?.remove();
-          this.popoverInstance.destroy();
-          this.popoverInstance = null;
-        }
+          this.handleHidden();
+        },
       });
     }
     this.popoverInstance?.show(100);
+  }
+
+  handleHidden() {
+    document.querySelector('#directive-ele')?.remove();
+    this.popoverInstance.destroy();
+    this.popoverInstance = null;
   }
 
   render() {
@@ -93,20 +104,21 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
       <div class='table-operate-options-component'>
         {this.options?.outside.map(item => (
           <span
+            key={item.id}
             v-bk-tooltips={{
               content: item?.tip,
               placement: 'top',
               boundary: 'window',
-              disabled: !Boolean(item?.tip),
-              allowHTML: false
+              disabled: !item?.tip,
+              allowHTML: false,
             }}
           >
             <bk-button
-              text
-              theme='primary'
               class='options-item'
               v-authority={{ active: !item.authority }}
               disabled={Boolean(item.disable)}
+              theme='primary'
+              text
               on-click={() =>
                 item.authority ? this.handleOptionClick(item.id) : this.handleShowAuthorityDetail(item.authorityDetail)
               }
@@ -116,22 +128,32 @@ export default class OperateOptions extends tsc<IOperateOptionsProps, IOperateOp
           </span>
         ))}
         {this.options?.popover?.length ? (
-          <div onClick={this.handleShowPopover}>
+          <div
+            onClick={e => {
+              if (!this.isClickShow) return;
+              this.handleShowPopover(e);
+            }}
+            onMouseenter={e => {
+              if (!this.isMouseOverShow) return;
+              this.handleShowPopover(e);
+            }}
+          >
             {this.$slots?.trigger || (
               <div class='option-more'>
-                <span class='bk-icon icon-more'></span>
+                <span class='bk-icon icon-more' />
               </div>
             )}
           </div>
         ) : undefined}
         <div style={{ display: 'none' }}>
           <div
-            class='table-operate-options-component-more-items'
             ref='moreItems'
+            class='table-operate-options-component-more-items'
           >
             {this.options?.popover?.map(item => (
               <span
-                class='more-item'
+                key={item.id}
+                class={['more-item', { authority: !item.authority }]}
                 v-authority={{ active: !item.authority }}
                 onClick={() =>
                   item.authority

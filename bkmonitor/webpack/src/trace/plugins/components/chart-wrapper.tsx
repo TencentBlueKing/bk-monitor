@@ -23,40 +23,48 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType, ref } from 'vue';
+import { type PropType, computed, defineComponent, provide, ref } from 'vue';
+
 import { bkTooltips } from 'bkui-vue';
-import { type IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import ChartRow from '../charts/chart-row/chart-row';
 import ExceptionGuide from '../charts/exception-guide/exception-guide';
+import FailureAlarmChart from '../charts/failure-chart/failure-alarm-chart';
+import MonitorTraceLog from '../charts/monitor-trace-log/monitor-trace-log';
 import RelatedLogChart from '../charts/related-log-chart/related-log-chart';
 import TimeSeries from '../charts/time-series/time-series';
-import { useReadonlyInject } from '../hooks';
+import { chartDetailProvideKey, useReadonlyInject } from '../hooks';
+
 import type * as PanelModelTraceVersion from '../typings';
+import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './chart-wrapper.scss';
 
 export default defineComponent({
   name: 'ChartWrapperMigrated',
   directives: {
-    bkTooltips
+    bkTooltips,
   },
   props: {
     panel: { required: true, type: Object as PropType<PanelModel> },
     /** 检测算法 */
     detectionConfig: { default: () => {}, type: Object as PropType<IDetectionConfig> },
     /* 是否可选中图表 */
-    needCheck: { type: Boolean, default: false }
+    needCheck: { type: Boolean, default: false },
+    /** 是否显示告警视图图表 */
+    isAlarmView: { type: Boolean, default: false },
   },
-  emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries'],
+  emits: ['chartCheck', 'collectChart', 'collapse', 'changeHeight', 'dimensionsOfSeries', 'successLoad'],
   setup(props, { emit }) {
+    provide(chartDetailProvideKey, props.panel);
+
     // TODO: 该注入还没设置 provide 调用，后期需要补上
     const readonly = useReadonlyInject();
 
     /** 鼠标在图表内 */
-    const showHeaderMoreTool = ref(false);
+    const showHeaderMoreTool = ref(true);
     /** 图表加载状态 */
     const loading = ref(false);
     /** 是否显示大图 */
@@ -66,6 +74,10 @@ export default defineComponent({
     const errorMsg = ref('');
     /** 水印图 */
     const waterMaskImg = ref('');
+
+    const needWaterMask = computed(() => {
+      return !['monitor-trace-log'].includes(props.panel.type);
+    });
 
     /** hover样式 */
     const needHoverStryle = computed(() => {
@@ -112,14 +124,28 @@ export default defineComponent({
     function handleCollapsed() {
       emit('collapse', !props.panel.collapsed);
     }
+    const handleSuccessLoad = () => {
+      emit('successLoad');
+    };
 
     function handlePanel2Chart() {
+      if (props.isAlarmView) {
+        return (
+          <FailureAlarmChart
+            clearErrorMsg={handleClearErrorMsg}
+            detail={props.panel}
+            onErrorMsg={handleErrorMsgChange}
+            onLoading={handleChangeLoading}
+            onSuccessLoad={handleSuccessLoad}
+          />
+        );
+      }
       switch (props.panel.type) {
         case 'row':
           return (
             <ChartRow
-              panel={props.panel}
               clearErrorMsg={handleClearErrorMsg}
+              panel={props.panel}
               onCollapse={handleCollapsed}
               onErrorMsg={handleErrorMsgChange}
             />
@@ -129,19 +155,21 @@ export default defineComponent({
         case 'related-log-chart':
           return (
             <RelatedLogChart
-              panel={props.panel}
-              onLoading={handleChangeLoading}
-              onErrorMsg={handleErrorMsgChange}
               clearErrorMsg={handleClearErrorMsg}
+              panel={props.panel}
+              onErrorMsg={handleErrorMsgChange}
+              onLoading={handleChangeLoading}
             />
           );
+        case 'monitor-trace-log':
+          return <MonitorTraceLog />;
         default:
           return (
             <TimeSeries
-              onLoading={handleChangeLoading}
               // 还不清楚该用新的还是旧的类型，这里先照旧
               panel={props.panel as PanelModelTraceVersion.PanelModel}
               showHeaderMoreTool={showHeaderMoreTool.value}
+              onLoading={handleChangeLoading}
             />
           );
       }
@@ -158,31 +186,38 @@ export default defineComponent({
       viewQueryConfig,
       handleCloseViewDetail,
       waterMaskImg,
-      errorMsg
+      errorMsg,
+      needWaterMask,
     };
   },
   render() {
     return (
       <div
+        style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
         class={{
           'chart-wrapper': true,
           'grafana-check': this.panel.canSetGrafana,
           'is-checked': this.panel.checked,
           'is-collapsed': this.panel.collapsed,
           'hover-style': this.needCheck && this.needHoverStryle,
-          'row-chart': this.panel.type === 'row'
+          'row-chart': this.panel.type === 'row',
         }}
-        style={{ 'border-color': this.panel.type === 'tag-chart' ? '#eaebf0' : 'transparent' }}
-        onMouseenter={() => (this.showHeaderMoreTool = true)}
-        onMouseleave={() => (this.showHeaderMoreTool = false)}
       >
+        {!!window.graph_watermark && this.needWaterMask && (
+          <div
+            class='wm'
+            v-watermark={{
+              text: window.user_name || window.username,
+            }}
+          />
+        )}
         {this.handlePanel2Chart()}
         {this.loading ? (
           <img
             class='loading-icon'
-            src={loadingIcon}
             alt=''
-          ></img>
+            src={loadingIcon}
+          />
         ) : undefined}
         {!this.readonly && this.panel.canSetGrafana && !this.panel.options?.disable_wrap_check && (
           <span
@@ -190,13 +225,13 @@ export default defineComponent({
             onClick={this.handleChartCheck}
           />
         )}
-        {!!window.graph_watermark && (
+        {!!window.graph_watermark && this.needWaterMask && (
           <div
             class='wm'
             v-watermark={{
-              text: window.user_name || window.username
+              text: window.user_name || window.username,
             }}
-          ></div>
+          />
         )}
         {!!this.errorMsg && (
           <span
@@ -204,11 +239,11 @@ export default defineComponent({
             v-bk-tooltips={{
               content: <div>{this.errorMsg}</div>,
               extCls: 'chart-wrapper-error-tooltip',
-              placement: 'top-start'
+              placement: 'top-start',
             }}
-          ></span>
+          />
         )}
       </div>
     );
-  }
+  },
 });

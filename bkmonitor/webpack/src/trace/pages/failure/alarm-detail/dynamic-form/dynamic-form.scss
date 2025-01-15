@@ -1,0 +1,39 @@
+.dynamic-form-wrap {
+  max-width: 520px;
+
+  .width-520 {
+    max-width: 520px;
+  }
+
+  .form-wrap {
+    .bk-label {
+      min-height: 16px;
+      margin-bottom: 3px;
+      line-height: 1;
+
+      .bk-label-text {
+        font-size: 12px;
+        line-height: 1;
+        color: #63656e;
+      }
+    }
+
+    .bk-form-input {
+      padding-left: 2px;
+    }
+
+    .bk-form-item input[type=text] {
+      box-sizing: border-box;
+    }
+
+    .bk-form-item.is-error input[type=text] {
+      box-sizing: border-box;
+      border-color: transparent;
+      border-bottom-color: #ff5656;
+    }
+  }
+
+  .form-desc {
+    font-size: 12px;
+  }
+}

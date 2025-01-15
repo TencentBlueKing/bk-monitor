@@ -4,18 +4,21 @@ const cacheNames = {
   css: `apm-cache-css-__cache_version___`,
   font: `apm-cache-font-__cache_version___`,
   img: `apm-cache-img-__cache_version___`,
-  api: `apm-cache-api-__cache_version___`
+  api: `apm-cache-api-__cache_version___`,
 };
 const cacheList = Object.keys(cacheNames).map(key => cacheNames[key]);
 
-const setCache = (cacheName, request) => caches.open(cacheName).then(cache =>
-  cache.match(request).then(response =>
-    response || fetch(request).then(res => {
-      cache.put(request.url, res.clone());
-      return res;
-    })
-  )
-);
+const setCache = (cacheName, request) =>
+  caches.open(cacheName).then(cache =>
+    cache.match(request).then(
+      response =>
+        response ||
+        fetch(request).then(res => {
+          cache.put(request.url, res.clone());
+          return res;
+        }),
+    ),
+  );
 
 if (self.importScripts) {
   self.importScripts(staticUrl + 'asset-manifest.js');
@@ -25,16 +28,17 @@ if (self.importScripts) {
 }
 
 self.addEventListener('install', e => {
-  const cacheResources = (type, pattern) => caches.open(cacheNames[type]).then(cache => {
-    const assets = self.assetData.filter(url => url.match(pattern));
-    return cache.addAll(assets);
-  });
+  const cacheResources = (type, pattern) =>
+    caches.open(cacheNames[type]).then(cache => {
+      const assets = self.assetData.filter(url => url.match(pattern));
+      return cache.addAll(assets);
+    });
 
   const promiseList = [
     cacheResources('js', /\.js$/),
     cacheResources('css', /\.css$/),
     cacheResources('font', /\.(ttf|woff|eot)$/),
-    cacheResources('img', /\.(png|jpe?g|gif|svg)$/)
+    cacheResources('img', /\.(png|jpe?g|gif|svg)$/),
   ];
 
   e.waitUntil(Promise.all(promiseList).then(() => self.skipWaiting()));
@@ -42,7 +46,8 @@ self.addEventListener('install', e => {
 
 self.addEventListener('fetch', e => {
   const requestUrl = e.request.url;
-  const needCache = /\.(css|js|ttf|woff|eot|png|jpe?g|gif|svg)$/.test(requestUrl) &&
+  const needCache =
+    /\.(css|js|ttf|woff|eot|png|jpe?g|gif|svg)$/.test(requestUrl) &&
     self.assetData.some(url => requestUrl.includes(url));
 
   if (needCache) {
@@ -59,8 +64,8 @@ self.addEventListener('activate', e => {
           if (!cacheList.includes(key) && key !== cacheNames.api) {
             return caches.delete(key);
           }
-        })
-      ).then(() => self.clients.claim())
-    )
+        }),
+      ).then(() => self.clients.claim()),
+    ),
   );
 });

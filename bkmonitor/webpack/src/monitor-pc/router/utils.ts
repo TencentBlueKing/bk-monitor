@@ -23,34 +23,34 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { CreateElement } from 'vue';
-
-import introduce, { IntroduceRouteKey } from '../common/introduce';
+import introduce, { type IntroduceRouteKey } from '../common/introduce';
 import loading from '../pages/loading/page-loading';
 import store from '../store/store';
+
+import type { CreateElement } from 'vue';
 
 export const lazyLoadRoute = async (component: any) => {
   const asyncComponent = () => ({
     component,
     loading,
-    delay: 1
+    delay: 1,
   });
   return Promise.resolve({
     functional: true,
     render(h: CreateElement, { data, children }) {
       return h(asyncComponent, data, children);
-    }
+    },
   });
 };
 
-export const beforeEnter = (reouteId: IntroduceRouteKey, next: Function) => {
-  store.commit('app/SET_ROUTE_CHANGE_LOADNG', true);
+export const beforeEnter = (routeId: IntroduceRouteKey, next: () => void) => {
+  store.commit('app/SET_ROUTE_CHANGE_LOADING', true);
   window.requestAnimationFrame(() => {
     introduce
-      .getRouteFunc(reouteId)
+      .getRouteFunc(routeId)
       .then(() => {
         next();
       })
-      .finally(() => window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADNG', false)));
+      .finally(() => window.requestIdleCallback(() => store.commit('app/SET_ROUTE_CHANGE_LOADING', false)));
   });
 };

@@ -50,6 +50,12 @@
     margin-top: 2px;
   }
 
+  .alarm-group-skeleton {
+    width: 90px;
+    height: 16px;
+    margin-top: 6px;
+  }
+
   .select-action-wrap {
     display: flex;
     flex: 1;
@@ -75,7 +81,7 @@
       .icon-double-down {
         margin-left: 6px;
         font-size: 16px;
-        transition: all .3s;
+        transition: all 0.3s;
       }
 
       &.down {
@@ -88,7 +94,7 @@
     .expan-content {
       height: 0;
       overflow: hidden;
-      transition: all .3s;
+      transition: all 0.3s;
 
       .form-item-label {
         font-weight: 400;

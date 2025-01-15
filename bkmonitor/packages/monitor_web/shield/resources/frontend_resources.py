@@ -8,15 +8,24 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.utils.translation import ugettext as _
-from monitor_web.shield.utils import ShieldDisplayManager
+import itertools
+from concurrent.futures import ThreadPoolExecutor
+from typing import List, Optional, Set
+
+from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.time_tools import localtime, now
 from bkmonitor.views import serializers
-from constants.shield import ScopeType, ShieldCategory, ShieldStatus
+from constants.shield import (
+    SHIELD_STATUS_NAME_MAPPING,
+    ScopeType,
+    ShieldCategory,
+    ShieldStatus,
+)
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
+from monitor_web.shield.utils import ShieldDisplayManager
 
 from .backend_resources import ShieldListSerializer
 
@@ -25,9 +34,6 @@ class FrontendShieldListResource(Resource):
     """
     告警屏蔽列表（前端）
     """
-
-    def __init__(self):
-        super(FrontendShieldListResource, self).__init__()
 
     class RequestSerializer(ShieldListSerializer):
         search = serializers.CharField(required=False, label="查询参数", allow_blank=True)
@@ -46,92 +52,137 @@ class FrontendShieldListResource(Resource):
 
     @staticmethod
     def get_status_name(status):
-        status_mapping = {0: _("屏蔽中"), 1: _("已过期"), 2: _("被解除")}
-        return status_mapping.get(status)
+        return SHIELD_STATUS_NAME_MAPPING.get(status)
 
     def perform_request(self, data):
         page = data.get("page", 0)
         page_size = data.get("page_size", 0)
-        fuzzy_search_items = []
+        bk_biz_id: Optional[int] = data.get("bk_biz_id")
+        is_active: bool = data["is_active"]
+        search_terms = set()
         conditions = []
+        strategy_ids = []
         for condition in data.get("conditions", []):
             if condition["key"] == "query":
-                fuzzy_search_items.append(condition["value"])
+                search_terms.add(condition["value"])
+            elif condition["key"] == "strategy_id":
+                # 查询策略关联的屏蔽配置
+                if isinstance(condition["value"], list):
+                    strategy_ids.extend(condition["value"])
+                else:
+                    strategy_ids.append(condition["value"])
             else:
                 conditions.append(condition)
 
+        # 策略id必须是数字
+        try:
+            strategy_ids = [int(strategy_id) for strategy_id in strategy_ids]
+        except (ValueError, TypeError):
+            raise ValidationError("condition strategy_id must be integer")
+
+        if data.get("search"):
+            search_terms.add(data["search"])
+
         params = {
-            "bk_biz_id": data.get("bk_biz_id"),
-            "is_active": data.get("is_active"),
+            "bk_biz_id": bk_biz_id,
+            "is_active": is_active,
             "order": data.get("order"),
             "categories": data.get("categories"),
             "conditions": conditions,
             "time_range": data.get("time_range"),
         }
-        result = resource.shield.shield_list(**params)
+        # 如果不执行模糊搜索，则由后端分页，避免后续多余处理
+        if not search_terms and not strategy_ids:
+            params.update({"page": page, "page_size": page_size})
 
-        shield_display_manager = ShieldDisplayManager(data["bk_biz_id"])
-        shields = []
-        for shield in result["shield_list"]:
-            shields.append(
-                {
-                    "id": shield["id"],
-                    "bk_biz_id": shield["bk_biz_id"],
-                    "category": shield["category"],
-                    "category_name": shield_display_manager.get_category_name(shield),
-                    "status": shield["status"],
-                    "status_name": self.get_status_name(shield["status"]),
-                    "dimension_config": self.get_dimension_config(shield),
-                    "content": shield["content"]
-                    if shield["content"]
-                    else shield_display_manager.get_shield_content(shield),
-                    "begin_time": shield["begin_time"],
-                    "failure_time": shield["failure_time"],
-                    "cycle_duration": shield_display_manager.get_cycle_duration(shield),
-                    "description": shield["description"],
-                    "source": shield["source"],
-                }
+        # 获取屏蔽列表
+        result = resource.shield.shield_list(**params)
+        shields = self.enrich_shields(bk_biz_id, result["shield_list"], strategy_ids)
+
+        # 模糊搜索和分页处理
+        if search_terms:
+            shields = self.search(search_terms, shields, is_active)
+
+        # 如果执行模糊搜索或过滤策略id，则需要手动分页
+        if search_terms or strategy_ids:
+            total = len(shields)
+            if page and page_size:
+                shields = shields[(page - 1) * page_size : page * page_size]
+        else:
+            total = result["count"]
+
+        return {"count": total, "shield_list": shields}
+
+    @staticmethod
+    def search(search_terms: Set[str], shields: list, is_active: bool) -> list:
+        """模糊搜索屏蔽列表。"""
+        active_fields = [
+            "id",
+            "category_name",
+            "content",
+            "begin_time",
+            "cycle_duration",
+            "description",
+            "status_name",
+            "label",
+        ]
+        inactive_fields = ["id", "category_name", "content", "failure_time", "description", "status_name", "label"]
+        search_fields = active_fields if is_active else inactive_fields
+
+        def match(shield):
+            for field, term in itertools.product(search_fields, search_terms):
+                if term in str(shield.get(field, "")):
+                    return True
+            return False
+
+        return [shield for shield in shields if match(shield)]
+
+    def enrich_shields(self, bk_biz_id: Optional[int], shields: List, strategy_ids: List[int]) -> List:
+        """补充屏蔽记录的数据便于展示。"""
+        if not shields:
+            return []
+
+        manager = ShieldDisplayManager(bk_biz_id)
+
+        # 过滤策略id
+        strategy_ids = set(strategy_ids)
+        shields = [
+            shield for shield in shields if (set(manager.get_strategy_ids(shield)) & strategy_ids) or not strategy_ids
+        ]
+
+        # 获取关联策略名
+        shield_strategy_ids = {strategy_id for shield in shields for strategy_id in manager.get_strategy_ids(shield)}
+
+        strategy_id_to_name = {
+            strategy.id: strategy.name
+            for strategy in StrategyModel.objects.filter(id__in=shield_strategy_ids).only("name")
+        }
+
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            formatted_shields = list(
+                executor.map(
+                    lambda shield: {
+                        "id": shield["id"],
+                        "bk_biz_id": shield["bk_biz_id"],
+                        "category": shield["category"],
+                        "category_name": manager.get_category_name(shield),
+                        "status": shield["status"],
+                        "status_name": self.get_status_name(shield["status"]),
+                        "dimension_config": self.get_dimension_config(shield),
+                        "content": shield["content"] or manager.get_shield_content(shield, strategy_id_to_name),
+                        "begin_time": shield["begin_time"],
+                        "failure_time": shield["failure_time"],
+                        "cycle_duration": manager.get_cycle_duration(shield),
+                        "description": shield["description"],
+                        "source": shield["source"],
+                        "update_user": shield["update_user"],
+                        "label": shield["label"],
+                    },
+                    shields,
+                )
             )
 
-        if data.get("search"):
-            fuzzy_search_items.append(data.get("search"))
-        if fuzzy_search_items:
-            # 全字段范匹配
-            if data.get("is_active"):
-                fuzzy_search_list = [
-                    "id",
-                    "category_name",
-                    "content",
-                    "begin_time",
-                    "cycle_duration",
-                    "description",
-                    "status_name",
-                ]
-            else:
-                fuzzy_search_list = ["id", "category_name", "content", "failure_time", "description", "status_name"]
-
-            search_result = []
-            for shield in shields:
-                for fuzzy_item in set(fuzzy_search_items):
-                    is_matched = False
-                    for fuzzy_key in fuzzy_search_list:
-                        if fuzzy_item in str(shield.get(fuzzy_key, "")):
-                            is_matched = True
-                            search_result.append(shield)
-                            break
-                    if is_matched:
-                        break
-
-            shields = search_result
-
-        # 统计数目
-        count = len(shields)
-
-        # 分页
-        if all([data.get("page"), data.get("page_size")]):
-            shields = shields[(page - 1) * page_size : page * page_size]
-
-        return {"count": count, "shield_list": shields}
+        return formatted_shields
 
 
 class FrontendShieldDetailResource(Resource):
@@ -191,6 +242,10 @@ class FrontendShieldDetailResource(Resource):
                     self.bk_biz_id, shield["dimension_config"].get("bk_topo_node")
                 )
                 target = ["/".join(item) for item in target]
+            elif shield["scope_type"] == ScopeType.DYNAMIC_GROUP:
+                target = shield_display_manager.get_dynamic_group_name_list(
+                    self.bk_biz_id, shield["dimension_config"].get("dynamic_group") or []
+                )
             else:
                 business = shield_display_manager.get_business_name(shield["bk_biz_id"])
                 target = [business]
@@ -201,14 +256,9 @@ class FrontendShieldDetailResource(Resource):
             strategy_ids = shield["dimension_config"]["strategy_id"]
             if not isinstance(strategy_ids, list):
                 strategy_ids = [strategy_ids]
-            strategy_ids = StrategyModel.objects.filter(id__in=strategy_ids, bk_biz_id=self.bk_biz_id).values_list(
-                "id", flat=True
+            strategies = list(
+                StrategyModel.objects.filter(id__in=strategy_ids, bk_biz_id=self.bk_biz_id).values("id", "name")
             )
-
-            strategies = []
-            for strategy_id in strategy_ids:
-                strategy_info = resource.strategies.strategy_info(id=strategy_id, bk_biz_id=self.bk_biz_id)
-                strategies.append(strategy_info)
             dimension_config.update({"strategies": strategies})
 
         if shield["category"] == ShieldCategory.STRATEGY:

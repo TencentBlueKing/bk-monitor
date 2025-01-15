@@ -30,17 +30,17 @@ export default defineComponent({
   props: {
     label: {
       type: String,
-      default: ''
+      default: '',
     },
     value: {
       type: String,
-      default: ''
-    }
+      default: '',
+    },
   },
   setup(props, { slots }) {
     return {
       props,
-      slots
+      slots,
     };
   },
   render() {
@@ -56,5 +56,5 @@ export default defineComponent({
         )}
       </div>
     );
-  }
+  },
 });

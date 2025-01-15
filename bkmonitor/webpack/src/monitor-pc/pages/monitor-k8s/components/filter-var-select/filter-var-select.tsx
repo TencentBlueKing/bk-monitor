@@ -23,17 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone, random, typeTools } from 'monitor-common/utils/utils';
-import { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
-import { IOption } from '../../typings';
-
+import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 // import { getPopoverWidth } from '../../../../utils';
 import FilterVarTagInput from './filter-var-tag-input';
+
+import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IOption } from '../../typings';
+import type { IVariableModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { TranslateResult } from 'vue-i18n';
 
 import './filter-var-select.scss';
 
@@ -49,7 +52,7 @@ export interface IProps {
   required?: boolean;
   clearable?: boolean;
   autoGetOption?: boolean;
-  whereRefMap: Map<string, string[] | string>;
+  whereRefMap: Map<string, string | string[]>;
   viewOptions: IViewOptions;
   variables: Record<string, any>;
   currentGroupValue?: CurrentGroupValueType;
@@ -66,10 +69,10 @@ export interface IEvents {
   onValueChange: FilterDictType;
 }
 
-type LocalValue<T extends boolean> = T extends true ? Array<string | number> : string | number;
+type LocalValue<T extends boolean> = T extends true ? Array<number | string> : number | string;
 
 @Component({
-  name: 'FilterVarSelect'
+  name: 'FilterVarSelect',
 })
 export default class FilterVarSelect extends tsc<IProps, IEvents> {
   /** 图表接口数据 */
@@ -93,7 +96,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
   /** 是否可清空 */
   @Prop({ default: true, type: Boolean }) clearable: boolean;
   /** 变量的引用值得映射表 用于替换变量where条件的$开头的变量*/
-  @Prop({ default: () => new Map(), type: Map }) whereRefMap: Map<string, string[] | string>;
+  @Prop({ default: () => new Map(), type: Map }) whereRefMap: Map<string, string | string[]>;
   /** 接口的过滤条件 */
   @Prop({ default: () => ({}), type: Object }) viewOptions: IViewOptions;
   /** 回显数据 */
@@ -103,10 +106,13 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
   localOptions: IOption[] = [];
 
   /** 变量选中的值 */
-  localValue: LocalValue<true> | LocalValue<false> = [];
+  localValue: LocalValue<false> | LocalValue<true> = [];
 
   /* 用于初始化taginput组件 */
   tagInputKey = random(8);
+
+  // 时间间隔
+  @InjectReactive('timeRange') timeRange: TimeRangeType;
 
   /** 选中变量的可选项数据 */
   get localValueCheckedOptions() {
@@ -148,7 +154,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       const [itemKey, filterKey] = item;
       const value = this.multiple
         ? this.localValueCheckedOptions.map(opt => opt[itemKey])
-        : this.localValueCheckedOptions[0]?.[itemKey] ?? this.localValue;
+        : (this.localValueCheckedOptions[0]?.[itemKey] ?? this.localValue);
       total[filterKey] = value;
       return total;
     }, filterDict);
@@ -181,7 +187,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
   @Watch('value', { immediate: true })
   valueChange(val: FilterDictType) {
     if (val) {
-      this.localValue = this.multiple ? val[this.localField] ?? [] : val[this.localField] ?? '';
+      this.localValue = this.multiple ? (val[this.localField] ?? []) : (val[this.localField] ?? '');
     }
   }
 
@@ -215,21 +221,9 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       return isExist;
     });
     let isDisplayBackValue = false;
+    /** 新选项组存在回显值时进行回填 */
     if (defaultId !== null && isExistOptions) {
       this.localValue = this.multiple ? defaultIdsExist : defaultId;
-      isDisplayBackValue = true;
-    }
-    /** 回显值不存在可选项时默认选中第一项 */
-    if (defaultId !== null && !isExistOptions) {
-      // const option = this.localOptions[0];
-      // if (!!option) {
-      //   const { id } = option;
-      //   this.localValue = this.panel.isMultiple ? [id] : id;
-      // } else {
-      //   this.localValue = this.multiple ? [] : '';
-      // }
-      this.localValue = this.multiple ? defaultIds : defaultIds?.[0] || '';
-      this.handleValueChange();
       isDisplayBackValue = true;
     }
     this.tagInputKey = random(8);
@@ -251,14 +245,15 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.viewOptions.variables,
-        ...selectedVar
+        ...selectedVar,
       });
       let temp = variablesService.transformVariables(params);
-      if (!!temp.where) {
+      if (temp.where) {
         temp.where = temp.where.filter(item => !!item.value.length && item.value.every(val => val !== ''));
       }
       /** 合并视图相关的自定义参数 */
       temp = Object.assign(deepClone(temp), this.customParams);
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       /** 更新为当前变量选中的值 */
       Object.entries(this.currentGroupValueFlat).forEach(item => {
         const [key, value] = item;
@@ -266,7 +261,9 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       });
       return this.$api[item.apiModule]
         [item.apiFunc]({
-          ...temp
+          ...temp,
+          start_time: startTime,
+          end_time: endTime,
         })
         .then(res => res?.data || res || []);
     });
@@ -274,13 +271,13 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
       Promise.all(promiseList)
         .then(res => {
           this.localOptions = res
-            .reduce((total, list) => (total = total.concat(list)), [])
+            .reduce((total, list) => total.concat(list), [])
             .map(item => {
               const id = this.panel.handleCreateItemId(item);
               return {
                 ...item,
                 id,
-                name: item.name || item.ip || item.id
+                name: item.name || item.ip || item.id,
               };
             });
           if (!this.editable) {
@@ -342,7 +339,7 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
               content: this.panel.fieldsKey,
               zIndex: 9999,
               boundary: document.body,
-              allowHTML: false
+              allowHTML: false,
             }}
           >
             {this.label}
@@ -350,12 +347,12 @@ export default class FilterVarSelect extends tsc<IProps, IEvents> {
         )}
         <FilterVarTagInput
           key={this.tagInputKey}
-          value={this.localValue}
+          clearable={this.clearable}
           list={this.localOptions}
           multiple={this.multiple}
-          clearable={this.clearable}
+          value={this.localValue}
           onChange={this.handleTagInputChange}
-        ></FilterVarTagInput>
+        />
         {/* <bk-select
           class="bk-select-simplicity filter-var-select"
           behavior="simplicity"

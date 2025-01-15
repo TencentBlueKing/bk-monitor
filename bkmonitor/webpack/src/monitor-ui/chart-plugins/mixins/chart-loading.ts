@@ -27,7 +27,7 @@ import { Component, Emit } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 @Component
-export default class ChartLoadingMixin extends tsc<{}, { onLoading: boolean }> {
+export default class ChartLoadingMixin extends tsc<object, { onLoading: boolean }> {
   @Emit('loading')
   handleLoadingChange(loading: boolean) {
     return loading;

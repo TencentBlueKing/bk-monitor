@@ -25,6 +25,7 @@
  */
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { deepClone } from 'monitor-common/utils';
 
@@ -111,14 +112,14 @@ export default class MoreTag extends tsc<IProps> {
          */}
         <div
           id='tag-list-container'
-          class='tag-list-container'
           style={this.isFinishCalc && { 'overflow-x': 'hidden' }}
+          class='tag-list-container'
         >
           {/* 如果出现了上述的边界情况，这里会将该标签设置为溢出省略，保证了外观正常 */}
           {this.clonedList.map((s, index) => (
             <div
-              class={this.isFinishCalc ? 'tag tag-overflow' : 'tag'}
               key={index}
+              class={this.isFinishCalc ? 'tag tag-overflow' : 'tag'}
             >
               {s}
             </div>

@@ -20,8 +20,6 @@ import logging
 import operator
 
 import networkx
-from apm_web.handlers.span_infer import InferenceHandler
-from apm_web.utils import group_by
 from networkx import dag_longest_path_length
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
@@ -29,7 +27,9 @@ from opentelemetry.trace import StatusCode
 
 from apm.constants import KindCategory
 from apm.models import ApmApplication
+from apm_web.handlers.span_infer import InferenceHandler
 from bkm_space.api import SpaceApi
+from bkmonitor.utils import group_by
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import (
     OtlpKey,
@@ -44,6 +44,7 @@ logger = logging.getLogger("apm")
 class PrecalculateProcessor:
     """
     预计算处理类
+    [旧] 目前应用已经迁移至 BMW 预计算处
     """
 
     def __init__(self, storage, bk_biz_id, app_name):
@@ -51,35 +52,31 @@ class PrecalculateProcessor:
         self.app_name = app_name
         self.storage = storage
         self.application = ApmApplication.get_application(bk_biz_id=bk_biz_id, app_name=app_name)
-        space_info = {i.bk_biz_id: i for i in SpaceApi.list_spaces()}
-        if bk_biz_id in space_info:
-            bk_biz_name = space_info[bk_biz_id].space_name
-        else:
-            bk_biz_name = bk_biz_id
+        space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+        bk_biz_name = space.display_name
         self.bk_biz_name = bk_biz_name
 
     def handle(self, all_span):
-
         trace_mapping = group_by(all_span, operator.itemgetter(OtlpKey.TRACE_ID))
 
         logger.info(f"[PrecalculateProcessor] group by total {len(trace_mapping)} trace")
-        data = []
         pool = ThreadPool()
         params = [(k, v) for k, v in trace_mapping.items()]
 
         results = pool.map_ignore_exception(self.get_trace_info, params)
 
+        data = []
         for result in results:
             if not result:
                 continue
 
-            data.append(result)
+            # 指定 Id 字段
+            data.append({"_index": self.storage.save_index_name, "_id": result["trace_id"], "_source": result})
 
         # 存储数据
         self.storage.save(data)
 
     def get_status_code(self, span):
-
         for i in [SpanAttributes.HTTP_STATUS_CODE, SpanAttributes.RPC_GRPC_STATUS_CODE]:
             if i in span[OtlpKey.ATTRIBUTES]:
                 return span[OtlpKey.ATTRIBUTES][i]
@@ -251,7 +248,6 @@ class PrecalculateProcessor:
         return res
 
     def collect(self, collections, span):
-
         for f in SpanStandardField.COMMON_STANDARD_FIELDS:
             v = span[f.source]
             if isinstance(v, dict):

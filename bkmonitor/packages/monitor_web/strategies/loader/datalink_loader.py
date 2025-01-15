@@ -33,7 +33,10 @@ from monitor_web.strategies.default_settings.datalink.v1 import (
     DatalinkStrategy,
     GatherType,
 )
-from monitor_web.strategies.user_groups import add_member_to_collecting_notice_group
+from monitor_web.strategies.user_groups import (
+    add_member_to_collecting_notice_group,
+    remove_member_from_collecting_notice_group,
+)
 
 DataLinkStrategyRule = TypedDict("DataLinkStrategyRule", {"user_groups": List[int]})
 
@@ -170,7 +173,7 @@ class DatalinkDefaultAlarmStrategyLoader:
             rule["user_type"] = "follower" if strategy_name == DatalinkStrategy.COLLECTING_SYS_ALARM else "main"
             rules.append(rule)
 
-        tool = RuleGroupTool(bk_biz_id=self.bk_biz_id)
+        tool = RuleGroupManager(bk_biz_id=self.bk_biz_id)
         tool.ensure_group()
         tool.ensure_rules(rules, force_update)
 
@@ -185,7 +188,7 @@ class DatalinkDefaultAlarmStrategyLoader:
         if gather_type is None:
             return map
 
-        tool = RuleGroupTool(bk_biz_id=self.bk_biz_id)
+        tool = RuleGroupManager(bk_biz_id=self.bk_biz_id)
         for strategy_name in STAGE_STRATEGY_MAPPING[stage]:
             try:
                 strategy_label = StrategyLabel.objects.get(
@@ -211,8 +214,17 @@ class DatalinkDefaultAlarmStrategyLoader:
         plugin_type = self.collect_config.plugin.plugin_type
         return PLUGIN_TYPE_MAPPING[plugin_type] if plugin_type in PLUGIN_TYPE_MAPPING else None
 
+    def delete(self, remove_user_from_group: bool = False) -> None:
+        """删除采集配置后的清理动作。"""
+        manager = RuleGroupManager(self.bk_biz_id)
+        manager.delete_config_rules(self.collect_config_id)
 
-class RuleGroupTool:
+        if remove_user_from_group:
+            # 如果指示移除用户（目前是没有其他采集配置时），则从告警组的用户中移除该用户
+            remove_member_from_collecting_notice_group(self.bk_biz_id, self.user_id)
+
+
+class RuleGroupManager:
     """业务下采集状态默认告警分派组"""
 
     def __init__(self, bk_biz_id: int):
@@ -262,3 +274,12 @@ class RuleGroupTool:
             if rule.additional_tags[0]["value"] == idx:
                 return rule
         return None
+
+    def delete_config_rules(self, collect_config_id: int) -> None:
+        """删除规则组内与采集配置关联的规则。"""
+        if not self.ensure_group(auto_create=False):
+            return
+
+        # 保存规则时使用 ConditionSerializer 的 validated_data，序列化器 value 字段为 CharField
+        partial_condition = {"field": "bk_collect_config_id", "value": [str(collect_config_id)]}
+        AlertAssignRule.objects.filter(assign_group_id=self.group_id, conditions__contains=partial_condition).delete()

@@ -1,0 +1,18 @@
+.field-select-config {
+  margin-left: 10px;
+  font-weight: normal;
+
+  .dropdown-trigger-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 68px;
+    height: 32px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  .dropdown-trigger-text .bk-icon {
+    font-size: 22px;
+  }
+}

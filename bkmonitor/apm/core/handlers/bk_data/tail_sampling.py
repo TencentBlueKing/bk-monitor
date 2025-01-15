@@ -8,7 +8,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import json
 import os
+from json import JSONDecodeError
 
 from django.conf import settings
 
@@ -228,6 +230,16 @@ class TailSamplingFlow(ApmFlow):
         if bkdata_cluster_id not in [i.get("resource_group_id") for i in all_resources]:
             self.logger.info(f"resource_set_id: {bkdata_cluster_id} not in resource list, start check if registry")
 
+            # 获取集群冷热配置
+            try:
+                custom_options = json.loads(
+                    cluster_info.consul_config.get("cluster_config", {}).get("custom_option", ""),
+                )
+                support_warm = custom_options.get("hot_warm_config", {}).get("is_enabled", False)
+            except (JSONDecodeError, AttributeError) as e:
+                self.logger.info(f"retrieve hot-warm config failed: {e} consul config: {cluster_info.consul_config}")
+                support_warm = False
+
             params = {
                 "bk_username": settings.APM_APP_BKDATA_OPERATOR,
                 "bk_biz_id": settings.BK_DATA_BK_BIZ_ID,
@@ -242,6 +254,7 @@ class TailSamplingFlow(ApmFlow):
                 "tag": [],
                 "connection_info": {
                     "enable_auth": True,
+                    "support_node_tag": support_warm,
                     "has_cold_nodes": False,
                     "host": cluster_info.domain_name,
                     "hot_node_num": 1,

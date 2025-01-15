@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-from django.conf import settings
 from django.middleware.csrf import get_token
 from django.utils import timezone
 
@@ -32,6 +31,7 @@ from common.log import logger
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
+from monitor.models.models import UserConfig
 from monitor_web.tasks import run_init_builtin
 
 
@@ -57,8 +57,6 @@ class GetContextResource(Resource):
                     bk_biz_id = space.bk_biz_id
                 except BKAPIError as e:
                     logger.exception(f"获取空间信息({attrs['space_uid']})失败：{e}")
-                    if settings.DEMO_BIZ_ID:
-                        bk_biz_id = settings.DEMO_BIZ_ID
 
                 if bk_biz_id:
                     attrs["bk_biz_id"] = bk_biz_id
@@ -121,8 +119,6 @@ class EnhancedGetContextResource(Resource):
                 logger.warning(
                     f"[get_basic_context] space_uid not found: " f"uid -> {space_uid} not in space_list -> {space_list}"
                 )
-                if settings.DEMO_BIZ_ID:
-                    bk_biz_id = int(settings.DEMO_BIZ_ID)
         elif not bk_biz_id:
             bk_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
 
@@ -181,6 +177,7 @@ class EnhancedGetContextResource(Resource):
             "MAX_AVAILABLE_DURATION_LIMIT",
             "GRAPH_WATERMARK",
             "ENABLE_AIOPS",
+            "ENABLE_AIOPS_INCIDENT",
             "ENABLE_APM",
             "ENABLE_CMDB_LEVEL",
             "HOST_DATA_FIELDS",
@@ -208,5 +205,12 @@ class EnhancedGetContextResource(Resource):
                         context["BK_BIZ_ID"] = context["SPACE_LIST"][0]["bk_biz_id"]
                     else:
                         context["BK_BIZ_ID"] = -1
+
+        # 补充默认业务ID
+        default_biz_config = UserConfig.objects.filter(
+            username=request.user.username,
+            key=UserConfig.Keys.DEFAULT_BIZ_ID,
+        ).first()
+        context["DEFAULT_BIZ_ID"] = default_biz_config.value if default_biz_config else None
 
         return {"context": context, "context_type": context_type}

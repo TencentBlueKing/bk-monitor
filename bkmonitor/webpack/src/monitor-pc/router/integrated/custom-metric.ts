@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
-
 import * as customAuth from '../../pages/custom-escalation/authority-map';
+
+import type { RouteConfig } from 'vue-router';
 
 const CustomMetric = () => import(/* webpackChunkName: 'CustomReport' */ '../../pages/custom-escalation/custom-report');
 
@@ -39,12 +39,12 @@ export default [
       navId: 'custom-metric',
       authority: {
         map: customAuth,
-        page: customAuth.VIEW_CUSTOM_METRIC
+        page: customAuth.VIEW_CUSTOM_METRIC,
       },
       route: {
-        parent: 'integrated'
+        parent: 'integrated',
       },
-      noNavBar: true
-    }
-  }
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

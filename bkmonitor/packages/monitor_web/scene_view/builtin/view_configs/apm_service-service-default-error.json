@@ -26,7 +26,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
@@ -51,6 +51,9 @@
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": true
+        },
+        "header": {
+          "tips": "此表格展示状态为异常的 span，同时异常信息来自于 span 的 status.message 以及 events 字段。"
         }
       }
     },
@@ -82,7 +85,8 @@
       },
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -117,7 +121,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "错误信息",
+      "title": "错误详情",
       "type": "api_message",
       "targets": [
         {
@@ -125,7 +129,8 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.bk.instance.id": "$bk_instance_id",
-              "resource.service.name": "$service_name"
+              "resource.service.name": "$service_name",
+              "span_name": "$endpoint"
             },
             "exception_type": "$exception_type"
           },
@@ -143,6 +148,9 @@
         "table_chart": {
           "json_viewer_data_key": "data",
           "show_expand": true
+        },
+        "header": {
+          "tips": "此表格展示状态为异常的 span，同时异常信息来自于 span 的 status.message 以及 events 字段。"
         }
       }
     },
@@ -162,7 +170,8 @@
             "exception_type": "$exception_type",
             "filter_params": {
               "resource.service.name": "$service_name",
-              "resource.bk.instance.id": "$bk_instance_id"
+              "resource.bk.instance.id": "$bk_instance_id",
+              "span_name": "$endpoint"
             }
           }
         }
@@ -175,7 +184,8 @@
       },
       "options": {
         "time_series": {
-          "type": "bar"
+          "type": "bar",
+          "hoverAllTooltips": true
         }
       }
     },
@@ -189,7 +199,8 @@
             "app_name": "$app_name",
             "filter_params": {
               "resource.service.name": "$service_name",
-              "resource.bk.instance.id": "$bk_instance_id"
+              "resource.bk.instance.id": "$bk_instance_id",
+              "span_name": "$endpoint"
             },
             "exception_type": "$exception_type"
           },
@@ -215,6 +226,7 @@
       "compare_select": false,
       "columns_toggle": false,
       "interval_select": false,
+      "full_table": true,
       "split_switcher": false
     },
     "selector_panel": {
@@ -237,13 +249,9 @@
             "service_name": "$service_name"
           },
           "fields": {
-            "endpoint_name": "endpoint",
+            "endpoint": "endpoint",
             "app_name": "app_name",
-            "service_name": "service",
-            "exception_type": "exception_type",
-            "category": "service_category",
-            "kind": "service_kind",
-            "predicate_value": "service_predicate_value"
+            "exception_type": "exception_type"
           }
         }
       ]

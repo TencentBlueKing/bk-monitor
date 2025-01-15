@@ -70,6 +70,8 @@ class Event:
         if do_clean:
             self.clean()
 
+        self.init_severity()
+
     def clean(self):
         """
         处理单条事件
@@ -406,4 +408,17 @@ class Event:
             }
         except Exception:
             # 取不到就拉倒，不计算了
+            return
+
+    def init_severity(self):
+        # 智能监控如果有动态告警级别配置，则从extra_info里获取实际事件级别
+        try:
+            # 尝试取数据中的extra_info
+            origin_alarm = self.extra_info["origin_alarm"]
+            origin_extra_info = json.loads(origin_alarm["data"]["values"]["extra_info"])
+            self.data["severity"] = origin_extra_info.get("alert_level_msg", {}).get(
+                "alert_level", self.data["severity"]
+            )
+        except Exception:
+            # 取不到就拉倒，用默认的
             return

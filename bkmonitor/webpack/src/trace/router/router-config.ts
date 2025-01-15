@@ -33,28 +33,33 @@ export const allRouteConfig: IRouteConfig[] = [
   {
     id: 'home',
     name: 'route-首页',
-    route: 'home'
+    route: 'home',
   },
   {
     id: 'rotation',
     name: '轮值',
-    route: 'rotation'
+    route: 'rotation',
   },
   {
     id: 'alarm-shield',
     name: 'route-屏蔽',
-    route: 'alarm-shield'
+    route: 'alarm-shield',
+  },
+  {
+    id: 'incident-detail',
+    name: 'route-故障',
+    route: 'incident-detail',
   },
   {
     id: 'profiling',
     name: 'Profiling',
-    route: 'profiling'
+    route: 'profiling',
   },
   {
     id: 'report',
     name: 'route-订阅配置',
-    route: 'report'
-  }
+    route: 'report',
+  },
 ];
 
 export const createRouteConfig = () => allRouteConfig;

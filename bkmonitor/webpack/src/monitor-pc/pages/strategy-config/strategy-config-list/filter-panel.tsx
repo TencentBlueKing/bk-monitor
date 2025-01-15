@@ -23,24 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { VNode } from 'vue';
-import { TranslateResult } from 'vue-i18n';
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import Group, { IGroupData } from './group';
+import Group, { type IGroupData } from './group';
+import FilterListSkeleton from './skeleton/filter-list';
+
+import type { VNode } from 'vue';
+import type { TranslateResult } from 'vue-i18n';
 
 import './filter-panel.scss';
 
 // 勾选的数据（筛选表格）
 export interface IFilterData {
-  id: string | number; // 所属分组ID
-  values: any[]; // 勾选数据
+  id: number | string; // 所属分组ID
+  values?: any[]; // 勾选数据
   name: TranslateResult; // 分组名称
 }
 interface ITreeNode {
   children?: any[];
-  id: string | number;
+  id: number | string;
   data: any;
 }
 // 属性
@@ -50,6 +52,7 @@ type FilterPanelProps = {
   checkedData: IFilterData[];
   width?: number;
   defaultActiveName?: string[];
+  showSkeleton?: boolean;
 };
 
 // 事件
@@ -58,7 +61,9 @@ type FilterPanelEvents = {
 };
 
 // 插槽
-type FilterPanelScopedSlots = {};
+type FilterPanelScopedSlots = {
+  header?: () => VNode;
+};
 
 /**
  * 策略配置列表左侧筛选面板
@@ -76,6 +81,8 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
   defaultActiveName!: string[];
   // 勾选节点的数据
   @Prop({ default: () => [], type: Array }) checkedData: IFilterData[];
+  /** 是否展示骨架屏 */
+  @Prop({ default: false, type: Boolean }) showSkeleton: boolean;
 
   activeName = this.defaultActiveName;
   filterData: IFilterData[] = [];
@@ -83,7 +90,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
 
   get filterPanelStyle() {
     return {
-      width: `${this.width}px`
+      width: `${this.width}px`,
     };
   }
 
@@ -110,15 +117,19 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
             </div>
           )}
           <div class={['filter-panel-body', { 'show-scrollbar': this.isShowScrollbar }]}>
-            <Group
-              data={this.data}
-              on-clear={this.handleClear}
-              theme='filter'
-              defaultActiveName={this.defaultActiveName}
-              scopedSlots={{
-                default: ({ item }) => this.collapseItemContentSlot(item)
-              }}
-            ></Group>
+            {this.showSkeleton ? (
+              <FilterListSkeleton />
+            ) : (
+              <Group
+                scopedSlots={{
+                  default: ({ item }) => this.collapseItemContentSlot(item),
+                }}
+                data={this.data}
+                defaultActiveName={this.defaultActiveName}
+                theme='filter'
+                on-clear={this.handleClear}
+              />
+            )}
           </div>
         </section>
       </transition>
@@ -143,32 +154,33 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
     const defaultCheckedNodes = group ? group.values.map(value => value.id) : [];
     return (
       <bk-big-tree
-        data={data}
-        default-expand-all
-        show-checkbox
-        expand-icon=''
-        collapse-icon=''
         ext-cls='filter-panel-tree'
-        padding={0}
-        check-on-click
-        expand-on-click={false}
-        default-checked-nodes={defaultCheckedNodes}
         scopedSlots={{
           default: ({ data }) => (
             <span class='check-label-content'>
-              {data.icon && <i class={['icon-monitor', 'pre-icon', data.icon]}></i>}
+              {data.icon && <i class={['icon-monitor', 'pre-icon', data.icon]} />}
               <span
                 class='label-text'
+                v-bk-overflow-tips
                 title={data.name}
               >
                 {data.name}
               </span>
               <span class='label-count'>{data.count || 0}</span>
             </span>
-          )
+          ),
         }}
+        collapse-icon=''
+        data={data}
+        default-checked-nodes={defaultCheckedNodes}
+        expand-icon=''
+        expand-on-click={false}
+        padding={0}
+        check-on-click
+        default-expand-all
+        show-checkbox
         on-check-change={(id, node) => this.handleTreeCheckChange(id, node, item)}
-      ></bk-big-tree>
+      />
     );
   }
 
@@ -212,7 +224,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         this.filterData.push({
           id: item.id,
           name: item.name,
-          values: JSON.parse(JSON.stringify(node.data.children))
+          values: JSON.parse(JSON.stringify(node.data.children)),
         });
       }
     } else {
@@ -224,7 +236,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         this.filterData.push({
           id: item.id,
           name: item.name,
-          values: [node.data]
+          values: [node.data],
         });
       }
     }

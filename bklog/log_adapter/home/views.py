@@ -244,7 +244,7 @@ def external(request):
         setattr(request, "COOKIES", {k: v for k, v in request.COOKIES.items() if k != "bk_token"})
     else:
         logger.error(f"外部用户({external_user})或空间(ID:{space_uid})不存在, request.META: {request.META}")
-    response = render(request, settings.VUE_INDEX, get_toggle_data())
+    response = render(request, settings.VUE_INDEX, get_toggle_data(request))
     response.set_cookie("space_uid", space_uid)
     response.set_cookie("external_user", external_user)
     return response
@@ -390,9 +390,10 @@ def dispatch_external_proxy(request):
                     )
         setattr(fake_request, "space_uid", space_uid)
         setattr(request, "space_uid", space_uid)
-        user = auth.authenticate(username=authorizer)
-        auth.login(request, user)
-        setattr(fake_request, "user", request.user)
+        if authorizer:
+            user = auth.authenticate(username=authorizer)
+            auth.login(request, user)
+            setattr(fake_request, "user", request.user)
         logger.info(
             f"dispatch_plugin_query: request:{request}, user:{request.user}, "
             f"external_user: {external_user}, space_uid: {space_uid}"

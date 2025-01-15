@@ -26,6 +26,9 @@ class BkPaaSAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     # 模块名
     module_name = "bk_paas"
 
+    def get_request_url(self, validated_request_data):
+        return super(BkPaaSAPIGWResource, self).get_request_url(validated_request_data).format(**validated_request_data)
+
 
 class GetAppClusterNamespaceResource(BkPaaSAPIGWResource):
     """获取蓝鲸应用对应的集群数据"""

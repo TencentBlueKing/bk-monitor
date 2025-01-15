@@ -13,7 +13,7 @@ from collections import OrderedDict
 
 from django.conf import settings
 from django.db.utils import DatabaseError
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
@@ -51,8 +51,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("WEBHOOK_TIMEOUT", slz.IntegerField(label="Webhook超时时间", default=3)),
         ("ENABLE_DEFAULT_STRATEGY", slz.BooleanField(label="是否开启默认策略", default=True)),
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
+        ("K8S_OPERATOR_DEPLOY_NAMESPACE", slz.JSONField(label="bkmonitor-operator 特殊集群部署命名空间信息", default={})),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
+        ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),
         (
@@ -64,15 +66,11 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BK_DATA_DATA_EXPIRES_DAYS_BY_HDFS", slz.IntegerField(label="计算平台中结果表(HDFS)默认保存天数", default=180)),
         (
             "BK_DATA_MYSQL_STORAGE_CLUSTER_NAME",
-            slz.CharField(label="计算平台 MYSQL 存储集群名称", default="default", allow_blank=True),
+            slz.CharField(label="计算平台 MYSQL 存储集群名称", default="mysql-default", allow_blank=True),
         ),
         (
             "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
-            slz.CharField(label="计算平台 SQL 类存储集群类型", default="mysql_storage", allow_blank=True),
-        ),
-        (
-            "BK_DATA_MYSQL_STORAGE_CLUSTER_TYPE",
-            slz.CharField(label=_("计算平台 SQL 类存储集群类型"), default="mysql_storage", allow_blank=True),
+            slz.CharField(label="计算平台 MYSQL类 存储类型", default="mysql_storage", allow_blank=True),
         ),
         (
             "BK_DATA_HDFS_STORAGE_CLUSTER_NAME",
@@ -89,6 +87,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BK_DATA_SCENE_ID_ABNORMAL_CLUSTER", slz.IntegerField(label="计算平台离群检测场景ID", default=0)),
         ("BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION", slz.IntegerField(label="计算平台多指标异常检测场景ID", default=0)),
         ("BK_DATA_SCENE_ID_METRIC_RECOMMENDATION", slz.IntegerField(label="计算平台指标推荐场景ID", default=0)),
+        ("BK_DATA_SCENE_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label="计算平台主机异常检测场景ID", default=0)),
         ("BK_DATA_FLOW_CLUSTER_GROUP", slz.CharField(label="计算平台 dataflow 计算集群组", default="default_inland")),
         ("BK_DATA_REALTIME_NODE_WAIT_TIME", slz.IntegerField(label="计算平台 实时节点等待时间", default=10)),
         (
@@ -102,6 +101,17 @@ ADVANCED_OPTIONS = OrderedDict(
         (
             "BK_DATA_METRIC_RECOMMEND_SOURCE_PROCESSING_ID",
             slz.CharField(label="指标推荐 FLOW 数据源", default="ieod_system_multivariate_delay"),
+        ),
+        (
+            "BK_DATA_AIOPS_INCIDENT_BROKER_URL",
+            slz.CharField(
+                label=_("故障接入的 RabbitMQ 地址"),
+                default="amqp://bkbase-rabbitmq.bkbase.svc.cluster.local:5672/aiops_incident",
+            ),
+        ),
+        (
+            "BK_DATA_AIOPS_INCIDENT_SYNC_QUEUE",
+            slz.CharField(label=_("故障接入队列名"), default="aiops_incident"),
         ),
         # === AIOPS 相关配置 结束 ===
         ("EVENT_NO_DATA_TOLERANCE_WINDOW_SIZE", slz.IntegerField(label="Event 模块最大容忍无数据周期数", default=5)),
@@ -140,30 +150,38 @@ ADVANCED_OPTIONS = OrderedDict(
         ("NO_DATA_ALERT_EXPIRED_TIMEDELTA", slz.IntegerField(label="无数据告警过期时间窗口(s)", default=24 * 60 * 60)),
         ("APM_APP_DEFAULT_ES_STORAGE_CLUSTER", slz.IntegerField(label="APM应用默认集群ID", default=-1)),
         ("APM_APP_DEFAULT_ES_RETENTION", slz.IntegerField(label="APM应用默认过期时间", default=7)),
-        ("APM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="APM应用ES索引集默认切分大小", default=500)),
+        ("APM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="APM应用ES索引集默认切分大小", default=100)),
         ("APM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="APM应用默认副本数", default=0)),
         ("APM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="APM应用默认索引分片数", default=3)),
         ("APM_APP_BKDATA_OPERATOR", slz.CharField(label="APM应用操作数据平台所用到的用户名", default="admin")),
         ("APM_APP_BKDATA_MAINTAINER", slz.ListField(label="APM应用操作数据平台时数据源的默认维护人", default=[])),
+        ("APM_APPLICATION_QUICK_REFRESH_INTERVAL", slz.IntegerField(label=_("新建应用的刷新频率"), default=2)),
+        ("APM_APPLICATION_QUICK_REFRESH_DELTA", slz.IntegerField(label=_("新建应用的创建时间到当前时间的时长范围"), default=30)),
+        (
+            "APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA",
+            slz.IntegerField(label=_("指标数据源数据发现时需要将周期切分为每批查询几分钟的数据"), default=200),
+        ),
         (
             "APM_APP_BKDATA_FETCH_STATUS_THRESHOLD",
-            slz.IntegerField(label=_("APM应用操作BkdataFlow时拉取运行状态的最大操作次数"), default=10),
+            slz.IntegerField(label="APM应用操作BkdataFlow时拉取运行状态的最大操作次数", default=10),
         ),
         (
             "APM_APP_BKDATA_REQUIRED_TEMP_CONVERT_NODE",
-            slz.BooleanField(label=_("APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点"), default=False),
+            slz.BooleanField(label="APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点", default=False),
         ),
-        ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label=_("APM尾部采样项目id"), default=0)),
+        ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label="APM尾部采样项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),
         ("APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE", slz.CharField(label="APM Flow注册存储资源时地区代号", default="inland")),
-        ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=500)),
-        ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=30)),
+        ("APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE", slz.IntegerField(label="APM预计算存储ES分片大小", default=100)),
+        ("APM_APP_PRE_CALCULATE_STORAGE_RETENTION", slz.IntegerField(label="APM预计算存储ES过期时间", default=15)),
         ("APM_APP_PRE_CALCULATE_STORAGE_SHARDS", slz.IntegerField(label="APM预计算存储ES分片数", default=3)),
         ("IS_FTA_MIGRATED", slz.BooleanField(label="是否已经迁移自愈", default=False)),
         ("FTA_MIGRATE_BIZS", slz.ListField(label="已经迁移的业务名单", default=[])),
         ("APM_APP_QUERY_TRACE_MAX_COUNT", slz.IntegerField(label="APM单次查询TraceID最大的数量", default=10)),
+        ("APM_V4_METRIC_DATA_STATUS_CONFIG", slz.DictField(label="APMv4链路metric数据状态配置", default={})),
+        ("APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG", slz.DictField(label="APM自定义指标sdk映射配置", default={})),
         ("SPECIFY_AES_KEY", slz.CharField(label="特别指定的AES使用密钥", default="")),
         ("ENTERPRISE_CODE", slz.CharField(label="企业代号", default="")),
         ("LINUX_GSE_AGENT_PATH", slz.CharField(label="Linux Agent 安装路径", default="/usr/local/gse/")),
@@ -187,9 +205,14 @@ ADVANCED_OPTIONS = OrderedDict(
             "BK_DATA_PLAN_ID_METRIC_RECOMMENDATION",
             slz.IntegerField(label="指标推荐默认plan id", default=0),
         ),
+        ("BK_DATA_PLAN_ID_HOST_ANOMALY_DETECTION", slz.IntegerField(label="计算平台主机异常检测方案ID", default=0)),
         (
             "BK_DATA_MULTIVARIATE_HOST_RT_ID",
             slz.CharField(label="多指标异常检测通用flow结果输出表", default=f"2_{settings.BKAPP_DEPLOY_PLATFORM}_host_multivariate"),
+        ),
+        (
+            "BK_DATA_MULTIVARIATE_HOST_MIDDLE_SUFFIX",
+            slz.IntegerField(label="多指标异常检测业务FLOW检测表后缀", default="multivariate_detection"),
         ),
         (
             "BK_DATA_ROBOT_LINK_LIST",
@@ -218,8 +241,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("HOST_DYNAMIC_FIELDS", slz.ListField(label="主机动态属性", default=[])),
         ("METRIC_CACHE_TASK_PERIOD", slz.IntegerField(label="指标缓存任务周期(min)", default=10)),
         ("LAST_MIGRATE_VERSION", slz.CharField(label="最后一次迁移版本", default="")),
-        # ("EXTERNAL_APIGW_PUBLIC_KEY", slz.CharField(label="外部APIGW公钥", default="")),
-        # ("APIGW_PUBLIC_KEY", slz.CharField(label="APIGW公钥", default="")),
         ("GSE_MANAGERS", slz.ListField(label="GSE平台管理员", default=[])),
         ("OFFICIAL_PLUGINS_MANAGERS", slz.ListField(label="官方插件管理员", default=[])),
         (
@@ -256,8 +277,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SHOW_REALTIME_STRATEGY", slz.BooleanField(label="是否默认展示策略模块实时功能", default=False)),
         ("BKDATA_CMDB_LEVEL_TABLES", slz.ListField(label="数据平台CMDB聚合表", default=[])),
         ("MAX_TASK_PROCESS_NUM", slz.IntegerField(label="后台任务多进程并行数量", default=1)),
-        ("MAX_TS_METRIC_TASK_PROCESS_NUM", slz.IntegerField(label="指标后台任务多进程并行数量", default=1)),
-        ("QUERY_VM_SPACE_UID_LIST", slz.ListField(label="通过 vm 查询的空间列表", default=[])),
         ("MAIL_REPORT_FULL_PAGE_WAIT_TIME", slz.IntegerField(label="邮件报表整屏渲染等待时间", default=60)),
         ("KUBERNETES_CMDB_ENRICH_BIZ_WHITE_LIST", slz.ListField(label="容器关联关系丰富业务白名单", default=[])),
         ("IS_RESTRICT_DS_BELONG_SPACE", slz.BooleanField(label="是否限制数据源归属具体空间", default=True)),
@@ -270,6 +289,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("OUTER_COLLOCTOR_HOST", slz.CharField(label="collector外网域名", default="")),
         ("ENABLE_INFLUXDB_STORAGE", slz.BooleanField(label="启用 influxdb 存储", default=True)),
         ("ES_SERIAL_CLUSTER_LIST", slz.ListField(label="ES 串行集群列表", default=[])),
+        ("ES_CLUSTER_BLACKLIST", slz.ListField(label="ES 黑名单集群列表", default=[])),
+        ("ENABLE_V2_ROTATION_ES_CLUSTER_IDS", slz.ListField(label="启用新版索引轮转的ES集群ID列表", default=[])),
         ("BKDATA_USE_UNIFY_QUERY_GRAY_BIZ_LIST", slz.ListField(label="UNIFY-QUERY支持bkdata查询灰度业务列表", default=[])),
         (
             "BCS_DATA_CONVERGENCE_CONFIG",
@@ -281,9 +302,35 @@ ADVANCED_OPTIONS = OrderedDict(
         ("SINGLE_VM_SPACE_ID_LIST", slz.ListField(label="使用独立VM集群的空间ID列表", default=[])),
         ("BKCI_SPACE_ACCESS_PLUGIN_LIST", slz.ListField(label="蓝盾空间允许访问的插件列表", default=[])),
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
+        ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
+        ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
+        ("DEFAULT_VM_DATA_LINK_NAMESPACE", slz.CharField(label="创建计算平台链路资源所属的命名空间", default="bkmonitor")),
+        ("ACCESS_DATA_BATCH_PROCESS_THRESHOLD", slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0)),
+        ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
+        ("AIDEV_KNOWLEDGE_BASE_IDS", slz.ListField(label="aidev的知识库ID", default=[])),
+        ("BK_DATA_RECORD_RULE_PROJECT_ID", slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1)),
+        ("ENABLE_DATA_LABEL_EXPORT", slz.BooleanField(label="grafana和策略导出是否支持data_label转换", default=True)),
+        ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
+        ("SKIP_INFLUXDB_TABLE_ID_LIST", slz.BooleanField(label="跳过写入influxdb的结果表列表", default=[])),
+        ("ENABLE_UPTIMECHECK_TEST", slz.BooleanField(label="是否开启拨测联通性测试", default=True)),
+        ("CHECK_RESULT_TTL_HOURS", slz.CharField(label="检测结果缓存 TTL(小时)", default=1)),
+        ("ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST", slz.ListField(label="启用新链路的集群ID列表", default=[])),
+        ("K8S_PLUGIN_COLLECT_CLUSTER_ID", slz.CharField(label="默认K8S插件采集集群ID", default="")),
+        ("TENCENT_CLOUD_METRIC_PLUGIN_CONFIG", slz.JSONField(label="腾讯云监控插件配置", default={})),
+        ("ENABLED_TARGET_CACHE_BK_BIZ_IDS", slz.ListField(label="启用监控目标缓存的业务ID列表", default=[])),
+        ("ES_INDEX_ROTATION_SLEEP_INTERVAL_SECONDS", slz.IntegerField(label="ES索引轮转等待间隔", default=3)),
+        ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
+        ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
+        ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
+        ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=False)),
+        ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
     ]
 )
+
+# ！！！注意！！！
+# 上面高级配置定义， 不提供用户配置页面， 所以 label 不要标记！不要标记！不要标记！
+
 
 STANDARD_CONFIGS = OrderedDict(
     [
@@ -324,6 +371,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER", slz.BooleanField(label=_("是否自动部署自定义上报服务"), default=True)),
         ("CUSTOM_REPORT_DEFAULT_PROXY_IP", slz.ListField(label=_("自定义上报默认服务器"), default=[])),
         ("CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN", slz.ListField(label=_("自定义上报默认服务器(域名显示)"), default=[])),
+        ("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", slz.ListField(label=_("自定义上报默认部署K8S集群"), default=[])),
         ("PING_SERVER_TARGET_NUMBER_LIMIT", slz.IntegerField(label=_("单台机器Ping采集目标数量限制"), default=6000)),
         (
             "MAX_AVAILABLE_DURATION_LIMIT",
@@ -349,6 +397,9 @@ STANDARD_CONFIGS = OrderedDict(
         ("DEMO_BIZ_ID", slz.IntegerField(label=_("Demo业务ID"), default=0)),
         ("DEMO_BIZ_WRITE_PERMISSION", slz.BooleanField(label=_("Demo业务写权限"), default=False)),
         ("DEMO_BIZ_APPLY", slz.CharField(label=_("业务接入链接"), default="", allow_blank=True)),
+        ("ECOSYSTEM_REPOSITORY_URL", slz.CharField(label=_("接入样例代码仓库"), default="", allow_blank=True)),
+        # 区别于 ECOSYSTEM_REPOSITORY_URL，每个 Git 对代码路径定义不同，同时可以控制展示分支
+        ("ECOSYSTEM_CODE_ROOT_URL", slz.CharField(label=_("接入样例代码根 URL"), default="", allow_blank=True)),
         ("APM_ACCESS_URL", slz.CharField(label=_("APM接入链接"), default="", allow_blank=True)),
         ("APM_BEST_PRACTICE_URL", slz.CharField(label=_("APM最佳实践链接"), default="", allow_blank=True)),
         ("APM_METRIC_DESCRIPTION_URL", slz.CharField(label=_("APM指标说明"), default="", allow_blank=True)),
@@ -362,6 +413,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
+        ("APM_BMW_DEPLOY_BIZ_ID", slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0)),
+        ("APM_CREATE_VIRTUAL_METRIC_ENABLED_BK_BIZ_ID", slz.ListField(label=_("APM 创建虚拟指标业务列表"), default=[])),
+        ("APM_BMW_TASK_QUEUES", slz.ListField(label=_("APM BMW 任务能够使用的队列名称"), default=[])),
+        ("PER_ROUND_SPAN_MAX_SIZE", slz.IntegerField(label=_("拓扑发现允许的最大 Span 数量"), default=1000)),
         ("WXWORK_BOT_NAME", slz.CharField(label=_("蓝鲸监控机器人名称"), default="BK-Monitor", allow_blank=True)),
         ("WXWORK_BOT_SEND_IMAGE", slz.BooleanField(label=_("蓝鲸监控机器人发送图片"), default=True)),
         ("COLLECTING_CONFIG_FILE_MAXSIZE", slz.IntegerField(label=_("采集配置文件参数最大值(M)"), default=2)),
@@ -429,8 +484,12 @@ STANDARD_CONFIGS = OrderedDict(
         # 接入计算平台配置
         ("DEFAULT_BKDATA_BIZ_ID", slz.IntegerField(label="接入计算平台使用的业务 ID", default=0)),
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
+        # K8S新版灰度配置
+        ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
+        # 自定义事件休眠开关
+        ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
     ]
 )
 

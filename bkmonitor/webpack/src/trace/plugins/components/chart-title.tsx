@@ -23,22 +23,25 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, ComputedRef, defineComponent, PropType, ref, watch } from 'vue';
+import { type ComputedRef, type PropType, computed, defineComponent, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
+import { deduplicateByField } from 'monitor-ui/chart-plugins/utils';
 
 import { createMetricTitleTooltips } from '../../utils';
-import {
+import AlertActionList from './alert-action-list';
+import TitleMenu from './title-menu';
+
+import type {
   ChartTitleMenuType,
   IChartTitleMenuEvents,
   IExtendMetricData,
   IMenuChildItem,
   IMenuItem,
-  ITitleAlarm
+  ITitleAlarm,
 } from '../typings';
-
-import TitleMenu from './title-menu';
 
 import './chart-title.scss';
 
@@ -49,29 +52,38 @@ export default defineComponent({
     subtitle: String,
     metrics: {
       type: Array as PropType<IExtendMetricData[]>,
-      default: () => []
+      default: () => [],
     },
     collectInterval: {
       type: String,
-      default: '0'
+      default: '0',
     },
     showMore: Boolean,
     draging: Boolean,
     isInstant: Boolean,
     showAddMetric: {
       type: Boolean,
-      default: true
+      default: true,
+    },
+    details: {
+      type: Object,
+      default: () => ({}),
     },
     menuList: {
       type: Array as PropType<ChartTitleMenuType[]>,
-      default: () => []
+      default: () => [],
     },
     drillDownOption: {
       type: Array as PropType<IMenuChildItem[]>,
-      default: () => []
-    }
+      default: () => [],
+    },
+    /** 是否展示告警操作 */
+    isShowAlarm: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['updateDragging', 'menuClick', 'selectChild', 'metricClick', 'allMetricClick', 'alarmClick'],
+  emits: ['updateDragging', 'menuClick', 'selectChild', 'metricClick', 'allMetricClick', 'alarmClick', 'successLoad'],
   setup(props, { emit }) {
     const chartTitleRef = ref<HTMLDivElement>();
     const showMenu = ref(false);
@@ -79,6 +91,8 @@ export default defineComponent({
     const popoverInstance = ref(null);
     const alarmStatus = ref<ITitleAlarm>({ status: 0, alert_number: 0, strategy_number: 0 });
     const isShowChildren = ref(false);
+    const isAlertListShown = ref(false);
+
     const { t } = useI18n();
     const alarmTips = computed(() => {
       const { status, alert_number, strategy_number } = alarmStatus.value;
@@ -91,7 +105,7 @@ export default defineComponent({
           content = t('告警中，告警数量：{0}', [alert_number]).toString();
           break;
         default:
-        case 0:
+          // case 0:
           content = t('未配置策略').toString();
           break;
       }
@@ -99,11 +113,20 @@ export default defineComponent({
         content,
         showOnInit: false,
         trigger: 'mouseenter',
-        placements: ['top']
+        placements: ['top'],
       };
     });
     const showMetricAlarm = computed(() => props.metrics?.length === 1);
     const metricTitleData: ComputedRef<IExtendMetricData> = computed<IExtendMetricData>(() => props.metrics[0]);
+
+    const metricTitleTooltips = () => {
+      return showMetricAlarm.value
+        ? createMetricTitleTooltips(metricTitleData.value)
+        : deduplicateByField(props.metrics, 'metric_id')
+            .map(metric => createMetricTitleTooltips(metric))
+            .join('<hr class="custom-hr" />');
+    };
+
     watch(
       () => props.metrics,
       async (v, o) => {
@@ -117,8 +140,9 @@ export default defineComponent({
       { immediate: true }
     );
     function handleShowMenu(e: any) {
+      // console.log('handleShowMenu', isAlertListShown);
       if (!props.draging) {
-        if (!props.showMore) return;
+        if (!props.showMore || isAlertListShown.value) return;
         showMenu.value = !showMenu.value;
         const rect = chartTitleRef.value?.getBoundingClientRect();
         if (typeof rect !== 'undefined') {
@@ -187,6 +211,21 @@ export default defineComponent({
         isShowChildren.value = false;
       }
     }
+    const handleSuccessLoad = () => {
+      emit('successLoad');
+    };
+    const handleAlertListShown = (val: boolean) => {
+      isAlertListShown.value = val;
+    };
+
+    const isToolsShow = computed(() => {
+      return props.showMore || isAlertListShown.value;
+    });
+
+    const isShowAlarmStyle = computed(() => {
+      return props.isShowAlarm ? { width: isToolsShow.value ? '68%' : '70%' } : {};
+    });
+
     return {
       chartTitleRef,
       showMenu,
@@ -197,6 +236,8 @@ export default defineComponent({
       alarmTips,
       showMetricAlarm,
       metricTitleData,
+      isToolsShow,
+      isAlertListShown,
       handleShowMenu,
       handleMenuClick,
       handleMenuChildClick,
@@ -207,7 +248,11 @@ export default defineComponent({
       handleHideTips,
       handleTitleBlur,
       handleShowChildren,
-      handleChildMenuToggle
+      handleChildMenuToggle,
+      handleAlertListShown,
+      handleSuccessLoad,
+      isShowAlarmStyle,
+      metricTitleTooltips,
     };
   },
   render() {
@@ -232,73 +277,100 @@ export default defineComponent({
                 />
               </Popover>
             ) : undefined}
-            <div class={['title-name', { 'has-more': this.showMore }]}>{this.title}</div>
+            <div
+              style={this.isShowAlarmStyle}
+              class={['title-name', { 'has-more': this.isToolsShow }]}
+              title={this.title}
+            >
+              {this.$slots.title ? this.$slots.title() : this.title}
+            </div>
             {this.showMetricAlarm && this.metricTitleData?.collect_interval ? (
               <Popover content={this.$t('数据步长')}>
                 <span class='title-interval'>{this.metricTitleData.collect_interval}m</span>
               </Popover>
             ) : undefined}
-            {this.showMetricAlarm && this.metricTitleData ? (
+            {this.metrics?.length ? (
               <Popover
                 v-slots={{
                   default: () => (
                     <i
+                      style={{ display: this.isToolsShow ? 'flex' : 'none' }}
                       class='icon-monitor icon-hint tips-icon'
-                      style={{ display: this.showMore ? 'flex' : 'none' }}
                     />
                   ),
                   content: () => (
                     <div
                       class='common-chart-tooltips-wrap'
-                      v-html={createMetricTitleTooltips(this.metricTitleData)}
-                    ></div>
-                  )
+                      v-html={this.metricTitleTooltips()}
+                    />
+                  ),
                 }}
-              ></Popover>
+              />
             ) : undefined}
-            <span class='title-center'></span>
+            <span class='title-center' />
             {this.showMetricAlarm && this.metricTitleData ? (
               <Popover content={this.$t('添加策略')}>
                 <i
-                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   style={{
-                    display: this.showMore && this.showAddMetric ? 'flex' : 'none'
+                    display: this.isToolsShow && this.showAddMetric ? 'flex' : 'none',
                   }}
+                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
                   onClick={this.handleAllMetricSelect}
-                ></i>
+                />
               </Popover>
             ) : undefined}
-            {
+            <div style={{ display: 'flex', marginRight: '-18px' }}>
+              {this.isShowAlarm && (
+                <AlertActionList
+                  style={{
+                    minWidth: '72px',
+                    marginLeft: 'auto',
+                    display: this.isToolsShow ? 'flex' : 'none',
+                    lineHeight: '28px',
+                  }}
+                  onListHidden={() => this.handleAlertListShown(false)}
+                  onListShown={() => this.handleAlertListShown(true)}
+                  onSuccessLoad={this.handleSuccessLoad}
+                />
+              )}
               <Popover content={this.$t('更多')}>
                 <span
                   style={{
                     marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
-                    display: this.showMore ? 'flex' : 'none'
+                    display: this.isToolsShow ? 'flex' : 'none',
                   }}
-                  tabindex='undefined'
                   class='icon-monitor icon-mc-more more-icon icon-btn'
+                  tabindex='undefined'
                 />
               </Popover>
-            }
+            </div>
           </div>
-          {this.subtitle && <div class='sub-title'>{this.subtitle}</div>}
+          {this.subtitle && (
+            <div
+              class='sub-title'
+              title={this.subtitle}
+            >
+              {this.$slots.subtitle ? this.$slots.subtitle() : this.subtitle}
+            </div>
+          )}
+          {this.$slots.tagTitle && <div class='tag-title'>{this.$slots.tagTitle()}</div>}
         </div>
         <TitleMenu
-          list={this.menuList}
-          drillDownOption={this.drillDownOption}
-          onSelect={this.handleMenuClick}
-          onMetricSelect={this.handleMetricSelect}
-          onChildMenuToggle={this.handleChildMenuToggle}
-          metrics={this.metrics}
-          showAddMetric={this.showAddMetric}
           style={{
             left: `${this.menuLeft}px`,
             top: '36px',
-            display: this.showMenu ? 'flex' : 'none'
+            display: this.showMenu ? 'flex' : 'none',
           }}
+          drillDownOption={this.drillDownOption}
+          list={this.menuList}
+          metrics={this.metrics}
+          showAddMetric={this.showAddMetric}
+          onChildMenuToggle={this.handleChildMenuToggle}
+          onMetricSelect={this.handleMetricSelect}
+          onSelect={this.handleMenuClick}
           onSelectChild={this.handleMenuChildClick}
-        ></TitleMenu>
+        />
       </div>
     );
-  }
+  },
 });

@@ -34,8 +34,8 @@
     >
       <div class="main-title">
         <i
-          v-bk-tooltips="alarmTips"
           v-if="hasMetric"
+          v-bk-tooltips="alarmTips"
           class="icon-monitor icon-inform alarm-icon"
           :class="`status-${alarmStatus.status + 1}`"
           @click.self.stop="handleAlarmClick"
@@ -44,9 +44,10 @@
           {{ title }}
         </div>
         <span
-          class="title-interval"
           v-if="hasMetric && extendMetricData.collect_interval"
-        >{{ extendMetricData.collect_interval }}m</span>
+          class="title-interval"
+          >{{ extendMetricData.collect_interval }}m</span
+        >
         <i
           v-show="showMore"
           v-if="hasMetric"
@@ -55,8 +56,8 @@
           @mouseleave.self.stop="handleHideTips"
         />
         <i
-          :style="{ marginLeft: hasMetric ? '0px' : 'auto' }"
           v-show="showMore"
+          :style="{ marginLeft: hasMetric ? '0px' : 'auto' }"
           class="icon-monitor icon-mc-more more-icon"
         />
       </div>
@@ -71,13 +72,12 @@
     <chart-menu
       v-show="showMenu"
       :list="menuList"
-      @menu-click="handleMenuClick"
       :style="{ left: menuLeft + 'px' }"
+      @menu-click="handleMenuClick"
     />
   </div>
 </template>
 <script lang="ts">
-/* eslint-disable camelcase */
 import { Component, Emit, Prop, Ref, Vue } from 'vue-property-decorator';
 
 import ChartMenu from './chart-menu.vue';
@@ -105,20 +105,20 @@ interface IExtendMetricData {
 @Component({
   name: 'chart-title',
   components: {
-    ChartMenu
-  }
+    ChartMenu,
+  },
 })
 export default class ChartTitle extends Vue {
   @Prop({ default: '' }) title: string;
   @Prop({ default: '' }) subtitle: string;
   @Prop({ default: () => ({ status: 0, number: 0 }) })
-    alarmStatus: { status: number; alert_number: number; strategy_number: number };
+  alarmStatus: { status: number; alert_number: number; strategy_number: number };
   @Prop({
     default() {
       return {};
-    }
+    },
   })
-    extendMetricData: IExtendMetricData;
+  extendMetricData: IExtendMetricData;
   @Prop({ default: '3' }) collectInterval: string;
   @Prop({ default: false }) showMore: boolean;
   @Prop({ default: () => [] }) menuList: string[];
@@ -146,7 +146,7 @@ export default class ChartTitle extends Vue {
       showOnInit: false,
       trigger: 'mouseenter',
       placements: ['top'],
-      allowHTML: false
+      allowHTML: false,
     };
   }
   get hasMetric() {
@@ -172,7 +172,7 @@ export default class ChartTitle extends Vue {
       theme: 'tippy-metric',
       arrow: true,
       placement: 'auto',
-      boundary: 'window'
+      boundary: 'window',
     });
     this.popoverInstance?.show(100);
   }
@@ -188,7 +188,7 @@ export default class ChartTitle extends Vue {
     const options = [
       // 公共展示项
       { val: data.metric_field, label: this.$t('指标名') },
-      { val: data.metric_field_name, label: this.$t('指标别名') }
+      { val: data.metric_field_name, label: this.$t('指标别名') },
     ];
     const elList = {
       bk_monitor_time_series: [
@@ -198,7 +198,7 @@ export default class ChartTitle extends Vue {
         { val: data.related_name, label: this.$t('插件名') },
         { val: data.result_table_id, label: this.$t('分类ID') },
         { val: data.result_table_name, label: this.$t('分类名') },
-        { val: data.description, label: this.$t('含义') }
+        { val: data.description, label: this.$t('含义') },
       ],
       bk_log_search_time_series: [
         // 日志采集
@@ -206,32 +206,35 @@ export default class ChartTitle extends Vue {
         { val: data.related_name, label: this.$t('索引集') },
         { val: data.result_table_id, label: this.$t('索引') },
         { val: data.extend_fields.scenario_name, label: this.$t('数据源类别') },
-        { val: data.extend_fields.storage_cluster_name, label: this.$t('数据源名') }
+        { val: data.extend_fields.storage_cluster_name, label: this.$t('数据源名') },
       ],
       bk_data_time_series: [
         // 数据平台
         ...options,
-        { val: data.result_table_id, label: this.$t('表名') }
+        { val: data.result_table_id, label: this.$t('表名') },
       ],
       custom_time_series: [
         // 自定义指标
         ...options,
         { val: data.extend_fields.bk_data_id, label: this.$t('数据ID') },
-        { val: data.result_table_name, label: this.$t('数据名') }
+        { val: data.result_table_name, label: this.$t('数据名') },
       ],
-      bk_monitor_log: [...options]
+      bk_monitor_log: [...options],
     };
     // 拨测指标融合后不需要显示插件id插件名
     const resultTableLabel = data.result_table_label;
     const relatedId = data.related_id;
     if (resultTableLabel === 'uptimecheck' && !relatedId) {
       const list = elList.bk_monitor_time_series;
-      elList.bk_monitor_time_series = list.filter(item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名'));
+      elList.bk_monitor_time_series = list.filter(
+        item => item.label !== this.$t('插件ID') && item.label !== this.$t('插件名')
+      );
     }
     const curElList = elList[curActive] || [...options];
-    let content =      curActive === 'bk_log_search_time_series'
-      ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
-      : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
+    let content =
+      curActive === 'bk_log_search_time_series'
+        ? `<div class="item">${data.related_name}.${data.metric_field}</div>\n`
+        : `<div class="item">${data.result_table_id}.${data.metric_field}</div>\n`;
     if (data.collect_config) {
       const collectorConfig = data.collect_config
         .split(';')
@@ -244,7 +247,7 @@ export default class ChartTitle extends Vue {
       const index = curElList.indexOf(item => item.label === this.$t('指标别名'));
       curElList.splice(index, 1);
     }
-    curElList.forEach((item) => {
+    curElList.forEach(item => {
       content += `<div class="item"><div>${item.label}：${item.val || '--'}</div></div>\n`;
     });
     return content;
@@ -315,7 +318,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
         font-size: 12px;
         font-weight: normal;
         color: #63656e;
-        border: 1px solid rgba(151, 155, 165, .3);
+        border: 1px solid rgba(151, 155, 165, 0.3);
         border-radius: 2px;
       }
 

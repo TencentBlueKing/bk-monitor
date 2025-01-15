@@ -162,6 +162,7 @@ class LuceneReservedLogicOperatorEnum(ChoicesEnum):
     """
     Lucene保留逻辑操作符枚举
     """
+
     AND = "AND"
     OR = "OR"
     NOT = "NOT"
@@ -374,6 +375,9 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_HISTORY = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="history"
     )
+    SEARCH_VIEWSET_OPTION_HISTORY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="option_history"
+    )
     SEARCH_VIEWSET_CONFIG = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="config"
     )
@@ -392,12 +396,59 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_DELETE_CONFIG = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="delete_config"
     )
+    SEARCH_VIEWSET_USER_CUSTOM_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="SearchViewSet",
+        view_action="update_or_create_config",
+    )
     # ======================================= 聚合-AggsViewSet =======================================
     AGGS_VIEWSET_TERMS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="terms"
     )
     AGGS_VIEWSET_DATE_HISTOGRAM = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="date_histogram"
+    )
+    # ======================================= 字段分析-FieldViewSet =======================================
+    FIELD_VIEWSET_TOTAL = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FieldViewSet",
+        view_action="fetch_statistics_total",
+    )
+    FIELD_VIEWSET_GRAPH = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FieldViewSet",
+        view_action="fetch_statistics_graph",
+    )
+    FIELD_VIEWSET_INFO = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FieldViewSet",
+        view_action="fetch_statistics_info",
+    )
+    FIELD_VIEWSET_TOPK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="FieldViewSet", view_action="fetch_topk_list"
+    )
+    # ======================================= 日志聚类-FieldViewSet =======================================
+    CLUSTERING_CONFIG_VIEWSET_STATUS = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="access_status",
+    )
+    CLUSTERING_CONFIG_VIEWSET_CONFIG = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringConfigViewSet",
+        view_action="get_config",
+    )
+    PATTERN_VIEWSET_SEARCH = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="search"
+    )
+    # ======================================= 索引-IndexSetViewSet =======================================
+    INDEX_SET_VIEWSET_MARK_FAVORITE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="IndexSetViewSet", view_action="mark_favorite"
+    )
+    INDEX_SET_VIEWSET_CANCEL_FAVORITE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="IndexSetViewSet",
+        view_action="cancel_favorite",
     )
     # ======================================= 收藏-FavoriteViewSet =======================================
     FAVORITE_VIEWSET_RETRIEVE = ViewSetAction(
@@ -475,6 +526,12 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="IpChooserConfigViewSet",
         default_permission=True,
     )
+    # ======================================= 收藏联合查询-FavoriteUnionSearchViewSet =======================================
+    FAVORITE_UNION_SEARCH_VIEWSET_LIST = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="FavoriteUnionSearchViewSet",
+        view_action="list",
+    )
     # ======================================= BizsViewSet =======================================
     # BizsViewSet, get_display_name 默认允许
     BIZS_VIEWSET_HOST_DISPLAY_NAME = ViewSetAction(
@@ -505,6 +562,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_EXPORT,
         SEARCH_VIEWSET_ASYNC_EXPORT,
         SEARCH_VIEWSET_HISTORY,
+        SEARCH_VIEWSET_OPTION_HISTORY,
         SEARCH_VIEWSET_GET_EXPORT_HISTORY,
         SEARCH_VIEWSET_CONFIG,
         SEARCH_VIEWSET_CREATE_CONFIG,
@@ -512,9 +570,22 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_RETRIEVE_CONFIG,
         SEARCH_VIEWSET_LIST_CONFIG,
         SEARCH_VIEWSET_DELETE_CONFIG,
+        SEARCH_VIEWSET_USER_CUSTOM_CONFIG,
         # ======================================= 聚合-AggsViewSet =======================================
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,
+        # ======================================= 字段分析-FieldViewSet =======================================
+        FIELD_VIEWSET_INFO,
+        FIELD_VIEWSET_TOTAL,
+        FIELD_VIEWSET_GRAPH,
+        FIELD_VIEWSET_TOPK,
+        # ======================================= 字段分析-FieldViewSet =======================================
+        CLUSTERING_CONFIG_VIEWSET_STATUS,
+        CLUSTERING_CONFIG_VIEWSET_CONFIG,
+        PATTERN_VIEWSET_SEARCH,
+        # ======================================= 索引-IndexSetViewSet =======================================
+        INDEX_SET_VIEWSET_MARK_FAVORITE,
+        INDEX_SET_VIEWSET_CANCEL_FAVORITE,
         # ======================================= 收藏-FavoriteViewSet =======================================
         FAVORITE_VIEWSET_RETRIEVE,
         FAVORITE_VIEWSET_LIST,
@@ -532,6 +603,8 @@ class ViewSetActionEnum(ChoicesEnum):
         FAVORITE_GROUP_VIEWSET_CREATE,
         FAVORITE_GROUP_VIEWSET_UPDATE,
         FAVORITE_GROUP_VIEWSET_DESTROY,
+        # =================================== 收藏联合查询-FavoriteUnionSearchViewSet ==================================
+        FAVORITE_UNION_SEARCH_VIEWSET_LIST,
         # ======================================= IP选择器 =======================================
         IP_CHOOSER_TOPO_VIEWSET,
         IP_CHOOSER_HOST_VIEWSET,

@@ -17,7 +17,8 @@ from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
-from bkmonitor.utils.user import get_backend_username, get_global_user
+from bkmonitor.utils.cache import CacheType
+from bkmonitor.utils.user import get_backend_username, get_global_user, make_userinfo
 from constants.cmdb import TargetNodeType
 from core.drf_resource import APIResource
 from core.drf_resource.base import Resource
@@ -135,6 +136,16 @@ class UploadResource(NodeManAPIGWResource):
     action = "/backend/package/upload/"
     method = "POST"
     support_data_collect = False
+
+    def full_request_data(self, kwargs):
+        kwargs.update(make_userinfo())
+        kwargs.update(
+            {
+                "bk_app_code": settings.APP_CODE,
+                "bk_app_secret": settings.SECRET_KEY,
+            }
+        )
+        return kwargs
 
 
 class UploadCosResource(NodeManAPIGWResource):
@@ -357,6 +368,7 @@ class RunSubscriptionResource(NodeManAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         class ScopeParams(serializers.Serializer):
+            bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
             node_type = serializers.ChoiceField(required=True, label="采集对象类型", choices=["TOPO", "INSTANCE"])
             nodes = serializers.ListField(required=True, label="节点列表")
 
@@ -392,7 +404,9 @@ class TaskResultResource(NodeManAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         subscription_id = serializers.IntegerField(required=True, label="订阅配置id")
         task_id_list = serializers.ListField(required=False, label="任务id列表")
-        need_detail = serializers.BooleanField(required=False, label="是否需要详细log")
+        need_detail = serializers.BooleanField(default=False, label="是否需要详细log")
+        need_aggregate_all_tasks = serializers.BooleanField(default=True, label="是否要合并任务")
+        need_out_of_scope_snapshots = serializers.BooleanField(default=False, label="是否需要已移除的记录")
         page = serializers.IntegerField(required=True, label="页数")
         pagesize = serializers.IntegerField(required=True, label="数量")
 
@@ -500,6 +514,7 @@ class GetProxiesResource(NodeManAPIGWResource):
 
     action = "api/host/proxies/"
     method = "GET"
+    backend_cache_type = CacheType.NODE_MAN
 
     class RequestSerializer(serializers.Serializer):
         bk_cloud_id = serializers.IntegerField(label="云区域ID", required=True)
@@ -512,14 +527,16 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
 
     action = "api/host/biz_proxies/"
     method = "GET"
+    backend_cache_type = CacheType.NODE_MAN
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
-    def perform_request(self, params):
-        params["_origin_user"] = get_global_user()
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(GetProxiesByBizResource, self).full_request_data(validated_request_data)
+        validated_request_data["_origin_user"] = get_global_user()
         setattr(self, "bk_username", settings.COMMON_USERNAME)
-        return super(GetProxiesByBizResource, self).perform_request(params)
+        return validated_request_data
 
 
 PLUGIN_JOB_TUPLE = (
@@ -565,6 +582,8 @@ class PluginSearch(NodeManAPIGWResource):
 
     action = "api/plugin/search/"
     method = "POST"
+    # 用1min缓存，缓解短时间批量请求
+    backend_cache_type = CacheType.SCENE_VIEW
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.ListField(label="业务ID", required=False)
@@ -620,7 +639,9 @@ class BatchTaskResultResource(Resource):
     class RequestSerializer(serializers.Serializer):
         subscription_id = serializers.IntegerField(required=True, label="订阅配置id")
         task_id_list = serializers.ListField(required=False, label="任务id列表")
-        need_detail = serializers.BooleanField(required=False, label="是否需要详细log")
+        need_detail = serializers.BooleanField(default=False, label="是否需要详细log")
+        need_aggregate_all_tasks = serializers.BooleanField(default=True, label="是否要合并任务")
+        need_out_of_scope_snapshots = serializers.BooleanField(default=False, label="是否需要已移除的记录")
 
     def perform_request(self, params):
         def get_data(result):
@@ -633,15 +654,70 @@ class BatchTaskResultResource(Resource):
                 return None
             return result.get("total")
 
-        return batch_request(
+        instance_list = batch_request(
             TaskResultResource().__call__,
             params,
             get_data=get_data,
             get_count=get_count,
+            limit=1000,
             app="nodeman",
         )
+        if not params.get("need_detail", False):
+            for item in instance_list:
+                item.pop("steps", None)
+        return instance_list
 
     def validate_response_data(self, response_data):
         for instance in response_data:
             adapter_nodeman_bk_cloud_id(instance)
         return response_data
+
+
+class IpchooserHostDetailResource(NodeManAPIGWResource):
+    action = "core/api/ipchooser_host/details/"
+    method = "POST"
+
+    @property
+    def bk_username(self):
+        return settings.COMMON_USERNAME
+
+    class RequestSerializer(serializers.Serializer):
+        class HostSerializer(serializers.Serializer):
+            class MetaSerializer(serializers.Serializer):
+                scope_type = serializers.CharField(label="资源范围类型")
+                scope_id = serializers.CharField(label="资源范围ID")
+                bk_biz_id = serializers.IntegerField(label="业务ID")
+
+                def validate(self, attrs):
+                    bk_biz_id = attrs["bk_biz_id"]
+                    if bk_biz_id < 0:
+                        attrs["bk_biz_id"] = validate_bk_biz_id(bk_biz_id)
+                    if attrs["scope_type"] == "biz":
+                        attrs["scope_id"] = str(attrs["bk_biz_id"])
+                    return attrs
+
+            host_id = serializers.IntegerField(label="主机ID")
+            meta = MetaSerializer()
+
+        class ScopeListSerializer(serializers.Serializer):
+            scope_type = serializers.CharField(label="资源范围类型")
+            scope_id = serializers.CharField(label="资源范围ID")
+
+            def validate(self, attrs):
+                bk_biz_id = attrs["scope_id"]
+                if attrs["scope_type"] == "biz":
+                    if int(bk_biz_id) < 0:
+                        attrs["scope_id"] = str(validate_bk_biz_id(bk_biz_id))
+                return attrs
+
+        host_list = serializers.ListField(child=HostSerializer(), required=True, label="主机列表")
+        all_scope = serializers.BooleanField(required=False, label="是否获取所有资源范围的拓扑结构", default=False)
+        scope_list = serializers.ListField(child=ScopeListSerializer(), required=False, label="资源范围列表")
+        agent_realtime_state = serializers.BooleanField(label="是否查询Agent实时状态", default=True)
+
+        def validate(self, attrs):
+            all_scope = attrs.get('all_scope', None)
+            scope_list = attrs.get('scope_list', None)
+            if all_scope is None and scope_list is None:
+                raise serializers.ValidationError("all_scope 和 scope_list 至少存在一个")
+            return super().validate(attrs)

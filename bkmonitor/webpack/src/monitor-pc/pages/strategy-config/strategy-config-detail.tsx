@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 // import { Component as tsc } from 'vue-tsx-support';
-import { Component, Mixins, Provide, ProvideReactive } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Provide, ProvideReactive } from 'vue-property-decorator';
 
 import { destroyTimezone } from '../../i18n/dayjs';
 import authorityMixinCreate from '../../mixins/authorityMixin';
-
-import StrategyConfigDetailCommon from './strategy-config-detail/strategy-config-detail-common';
 import * as authorityMap from './authority-map';
+import StrategyConfigDetailCommon from './strategy-config-detail/strategy-config-detail-common';
 
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class StrategyConfigDetail extends Mixins(authorityMixinCreate(authorityMap)) {
+  @Prop({ type: String }) readonly title: number | string;
   @ProvideReactive('authority') authority: Record<string, boolean> = {};
   @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Provide('authorityMap') authorityMap = authorityMap;

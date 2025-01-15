@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import json
 import logging
+import re
 
 from blueapps.middleware.xss.decorators import escape_exempt
 from django.conf import settings
@@ -83,7 +84,11 @@ class RedirectDashboardView(ProxyView):
             raise Http404
         dashboard_info = dashboards[0]
         uid = dashboard_info["uid"]
-        route_path = f"#/grafana/d/{uid}"
+        route_path = f"/grafana/d/{uid}"
+        if request.GET.get("pure", ""):
+            return redirect(route_path + f"?orgName={org_name}&bizId={org_name}")
+
+        route_path = f"#{route_path}"
         # 透传仪表盘参数
         params = {k: v for k, v in request.GET.items() if k.startswith("var-")}
         params["bizId"] = org_name
@@ -136,6 +141,15 @@ class GrafanaSwitchOrgView(SwitchOrgView):
 
 
 class GrafanaProxyView(ProxyView):
+    # 单仪表盘权限豁免API
+    exempt_apis = [
+        re.compile(r".*/api/annotations"),
+        re.compile(r".*/api/ds/query"),
+        re.compile(r".*/api/datasource/proxy"),
+        re.compile(r".*/api/(\d+|uid/[a-zA-Z0-9_-]+)/resources"),
+        re.compile(r".*/api/datasources/(\d+|uid/[a-zA-Z0-9_-]+)/resources"),
+    ]
+
     @method_decorator(csrf_exempt)
     def dispatch(self, request, *args, **kwargs):
         org_name = self.get_org_name(request, *args, **kwargs)
@@ -173,8 +187,10 @@ class GrafanaProxyView(ProxyView):
     def get_request_headers(self, request):
         headers = super(GrafanaProxyView, self).get_request_headers(request)
         # 单仪表盘权限适配
-        if "/api/annotations" in request.path:
-            headers["X-WEBAUTH-USER"] = "admin"
+        for exempt_api in self.exempt_apis:
+            if exempt_api.match(request.path):
+                headers["X-WEBAUTH-USER"] = "admin"
+                break
         return headers
 
     def update_response(self, response, content):

@@ -31,16 +31,16 @@ const ONE_DAY_TIME = 24 * 60 * 60 * 1000;
  * 一个月的日期类
  */
 export class MonthsPanel {
-  /** 时间戳 */
-  timestamp: number = null;
   /** 当前月面板需要展示的日期数据 */
   dateList: Days[] = [];
-  /** 年份 */
-  year: number = null;
   /** 月份 0 - 11 */
   month: number = null;
   /** 选中的日期 */
   selectedDays: number[] = [];
+  /** 时间戳 */
+  timestamp: number = null;
+  /** 年份 */
+  year: number = null;
   /**
    *
    * @param year 年份
@@ -48,6 +48,10 @@ export class MonthsPanel {
    */
   constructor(timestamp: number) {
     this.initDate(timestamp);
+  }
+  /** 当月的某号 */
+  get dateListNum() {
+    return this.dateList.map(date => date.day);
   }
   /** 初始化数据 */
   initDate(timestamp: number) {
@@ -68,10 +72,6 @@ export class MonthsPanel {
       this.dateList.push(days);
     }
   }
-  /** 当月的某号 */
-  get dateListNum() {
-    return this.dateList.map(date => date.day);
-  }
 }
 
 /**
@@ -82,31 +82,21 @@ export class Days {
   currentTimestamp: number = null;
   /** 日期对象 */
   date: Date = null;
+  /** 日期 */
+  day: number = null;
+  /** 月份 */
+  month: number = null;
+  /** 当前面板的月份 */
+  panelMoth: number = null;
   /** 时间戳 */
   timestamp: number = null;
   /** 年份 */
   year: number = null;
-  /** 月份 */
-  month: number = null;
-  /** 日期 */
-  day: number = null;
-  /** 当前面板的月份 */
-  panelMoth: number = null;
   /**
    * @param timestamp 时间戳
    */
   constructor(timestamp: number) {
     this.initData(timestamp);
-  }
-
-  /** 初始化数据 */
-  initData(timestamp: number) {
-    this.date = new Date(timestamp);
-    this.timestamp = timestamp;
-    this.year = this.date.getFullYear();
-    this.month = this.date.getMonth();
-    this.day = this.date.getDate();
-    this.currentTimestamp = +new Date();
   }
 
   /** 是否为当月面板的日期 null 为没有归属的面板 boolean 为归属当前月的日期 */
@@ -134,5 +124,15 @@ export class Days {
     const month = date.getMonth();
     const day = date.getDate();
     return { year, month, day };
+  }
+
+  /** 初始化数据 */
+  initData(timestamp: number) {
+    this.date = new Date(timestamp);
+    this.timestamp = timestamp;
+    this.year = this.date.getFullYear();
+    this.month = this.date.getMonth();
+    this.day = this.date.getDate();
+    this.currentTimestamp = +new Date();
   }
 }

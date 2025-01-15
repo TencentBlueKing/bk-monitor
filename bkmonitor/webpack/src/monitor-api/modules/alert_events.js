@@ -31,5 +31,5 @@ export default {
   shieldSnapshot,
   listIndexByHost,
   isHostExistsIndex,
-  graphPoint
+  graphPoint,
 };

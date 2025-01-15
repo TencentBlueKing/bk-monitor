@@ -25,6 +25,7 @@
  */
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { deepClone } from 'monitor-common/utils/utils';
 
 import SetMealAddModule from '../../../../../../store/modules/set-meal-add';
@@ -76,23 +77,23 @@ export default class DynamicForm extends tsc<IDynamicForm> {
     return (
       <div class='dynamic-form-wrap'>
         <bk-form
-          class='form-wrap'
           ref='createForm'
+          class='form-wrap'
           form-type='vertical'
           labelWidth={this.labelWidth}
           {...{
             props: {
               model: this.formModel,
-              rules: this.formRules
-            }
+              rules: this.formRules,
+            },
           }}
         >
           {this.formList.map((item, index) => (
             <bk-form-item
-              class='create-form-item'
               key={index}
+              class='create-form-item'
               {...{
-                props: { ...item.formItemProps, required: !!item.formItemProps?.required }
+                props: { ...item.formItemProps, required: !!item.formItemProps?.required },
               }}
             >
               {item.type === 'select' ? (
@@ -104,10 +105,10 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                 >
                   {item.formChildProps.options.map(option => (
                     <bk-option
-                      key={option.id}
                       id={option.id}
+                      key={option.id}
                       name={option.name}
-                    ></bk-option>
+                    />
                   ))}
                 </bk-select>
               ) : undefined}
@@ -120,7 +121,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                     <bk-checkbox
                       key={option.id}
                       value={option.id}
-                    ></bk-checkbox>
+                    />
                   ))}
                 </bk-checkbox-group>
               ) : undefined}
@@ -133,7 +134,7 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                     <bk-radio
                       key={option.id}
                       value={option.id}
-                    ></bk-radio>
+                    />
                   ))}
                 </bk-radio-group>
               ) : undefined}
@@ -144,20 +145,20 @@ export default class DynamicForm extends tsc<IDynamicForm> {
                       return (
                         <bk-input
                           v-model={this.formModel[item.formItemProps.property]}
+                          behavior={'simplicity'}
                           placeholder={item.formChildProps.placeholder}
                           type={'password'}
-                          behavior={'simplicity'}
                           on-change={this.emitModel}
-                        ></bk-input>
+                        />
                       );
                     }
                     return (
                       <AutoInput
+                        v-model={this.formModel[item.formItemProps.property]}
                         placeholder={item.formChildProps.placeholder}
                         tipsList={this.getMessageTemplateList}
                         on-change={this.emitModel}
-                        v-model={this.formModel[item.formItemProps.property]}
-                      ></AutoInput>
+                      />
                     );
                   }
                   return undefined;

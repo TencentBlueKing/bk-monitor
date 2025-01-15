@@ -25,6 +25,7 @@
  */
 
 import { defineComponent } from 'vue';
+
 import { Tab } from 'bkui-vue';
 
 import './monitor-tab.scss';
@@ -36,8 +37,8 @@ export default defineComponent({
   props: {
     active: {
       type: String,
-      required: true
-    }
+      required: true,
+    },
   },
   emits: ['tabChange'],
   setup(prop, { emit }) {
@@ -45,23 +46,23 @@ export default defineComponent({
       emit('tabChange', val);
     };
     return {
-      handleTabChange
+      handleTabChange,
     };
   },
   render() {
     return (
       <Tab
         class='monitor-tab'
-        type='unborder-card'
-        tab-position='top'
-        active={this.active}
-        onTab-change={this.handleTabChange}
         v-slots={{
-          setting: () => this.$slots.setting?.()
+          setting: () => this.$slots.setting?.(),
         }}
+        active={this.active}
+        tab-position='top'
+        type='unborder-card'
+        onTab-change={this.handleTabChange}
       >
         {this.$slots.default?.()}
       </Tab>
     );
-  }
+  },
 });

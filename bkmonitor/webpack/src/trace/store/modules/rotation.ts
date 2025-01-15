@@ -30,7 +30,7 @@ export interface IRotationState {
 }
 export const useRotationStore = defineStore('rotation', {
   state: (): IRotationState => ({
-    colorList: []
+    colorList: [],
   }),
   actions: {
     /**
@@ -40,6 +40,6 @@ export const useRotationStore = defineStore('rotation', {
      */
     async setColorList(colorList: string[]) {
       this.colorList = colorList;
-    }
-  }
+    },
+  },
 });

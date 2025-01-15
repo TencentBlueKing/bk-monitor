@@ -9,12 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-import requests
 
-from apm_ebpf.handlers.deepflow import DeepflowHandler
+import requests
 from rest_framework import serializers
 from six.moves.urllib.parse import urljoin
 
+from apm_ebpf.handlers.deepflow import DeepflowHandler
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
@@ -56,10 +56,11 @@ class TraceQueryResource(Resource):
         # 数据解析
         response = r.json()
         result = response.get("result", {})
-        ebpf_data = []
-        result_values = result.get("values") if result.get("values") else []
-        for values in result_values:
-            ebpf_data.append(dict(zip(result.get("columns", []), values)))
+        values = result.get("values", [])
+        columns = result.get("columns", [])
+        if not values or not columns:
+            return []
+        ebpf_data = [{columns[idx]: value for idx, value in enumerate(row)} for row in values]
         return ebpf_data
 
     @classmethod

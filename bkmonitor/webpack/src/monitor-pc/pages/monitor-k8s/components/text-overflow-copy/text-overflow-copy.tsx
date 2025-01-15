@@ -25,18 +25,21 @@
  */
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { copyText } from 'monitor-common/utils/utils';
 
-import { ITableItem } from '../../typings';
+import type { ITableItem } from '../../typings';
 
 import './text-overflow-copy.scss';
 
 interface IProps {
   val: ITableItem<'string'>;
+  isEveryCopy: boolean;
 }
 @Component
-export default class TextOverflowCopy extends tsc<IProps, {}> {
+export default class TextOverflowCopy extends tsc<IProps> {
   @Prop({ default: '' }) val: ITableItem<'string'>;
+  @Prop({ default: false }) isEveryCopy: boolean;
   @Ref('wrapRef') wrapRef: HTMLDivElement;
 
   hasCopy = false;
@@ -57,41 +60,42 @@ export default class TextOverflowCopy extends tsc<IProps, {}> {
     });
   }
 
-  handleCopy() {
+  handleCopy(e) {
+    e.stopPropagation();
     copyText(this.text, msg => {
       this.$bkMessage({
         message: msg,
-        theme: 'error'
+        theme: 'error',
       });
       return;
     });
     this.$bkMessage({
       message: this.$t('复制成功'),
-      theme: 'success'
+      theme: 'success',
     });
   }
 
   render() {
     return (
       <div
-        class={{ 'text-overflow-copy-comp': true, 'has-copy': this.hasCopy }}
         ref='wrapRef'
+        class={{ 'text-overflow-copy-comp': true, 'has-copy': this.hasCopy || this.isEveryCopy }}
       >
         {this.val.icon &&
           (this.val.icon.length > 30 ? (
             <img
-              src={this.val.icon}
               alt=''
+              src={this.val.icon}
             />
           ) : (
             <i class={['icon-monitor', 'string-icon', this.val.icon]} />
           ))}
         {this.text}
-        {this.hasCopy && (
+        {(this.isEveryCopy || this.hasCopy) && (
           <span
             class='icon-monitor icon-mc-copy'
             onClick={this.handleCopy}
-          ></span>
+          />
         )}
       </div>
     );

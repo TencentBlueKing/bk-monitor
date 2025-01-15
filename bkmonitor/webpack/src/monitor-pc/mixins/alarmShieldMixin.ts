@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/* eslint-disable prefer-destructuring */
+
 import { Component, Vue } from 'vue-property-decorator';
 
 @Component
@@ -37,8 +37,8 @@ export default class documentLinkMixin extends Vue {
         end_time: '',
         type: date.type,
         day_list: [],
-        week_list: []
-      }
+        week_list: [],
+      },
     };
     if (date.type !== 1) {
       cycle.begin_time = date.dateRange[0];

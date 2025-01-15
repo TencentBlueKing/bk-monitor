@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RouteConfig } from 'vue-router';
+import type { RouteConfig } from 'vue-router';
 
 const MetricsManager = () =>
   import(/* webpackChunkName: "MetricsManager" */ '../../pages/metrics-manager/metrics-manager');
@@ -38,8 +38,8 @@ export default [
       navId: 'metrics-manager',
       customContent: true,
       route: {
-        parent: 'manager'
-      }
-    }
-  }
+        parent: 'manager',
+      },
+    },
+  },
 ] as RouteConfig[];

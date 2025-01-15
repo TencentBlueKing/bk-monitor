@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { Component, Prop } from 'vue-property-decorator';
-import { Component as tsc, ofType } from 'vue-tsx-support';
+import { ofType, Component as tsc } from 'vue-tsx-support';
 
 interface IProps {
   label: any;
-  value?: string | number;
+  value?: number | string;
 }
 
 @Component
@@ -36,7 +36,7 @@ class DetailRow extends tsc<IProps> {
   @Prop({ type: String, default: '' })
   label: any;
   @Prop({ type: [String, Number], default: '' })
-  value: string | number;
+  value: number | string;
 
   render() {
     return (

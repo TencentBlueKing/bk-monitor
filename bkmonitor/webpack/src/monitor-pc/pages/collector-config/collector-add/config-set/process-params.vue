@@ -28,7 +28,8 @@
     <div
       class="form-item"
       v-show="false"
-    > <!-- 插件选择部分优先级提高，故隐藏此处 -->
+    >
+      <!-- 插件选择部分优先级提高，故隐藏此处 -->
       <label class="item-label required">{{ $t('插件') }}</label>
       <div class="item-content">
         <bk-input
@@ -41,15 +42,15 @@
       <label class="item-label required">{{ $t('进程匹配') }}</label>
       <div class="item-content">
         <bk-radio-group
-          v-model="params.match_type"
           class="process-match"
+          v-model="params.match_type"
         >
           <bk-radio value="command">
             {{ $t('命令行匹配') }}
           </bk-radio>
           <bk-radio
-            value="pid"
             class="ml20"
+            value="pid"
           >
             {{ $t('PID文件') }}
           </bk-radio>
@@ -57,46 +58,56 @@
         <div v-if="params.match_type === 'command'">
           <verify-input
             class="small-input validate-icon"
-            position="right"
             :show-validate.sync="rules.match_pattern"
             :validator="{ content: $t('必填项') }"
+            position="right"
           >
             <bk-input
               class="mt10 small-input"
               v-model="params.match_pattern"
+              :placeholder="$t('进程关键字')"
             >
               <template slot="prepend">
-                <div
-                  class="group-text"
-                  :placeholder="$t('进程关键字')"
-                >{{ $t('包含') }}</div>
+                <div class="group-text">
+                  {{ $t('包含') }}
+                </div>
               </template>
             </bk-input>
           </verify-input>
-
           <bk-input
             class="mt10 small-input"
             v-model="params.exclude_pattern"
+            :placeholder="$t('进程排除正则')"
           >
             <template slot="prepend">
-              <div
-                class="group-text"
-                :placeholder="$t('进程排除正则')"
-              >{{ $t('排除') }}</div>
+              <div class="group-text">
+                {{ $t('排除') }}
+              </div>
+            </template>
+          </bk-input>
+          <bk-input
+            class="mt10 small-input"
+            v-model="params.extract_pattern"
+            :placeholder="$t('维度提取')"
+          >
+            <template slot="prepend">
+              <div class="group-text">
+                {{ $t('维度提取') }}
+              </div>
             </template>
           </bk-input>
         </div>
         <template v-else-if="params.match_type === 'pid'">
           <verify-input
             class="small-input validate-icon"
-            position="right"
             :show-validate.sync="rules.pid_path"
             :validator="{ content: $t('必填项') }"
+            position="right"
           >
             <bk-input
               class="mt10 small-input"
-              :placeholder="$t('PID的绝对路径')"
               v-model="params.pid_path"
+              :placeholder="$t('PID的绝对路径')"
             />
           </verify-input>
         </template>
@@ -106,8 +117,8 @@
       <label class="item-label">{{ $t('进程名') }}</label>
       <div class="item-content">
         <bk-input
-          :placeholder="$t('留空默认以二进制名称，可以手动指定或者取值')"
           v-model="params.process_name"
+          :placeholder="$t('留空默认以二进制名称，可以手动指定或者取值')"
         />
       </div>
     </div>
@@ -116,11 +127,11 @@
       <div class="item-content">
         <bk-switcher
           v-model="params.port_detect"
-          show-text
-          :on-text="$t('开')"
           :off-text="$t('关')"
+          :on-text="$t('开')"
           size="small"
           theme="primary"
+          show-text
         />
       </div>
     </div>
@@ -132,13 +143,13 @@ import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 export default {
   name: 'ProcessParams',
   components: {
-    VerifyInput
+    VerifyInput,
   },
   props: {
     processParams: {
       type: Object,
-      default: () => ({})
-    }
+      default: () => ({}),
+    },
   },
   data() {
     return {
@@ -149,16 +160,17 @@ export default {
           process_name: '',
           match_pattern: '',
           exclude_pattern: '',
+          extract_pattern: '',
           port_detect: true,
-          labels: {}
+          labels: {},
         },
         this.processParams
       ),
       rules: {
         pid_path: false,
-        match_pattern: false
+        match_pattern: false,
       },
-      pluginDisplayName: this.$t('进程采集插件')
+      pluginDisplayName: this.$t('进程采集插件'),
     };
   },
   watch: {
@@ -166,8 +178,8 @@ export default {
       deep: true,
       handler(newValue, oldValue) {
         this.$emit('change', newValue, oldValue);
-      }
-    }
+      },
+    },
   },
   methods: {
     // 校验
@@ -178,8 +190,8 @@ export default {
       }
       this.rules.match_pattern = !this.params.match_pattern;
       return !!this.params.match_pattern;
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss" scoped>

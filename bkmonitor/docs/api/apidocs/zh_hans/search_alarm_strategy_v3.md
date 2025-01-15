@@ -15,7 +15,7 @@
 | conditions        | list    | 否   | 查询条件Condition     |
 | bk_biz_id         | int     | 是   | 业务ID      |
 | scenario          | char    | 否   | 监控场景      |
-| with_notice_group | Boolean | 否   | 是否补充通知组信息 |
+| with_user_group | Boolean | 否   | 是否补充通知组信息 |
 | with_user_group_detail | Boolean | 否   | 补充通知组详细信息 |
 
 #### Condition

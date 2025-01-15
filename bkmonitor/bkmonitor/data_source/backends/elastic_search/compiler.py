@@ -12,13 +12,14 @@ specific language governing permissions and limitations under the License.
 import copy
 import re
 from collections import defaultdict
-from typing import Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.core.exceptions import EmptyResultSet
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
+from bkmonitor.data_source import CpAggMethods
 from bkmonitor.data_source.backends.base import compiler
 
 
@@ -33,6 +34,8 @@ class SQLCompiler(compiler.SQLCompiler):
 
     DEFAULT_TIME_FIELD = "time"
 
+    COMPOSITE_AGG_NAME = "_group_"
+
     METRIC_AGG_TRANSLATE = {
         "count": "value_count",
         "min": "min",
@@ -41,6 +44,14 @@ class SQLCompiler(compiler.SQLCompiler):
         "sum": "sum",
         "distinct": "cardinality",
     }
+
+    PERCENTILES_AGG_TRANSLATE = {
+        CpAggMethods["cp50"].vargs_list[0]: "50.0",
+        CpAggMethods["cp90"].vargs_list[0]: "90.0",
+        CpAggMethods["cp95"].vargs_list[0]: "95.0",
+        CpAggMethods["cp99"].vargs_list[0]: "99.0",
+    }
+
     operators = {
         "eq": "must terms",
         "is one of": "must terms",
@@ -53,6 +64,9 @@ class SQLCompiler(compiler.SQLCompiler):
         "lt": "must range lt",
         "lte": "must range lte",
         "regexp": "must regexp",
+        # https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-exists-query.html
+        "exists": "must exists",
+        "nexists": "must not exists",
     }
 
     def execute_sql(self):
@@ -69,50 +83,82 @@ class SQLCompiler(compiler.SQLCompiler):
             if not result:
                 return []
 
-            select_fields = self._get_metric()
-            metric_alias = [field["metric_alias"] for field in select_fields]
-            agg_interval, dimensions = self._get_dimensions()
+            __, dimensions = self._get_dimensions()
             dimensions.reverse()
-            if self.query.time_field:
+            if self.query.enable_date_histogram and self.query.time_field:
                 dimensions.append(self.query.time_field)
 
             records = []
-            self._get_buckets(records, {}, dimensions, 0, result.get("aggregations"), metric_alias)
+
+            __, select_fields = self._parser_select()
+            self._get_buckets(records, dimensions, result.get("aggregations"), select_fields)
+
             return records
         except Exception:
             raise
 
     def as_sql(self):
-        result = {}
-        # 0. parse select field(metric_field)
-        select_fields = self._get_metric()
+        dsl = {}
+
+        return_fields, select_fields = self._parser_select()
+
+        # 0. add _source
+        if return_fields:
+            dsl["_source"] = return_fields
+
         # 1. parse group by (agg_dimension)
         agg_interval, dimensions = self._get_dimensions()
         aggregations = self._get_aggregations(agg_interval, dimensions, select_fields)
         if aggregations:
-            result["aggregations"] = aggregations
+            dsl["aggregations"] = aggregations
 
         # 2. parse filter & keywords_query_string
         query_content = {}
         filter_dict = self._parser_filter(self.query.where)
         if filter_dict:
             query_content["filter"] = self._parser_filter(self.query.where)
+
         if self.query.raw_query_string and self.query.raw_query_string != "*":
-            query_content["must"] = {"query_string": {"query": self.query.raw_query_string}}
+            query_string_dsl = {"query_string": {"query": self.query.raw_query_string}}
+            query_content["must"] = {"bool": {"should": [query_string_dsl], "minimum_should_match": 1}}
+
+        if self.query.nested_paths:
+            for nested_path, query_string in self.query.nested_paths.items():
+                if "must" not in query_content:
+                    query_content["must"] = {"bool": {"should": [], "minimum_should_match": 1}}
+                if query_string and query_string != "*":
+                    query_content["must"]["bool"]["should"].append(
+                        {"nested": {"path": nested_path, "query": {"query_string": {"query": query_string}}}}
+                    )
+
         query_content.update(self._parse_agg_condition())
 
         if query_content:
-            result["query"] = {"bool": query_content}
-        # 对于聚合类数据，不需要原始日志结果，这里默认为1
-        if self.query.high_mark is not None:
-            result["size"] = self.query.high_mark - self.query.low_mark
-        else:
-            result["size"] = 1
-        result["sort"] = {"time": "desc"}
+            dsl["query"] = {"bool": query_content}
 
+        dsl["sort"] = self._parser_order_by()
+
+        dsl["size"] = self._get_size()
         if self.query.offset is not None:
-            result["from"] = self.query.offset
-        return self.query.table_name, result
+            dsl["from"] = self.query.offset
+
+        if self.query.use_full_index_names:
+            dsl["use_full_index_names"] = True
+
+        if self.query.distinct:
+            dsl.update({"track_total_hits": True, "collapse": {"field": self.query.distinct}})
+
+        return self.query.table_name, dsl
+
+    def _parser_order_by(self):
+        sort_list: List[Dict[str, str]] = []
+        for ordering in self.query.order_by:
+            if len(ordering.split()) == 1:
+                field, order = ordering, "asc"
+            else:
+                field, order = ordering.split(maxsplit=1)
+            sort_list.append({field: order})
+        return sort_list
 
     def _parser_filter(self, node):
         result = {}
@@ -171,26 +217,42 @@ class SQLCompiler(compiler.SQLCompiler):
 
         return result
 
-    def _get_metric(self):
-        select_fields = []
-        if self.query.select:
-            for select_field in self.query.select:
-                if "(" in select_field and ")" in select_field:
-                    match_result = self.SELECT_RE.match(select_field)
-                    group_dict = match_result.groupdict() if match_result else {}
-                    agg_method = group_dict.get("agg_method") or self.DEFAULT_AGG_METHOD
-                    metric_field = group_dict.get("metric_field") or self.DEFAULT_METRIC_FIELD
-                    metric_alias = group_dict.get("metric_alias") or metric_field
-                    select_fields.append(
-                        {"agg_method": agg_method, "metric_field": metric_field, "metric_alias": metric_alias}
-                    )
-        return select_fields
+    def _parser_select(self) -> Tuple[List[str], List[Dict[str, str]]]:
+        if not self.query.select:
+            return [], []
 
-    def _get_dimensions(self):
+        return_fields: List[str] = []
+        select_fields: List[Dict[str, str]] = []
+        for select_field in self.query.select:
+            if "(" in select_field and ")" in select_field:
+                match_result = self.SELECT_RE.match(select_field)
+                group_dict = match_result.groupdict() if match_result else {}
+                agg_method = group_dict.get("agg_method") or self.DEFAULT_AGG_METHOD
+                metric_field = group_dict.get("metric_field") or self.DEFAULT_METRIC_FIELD
+                metric_alias = group_dict.get("metric_alias") or metric_field
+                select_fields.append(
+                    {"agg_method": agg_method, "metric_field": metric_field, "metric_alias": metric_alias}
+                )
+            else:
+                return_fields.append(select_field)
+
+        return return_fields, select_fields
+
+    def _get_size(self) -> int:
+        if self.query.group_hits_size < 0:
+            return 0
+        if self.query.high_mark is None:
+            return 1
+        return self.query.high_mark - self.query.low_mark
+
+    def _get_bucket_size(self) -> int:
+        return (min(1440, self.query.high_mark or 0 - self.query.low_mark), 1440)[self.query.high_mark is None]
+
+    def _get_dimensions(self) -> Tuple[int, List[str]]:
+        second = 60
         group_by_fields = self.query.group_by
         group_by = sorted(set(group_by_fields), key=group_by_fields.index)
 
-        second = 60
         dimensions = group_by[:]
         for idx, dim in enumerate(dimensions):
             time_agg_field = self.TIME_SECOND_AGG_FIELD_RE.match(dim)
@@ -200,15 +262,51 @@ class SQLCompiler(compiler.SQLCompiler):
                 break
         return second, dimensions
 
-    def _get_agg_method_dict(self, select_fields):
-        agg_method_dict = {}
+    def _get_agg_method_dict(self, select_fields) -> Dict[str, Dict[str, Any]]:
+        agg_method_dict: Dict[str, Dict[str, Any]] = {}
         for field in select_fields:
-            agg_method_dict[field["metric_alias"]] = {
-                self.METRIC_AGG_TRANSLATE[str(field["agg_method"]).lower()]: {"field": field["metric_field"]}
-            }
+            method: str = str(field["agg_method"]).lower()
+            if method in CpAggMethods:
+                agg_method_dict[field["metric_alias"]] = {
+                    "percentiles": {
+                        "field": field["metric_field"],
+                        "percents": [int(float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]]))],
+                    }
+                }
+            else:
+                agg_method_dict[field["metric_alias"]] = {
+                    self.METRIC_AGG_TRANSLATE[method]: {"field": field["metric_field"]}
+                }
         return agg_method_dict
 
-    def _get_aggregations(self, agg_interval, dimensions, select_fields):
+    def _get_aggregations(
+        self, agg_interval: int, dimensions: List[str], select_fields: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        if self.query.search_after_key is None:
+            return self._get_normal_aggregations(agg_interval, dimensions, select_fields)
+        else:
+            return self._get_composite_aggregations(agg_interval, dimensions, select_fields)
+
+    def _get_composite_aggregations(self, agg_interval: int, dimensions, select_fields):
+        if not select_fields:
+            return {}
+
+        aggregations = {
+            self.COMPOSITE_AGG_NAME: {
+                "composite": {
+                    "size": self._get_bucket_size(),
+                    "sources": [{dimension: {"terms": {"field": dimension}}} for dimension in dimensions],
+                },
+                "aggregations": self._get_agg_method_dict(select_fields),
+            }
+        }
+
+        if self.query.search_after_key:
+            aggregations[self.COMPOSITE_AGG_NAME]["composite"]["after"] = self.query.search_after_key
+
+        return aggregations
+
+    def _get_normal_aggregations(self, agg_interval: int, dimensions, select_fields):
         """
         agg format:
 
@@ -257,7 +355,7 @@ class SQLCompiler(compiler.SQLCompiler):
             }
 
         # metric aggregation
-        if self.query.time_field:
+        if self.query.enable_date_histogram and self.query.time_field:
             # Deprecated in 7.2. interval field is deprecated
             # https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-bucket-datehistogram-aggregation.html
             # use fixed_interval instead
@@ -274,40 +372,90 @@ class SQLCompiler(compiler.SQLCompiler):
 
         # dimension aggregation
         for dimension in dimensions:
-            _aggregations = {dimension: {"terms": {"field": dimension, "size": 1440}}}
+            _aggregations = {dimension: {"terms": {"field": dimension, "size": self._get_bucket_size()}}}
             _aggregations[dimension]["aggregations"] = aggregations
             aggregations = _aggregations
 
         return aggregations
 
-    def _get_buckets(self, records, record, dimensions, i, aggs, metric_alias):
+    @classmethod
+    def _fill_values_to_record(cls, aggs: Dict[str, Any], record: Dict[str, Any], select_fields: List[Dict[str, Any]]):
+        for field in select_fields:
+            alias: str = field["metric_alias"]
+            method: str = str(field["agg_method"]).lower()
+            if method in CpAggMethods:
+                # get value from: {"p50_duration": {"values": {"50.0": 6.0}}}
+                record[alias] = (
+                    aggs.get(alias, {})
+                    .get("values", {})
+                    .get(cls.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])
+                )
+            else:
+                # get value from: {"total_count": {"value": 123}}
+                record[alias] = aggs.get(alias, {}).get("value")
+
+    @classmethod
+    def _handle_middle_bucket(cls, dimension: str, bucket: Dict[str, Any]) -> Dict[str, Any]:
+        return bucket
+
+    @classmethod
+    def _extract_dimension_buckets(cls, dimension: str, aggs: Dict[str, Any]) -> List[Dict[str, Any]]:
+        try:
+            return aggs[dimension]["buckets"]
+        except KeyError:
+            return []
+
+    def _get_buckets(self, records, dimensions, aggs, select_fields):
         if not aggs:
             return
 
-        if dimensions:
-            count = len(dimensions)
-            buckets = aggs.get(dimensions[i]).get("buckets")
-            dimension = dimensions[i]
-            for bucket in buckets:
-                record[dimension] = bucket.get("key")
-                if i + 1 == count:
-                    for alias in metric_alias:
-                        record[alias] = bucket.get(alias).get("value")
-
-                    # 获取分组最新的一条记录
-                    if "latest_hits" in bucket and bucket["latest_hits"]["hits"]["hits"]:
-                        record["hits"] = []
-                        for hit in bucket["latest_hits"]["hits"]["hits"]:
-                            record["hits"].append(hit["_source"])
-                        record["hits_total"] = bucket["latest_hits"]["hits"]["total"]["value"]
-
-                    records.append(copy.deepcopy(record))
-                else:
-                    self._get_buckets(records, record, dimensions, i + 1, bucket, metric_alias)
+        if self.query.search_after_key is None:
+            return self._get_agg_buckets(records, dimensions, aggs, select_fields)
         else:
-            for alias in metric_alias:
-                record[alias] = aggs.get(alias).get("value")
+            return self._get_composite_buckets(records, dimensions, aggs, select_fields)
+
+    def _get_agg_buckets(
+        self,
+        records: List[Dict[str, Any]],
+        dimensions: List[str],
+        aggs: Dict[str, Any],
+        select_fields,
+        record: Optional[Dict[str, Any]] = None,
+        idx: int = 0,
+    ):
+        if record is None:
+            record = {}
+
+        if not dimensions:
+            self._fill_values_to_record(aggs, record, select_fields)
             records.append(copy.deepcopy(record))
+            return
+
+        dimension = dimensions[idx]
+        for bucket in self._extract_dimension_buckets(dimension, aggs):
+            record[dimension] = bucket.get("key")
+            if idx + 1 == len(dimensions):
+                # 获取分组最新的一条记录
+                if "latest_hits" in bucket and bucket["latest_hits"]["hits"]["hits"]:
+                    record["hits"] = []
+                    for hit in bucket["latest_hits"]["hits"]["hits"]:
+                        record["hits"].append(hit["_source"])
+                    record["hits_total"] = bucket["latest_hits"]["hits"]["total"]["value"]
+
+                self._fill_values_to_record(bucket, record, select_fields)
+                records.append(copy.deepcopy(record))
+            else:
+                bucket = self._handle_middle_bucket(dimension, bucket)
+                self._get_agg_buckets(records, dimensions, bucket, select_fields, record, idx + 1)
+
+    def _get_composite_buckets(self, records, dimensions, aggs, select_fields):
+        aggs = aggs[self.COMPOSITE_AGG_NAME]
+        for bucket in aggs["buckets"]:
+            record: Dict[str, Any] = {"_after_key_": aggs["after_key"]}
+            record.update({dimension: bucket["key"].get(dimension) for dimension in dimensions})
+            self._fill_values_to_record(bucket, record, select_fields)
+
+            records.append(record)
 
     def _parse_agg_condition(self):
         """
@@ -409,6 +557,28 @@ class SQLCompiler(compiler.SQLCompiler):
             and_map.setdefault("should", []).append({"wildcard": {field: "*{}*".format(value)}})
 
     @staticmethod
+    def _operate_nested(and_map, field: str, values):
+        field, path, lookup = field.rsplit("__", 2)
+
+        def _nested_query(_query: Dict[str, Any]):
+            return {"nested": {"path": path, "query": _query}}
+
+        if lookup == "qs":
+            for value in values:
+                if field == "*":
+                    and_map.setdefault("must", []).append({"query_string": {"query": value}})
+                elif path == "*":
+                    and_map.setdefault("must", []).append({"query_string": {"query": value, "default_field": field}})
+                else:
+                    and_map.setdefault("must", []).append(
+                        _nested_query({"query_string": {"query": value, "default_field": field}})
+                    )
+        elif lookup == "eq" or lookup == "include":
+            op: str = {"eq": "term", "include": "wildcard"}[lookup]
+            for value in values:
+                and_map.setdefault("must", []).append(_nested_query({op: {field: {"value": value}}}))
+
+    @staticmethod
     def _operate_exclude(and_map, field, values):
         for value in values:
             and_map.setdefault("must_not", []).append({"wildcard": {field: "*{}*".format(value)}})
@@ -438,3 +608,11 @@ class SQLCompiler(compiler.SQLCompiler):
     def _operate_reg(and_map, field, values):
         for value in values:
             and_map.setdefault("must", []).append({"regexp": {field: value}})
+
+    @staticmethod
+    def _operate_exists(and_map, field, values):
+        and_map.setdefault("must", []).append({"exists": {"field": field}})
+
+    @staticmethod
+    def _operate_nexists(and_map, field, values):
+        and_map.setdefault("must_not", []).append({"exists": {"field": field}})

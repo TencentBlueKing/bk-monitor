@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { TranslateResult } from 'vue-i18n';
 import { Component, Inject, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import SetMealDetail from 'fta-solutions/pages/setting/set-meal-detail/set-meal-detail';
 import {
   createAssignGroup,
@@ -33,30 +33,36 @@ import {
   listAssignGroup,
   listAssignRule,
   listUserGroup,
-  partialUpdateAssignGroup
+  partialUpdateAssignGroup,
 } from 'monitor-api/modules/model';
 import { Debounce, random } from 'monitor-common/utils';
 
+import EmptyStatus from '../../components/empty-status/empty-status';
+import TableSkeleton from '../../components/skeleton/table-skeleton';
 import emptyImageSrc from '../../static/images/png/empty.png';
 import AlarmGroupDetail from '../alarm-group/alarm-group-detail/alarm-group-detail';
-
 import AlarmBatchEdit from './components/alarm-batch-edit';
 import AlarmDispatchAction from './components/alarm-dispatch-action';
 import AlarmUpdateContent from './components/alarm-update-content';
 import CommonCondition from './components/common-condition-new';
 import DebuggingResult from './components/debugging-result';
-import { allKVOptions, GROUP_KEYS, TGroupKeys, TValueMap } from './typing/condition';
+import { GROUP_KEYS, type TGroupKeys, type TValueMap, allKVOptions } from './typing/condition';
 import { RuleGroupData } from './typing/index';
+
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../components/empty-status/types';
+import type { TranslateResult } from 'vue-i18n';
 
 import './alarm-dispatch.scss';
 
 @Component
-export default class AlarmDispatch extends tsc<{}> {
+export default class AlarmDispatch extends tsc<object> {
   @Inject('authority') authority;
   @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   @Ref() addForm: any;
+  @Ref() itemFooterRef: HTMLDivElement;
   /* 规则组 */
   ruleGroups: RuleGroupData[] = [];
+  renderGroups: RuleGroupData[] = [];
   cacheRuleGroups = [];
   /* 搜索 */
   search = '';
@@ -76,7 +82,7 @@ export default class AlarmDispatch extends tsc<{}> {
   currentId = null;
   /** 查看调试效果 */
   isViewDebugEffect = false;
-  emptyText = window.i18n.tc('查无数据');
+  emptyType: EmptyStatusType = 'empty';
   /** 优先级检验提示*/
   priorityErrorMsg: string | TranslateResult = '';
   /* 流程套餐*/
@@ -90,7 +96,7 @@ export default class AlarmDispatch extends tsc<{}> {
     priority: number;
   } = {
     name: '',
-    priority: 100
+    priority: 100,
   };
 
   /** 校验规则 */
@@ -99,27 +105,27 @@ export default class AlarmDispatch extends tsc<{}> {
       {
         required: true,
         message: window.i18n.t('输入规则组名'),
-        trigger: 'blur'
+        trigger: 'blur',
       },
       {
         validator: value =>
           !/(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(value),
         message: window.i18n.t('不能输入emoji表情'),
-        trigger: 'blur'
-      }
-    ]
+        trigger: 'blur',
+      },
+    ],
   };
 
   /** 告警组详情*/
   alarmGroupDetail: { id: number; show: boolean } = {
     id: 0,
-    show: false
+    show: false,
   };
 
   /** 套餐详情*/
   detailData = {
     id: 0,
-    isShow: false
+    isShow: false,
   };
 
   showDebug = false;
@@ -132,19 +138,20 @@ export default class AlarmDispatch extends tsc<{}> {
   } = {
     keys: [],
     valueMap: new Map(),
-    groupKeys: new Map()
+    groupKeys: new Map(),
   };
-  conditiongsKey = random(8);
+  conditionsKey = random(8);
 
   /* 删除并调试数据 */
   delGroups = [];
   /** 展开全部分组 */
   isExpandAll = false;
-
+  intersectionObserver: IntersectionObserver | null = null;
+  hiddenFooter = false;
   handleToConfig(id: number) {
     this.$router.push({
       name: 'alarm-dispatch-config',
-      params: { id: String(id) }
+      params: { id: String(id) },
     });
   }
 
@@ -153,8 +160,8 @@ export default class AlarmDispatch extends tsc<{}> {
       ...item,
       user_groups: item.ruleData.reduce((result, item) => {
         item.user_groups.forEach(groups => {
-          const { id, name } = this.alarmGroupList.find(alarm => alarm.id === groups);
-          if (!result.map(g => g.id).includes(id)) {
+          const { id, name } = this.alarmGroupList.find(alarm => +alarm.id === +groups) || {};
+          if (id && !result.map(g => g.id).includes(id)) {
             result.push({ id, name });
           }
         });
@@ -167,7 +174,7 @@ export default class AlarmDispatch extends tsc<{}> {
           }
         });
         return result;
-      }, [])
+      }, []),
     }));
   }
 
@@ -201,7 +208,7 @@ export default class AlarmDispatch extends tsc<{}> {
     this.alarmGroupList = data.map(item => ({
       id: item.id,
       name: item.name,
-      receiver: item.users?.map(rec => rec.display_name) || []
+      receiver: item.users?.map(rec => rec.display_name) || [],
     }));
 
     /** 能否查询需要依赖 getAlarmGroupList 和 getAlarmDispatchGroupData两个函数都请求完成 */
@@ -228,20 +235,60 @@ export default class AlarmDispatch extends tsc<{}> {
             priority: item.priority,
             isExpan: true,
             ruleData: [],
-            editAllowed: !!item?.edit_allowed
+            editAllowed: !!item?.edit_allowed,
           })
       ) || [];
     this.loading = false;
     this.getAlarmAssignGroupsRules(list?.map(item => item.id));
+    this.$nextTick(() => {
+      this.observerTableGroup();
+    });
   }
 
+  observerTableGroup() {
+    if (!this.itemFooterRef) return;
+    this.intersectionObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.intersectionRatio <= 0) return;
+        if (this.renderGroups.length >= this.ruleGroups.length) return;
+        this.renderGroups.push(...this.ruleGroups.slice(this.renderGroups.length, this.renderGroups.length + 2));
+        this.$nextTick(() => {
+          if (this.isInViewport(this.itemFooterRef) && this.renderGroups.length < this.ruleGroups.length) {
+            this.handleTriggerObserver();
+          }
+        });
+      }
+    });
+    this.intersectionObserver.observe(this.itemFooterRef);
+  }
+  /**
+   * 用于触发 IntersectionObserver 监听
+   */
+  handleTriggerObserver() {
+    this.hiddenFooter = true;
+    window.requestIdleCallback(() => {
+      this.hiddenFooter = false;
+    });
+  }
+  isInViewport(element: Element) {
+    const rect = element.getBoundingClientRect();
+    return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  }
+  beforeDestroy() {
+    this.intersectionObserver?.unobserve(this.itemFooterRef);
+  }
   /**
    *  获取规则集
    * @param ids 规则组
    */
   async getAlarmAssignGroupsRules(ids: number[] = []) {
     this.groupLoading = true;
-    const list = await listAssignRule().catch(() => (this.groupLoading = false));
+    const list = await listAssignRule({ page: 1, page_size: 1000 }).catch(() => (this.groupLoading = false));
     const groupData = ids.reduce((result, item) => {
       result[item] = list.filter(rule => item === rule.assign_group_id);
       return result;
@@ -300,7 +347,7 @@ export default class AlarmDispatch extends tsc<{}> {
         //   message: this.$t('删除成功')
         // });
         // this.getAlarmDispatchGroupData();
-      }
+      },
     });
   }
 
@@ -323,16 +370,16 @@ export default class AlarmDispatch extends tsc<{}> {
         this.getAlarmDispatchGroupData();
         this.$bkMessage({
           theme: 'success',
-          message: this.$t('创建成功')
+          message: this.$t('创建成功'),
         });
         this.formData = {
           name: '',
-          priority: 0
+          priority: 0,
         };
         setTimeout(() => {
           this.$router.push({
             name: 'alarm-dispatch-config',
-            params: { id: String(data.id) }
+            params: { id: String(data.id) },
           });
         });
       }
@@ -350,7 +397,7 @@ export default class AlarmDispatch extends tsc<{}> {
   /** *
    * 告警组信息编辑
    */
-  handleAlarmGroupInfoEdit(e: Event, field: 'priority' | 'name', id: number, data) {
+  handleAlarmGroupInfoEdit(e: Event, field: 'name' | 'priority', id: number, data) {
     e.stopPropagation();
     this.removePopoverInstance();
     this.currentFiledElement = e.target;
@@ -370,7 +417,7 @@ export default class AlarmDispatch extends tsc<{}> {
       },
       onHide: () => {
         document.removeEventListener('click', this.handleClickOutSide, false);
-      }
+      },
     });
     this.popoverInstance?.show(100);
   }
@@ -384,7 +431,7 @@ export default class AlarmDispatch extends tsc<{}> {
     }
   }
 
-  renderEditAttribute(title: string, count: number, field: 'priority' | 'name', id: number) {
+  renderEditAttribute(title: string, count: number, field: 'name' | 'priority', id: number) {
     return (
       <div class={field === 'priority' ? 'priority-wrap' : 'title-wrap'}>
         <span
@@ -421,10 +468,10 @@ export default class AlarmDispatch extends tsc<{}> {
    * @param value
    * @returns
    */
-  handlePriorityChange(value: string | number) {
+  handlePriorityChange(value: number | string) {
     if (typeof value === 'string') {
       if (!value) return;
-      if (isNaN(Number(value))) {
+      if (Number.isNaN(Number(value))) {
         this.formData.priority = 1;
         (this.$refs.priorityInput as any).curValue = 1;
       } else {
@@ -432,7 +479,7 @@ export default class AlarmDispatch extends tsc<{}> {
           this.formData.priority = 10000;
         } else if (Number(value) === 0) {
           this.formData.priority = 1;
-        } else if (parseFloat(value) === parseInt(value)) {
+        } else if (Number.parseFloat(value) === Number.parseInt(value)) {
           this.formData.priority = Number(value);
         } else {
           (this.$refs.priorityInput as any).curValue = Math.round(Number(value));
@@ -440,7 +487,7 @@ export default class AlarmDispatch extends tsc<{}> {
         }
       }
     } else {
-      if (isNaN(value)) {
+      if (Number.isNaN(value)) {
         this.formData.priority = 1;
         (this.$refs.priorityInput as any).curValue = 1;
       } else {
@@ -470,17 +517,17 @@ export default class AlarmDispatch extends tsc<{}> {
   }
 
   /** 修改组名、优先级 */
-  async handleBatchEditSubmit(value: string | number) {
+  async handleBatchEditSubmit(value: number | string) {
     await partialUpdateAssignGroup(this.currentId, { [this.filed]: value });
     this.$bkMessage({
       theme: 'success',
-      message: this.$t('修改成功')
+      message: this.$t('修改成功'),
     });
     this.getAlarmDispatchGroupData();
   }
 
   /** 搜索 */
-  @Debounce(200)
+  @Debounce(300)
   handleSearch() {
     if (this.search) {
       const value = this.search.replace(/(^\s*)|(\s*$)/g, '');
@@ -497,17 +544,13 @@ export default class AlarmDispatch extends tsc<{}> {
         )
         .map(item => item.id);
       this.ruleGroups = this.cacheRuleGroups.filter(item => filterRuleGroupList.includes(item.id));
-      this.emptyText = window.i18n.tc('搜索结果为空');
+      this.emptyType = 'search-empty';
     } else {
-      this.emptyText = window.i18n.tc('查无数据');
+      this.emptyType = 'empty';
       this.ruleGroups = this.cacheRuleGroups;
-      const { groupName, groupId, ...arg } = this.$route.query;
-      this.$router.replace({
-        query: {
-          ...arg
-        }
-      });
     }
+    this.renderGroups = [];
+    this.handleTriggerObserver();
   }
 
   handleShowChange(v: boolean) {
@@ -531,14 +574,14 @@ export default class AlarmDispatch extends tsc<{}> {
     allKVOptions(
       [this.$store.getters.bizId],
       (type: string, key: string, values: any) => {
-        if (!!key) {
+        if (key) {
           (this.conditionProps[type] as Map<string, any>).set(key, values);
         } else {
           this.conditionProps[type] = values;
         }
       },
       () => {
-        this.conditiongsKey = random(8);
+        this.conditionsKey = random(8);
       }
     );
   }
@@ -547,7 +590,7 @@ export default class AlarmDispatch extends tsc<{}> {
     this.alarmGroupDetail.show = false;
     this.$router.push({
       name: 'alarm-group-edit',
-      params: { id }
+      params: { id },
     });
   }
 
@@ -557,18 +600,25 @@ export default class AlarmDispatch extends tsc<{}> {
     this.ruleGroups.forEach(item => item.setExpan(!this.isExpandAll));
   }
 
+  handleEmptyOpreation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.search = '';
+      this.handleSearch();
+    }
+  }
+
   render() {
     return (
       <div
         class='alarm-dispath-page'
-        v-bkloading={{ isLoading: this.loading }}
+        // v-bkloading={{ isLoading: this.loading }}
       >
         <div class='alarm-dispath-page-wrap'>
           <div class='wrap-header'>
             <bk-button
+              class='mr10'
               icon='plus'
               theme='primary'
-              class='mr10'
               onClick={this.handleAddAlarmDispatch}
             >
               {this.$t('新建')}
@@ -578,240 +628,288 @@ export default class AlarmDispatch extends tsc<{}> {
               disabled={!this.ruleGroups.length}
               onClick={this.handleDebug}
             >
-              {this.$t('调试')}
+              {this.$t('效果调试')}
             </bk-button>
+            <bk-input
+              class='search-input'
+              v-model={this.search}
+              placeholder={`ID/${this.$t('告警组名称')}`}
+              right-icon='bk-icon icon-search'
+              clearable
+              onInput={this.handleSearch}
+            />
             <bk-button
               class='expand-up-btn'
               onClick={this.handleExpandAll}
             >
-              <span class={['icon-monitor', this.isExpandAll ? 'icon-zhankai1' : 'icon-shouqi1']}></span>
+              <span class={['icon-monitor', this.isExpandAll ? 'icon-zhankai1' : 'icon-shouqi1']} />
               {this.$t(this.isExpandAll ? '展开所有分组' : '收起所有分组')}
             </bk-button>
-            <bk-input
-              class='search-input'
-              placeholder={`ID/${this.$t('告警组名称')}`}
-              right-icon='bk-icon icon-search'
-              v-model={this.search}
-              onInput={this.handleSearch}
-            ></bk-input>
           </div>
           <div class='wrap-content'>
-            {this.ruleGroups.length > 0 ? (
-              this.ruleGroups.map((item, index) => (
-                <div
-                  class='expan-item'
-                  key={index}
-                >
-                  <div
-                    class='expan-item-header'
-                    onClick={() => item.setExpan(!item.isExpan)}
-                  >
-                    <div class={['expan-status', { 'is-expan': item.isExpan }]}>
-                      <i class='icon-monitor icon-mc-triangle-down'></i>
-                    </div>
-                    {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
-                    {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
+            {this.ruleGroups.length > 0
+              ? [
+                  this.renderGroups.map((item, index) => (
                     <div
-                      class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
-                      v-bk-tooltips={{
-                        placements: ['top'],
-                        content: this.$t('内置的分派规则组不允许修改'),
-                        disabled: item.editAllowed
-                      }}
-                      onClick={() => item.editAllowed && this.handleToConfig(item.id)}
+                      key={index}
+                      class='expan-item'
                     >
-                      <span class='icon-monitor icon-bianji'></span>
-                      <span>{this.$t('配置规则')}</span>
-                    </div>
-                    <div
-                      class={['del-btn-wrap', { 'del-btn-disabled': !item.editAllowed }]}
-                      v-bk-tooltips={{
-                        placements: ['top'],
-                        content: this.$t('内置的分派规则组不允许修改'),
-                        disabled: item.editAllowed
-                      }}
-                      onClick={e => {
-                        item.editAllowed && this.handleDeleteGroup(e, item);
-                      }}
-                    >
-                      <span class='icon-monitor icon-mc-delete-line'></span>
-                    </div>
-                  </div>
-                  <div class={['expan-item-content', { 'is-expan': item.isExpan }]}>
-                    <bk-table
-                      v-bkloading={{ isLoading: this.groupLoading }}
-                      data={item.ruleData}
-                      stripe
-                    >
-                      <bk-table-column
-                        label={this.$t('告警组')}
-                        prop='user_groups'
-                        min-width={100}
-                        scopedSlots={{
-                          default: ({ row }) => (
-                            <div class='alarm-group-list'>
-                              {row.user_groups.map(groupId => (
-                                <bk-tag
-                                  class='alarm-tag'
-                                  v-bk-overflow-tips
-                                  onClick={() => {
-                                    this.handleSelcetAlarmGroup(groupId);
-                                  }}
-                                >
-                                  {this.getAlarmGroupByID(groupId)}
-                                </bk-tag>
-                              ))}
-                            </div>
-                          )
-                        }}
-                      ></bk-table-column>
-                      <bk-table-column
-                        label={this.$t('匹配规则')}
-                        prop='rule'
-                        min-width={400}
-                        scopedSlots={{
-                          default: ({ row }) =>
-                            !!row.conditions?.length ? (
-                              <CommonCondition
-                                class='rule-wrap'
-                                key={this.conditiongsKey}
-                                value={row.conditions}
-                                keyList={this.conditionProps.keys}
-                                groupKey={GROUP_KEYS}
-                                groupKeys={this.conditionProps.groupKeys}
-                                valueMap={this.conditionProps.valueMap}
-                                readonly={true}
-                              ></CommonCondition>
-                            ) : (
-                              '--'
-                            )
-                        }}
-                      ></bk-table-column>
-                      <bk-table-column
-                        label={this.$t('分派动作')}
-                        prop='action'
-                        min-width={400}
-                        scopedSlots={{
-                          default: ({ row }) => (
-                            <AlarmDispatchAction
-                              alarmGroupList={this.alarmGroupList}
-                              showAlarmGroup={this.handleSelcetAlarmGroup}
-                              showDetail={this.handleShowDetail}
-                              detailData={this.detailData}
-                              processPackage={this.processPackage}
-                              actions={row.actions}
-                              userType={row.user_type}
-                            />
-                          )
-                        }}
-                      ></bk-table-column>
-                      <bk-table-column
-                        label={this.$t('修改告警内容')}
-                        min-width={300}
-                        prop='content'
-                        scopedSlots={{
-                          default: ({ row }) => (
-                            <AlarmUpdateContent
-                              severity={row.alert_severity}
-                              tag={row.additional_tags}
-                            />
-                          )
-                        }}
-                      ></bk-table-column>
-                      <bk-table-column
-                        label={this.$t('状态')}
-                        prop='is_enabled'
-                        width={160}
-                        scopedSlots={{
-                          default: ({ row }) => (
-                            <bk-tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
-                              {this.$t(row.is_enabled ? '启用' : '停用')}
-                            </bk-tag>
-                          )
-                        }}
-                      ></bk-table-column>
                       <div
-                        slot='empty'
-                        class='alarm-group-empty'
+                        class={['expan-item-header', { 'is-collapse': !item.isExpan }]}
+                        onClick={() => item.setExpan(!item.isExpan)}
                       >
-                        <div>
-                          <img
-                            src={emptyImageSrc}
-                            alt=''
-                          />
+                        <div class={['expan-status', { 'is-expan': item.isExpan }]}>
+                          <i class='icon-monitor icon-mc-triangle-down' />
                         </div>
-                        <div class='mb15 empty-text'>{this.$t('当前组暂无规则，需去配置新规则')}</div>
+                        {this.renderEditAttribute(item.name, item.ruleData.length, 'name', item.id)}
+                        {this.renderEditAttribute(`${this.$t('优先级')}:`, item.priority, 'priority', item.id)}
                         <div
-                          class='empty-rule-config mt15'
-                          onClick={() => this.handleToConfig(item.id)}
+                          class={['edit-btn-wrap', { 'edit-btn-disabled': !item.editAllowed }]}
+                          v-bk-tooltips={{
+                            placements: ['top'],
+                            content: this.$t('内置的分派规则组不允许修改'),
+                            disabled: item.editAllowed,
+                          }}
+                          onClick={() => item.editAllowed && this.handleToConfig(item.id)}
                         >
-                          {this.$t('配置规则')}
+                          <span class='icon-monitor icon-bianji' />
+                          <span>{this.$t('配置规则')}</span>
+                        </div>
+                        <div
+                          class={['del-btn-wrap', { 'del-btn-disabled': !item.editAllowed }]}
+                          v-bk-tooltips={{
+                            placements: ['top'],
+                            content: this.$t('内置的分派规则组不允许修改'),
+                            disabled: item.editAllowed,
+                          }}
+                          onClick={e => {
+                            item.editAllowed && this.handleDeleteGroup(e, item);
+                          }}
+                        >
+                          <span class='icon-monitor icon-mc-delete-line' />
                         </div>
                       </div>
-                    </bk-table>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div class='empty-dispatch-content'>
-                <img
-                  src={emptyImageSrc}
+                      <div class={['expan-item-content', { 'is-expan': item.isExpan }]}>
+                        {this.groupLoading ? (
+                          <div class='item-content-skeleton'>
+                            <TableSkeleton type={3} />
+                          </div>
+                        ) : (
+                          <bk-table
+                            v-bkloading={{ isLoading: this.groupLoading }}
+                            data={item.ruleData}
+                            stripe
+                          >
+                            <bk-table-column
+                              scopedSlots={{
+                                default: ({ row }) => (
+                                  <div class='alarm-group-list'>
+                                    {row.user_groups.map(groupId => (
+                                      <bk-tag
+                                        key={groupId}
+                                        class='alarm-tag'
+                                        v-bk-overflow-tips
+                                        onClick={() => {
+                                          this.handleSelcetAlarmGroup(groupId);
+                                        }}
+                                      >
+                                        {this.getAlarmGroupByID(groupId)}
+                                      </bk-tag>
+                                    ))}
+                                  </div>
+                                ),
+                              }}
+                              label={this.$t('告警组')}
+                              min-width={100}
+                              prop='user_groups'
+                            />
+                            <bk-table-column
+                              scopedSlots={{
+                                default: ({ row }) =>
+                                  row.conditions?.length ? (
+                                    <CommonCondition
+                                      key={this.conditionsKey}
+                                      class='rule-wrap'
+                                      groupKey={GROUP_KEYS}
+                                      groupKeys={this.conditionProps.groupKeys}
+                                      keyList={this.conditionProps.keys}
+                                      readonly={true}
+                                      value={row.conditions}
+                                      valueMap={this.conditionProps.valueMap}
+                                    />
+                                  ) : (
+                                    '--'
+                                  ),
+                              }}
+                              label={this.$t('匹配规则')}
+                              min-width={400}
+                              prop='rule'
+                            />
+                            <bk-table-column
+                              scopedSlots={{
+                                default: ({ row }) => (
+                                  <AlarmDispatchAction
+                                    actions={row.actions}
+                                    alarmGroupList={this.alarmGroupList}
+                                    detailData={this.detailData}
+                                    processPackage={this.processPackage}
+                                    showAlarmGroup={this.handleSelcetAlarmGroup}
+                                    showDetail={this.handleShowDetail}
+                                    userType={row.user_type}
+                                  />
+                                ),
+                              }}
+                              label={this.$t('分派动作')}
+                              min-width={400}
+                              prop='action'
+                            />
+                            <bk-table-column
+                              scopedSlots={{
+                                default: ({ row }) => (
+                                  <AlarmUpdateContent
+                                    severity={row.alert_severity}
+                                    tag={row.additional_tags}
+                                  />
+                                ),
+                              }}
+                              label={this.$t('修改告警内容')}
+                              min-width={300}
+                              prop='content'
+                            />
+                            <bk-table-column
+                              width={160}
+                              scopedSlots={{
+                                default: ({ row }) => (
+                                  <bk-tag class={['tag-status', row.is_enabled ? 'start' : 'stop']}>
+                                    {this.$t(row.is_enabled ? '启用' : '停用')}
+                                  </bk-tag>
+                                ),
+                              }}
+                              label={this.$t('状态')}
+                              prop='is_enabled'
+                            />
+                            <div
+                              class='alarm-group-empty'
+                              slot='empty'
+                            >
+                              <div>
+                                <img
+                                  alt=''
+                                  loading='lazy'
+                                  src={emptyImageSrc}
+                                />
+                              </div>
+                              <div class='mb15 empty-text'>{this.$t('当前组暂无规则，需去配置新规则')}</div>
+                              <div
+                                class='empty-rule-config mt15'
+                                onClick={() => this.handleToConfig(item.id)}
+                              >
+                                {this.$t('配置规则')}
+                              </div>
+                            </div>
+                          </bk-table>
+                        )}
+                      </div>
+                    </div>
+                  )),
+                  <div
+                    key={'footer'}
+                    ref='itemFooterRef'
+                    style={{
+                      display: this.hiddenFooter ? 'none' : 'flex',
+                    }}
+                    class='item-footer'
+                  />,
+                ]
+              : (() => {
+                  if (this.loading) {
+                    return new Array(3).fill(null).map((_item, index) => (
+                      <div
+                        key={index}
+                        class='expan-item'
+                      >
+                        <div class='expan-item-header'>
+                          <div class='expan-status'>
+                            <i class='icon-monitor icon-mc-triangle-down' />
+                          </div>
+                          <div class='head-skeleton skeleton-element' />
+                          <div class='edit-btn-wrap edit-btn-disabled'>
+                            <span class='icon-monitor icon-bianji' />
+                            <span>{this.$t('配置规则')}</span>
+                          </div>
+                          <div class='del-btn-wrap del-btn-disabled'>
+                            <span class='icon-monitor icon-mc-delete-line' />
+                          </div>
+                        </div>
+                        <div class='expan-item-content' />
+                      </div>
+                    ));
+                  }
+                  return (
+                    <div class='empty-dispatch-content'>
+                      <EmptyStatus
+                        type={this.emptyType}
+                        onOperation={this.handleEmptyOpreation}
+                      />
+                      {/* <img
                   alt=''
+                  src={emptyImageSrc}
                 />
-                <span class='empty-dispatch-text'>{this.emptyText}</span>
-              </div>
-            )}
+                <span class='empty-dispatch-text'>{this.emptyText}</span> */}
+                    </div>
+                  );
+                })()}
           </div>
         </div>
         <div style='display: none'>
           <AlarmBatchEdit
             ref='alarmBatchEdit'
-            filed={this.filed}
+            close={this.removePopoverInstance}
             dataSource={this.dataSource}
+            filed={this.filed}
             isListPage={true}
             priorityList={this.priorityList}
             onSubmit={this.handleBatchEditSubmit}
-            close={this.removePopoverInstance}
           />
         </div>
         <bk-dialog
-          value={this.visible}
-          header-position='left'
           confirmFn={this.handleAddAlarmDispatchGroup}
-          onCancel={this.handleCancelAlarmGroup}
+          header-position='left'
           title={this.$t('新建规则组')}
+          value={this.visible}
+          onCancel={this.handleCancelAlarmGroup}
         >
           <bk-form
-            form-type='vertical'
             ref='addForm'
+            form-type='vertical'
             {...{
               props: {
                 model: this.formData,
-                rules: this.rules
-              }
+                rules: this.rules,
+              },
             }}
           >
             <bk-form-item
-              label={this.$t('规则组名')}
-              required
-              property='name'
               error-display-type='normal'
+              label={this.$t('规则组名')}
+              property='name'
+              required
             >
               <bk-input v-model={this.formData.name} />
             </bk-form-item>
             <bk-form-item
+              error-display-type='normal'
               label={this.$t('优先级')}
               property='priority'
               required
-              error-display-type='normal'
             >
               <bk-input
                 ref='priorityInput'
-                type='number'
                 max={10000}
                 min={1}
-                onInput={this.handlePriorityChange}
+                type='number'
                 value={this.formData.priority}
+                onInput={this.handlePriorityChange}
               />
               <span style={{ color: this.priorityErrorMsg ? '#ea3636' : '#979BA5' }}>
                 {this.priorityErrorMsg ? this.priorityErrorMsg : this.$t('数值越高优先级越高,最大值为10000')}
@@ -822,26 +920,26 @@ export default class AlarmDispatch extends tsc<{}> {
         <AlarmGroupDetail
           id={this.alarmGroupDetail.id as any}
           v-model={this.alarmGroupDetail.show}
-          onEditGroup={this.handleEditGroup}
           customEdit
+          onEditGroup={this.handleEditGroup}
         />
         <SetMealDetail
-          isShow={this.detailData.isShow}
           id={this.detailData.id}
           width={540}
+          isShow={this.detailData.isShow}
           onShowChange={v => (this.detailData.isShow = v)}
-        ></SetMealDetail>
+        />
         {/* 调试结果 */}
         {this.showDebug && (
           <DebuggingResult
+            alarmGroupList={this.alarmGroupList}
+            conditionProps={this.conditionProps}
+            excludeGroups={this.delGroups}
             isShow={this.showDebug}
             isViewDebugEffect={this.isViewDebugEffect}
-            conditionProps={this.conditionProps}
-            alarmGroupList={this.alarmGroupList}
             ruleGroupsData={[]}
-            excludeGroups={this.delGroups}
-            onShowChange={this.handleShowChange}
             onDelSuccess={this.handleDelSucess}
+            onShowChange={this.handleShowChange}
           />
         )}
       </div>

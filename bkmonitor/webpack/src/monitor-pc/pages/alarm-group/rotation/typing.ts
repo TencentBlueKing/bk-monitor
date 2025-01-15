@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { EStatus } from '../../../../trace/pages/rotation/typings/common';
+import type { EStatus } from '../../../../trace/pages/rotation/typings/common';
 
 export interface IDutyListItem {
-  id: string | number;
+  id: number | string;
   name: string;
   category: string;
   typeLabel: string;
@@ -38,7 +38,7 @@ export interface IDutyListItem {
 }
 
 export interface IDutyItem {
-  id: string | number;
+  id: number | string;
   name: string;
   typeLabel: string;
   status: EStatus;

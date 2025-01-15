@@ -25,24 +25,34 @@
  */
 import { defineComponent, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+
 import { Checkbox, Loading, Select, Table } from 'bkui-vue';
-import { getMetricListV2, getStrategyListV2, getStrategyV2, plainStrategyList } from 'monitor-api/modules/strategies';
+import {
+  getMetricListV2,
+  getStrategyListV2,
+  getStrategyV2,
+  plainStrategyList,
+  promqlToQueryConfig,
+} from 'monitor-api/modules/strategies';
 import { random } from 'monitor-common/utils';
 
-import DimensionConditionInput from './components/dimension-input';
+import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
+import DimensionConditionInput from './components/dimension-input/dimension-input';
 import FormItem from './components/form-item';
 import StrategyDetail from './components/strategy-detail';
 import WhereDisplay from './components/where-display';
-import AlarmShieldConfigScope, { scopeData } from './alarm-shield-config-scope';
 
 import './alarm-shield-config-strategy.scss';
+
+/* data_source_label 为 prometheus 监控数据模式显示为source模式 */
+const PROMETHEUS = 'prometheus';
 
 export const strategyDataProp = () => ({
   key: random(8),
   scopeData: scopeData(),
   id: [],
   level: [],
-  dimension_conditions: []
+  dimension_conditions: [],
 });
 
 export default defineComponent({
@@ -50,24 +60,24 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      default: false
+      default: false,
     },
     value: {
       type: Object,
-      default: () => strategyDataProp()
+      default: () => strategyDataProp(),
     },
     isEdit: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isClone: {
       type: Boolean,
-      default: false
+      default: false,
     },
     onChange: {
       type: Function,
-      default: () => {}
-    }
+      default: () => {},
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -85,7 +95,7 @@ export default defineComponent({
       dimensionList: [], // 维度列表
       metricMeta: null, // 获取条件候选值得参数
       conditionList: [], // 维度条件数据
-      allNames: {} // 维度名合集
+      allNames: {}, // 维度名合集
     });
     // 告警级别限制条件
     const levelOptional = ref([]);
@@ -95,16 +105,16 @@ export default defineComponent({
     const levelMap = [
       {
         id: 1,
-        name: t('致命')
+        name: t('致命'),
       },
       {
         id: 2,
-        name: t('预警')
+        name: t('预警'),
       },
       {
         id: 3,
-        name: t('提醒')
-      }
+        name: t('提醒'),
+      },
     ];
     const loading = ref(false);
 
@@ -112,7 +122,7 @@ export default defineComponent({
 
     const errMsg = reactive({
       strategyId: '',
-      level: ''
+      level: '',
     });
 
     /**
@@ -131,7 +141,7 @@ export default defineComponent({
         }
       },
       {
-        immediate: true
+        immediate: true,
       }
     );
 
@@ -148,7 +158,7 @@ export default defineComponent({
         strategyId.value = localValue.value.id;
         dimensionCondition.conditionList = localValue.value.dimension_conditions.map(item => ({
           ...item,
-          dimensionName: item.name || item.key
+          dimensionName: item.name || item.key,
         }));
         dimensionCondition.conditionList.forEach(item => {
           dimensionCondition.allNames[item.key] = item.name || item.key;
@@ -168,8 +178,11 @@ export default defineComponent({
      * @description 策略选择
      * @returns
      */
-    function handleStrategyChange(isInit = false) {
+    function handleStrategyChange(isInit = false, isToggle = false) {
       clearErrMsg();
+      if (isToggle) {
+        return;
+      }
       if (JSON.stringify(localValue.value.id) !== JSON.stringify(strategyId.value) && !isInit) {
         handleLevelChange([]);
       }
@@ -198,6 +211,7 @@ export default defineComponent({
         isShowDetail.value = true;
       }
     }
+
     function handleClear() {
       handleLevelChange([]);
     }
@@ -215,42 +229,79 @@ export default defineComponent({
      * @param strategys
      */
     async function setDimensionConditionParams(strategys: any[]) {
+      const promqlPromiseList = [];
+      const promqlDimensions = [];
       if (strategys.length) {
         const metricIds = [];
         strategys.forEach(item => {
           item.items?.[0].query_configs.forEach(queryConfig => {
-            if (!metricIds.includes(queryConfig.metric_id)) {
-              metricIds.push(queryConfig.metric_id);
+            const isPrometheus = queryConfig?.data_source_label === PROMETHEUS;
+            // promql数据需要通过接口转换为metric数据
+            if (isPrometheus) {
+              // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
+              const getPromqlData = new Promise(async (resolve, _reject) => {
+                const promqlData = await promqlToQueryConfig('', {
+                  promql: queryConfig.promql,
+                }).catch(() => null);
+                if (promqlData) {
+                  const metricItem = promqlData.query_configs?.[0];
+                  if (metricItem) {
+                    dimensionCondition.metricMeta = {
+                      dataSourceLabel: metricItem.data_source_label,
+                      dataTypeLabel: metricItem.data_type_label,
+                      metricField: metricItem.metric_field,
+                      resultTableId: metricItem.result_table_id,
+                      indexSetId: metricItem.index_set_id,
+                    };
+                    const dimension = metricItem?.agg_dimension || [];
+                    promqlDimensions.push(...dimension.map(d => ({ id: d, name: d })));
+                  } else {
+                    dimensionCondition.metricMeta = null;
+                  }
+                }
+                resolve(promqlData);
+              });
+              promqlPromiseList.push(getPromqlData);
+            } else {
+              if (!metricIds.includes(queryConfig.metric_id)) {
+                metricIds.push(queryConfig.metric_id);
+              }
             }
           });
         });
-        const { metric_list: metricList = [] } = await getMetricListV2({
-          page: 1,
-          page_size: metricIds.length,
-          conditions: [{ key: 'metric_id', value: metricIds }]
-        }).catch(() => ({}));
-        const [metricItem] = metricList;
-        if (metricItem) {
-          dimensionCondition.metricMeta = {
-            dataSourceLabel: metricItem.data_source_label,
-            dataTypeLabel: metricItem.data_type_label,
-            metricField: metricItem.metric_field,
-            resultTableId: metricItem.result_table_id,
-            indexSetId: metricItem.index_set_id
-          };
-        } else {
-          dimensionCondition.metricMeta = null;
-        }
-        dimensionCondition.dimensionList = (
-          !!metricList.length
+        await Promise.all(promqlPromiseList);
+        let dimensionList = [];
+        if (metricIds.length) {
+          const { metric_list: metricList = [] } = await getMetricListV2({
+            page: 1,
+            page_size: metricIds.length,
+            conditions: [{ key: 'metric_id', value: metricIds }],
+          }).catch(() => ({}));
+          const [metricItem] = metricList;
+          if (metricItem) {
+            dimensionCondition.metricMeta = {
+              dataSourceLabel: metricItem.data_source_label,
+              dataTypeLabel: metricItem.data_type_label,
+              metricField: metricItem.metric_field,
+              resultTableId: metricItem.result_table_id,
+              indexSetId: metricItem.index_set_id,
+            };
+          } else {
+            dimensionCondition.metricMeta = null;
+          }
+          dimensionList = metricList.length
             ? metricList.reduce((pre, cur) => {
-                const dimensionList = pre
-                  .concat(cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension))
-                  .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index);
+                const dimensionList = pre.concat(
+                  cur.dimensions.filter(item => typeof item.is_dimension === 'undefined' || item.is_dimension)
+                );
                 return dimensionList;
               }, [])
-            : []
-        ).filter(item => !['bk_target_ip', 'bk_target_cloud_id', 'bk_topo_node'].includes(item.id));
+            : [];
+        }
+        dimensionCondition.dimensionList = dimensionList
+          .concat(promqlDimensions)
+          .filter((item, index, arr) => arr.map(item => item.id).indexOf(item.id, 0) === index)
+          .filter(item => !['bk_target_ip', 'bk_target_cloud_id', 'bk_topo_node'].includes(item.id));
         dimensionCondition.conditionKey = random(8);
       }
     }
@@ -263,9 +314,9 @@ export default defineComponent({
         conditions: [
           {
             key: 'strategy_id',
-            value: ids
-          }
-        ]
+            value: ids,
+          },
+        ],
       })
         .then(res => res.strategy_config_list)
         .catch(() => []);
@@ -290,7 +341,7 @@ export default defineComponent({
           key: item.key,
           method: item.method,
           value: item.value,
-          name: item.dimensionName
+          name: item.dimensionName,
         }))
         .filter(item => !!item.key);
       handleChange();
@@ -331,6 +382,11 @@ export default defineComponent({
       return Object.keys(errMsg).every(key => !errMsg[key]);
     }
 
+    // 自定义过滤函数
+    const customFilter = (input: string, option: { id: number; name: string }) => {
+      return option.name.toLowerCase().includes(input.toLowerCase()) || option.id.toString().includes(input);
+    };
+
     return {
       strategyList,
       dimensionCondition,
@@ -349,7 +405,8 @@ export default defineComponent({
       handleDimensionConditionChange,
       handleScopeChange,
       handleLevelChange,
-      handleClear
+      handleClear,
+      customFilter,
     };
   },
   render() {
@@ -358,26 +415,28 @@ export default defineComponent({
         <Loading loading={this.loading}>
           <FormItem
             class='mt24'
+            errMsg={this.errMsg.strategyId}
             label={this.t('屏蔽策略')}
             require={true}
-            errMsg={this.errMsg.strategyId}
           >
             <div>
               <Select
                 class='width-940'
+                disabled={this.isEdit}
+                filterOption={this.customFilter}
+                filterable={true}
                 modelValue={this.strategyId}
                 multiple={true}
-                filterable={true}
                 selectedStyle={'checkbox'}
-                onUpdate:modelValue={v => (this.strategyId = v)}
-                onToggle={() => this.handleStrategyChange()}
                 onClear={this.handleClear}
+                onToggle={v => this.handleStrategyChange(false, v)}
+                onUpdate:modelValue={v => (this.strategyId = v)}
               >
                 {this.strategyList.map(item => (
                   <Select.Option
+                    id={item.id}
                     key={item.id}
                     name={item.name}
-                    id={item.id}
                   >
                     {{
                       default: () => (
@@ -385,7 +444,7 @@ export default defineComponent({
                           <span style='margin-right: 9px'>{item.name}</span>
                           <span style='color: #c4c6cc'>{`${item.first_label_name}-${item.second_label_name}（#${item.id}）`}</span>
                         </span>
-                      )
+                      ),
                     }}
                   </Select.Option>
                 ))}
@@ -395,7 +454,7 @@ export default defineComponent({
               <StrategyDetail
                 class='mt10'
                 strategyData={this.strategyData}
-              ></StrategyDetail>
+              />
             )}
           </FormItem>
           {!!this.isShowDetail && (
@@ -406,9 +465,6 @@ export default defineComponent({
               {this.isEdit ? (
                 <div class='max-w836'>
                   <Table
-                    data={[{}]}
-                    maxHeight={450}
-                    border={['outer']}
                     columns={[
                       {
                         id: 'name',
@@ -418,18 +474,21 @@ export default defineComponent({
                             if (this.dimensionCondition.conditionList.length) {
                               return (
                                 <WhereDisplay
-                                  value={this.dimensionCondition.conditionList}
-                                  readonly={true}
-                                  allNames={this.dimensionCondition.allNames}
                                   key={this.dimensionCondition.conditionKey}
-                                ></WhereDisplay>
+                                  allNames={this.dimensionCondition.allNames}
+                                  readonly={true}
+                                  value={this.dimensionCondition.conditionList}
+                                />
                               );
                             }
                             return '--';
-                          })()
-                      }
+                          })(),
+                      },
                     ]}
-                  ></Table>
+                    border={['outer']}
+                    data={[{}]}
+                    maxHeight={450}
+                  />
                 </div>
               ) : (
                 <DimensionConditionInput
@@ -438,25 +497,25 @@ export default defineComponent({
                   dimensionsList={this.dimensionCondition.dimensionList}
                   metricMeta={this.dimensionCondition.metricMeta}
                   onChange={v => this.handleDimensionConditionChange(v)}
-                ></DimensionConditionInput>
+                />
               )}
             </FormItem>
           )}
           {!!this.isShowDetail && (
             <AlarmShieldConfigScope
+              filterTypes={['ip', 'node', 'dynamic_group']}
               isEdit={this.isEdit}
-              show={true}
               require={false}
-              filterTypes={['ip', 'node']}
+              show={true}
               value={this.localValue.scopeData}
               onChange={v => this.handleScopeChange(v)}
-            ></AlarmShieldConfigScope>
+            />
           )}
           <FormItem
-            label={this.t('告警等级')}
-            require={true}
             class='mt24'
             errMsg={this.errMsg.level}
+            label={this.t('告警等级')}
+            require={true}
           >
             <Checkbox.Group
               class='mt8'
@@ -477,5 +536,5 @@ export default defineComponent({
         </Loading>
       </div>
     );
-  }
+  },
 });

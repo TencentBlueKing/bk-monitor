@@ -27,7 +27,8 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import MonitorIpSelector from '../../../../components/monitor-ip-selector/monitor-ip-selector';
-import { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
+
+import type { IIpV6Value } from '../../../../components/monitor-ip-selector/typing';
 
 interface IAlarmShieldIpv6Props {
   showDialog: boolean;
@@ -39,17 +40,17 @@ interface IAlarmShieldIpv6Props {
 export const Ipv6FieldMap = {
   ip: 'host_list',
   node: 'node_list',
-  instance: 'service_instance_list'
+  instance: 'service_instance_list',
 };
 export const ShieldDimension2NodeType = {
   ip: 'INSTANCE',
   node: 'TOPO',
-  instance: 'SERVICE_INSTANCE'
+  instance: 'SERVICE_INSTANCE',
 };
 export const ShieldDetailTargetFieldMap = {
   ip: 'bk_target_ip',
   node: 'bk_topo_node',
-  instance: 'service_instance_id'
+  instance: 'service_instance_id',
 };
 @Component
 export default class AlarmShieldIpv6 extends tsc<IAlarmShieldIpv6Props> {
@@ -67,9 +68,9 @@ export default class AlarmShieldIpv6 extends tsc<IAlarmShieldIpv6Props> {
     this.panelList = [];
     this.inited = false;
     await this.$nextTick();
-    // eslint-disable-next-line max-len
+
     this.ipCheckValue = {
-      [Ipv6FieldMap[this.shieldDimension]]: this.checkedValue?.[Ipv6FieldMap[this.shieldDimension]]
+      [Ipv6FieldMap[this.shieldDimension]]: this.checkedValue?.[Ipv6FieldMap[this.shieldDimension]],
     };
     this.panelList = this.getPanelListByDimension(v);
     setTimeout(() => (this.inited = true), 100);
@@ -93,12 +94,12 @@ export default class AlarmShieldIpv6 extends tsc<IAlarmShieldIpv6Props> {
         {this.panelList.length > 0 && (
           <MonitorIpSelector
             mode={'dialog'}
-            panelList={this.panelList}
-            showView={true}
-            showDialog={this.inited && this.showDialog}
-            value={this.ipCheckValue}
             originalValue={this.originCheckedValue}
+            panelList={this.panelList}
+            showDialog={this.inited && this.showDialog}
+            showView={true}
             showViewDiff={this.showViewDiff}
+            value={this.ipCheckValue}
             onChange={this.handleIpChange}
             onCloseDialog={this.closeDialog}
           />

@@ -8,8 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.db.models import TextChoices
+from django.utils.translation import gettext as _
 
 from constants.apm import SpanKind
 
@@ -35,13 +37,11 @@ GLOBAL_CONFIG_BK_BIZ_ID = 0
 # 获取需要增加事务的DB链接名
 DATABASE_CONNECTION_NAME = getattr(settings, "METADATA_DEFAULT_DATABASE_NAME", "monitor_api")
 
-
 ############################################################################
 # Topo Discover Constants
 #############################################################################
 DISCOVER_TIME_RANGE = "10m"
 DISCOVER_BATCH_SIZE = 10000
-
 
 ############################################################################
 # 计算平台清洗规则
@@ -427,9 +427,7 @@ DEFAULT_PLATFORM_LICENSE_CONFIG = {
 
 DEFAULT_APM_ATTRIBUTE_CONFIG = {"name": "attribute_filter/common"}
 
-
 DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG = {"name": "attribute_filter/app"}
-
 
 DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG = {"name": "db_filter/common"}
 
@@ -571,9 +569,30 @@ class ProfileApiType:
     # type查询
     COL_TYPE = "col_type"
 
+    # 复杂查询
+    AGGREGATE = "select_aggregate"
+
 
 class ProfileQueryType:
     """Profile查询中api_params.type参数枚举值"""
 
     # cpu查询
     CPU = "cpu"
+
+
+class ApmBmwTaskStatus:
+    """APM 预计算任务状态"""
+
+    # 正常运行
+    RUNNING = "running"
+    # 未开启
+    UNOPENED = "unopened"
+
+
+class DiscoverRuleType(TextChoices):
+    """拓扑发现规则类型"""
+
+    CATEGORY = "category", _("分类规则")
+    SYSTEM = "system", _("系统类型规则")
+    PLATFORM = "platform", _("平台规则")
+    SDK = "sdk", _("SDK 规则")

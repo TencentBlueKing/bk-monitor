@@ -61,8 +61,8 @@ interface IFileInfo {
 @Component({
   name: 'ImputFile',
   components: {
-    MonitorImport
-  }
+    MonitorImport,
+  },
 })
 export default class ImportFile extends Vue {
   @Prop({ default: '', type: String }) fileName: string;
@@ -102,7 +102,7 @@ export default class ImportFile extends Vue {
     this.emitMessage();
     this.emitFileInfo({
       name: fileInfo.name,
-      fileContent: this.base64 ? fileInfo.fileStr.replace(/^data:[\S]+;base64,/, '') : fileInfo.fileStr
+      fileContent: this.base64 ? fileInfo.fileStr.replace(/^data:[\S]+;base64,/, '') : fileInfo.fileStr,
     });
   }
   handleDel() {
@@ -110,7 +110,7 @@ export default class ImportFile extends Vue {
     this.emitMessage();
     this.emitFileInfo({
       name: '',
-      fileContent: ''
+      fileContent: '',
     });
   }
 }

@@ -25,6 +25,7 @@
  */
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { unmount } from '@blueking/bk-weweb';
 
 import './rotation.scss';
@@ -32,7 +33,7 @@ import './rotation.scss';
 const wewebId = 'trace';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
-export default class Rotation extends tsc<{}> {
+export default class Rotation extends tsc<object> {
   get rotationHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -44,7 +45,7 @@ export default class Rotation extends tsc<{}> {
   get rotationData() {
     return JSON.stringify({
       host: this.rotationHost,
-      baseroute: '/trace/'
+      baseroute: '/trace/',
     });
   }
   beforeRouteLeave(to, from, next) {
@@ -55,12 +56,12 @@ export default class Rotation extends tsc<{}> {
     return (
       <div class='rotation-wrap'>
         <bk-weweb
-          setShodowDom={true}
-          class='rotation-iframe'
-          url={this.rotationUrl}
-          showSourceCode={true}
           id={wewebId}
+          class='rotation-iframe'
           data={this.rotationData}
+          setShodowDom={true}
+          showSourceCode={true}
+          url={this.rotationUrl}
         />
       </div>
     );

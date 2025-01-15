@@ -8,16 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from django.conf.urls import include, url
-from fta_web.event_plugin.views import EventPluginViewSet, event_plugin_media
+from django.urls import include, re_path
 
 from core.drf_resource.routers import ResourceRouter
+from fta_web.event_plugin.views import EventPluginViewSet, event_plugin_media
 
 router = ResourceRouter()
 router.register(r"", EventPluginViewSet, basename="event_plugin")
 
 
 urlpatterns = [
-    url(r"^event/", include(router.urls)),
-    url(r"^event/(?P<plugin_id>\w+)/media/(?P<path>.*)$", event_plugin_media),
+    re_path(r"^event/", include(router.urls)),
+    re_path(r"^event/(?P<plugin_id>\w+)/media/(?P<path>.*)$", event_plugin_media),
 ]

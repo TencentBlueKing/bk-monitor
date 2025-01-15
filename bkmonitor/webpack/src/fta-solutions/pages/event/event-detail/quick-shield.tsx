@@ -23,12 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import dayjs from 'dayjs';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import VerifyInput from 'monitor-pc/components/verify-input/verify-input.vue';
 import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
+
+import type { IDimensionItem } from '../typings/event';
 
 import './quick-shield.scss';
 
@@ -39,49 +42,50 @@ interface IQuickShieldProps {
   details: IDetail[];
   ids?: Array<string>;
   bizIds?: number[];
+  authority?: Record<string, boolean>;
+  handleShowAuthorityDetail?: (action: any) => void;
 }
 export interface IDetail {
   severity: number;
-  dimension?: string;
+  dimension?: IDimensionItem[];
   trigger?: string;
+  isModified?: boolean;
+  alertId: string;
   strategy?: {
     name?: string;
     id?: number;
   };
 }
 
+interface DimensionConfig {
+  alert_ids: string[];
+  dimensions?: { [key: string]: string[] };
+}
+
 @Component({
-  name: 'QuickShield'
+  name: 'QuickShield',
 })
-export default class MyComponent extends tsc<IQuickShieldProps> {
-  /**
-   * 由于 event-center 和 event-center-detail 这两个页面都需要 Provide 以下的 authority 和 authorityFromEventDetail
-   * 但是都继承了 authorityMixin 的方法，其中 beforeRouteEnter 这个只有页面组件才能执行该回调，
-   * 会导致，事件详情侧边栏也会 Provide 一个初始化值到快捷屏蔽告警 dialog 上形成bug，这里将注入两种类型的变量去解决上述问题。
-   * 副作用是会产生 Injection "xxx" not found 的警告
-   */
-  @Inject('authority') authority;
-  @Inject('authorityFromEventDetail') authorityFromEventDetail;
-  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
-  @Inject('handleShowAuthorityDetailFromEventDetail') handleShowAuthorityDetailFromEventDetail = null;
-  @Prop({ type: Boolean, default: false }) show: Boolean;
+export default class EventQuickShield extends tsc<IQuickShieldProps> {
+  @Prop({ type: Object, default: () => ({}) }) authority: IQuickShieldProps['authority'];
+  @Prop({ type: Function, default: null }) handleShowAuthorityDetail: IQuickShieldProps['handleShowAuthorityDetail'];
+  @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Array, default: () => [] }) details: IDetail[];
   @Prop({ type: Array, default: () => [] }) ids: Array<string>;
   /* 事件中心暂不允许跨业务操作， 此数组只有一个业务 */
   @Prop({ type: Array, default: () => [] }) bizIds: number[];
 
-  public loading = false;
-  public rule = { customTime: false };
-  public timeList = [
+  loading = false;
+  rule = { customTime: false };
+  timeList = [
     { name: `0.5${i18n.t('小时')}`, id: 18 },
     { name: `1${i18n.t('小时')}`, id: 36 },
     { name: `12${i18n.t('小时')}`, id: 432 },
     { name: `1${i18n.t('天')}`, id: 864 },
-    { name: `7${i18n.t('天')}`, id: 6048 }
+    { name: `7${i18n.t('天')}`, id: 6048 },
   ];
-  public timeValue = 18;
-  public customTime: any = ['', ''];
-  public options = {
+  timeValue = 18;
+  customTime: any = ['', ''];
+  options = {
     disabledDate(date) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -90,16 +94,29 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         return date.some(item => item.getTime() < today.getTime() || item.getTime() > today.getTime() + 8.64e7 * 181);
       }
       return date.getTime() < today.getTime() || date.getTime() > today.getTime() + 8.64e7 * 181; // 限制用户只能选择半年以内的日期
-    }
+    },
   };
-  public levelMap = ['', i18n.t('致命'), i18n.t('提醒'), i18n.t('预警')];
-  public desc = '';
+  levelMap = ['', i18n.t('致命'), i18n.t('提醒'), i18n.t('预警')];
+  desc = '';
 
-  @Watch('ids', { immediate: true })
+  backupDetails: IDetail[] = [];
+
+  @Watch('ids', { immediate: true, deep: true })
   handleShow(newIds, oldIds) {
     if (`${JSON.stringify(newIds)}` !== `${JSON.stringify(oldIds)}`) {
       this.handleDialogShow();
     }
+  }
+
+  @Watch('details', { immediate: true })
+  handleDetailsChange() {
+    const data = structuredClone(this.details || []);
+    this.backupDetails = data.map(detail => {
+      return {
+        ...detail,
+        modified: false,
+      };
+    });
   }
 
   handleDialogShow() {
@@ -118,10 +135,10 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
       'm+': time.getMinutes(), // 分
       's+': time.getSeconds(), // 秒
       'q+': Math.floor((time.getMonth() + 3) / 3), // 季度
-      S: time.getMilliseconds() // 毫秒
+      S: time.getMilliseconds(), // 毫秒
     };
     if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, `${time.getFullYear()}`.substr(4 - RegExp.$1.length));
-    // eslint-disable-next-line no-restricted-syntax
+
     for (const key in obj) {
       if (new RegExp(`(${key})`).test(fmt)) {
         fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? obj[key] : `00${obj[key]}`.substr(`${obj[key]}`.length));
@@ -158,7 +175,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         category: 'alert',
         begin_time: time.begin,
         end_time: time.end,
-        dimension_config: { alert_ids: this.ids },
+        dimension_config: { alert_ids: this.ids?.map(id => id.toString()) },
         shield_notice: false,
         description: this.desc,
         cycle_config: {
@@ -166,8 +183,8 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           type: 1,
           day_list: [],
           week_list: [],
-          end_time: ''
-        }
+          end_time: '',
+        },
       };
       dayjs.locale('en');
       let toTime = `${dayjs(time.begin).to(dayjs(time.end), true)}`;
@@ -179,17 +196,29 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         ['minutes', 'm'],
         ['minute', 'm'],
         ['years', 'y'],
-        ['year', 'y']
+        ['year', 'y'],
       ];
       tims.forEach(item => {
         toTime = toTime.replace(item[0], item[1]);
       });
+      // 当修改维度信息时，调整入参
+      const changedDetails = this.backupDetails.filter(item => item.isModified);
+      if (changedDetails.length) {
+        (params.dimension_config as DimensionConfig).dimensions = changedDetails.reduce((pre, item) => {
+          if (item.isModified) {
+            pre[item.alertId.toString()] = item.dimension
+              .filter(dim => dim.key && (dim.display_value || dim.value))
+              .map(dim => dim.key);
+          }
+          return pre;
+        }, {});
+      }
       bulkAddAlertShield(params)
         .then(() => {
           this.handleSucces(true);
           this.handleTimeChange(toTime);
           this.handleShowChange(false);
-          this.$bkMessage({ theme: 'success', message: this.$t('恭喜，创建告警屏蔽成功') });
+          this.$bkMessage({ theme: 'success', message: this.$t('创建告警屏蔽成功') });
         })
         .finally(() => {
           this.loading = false;
@@ -229,22 +258,27 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
     window.open(url);
   }
 
-  getAuthority(): any {
-    const routeName = this.$route.name;
-    if (routeName === 'event-center') return this.authority;
-    if (routeName === 'event-center-detail') return this.authorityFromEventDetail;
-    return {};
+  // 删除维度信息
+  handleTagClose(detail: IDetail, index: number) {
+    detail.dimension.splice(index, 1);
+    detail.isModified = true;
   }
 
-  getHandleShowAuthorityDetail(action: any) {
-    const routeName = this.$route.name;
-    if (routeName === 'event-center') this.handleShowAuthorityDetail(action);
-    if (routeName === 'event-center-detail') this.handleShowAuthorityDetailFromEventDetail?.(action);
+  // 点击重置icon
+  handleReset(detailIndex: number) {
+    const resetDetail = structuredClone(this.details[detailIndex]);
+    this.backupDetails.splice(detailIndex, 1, {
+      ...resetDetail,
+      isModified: false,
+    });
   }
 
   getInfoCompnent() {
-    return this.details.map(detail => (
-      <div class='item-content'>
+    return this.backupDetails.map((detail, idx) => (
+      <div
+        key={idx}
+        class='item-content'
+      >
         {!!detail.strategy?.id && (
           <div class='column-item'>
             <div class='column-label'> {`${this.$t('策略名称')}：`} </div>
@@ -253,7 +287,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
               <i
                 class='icon-monitor icon-mc-wailian'
                 onClick={() => this.handleToStrategy(detail.strategy.id)}
-              ></i>
+              />
             </div>
           </div>
         )}
@@ -263,11 +297,32 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         </div>
         <div class='column-item'>
           <div class='column-label'> {`${this.$t('维度信息')}：`} </div>
-          <div class='column-content'>{detail.dimension}</div>
+          <div class='column-content'>
+            {detail.dimension?.map((dem, dimensionIndex) => (
+              <bk-tag
+                key={dem.key + dimensionIndex}
+                ext-cls='tag-theme'
+                type='stroke'
+                closable
+                on-close={() => this.handleTagClose(detail, dimensionIndex)}
+              >
+                {`${dem.display_key || dem.key}(${dem.display_value || dem.value})`}
+              </bk-tag>
+            )) || '--'}
+            {detail.isModified && (
+              <span
+                class='reset'
+                v-bk-tooltips={{ content: `${this.$t('重置')}` }}
+                onClick={() => this.handleReset(idx)}
+              >
+                <i class='icon-monitor icon-zhongzhi1' />
+              </span>
+            )}
+          </div>
         </div>
         <div
-          class='column-item'
           style='margin-bottom: 18px'
+          class='column-item'
         >
           <div class='column-label'> {`${this.$t('触发条件')}：`} </div>
           <div class='column-content'>{detail.trigger}</div>
@@ -294,27 +349,27 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
                 {this.timeList.map((item, index) => (
                   <bk-button
                     key={index}
-                    on-click={e => this.handleScopeChange(e, item.id)}
                     class={['width-item', { 'is-selected': this.timeValue === item.id }]}
+                    on-click={e => this.handleScopeChange(e, item.id)}
                   >
                     {item.name}
                   </bk-button>
                 ))}
                 {this.timeValue !== 0 ? (
                   <bk-button
-                    on-click={e => this.handleScopeChange(e, 0)}
                     class={['custom-width', { 'is-selected': this.timeValue === 0 }]}
+                    on-click={e => this.handleScopeChange(e, 0)}
                   >
                     {this.$t('button-自定义')}
                   </bk-button>
                 ) : (
                   <bk-date-picker
                     ref='time'
-                    type={'datetimerange'}
-                    placeholder={this.$t('选择日期时间范围')}
-                    options={this.options}
                     v-model={this.customTime}
-                  ></bk-date-picker>
+                    options={this.options}
+                    placeholder={this.$t('选择日期时间范围')}
+                    type={'datetimerange'}
+                  />
                 )}
               </div>
             </VerifyInput>
@@ -323,7 +378,7 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
         <div class='stratrgy-item m0'>
           <div class='item-label'> {this.$t('告警内容')} </div>
           <div class='item-tips'>
-            <i class='icon-monitor icon-hint'></i>{' '}
+            <i class='icon-monitor icon-hint' />{' '}
             {this.$t('屏蔽的是告警内容的这类事件，不仅仅当前的事件还包括后续屏蔽时间内产生的事件。')}{' '}
           </div>
           {this.getInfoCompnent()}
@@ -332,12 +387,12 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
           <div class='item-label'> {this.$t('屏蔽原因')} </div>
           <div class='item-desc'>
             <bk-input
-              type='textarea'
-              v-model={this.desc}
               width={625}
-              rows={3}
+              v-model={this.desc}
               maxlength={100}
-            ></bk-input>
+              rows={3}
+              type='textarea'
+            />
           </div>
         </div>
       </div>
@@ -347,25 +402,25 @@ export default class MyComponent extends tsc<IQuickShieldProps> {
   render() {
     return (
       <MonitorDialog
+        width={'804'}
         class='quick-shield-dialog'
+        header-position={'left'}
+        title={this.$t('快捷屏蔽告警')}
         value={this.show}
         on-change={this.handleShowChange}
-        title={this.$t('快捷屏蔽告警')}
-        header-position={'left'}
-        width={'804'}
       >
         {this.getContentComponent()}
         <template slot='footer'>
           <bk-button
-            on-click={() =>
-              this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH
-                ? this.handleSubmit()
-                : this.getHandleShowAuthorityDetail(this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH)
-            }
-            theme='primary'
             style='margin-right: 10px'
+            v-authority={{ active: !this.authority?.ALARM_SHIELD_MANAGE_AUTH }}
             disabled={this.loading}
-            v-authority={{ active: !this.getAuthority()?.ALARM_SHIELD_MANAGE_AUTH }}
+            theme='primary'
+            on-click={() =>
+              this.authority?.ALARM_SHIELD_MANAGE_AUTH
+                ? this.handleSubmit()
+                : this.handleShowAuthorityDetail?.(this.authority?.ALARM_SHIELD_MANAGE_AUTH)
+            }
           >
             {this.$t('确定')}
           </bk-button>

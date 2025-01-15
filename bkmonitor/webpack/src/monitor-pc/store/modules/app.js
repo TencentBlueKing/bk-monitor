@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
+
+import { LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY, docCookies } from 'monitor-common/utils';
 
 export const SET_TITLE = 'SET_TITLE';
 export const SET_BACK = 'SET_BACK';
@@ -38,13 +39,14 @@ export const SET_MESSAGE_QUEUE = 'SET_MESSAGE_QUEUE';
 export const SET_LOGIN_URL = 'SET_LOGIN_URL';
 export const SET_FULL_SCREEN = 'SET_FULL_SCREEN';
 // 路由切换时需获取权限中心权限 这里有一段loading
-export const SET_ROUTE_CHANGE_LOADNG = 'SET_ROUTE_CHANGE_LOADNG';
+export const SET_ROUTE_CHANGE_LOADING = 'SET_ROUTE_CHANGE_LOADING';
 // 路由面包屑数据
 export const SET_NAV_ROUTE_LIST = 'SET_NAV_ROUTE_LIST';
 // 设置 biz bg color
 export const SET_BIZ_BGCOLOR = 'SET_BIZ_BGCOLOR';
 // 切换业务id全局标识
 export const SET_BIZ_CHANGE_PEDDING = 'SET_BIZ_CHANGE_PEDDING';
+export const SET_PADDING_ROUTE = 'SET_PADDING_ROUTE';
 
 const state = {
   title: '',
@@ -76,10 +78,18 @@ const state = {
   bizBgColor: '', // 业务颜色
   navRouteList: [], // 路由面包屑数据,
   lang: docCookies.getItem(LANGUAGE_COOKIE_KEY) || 'zh-cn',
-  bizIdChangePedding: '' // 业务id是否切换
+  bizIdChangePedding: '', // 业务id是否切换
+  spaceUidMap: new Map(),
+  bizIdMap: new Map(),
+  paddingRoute: null,
+  k8sV2EnableList: [],
+  defaultBizId: '',
 };
 
 const mutations = {
+  [SET_PADDING_ROUTE](state, route) {
+    state.paddingRoute = route;
+  },
   [SET_TITLE](state, title) {
     state.title = title;
   },
@@ -98,9 +108,9 @@ const mutations = {
     !isDemo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${id}`);
   },
   [SET_APP_STATE](state, data) {
-    Object.keys(data).forEach(key => {
+    for (const [key, value] of Object.entries(data)) {
       if (key === 'bizList') {
-        state[key] = data[key].map(item => {
+        state[key] = value.map(item => {
           const pinyinStr = Vue.prototype.$bkToPinyin(item.space_name, true, ',') || '';
           const pyText = pinyinStr.replace(/,/g, '');
           const pyfText = pinyinStr
@@ -110,29 +120,15 @@ const mutations = {
           return {
             ...item,
             py_text: pyText,
-            pyf_text: pyfText
+            pyf_text: pyfText,
           };
         });
-        return;
+        state.spaceUidMap = new Map(state.bizList.map(item => [item.space_uid, item]));
+        state.bizIdMap = new Map(state.bizList.map(item => [item.bk_biz_id, item]));
+        continue;
       }
-      state[key] = data[key];
-    });
-    // state.userName = data.userName;
-    // state.bizId = data.bizId;
-    // state.isSuperUser = data.isSuperUser;
-    // // eslint-disable-next-line max-len
-    // state.bizList = data.bizList.map(item => ({ ...item, py_text: Vue.prototype.$bkToPinyin(item.space_name, true) }));
-    // state.siteUrl = data.siteUrl;
-    // state.bkPaasHost = data.bkPaasHost;
-    // state.maxAvailableDurationLimit = data.maxAvailableDurationLimit;
-    // state.cmdbUrl = data.cmdbUrl;
-    // state.bkLogSearchUrl = data.bkLogSearchUrl;
-    // state.bkUrl = data.bkUrl;
-    // state.bkNodemanHost = data.bkNodemanHost;
-    // state.collectingConfigFileMaxSize = data.collectingConfigFileMaxSize;
-    // state.enable_cmdb_level = data.enable_cmdb_level;
-    // state.jobUrl = data.jobUrl;
-    // state.bkBcsUrl = data.bkBcsUrl;
+      state[key] = value;
+    }
   },
   [SET_NAV_ID](state, id) {
     state.navId = id;
@@ -146,7 +142,7 @@ const mutations = {
   [SET_LOGIN_URL](state, url) {
     state.loginUrl = url;
   },
-  [SET_ROUTE_CHANGE_LOADNG](state, val) {
+  [SET_ROUTE_CHANGE_LOADING](state, val) {
     state.routeChangeLoading = val;
   },
   [SET_NAV_ROUTE_LIST](state, list) {
@@ -190,11 +186,11 @@ const mutations = {
     } else {
       handleReload();
     }
-  }
+  },
 };
 
 export default {
   namespaced: true,
   state,
-  mutations
+  mutations,
 };

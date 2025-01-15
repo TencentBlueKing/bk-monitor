@@ -23,13 +23,13 @@ class ITSMBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     base_url = os.path.join(settings.BK_COMPONENT_API_URL, "api/c/compapi/v2/itsm/")
     module_name = "itsm"
 
-    def perform_request(self, params):
+    def full_request_data(self, validated_request_data):
         try:
-            params["_origin_user"] = get_request().user.username
-        except Exception:
+            validated_request_data["_origin_user"] = get_request().user.username
+        except Exception:  # pylint: disable=broad-except
             pass
         self.bk_username = settings.COMMON_USERNAME
-        return super(ITSMBaseResource, self).perform_request(params)
+        return super(ITSMBaseResource, self).full_request_data(validated_request_data)
 
 
 class MetaSerializer(serializers.Serializer):
@@ -69,13 +69,14 @@ class TicketRevokeResource(ITSMBaseResource):
         operator = serializers.CharField(label="撤单人", required=True)
         action_message = serializers.CharField(label="撤单消息", required=False, default="撤销单据")
 
-    def perform_request(self, params):
-        params.update(
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super(TicketRevokeResource, self).full_request_data(validated_request_data)
+        validated_request_data.update(
             {
                 "action_type": "WITHDRAW",
             }
         )
-        return super(TicketRevokeResource, self).perform_request(params)
+        return validated_request_data
 
 
 class TokenVerifyResource(ITSMBaseResource):

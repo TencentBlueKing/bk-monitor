@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -32,18 +31,18 @@ import {
   listEvent,
   listEventLog,
   listSearchItem,
-  stackedChart
+  stackedChart,
 } from 'monitor-api/modules/alert_events';
 import { transformDataKey } from 'monitor-common/utils/utils';
 
 export const SET_SEARCH_LIST = 'SET_SEARCH_LIST';
 const state = {
-  searchList: []
+  searchList: [],
 };
 const mutations = {
   [SET_SEARCH_LIST](state, data) {
     state.searchList = data;
-  }
+  },
 };
 
 const actions = {
@@ -61,14 +60,14 @@ const actions = {
   async getEventList({ rootGetters }, params) {
     const list = await listEvent(params).catch(() => ({
       event_list: [],
-      statistics_data: {}
+      statistics_data: {},
     }));
     if (params.export) return list;
     const tagData = {
       anomalyCount: list.statistics_data?.abnormal_count || 0,
       shieldAnomalyCount: list.statistics_data?.shield_abnormal_count || 0,
       total: list.statistics_data?.total || 0,
-      allCount: list.statistics_data?.all_count || 0
+      allCount: list.statistics_data?.all_count || 0,
     };
     const eventList = list.event_list?.map(item => {
       const bizItem = rootGetters.bizList.find(set => `${set.id}` === `${item.bk_biz_id}`) || {};
@@ -89,12 +88,12 @@ const actions = {
         level: item.level,
         collapse: false,
         isShielded: item.is_shielded,
-        shieldType: item.shield_type
+        shieldType: item.shield_type,
       };
     });
     return {
       tagData,
-      eventList
+      eventList,
     };
   },
   // async getEventDetailData(store, params) {
@@ -164,13 +163,13 @@ const actions = {
       item.expandTime = '';
     });
     return transformDataKey(data);
-  }
+  },
 };
 
 const getters = {
   searchList(state) {
     return state.searchList;
-  }
+  },
 };
 
 export default {
@@ -178,5 +177,5 @@ export default {
   state,
   actions,
   mutations,
-  getters
+  getters,
 };

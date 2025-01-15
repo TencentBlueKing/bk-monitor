@@ -24,12 +24,10 @@
 * IN THE SOFTWARE.
 -->
 <template>
-  <div
-    class="plugin-instance-wrapper"
-  >
+  <div class="plugin-instance-wrapper">
     <div
-      class="plugin-message"
       v-show="message && left.step === 0 && pluginInfo.type === 'edit'"
+      class="plugin-message"
     >
       <span class="mo-icon-cc-attribute" />
       <div class="text">
@@ -43,8 +41,8 @@
             v-for="(item, index) in left.stepsMap"
             :key="index"
             class="step-list-item bk-icon"
-            @click="item.done && handleSetStep(index)"
             :class="['step-list-item-' + (index + 1), { 'is-current': left.step === index, 'is-ok': item.done }]"
+            @click="item.done && handleSetStep(index)"
           >
             <div
               class="step-list-item-content"
@@ -56,13 +54,13 @@
         </ul>
       </div>
       <div
-        class="plugin-instance-contaner"
         ref="pluginContaner"
+        class="plugin-instance-contaner"
       >
         <keep-alive>
           <component
-            :show.sync="showView"
             :is="curStep.component"
+            :show.sync="showView"
             :data.sync="pluginInfo"
             :from-route="fromRouteName"
           />
@@ -78,7 +76,6 @@ import { createNamespacedHelpers } from 'vuex';
 import authorityMixinCreate from '../../../mixins/authorityMixin';
 import { SET_PLUGIN_CONFIG } from '../../../store/modules/plugin-manager';
 import * as pluginManageAuth from '../authority-map';
-
 import StepSetDone from './set-steps/step-set-done.vue';
 import StepSetPlugin from './set-steps/step-set-plugin.vue';
 import StepSetTest from './set-steps/step-set-test.vue';
@@ -90,20 +87,39 @@ export default {
   components: {
     StepSetDone,
     StepSetPlugin,
-    StepSetTest
+    StepSetTest,
   },
   provide() {
     return {
       authority: this.authority,
       handleShowAuthorityDetail: this.handleShowAuthorityDetail,
-      pluginManageAuth
+      pluginManageAuth,
     };
   },
   mixins: [authorityMixinCreate(pluginManageAuth)],
+  beforeRouteEnter(to, from, next) {
+    next(vm => {
+      // 缓存上一页过来的路由名字
+      vm.fromRouteName = from.name;
+    });
+  },
+  async beforeRouteLeave(to, from, next) {
+    if (
+      to.name !== 'plugin-add' &&
+      to.name !== 'plugin-edit' &&
+      this.left.step < 2 &&
+      this.$store.getters.bizIdChangePedding !== to.name
+    ) {
+      const needNext = await this.handleCancel(false);
+      next(needNext);
+    } else {
+      next();
+    }
+  },
   props: {
     show: {
-      type: Boolean
-    }
+      type: Boolean,
+    },
   },
   data() {
     return {
@@ -115,30 +131,30 @@ export default {
           {
             name: this.$t('定义插件'),
             done: false,
-            component: 'step-set-plugin'
+            component: 'step-set-plugin',
           },
           {
             name: this.$t('插件调试'),
             done: false,
-            component: 'step-set-test'
+            component: 'step-set-test',
           },
           {
             name: this.$t('完成'),
             done: false,
-            component: 'step-set-done'
-          }
+            component: 'step-set-done',
+          },
         ],
-        step: 0
+        step: 0,
       },
       message: '',
       showView: false,
-      right: {}
+      right: {},
     };
   },
   computed: {
     curStep() {
       return this.left.stepsMap[this.left.step];
-    }
+    },
   },
   created() {
     const { pluginId } = this.$route.params;
@@ -154,7 +170,7 @@ export default {
       isEdit: this.$route.name !== 'plugin-add',
       pluginId,
       type: this.$route.name === 'plugin-add' ? 'create' : 'edit',
-      pluginData: params.pluginData
+      pluginData: params.pluginData,
     };
     if (this.pluginInfo.type === 'create' && (pluginId || this.pluginInfo.pluginData)) {
       this.pluginInfo.type = 'import';
@@ -172,20 +188,6 @@ export default {
     this.$bus.$on('resetscroll', this.handleScroll);
     this[SET_PLUGIN_CONFIG](null);
   },
-  beforeRouteEnter(to, from, next) {
-    next((vm) => {
-      // 缓存上一页过来的路由名字
-      vm.fromRouteName = from.name;
-    });
-  },
-  async beforeRouteLeave(to, from, next) {
-    if (to.name !== 'plugin-add' && to.name !== 'plugin-edit' && this.left.step < 2 && this.$store.getters.bizIdChangePedding !== to.name) {
-      const needNext = await this.handleCancel(false);
-      next(needNext);
-    } else {
-      next();
-    }
-  },
   methods: {
     ...mapMutations([SET_PLUGIN_CONFIG]),
     handleNextStep() {
@@ -197,14 +199,14 @@ export default {
     },
     // 点击取消
     handleCancel(needBack = true) {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         this.$bkInfo({
           title: this.$t('是否放弃本次操作？'),
           confirmFn: () => {
             needBack && this.$router.back();
             resolve(true);
           },
-          cancelFn: () => resolve(false)
+          cancelFn: () => resolve(false),
         });
       });
     },
@@ -224,8 +226,8 @@ export default {
       if (this.$refs.pluginContaner) {
         this.$refs.pluginContaner.scrollTop = 0;
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
@@ -261,7 +263,7 @@ export default {
     min-height: calc(100vh - 100px);
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, .05);
+    box-shadow: 0px 2px 4px 0px rgba(25, 25, 41, 0.05);
 
     @include border-1px();
 

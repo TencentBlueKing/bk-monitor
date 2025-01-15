@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { DecimalCount } from '../types/displayValue';
+import { type FormattedValue, toFixed } from './valueFormats';
 
-import { FormattedValue, toFixed } from './valueFormats';
+import type { DecimalCount } from '../types/displayValue';
 
 export function toPercent(size: number, decimals?: DecimalCount): FormattedValue {
   if (size === null) {
     return { text: '' };
   }
-  return { text: toFixed(size, decimals < 3 ? decimals : 2), suffix: '%' };
+  return { text: toFixed(size, decimals < 7 ? decimals : 2), suffix: '%' };
 }
 
 export function toPercentUnit(size: number, decimals?: DecimalCount): FormattedValue {
@@ -39,7 +39,7 @@ export function toPercentUnit(size: number, decimals?: DecimalCount): FormattedV
     return { text: '' };
   }
 
-  return { text: toFixed(100 * size, decimals < 3 ? decimals : 2), suffix: '%' };
+  return { text: toFixed(100 * size, decimals < 7 ? decimals : 2), suffix: '%' };
 }
 
 export function toHex0x(value: number, decimals: DecimalCount = 2): FormattedValue {
@@ -60,7 +60,7 @@ export function toHex(value: number, decimals: DecimalCount = 2): FormattedValue
     return { text: '' };
   }
   return {
-    text: parseFloat(toFixed(value, decimals)).toString(16).toUpperCase()
+    text: Number.parseFloat(toFixed(value, decimals)).toString(16).toUpperCase(),
   };
 }
 

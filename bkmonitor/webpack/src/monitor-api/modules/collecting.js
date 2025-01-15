@@ -6,6 +6,7 @@ export const toggleCollectConfigStatus = request('POST', 'rest/v2/collecting_con
 export const deleteCollectConfig = request('POST', 'rest/v2/collecting_config/delete/');
 export const cloneCollectConfig = request('POST', 'rest/v2/collecting_config/clone/');
 export const retryTargetNodes = request('POST', 'rest/v2/collecting_config/retry/');
+export const runCollectConfig = request('POST', 'rest/v2/collecting_config/run/');
 export const revokeTargetNodes = request('POST', 'rest/v2/collecting_config/revoke/');
 export const batchRevokeTargetNodes = request('POST', 'rest/v2/collecting_config/batch_revoke/');
 export const batchRetryConfig = request('POST', 'rest/v2/collecting_config/batch_retry/');
@@ -14,15 +15,14 @@ export const upgradeCollectPlugin = request('POST', 'rest/v2/collecting_config/u
 export const rollbackDeploymentConfig = request('POST', 'rest/v2/collecting_config/rollback/');
 export const frontendTargetStatusTopo = request('POST', 'rest/v2/collecting_config/target_status_topo/');
 export const frontendCollectConfigDetail = request('GET', 'rest/v2/collecting_config/frontend_config_detail/');
+export const frontendCollectConfigTargetInfo = request('GET', 'rest/v2/collecting_config/frontend_target_info/');
 export const collectInstanceStatus = request('GET', 'rest/v2/collecting_config/collect_instance_status/');
 export const collectTargetStatus = request('GET', 'rest/v2/collecting_config/status/');
-export const collectNodeStatus = request('GET', 'rest/v2/collecting_config/node_status/');
 export const getMetrics = request('GET', 'rest/v2/collecting_config/metrics/');
 export const renameCollectConfig = request('POST', 'rest/v2/collecting_config/rename/');
 export const deploymentConfigDiff = request('GET', 'rest/v2/collecting_config/deployment_diff/');
 export const collectRunningStatus = request('GET', 'rest/v2/collecting_config/running_status/');
 export const getCollectLogDetail = request('GET', 'rest/v2/collecting_config/get_collect_log_detail/');
-export const updateConfigInstanceCount = request('GET', 'rest/v2/collecting_config/update_config_instance_count/');
 export const getCollectVariables = request('GET', 'rest/v2/collecting_config/get_collect_variables/');
 export const batchRetry = request('POST', 'rest/v2/collecting_config/batch_retry_detailed/');
 export const listLegacySubscription = request('GET', 'rest/v2/collecting_config/list_legacy_subscription/');
@@ -41,6 +41,7 @@ export default {
   deleteCollectConfig,
   cloneCollectConfig,
   retryTargetNodes,
+  runCollectConfig,
   revokeTargetNodes,
   batchRevokeTargetNodes,
   batchRetryConfig,
@@ -49,15 +50,14 @@ export default {
   rollbackDeploymentConfig,
   frontendTargetStatusTopo,
   frontendCollectConfigDetail,
+  frontendCollectConfigTargetInfo,
   collectInstanceStatus,
   collectTargetStatus,
-  collectNodeStatus,
   getMetrics,
   renameCollectConfig,
   deploymentConfigDiff,
   collectRunningStatus,
   getCollectLogDetail,
-  updateConfigInstanceCount,
   getCollectVariables,
   batchRetry,
   listLegacySubscription,
@@ -67,5 +67,5 @@ export default {
   isTaskReady,
   checkAdjectiveCollect,
   fetchCollectConfigStat,
-  checkPluginVersion
+  checkPluginVersion,
 };

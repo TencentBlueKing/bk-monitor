@@ -66,6 +66,7 @@ export interface IAppItem {
   application_id: number;
   app_alias: string;
   app_name: string;
+  is_enabled_profiling?: boolean;
 }
 export type SearchType = 'accurate' | 'scope';
 
@@ -75,8 +76,8 @@ export interface ISearchTypeItem {
 }
 
 export interface IFavoriteItem {
-  id: String | number;
-  name: String;
+  id: number | string;
+  name: string;
   config: any;
 }
 

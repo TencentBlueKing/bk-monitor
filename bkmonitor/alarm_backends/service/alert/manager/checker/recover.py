@@ -14,7 +14,7 @@ import logging
 import time
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from six.moves import range
 
 from alarm_backends.constants import CONST_MINUTES
@@ -31,6 +31,7 @@ from alarm_backends.core.detect_result import ANOMALY_LABEL
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
 from bkmonitor.data_source import CustomEventDataSource
 from bkmonitor.documents import AlertLog
+from bkmonitor.models import AlgorithmModel
 from constants.alert import EventStatus
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.unit import load_unit
@@ -90,6 +91,15 @@ class RecoverStatusChecker(BaseChecker):
         self.recover(alert, _("当前维度检测到新的上报数据，无数据告警已恢复"))
         return True
 
+    def recover_by_nodata(self, alert, status_setter):
+        self.recover(alert, _("在恢复检测周期内无数据上报，告警已{handle}"), status_setter=status_setter)
+        check_result = ("do_close" if status_setter == "close" else "do_recover",)
+        logger.info(
+            "[recover 处理结果] ({}) alert({}), strategy({}) 在恢复检测周期内无数据上报，进行事件{}".format(
+                check_result, alert.id, alert.strategy_id, _("关闭") if status_setter == "close" else _("恢复")
+            )
+        )
+
     def check_trigger_result(self, alert, strategy):
         """
         检测触发结果是否满足条件
@@ -110,11 +120,18 @@ class RecoverStatusChecker(BaseChecker):
         is_time_series = query_config["data_type_label"] in (DataTypeLabel.TIME_SERIES, DataTypeLabel.LOG)
 
         window_unit = Strategy.get_check_window_unit(item, self.DEFAULT_CHECK_WINDOW_UNIT)
-
+        recovery_with_nodata = False
         try:
-            recovery_configs = Strategy.get_recovery_configs(strategy)[str(alert.event_severity)]
+            if self.check_is_multi_indicator_strategy(item):
+                recovery_configs = list(Strategy.get_recovery_configs(strategy).values())[0]
+            else:
+                recovery_configs = Strategy.get_recovery_configs(strategy)[str(alert.event_severity)]
             recovery_window_size = recovery_configs["check_window_size"]
             status_setter = recovery_configs["status_setter"]
+            # 新增无数据恢复配置: "recovery-nodata"
+            if "-" in status_setter:
+                status_setter, case = status_setter.split("-")
+                recovery_with_nodata = case == "nodata"
         except (ValueError, TypeError, IndexError, KeyError):
             logger.error(
                 f"event{alert.id} has no status_setter in recovery_configs.\n" f"origin strategy is {strategy}"
@@ -125,7 +142,10 @@ class RecoverStatusChecker(BaseChecker):
         recovery_window_offset = window_unit * recovery_window_size
 
         try:
-            trigger_config = Strategy.get_trigger_configs(strategy)[str(alert.event_severity)]
+            if self.check_is_multi_indicator_strategy(item):
+                trigger_config = list(Strategy.get_trigger_configs(strategy).values())[0]
+            else:
+                trigger_config = Strategy.get_trigger_configs(strategy)[str(alert.event_severity)]
             trigger_window_size = trigger_config["check_window_size"]
             trigger_count = trigger_config["trigger_count"]
         except (ValueError, TypeError, IndexError, KeyError):
@@ -142,8 +162,10 @@ class RecoverStatusChecker(BaseChecker):
         now_ts = int(time.time())
 
         if is_event_type:
-            # 如果是事件类型告警，因为周期较长的数据点检测时间向前对齐，所以需要使用当前时间减去一个周期窗口去判断， 避免提前恢复
-            last_check_timestamp = now_ts - window_unit
+            last_check_timestamp = now_ts
+            # 如果是自定义事件类型告警，因为周期较长的数据点检测时间向前对齐，所以需要使用当前时间减去一个周期窗口去判断， 避免提前恢复
+            if query_config["data_source_label"] != DataSourceLabel.BK_MONITOR_COLLECTOR:
+                last_check_timestamp -= window_unit
         else:
             # 如果是时序或日志类型告警，则使用最后一次上报时间判断
             last_check_timestamp = LAST_CHECKPOINTS_CACHE_KEY.client.hget(
@@ -159,13 +181,17 @@ class RecoverStatusChecker(BaseChecker):
 
             if not last_check_timestamp:
                 # key 已经过期，超时恢复
-                self.recover(alert, _("在恢复检测周期内无数据上报，告警已{handle}"), status_setter=status_setter)
-                logger.info(
-                    "[处理结果] (no_data) alert({}), strategy({}) 在恢复检测周期内无数据上报，进行事件{}".format(
-                        alert.id, alert.strategy_id, _("关闭") if status_setter == "close" else _("恢复")
-                    )
-                )
+                self.recover_by_nodata(alert, status_setter)
                 return True
+
+            last_check_timestamp = int(last_check_timestamp)
+            if recovery_with_nodata:
+                # 配置了无数据恢复， 则判断当前无数据时长是否符合恢复窗口
+                if now_ts > last_check_timestamp + recovery_window_offset + trigger_window_offset + window_unit:
+                    # 超过恢复+触发窗口，无数据，进行恢复/关闭
+                    # key 已经过期，超时恢复
+                    self.recover_by_nodata(alert, status_setter)
+                    return True
 
             # 无数据判定的最大周期通过对比告警触发周期和最大无数据容忍周期，默认取最大周期
             nodata_tolerance_size = max(trigger_window_size, settings.EVENT_NO_DATA_TOLERANCE_WINDOW_SIZE)
@@ -174,7 +200,7 @@ class RecoverStatusChecker(BaseChecker):
             nodata_tolerance_time = max(nodata_tolerance_size * window_unit, 30 * CONST_MINUTES)
 
             last_check_timestamp = max(
-                int(last_check_timestamp),
+                last_check_timestamp,
                 now_ts - nodata_tolerance_time,
             )
 
@@ -195,9 +221,10 @@ class RecoverStatusChecker(BaseChecker):
                 _("连续 {} 个周期不满足触发条件，告警已{{handle}}").format(recovery_window_size),
                 status_setter=status_setter,
                 latest_normal_record=latest_normal_record,
+                strategy_item=item,
             )
             logger.info(
-                "[处理结果] ({}) alert({}), strategy({}) 连续 {} 个周期内不满足触发条件，进行事件{}".format(
+                "[{}] alert({}), strategy({}) 连续 {} 个周期内不满足触发条件，进行事件{}".format(
                     "do_close" if status_setter == "close" else "do_recover",
                     alert.id,
                     alert.strategy_id,
@@ -207,9 +234,7 @@ class RecoverStatusChecker(BaseChecker):
             )
             return True
 
-        logger.info(
-            "[处理结果] (no_recover) alert({}), strategy({}) 在恢复检测周期内仍满足触发条件，不进行恢复".format(alert.id, alert.strategy_id)
-        )
+        logger.info("[no_recover] alert({}), strategy({}) 在恢复检测周期内仍满足触发条件，不进行恢复".format(alert.id, alert.strategy_id))
         return False
 
     def check_custom_event_recovery(self, alert: Alert, strategy):
@@ -274,7 +299,7 @@ class RecoverStatusChecker(BaseChecker):
 
         # 时序型无数据走关闭逻辑
         if not check_results and is_time_series:
-            logger.info("ignore recover process for alert(%s) because of no data", alert.id)
+            logger.info("[ignore recover] alert(%s) strategy(%s) no check result", alert.id, alert.strategy_id)
             return False, latest_normal_record
 
         # 取出包含异常数的个数，并排序
@@ -287,31 +312,16 @@ class RecoverStatusChecker(BaseChecker):
                 # 如果是异常的数据结构，记录异常之后直接做下一个数据的检测
                 anomaly_timestamps.append(int(score))
                 continue
-            try:
-                score, normal_value = label.split("|")
-            except Exception as error:
-                # 如果缓存数据结构不正确导致无法解析，直接做下一个数据的检测
-                logger.exception(
-                    "latest datapoint label(%s) of alert(%s) translate error %s",
-                    label,
-                    alert.id,
-                    str(error),
-                )
-                continue
+            score, normal_value = label.split("|")
             try:
                 # 对获取的数据点进行格式化，int > float > error
                 normal_value = int(normal_value)
             except ValueError:
                 try:
                     normal_value = float(normal_value)
-                except ValueError as error:
-                    # 当前数据非整形或者浮点型的情况，可能有异常，打个异常日志
-                    logger.info(
-                        "latest datapoint value(%s) of alert(%s) is not standard  %s",
-                        normal_value,
-                        alert.id,
-                        str(error),
-                    )
+                except ValueError:
+                    # 当前数据非整形或者浮点型的情况，可能有异常，用于后续流水日志，不影响大局
+                    pass
             if int(score) > latest_normal_record[0]:
                 # 记录时间戳最新的一个为最近正常数据点
                 latest_normal_record = (int(score), normal_value)
@@ -335,19 +345,25 @@ class RecoverStatusChecker(BaseChecker):
 
             if anomaly_count >= trigger_count:
                 # 当某个窗口的异常数量大于等于触发个数，即满足了触发条件，不恢复
-                if i == 0 and alert.get_extra_info("is_recovering"):
-                    # 如果当前是最近一次窗口有异常，表示不在恢复期间内
-                    logger.info("alert(%s) recover aborted because new abnormal data point", alert.id)
+                if i == 0 and alert.is_recovering():
+                    # 日志不国际化
+                    logger.info(
+                        "[recover aborted] alert(%s) strategy(%s) 最近一个检测周期内仍满足触发条件，告警处理抑制解除",
+                        alert.id,
+                        alert.strategy_id,
+                    )
                     alert.update_extra_info("is_recovering", False)
                     if alert.get_extra_info("ignore_unshield_notice"):
-                        # 如果屏蔽期间忽略过告警，在后面检测又出现异常的情况下, 需要重新发出，保证告警不丢失
-                        alert.update_extra_info("ignore_unshield_notice", False)
+                        # 如果恢复周期内抑制了 解除屏蔽告警，解除抑制后, 需要重新发出，保证告警不丢失
+                        # 这里删除抑制标记， 并重新设置 发送屏蔽告警 标记
+                        alert.extra_info.pop("ignore_unshield_notice", False)
                         alert.update_extra_info("need_unshield_notice", True)
                     alert.add_log(AlertLog.OpType.ABORT_RECOVER, description=_("最近一个检测周期内仍满足触发条件，告警处理抑制解除"))
                 return False, latest_normal_record
-            if i == 0 and not alert.get_extra_info("is_recovering"):
-                # 如果当前是最近一次窗口并且没有异常，表示正在恢复周期内
-                logger.info("alert(%s) is recovering", alert.id)
+            if i == 0 and not alert.is_recovering():
+                # 最近一次检测窗口没有异常，表示正在恢复周期内
+                logger.info("[start recovering] alert(%s) strategy(%s)", alert.id, alert.strategy_id)
+                # is_recovering 表示当前未恢复的告警开启恢复周期
                 alert.update_extra_info("is_recovering", True)
                 alert.add_log(AlertLog.OpType.RECOVERING, description=_("最近一个检测周期内不满足触发条件，当前告警处于恢复期内，告警异常时的处理将被抑制"))
 
@@ -357,7 +373,14 @@ class RecoverStatusChecker(BaseChecker):
         return True, latest_normal_record
 
     @classmethod
-    def recover(cls, alert, description, status_setter="recovery", latest_normal_record: tuple = None):
+    def recover(
+        cls,
+        alert,
+        description,
+        status_setter="recovery",
+        latest_normal_record: tuple = None,
+        strategy_item: dict = None,
+    ):
         """
         事件恢复
         """
@@ -372,7 +395,8 @@ class RecoverStatusChecker(BaseChecker):
         description = description.format(handle=handle)
         if latest_normal_record:
             record_value_display = cls.get_value_display(alert, latest_normal_record[1])
-            if record_value_display is not None:
+            # 如果是AIOPS多指标的智能异常检测，则不展示当前值(is_anomaly)，后续考虑从接口获取当前恢复时所以监控的多个指标的值
+            if record_value_display and not (strategy_item and cls.check_is_multi_indicator_strategy(strategy_item)):
                 description = _("{description}，当前值为{record_value_display}").format(
                     description=description, record_value_display=record_value_display
                 )
@@ -389,6 +413,20 @@ class RecoverStatusChecker(BaseChecker):
             unit = load_unit(strategy.items[0].unit)
             value, suffix = unit.fn.auto_convert(value, decimal=settings.POINT_PRECISION)
             return "{}{}".format(value, suffix)
-        except Exception as error:
-            logger.info("load value unit for alert(%s) failed %s, current value(%s)", alert.id, str(error), value)
+        except Exception:
             return value
+
+    @classmethod
+    def check_is_multi_indicator_strategy(cls, strategy_item) -> bool:
+        """检查策略是否包含动态告警级别.
+
+        :param strategy_item: 策略配置
+        :return: 是否包含动态告警级别
+        """
+        if (
+            len(strategy_item["algorithms"]) > 0
+            and strategy_item["algorithms"][0]["type"] == AlgorithmModel.AlgorithmChoices.HostAnomalyDetection
+        ):
+            return True
+
+        return False

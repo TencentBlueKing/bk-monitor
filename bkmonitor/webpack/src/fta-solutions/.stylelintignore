@@ -1,7 +1,0 @@
-*.min.css
-
-*.js
-*.jpg
-*.woff
-
-node_modules

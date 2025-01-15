@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("bk_biz_id", models.IntegerField(db_index=True, verbose_name="业务id")),
                 ("app_name", models.CharField(db_index=True, max_length=255, verbose_name="应用名称")),
-                ("name", models.CharField(db_index=True, max_length=528, verbose_name="服务名称")),
+                ("name", models.CharField(db_index=True, max_length=512, verbose_name="服务名称")),
                 ("period", models.CharField(max_length=128, null=True, verbose_name="采样周期")),
                 ("period_type", models.CharField(max_length=128, null=True, verbose_name="周期类型")),
                 ("frequency", models.DecimalField(decimal_places=2, max_digits=10, null=True, verbose_name="采样频率")),

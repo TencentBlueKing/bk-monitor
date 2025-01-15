@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import time
 from collections import defaultdict
 
 from django.conf import settings
@@ -17,8 +18,10 @@ from django.conf import settings
 from alarm_backends.management.hashring import HashRing
 from bkmonitor.commons.tools import is_ipv6_biz
 from core.drf_resource import api
+from core.prometheus import metrics
 from metadata.models.custom_report.subscription_config import get_proxy_host_ids
 from metadata.models.ping_server import PingServerSubscriptionConfig
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 
 logger = logging.getLogger("metadata")
 
@@ -27,9 +30,27 @@ def refresh_ping_server_2_node_man():
     """
     刷新Ping Server配置至节点管理，下发ip列表到proxy机器
     """
+
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_ping_server_2_node_man", status=TASK_STARTED, process_target=None
+    ).inc()
     # 兼容下发proxy
+    start_time = time.time()
+    logger.info("start refresh ping server to node man")
     refresh_ping_conf("bkmonitorproxy")
     refresh_ping_conf("bk-collector")
+    cost_time = time.time() - start_time
+
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="refresh_ping_server_2_node_man", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    # 统计耗时，上报指标
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(
+        task_name="refresh_ping_server_2_node_man", process_target=None
+    ).observe(cost_time)
+    metrics.report_all()
+    logger.info("end refresh ping server to node man, cost time: %s" % cost_time)
 
 
 def refresh_ping_conf(plugin_name="bkmonitorproxy"):
@@ -41,6 +62,12 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
     3. 根据Hash环，将同一云区域下的ip分配到不同的Proxy
     4. 通过节点管理订阅任务将分配好的ip下发到机器
     """
+    if not settings.ENABLE_PING_ALARM:
+        cloud_areas = api.cmdb.search_cloud_area()
+        for cloud_area in cloud_areas:
+            PingServerSubscriptionConfig.create_subscription(cloud_area["bk_cloud_id"], {}, [], plugin_name)
+        return
+
     # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
     from alarm_backends.core.cache.cmdb.host import HostManager
 
@@ -51,14 +78,18 @@ def refresh_ping_conf(plugin_name="bkmonitorproxy"):
         logger.exception("CMDB的主机缓存获取失败。获取不到主机，有可能会导致pingserver不执行")
         return
 
+    exists_host_ids = set()
     cloud_to_hosts = defaultdict(list)
     for h in all_hosts:
         ip = h.bk_host_innerip_v6 if is_ipv6_biz(h.bk_biz_id) else h.bk_host_innerip
-        if h.ignore_monitoring or not ip:
+        if h.ignore_monitoring or not ip or h.bk_host_id in exists_host_ids:
             continue
         cloud_to_hosts[h.bk_cloud_id].append(
             {"ip": ip, "bk_cloud_id": h.bk_cloud_id, "bk_biz_id": h.bk_biz_id, "bk_host_id": h.bk_host_id}
         )
+        exists_host_ids.add(h.bk_host_id)
+
+    del all_hosts
 
     # 2. 获取云区域下的所有ProxyIP
     for bk_cloud_id, target_ips in cloud_to_hosts.items():
