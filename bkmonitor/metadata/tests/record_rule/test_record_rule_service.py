@@ -52,7 +52,7 @@ def test_create_record_rule(create_or_delete_records, mocker):
 
     rule_ins = RecordRule.objects.get(table_id=table_id)
     assert rule_ins.count_freq == 30
-    assert rule_ins.dst_vm_table_id == '2_bkm_bkprecal_bkcc_2_unify_query_ts_1853e'
+    assert rule_ins.dst_vm_table_id == '2_vm_cc_2_unify_query_tsdb_test_new_prom_node'
     rt = models.ResultTable.objects.get(table_id=table_id)
     assert rt.bk_biz_id == 2
 
@@ -96,4 +96,4 @@ def test_create_record_rule(create_or_delete_records, mocker):
     assert field_ins.tag == 'metric'
 
     vm_record = models.AccessVMRecord.objects.get(result_table_id=table_id)
-    assert vm_record.vm_result_table_id == '2_bkm_bkprecal_bkcc_2_unify_query_ts_1853e'
+    assert vm_record.vm_result_table_id == '2_vm_cc_2_unify_query_tsdb_test_new_prom_node'
