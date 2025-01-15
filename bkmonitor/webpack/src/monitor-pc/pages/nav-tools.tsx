@@ -304,14 +304,17 @@ class NavTools extends DocumentLinkMixin {
       <div class='nav-tools'>
         {
           // #if APP !== 'external'
-          <div
-            id='nav-search-bar'
-            class='search-bar'
-            onClick={this.handleGlobalSearch}
-          >
-            <span class='search-text'>{this.globalSearchPlaceholder}</span>
-            <span class='bk-icon icon-search' />
-          </div>
+          /** 新版首页无需展示右侧的全站搜索框 */
+          this.$route.name && this.$route.name !== 'home' && (
+            <div
+              id='nav-search-bar'
+              class='search-bar'
+              onClick={this.handleGlobalSearch}
+            >
+              <span class='search-text'>{this.globalSearchPlaceholder}</span>
+              <span class='bk-icon icon-search' />
+            </div>
+          )
           // #endif
         }
         {
