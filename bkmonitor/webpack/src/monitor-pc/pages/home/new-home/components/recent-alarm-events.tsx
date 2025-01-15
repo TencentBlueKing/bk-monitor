@@ -81,7 +81,6 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   isAppendMode = false;
   editChartIndex = null; // 编辑的图表下标
-
   showDelDialog = false;
   showAddTaskDialog = false; // 展示添加业务弹窗
   /** 表单规则 */
@@ -312,8 +311,7 @@ export default class RecentAlarmEvents extends tsc<object> {
         message: this.$t('保存告警图表配置时出错，请稍后重试'),
       });
     } finally {
-      // 重置编辑索引，关闭对话框，清除策略配置
-      this.clearStrategyConfig();
+      this.showDelDialog = false;
     }
   }
 
@@ -324,7 +322,6 @@ export default class RecentAlarmEvents extends tsc<object> {
     this.strategyConfig.name = '';
     this.editChartIndex = null;
     this.handleMenuMode = '';
-    this.showDelDialog = false;
     this.pagination = {
       currentPage: 1,
       limit: 10,
@@ -433,7 +430,7 @@ export default class RecentAlarmEvents extends tsc<object> {
       .catch(() => false);
   }
 
-  getAddDialog() {
+  getAddChartDialog() {
     return (
       <bk-dialog
         width={480}
@@ -442,6 +439,10 @@ export default class RecentAlarmEvents extends tsc<object> {
         header-position='left'
         title={this.handleMenuMode === 'edit' ? this.$t('修改图表') : this.$t('新增图表')}
         show-footer
+        on-after-leave={() => {
+          // 重置编辑索引，关闭对话框，清除策略配置
+          this.clearStrategyConfig();
+        }}
         onCancel={this.handleCancel}
       >
         <bk-form
@@ -562,15 +563,17 @@ export default class RecentAlarmEvents extends tsc<object> {
   }
 
   // 删除业务 start
-  getDelDialog() {
+  getDelChartDialog() {
     let detail = this.$t('业务：{0}', {
       0: this.businessTab.filter(item => item.bk_biz_id === this.currentDelId)[0]?.bk_biz_name,
     });
-    let tips = this.$t('删除后，首页将不再显示当前业务的所有告警事件视图');
+    let tips = this.$t('删除后，该tab下的视图也会一起删除');
+    let info = this.$t('确定删除该业务视图？');
     let handleDelFunction = this.delTaskByIndex;
     if (this.handleMenuMode === 'delete') {
       detail = '';
       tips = '';
+      info = this.$t('确定删除该视图？');
       this.alarmGraphConfig.bizId = this.activeTabId;
       this.isAppendMode = true;
       handleDelFunction = this.processBusiness;
@@ -582,10 +585,16 @@ export default class RecentAlarmEvents extends tsc<object> {
         v-model={this.showDelDialog}
         header-position='left'
         show-footer={false}
+        on-after-leave={() => {
+          this.currentDelId = null;
+          this.handleMenuMode = '';
+          // 重置编辑索引，关闭对话框，清除策略配置
+          this.clearStrategyConfig();
+        }}
         onCancel={this.handleCancelDel}
       >
         <div class='icon icon-exclamation bk-icon' />
-        <div class='info'>{this.$t('确定删除该业务的告警事件视图？')}</div>
+        <div class='info'>{info}</div>
         {detail && <div class='detail'>{detail}</div>}
         {tips && <div class='tips'>{tips}</div>}
         <div class='foot'>
@@ -614,9 +623,7 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   // 取消删除
   handleCancelDel() {
-    this.currentDelId = null;
     this.showDelDialog = false;
-    this.handleMenuMode = '';
   }
 
   // 删除
@@ -633,8 +640,8 @@ export default class RecentAlarmEvents extends tsc<object> {
     if (this.businessTab.length === 0) {
       this.content = [];
     }
-    this.clearStrategyConfig();
     this.showDelDialog = false;
+    this.clearStrategyConfig();
   }
   // 删除业务 end
 
@@ -783,10 +790,10 @@ export default class RecentAlarmEvents extends tsc<object> {
             this.getStrategyList(this.content)
           )}
         </div>
-        {/* 删除业务-模态框 */}
-        {this.getDelDialog()}
-        {/* 新增业务-模态框 */}
-        {this.getAddDialog()}
+        {/* 删除业务/图表-模态框 */}
+        {this.getDelChartDialog()}
+        {/* 新增业务/图表-模态框 */}
+        {this.getAddChartDialog()}
       </div>
     );
   }

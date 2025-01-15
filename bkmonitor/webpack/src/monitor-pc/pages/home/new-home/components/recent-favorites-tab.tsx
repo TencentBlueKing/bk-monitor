@@ -194,7 +194,13 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     } else if (this.$route.name !== item.id) {
       this.handleHeaderSettingShowChange(false);
       const route = item.usePath ? { path: item.path } : { name: item.id };
-      this.$router.push({ ...route, query: { ...item.query } });
+      const newUrl = this.$router.resolve({
+        ...route,
+        query: { ...item.query },
+      }).href;
+
+      // 在新标签页中打开这个 URL
+      window.open(newUrl, '_blank');
     }
   }
 
