@@ -233,6 +233,14 @@
             :is-clone-or-update="isCloneOrUpdate"
           />
         </bk-form-item>
+        <bk-form-item
+          class="mt"
+          :label="$t('设备元数据')"
+          required
+        >
+        <device-metadata>
+        </device-metadata>
+        </bk-form-item>
       </div>
     </bk-form>
   </div>
@@ -346,10 +354,12 @@
   import { deepClone } from '../../../monitor-echarts/utils';
   import LogFilter from '../log-filter';
   import MultilineRegDialog from './multiline-reg-dialog';
+  import DeviceMetadata from './device-metadata.vue'
   export default {
     components: {
       MultilineRegDialog,
       LogFilter,
+      DeviceMetadata
     },
     props: {
       showType: {
