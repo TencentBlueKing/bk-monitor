@@ -51,10 +51,7 @@ export const setGlobalBizId = () => {
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
   const isSpicialEvent = !!getUrlParam('specEvent');
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
-
   const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
-  const defaultBizId = Number(window.default_biz_id) || '';
-
   const bizList = window.space_list || [];
   const authList = bizList.filter(item => !item.is_demo);
   const hasAuth = id => authList.some(item => +id === +item.bk_biz_id);
@@ -84,10 +81,9 @@ export const setGlobalBizId = () => {
     return false;
   };
   if (bizId !== window.bk_biz_id && !isInSpaceList(bizId) && hasAuth(window.bk_biz_id)) {
-    const newBizId = defaultBizId || localBizId;
-    if (hasAuth(newBizId)) {
-      window.bk_biz_id = +newBizId;
-      window.cc_biz_id = +newBizId;
+    if (hasAuth(localBizId)) {
+      window.bk_biz_id = +localBizId;
+      window.cc_biz_id = +localBizId;
     }
     const url = new URL(window.location.href);
     const { searchParams } = url;
@@ -105,8 +101,7 @@ export const setGlobalBizId = () => {
     if (isNoBusiness && !bizList.length) {
       return true;
     }
-    // 设置过默认id时，优先取defaultBizId
-    const newBizId = defaultBizId || spaceItem?.bk_biz_id || window.cc_biz_id;
+    const newBizId = spaceItem?.bk_biz_id || window.cc_biz_id;
     // search with space_uid
     if (spaceUid) {
       window.space_uid = spaceUid;
