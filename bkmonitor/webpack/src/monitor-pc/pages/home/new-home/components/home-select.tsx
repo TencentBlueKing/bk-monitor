@@ -297,22 +297,26 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 相关功能Render */
   renderRouterList() {
+    /** 根据当前bizId区分是要展示新版的k8s还是旧版的k8s, 当isEnableK8sV2为true时，不展示旧版 */
+    const filterKey = this.$store.getters.isEnableK8sV2 ? 'k8s' : 'k8s-new';
     return (
       <div class='secondary-list'>
         <span class='new-home-select-item-title'>
           {this.$t('相关功能')} ( {this.searchRouteList.length} )
         </span>
         <div class='new-home-select-router-list'>
-          {this.searchRouteList.map(item => (
-            <span
-              key={item.id}
-              class='new-home-select-router-item'
-              onClick={() => this.handleGoRoute(item)}
-            >
-              <i class={`${item?.icon} router-item-icon`} />
-              <span class='item-txt'>{item?.name}</span>
-            </span>
-          ))}
+          {(this.searchRouteList || [])
+            .filter(item => item.id !== filterKey)
+            .map(item => (
+              <span
+                key={item.id}
+                class='new-home-select-router-item'
+                onClick={() => this.handleGoRoute(item)}
+              >
+                <i class={`${item?.icon} router-item-icon`} />
+                <span class='item-txt'>{item?.name}</span>
+              </span>
+            ))}
         </div>
       </div>
     );
@@ -669,7 +673,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             ref='textareaInput'
             class='home-select-input'
             v-model={this.searchValue}
-            placeholder={this.$tc('请输入 IP / traceId / 容器集群 / 告警ID / 策略名 进行搜索')}
+            placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
             rows={1}
             spellcheck={false}
             onCompositionend={this.handleCompositionend}
