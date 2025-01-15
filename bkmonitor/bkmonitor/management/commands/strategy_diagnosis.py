@@ -15,7 +15,7 @@ from bkmonitor.models.strategy import QueryConfigModel, StrategyModel
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
-        parser.add_argument("--add_cloud_id", action="store_true", help="是否将bk_target_cloud_id维度添加到策略中")
+        parser.add_argument("--add_cloud_id", action="store_true", help="补充bk_target_cloud_id维度到策略中")
 
     def handle(self, *args, **options):
         print(add_cloud_id_to_strategy.__doc__)
@@ -25,7 +25,9 @@ class Command(BaseCommand):
 def add_cloud_id_to_strategy(add_cloud_id: bool):
     """
     检索全业务下策略配置了bk_target_ip维度，但未配置bk_target_cloud_id维度的策略列表，并打印对应策略的信息：ID，名字，业务id
-    add_cloud_id为True时，补充bk_target_cloud_id维度添加到对应的策略配置中
+
+    python manage.py strategy_diagnosis  # 只展示信息
+    python manage.py strategy_diagnosis --add_cloud_id  # 补充bk_target_cloud_id维度到策略中
     """
     query_configs = QueryConfigModel.objects.all().only("strategy_id", "config")
 
