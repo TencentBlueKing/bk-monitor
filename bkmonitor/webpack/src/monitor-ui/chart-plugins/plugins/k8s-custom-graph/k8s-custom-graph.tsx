@@ -313,7 +313,7 @@ class K8SCustomChart extends CommonSimpleChart {
               // biome-ignore lint/style/noCommaOperator: <explanation>
               data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
               stack: item.stack || random(10),
-              unit: this.panel.options?.unit || item.unit,
+              unit: this.viewOptions.unit || this.panel.options?.unit || item.unit,
               z: 1,
               traceData: item.trace_data ?? '',
               customData: item.customData,

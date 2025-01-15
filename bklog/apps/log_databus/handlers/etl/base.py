@@ -297,7 +297,15 @@ class EtlHandler(object):
         return {"epoch_millis": f"{epoch_second}000"}
 
     @transaction.atomic()
-    def _update_or_create_index_set(self, etl_config, storage_cluster_id, view_roles=None, username=""):
+    def _update_or_create_index_set(
+            self,
+            etl_config,
+            storage_cluster_id,
+            view_roles=None,
+            username="",
+            sort_fields=None,
+            target_fields=None,
+    ):
         """
         创建索引集
         """
@@ -323,6 +331,8 @@ class EtlHandler(object):
                 category_id=self.data.category_id,
                 indexes=indexes,
                 username=username,
+                sort_fields=sort_fields,
+                target_fields=target_fields,
             )
         else:
             if not view_roles:

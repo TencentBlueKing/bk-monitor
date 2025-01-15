@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import time
+
 """
 告警屏蔽配置缓存
 """
@@ -31,6 +33,31 @@ class ShieldCacheManager(CacheManager):
 
     # 策略详情的缓存key
     CACHE_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".shield.biz_{}"
+
+    FAILURE_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".shield.failure.{}"
+
+    @classmethod
+    def publish_failure(cls, module: str, target: str, duration: int):
+        """
+        发布故障事件并设置预期结束时间
+        """
+        expected_failure_end = int(time.time() + duration)
+        cls.cache.hset(cls.FAILURE_KEY_TEMPLATE.format(module), target, expected_failure_end)
+
+    @classmethod
+    def get_last_failure_end(cls, module: str, target: str):
+        """
+        获取最近一次故障的结束时间
+        """
+        end_time = cls.cache.hget(cls.FAILURE_KEY_TEMPLATE.format(module), target) or 0
+        return int(end_time)
+
+    @classmethod
+    def get_all_failures(cls, module: str):
+        """
+        获取模块下所有目标的故障
+        """
+        return cls.cache.hgetall(cls.FAILURE_KEY_TEMPLATE.format(module))
 
     @classmethod
     def get_shields_by_biz_id(cls, bk_biz_id):

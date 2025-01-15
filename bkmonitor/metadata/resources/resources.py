@@ -36,7 +36,12 @@ from bkmonitor.utils.request import get_app_code_by_request, get_request
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import Resource, api
 from metadata import config, models
-from metadata.config import ES_ROUTE_ALLOW_URL
+from metadata.config import (
+    ES_ROUTE_ALLOW_URL,
+    cluster_custom_metric_name,
+    k8s_event_name,
+    k8s_metric_name,
+)
 from metadata.models.bcs import (
     BCSClusterInfo,
     LogCollectorInfo,
@@ -44,6 +49,7 @@ from metadata.models.bcs import (
     ServiceMonitorInfo,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.data_link.utils import get_data_source_related_info
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.service.data_source import (
@@ -2122,6 +2128,43 @@ class KafkaTailResource(Resource):
                 if msg.offset == end_offset - 1:
                     break
 
+        return result
+
+
+class GetBCSClusterRelatedDataLinkResource(Resource):
+    """
+    获取BCS集群关联的数据链路（K8SMetric、CustomMetric、K8SEvent）
+    返回关联的DataId、ResultTable、VMResultTable
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+
+    def perform_request(self, validated_request_data):
+        bcs_cluster_id = validated_request_data.get("bcs_cluster_id", None)
+        if not bcs_cluster_id:
+            logger.info(
+                "GetBCSClusterRelatedDataLinkResource: get bcs_cluster_id failed for request_data->[%s]",
+                validated_request_data,
+            )
+            raise ValidationError(_("集群ID不能为空"))
+
+        logger.info(
+            "GetBCSClusterRelatedDataLinkResource: try to get cluster related data_link infos "
+            "for bcs_cluster_id->[%s]",
+            bcs_cluster_id,
+        )
+        cluster_ins = BCSClusterInfo.objects.get(cluster_id=bcs_cluster_id)
+
+        k8s_metric_data_id = cluster_ins.K8sMetricDataID
+        custom_metric_data_id = cluster_ins.CustomMetricDataID
+        k8s_event_data_id = cluster_ins.K8sEventDataID
+
+        result = {
+            k8s_metric_name: get_data_source_related_info(k8s_metric_data_id),
+            cluster_custom_metric_name: get_data_source_related_info(custom_metric_data_id),
+            k8s_event_name: get_data_source_related_info(k8s_event_data_id),
+        }
         return result
 
 

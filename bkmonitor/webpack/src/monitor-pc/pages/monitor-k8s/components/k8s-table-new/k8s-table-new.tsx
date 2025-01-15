@@ -393,7 +393,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       },
       [POD]: {
         id: POD,
-        name: this.$t('Pod'),
+        name: this.$t('pod'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
@@ -543,7 +543,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     tableData: K8sTableRow[],
     resourceType: K8sTableColumnResourceKey,
     requestColumns?: K8sTableColumnChartKey[]
-  ): Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number> }> {
+  ): Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number[]> }> {
     let asyncColumns = requestColumns;
     if (!requestColumns) {
       asyncColumns = this.tableChartColumns.ids;
@@ -569,7 +569,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           }
           const { ids, indexForId } = prev.get(columnKey);
           // 获取需要请求指标数据后需要更新数据的数据行索引，
-          indexForId[id] = index;
+          if (indexForId[id]) {
+            indexForId[id].push(index);
+          } else {
+            indexForId[id] = [index];
+          }
           // 获取需要请求指标数据的行id，
           if (!ids.has(id)) {
             ids.add(id);
@@ -598,7 +602,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   loadAsyncData(
     resourceType: K8sTableColumnResourceKey,
-    resourceParam: Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number> }>,
+    resourceParam: Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number[]> }>,
     requestColumns?: K8sTableColumnChartKey[]
   ) {
     let asyncColumns = requestColumns;
@@ -643,50 +647,69 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /**
    * @description 批量按需渲染表格数据（cpu、内存使用率）
-   * @param field column 列id
+   * @param columnKey column 列id
    * @param tableAsyncData 异步数据
    * @param tableDataMap tableDataMap 异步数据id 对应 tableData 索引 映射数组
    */
-  renderTableBatchByBatch(field: K8sTableColumnChartKey, tableAsyncData, tableDataMap: Record<string, number>) {
-    let chartDataForResourceIdMap = this.asyncDataCache.get(field);
+  renderTableBatchByBatch(columnKey: K8sTableColumnChartKey, tableAsyncData, tableDataMap: Record<string, number[]>) {
+    let chartDataForResourceIdMap = this.asyncDataCache.get(columnKey);
     if (!chartDataForResourceIdMap) {
       chartDataForResourceIdMap = {};
-      this.asyncDataCache.set(field, chartDataForResourceIdMap);
+      this.asyncDataCache.set(columnKey, chartDataForResourceIdMap);
     }
 
     for (const data of tableAsyncData) {
       const resourceId = data.resource_name;
-      const chartData = data[field];
-
-      // 动态转化单位
-      const chartVal = chartData?.datapoints?.[0]?.[0];
-      if (![undefined, null].includes(chartVal)) {
-        const unitFormatter = !['', 'none', undefined, null].includes(chartData.unit)
-          ? getValueFormat(chartData.unit || '')
-          : (v: any) => ({ text: v });
-        const set = unitFormatter(chartVal, chartData.unitDecimal || 4);
-        chartData.datapoints[0][0] = set.text;
-        // @ts-ignore
-        chartData.unit = set.suffix;
-      }
+      const chartData = data[columnKey];
+      // 动态转化单位(自动转化为合适的单位)
+      this.chartDataFormatterByUnit(chartData, columnKey);
 
       chartDataForResourceIdMap[resourceId] = chartData;
-      const rowIndex = tableDataMap[resourceId];
-      if (rowIndex != null) {
-        const rowData = this.tableData[rowIndex];
-        rowData[field] = chartData || [];
+      const rowIndexArr = tableDataMap[resourceId];
+      if (rowIndexArr?.length) {
+        for (const rowIndex of rowIndexArr) {
+          const rowData = this.tableData[rowIndex];
+          rowData[columnKey] = chartData || [];
+        }
         delete tableDataMap[resourceId];
       }
     }
     // 查看是否有剩余后端未返回的数据，如果有则赋值空数组消除loading状态
     const indexArr = Object.values(tableDataMap);
-    for (const rowIndex of indexArr) {
-      this.tableData[rowIndex][field] = {
-        datapoints: [],
-        unit: '',
-        unitDecimal: null,
-        valueTitle: this.$tc('用量'),
-      };
+    for (const rowIndexArr of indexArr) {
+      for (const rowIndex of rowIndexArr) {
+        this.tableData[rowIndex][columnKey] = {
+          datapoints: [],
+          unit: '',
+          unitDecimal: null,
+          valueTitle: this.$tc('用量'),
+        };
+      }
+    }
+  }
+
+  /**
+   * @description 自动格式化指标数据
+   * @param chartData
+   * @param columnKey
+   */
+  chartDataFormatterByUnit(chartData, columnKey: K8sTableColumnChartKey) {
+    if (this.metricsForConvergeMap?.[columnKey] === K8sConvergeTypeEnum.COUNT) {
+      chartData.unit = '';
+      return;
+    }
+    // 动态转化单位
+    const chartVal = chartData?.datapoints?.[0]?.[0];
+    if (!chartData?.datapoints) {
+      chartData.datapoints = [];
+    } else if (![undefined, null].includes(chartVal)) {
+      const unitFormatter = !['', 'none', undefined, null].includes(chartData.unit)
+        ? getValueFormat(chartData.unit || '')
+        : (v: any) => ({ text: v });
+      const set = unitFormatter(chartVal, chartData.unitDecimal || 4);
+      chartData.datapoints[0][0] = set.text;
+      // @ts-ignore
+      chartData.unit = set.suffix;
     }
   }
 
@@ -715,7 +738,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /**
    * @description 表格排序
-   * @param {TableSort} { prop, order }
+   * @param {TableSort} sortItem { prop, order }
    */
   handleSortChange(sortItem: TableSort) {
     if (!this.sortContainer.initDone) {
@@ -762,10 +785,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /**
    * @description 表格指标列 汇聚类型改变后回调
-   * @param {K8sTableColumnChartKey} field 需要改变的指标列
+   * @param {K8sTableColumnChartKey} columnKey 需要改变的指标列
    * @param {K8sConvergeTypeEnum} val 汇聚类型改变后的值
    */
   handleConvergeChange(columnKey: K8sTableColumnChartKey, val: K8sConvergeTypeEnum) {
+    if (this.metricsForConvergeMap?.[columnKey] === val) {
+      return;
+    }
     this.$set(this.metricsForConvergeMap, columnKey, val);
     this.asyncDataCache.set(columnKey, {});
     if (this.sortContainer.prop === columnKey) {

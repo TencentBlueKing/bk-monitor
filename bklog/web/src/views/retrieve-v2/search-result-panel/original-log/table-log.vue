@@ -297,9 +297,9 @@
           const dialogNewParams = {};
           const { targetFields, sortFields } = config.indexSetValue;
           const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
+          this.targetFields = targetFields ?? [];
           // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
           if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-            this.targetFields = targetFields;
             fieldParamsKey.forEach(field => {
               dialogNewParams[field] = this.tableRowDeepView(row, field, '', this.$store.state.isFormatDate, '');
             });

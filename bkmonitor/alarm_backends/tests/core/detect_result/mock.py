@@ -10,6 +10,5 @@ specific language governing permissions and limitations under the License.
 """
 
 
-import fakeredis  # noqa
 import mock  # noqa
 from mock import MagicMock, call, patch  # noqa

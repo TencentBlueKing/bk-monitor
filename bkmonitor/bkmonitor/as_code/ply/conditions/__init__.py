@@ -30,8 +30,8 @@ tokens = [
     "LT",
     "LTE",
     "STRING",
-    "NAME",
     "NUMBER",
+    "NAME",
 ] + list(keywords.values())
 
 t_ignore = " \t"
@@ -43,7 +43,7 @@ t_REGNEQ = r"!~"
 t_INCLUDE = r"=-"
 t_EXCLUDE = r"!-"
 t_STRING = r'("([^"]|\\")*")|(\'([^\']|\\\')*\')'
-t_NUMBER = r"\d+(\.\d+)?"
+t_NUMBER = r"-?\d+(\.\d+)?([ \t]*,[ \t]*-?\d+(\.\d+)?)*"
 t_GT = r">"
 t_GTE = r">="
 t_LT = r"<"
@@ -65,7 +65,7 @@ METHOD_MAPPING = {
 
 
 def t_NAME(t):
-    r"[a-zA-Z0-9_\.]+"
+    r"[a-zA-Z_][a-zA-Z0-9_\.]*"
     t.type = keywords.get(t.value, "NAME")
     return t
 

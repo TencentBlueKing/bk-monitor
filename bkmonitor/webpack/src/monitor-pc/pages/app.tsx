@@ -481,8 +481,11 @@ export default class App extends tsc<object> {
       setTimeout(async () => {
         await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
           if (hasAuth) {
-            this.routeViewKey = random(10);
-            this.$router.push({ name: navId === 'k8s' ? 'k8s-new' : 'k8s' });
+            this.$router
+              .push({ name: this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s', query: {} })
+              .finally(() => {
+                this.routeViewKey = random(10);
+              });
           }
         });
         window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
@@ -875,8 +878,13 @@ export default class App extends tsc<object> {
                           {item.children
                             .filter(child => !child.hidden)
                             .filter(menu => {
-                              if (menu.id === 'k8s') return !this.$store.getters.isEnableK8sV2;
-                              if (menu.id === 'k8s-new') return this.$store.getters.isEnableK8sV2;
+                              if (menu.id === 'k8s' || menu.id === 'k8s-new') {
+                                if (['k8s', 'k8s-new'].includes(this.$route.name)) {
+                                  return this.$route.name === menu.id;
+                                }
+                                if (this.$store.getters.k8sV2EnableList && menu.id === 'k8s-new') return true;
+                                return false;
+                              }
                               return true;
                             })
                             .map(child => (

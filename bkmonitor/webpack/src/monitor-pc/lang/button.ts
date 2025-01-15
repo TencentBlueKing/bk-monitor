@@ -109,6 +109,8 @@ export default {
   新建组: 'New Group',
   自动转换: 'Auto Conversion',
   修改后重试: 'Retry after modification',
+  设为默认: 'Set as default',
+  取消默认: 'Remove default',
 
   // 规范：平台特性 术语
   新建节点: 'New Probe',
@@ -490,7 +492,12 @@ export default {
   任务终止: 'Task Termination',
   失败重试: 'Failure Retry',
   保存并接入服务: 'Save and Access Service',
-  K8s对象列表: 'K8s Object List',
+  K8S对象列表: 'K8S Object List',
   指标视图: 'Metric View',
-  K8s集群数据详情: 'K8s Cluster Data Details',
+  K8S集群数据详情: 'K8S Cluster Data Details',
+  回到旧版: 'Back to Legacy',
+  切换新版: 'Switch to New Version',
+  CPU使用率: 'CPU Usage',
+  '新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看':
+    'The new version of container monitoring does not fully cover the legacy features yet. You can switch to the legacy version to view them if necessary',
 };

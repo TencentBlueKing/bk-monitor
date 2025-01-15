@@ -273,11 +273,13 @@ export default {
   聚合异常: 'Error ',
   查看资源: 'View Resource',
   查看从属: 'View Dependencies',
+  查看Span: 'View Span',
   反馈新根因: 'New Feedback',
   所属业务: 'Business',
   '已恢复 / 已解决 / 已失效告警': 'Recovered / Resolved / Expired Alerts',
   包含告警: 'Alarm',
   '等共 {slot0} 个同类告警': 'And {slot0} Same Alerts',
+  异常信息: 'Exception Message',
 
   // 故障
   搜索数据为空: 'No search results',

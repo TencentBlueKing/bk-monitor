@@ -9,8 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
-import six
+from django.core.exceptions import ImproperlyConfigured
 from rest_framework.routers import DefaultRouter
 from rest_framework.viewsets import GenericViewSet
 
@@ -33,16 +32,17 @@ class ResourceRouter(DefaultRouter):
         注册单个ResourceViewset
         """
         self._init_resource_viewset(viewset)
-        # 如果已经注册过了viewset,则不进行注册
-        if (prefix, viewset, basename or self.get_default_basename(viewset)) in self.registry:
-            return
-        super(ResourceRouter, self).register(prefix, viewset, basename)
+
+        try:
+            super(ResourceRouter, self).register(prefix, viewset, basename)
+        except ImproperlyConfigured:
+            pass
 
     def register_module(self, viewset_module):
         """
         注册整个ResourceViewset模块，并根据类的命名规则自动生成对应的url
         """
-        for attr, viewset in six.iteritems(viewset_module.__dict__):
+        for attr, viewset in viewset_module.__dict__.items():
             # 全小写的属性不是类，忽略
             if attr.startswith("_") or attr[0].islower():
                 continue

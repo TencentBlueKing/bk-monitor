@@ -1170,7 +1170,7 @@ class RollbackDeploymentConfigResource(Resource):
             raise CollectConfigNotExist({"msg": data["id"]})
 
         # 判断是否支持回滚
-        if not self.collect_config.allow_rollback:
+        if not collect_config.allow_rollback:
             raise CollectConfigRollbackError({"msg": _("当前操作不支持回滚，或采集配置正处于执行中")})
 
         installer = get_collect_installer(collect_config)

@@ -1832,6 +1832,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
               class='tools-wrap'
               slot='tools'
             >
+              {this.$slots.prependTools}
               <DashboardTools
                 downSampleRange={this.downSampleRange}
                 isSplitPanel={this.isSplitPanel}
