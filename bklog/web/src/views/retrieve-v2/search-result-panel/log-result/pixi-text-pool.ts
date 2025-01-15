@@ -23,20 +23,52 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteConfig } from 'vue-router';
-const newHome = () => import(/* webpackChunkName: 'newHome' */ '../../pages/home/new-home/new-home');
-export default [
-  {
-    path: '/new-home',
-    name: 'newHome',
-    components: {
-      noCache: newHome,
-    },
-    meta: {
-      title: '新版首页',
-      navId: 'new-home',
-      pageCls: 'new-home-page',
-      noNavBar: true,
-    },
-  },
-] as RouteConfig[];
+import { Application } from 'pixi.js';
+export default class PixiAppPool {
+  maxConcurrentApps: number;
+  activeApps: Application[];
+  queue: (() => void)[];
+  constructor(maxConcurrentApps = 10) {
+    this.maxConcurrentApps = maxConcurrentApps;
+    this.activeApps = [];
+    this.queue = [];
+  }
+
+  async createApp(taskFunction: (app: Application) => Promise<void>) {
+    return new Promise<void>((resolve, reject) => {
+      const runTask = () => {
+        const app = new Application();
+        this.activeApps.push(app);
+
+        // 执行任务
+        taskFunction(app)
+          .then(() => {
+            this.releaseApp(app);
+            resolve();
+          })
+          .catch(reject);
+      };
+
+      if (this.activeApps.length < this.maxConcurrentApps) {
+        runTask();
+      } else {
+        this.queue.push(runTask);
+      }
+    });
+  }
+
+  releaseApp(app) {
+    const index = this.activeApps.indexOf(app);
+    if (index !== -1) {
+      this.activeApps.splice(index, 1);
+      app.destroy(true, { children: true });
+
+      if (this.queue.length > 0) {
+        const nextTask = this.queue.shift();
+        nextTask();
+      }
+    }
+  }
+}
+
+export const PixiAppPoolInstance = new PixiAppPool();

@@ -52,13 +52,6 @@
               @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
             ></JsonFormatter>
           </template>
-          <template v-else>
-            <text-segmentation
-              :content="formatterStr(data, field)"
-              :field="getFieldItem(field)"
-              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
-            />
-          </template>
 
           <span
             v-if="getRelationMonitorField(field)"
@@ -68,6 +61,15 @@
             <span>{{ getRelationMonitorField(field) }}</span>
             <i class="bklog-icon bklog-jump"></i>
           </span>
+          <template v-if="!isJsonFormat(formatterStr(data, field))">
+            <text-segmentation
+              :content="formatterStr(data, field)"
+              :field="getFieldItem(field)"
+              :forceAll="true"
+              :autoWidth="true"
+              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
+            />
+          </template>
         </div>
       </div>
     </div>
@@ -388,7 +390,9 @@
     }
 
     .relation-monitor-btn {
-      margin-left: 12px;
+      min-width: fit-content;
+      padding-right: 6px;
+      // margin-left: 12px;
       font-size: 12px;
       color: #3a84ff;
       cursor: pointer;

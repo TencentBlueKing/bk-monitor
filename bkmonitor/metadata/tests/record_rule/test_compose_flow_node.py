@@ -156,7 +156,7 @@ def test_create_flow_with_full_config(create_or_delete_records, create_default_r
                     'sql_list': [
                         {
                             'name': 'unify_query_tsdb_request_seconds_bucket_sum_2m',
-                            'count_freq': 60,
+                            "count_freq": 60,
                             'sql': 'sum by (workload, tsdb_type, space_uid, le, pod) '
                             '(label_replace(rate('
                             'unify_query_tsdb_request_seconds_bucket[2m]), '

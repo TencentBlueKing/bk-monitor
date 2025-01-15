@@ -490,4 +490,12 @@ export default {
   任务终止: 'Task Termination',
   失败重试: 'Failure Retry',
   保存并接入服务: 'Save and Access Service',
+  K8S对象列表: 'K8S Object List',
+  指标视图: 'Metric View',
+  K8S集群数据详情: 'K8S Cluster Data Details',
+  回到旧版: 'Back to Legacy',
+  切换新版: 'Switch to New Version',
+  CPU使用率: 'CPU Usage',
+  '新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看':
+    'The new version of container monitoring does not fully cover the legacy features yet. You can switch to the legacy version to view them if necessary',
 };

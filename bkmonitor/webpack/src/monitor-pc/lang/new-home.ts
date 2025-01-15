@@ -39,9 +39,9 @@ export default {
   快捷入口管理: 'Quick entry management',
   最近告警事件: 'Recent warning events',
   '业务：{0}': 'Business: {0}',
-  '删除后，首页将不再显示当前业务的所有告警事件视图':
-    'After deletion, the home page will no longer display all alarm event views of the current business',
-  '确定删除该业务的告警事件视图？': 'Are you sure you want to delete the alarm event view for this business?',
+  '删除后，该tab下的视图也会一起删除': 'After deletion, the views under the tab will also be deleted.',
+  '确定删除该视图？': 'Are you sure you want to delete this view?',
+  '确定删除该业务视图？': 'Are you sure you want to delete this business view?',
   新增图表: 'New charts',
   修改图表: 'Modify chart',
   图表名称: 'Chart name',

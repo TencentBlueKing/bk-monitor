@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf.urls import include, url
+from django.urls import include, re_path
 
 from core.drf_resource.routers import ResourceRouter
 from monitor_web.performance import views as performance_views
@@ -18,5 +18,5 @@ router = ResourceRouter()
 router.register_module(performance_views)
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
+    re_path(r"^", include(router.urls)),
 ]

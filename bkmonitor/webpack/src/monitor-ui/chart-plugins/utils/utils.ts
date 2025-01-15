@@ -25,6 +25,7 @@
  */
 import dayjs from 'dayjs';
 import { getUnitInfo } from 'monitor-api/modules/strategies';
+import { random } from 'monitor-common/utils';
 
 import type { IViewOptions } from '../typings';
 import type { IDetectionConfig } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
@@ -865,4 +866,33 @@ export const convertToSeconds = (timeString: string): number => {
 
   // 计算并返回总秒数
   return value * timeUnits[unit];
+};
+
+/**
+ * 为数据节点及其子节点分配唯一 ID。
+ *
+ * @param data - 目标数据，可以是单个节点或节点数组。
+ * @param idProperty - 用于存储 ID 的属性名称，默认为 'id'。
+ * @param idLength - 生成 ID 的长度，默认为 8。
+ *
+ * 此函数会递归地为每个节点及其所有子节点生成唯一的 ID，
+ * 并将其存储在指定的属性中。适用于层级结构的数据。
+ */
+export const assignUniqueIds = (data, idProperty = 'id', idLength = 8) => {
+  const assignId = obj => {
+    obj[idProperty] = random(idLength);
+    if (obj.children && Array.isArray(obj.children)) {
+      for (const child of obj.children) {
+        assignId(child);
+      }
+    }
+  };
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      assignId(item);
+    }
+  } else {
+    assignId(data);
+  }
 };

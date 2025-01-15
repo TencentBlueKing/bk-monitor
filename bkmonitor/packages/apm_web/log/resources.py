@@ -14,6 +14,7 @@ from rest_framework import serializers
 
 from apm_web.handlers.log_handler import ServiceLogHandler
 from apm_web.handlers.service_handler import ServiceHandler
+from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import Vendor
 from core.drf_resource import Resource, api
 from monitor_web.scene_view.resources import HostIndexQueryMixin
@@ -32,15 +33,23 @@ def overwrite_with_span_addition(info, overwrite_key=None):
 def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_time=None, end_time=None):
     index_set_ids = []
 
+    def _retrieve_base_info(_bk_biz_id, _app_name, _span_id):
+        # 获取当前业务的索引集和 span 详情 减少耗时
+        return (
+            api.log_search.search_index_set(bk_biz_id=_bk_biz_id),
+            api.apm_api.query_span_detail(bk_biz_id=_bk_biz_id, app_name=_app_name, span_id=_span_id)
+            if _span_id
+            else None,
+        )
+
+    biz_indices, span_detail = using_cache(CacheType.APM(10 * 60))(_retrieve_base_info)(bk_biz_id, app_name, span_id)
     indexes_mapping = {
-        bk_biz_id: api.log_search.search_index_set(bk_biz_id=bk_biz_id),
+        bk_biz_id: biz_indices,
     }
 
     overwrite_method = None
-    span_detail = None
     if span_id:
         info = {"span_id": span_id}
-        span_detail = api.apm_api.query_span_detail(bk_biz_id=bk_biz_id, app_name=app_name, span_id=span_id)
         if span_detail and span_detail.get("trace_id"):
             info["trace_id"] = span_detail["trace_id"]
         overwrite_method = functools.partial(overwrite_with_span_addition, info=info)
@@ -61,7 +70,6 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
                 None,
             )
         if index_info:
-
             if overwrite_method:
                 index_info["addition"] = overwrite_method(overwrite_key="log")
 
@@ -130,7 +138,6 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
     if relations:
         for r in relations:
             if str(r["index_set_id"]) not in index_set_ids:
-
                 index_info = next(
                     (j for j in indexes_mapping.get(bk_biz_id, []) if str(j["index_set_id"]) == str(r["index_set_id"])),
                     None,

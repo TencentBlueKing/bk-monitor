@@ -13,7 +13,9 @@ specific language governing permissions and limitations under the License.
 import mock
 import pytest
 
-from alarm_backends.service.detect.strategy.ring_ratio_amplitude import RingRatioAmplitude
+from alarm_backends.service.detect.strategy.ring_ratio_amplitude import (
+    RingRatioAmplitude,
+)
 from alarm_backends.tests.service.detect import DataPoint
 from core.errors.alarm_backends.detect import InvalidAlgorithmsConfig, InvalidDataPoint
 
@@ -51,7 +53,7 @@ class TestRingRatioAmplitude(object):
         ):
             algorithms_config = {"threshold": 0, "ratio": 1, "shock": 50}
             detect_engine = RingRatioAmplitude(config=algorithms_config)
-            from .test_threshold import mock_datapoint_with_value
+            from .mocked_data import mock_datapoint_with_value
 
             _datapoint99 = mock_datapoint_with_value(99)
             detect_result = detect_engine.detect_records([_datapoint99], 1)

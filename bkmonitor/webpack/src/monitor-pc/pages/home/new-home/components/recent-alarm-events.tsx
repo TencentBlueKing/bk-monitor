@@ -23,16 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Watch } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { deleteAlarmGraphConfig, getAlarmGraphConfig, saveAlarmGraphConfig } from 'monitor-api/modules/overview';
-import { getStrategyListV2 } from 'monitor-api/modules/strategies';
 import draggable from 'vuedraggable';
 
 import { shortcuts } from '../../../../components/time-range/utils';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
-import { EStatusType } from '../utils';
+import AddAlarmChartDialog from './add-alarm-chart-dialog';
 import HomeAlarmChart from './home-alarm-chart';
 import RecentAlarmTab from './recent-alarm-tab';
 
@@ -49,84 +48,50 @@ import './recent-alarm-events.scss';
   },
 })
 export default class RecentAlarmEvents extends tsc<object> {
-  @Ref() taskFormRef; // 业务表单ref
+  /** Tab 相关 */
   businessTab: IRecentAlarmTab[] = []; // 业务选项卡
-  handleMenuMode: '' | 'delete' | 'detail' | 'edit' = '';
-
-  // select 底部加载配置
-  bottomLoadingOptions = {
-    isLoading: false,
-    size: 'mini',
-  };
-
-  // 数据分页
-  pagination = {
-    currentPage: 1,
-    limit: 10,
-    isLastPage: false,
-  };
-
+  showTabLoading = false; // 展示tab的加载loading、
   activeTabId = null; // 默认选中第一个标签
 
-  // 告警图表配置
-  alarmGraphConfig = {
-    bizId: '',
-    config: [],
-  };
+  /** 图表 相关 */
+  alarmGraphContent: IAlarmGraphConfig[] = []; // 图表配置
+  alarmGraphBizId = null; // 告警图表业务id
 
   loadingAlarmList = true; // 加载图表列表
-  loadingStrategyList = false; // 加载策略列表Loading
 
-  childRefs = []; // 存储每个子组件的 ref
+  isAppendMode = false; // 是否为新增图表
+  showAddTaskDialog = false; // 展示添加图表/业务弹窗
 
-  isAppendMode = false;
   editChartIndex = null; // 编辑的图表下标
+  showDelDialog = false; // 展示删除图表/业务弹窗
+  currentDelId = null; // 当前删除的图表id
 
-  showDelDialog = false;
-  showAddTaskDialog = false; // 展示添加业务弹窗
-  /** 表单规则 */
-  rules = {
-    name: [{ required: true, message: window.i18n.tc('必填项'), trigger: 'blur' }],
-    strategy_ids: [
-      {
-        validator: val => val.length,
-        message: window.i18n.tc('必填项'),
-        trigger: 'blur',
-      },
-    ],
-  };
-  loading = false;
-
-  currentDelId = null;
-  // 策略配置
+  /** 策略配置 相关 */
   strategyConfig = {
     strategy_ids: [],
     name: '',
     status: [],
   };
-
-  timeRange = shortcuts[5].value as TimeRangeType;
-
-  strategyList = [];
-
-  filterStrategyIdSet = new Set(); // 修改时回显的策略id列表
   delStrategyIdSet: Set<number> = new Set(); // 已删除的策略id列表
 
-  content: IAlarmGraphConfig[] = [];
-
-  isSelected(id) {
-    return this.strategyConfig.strategy_ids.includes(id);
-  }
+  handleMenuMode: '' | 'delete' | 'detail' | 'edit' = ''; // MenuList 操作模式
+  childRefs = []; // 存储每个子组件的 ref
+  timeRange = shortcuts[5].value as TimeRangeType; // 时间选择器
 
   @Watch('activeTabId')
   handleSwitchTab() {
     this.getTabAndAlarmConfig(false);
   }
 
+  async created() {
+    await this.getTabAndAlarmConfig();
+    this.activeTabId = this.businessTab[0]?.bk_biz_id; // 默认选中第一个标签
+  }
+
   async getTabAndAlarmConfig(updateTab = true) {
     try {
       this.loadingAlarmList = !this.editChartIndex;
-      this.loading = updateTab;
+      this.showTabLoading = updateTab;
       const data = await getAlarmGraphConfig({
         bk_biz_id: this.activeTabId,
       });
@@ -139,57 +104,97 @@ export default class RecentAlarmEvents extends tsc<object> {
         }
         this.businessTab = data.tags || [];
       }
-      this.content = data.config || [];
+      this.alarmGraphContent = data.config || [];
     } catch (error) {
       console.log('get Date error', error);
     } finally {
-      this.loading = false;
+      this.showTabLoading = false;
       this.loadingAlarmList = false;
     }
   }
 
-  async created() {
-    await this.getTabAndAlarmConfig();
-    this.activeTabId = this.businessTab[0]?.bk_biz_id; // 默认选中第一个标签
+  // 图表 start
+  // 图表列表
+  getAlarmGraphList(list) {
+    // 列表最后一个为新增图表
+    const add = () => (
+      <div
+        class='add-content list-item'
+        onClick={() => this.handleAddChart()}
+      >
+        <i class='icon-mc-add icon-monitor' />
+        <span>{this.$t('新增图表')}</span>
+      </div>
+    );
+    return (
+      <div class='list-content'>
+        {list.map((item, index) => (
+          <div
+            key={item.name}
+            class='list-item'
+          >
+            <HomeAlarmChart
+              ref={el => (this.childRefs[index] = el)} // 存储子组件的 ref
+              config={item}
+              currentActiveId={this.activeTabId}
+              timeRange={this.timeRange}
+              onMenuClick={({ id }) => this.handleMenuClick(id, item, index)}
+            />
+          </div>
+        ))}
+        {add()}
+      </div>
+    );
   }
 
-  // 拖拽完成时逻辑
-  handleDropEnd(tabs) {
-    this.businessTab = tabs;
+  /** MenuList操作 */
+  handleMenuClick(mode, item, index) {
+    this.handleMenuMode = mode;
+    switch (mode) {
+      case 'edit':
+        this.strategyConfig.name = item.name;
+        this.strategyConfig.strategy_ids = item.strategy_ids;
+        this.strategyConfig.status = item.status;
+        this.editChartIndex = index;
+        this.handleAddChart();
+        break;
+      case 'delete':
+        this.editChartIndex = index;
+        this.showDelDialog = true;
+        break;
+      case 'detail': {
+        // 跳转至事件中心
+        const baseUrl = window.location.href.split('#')[0];
+        let queryString = '';
+        for (const id of item.strategy_ids) {
+          queryString += `策略ID : ${id} OR `;
+        }
+        queryString = queryString.slice(0, queryString.length - 3);
+        const [from, to] = this.timeRange;
+        const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${from}&to=${to}&bizIds=${this.activeTabId}`;
+        window.open(url, '_blank');
+        break;
+      }
+    }
   }
-
   // 新增图表
-  handleAddChart(isEdit = false) {
-    this.alarmGraphConfig.bizId = this.activeTabId;
+  handleAddChart() {
+    this.alarmGraphBizId = this.activeTabId;
     this.isAppendMode = true;
     this.showAddTaskDialog = true;
-    isEdit ? this.getStrategyListById() : this.getStrategyListByPage();
   }
 
   // 取消新增图表
   handleCancel() {
-    this.alarmGraphConfig.bizId = '';
+    this.alarmGraphBizId = null;
     this.showAddTaskDialog = false;
-    this.clearStrategyConfig();
-  }
-  // 确定新增图表
-  async handleConfirm() {
-    const isPass = await this.handleValidate();
-    if (!isPass) return;
-    this.processBusiness();
-  }
-
-  // 获取业务配置 ID
-  getBusinessConfigId() {
-    // 返回业务配置 ID，如果没有则返回当前活动的 Tab ID
-    return this.alarmGraphConfig.bizId || this.activeTabId;
   }
 
   // 生成配置
   generateConfig() {
     // 如果是追加模式，遍历内容生成配置
     if (this.isAppendMode) {
-      return this.content.map(({ name, strategy_ids }) => ({
+      return this.alarmGraphContent.map(({ name, strategy_ids }) => ({
         name,
         strategy_ids,
       }));
@@ -287,7 +292,7 @@ export default class RecentAlarmEvents extends tsc<object> {
     strategyConfig.strategy_ids = strategyConfig.strategy_ids.filter(id => !delStrategyIdSet.has(id));
   }
 
-  async processBusiness() {
+  async handleSaveAlarmGraphConfig() {
     // 生成初始配置
     this.showAddTaskDialog = false;
     const config = this.generateConfig();
@@ -312,268 +317,40 @@ export default class RecentAlarmEvents extends tsc<object> {
         message: this.$t('保存告警图表配置时出错，请稍后重试'),
       });
     } finally {
-      // 重置编辑索引，关闭对话框，清除策略配置
-      this.clearStrategyConfig();
+      this.showDelDialog = false;
     }
   }
+  // 图表 end
 
-  // 清除相关数据
-  clearStrategyConfig() {
-    this.taskFormRef.clearError();
-    this.strategyConfig.strategy_ids = [];
-    this.strategyConfig.name = '';
-    this.editChartIndex = null;
-    this.handleMenuMode = '';
-    this.showDelDialog = false;
-    this.pagination = {
-      currentPage: 1,
-      limit: 10,
-      isLastPage: false,
-    };
-    this.filterStrategyIdSet = new Set();
-    this.delStrategyIdSet = new Set();
-    this.strategyList = [];
+  // 业务 start
+  // 添加业务
+  async handleSelectBiz(id) {
+    this.alarmGraphBizId = id;
+    this.showAddTaskDialog = true;
+    this.isAppendMode = false;
   }
 
-  async getStrategyListByPage() {
-    if (!this.alarmGraphConfig.bizId) return;
-    this.loadingStrategyList = true;
-    this.taskFormRef.clearError();
-    try {
-      const { currentPage: page, limit } = this.pagination;
-      const data = await getStrategyListV2({
-        page,
-        limit,
-        bk_biz_id: this.alarmGraphConfig.bizId,
-      });
-      this.pagination.isLastPage = data.total <= page * limit;
-      this.pagination.currentPage++;
-      if (this.handleMenuMode === 'edit') {
-        this.strategyList.push(
-          ...(data.strategy_config_list.filter(item => {
-            if (!this.filterStrategyIdSet.has(item.id)) {
-              return true; // 保留在 filter 结果中
-            }
-            this.filterStrategyIdSet.delete(item.id); // 从集合中移除已处理的 ID
-          }) || [])
-        );
-        return;
-      }
-      this.strategyList.push(...(data.strategy_config_list || []));
-      this.strategyList.sort((a, b) => {
-        // 根据优先级字段排序，优先级 is_shielded < is_enabled
-        // 将 true 视为 0，false 视为 1 进行比较
-        if (a.is_enabled !== b.is_enabled) {
-          return (b.is_enabled ? 1 : 0) - (a.is_enabled ? 1 : 0);
-        }
-        if (a.shield_info.is_shielded !== b.shield_info.is_shielded) {
-          return (a.shield_info.is_shielded ? 1 : 0) - (b.shield_info.is_shielded ? 1 : 0);
-        }
-        return 0;
-      });
-    } catch (error) {
-      console.log('getStrategyListByPage error', error);
-    } finally {
-      this.loadingStrategyList = false;
-    }
-  }
-  // 根据策略 Id 获取数据
-  async getStrategyListById() {
-    if (!this.alarmGraphConfig.bizId) return;
-    this.loadingStrategyList = true;
-
-    try {
-      const data = await getStrategyListV2({
-        limit: 20,
-        bk_biz_id: this.alarmGraphConfig.bizId,
-        conditions: [{ key: 'strategy_id', value: this.strategyConfig.strategy_ids }],
-      });
-      this.filterStrategyIdSet = new Set(data.strategy_config_list.map(({ id }) => id));
-      this.strategyList.unshift(
-        ...(this.strategyConfig.status.map(item => {
-          const strategy = data.strategy_config_list.find(strategy => strategy.id === item.strategy_id);
-          if (strategy) return strategy;
-          this.delStrategyIdSet.add(item.strategy_id);
-          return {
-            is_deleted: true,
-            name: item.name,
-            id: item.strategy_id,
-          };
-        }) || [])
-      );
-      // 如果回显值过少，手动触发触底事件
-      if (this.strategyList.length < 10) {
-        this.handleScrollToBottom();
-      }
-    } catch (error) {
-      console.log('getStrategyListByPage error2', error);
-    } finally {
-      this.loadingStrategyList = false;
-    }
-  }
-  getStrategyStatus(isDeleted = false, isShielded = false, isEnabled = true) {
-    let status = ''; // 默认状态
-
-    // 优先级 已删除 > 已屏蔽 > 已停用
-    if (isDeleted) {
-      status = 'deleted';
-    } else if (isShielded) {
-      status = 'shielded';
-    } else if (!isEnabled) {
-      status = 'disabled';
-    }
-    return EStatusType[status];
+  // 获取业务配置 ID
+  getBusinessConfigId() {
+    // 返回业务配置 ID，如果没有则返回当前活动的 Tab ID
+    return this.alarmGraphBizId || this.activeTabId;
   }
 
-  /** 表单校验 */
-  handleValidate(): Promise<boolean> {
-    return this.taskFormRef
-      .validate()
-      .then(() => true)
-      .catch(() => false);
-  }
-
-  getAddDialog() {
-    return (
-      <bk-dialog
-        width={480}
-        ext-cls='task-add-dialog'
-        v-model={this.showAddTaskDialog}
-        header-position='left'
-        title={this.handleMenuMode === 'edit' ? this.$t('修改图表') : this.$t('新增图表')}
-        show-footer
-        onCancel={this.handleCancel}
-      >
-        <bk-form
-          ref='taskFormRef'
-          formType='vertical'
-          {...{
-            props: {
-              model: this.strategyConfig,
-              rules: this.rules,
-            },
-          }}
-        >
-          {
-            <bk-form-item
-              iconOffset={-18}
-              label={this.$t('策略')}
-              property='strategy_ids'
-              required
-            >
-              <bk-select
-                v-model={this.strategyConfig.strategy_ids}
-                loading={this.loadingStrategyList}
-                placeholder={this.$t('请选择策略')}
-                scrollLoading={this.bottomLoadingOptions}
-                enable-scroll-load
-                multiple
-                searchable
-                on-scroll-end={this.handleScrollToBottom}
-              >
-                {this.strategyList.map(item => (
-                  <bk-option
-                    id={item.id}
-                    key={item.id}
-                    class={{ 'add-task-select-ext': true, 'is-deleted': item.is_deleted }}
-                    disabled={
-                      this.getStrategyStatus(item.is_deleted, item.shield_info.is_shielded, item.is_enabled) &&
-                      (this.handleMenuMode !== 'edit' || item.is_deleted)
-                    }
-                    name={item.name}
-                  >
-                    <div
-                      class={{
-                        'strategy-name': true,
-                        'has-tag': this.getStrategyStatus(
-                          item.is_deleted,
-                          item.shield_info.is_shielded,
-                          item.is_enabled
-                        ),
-                        selected: this.isSelected(item.id),
-                      }}
-                      v-bk-tooltips={{
-                        content: item.name,
-                        trigger: 'mouseenter',
-                        zIndex: 9999,
-                        boundary: document.body,
-                        allowHTML: false,
-                        delay: [1000, 0],
-                      }}
-                    >
-                      {item.name}
-                    </div>
-                    <div class='strategy-status'>
-                      <span class='strategy-tag'>
-                        {this.getStrategyStatus(item.is_deleted, item.shield_info.is_shielded, item.is_enabled)}
-                      </span>
-                      {this.isSelected(item.id) && <span class='icon-monitor icon-mc-check-small' />}
-                    </div>
-                  </bk-option>
-                ))}
-              </bk-select>
-            </bk-form-item>
-          }
-          {
-            <bk-form-item
-              iconOffset={-18}
-              label={this.$t('图表名称')}
-              property='name'
-              required
-            >
-              <bk-input
-                v-model={this.strategyConfig.name}
-                placeholder={this.$t('请输入图表名称，默认为策略名称')}
-              />
-            </bk-form-item>
-          }
-        </bk-form>
-        <div
-          class='task-add-dialog-footer'
-          slot='footer'
-        >
-          <bk-button
-            theme='primary'
-            onClick={this.handleConfirm}
-          >
-            {this.$t('确认')}
-          </bk-button>
-          <bk-button
-            theme='default'
-            onClick={this.handleCancel}
-          >
-            {this.$t('取消')}
-          </bk-button>
-        </div>
-      </bk-dialog>
-    );
-  }
-
-  async handleScrollToBottom() {
-    try {
-      // 判断是否为最后一页
-      if (this.pagination.isLastPage) return;
-      this.bottomLoadingOptions.isLoading = true;
-      await this.getStrategyListByPage();
-      this.bottomLoadingOptions.isLoading = false;
-    } catch (error) {
-      console.log('error', error);
-    }
-  }
-
-  // 删除业务 start
-  getDelDialog() {
+  // 删除图表/业务 Dialog
+  getDelChartDialog() {
     let detail = this.$t('业务：{0}', {
       0: this.businessTab.filter(item => item.bk_biz_id === this.currentDelId)[0]?.bk_biz_name,
     });
-    let tips = this.$t('删除后，首页将不再显示当前业务的所有告警事件视图');
+    let tips = this.$t('删除后，该tab下的视图也会一起删除');
+    let info = this.$t('确定删除该业务视图？');
     let handleDelFunction = this.delTaskByIndex;
     if (this.handleMenuMode === 'delete') {
       detail = '';
       tips = '';
-      this.alarmGraphConfig.bizId = this.activeTabId;
+      info = this.$t('确定删除该视图？');
+      this.alarmGraphBizId = this.activeTabId;
       this.isAppendMode = true;
-      handleDelFunction = this.processBusiness;
+      handleDelFunction = this.handleSaveAlarmGraphConfig;
     }
     return (
       <bk-dialog
@@ -582,10 +359,16 @@ export default class RecentAlarmEvents extends tsc<object> {
         v-model={this.showDelDialog}
         header-position='left'
         show-footer={false}
+        on-after-leave={() => {
+          this.currentDelId = null;
+          this.handleMenuMode = '';
+          // 重置编辑索引，关闭对话框，清除策略配置
+          this.clearStrategyConfig();
+        }}
         onCancel={this.handleCancelDel}
       >
         <div class='icon icon-exclamation bk-icon' />
-        <div class='info'>{this.$t('确定删除该业务的告警事件视图？')}</div>
+        <div class='info'>{info}</div>
         {detail && <div class='detail'>{detail}</div>}
         {tips && <div class='tips'>{tips}</div>}
         <div class='foot'>
@@ -614,12 +397,10 @@ export default class RecentAlarmEvents extends tsc<object> {
 
   // 取消删除
   handleCancelDel() {
-    this.currentDelId = null;
     this.showDelDialog = false;
-    this.handleMenuMode = '';
   }
 
-  // 删除
+  // 删除业务
   delTaskByIndex() {
     this.businessTab = this.businessTab.filter(item => item.bk_biz_id !== this.currentDelId);
     deleteAlarmGraphConfig({
@@ -631,12 +412,12 @@ export default class RecentAlarmEvents extends tsc<object> {
     }
     // 业务全部删除
     if (this.businessTab.length === 0) {
-      this.content = [];
+      this.alarmGraphContent = [];
     }
-    this.clearStrategyConfig();
     this.showDelDialog = false;
+    this.clearStrategyConfig();
   }
-  // 删除业务 end
+  // 业务 end
 
   // 空数组展示
   getEmptyContent() {
@@ -669,81 +450,24 @@ export default class RecentAlarmEvents extends tsc<object> {
     );
   }
 
-  // 列表展示
-  getStrategyList(list) {
-    // 列表最后一个为新增图表
-    const add = () => (
-      <div
-        class='add-content list-item'
-        onClick={() => this.handleAddChart()}
-      >
-        <i class='icon-mc-add icon-monitor' />
-        <span>{this.$t('新增图表')}</span>
-      </div>
-    );
-    return (
-      <div class='list-content'>
-        {list.map((item, index) => (
-          <div
-            key={item.name}
-            class='list-item'
-          >
-            <HomeAlarmChart
-              ref={el => (this.childRefs[index] = el)} // 存储子组件的 ref
-              config={item}
-              currentActiveId={this.activeTabId}
-              timeRange={this.timeRange}
-              onMenuClick={({ id }) => this.handleMenuClick(id, item, index)}
-            />
-          </div>
-        ))}
-        {add()}
-      </div>
-    );
+  // 拖拽完成
+  handleDropEnd(tabs) {
+    this.businessTab = tabs;
   }
 
-  /** MenuList操作 */
-  handleMenuClick(mode, item, index) {
-    this.handleMenuMode = mode;
-    switch (mode) {
-      case 'edit':
-        this.strategyConfig.name = item.name;
-        this.strategyConfig.strategy_ids = item.strategy_ids;
-        this.strategyConfig.status = item.status;
-        this.editChartIndex = index;
-        this.handleAddChart(true);
-        break;
-      case 'delete':
-        this.editChartIndex = index;
-        this.showDelDialog = true;
-        break;
-      case 'detail': {
-        // 跳转至事件中心
-        const baseUrl = window.location.href.split('#')[0];
-        let queryString = '';
-        for (const id of item.strategy_ids) {
-          queryString += `策略ID : ${id} OR `;
-        }
-        queryString = queryString.slice(0, queryString.length - 3);
-        const [from, to] = this.timeRange;
-        const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${from}&to=${to}&bizIds=${this.activeTabId}`;
-        window.open(url, '_blank');
-        break;
-      }
-    }
-  }
-
+  // 计算Loading高度
   getLoadingHeight() {
-    if (!this.content.length) return '398px';
-    return `${Math.ceil((this.content.length + 2) / 3) * 210}px`;
+    if (!this.alarmGraphContent.length) return '398px';
+    return `${Math.ceil((this.alarmGraphContent.length + 2) / 3) * 210}px`;
   }
-  // 添加业务
-  async handleSelectBiz(id) {
-    this.alarmGraphConfig.bizId = id;
-    this.strategyList = [];
-    this.showAddTaskDialog = true;
-    this.isAppendMode = false;
-    await this.getStrategyListByPage();
+
+  // 清除相关数据
+  clearStrategyConfig() {
+    this.strategyConfig.strategy_ids = [];
+    this.strategyConfig.name = '';
+    this.editChartIndex = null;
+    this.handleMenuMode = '';
+    this.delStrategyIdSet = new Set();
   }
 
   render() {
@@ -755,7 +479,7 @@ export default class RecentAlarmEvents extends tsc<object> {
         {/* 头部功能区 */}
         <RecentAlarmTab
           activeTabId={this.activeTabId}
-          loading={this.loading}
+          showTabLoading={this.showTabLoading}
           tabs={this.businessTab}
           onChangeTab={id => {
             this.activeTabId = id;
@@ -777,16 +501,34 @@ export default class RecentAlarmEvents extends tsc<object> {
               style={{ height: this.getLoadingHeight() }}
               class='loading-element'
             />
-          ) : !this.content.length ? (
+          ) : !this.alarmGraphContent.length ? (
             this.getEmptyContent()
           ) : (
-            this.getStrategyList(this.content)
+            this.getAlarmGraphList(this.alarmGraphContent)
           )}
         </div>
-        {/* 删除业务-模态框 */}
-        {this.getDelDialog()}
-        {/* 新增业务-模态框 */}
-        {this.getAddDialog()}
+        {/* 删除业务/图表-模态框 */}
+        {this.getDelChartDialog()}
+        {/* 新增业务/图表-模态框 */}
+        {
+          <AddAlarmChartDialog
+            currentBizId={this.alarmGraphBizId}
+            editStrategyConfig={this.strategyConfig}
+            handleMenuMode={this.handleMenuMode}
+            showAddTaskDialog={this.showAddTaskDialog}
+            onAfterDialogLeave={() => {
+              this.handleMenuMode = '';
+              this.editChartIndex = null;
+            }}
+            onCancel={this.handleCancel}
+            onConfirm={(strategyIds, name, delStrategyIds) => {
+              this.strategyConfig.name = name;
+              this.strategyConfig.strategy_ids = strategyIds;
+              this.delStrategyIdSet = delStrategyIds;
+              this.handleSaveAlarmGraphConfig();
+            }}
+          />
+        }
       </div>
     );
   }

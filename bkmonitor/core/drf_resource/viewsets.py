@@ -19,7 +19,6 @@ from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
-from rest_framework_condition import condition
 
 from core.drf_resource.base import Resource
 
@@ -106,7 +105,10 @@ class ResourceViewSet(viewsets.GenericViewSet):
         class Meta:
             ref_name = None
 
-        serializer_class.Meta = Meta
+        # 如果serializer_class没有Meta属性，则添加Meta属性
+        if not getattr(serializer_class, "Meta", None):
+            serializer_class.Meta = Meta
+
         return serializer_class
 
     def get_queryset(self):
@@ -177,10 +179,6 @@ class ResourceViewSet(viewsets.GenericViewSet):
                     methods=[resource_route.method],
                     url_path=resource_route.endpoint,
                     url_name=resource_route.endpoint.replace("_", "-"),
-                )(function)
-                function = condition(
-                    etag_func=resource_route.resource_class.etag,
-                    last_modified_func=resource_route.resource_class.last_modified,
                 )(function)
 
                 function = decorator_function(function)

@@ -21,6 +21,7 @@ from alarm_backends.core.cache.key import ALERT_SHIELD_SNAPSHOT
 from alarm_backends.core.cache.shield import ShieldCacheManager
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.core.i18n import i18n
+from alarm_backends.service.alert.qos.influence import get_failure_scope_config
 from alarm_backends.service.converge.shield.shield_obj import AlertShieldObj
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.models import ActionInstance, time_tools
@@ -210,6 +211,30 @@ class GlobalShielder(BaseShielder):
             self.detail = extended_json.dumps({"message": _("当前可能由于发布或变更进行了全局屏蔽")})
             return True
         return False
+
+
+class IncidentShielder(BaseShielder):
+    # 故障影响判定
+
+    def __init__(self, alert: AlertDocument):
+        self.alert = alert
+        self.configs = self.get_incident_configs()
+        self.detail = ""
+
+    def get_incident_configs(self):
+        return get_failure_scope_config()
+
+    def is_matched(self):
+        for config in self.configs:
+            shield_obj = AlertShieldObj(config)
+            if shield_obj.is_match(self.alert):
+                content = shield_obj.config.get("description", "受到平台链路层抖动影响，当前告警疑似误告，暂时屏蔽。")
+                self.set_detail(content)
+                return True
+        return False
+
+    def set_detail(self, detail):
+        self.detail = detail
 
 
 class HostShielder(BaseShielder):

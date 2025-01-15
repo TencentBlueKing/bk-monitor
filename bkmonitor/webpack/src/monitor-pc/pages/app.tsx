@@ -274,7 +274,7 @@ export default class App extends tsc<object> {
   handleNavHeaderResize() {
     if (!(this.$refs.NavTools as any)?.$el) return;
     /** 新版首页无需展示右侧的全站搜索框 */
-    const BASE_MIM_WIDTH = this.$route.name && this.$route.name === 'newHome' ? 672 : 772;
+    const BASE_MIM_WIDTH = this.$route.name && this.$route.name === 'home' ? 672 : 772;
     const minWidth = BASE_MIM_WIDTH + (this.$refs.NavTools as any).$el.clientWidth + 2;
     if (this.navHeaderRef?.clientWidth >= minWidth + SPACE_WIDTH) {
       this.hideNavCount = 0;
@@ -486,8 +486,11 @@ export default class App extends tsc<object> {
       setTimeout(async () => {
         await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
           if (hasAuth) {
-            this.routeViewKey = random(10);
-            this.$router.push({ name: navId === 'k8s' ? 'k8s-new' : 'k8s' });
+            this.$router
+              .push({ name: this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s', query: {} })
+              .finally(() => {
+                this.routeViewKey = random(10);
+              });
           }
         });
         window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
@@ -772,7 +775,7 @@ export default class App extends tsc<object> {
               slot='header'
             >
               <div class='header-list'>
-                {process.env.APP !== 'external' && this.$route.name !== 'newHome' && this.commonHeader()}
+                {process.env.APP !== 'external' && this.$route.name !== 'home' && this.commonHeader()}
                 {this.routeList.map(
                   ({ id, route, name }, index) =>
                     this.routeList.length - index > this.hideNavCount && (
@@ -875,8 +878,13 @@ export default class App extends tsc<object> {
                           {item.children
                             .filter(child => !child.hidden)
                             .filter(menu => {
-                              if (menu.id === 'k8s') return !this.$store.getters.isEnableK8sV2;
-                              if (menu.id === 'k8s-new') return this.$store.getters.isEnableK8sV2;
+                              if (menu.id === 'k8s' || menu.id === 'k8s-new') {
+                                if (['k8s', 'k8s-new'].includes(this.$route.name)) {
+                                  return this.$route.name === menu.id;
+                                }
+                                if (this.$store.getters.k8sV2EnableList && menu.id === 'k8s-new') return true;
+                                return false;
+                              }
                               return true;
                             })
                             .map(child => (

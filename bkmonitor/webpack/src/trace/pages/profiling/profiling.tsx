@@ -163,8 +163,11 @@ export default defineComponent({
      * 查询表单数据改变
      * @param val 表单数据
      */
-    function handleSearchFormDataChange(val: SearchState['formData'], hasQuery: boolean) {
-      searchState.formData = val;
+    function handleSearchFormDataChange(updateItem: Partial<SearchState['formData']>, hasQuery: boolean) {
+      for (const [key, val] of Object.entries(updateItem)) {
+        searchState.formData[key] = val;
+      }
+
       hasQuery && handleQuery();
     }
 

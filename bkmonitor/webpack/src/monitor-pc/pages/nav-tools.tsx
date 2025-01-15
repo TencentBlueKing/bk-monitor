@@ -305,7 +305,7 @@ class NavTools extends DocumentLinkMixin {
         {
           // #if APP !== 'external'
           /** 新版首页无需展示右侧的全站搜索框 */
-          this.$route.name && this.$route.name !== 'newHome' && (
+          this.$route.name && this.$route.name !== 'home' && (
             <div
               id='nav-search-bar'
               class='search-bar'

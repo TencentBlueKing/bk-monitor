@@ -48,7 +48,6 @@ import otherRoutes from './others';
 import scensesRoutes from './scenes';
 import platformSetting from './platform-setting';
 import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
-import newHomeRoutes from './new-home';
 // #endif
 
 // import spaceData from './space';
@@ -70,7 +69,6 @@ const routes = [
   ...platformSetting,
   ...dashboardRoutes,
   ...emailSubscriptionsRoutes,
-  ...newHomeRoutes,
   {
     path: '*',
     redirect: '/exception',
@@ -105,15 +103,6 @@ const specialReportRouteList = [
   'grafana-admin',
 ];
 router.beforeEach(async (to, from, next) => {
-  // 灰度 新版容器监控
-  if (to.name === 'k8s' && store.getters.isEnableK8sV2) {
-    next({ name: 'k8s-new' });
-    return;
-  }
-  if (to.name === 'k8s-new' && !store.getters.isEnableK8sV2) {
-    next({ name: 'k8s' });
-    return;
-  }
   store.commit('app/SET_PADDING_ROUTE', to);
   // 空闲初始化introduce数据
   if (store.getters.bizList?.length) {

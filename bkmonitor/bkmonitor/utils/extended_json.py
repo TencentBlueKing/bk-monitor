@@ -16,7 +16,7 @@ from decimal import Decimal
 from uuid import UUID
 
 import arrow
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 from django.utils.functional import Promise
 from elasticsearch_dsl import AttrDict, AttrList
 
@@ -61,7 +61,7 @@ class CustomJSONEncoder(json.JSONEncoder):
             if issubclass(type_, set):
                 return list(obj)
             if issubclass(type_, Promise):
-                return force_text(object)
+                return force_str(object)
         return json.JSONEncoder.default(self, obj)
 
 

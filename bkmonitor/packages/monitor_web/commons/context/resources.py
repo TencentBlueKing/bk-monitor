@@ -31,6 +31,7 @@ from common.log import logger
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
+from monitor.models.models import UserConfig
 from monitor_web.tasks import run_init_builtin
 
 
@@ -204,5 +205,12 @@ class EnhancedGetContextResource(Resource):
                         context["BK_BIZ_ID"] = context["SPACE_LIST"][0]["bk_biz_id"]
                     else:
                         context["BK_BIZ_ID"] = -1
+
+        # 补充默认业务ID
+        default_biz_config = UserConfig.objects.filter(
+            username=request.user.username,
+            key=UserConfig.Keys.DEFAULT_BIZ_ID,
+        ).first()
+        context["DEFAULT_BIZ_ID"] = default_biz_config.value if default_biz_config else None
 
         return {"context": context, "context_type": context_type}

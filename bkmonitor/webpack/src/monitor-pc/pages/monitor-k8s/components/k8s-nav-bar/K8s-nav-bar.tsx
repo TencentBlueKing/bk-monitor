@@ -62,7 +62,7 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
   routeList = [
     {
       id: 'k8s',
-      name: 'Kubernetes',
+      name: '容器监控',
       subName: '',
     },
   ];
@@ -115,7 +115,7 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
     return (
       <div class='k8s-nav-bar'>
         <div class='k8s-nav-title'>
-          <span class='title'>Kubernetes</span>
+          <span class='title'>{this.$t('容器监控')}</span>
           <bk-select
             class='nav-select'
             clearable={false}

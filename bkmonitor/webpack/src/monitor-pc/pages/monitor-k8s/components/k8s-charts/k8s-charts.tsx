@@ -51,6 +51,7 @@ export default class K8SCharts extends tsc<
     filterCommonParams: Record<string, any>;
     isDetailMode?: boolean;
     activeMetricId?: string;
+    resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
   },
   {
     onDrillDown: (item: K8sTableGroupByEvent, needBack: boolean) => void;
@@ -62,6 +63,7 @@ export default class K8SCharts extends tsc<
   @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, string>;
   @Prop({ type: Boolean, default: false }) isDetailMode: boolean;
   @Prop({ type: String, default: '' }) activeMetricId: string;
+  @Prop({ type: Array, default: () => [] }) resourceListData: Record<K8sTableColumnKeysEnum, string>[];
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
@@ -87,7 +89,7 @@ export default class K8SCharts extends tsc<
   }
   @Watch('hideMetrics')
   onHideMetricListChange() {
-    this.createPanelList();
+    this.createPanelList(false);
   }
   @Watch('filterCommonParams')
   onFilterCommonParamsChange(newVal: Record<string, string>, oldVal: Record<string, string>) {
@@ -122,10 +124,10 @@ export default class K8SCharts extends tsc<
     }
     if (this.groupByField === K8sTableColumnKeysEnum.CONTAINER) {
       const [container] = name.split(':');
-      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, false);
+      this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: container }, true);
       return;
     }
-    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, false);
+    this.$emit('drillDown', { id: this.groupByField, dimension: group, filterById: name }, true);
   }
 
   @Provide('onShowDetail')
@@ -156,8 +158,10 @@ export default class K8SCharts extends tsc<
     this.createPanelList();
   }
   @Debounce(300)
-  async createPanelList() {
-    this.loading = true;
+  async createPanelList(hasLoading = true) {
+    if (hasLoading) {
+      this.loading = true;
+    }
     await this.getResourceList();
     const displayMode = this.isDetailMode ? 'hidden' : 'table';
     const panelList = [];
@@ -182,7 +186,7 @@ export default class K8SCharts extends tsc<
               legend: {
                 displayMode,
               },
-              unit: K8SPerformanceMetricUnitMap[panel.id] || '',
+              unit: this.method === 'count' ? '' : panel.unit || K8SPerformanceMetricUnitMap[panel.id] || '',
             },
             targets: [
               {
@@ -223,7 +227,9 @@ export default class K8SCharts extends tsc<
       });
     }
     this.panels = panelList;
-    this.loading = false;
+    if (hasLoading) {
+      this.loading = false;
+    }
     await this.$nextTick();
     this.onActiveMetricIdChange(this.activeMetricId);
   }
@@ -235,9 +241,9 @@ export default class K8SCharts extends tsc<
     //   ? `$method by(${this.groupByField === K8sTableColumnKeysEnum.WORKLOAD ? 'workload_kind,workload_name' : this.groupByField})`
     //   : '$method';
   }
-  createCommonPromqlContent(onlyNameSpace = false) {
+  createCommonPromqlContent(onlyNameSpace = false, needExcludePod = true) {
     let content = `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"`;
-    const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE);
+    const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE) || '';
     if (onlyNameSpace) {
       content += `,namespace=~"^(${namespace})$"`;
       return content;
@@ -250,7 +256,7 @@ export default class K8SCharts extends tsc<
       // content += `,container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
       // break;
       case K8sTableColumnKeysEnum.POD:
-        content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",container_name!="POD"`;
+        content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
         break;
       case K8sTableColumnKeysEnum.WORKLOAD:
         content += `,workload_kind=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD_TYPE)})$",workload_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD)})$"`;
@@ -263,34 +269,34 @@ export default class K8SCharts extends tsc<
   createWorkLoadRequestOrLimit(isLimit: boolean, isCPU = true) {
     if (isCPU) {
       if (isLimit)
-        return `(sum by (workload_kind, workload_name) (count by (workload_kind, workload_name, pod_name, namespace) (rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift) ) *
+        return `($method by (workload_kind, workload_name) (count by (workload_kind, workload_name, pod_name, namespace) (rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift) ) *
       on(pod_name, namespace)
       group_right(workload_kind, workload_name)
-      sum by (pod_name, namespace) (
+      $method by (pod_name, namespace) (
         kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent(true)}} $time_shift
       )))`;
-      return `(sum by (workload_kind, workload_name) (count by (workload_kind, workload_name, pod_name, namespace) (rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) *
+      return `($method by (workload_kind, workload_name) (count by (workload_kind, workload_name, pod_name, namespace) (rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) *
       on(pod_name, namespace)
       group_right(workload_kind, workload_name)
-      sum by (pod_name, namespace) (kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent(true)}} $time_shift)))`;
+      $method by (pod_name, namespace) (kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent(true)}} $time_shift)))`;
     }
     if (isLimit)
-      return `(sum by (workload_kind, workload_name)
+      return `($method by (workload_kind, workload_name)
         (count by (workload_kind, workload_name, pod_name, namespace) (
       container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift
     ) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
-    sum by (pod_name, namespace) (
+    $method by (pod_name, namespace) (
       kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent(true)}} $time_shift
     )))`;
-    return `(sum by (workload_kind, workload_name)
+    return `($method by (workload_kind, workload_name)
                 (count by (workload_kind, workload_name, pod_name, namespace) (
               container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift
             ) *
             on(pod_name, namespace)
             group_right(workload_kind, workload_name)
-            sum by (pod_name, namespace) (
+            $method by (pod_name, namespace) (
               kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent(true)}} $time_shift
             )))`;
   }
@@ -298,23 +304,28 @@ export default class K8SCharts extends tsc<
     switch (metric) {
       case 'container_cpu_usage_seconds_total': // CPU使用量
         return `${this.createCommonPromqlMethod()}(rate(${metric}{${this.createCommonPromqlContent()}}[$interval] $time_shift))`;
+      case 'container_network_receive_bytes_total': // 网络入带宽
+      case 'container_network_transmit_bytes_total': // 网络出带宽
+        return `${this.createCommonPromqlMethod()}(rate(${metric}{${this.createCommonPromqlContent(false, false)}}[$interval] $time_shift))`;
       case 'kube_pod_cpu_limits_ratio': // CPU limit使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `sum by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(true)}`;
-        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / sum(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
+          return `$method by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(true)}`;
+        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
+      case 'container_cpu_cfs_throttled_ratio': // CPU 限流占比
+        return `${this.createCommonPromqlMethod()}((increase(container_cpu_cfs_throttled_periods_total{${this.createCommonPromqlContent()}}[$interval] $time_shift) / increase(container_cpu_cfs_periods_total{${this.createCommonPromqlContent()}}[$interval] $time_shift)))`;
       case 'kube_pod_cpu_requests_ratio': // CPU request使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `sum by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(false)}`;
-        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / sum(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
+          return `$method by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(false)}`;
+        return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
       case 'container_memory_rss': // 内存使用量(rss)
         return `${this.createCommonPromqlMethod()}(${metric}{${this.createCommonPromqlContent()}} $time_shift)`;
       case 'kube_pod_memory_limits_ratio': // 内存limit使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `sum by (workload_kind, workload_name)(container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift) / ${this.createWorkLoadRequestOrLimit(true, false)}`;
+          return `$method by (workload_kind, workload_name)(container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift) / ${this.createWorkLoadRequestOrLimit(true, false)}`;
         return `${this.createCommonPromqlMethod()}(${'container_memory_rss'}{${this.createCommonPromqlContent()}} $time_shift) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}} $time_shift)`;
       case 'kube_pod_memory_requests_ratio': // 内存request使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `sum by (workload_kind, workload_name)(container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift) / ${this.createWorkLoadRequestOrLimit(false, false)}`;
+          return `$method by (workload_kind, workload_name)(container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift) / ${this.createWorkLoadRequestOrLimit(false, false)}`;
         return `${this.createCommonPromqlMethod()}(${'container_memory_rss'}{${this.createCommonPromqlContent()}} $time_shift) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}} $time_shift)`;
       default:
         return '';
@@ -401,19 +412,23 @@ export default class K8SCharts extends tsc<
         },
       ];
     } else {
-      data = await listK8sResources({
-        ...this.filterCommonParams,
-        with_history: true,
-        page_size: Math.abs(this.limit),
-        page: 1,
-        page_type: 'scrolling',
-        order_by: this.limit > 0 ? '-cpu' : 'cpu',
-      })
-        .then(data => {
-          if (!data?.items?.length) return [];
-          return data.items;
-        })
-        .catch(() => []);
+      data =
+        this.isDetailMode && this.resourceListData.length
+          ? this.resourceListData
+          : await listK8sResources({
+              ...this.filterCommonParams,
+              with_history: true,
+              page_size: Math.abs(this.limit),
+              page: 1,
+              page_type: 'scrolling',
+              column: 'container_cpu_usage_seconds_total',
+              order_by: this.limit > 0 ? 'desc' : 'asc',
+            })
+              .then(data => {
+                if (!data?.items?.length) return [];
+                return data.items;
+              })
+              .catch(() => []);
       if (data.length) {
         const container = new Set<string>();
         const pod = new Set<string>();
@@ -445,6 +460,7 @@ export default class K8SCharts extends tsc<
     this.viewOptions = {
       interval: this.interval,
       method: this.method,
+      unit: this.method === 'count' ? 'none' : undefined,
     };
   }
   // 刷新间隔设置

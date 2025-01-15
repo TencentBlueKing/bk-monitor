@@ -688,7 +688,7 @@ class SpanNode:
 class TraceTree:
     """A trace tree with multiple roots."""
 
-    config: TreeBuildingConfig = TreeBuildingConfig.default()
+    config: TreeBuildingConfig = field(default_factory=TreeBuildingConfig.default)
     roots: List[SpanNode] = field(default_factory=list)
     _roots_map: Dict[tuple, List[SpanNode]] = field(default_factory=lambda: defaultdict(list))
 

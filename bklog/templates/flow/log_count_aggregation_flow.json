@@ -150,7 +150,7 @@
       "indexed_fields": [
         "signature"
       ],
-      "cluster": "{{log_count_aggregation.tspider_storage.cluster}}",
+      "cluster": "{{log_count_aggregation.pattern.storage}}",
       "expires": {{log_count_aggregation.pattern.expires}},
       "has_unique_key": true,
       "storage_keys": [
