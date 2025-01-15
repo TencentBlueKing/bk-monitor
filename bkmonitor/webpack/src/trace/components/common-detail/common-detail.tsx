@@ -27,6 +27,7 @@ import { defineComponent, getCurrentInstance, inject, reactive, type PropType, r
 import { useI18n } from 'vue-i18n';
 
 import { CancelToken } from 'monitor-api/index';
+import { isShadowEqual } from 'monitor-ui/chart-plugins/utils';
 
 import { VariablesService } from '../../utils';
 import EmptyStatus from '../empty-status/empty-status';
@@ -59,6 +60,7 @@ export default defineComponent({
     const viewOptions = inject<Ref<IViewOptions>>('viewOptions', ref({ filters: {}, variables: {} }));
     const currentInstance = getCurrentInstance();
     let cancelToken = null;
+    let oldParams = null;
 
     watch(
       () => props.defaultShow,
@@ -96,10 +98,14 @@ export default defineComponent({
           cancelToken = null;
         }
         const params: any = variablesService.transformVariables(item.data);
-        if (Object.values(params || {}).some(v => typeof v === 'undefined')) {
+        if (
+          Object.values(params || {}).some(v => typeof v === 'undefined') ||
+          (oldParams && isShadowEqual(params, oldParams))
+        ) {
           loading.value = false;
           return;
         }
+        oldParams = { ...params };
         const res = await currentInstance?.appContext.config.globalProperties?.$api[item.apiModule]
           [item.apiFunc](params, {
             cancelToken: new CancelToken(cb => (cancelToken = cb)),
