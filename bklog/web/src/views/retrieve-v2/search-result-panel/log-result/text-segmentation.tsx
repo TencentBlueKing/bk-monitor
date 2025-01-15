@@ -33,6 +33,8 @@ import { fabric } from 'fabric';
 import { debounce } from 'lodash';
 
 import './text-segmentation.scss';
+import useKonva from './use-konva';
+import { WordListItem } from '../../../../hooks/use-text-segmentation';
 export default defineComponent({
   props: {
     field: { type: Object, required: true },
@@ -51,6 +53,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const refContent: Ref<HTMLElement> = ref();
     const refCanvas: Ref<HTMLElement> = ref();
+    const { initKonvaInstance, setText, setRect, getLines, setHighlightWords, computeWordListPosition } = useKonva();
 
     const fontFamily = 'Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace';
     const store = useStore();
@@ -104,9 +107,9 @@ export default defineComponent({
       },
     });
 
-    let canvasInstance: fabric.Canvas;
-    let textBox: fabric.Textbox;
-    let wordList: any[];
+    // let canvasInstance: fabric.Canvas;
+    // let textBox: fabric.Textbox;
+    let wordList: WordListItem[];
     let pageIndex = getCachedValue('pageIndex', 0);
     let mountedAllTag = false;
     let isDispose = false;
@@ -138,41 +141,23 @@ export default defineComponent({
       return null;
     };
 
-    const setMarkText = list => {
-      list.forEach(item => {
-        const { isMark } = item;
-        if (isMark) {
-          textBox.setSelectionStyles({ textBackgroundColor: 'rgb(255, 255, 0)' }, item.startIndex, item.endIndex);
-        }
-      });
-    };
-
-    const updateCanvas = () => {
-      canvasInstance.setHeight(Math.max(textBox.height + 4, 40));
-      canvasInstance.renderAll();
-    };
-
     /**
      * 初始化前三行数据
      */
     const setNextText = (max?) => {
-      if (mountedAllTag || !textBox) {
+      if (mountedAllTag) {
         return;
       }
 
-      textLineCount.value = textBox.textLines.length;
+      textLineCount.value = getLines();
       const maxLength = isLimitExpandView.value || showAll.value ? max : 3;
       if (textLineCount.value <= maxLength) {
         const nextList = getNextList();
         if (nextList.length > 0) {
           const nextValue = getNextText(nextList);
-          const insertionPoint = textBox.text.length;
-          const endPoint = insertionPoint + nextValue.length;
-
-          textBox.insertChars(nextValue, undefined, insertionPoint, endPoint);
-          setMarkText(nextList);
-          textLineCount.value = textBox.textLines.length;
-          updateCanvas();
+          setText(nextValue);
+          setHighlightWords(nextList);
+          textLineCount.value = getLines();
           if (!isDispose) {
             requestAnimationFrame(() => {
               setNextText(max);
@@ -194,98 +179,93 @@ export default defineComponent({
     };
 
     const hanldeTextBoxMousemove = evt => {
-      const pointer = canvasInstance.getPointer(evt.e);
-      const charIndex = textBox.getSelectionStartFromPointer(pointer);
-
-      if (charIndex !== -1) {
-        const wordBoundary = findWordBoundary(charIndex);
-
-        if (wordBoundary?.isCursorText) {
-          // 重置所有字符样式
-          textBox.setSelectionStyles({ fill: '#313238' }, 0, textBox.text.length);
-          // 高亮当前分词
-          textBox.setSelectionStyles({ fill: '#3a84ff' }, wordBoundary.startIndex, wordBoundary.endIndex);
-        }
-      }
-      canvasInstance.renderAll();
+      // const pointer = canvasInstance.getPointer(evt.e);
+      // const charIndex = textBox.getSelectionStartFromPointer(pointer);
+      // if (charIndex !== -1) {
+      //   const wordBoundary = findWordBoundary(charIndex);
+      //   if (wordBoundary?.isCursorText) {
+      //     // 重置所有字符样式
+      //     textBox.setSelectionStyles({ fill: '#313238' }, 0, textBox.text.length);
+      //     // 高亮当前分词
+      //     textBox.setSelectionStyles({ fill: '#3a84ff' }, wordBoundary.startIndex, wordBoundary.endIndex);
+      //   }
+      // }
+      // canvasInstance.renderAll();
     };
 
     const hanldeTextBoxClick = evt => {
-      const pointer = canvasInstance.getPointer(evt.e);
-      const wordIndex = textBox.getSelectionStartFromPointer(pointer);
-
-      if (wordIndex !== -1) {
-        const wordBoundary = findWordBoundary(wordIndex);
-        if (wordBoundary?.text) {
-          textSegmentInstance?.getCellClickHandler(evt.e, wordBoundary.text);
-        }
-      }
+      // const pointer = canvasInstance.getPointer(evt.e);
+      // const wordIndex = textBox.getSelectionStartFromPointer(pointer);
+      // if (wordIndex !== -1) {
+      //   const wordBoundary = findWordBoundary(wordIndex);
+      //   if (wordBoundary?.text) {
+      //     textSegmentInstance?.getCellClickHandler(evt.e, wordBoundary.text);
+      //   }
+      // }
     };
 
     const handleTextBoxMouseout = () => {
-      textBox.setSelectionStyles({ fill: '#313238' }, 0, textBox.text.length);
-      canvasInstance.renderAll();
+      // textBox.setSelectionStyles({ fill: '#313238' }, 0, textBox.text.length);
+      // canvasInstance.renderAll();
     };
 
     const initFabricTextBox = (maxLength = 4) => {
       const width = getWidth(wordList);
       refCanvas.value.setAttribute('width', `${width}`);
-      const nextListItems = getNextList();
-      canvasInstance = new fabric.Canvas(refCanvas.value);
+      // const nextListItems = getNextList();
+      // canvasInstance = new fabric.Canvas(refCanvas.value);
 
-      if (!textBox) {
-        textBox = new fabric.Textbox(getNextText(nextListItems), {
-          fontSize: 12,
-          fontFamily,
-          width,
-          wrapWidth: width,
-          lineHeight: 1.6, // 行距
-          left: 0,
-          top: 4,
-          selectable: false,
-          editable: false, // 禁止编辑
-          hoverCursor: 'pointer',
-          backgroundColor: '',
-          fill: '#313238',
-          fontWeight: 'normal',
-          splitByGrapheme: true, // 自动换行
-          padding: 0,
-          opacity: 0.9,
-        });
-      }
+      initKonvaInstance(refCanvas.value, width, 60, fontFamily);
+      computeWordListPosition(wordList);
 
-      // 鼠标移动事件
-      textBox.on('mousemove', hanldeTextBoxMousemove);
+      // setText();
 
-      // 鼠标离开事件
-      textBox.on('mouseout', handleTextBoxMouseout);
+      // if (!textBox) {
+      //   textBox = new fabric.Textbox(getNextText(nextListItems), {
+      //     fontSize: 12,
+      //     fontFamily,
+      //     width,
+      //     wrapWidth: width,
+      //     lineHeight: 1.6, // 行距
+      //     left: 0,
+      //     top: 4,
+      //     selectable: false,
+      //     editable: false, // 禁止编辑
+      //     hoverCursor: 'pointer',
+      //     backgroundColor: '',
+      //     fill: '#313238',
+      //     fontWeight: 'normal',
+      //     splitByGrapheme: true, // 自动换行
+      //     padding: 0,
+      //     opacity: 0.9,
+      //   });
+      // }
 
-      // 鼠标点击事件
-      textBox.on('mousedown', hanldeTextBoxClick);
+      // // 鼠标移动事件
+      // textBox.on('mousemove', hanldeTextBoxMousemove);
 
-      setMarkText(nextListItems);
-      canvasInstance.add(textBox);
-      textLineCount.value = textBox.textLines.length;
+      // // 鼠标离开事件
+      // textBox.on('mouseout', handleTextBoxMouseout);
 
-      updateCanvas();
+      // // 鼠标点击事件
+      // textBox.on('mousedown', hanldeTextBoxClick);
+
       requestAnimationFrame(() => {
         setNextText(maxLength);
       });
     };
 
     const destroyFabricInstance = () => {
-      if (!canvasInstance) {
-        return;
-      }
-
-      if (textBox) {
-        textBox.off('mousemove', hanldeTextBoxMousemove);
-        textBox.off('mouseout', handleTextBoxMouseout);
-        textBox.off('mousedown', hanldeTextBoxClick);
-        textBox = undefined;
-      }
-
-      canvasInstance.clear();
+      // if (!canvasInstance) {
+      //   return;
+      // }
+      // if (textBox) {
+      //   textBox.off('mousemove', hanldeTextBoxMousemove);
+      //   textBox.off('mouseout', handleTextBoxMouseout);
+      //   textBox.off('mousedown', hanldeTextBoxClick);
+      //   textBox = undefined;
+      // }
+      // canvasInstance.clear();
     };
 
     let textSegmentIndex = 0;
@@ -444,9 +424,10 @@ export default defineComponent({
           mountedAllTag = false;
           pageIndex = 0;
           const width = refContent.value.offsetWidth;
-          canvasInstance.setWidth(width);
-          textBox.text = '';
-          textBox.set({ width, wrapWidth: width });
+          setRect(width);
+          // canvasInstance.setWidth(width);
+          // textBox.text = '';
+          // textBox.set({ width, wrapWidth: width });
           setNextText();
         }
 
@@ -460,7 +441,7 @@ export default defineComponent({
 
     const renderSegmentList = () => {
       if (getSegmentRenderType() === 'fabric') {
-        return <canvas ref={refCanvas}></canvas>;
+        return <div ref={refCanvas}></div>;
       }
 
       return (

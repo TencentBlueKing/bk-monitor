@@ -37,6 +37,17 @@ export type FormatterConfig = {
   };
 };
 
+export type WordListItem = {
+  text: string;
+  isMark: boolean;
+  isCursorText: boolean;
+  startIndex?: number;
+  endIndex?: number;
+  left?: number;
+  top?: number;
+  width?: number;
+};
+
 export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
 export default class UseTextSegmentation {
   getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
@@ -81,7 +92,7 @@ export default class UseTextSegmentation {
     }
   }
 
-  getChildNodes() {
+  getChildNodes(): WordListItem[] {
     let start = 0;
     return this.getSplitList(this.options.field, this.options.content).map(item => {
       Object.assign(item, {
@@ -217,7 +228,7 @@ export default class UseTextSegmentation {
       : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
-  private getSplitList(field: any, content: any) {
+  private getSplitList(field: any, content: any): WordListItem[] {
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
