@@ -26,7 +26,6 @@ def get_record_rule_metrics_by_biz_id(bk_biz_id, with_option: bool = True):
 
     logger.info("get_record_rule_metrics_by_biz_id: try to get record rule metrics by bk_biz_id->[%s]", bk_biz_id)
     # 0. 根据bk_biz_id，获取该业务下的预计算结果表列表
-    space_id = bk_biz_id
     if bk_biz_id < 0:  # 业务ID为负数，表示非bkcc类型，需要转化
         logger.info(
             "get_record_rule_metrics_by_biz_id: bk_biz_id is negative, try to get space_id by bk_biz_id->[%s]",
@@ -35,6 +34,8 @@ def get_record_rule_metrics_by_biz_id(bk_biz_id, with_option: bool = True):
         space = Space.objects.get(id=abs(bk_biz_id))
         space_id = space.space_id
         logger.info("get_record_rule_metrics_by_biz_id: get space_id->[%s] by bk_biz_id->[%s]", space_id, bk_biz_id)
+    else:
+        space_id = bk_biz_id
 
     result_table_id_list = list(RecordRule.objects.filter(space_id=space_id).values_list('table_id', flat=True))
     logger.info("get_record_rule_metrics_by_biz_id: get result_table_id_list->[%s]", result_table_id_list)

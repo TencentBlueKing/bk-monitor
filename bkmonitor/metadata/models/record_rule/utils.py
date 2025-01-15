@@ -35,6 +35,7 @@ def sanitize(name: str, max_length: int = 110) -> str:
     - 避免连续的下划线 (_ -> 单个_)
     - 去掉首尾的下划线
     - 限制长度为 max_length
+    - 确保符合 Prometheus 的指标正则规则 [a-zA-Z_:][a-zA-Z0-9_:]*
     """
     # 替换非法字符 (.、-、/) 为 _
     name = re.sub(r"[.\-\/]+", "_", name)
@@ -43,7 +44,14 @@ def sanitize(name: str, max_length: int = 110) -> str:
     # 去掉首尾的下划线
     name = name.strip("_")
     # 限制长度
-    return name[:max_length]
+    name = name[:max_length]
+    # 确保不以非法字符结尾，若存在则去除
+    while name and not re.match(r"[a-zA-Z0-9_:]$", name[-1]):
+        name = name[:-1]
+    # 校验最终结果是否符合 Prometheus 的正则规则
+    if not re.match(r"^[a-zA-Z_:][a-zA-Z0-9_:]*$", name):
+        raise ValueError(f"Name '{name}' does not conform to naming rules")
+    return name
 
 
 def generate_pre_cal_table_id(space_type: str, space_id: str, record_name: str) -> str:
