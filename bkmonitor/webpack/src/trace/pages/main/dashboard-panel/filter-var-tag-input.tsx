@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, getCurrentInstance, inject, type Ref, ref } from 'vue';
+import { defineComponent, getCurrentInstance, inject, type PropType, type Ref, ref } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -35,12 +35,14 @@ import dayjs from 'dayjs';
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { VariablesService } from '../../../utils/index';
 
+import type { IVariableModel } from 'monitor-ui/chart-plugins/typings';
+
 import './filter-var-tag-input.scss';
 
 export default defineComponent({
   name: 'FilterVarTagInput',
   props: {
-    panel: { type: Object, default: () => null },
+    panel: { type: Object as PropType<IVariableModel>, default: () => null },
     multiple: { type: Boolean, default: false },
   },
   emits: ['change', 'targetListChange', 'curTargetTitleChange'],
@@ -59,8 +61,11 @@ export default defineComponent({
       .format('YYYY-MM-DD HH:mm:ss');
     const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
 
+    // 可选项
     const localOptions = shallowRef([]);
+    // 当前值
     const localValue = ref([]);
+    const loading = ref(false);
 
     const localValueCheckedOptions = computed(() => {
       if (props.multiple) {
@@ -96,7 +101,11 @@ export default defineComponent({
       handleGetOptionsList();
     }
 
+    /**
+     * @description 获取可选项
+     */
     async function handleGetOptionsList() {
+      loading.value = true;
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
       const variablesService = new VariablesService({
         start_time: startTime,
@@ -129,6 +138,7 @@ export default defineComponent({
             name: item.name || item.ip || item.id,
           };
         });
+      loading.value = false;
       if (props.panel.type === 'target_list') {
         emit('targetListChange', localOptions.value);
         emit('curTargetTitleChange', localOptions.value?.[0]?.name || '');
@@ -159,6 +169,9 @@ export default defineComponent({
     //   return [{ id: v, name: v }];
     // }
 
+    /**
+     * @description 下拉框选择事件
+     */
     function handleSelectChange() {
       const name = localOptions.value.find(item => item.id === localValue.value)?.name;
       emit('curTargetTitleChange', name || '');
@@ -167,7 +180,9 @@ export default defineComponent({
     function handleChange() {
       emit('change', localCheckedFilterDict.value);
     }
-
+    /**
+     * @description 默认选择第一项
+     */
     function defaultValueChange() {
       if (localOptions.value.length) {
         localValue.value = localOptions.value[0].id;
@@ -178,6 +193,7 @@ export default defineComponent({
     return {
       localOptions,
       localValue,
+      loading,
       t,
       // handlePaste,
       handleSelectChange,
@@ -187,39 +203,43 @@ export default defineComponent({
     return (
       <span class='dashboard-panel__filter-var-tag-input'>
         {this.panel?.title && <span class='filter-var-label'>{this.panel.title}:</span>}
-        <Select
-          v-model={this.localValue}
-          popoverOptions={{
-            extCls: 'dashboard-panel__filter-var-tag-input-popover',
-          }}
-          allowCreate={true}
-          behavior={'simplicity'}
-          clearable={false}
-          filterable={true}
-          multiple={this.multiple}
-          onChange={this.handleSelectChange}
-        >
-          {{
-            default: () => {
-              return this.localOptions.map(item => (
-                <Select.Option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                >
-                  {{
-                    default: () => (
-                      <span>
-                        <span>{item.name}</span>
-                        {!!item.source && <span class='subtitle'>({item.source})</span>}
-                      </span>
-                    ),
-                  }}
-                </Select.Option>
-              ));
-            },
-          }}
-        </Select>
+        {this.loading ? (
+          <span class='skeleton-element select-skeleton' />
+        ) : (
+          <Select
+            v-model={this.localValue}
+            popoverOptions={{
+              extCls: 'dashboard-panel__filter-var-tag-input-popover',
+            }}
+            allowCreate={true}
+            behavior={'simplicity'}
+            clearable={false}
+            filterable={true}
+            multiple={this.multiple}
+            onChange={this.handleSelectChange}
+          >
+            {{
+              default: () => {
+                return this.localOptions.map(item => (
+                  <Select.Option
+                    id={item.id}
+                    key={item.id}
+                    name={item.name}
+                  >
+                    {{
+                      default: () => (
+                        <span>
+                          <span>{item.name}</span>
+                          {!!item.source && <span class='subtitle'>({item.source})</span>}
+                        </span>
+                      ),
+                    }}
+                  </Select.Option>
+                ));
+              },
+            }}
+          </Select>
+        )}
         {/* <TagInput
           v-model={this.localValue}
           allowAutoMatch={true}
