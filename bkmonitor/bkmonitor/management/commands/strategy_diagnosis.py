@@ -32,14 +32,14 @@ def add_cloud_id_to_strategy(add_cloud_id: bool):
     query_configs = QueryConfigModel.objects.all().only("strategy_id", "config")
 
     strategy_ids = []
-    query_config_instance = []
+    query_config_instances = []
     for query_config in query_configs:
         agg_dimension = query_config.config.get("agg_dimension", [])
         if "bk_target_ip" in agg_dimension and "bk_target_cloud_id" not in agg_dimension:
             strategy_ids.append(query_config.strategy_id)
             if add_cloud_id:
                 agg_dimension.append("bk_target_cloud_id")
-                query_config_instance.append(query_config)
+                query_config_instances.append(query_config)
 
     strategies = StrategyModel.objects.filter(id__in=strategy_ids).only("id", "name", "bk_biz_id")
 
@@ -48,5 +48,5 @@ def add_cloud_id_to_strategy(add_cloud_id: bool):
         print(f"{strategy.id}, {strategy.name}, {strategy.bk_biz_id}")
 
     if add_cloud_id:
-        QueryConfigModel.objects.bulk_update(query_config_instance, ["config"])
+        QueryConfigModel.objects.bulk_update(query_config_instances, ["config"])
         print("bk_target_cloud_id维度添加完成")
