@@ -673,7 +673,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             ref='textareaInput'
             class='home-select-input'
             v-model={this.searchValue}
-            placeholder={this.$tc('请输入 IP / traceId / 容器集群 / 告警ID / 策略名 进行搜索')}
+            placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
             rows={1}
             spellcheck={false}
             onCompositionend={this.handleCompositionend}
