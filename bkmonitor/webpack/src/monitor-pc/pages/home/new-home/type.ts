@@ -40,6 +40,10 @@ export interface ISearchItem {
   strategy_id?: number;
   app_name?: string;
   trace_id?: string;
+  bcs_cluster_id?: string;
+}
+export interface IDataItem {
+  [key: string]: any;
 }
 
 export interface ISearchListItem {

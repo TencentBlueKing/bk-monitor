@@ -273,7 +273,9 @@ export default class App extends tsc<object> {
   // 一级导航宽度变化时触发自动计算收缩
   handleNavHeaderResize() {
     if (!(this.$refs.NavTools as any)?.$el) return;
-    const minWidth = 772 + (this.$refs.NavTools as any).$el.clientWidth + 2;
+    /** 新版首页无需展示右侧的全站搜索框 */
+    const BASE_MIM_WIDTH = this.$route.name && this.$route.name === 'newHome' ? 672 : 772;
+    const minWidth = BASE_MIM_WIDTH + (this.$refs.NavTools as any).$el.clientWidth + 2;
     if (this.navHeaderRef?.clientWidth >= minWidth + SPACE_WIDTH) {
       this.hideNavCount = 0;
       return;
@@ -770,7 +772,7 @@ export default class App extends tsc<object> {
               slot='header'
             >
               <div class='header-list'>
-                {process.env.APP !== 'external' && this.commonHeader()}
+                {process.env.APP !== 'external' && this.$route.name !== 'newHome' && this.commonHeader()}
                 {this.routeList.map(
                   ({ id, route, name }, index) =>
                     this.routeList.length - index > this.hideNavCount && (

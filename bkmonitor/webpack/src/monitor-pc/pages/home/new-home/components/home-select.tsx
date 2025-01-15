@@ -26,9 +26,12 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import debounceDecorator from 'monitor-common/utils/debounce-decorator';
+
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
-import { type ISearchListItem, type ISearchItem, type IRouteItem } from '../type';
-import { highLightContent, ESearchType } from '../utils';
+import { highLightContent, ESearchType, ESearchPopoverType } from '../utils';
+
+import type { ISearchListItem, ISearchItem, IRouteItem, IDataItem } from '../type';
 
 import './home-select.scss';
 
@@ -43,18 +46,17 @@ const storageKey = 'bk_monitor_new_home_history';
 })
 export default class HomeSelect extends tsc<IHomeSelectProps> {
   @Ref('select') selectRef: HTMLDivElement;
-  @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('textareaInput') textareaInputRef: HTMLDivElement;
-  searchValue: string = '';
-  searchType: string = '';
-  showPopover: boolean = false;
+  searchValue = '';
+  searchType = '';
+  showPopover = false;
   routeList: IRouteItem[] = [];
   /** 策略可跳转列表 */
   operatorList = [
     { name: this.$t('关联的告警'), key: 'strategy-alarm' },
     { name: this.$t('关联的屏蔽配置'), key: 'alarm-shield' },
   ];
-  isLoading: boolean = false;
+  isLoading = false;
   /** 高亮选中的index, 第一个表示组的下标，第二个表示items的下标 */
   highlightedIndex: number[] = [-1, -1];
   /** 高亮选中的Item */
@@ -64,21 +66,23 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 接口搜索结果列表 */
   searchList: ISearchListItem[] = [];
   /** 是否为input输入内容 */
-  isInput: boolean = false;
-  isEmpty: boolean = false;
+  isInput = false;
+  isEmpty = false;
   searchLenArr: number[] = [];
+  isComposing = false;
+  currentAbortController: IDataItem = null;
 
   /** 处理数据 */
-  flattenRoute(tree) {
+  flattenRoute(tree: IRouteItem[]) {
     const result = [];
     const traverse = node => {
       if (!node) return;
       result.push(node);
       if (node.children && node.children.length > 0) {
-        node.children.forEach(child => traverse(child));
+        node.children.map(child => traverse(child));
       }
     };
-    tree.forEach(rootNode => traverse(rootNode));
+    tree.map(rootNode => traverse(rootNode));
     return result;
   }
   /** 符合搜索内容的路由列表 */
@@ -91,25 +95,37 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
 
   get currentListKey() {
-    return this.isSearchResult ? 'searchList' : 'localHistoryList';
+    return this.isSearchResult ? ESearchPopoverType.searchList : ESearchPopoverType.localHistoryList;
+  }
+
+  mounted() {
+    this.autoResize();
+    this.routeList = this.flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
+    document.addEventListener('click', this.handleClickOutside);
+  }
+  beforeDestroy() {
+    document.removeEventListener('click', this.handleClickOutside);
   }
   /** 点击收起下拉框 */
-  handleClickOutside(event) {
-    if (
-      this.showPopover &&
-      this.wrapRef &&
-      !this.wrapRef.contains(event.target) &&
-      this.selectRef &&
-      !this.selectRef.contains(event.target)
-    ) {
+  handleClickOutside(event: Event) {
+    if (this.showPopover && this.selectRef && !this.selectRef.contains(event.target)) {
       this.showPopover = false;
     }
   }
   /** 解析后台返回的eventStream */
+  @debounceDecorator(300)
   async fetchEventStream(url: string) {
+    // 如果已经存在一个请求，取消它
+    if (this.currentAbortController) {
+      this.currentAbortController?.abort();
+    }
+    this.currentAbortController = new AbortController();
+    const { signal } = this.currentAbortController;
+
     this.searchList = [];
+    this.isLoading = true;
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal });
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
@@ -118,10 +134,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         const { done, value } = await reader.read();
         if (done) break;
 
-        // 解码新数据并添加到缓冲区
         buffer += decoder.decode(value, { stream: true });
 
-        // 处理缓冲区中的完整事件
         let boundary = buffer.indexOf('\n\n');
         while (boundary !== -1) {
           const eventString = buffer.substring(0, boundary);
@@ -131,14 +145,29 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         }
       }
     } catch (error) {
+      this.isLoading = false;
+      this.searchList = [];
       console.error('Error fetching event stream:', error);
+    } finally {
+      this.isLoading = false;
     }
+  }
+  /** 特殊处理alert_id */
+  extractAlertId(str: string) {
+    const regex = /"alert_id":(.*?),/;
+    const match = str.match(regex);
+    if (match?.[1]) {
+      return match[1].trim();
+    }
+    return null;
   }
   // 从给定的事件字符串中提取数据，如果事件字符串以"data:"开头，则截取并解析其中的JSON数据，否则返回null
   extractDataFromEventString(eventString: string) {
     if (eventString.startsWith('data:')) {
       const eventData = eventString.slice(5).trim();
-      return JSON.parse(eventData);
+      const pattern = /"alert_id":\s*[^,]+,/;
+      const outputString = eventData.replace(pattern, `"alert_id": "${this.extractAlertId(eventData)}",`);
+      return JSON.parse(outputString);
     }
     return null;
   }
@@ -172,6 +201,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       }
     } catch (error) {
       this.isLoading = false;
+      this.searchList = [];
       console.error('Error parsing event string:', error);
     }
   }
@@ -181,21 +211,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.isLoading = true;
     this.fetchEventStream(`${location.origin}/rest/v2/overview/search/?query=${this.searchValue}`);
   }
-  mounted() {
-    this.autoResize();
-    this.routeList = this.flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
-    document.addEventListener('click', this.handleClickOutside);
-  }
-  beforeDestroy() {
-    document.removeEventListener('click', this.handleClickOutside);
-  }
   /* 显示弹出层 */
   handleMousedown() {
     this.showPopover = true;
     this.localHistoryList = JSON.parse(localStorage.getItem(storageKey)) || [];
   }
   /** 关联的屏蔽策略/关联的告警  */
-  handleOperator(e, item: ISearchItem, key: string) {
+  handleOperator(e: Event, item: ISearchItem, key: string) {
     e.stopPropagation();
     this.handleSearchJumpPage(item, key);
   }
@@ -222,13 +244,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         {isStrategy && (
           <span class='item-operator'>
             {this.operatorList.map(operator => (
-              <label
+              <span
                 key={operator.key}
                 class='item-operator-item'
-                on-click={e => this.handleOperator(e, item, operator.key)}
+                onClick={e => this.handleOperator(e, item, operator.key)}
               >
                 {operator.name}
-              </label>
+              </span>
             ))}
           </span>
         )}
@@ -254,7 +276,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     );
   }
   /** 点击选中历史搜索Item */
-  handleClickHistoryItem(e, item: ISearchItem) {
+  handleClickHistoryItem(e: Event, item: ISearchItem) {
     e.stopPropagation();
     this.isInput = true;
     this.searchValue = item.name;
@@ -276,13 +298,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     return (
       <div class='secondary-list'>
         <span class='new-home-select-item-title'>
-          {this.$t('相关功能')}（{this.searchRouteList.length}）
+          {this.$t('相关功能')} ( {this.searchRouteList.length} )
         </span>
         <div class='new-home-select-router-list'>
           {this.searchRouteList.map(item => (
             <span
+              key={item.id}
               class='new-home-select-router-item'
-              on-click={() => this.handleGoRoute(item)}
+              onClick={() => this.handleGoRoute(item)}
             >
               <i class={`${item?.icon} router-item-icon`} />
               <span class='item-txt'>{item?.name}</span>
@@ -324,7 +347,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 相关功能/文档渲染 */
   renderRouteAndWord() {
     if (this.searchValue && this.searchRouteList.length > 0) {
-      return [<div class='new-home-select-divider' />, this.renderRouterList()];
+      return (
+        <div>
+          <div class='new-home-select-divider' />
+          {this.renderRouterList()}
+        </div>
+      );
     }
   }
   /** 渲染搜索列表 */
@@ -332,9 +360,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     return this.searchList.map((item, ind) => {
       const data = highLightContent(this.searchValue, item.items, ['name']);
       return (
-        <div>
+        <div key={item.name}>
           <span class='new-home-select-item-title'>
-            {item.name}（{item.items.length}）
+            {item.name} ( {item.items.length} )
           </span>
           {data.map((child, key) => this.renderGroupItem(child, item.type, ind, key))}
         </div>
@@ -347,6 +375,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     e.stopPropagation();
     this.searchList = [];
     this.handleResetData();
+    this.textareaInputRef.style.height = '52px';
   }
   /** 重置相关的数据 */
   handleResetData() {
@@ -356,7 +385,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.highlightedItem = null;
   }
   /** 溢出动态展示输入框高度 */
-  autoResize(event) {
+  autoResize(event?: Event) {
+    !this.isComposing && this.handleGetSearchData();
     this.isInput = !!event?.target?.value;
     this.textareaInputRef.style.height = 'auto';
     this.textareaInputRef.style.height = `${this.textareaInputRef.scrollHeight}px`;
@@ -368,12 +398,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.handleResetData();
   }
   /** 获取选中当前高亮的搜索项 */
-  getSearchHightItem(key = 'searchList') {
+  getSearchHightItem(key: string = ESearchPopoverType.searchList) {
     if (this[key].length === 0) {
       this.highlightedItem = null;
       return;
     }
-    if (key === 'searchList') {
+    if (key === ESearchPopoverType.searchList) {
       this.highlightedItem = this[key][this.highlightedIndex[0]].items[this.highlightedIndex[1]];
       this.highlightedItem.type = this[key][this.highlightedIndex[0]].type;
       return;
@@ -383,11 +413,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
 
   /** 键盘向上切换选中设置当前的index */
-  setHighlightIndexUp(key = 'searchList') {
+  setHighlightIndexUp(key: string = ESearchPopoverType.searchList) {
     if (this[key].length === 0) {
       return;
     }
-    if (key === 'searchList') {
+    if (key === ESearchPopoverType.searchList) {
       this.keyWordUpOrDown('up');
       return;
     }
@@ -425,11 +455,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.highlightedIndex = [parentId, ind];
   }
   /** 键盘向上切换选中设置当前的index */
-  setHighlightIndexDown(key = 'searchList') {
+  setHighlightIndexDown(key: string = ESearchPopoverType.searchList) {
     if (this[key].length === 0) {
       return;
     }
-    if (key === 'searchList') {
+    if (key === ESearchPopoverType.searchList) {
       this.keyWordUpOrDown('down');
       return;
     }
@@ -447,7 +477,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
 
   /** 键盘操作 */
-  handleKeydown(event) {
+  handleKeydown(event: KeyboardEvent) {
     switch (event.key) {
       case 'ArrowUp':
         this.handleHighlightUp();
@@ -468,62 +498,96 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         this.handleGetSearchData();
         break;
       default:
-        const keyword = [' ', 'Backspace'];
-        const combinedRegex = /^[0-9a-zA-Z]$/;
-        /** 只有在输入数字/字母，空格、删除键的时候才调搜索接口 */
-        if (combinedRegex.test(event.key) || keyword.includes(event.key)) {
-          setTimeout(() => {
-            this.handleGetSearchData();
-          }, 5);
-        }
         return;
     }
   }
   /** 跳转到具体的页面 */
   handleSearchJumpPage(item: ISearchItem, type: string) {
     /** 回车跳转了则存入到历史搜索中 */
-    this.searchValue && this.setLocalHistory(this.searchValue);
-
-    let baseUrl = `${location.origin}/?bizId=${item.bk_biz_id}#/`;
-    let url = '';
-
-    switch (type) {
-      /** 告警 */
-      case 'alert':
-        baseUrl = `${location.origin}/?bizId=${item.bk_biz_id}&specEvent=1#/`;
-        url = `event-center?alertId=${item.alert_id}`;
-        break;
-      /** 告警策略 */
-      case 'strategy':
-        const filter = encodeURIComponent(JSON.stringify([{ key: 'strategy_id', value: [item.strategy_id] }]));
-        url = `strategy-config?filters=${filter}`;
-        break;
-      /** Trace */
-      case 'trace':
-        url = `trace/home?app_name=${item.app_name}&search_type=accurate&search_id=traceID&trace_id=${item.trace_id}`;
-        break;
-      /** APM应用 */
-      case 'apm_application':
-        url = `apm/home?app_name=${encodeURIComponent(item.app_name)}`;
-        break;
-      /** 主机 */
-      case 'host':
-        url = `performance/detail/${item.bk_host_id}`;
-        break;
-      /** 关联的告警 */
-      case 'strategy-alarm':
-        url = `event-center?queryString=${encodeURIComponent(`策略ID : ${item.strategy_id}`)}`;
-        break;
-      /** 关联的屏蔽配置 */
-      case 'alarm-shield':
-        const query = JSON.stringify([{ key: 'strategy_id', value: [item.strategy_id] }]);
-        url = `alarm-shield?queryString=${encodeURIComponent(query)}`;
-        break;
-      default:
-        console.warn(`Unknown type: ${type}`);
-        return;
+    if (this.searchValue) {
+      this.setLocalHistory(this.searchValue);
     }
-    window.open(`${baseUrl}${url}`, '_self');
+    const baseParams = { bizId: item.bk_biz_id };
+    const k8sV2EnableList = this.$store.getters.k8sV2EnableList;
+    /** 是否需要跳转到新版的k8s */
+    const isNewK8sV2List = k8sV2EnableList.some(id => (id === 0 ? true : +id === +item.bk_biz_id));
+    const routeOptions = {
+      /** 告警 */
+      alert: {
+        name: 'event-center',
+        query: { alertId: String(item.alert_id) },
+        extraParams: { specEvent: 1 },
+      },
+      /** 告警策略 */
+      strategy: {
+        name: 'strategy-config',
+        query: { filters: JSON.stringify([{ key: 'strategy_id', value: [item.strategy_id] }]) },
+      },
+      /** Trace */
+      trace: {
+        name: 'trace-retrieval',
+        query: {
+          app_name: item.app_name,
+          search_type: 'accurate',
+          search_id: 'traceID',
+          trace_id: item.trace_id,
+        },
+      },
+      /** APM应用 */
+      apm_application: {
+        name: 'apm-home',
+        query: { app_name: item.app_name },
+      },
+      /** 主机 */
+      host: {
+        name: 'performance-detail',
+        params: { id: item.bk_host_id },
+      },
+      /** 关联的告警 */
+      'strategy-alarm': {
+        name: 'event-center',
+        query: { queryString: `策略ID : ${item.strategy_id}` },
+      },
+      /** 关联的屏蔽策略 */
+      'alarm-shield': {
+        name: 'alarm-shield',
+        query: { queryString: JSON.stringify([{ key: 'strategy_id', value: [item.strategy_id] }]) },
+      },
+      /** bcs */
+      bcs_cluster: {
+        name: isNewK8sV2List ? 'k8s-new' : 'k8s',
+        query: isNewK8sV2List
+          ? {
+              sceneId: 'kubernetes',
+              cluster: item.bcs_cluster_id,
+              scene: 'performance',
+              activeTab: 'list',
+            }
+          : {
+              'filter-bcs_cluster_id': item.bcs_cluster_id,
+              sceneId: 'kubernetes',
+              sceneType: 'detail',
+              dashboardId: 'cluster',
+            },
+      },
+    };
+
+    const option = routeOptions[type];
+    if (!option) return;
+
+    const routeData = this.$router.resolve(option);
+    const extraParams = option.extraParams ? `&${new URLSearchParams(option.extraParams).toString()}` : '';
+    const baseUrl = `${location.origin}/?${new URLSearchParams(baseParams).toString()}${extraParams}`;
+    window.open(`${baseUrl}${routeData.href}`, '_blank');
+  }
+  handleCompositionend() {
+    this.isComposing = false;
+  }
+  handleCompositionstart() {
+    this.isComposing = true;
+  }
+  handleBlur() {
+    this.showPopover = false;
   }
   /** 渲染历史搜索View */
   renderHistoryView() {
@@ -534,7 +598,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             <span>{this.$t('历史搜索')}</span>
             <span
               class='item-list-clear'
-              on-click={this.clearHistory}
+              onClick={this.clearHistory}
             >
               <i class='icon-monitor icon-mc-clear'></i>
               {this.$t('清空历史')}
@@ -567,7 +631,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             {this.$t('当前输入条件无匹配结果，请清空后重新输入')}
             <label
               class='clear-btn'
-              on-click={e => this.clearInput(e)}
+              onClick={this.clearInput}
             >
               {this.$t('清空搜索')}
             </label>
@@ -580,10 +644,10 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         <div class='item-list'>
           {this.renderGroupList()}
           {this.isLoading && (
-            <div class='loading-view mt30'>
-              <i class='icon-monitor icon-loading1'></i>
-              {this.$t('当前正在加载 采集任务')}
-            </div>
+            <div
+              class='loading-view mt30'
+              v-bkloading={{ isLoading: this.isLoading, size: 'small' }}
+            ></div>
           )}
           {this.renderRouteAndWord()}
         </div>
@@ -603,9 +667,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             ref='textareaInput'
             class='home-select-input'
             v-model={this.searchValue}
-            placeholder={this.$t('请输入 IP / traceId / 容器集群 / 告警ID / 策略名 进行搜索')}
+            placeholder={this.$tc('请输入 IP / traceId / 容器集群 / 告警ID / 策略名 进行搜索')}
             rows={1}
-            clearable
+            spellcheck={false}
+            onCompositionend={this.handleCompositionend}
+            onCompositionstart={this.handleCompositionstart}
             onFocus={this.handleMousedown}
             onInput={this.autoResize}
             onKeydown={this.handleKeydown}
@@ -613,15 +679,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
           {this.searchValue && (
             <span
               class='icon-monitor clear-btn icon-mc-close-fill'
-              onClick={e => this.clearInput(e)}
+              onClick={this.clearInput}
             />
           )}
         </div>
         {this.showPopover && (
-          <div
-            ref='wrap'
-            class='new-home-select-popover'
-          >
+          <div class='new-home-select-popover'>
             {this.isSearchResult ? this.renderSearchView() : this.renderHistoryView()}
           </div>
         )}

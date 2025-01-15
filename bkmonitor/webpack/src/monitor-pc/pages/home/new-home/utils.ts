@@ -40,6 +40,13 @@ export enum ESearchType {
   // trace: Trace
   trace = 'trace',
 }
+/* 搜索内容的类型 */
+export enum ESearchPopoverType {
+  // 历史搜索
+  localHistoryList = 'localHistoryList',
+  // 接口搜索结果
+  searchList = 'searchList',
+}
 /* status */
 export const EStatusType = {
   deleted: '已删除',
@@ -76,7 +83,7 @@ export function highLightContent(searchValue: string, listData: IDataItem[], dat
   const searchKey = searchValue.trim().split(' ');
   return listData.map(data => {
     const copyData = JSON.parse(JSON.stringify(data));
-    dataKeys.forEach(key => {
+    dataKeys.map(key => {
       copyData[`${key}Search`] = searchKey[0]
         ? data[key].replace(new RegExp(`(${searchKey.join('|')})`, 'gi'), `<span class="highlight">$1</span>`)
         : data[key];
