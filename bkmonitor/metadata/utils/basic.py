@@ -69,7 +69,13 @@ def get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id: int):
 
     try:
         # 查询DataSource关联的记录
-        related_space_info = SpaceDataSource.objects.filter(bk_data_id=bk_data_id)[0]
+        related_space_info = SpaceDataSource.objects.filter(bk_data_id=bk_data_id).first()
+        if not related_space_info:
+            logger.warning(
+                "get_space_uid_and_bk_biz_id_by_bk_data_id: no related_space_info found for bk_data_id->[%s]",
+                bk_data_id,
+            )
+            return 0, ""
         space_uid = related_space_info.space_type_id + '__' + related_space_info.space_id
         bk_biz_id = get_biz_id_by_space_uid(space_uid=space_uid)
 

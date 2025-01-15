@@ -46,6 +46,7 @@ import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
+import { bkMessage } from 'bk-magic-vue';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
@@ -74,6 +75,9 @@ type RowConfig = {
   rowMinHeight?: number;
 };
 
+type RowData = Record<string, any>;
+type ColumnFiled = Record<string, any>;
+
 export default defineComponent({
   props: {
     contentType: {
@@ -95,6 +99,7 @@ export default defineComponent({
     const visibleRowLength = ref(50);
 
     const tableRowConfig = new WeakMap();
+    const tableCellCache = new WeakMap<RowData, WeakMap<ColumnFiled, any>>();
 
     const renderList = ref([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -114,6 +119,9 @@ export default defineComponent({
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+
+    const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
+
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
 
@@ -183,11 +191,12 @@ export default defineComponent({
         .map(([, { rowIndex }]) => rowIndex);
 
       const length = idxs.length > 0 ? idxs.length : pageSize.value;
-      const max = Math.max(...idxs, 0) + length;
-      const min = idxs.length ? Math.min(...idxs) - length : 0;
+      const buffer = Math.max(length, 1);
+      const max = Math.max(...idxs, 0) + buffer;
+      const min = idxs.length ? Math.min(...idxs) - buffer : 0;
       const end = Math.min(max, tableDataSize.value);
       const start = Math.max(min, 0);
-      visibleRowLength.value = length;
+      visibleRowLength.value = buffer;
       Object.assign(rowProxy, { start, end });
     };
 
@@ -219,29 +228,20 @@ export default defineComponent({
       });
     };
 
-    const intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        const index = entry.target.getAttribute('data-row-index');
-        updateIntersectionArgs(index, entry.isIntersecting);
-      });
-      delayUpdate();
-    });
-
-    // const resizeObserver = new ResizeObserver(entries => {
-    //   entries.forEach(entry => {
-    //     const index = entry.target.getAttribute('data-row-index');
-    //     console.log('index', index, entry.contentRect);
-    //     // const changed = (rowProxy[index]?.height ?? 40) !== entry.contentRect.height;
-    //     // if (changed && !entry.target.classList.contains('is-pending')) {
-    //     //   updateIntersectionArgs(index, undefined, entry.contentRect.height);
-    //     //   entry.target.parentElement.style.setProperty('min-height', `${entry.contentRect.height}px`);
-    //     // }
-    //   });
-    // });
+    const intersectionObserver = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          const index = entry.target.getAttribute('data-row-index');
+          updateIntersectionArgs(index, entry.isIntersecting);
+        });
+        delayUpdate();
+      },
+      { threshold: 0.001 },
+    );
 
     provide('intersectionObserver', intersectionObserver);
-    // provide('resizeObserver', resizeObserver);
     provide('rowProxy', intersectionArgs);
+    provide('tableCellCache', tableCellCache);
 
     const searchContainerHeight = ref(52);
 
@@ -303,7 +303,7 @@ export default defineComponent({
             <TableColumn
               content={getTableColumnContent(row, field)}
               field={field}
-              is-wrap={tableLineIsWrap.value}
+              row={row}
               onIcon-click={(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)}
             ></TableColumn>
           );
@@ -448,20 +448,46 @@ export default defineComponent({
         });
     };
 
+    const handleTraceIdClick = traceId => {
+      if (apmRelation.value?.is_active) {
+        const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.value.extra;
+        const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        window.open(url, '_blank');
+      } else {
+        bkMessage({
+          theme: 'warning',
+          message: $t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+        });
+      }
+    };
+
     const handleIconClick = (type, content, field, row, isLink, depth) => {
       let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
 
+      if (type === 'trace-view') {
+        handleTraceIdClick(value);
+        return;
+      }
+
       if (type === 'search') {
         // 将表格单元添加到过滤条件
         handleAddCondition(field.field_name, 'eq', [value], isLink);
-      } else if (type === 'copy') {
+        return;
+      }
+
+      if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
-      } else if (['is', 'is not', 'new-search-page-is'].includes(type)) {
+        return;
+      }
+
+      if (['is', 'is not', 'new-search-page-is'].includes(type)) {
         handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth);
+        return;
       }
     };
 

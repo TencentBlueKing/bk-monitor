@@ -123,9 +123,11 @@ class CallerBarChart extends CommonSimpleChart {
   }
   @Watch('dimensionParam.dimensionList', { deep: true, immediate: true })
   onDimensionListChange() {
-    const { dimensionList, call_filter } = this.dimensionParam;
+    const { dimensionList, call_filter, group_by } = this.dimensionParam;
     const data = (dimensionList || []).map(item => {
-      const isHas = (call_filter || []).findIndex(ele => ele.key === item.value) !== -1;
+      const isHas =
+        (call_filter || []).findIndex(ele => ele.key === item.value) !== -1 ||
+        (group_by || []).findIndex(ele => ele === item.value) !== -1;
       return {
         id: item.value,
         name: item.text,
@@ -167,7 +169,7 @@ class CallerBarChart extends CommonSimpleChart {
    * @description: 获取图表数据
    */
   @Debounce(100)
-  async getPanelData(start_time?: string, end_time?: string) {
+  async getPanelData() {
     if (!(await this.beforeGetPanelData())) {
       return;
     }

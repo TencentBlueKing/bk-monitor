@@ -579,6 +579,9 @@ export class LineChart
                   ? (v: any) => {
                       if (seriesList[0].unit !== 'none') {
                         const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
+                        if (['', undefined, null].includes(seriesList[0].unit)) {
+                          return obj.text + (obj.suffix ?? '');
+                        }
                         return obj.text + (this.yAxisNeedUnitGetter ? obj.suffix : '');
                       }
                       return v;

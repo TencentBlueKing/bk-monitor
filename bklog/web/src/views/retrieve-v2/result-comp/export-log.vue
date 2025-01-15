@@ -264,15 +264,15 @@
           desensitize: this.$t('脱敏'),
           // origin: this.$t('原始'),
         },
-        documentType: 'txt',
+        documentType: 'log',
         documentTypeList: [
           // {
           //   id: 'csv',
           //   name: 'csv',
           // },
           {
-            id: 'txt',
-            name: 'txt',
+            id: 'log',
+            name: 'log',
           },
         ],
         modeHintMap: {},

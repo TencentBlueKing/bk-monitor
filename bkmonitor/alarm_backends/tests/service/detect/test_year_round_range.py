@@ -44,7 +44,7 @@ class TestYearRoundRange(object):
         ):
             algorithms_config = {"method": "gte", "days": 4, "ratio": 1.1, "shock": 97}
             detect_engine = YearRoundRange(config=algorithms_config, unit="percent")
-            from .test_threshold import mock_datapoint_with_value
+            from .mocked_data import mock_datapoint_with_value
 
             _datapoint99 = mock_datapoint_with_value(99)
             detect_result = detect_engine.detect_records([_datapoint99], 1)
@@ -59,7 +59,7 @@ class TestYearRoundRange(object):
         ):
             algorithms_config = {"method": "gte", "days": 1, "ratio": 1.1, "shock": 10}
             detect_engine = YearRoundRange(config=algorithms_config, unit="percent")
-            from .test_threshold import mock_datapoint_with_value
+            from .mocked_data import mock_datapoint_with_value
 
             _datapoint99 = mock_datapoint_with_value(99)
             detect_result = detect_engine.detect_records([_datapoint99], 1)

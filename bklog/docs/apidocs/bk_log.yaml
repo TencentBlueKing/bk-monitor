@@ -155,6 +155,17 @@
   dest_http_method: POST
   is_hidden: True
 
+- path: /v2/bk_log/search_index_set/statistics/total/
+  name: index_set_statistics_total
+  label: 日志平台-检索-获取索引集日志总条数
+  label_en: fetch_total_count
+  method: POST
+  api_type: query
+  comp_codename: generic.v2.bk_log.bk_log_component
+  dest_path: api/v1/field/index_set/statistics/total/
+  dest_http_method: POST
+  is_hidden: True
+
 - path: /v2/bk_log/index_set/
   name: index_set
   label: 日志平台-索引集列表

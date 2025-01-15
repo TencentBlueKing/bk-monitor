@@ -16,7 +16,7 @@ import pytest
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.service.detect.strategy.advanced_ring_ratio import AdvancedRingRatio
 from alarm_backends.tests.service.detect import DataPoint
-from alarm_backends.tests.service.detect.test_threshold import mock_datapoint_with_value
+from alarm_backends.tests.service.detect.mocked_data import mock_datapoint_with_value
 from bkmonitor.models import CacheNode
 from core.errors.alarm_backends.detect import (
     InvalidAdvancedRingRatioConfig,
@@ -97,7 +97,7 @@ class TestAdvancedRingRatio(object):
             assert len(detect_engine.detect(datapoint_1)) == 1
 
     def test_anomaly_message(self):
-        from .test_threshold import mock_datapoint_with_value
+        from .mocked_data import mock_datapoint_with_value
 
         get_node_by_strategy_id(0)
         CacheNode.refresh_from_settings()

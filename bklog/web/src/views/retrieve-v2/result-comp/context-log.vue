@@ -251,12 +251,13 @@
           this.$emit('close-dialog');
         }
       },
-      deepClone(obj) {
+      deepClone(obj, prefix = '') {
         for (const key in obj) {
+          const prefixKey = prefix ? `${prefix}.${key}` : key;
           if (typeof obj[key] === 'object') {
-            this.deepClone(obj[key]);
+            this.deepClone(obj[key], prefixKey);
           } else {
-            this.params[key] = String(obj[key])
+            this.params[prefixKey] = String(obj[key])
               .replace(/<mark>/g, '')
               .replace(/<\/mark>/g, '');
           }

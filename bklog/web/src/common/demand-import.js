@@ -101,7 +101,7 @@ import {
 
 // bkDiff 组件体积较大且不是很常用，因此注释掉。如果需要，打开注释即可
 // import { bkDiff } from 'bk-magic-vue'
-
+Vue.prototype.$BK_EL = { zIndex: 3000 };
 // components use
 Vue.use(bkAlert);
 Vue.use(bkBadge);
@@ -175,5 +175,5 @@ Vue.use(bkOverflowTips);
 
 // Vue prototype mount
 Vue.prototype.$bkInfo = bkInfoBox;
-Vue.prototype.$bkMessage = bkMessage;
+Vue.prototype.$bkMessage = args => bkMessage({ ...args, zIndex: 5000 });
 Vue.prototype.$bkNotify = bkNotify;

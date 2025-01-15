@@ -46,7 +46,7 @@ export const RELATED_MENU_LIST: IRelateItem[] = [
       { id: 'host', name: window.i18n.t('主机监控') as string, contentType: 'dashboard', queryType: ['filter'] },
       {
         id: 'kubernetes',
-        name: window.i18n.t('Kubernetes监控') as string,
+        name: window.i18n.t('容器监控') as string,
         contentType: 'dashboard',
         queryType: ['filter'],
       },
