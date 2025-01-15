@@ -55,9 +55,6 @@ class DynamicGroupHandler:
                 "bk_obj_name": constants.ObjectType.get_member_value__alias_map().get(group["bk_obj_id"]),
             }
             for group in groups
-            # 仅返回主机动态分组
-            # TODO: 当需要支持动态分组为集群时, 去掉这个过滤
-            if group["bk_obj_id"] == constants.ObjectType.HOST.value
         ]
         return groups
 
