@@ -454,6 +454,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
           list={this.menuList}
           metrics={this.metrics}
           showAddMetric={this.showAddMetric && this.showMenuAddMetric}
+          showMenu={this.showMenu}
           onChildMenuToggle={this.handleChildMenuToggle}
           onMetricSelect={this.handleMetricSelect}
           onSelect={this.handleMenuClick}

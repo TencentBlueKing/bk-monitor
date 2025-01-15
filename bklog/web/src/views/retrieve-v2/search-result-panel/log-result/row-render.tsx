@@ -40,13 +40,14 @@ export default defineComponent({
   setup(props, { slots }) {
     const refRowNodeRoot: Ref<HTMLElement> = ref();
     const intersectionObserver: IntersectionObserver = inject('intersectionObserver');
-    // const resizeObserver: ResizeObserver = inject('resizeObserver');
     const rowProxy: Ref<RowProxyData> = inject('rowProxy');
+    let isLeave = false;
+    let isComponentMountedComplete = false;
 
     const visible = computed(() => {
-      const { visible = true, mounted = true } = rowProxy.value[props.rowIndex] ?? {};
+      const { visible = true } = rowProxy.value[props.rowIndex] ?? {};
       const { start = 0, end = 50 }: { start: number; end: number } = (rowProxy.value ?? {}) as any;
-      return visible || mounted || (props.rowIndex >= start && props.rowIndex <= end);
+      return visible || (props.rowIndex >= start && props.rowIndex <= end);
     });
 
     const isIntersecting = computed(() => rowProxy.value[props.rowIndex]?.visible ?? true);
@@ -54,10 +55,7 @@ export default defineComponent({
 
     const renderRowVNode = () => {
       return (
-        <div
-          data-row-index={props.rowIndex}
-          class={{ 'is-visible': visible.value }}
-        >
+        <div data-row-index={props.rowIndex}>
           <div
             ref={refRowNodeRoot}
             class={['bklog-row-observe', { 'is-pending': !visible.value }]}
@@ -69,12 +67,32 @@ export default defineComponent({
       );
     };
 
+    let mountedCompleteTimer;
+    const setIsComponentMountedComplete = () => {
+      mountedCompleteTimer && clearTimeout(mountedCompleteTimer);
+      mountedCompleteTimer = setTimeout(() => {
+        isComponentMountedComplete = true;
+      }, 100);
+    };
+
     const setParentElementHeight = () => {
+      if (isLeave) {
+        return;
+      }
+
       if (refRowNodeRoot.value && refRowNodeRoot.value.offsetHeight > 0) {
-        refRowNodeRoot.value.parentElement.style.setProperty(
-          'min-height',
-          `${visible.value ? refRowNodeRoot.value.offsetHeight : 40}px`,
-        );
+        const target = refRowNodeRoot.value.parentElement;
+
+        if (!isComponentMountedComplete) {
+          if (target.hasAttribute('data-bklog-row-mounted')) {
+            return;
+          }
+
+          target.setAttribute('data-bklog-row-mounted', 'true');
+          setIsComponentMountedComplete();
+        }
+
+        target.style.setProperty('min-height', `${refRowNodeRoot.value.offsetHeight + 1}px`);
       }
     };
 
@@ -88,17 +106,21 @@ export default defineComponent({
 
     watch(
       () => [visible.value],
-      () => {
-        if (visible.value) {
-          observeElement();
-          return;
-        }
+      (val, old) => {
+        if (val[0] !== old[0]) {
+          isLeave = old[0] === true;
+          if (val[0]) {
+            observeElement();
+            return;
+          }
 
-        stopObserve();
+          stopObserve();
+        }
       },
     );
 
     onMounted(() => {
+      isComponentMountedComplete = false;
       intersectionObserver?.observe(refRowNodeRoot.value);
       setParentElementHeight();
     });

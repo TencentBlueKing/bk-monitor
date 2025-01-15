@@ -700,7 +700,7 @@ class SearchHandler(object):
                 "scenario_id": data.get("scenario_id") or "",
                 "storage_cluster_id": data.get("storage_cluster_id") or -1,
                 "status": str(exc),
-                "source_app_code": settings.APP_CODE,
+                "source_app_code": get_request_app_code(),
             }
             metrics.ESQUERY_SEARCH_LATENCY.labels(**labels).observe(time.time() - start_at)
             metrics.ESQUERY_SEARCH_COUNT.labels(**labels).inc()
@@ -2338,7 +2338,15 @@ class SearchHandler(object):
         if sort_fields:
             for index, item in enumerate(log_list):
                 for field in sort_fields + target_fields:
-                    if str(item.get(field)) != str(self.search_dict.get(field)):
+                    tmp_item = item.copy()
+                    sub_field = field
+                    while "." in sub_field:
+                        prefix, sub_field = sub_field.split(".", 1)
+                        tmp_item = tmp_item.get(prefix, {})
+                        if sub_field in tmp_item:
+                            break
+                    item_field = tmp_item.get(sub_field)
+                    if str(item_field) != str(self.search_dict.get(field)):
                         break
                 else:
                     _index = index
@@ -2589,6 +2597,7 @@ class UnionSearchHandler(object):
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,
+            "track_total_hits": self.search_dict.get("track_total_hits", False),
         }
 
         # 数据排序处理  兼容第三方ES检索排序

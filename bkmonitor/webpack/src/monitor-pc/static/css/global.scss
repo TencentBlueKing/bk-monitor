@@ -365,6 +365,7 @@
   .tooltips-header {
     margin: 0 0 2px 6px;
     font-weight: bold;
+    font-weight: 700;
     color: #f1f3fa;
     text-align: left;
   }
@@ -428,6 +429,31 @@
         background-color: rgba(1, 1, 1, 0.8);
         border-radius: 3px;
       }
+    }
+  }
+
+  &-table {
+    color: #ffffff;
+    border-collapse: collapse;
+
+    th,
+    td {
+      height: 24px;
+      padding: 0 8px;
+      text-align: left;
+      border: 1px solid #65687d;
+
+      .series-legend {
+        display: inline-flex;
+        width: 8px;
+        height: 8px;
+        margin-right: 4px;
+        background-color: var(--series-color, #666);
+      }
+    }
+
+    td {
+      padding: 0 8px;
     }
   }
 }

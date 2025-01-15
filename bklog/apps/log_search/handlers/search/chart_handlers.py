@@ -20,14 +20,15 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
+import time
 import re
 
 import pytz
 from django.conf import settings
 from django.utils.module_loading import import_string
 from django.utils.translation import ugettext as _
-
 from apps.api import BkDataQueryApi
+from apps.log_search import metrics
 from apps.log_search.constants import (
     SQL_CONDITION_MAPPINGS,
     SQL_PREFIX,
@@ -40,7 +41,7 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
-from apps.utils.local import get_local_param, get_request_username
+from apps.utils.local import get_local_param, get_request_app_code, get_request_username
 from apps.utils.log import logger
 
 
@@ -194,26 +195,38 @@ class SQLChartHandler(ChartHandler):
             parsed_sql += matches.group(2)
         return parsed_sql
 
-    @staticmethod
-    def fetch_query_data(sql: str) -> dict:
+    def fetch_query_data(self, sql: str) -> dict:
         """
         获取查询结果
         :param sql: 查询sql
         :return: 查询结果 dict
         """
-        result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
-        result = result_data.get("result")
-        if not result:
-            # SQL查询失败, 抛出异常
-            errors_message = result_data.get("message", {})
-            errors = result_data.get("errors", {}).get("error")
-            if errors:
-                errors_message = errors_message + ":" + errors
-            logger.info("SQL query exception [%s]", errors_message)
-            raise SQLQueryException(
-                SQLQueryException.MESSAGE.format(name=errors_message),
-                errors={"sql": sql},
-            )
+        start_at = time.time()
+        exc = None
+        try:
+            result_data = BkDataQueryApi.query({"sql": sql}, raw=True)
+            result = result_data.get("result")
+            if not result:
+                # SQL查询失败, 抛出异常
+                errors_message = result_data.get("message", "")
+                errors = result_data.get("errors", {}).get("error")
+                if errors:
+                    errors_message = errors_message + ":" + errors
+                exc = errors_message
+                logger.info("SQL query exception [%s]", errors_message)
+                raise SQLQueryException(
+                    SQLQueryException.MESSAGE.format(name=errors_message),
+                    errors={"sql": sql},
+                )
+        finally:
+            labels = {
+                "index_set_id": self.index_set_id,
+                "result_table_id": self.data.doris_table_id,
+                "status": str(exc),
+                "source_app_code": get_request_app_code(),
+            }
+            metrics.DORIS_QUERY_LATENCY.labels(**labels).observe(time.time() - start_at)
+            metrics.DORIS_QUERY_COUNT.labels(**labels).inc()
 
         data_list = result_data["data"]["list"]
         result_schema = result_data["data"].get("result_schema", [])

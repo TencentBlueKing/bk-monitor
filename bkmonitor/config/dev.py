@@ -70,5 +70,5 @@ if FRONTEND_BACKEND_SEPARATION:
     INSTALLED_APPS += ("corsheaders",)
     # 该跨域中间件需要放在前面
     MIDDLEWARE = ("corsheaders.middleware.CorsMiddleware",) + MIDDLEWARE
-    CORS_ORIGIN_ALLOW_ALL = True
+    CORS_ALLOW_ALL_ORIGINS = True
     CORS_ALLOW_CREDENTIALS = True

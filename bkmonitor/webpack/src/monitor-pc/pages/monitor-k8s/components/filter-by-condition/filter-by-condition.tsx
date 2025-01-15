@@ -98,6 +98,8 @@ export default class FilterByCondition extends tsc<IProps> {
 
   resizeObserver = null;
   overflowCountRenderDebounce = null;
+  overflowCountTip = [];
+
   handleValueOptionsScrollThrottle = _v => {};
 
   @Watch('commonParams', { deep: true, immediate: true })
@@ -131,6 +133,10 @@ export default class FilterByCondition extends tsc<IProps> {
     return !ids.every(id => tags.has(id));
   }
 
+  get isSelectedWorkload() {
+    return this.groupSelected === EDimensionKey.workload;
+  }
+
   mounted() {
     this.handleValueOptionsScrollThrottle = throttle(500, this.handleValueOptionsScroll);
     this.overflowCountRenderDebounce = debounce(300, this.overflowCountRender);
@@ -142,7 +148,11 @@ export default class FilterByCondition extends tsc<IProps> {
     this.resizeObserver.observe(this.$el);
   }
 
-  @Watch('filterBy', { immediate: true })
+  destroyed() {
+    this.resizeObserver.disconnect();
+  }
+
+  @Watch('filterBy', { immediate: true, deep: true })
   handleWatchFilterBy() {
     let filterBy = [];
     if (Array.isArray(this.filterBy)) {
@@ -237,9 +247,11 @@ export default class FilterByCondition extends tsc<IProps> {
           };
           for (const cc of child.children) {
             if (!tempSet.has(cc.id)) {
+              const regex = new RegExp(`^${child.name}:`);
+              const name = cc.name.replace(regex, '');
               objChild.children.push({
                 id: cc.id,
-                name: cc.name,
+                name: name,
               });
             }
             tempSet.add(cc.id);
@@ -260,6 +272,7 @@ export default class FilterByCondition extends tsc<IProps> {
       }
       result.push(obj);
     }
+
     return result;
   }
 
@@ -306,20 +319,9 @@ export default class FilterByCondition extends tsc<IProps> {
     if (this.groupSelected !== id || search) {
       this.groupSelected = id;
       let checkedSet = new Set();
-      if (this.updateActive) {
-        for (const tag of this.tagList) {
-          if (tag.id === id) {
-            for (const v of tag.values) {
-              checkedSet.add(v.id);
-            }
-            break;
-          }
-        }
-      } else {
-        for (const [id, valueSets] of this.addValueSelected) {
-          if (id === this.groupSelected) {
-            checkedSet = new Set(valueSets);
-          }
+      for (const [id, valueSets] of this.addValueSelected) {
+        if (id === this.groupSelected) {
+          checkedSet = new Set(valueSets);
         }
       }
       if (this.groupSelected === EDimensionKey.workload) {
@@ -345,7 +347,7 @@ export default class FilterByCondition extends tsc<IProps> {
         const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.children || [];
         this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
       }
-      // this.handleSearchChange('');
+      this.valueOptionsSticky();
     }
   }
 
@@ -368,6 +370,13 @@ export default class FilterByCondition extends tsc<IProps> {
     };
     await this.filterByOptions.search(value, params[0], params[1]);
     this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+    for (const item of this.groupOptions) {
+      if (item.id === this.groupSelected) {
+        const count = this.allOptions.find(o => o.id === item.id)?.count || 0;
+        item.count = count;
+        break;
+      }
+    }
     await this.initNextPage(params[0], params[1]);
     this.handleSelectGroup(this.groupSelected, true);
     this.valueLoading = false;
@@ -381,22 +390,9 @@ export default class FilterByCondition extends tsc<IProps> {
     item.checked = !item.checked;
     this.addValueSelectedSet(item);
     if (this.groupSelected === EDimensionKey.workload) {
-      // let isBreak = false;
-      // for (const option of this.valueCategoryOptions) {
-      //   for (const l of option.children) {
-      //     if (l.id === item.id) {
-      //       l.checked = item.checked;
-      //       isBreak = true;
-      //       break;
-      //     }
-      //   }
-      //   if (isBreak) {
-      //     break;
-      //   }
-      // }
       // workload 当前只能单选
-      if (this.updateActive && item.checked) {
-        this.workloadValueSelected = item.id;
+      if (this.updateActive) {
+        this.workloadValueSelected = item.checked ? item.id : '';
       }
       for (const option of this.valueCategoryOptions) {
         for (const l of option.children) {
@@ -407,6 +403,8 @@ export default class FilterByCondition extends tsc<IProps> {
           }
         }
       }
+      this.valueOptions =
+        this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.children || [];
     } else {
       for (const v of this.valueOptions) {
         if (v.id === item.id) {
@@ -480,7 +478,8 @@ export default class FilterByCondition extends tsc<IProps> {
             name: groupItem.name,
             values: curSelected.map(item => ({
               id: item.id,
-              name: item.name,
+              // name: item.name,
+              name: item.id,
             })),
           });
         } else {
@@ -488,7 +487,8 @@ export default class FilterByCondition extends tsc<IProps> {
             if (tag.id === this.groupSelected) {
               const values = curSelected.map(item => ({
                 id: item.id,
-                name: item.name,
+                // name: item.name,
+                name: item.id,
               }));
               values.unshift(
                 ...otherIds.map(id => ({
@@ -527,8 +527,10 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param event
    */
   async handleAddTag(event: MouseEvent) {
+    this.searchValue = '';
     this.setGroupOptions();
     this.handleAdd(event);
+    this.handleSearchChange('');
   }
   /**
    * @description 点击了某条tag准备进行更新操作
@@ -537,8 +539,14 @@ export default class FilterByCondition extends tsc<IProps> {
    */
   async handleUpdateTag(target: any, item: ITagListItem) {
     this.updateActive = item.key;
+    if (item.id === EDimensionKey.workload) {
+      this.workloadValueSelected = item.values?.[0]?.id || '';
+    } else {
+      this.addValueSelected.set(item.id, new Set(item.values.map(v => v.id)));
+    }
     this.setGroupOptions();
     this.handleAdd({ target } as any);
+    this.handleSearchChange('');
   }
 
   // 切换workload 分类
@@ -574,6 +582,16 @@ export default class FilterByCondition extends tsc<IProps> {
       if (!this.overflowCount) {
         this.isExpand = false;
       }
+      const overflowCountTip = [];
+      if (this.overflowCount) {
+        for (let i = this.overflowCount; i > 0; i--) {
+          const tag = this.tagList[this.tagList.length - i];
+          if (tag) {
+            overflowCountTip.push(`${tag.id} = ${tag.values.map(v => v.id).join(', ')}`);
+          }
+        }
+      }
+      this.overflowCountTip = overflowCountTip;
     }, 100);
   }
 
@@ -676,9 +694,8 @@ export default class FilterByCondition extends tsc<IProps> {
 
   async handleSelectGroupProxy(id: string) {
     this.handleSelectGroup(id);
-    if (this.searchValue) {
-      await this.handleSearchChange(this.searchValue);
-    }
+    this.searchValue = '';
+    await this.handleSearchChange(this.searchValue);
   }
 
   /**
@@ -686,19 +703,68 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param item
    */
   addValueSelectedSet(item: IValueItem) {
-    if (!this.updateActive) {
-      const groupSet = this.addValueSelected.get(this.groupSelected);
-      if (item.checked) {
-        if (groupSet && this.groupSelected !== EDimensionKey.workload) {
-          groupSet.add(item.id);
-        } else {
-          this.addValueSelected.set(this.groupSelected, new Set([item.id]));
-        }
+    // if (!this.updateActive) {
+    // }
+    const groupSet = this.addValueSelected.get(this.groupSelected);
+    if (item.checked) {
+      if (groupSet && this.groupSelected !== EDimensionKey.workload) {
+        groupSet.add(item.id);
       } else {
-        if (groupSet) {
-          groupSet.delete(item.id);
+        this.addValueSelected.set(this.groupSelected, new Set([item.id]));
+      }
+    } else {
+      if (groupSet) {
+        groupSet.delete(item.id);
+      }
+    }
+  }
+
+  /**
+   * @description 已选项置顶
+   */
+  valueOptionsSticky() {
+    if (this.groupSelected === EDimensionKey.workload) {
+      const category = this.workloadValueSelected.match(/^[^:]+/)?.[0];
+      if (category === this.valueCategorySelected) {
+        const isSearch = this.workloadValueSelected.toLocaleLowerCase().includes(this.searchValue.toLocaleLowerCase());
+        const regex = new RegExp(`^${category}:`);
+        const name = this.workloadValueSelected.replace(regex, '');
+        const sticky = {
+          id: this.workloadValueSelected,
+          name,
+          checked: true,
+        };
+        const other = [];
+        for (const item of this.valueOptions) {
+          if (this.workloadValueSelected !== item.id) {
+            other.push({
+              ...item,
+              checked: false,
+            });
+          }
+        }
+        if (isSearch) {
+          other.unshift(sticky);
+        }
+        this.valueOptions = other;
+      }
+    } else {
+      const other = [];
+      const checkedSet = this.addValueSelected.get(this.groupSelected);
+      const checkedList = checkedSet ? Array.from(checkedSet) : [];
+      const sticky = checkedList
+        .map(id => ({
+          id,
+          name: id,
+          checked: true,
+        }))
+        .filter(item => item.id.toLocaleLowerCase().includes(this.searchValue.toLocaleLowerCase()));
+      for (const item of this.valueOptions) {
+        if (!item.checked && !checkedSet?.has?.(item.id)) {
+          other.push(item);
         }
       }
+      this.valueOptions = [...sticky, ...other];
     }
   }
 
@@ -706,7 +772,7 @@ export default class FilterByCondition extends tsc<IProps> {
     return (
       <div
         ref='valueItems'
-        class='value-items'
+        class={['value-items', { 'value-items--workload': this.isSelectedWorkload }]}
         onScroll={this.handleValueOptionsScrollThrottle}
       >
         {this.valueOptions.length ? (
@@ -718,13 +784,15 @@ export default class FilterByCondition extends tsc<IProps> {
             >
               <span
                 class='value-item-name'
-                v-bk-overflow-tips
+                v-bk-overflow-tips={{ content: item.id }}
               >
                 {item.name}
               </span>
-              <span class='value-item-checked'>
-                {item.checked && <span class='icon-monitor icon-mc-check-small' />}
-              </span>
+              {!this.isSelectedWorkload && (
+                <span class='value-item-checked'>
+                  {item.checked && <span class='icon-monitor icon-mc-check-small' />}
+                </span>
+              )}
             </div>
           ))
         ) : (
@@ -805,9 +873,14 @@ export default class FilterByCondition extends tsc<IProps> {
         <span
           key={'__count__'}
           class='filter-by-condition-tag type-count'
+          v-bk-tooltips={{
+            content: `<div>${this.overflowCountTip.map(o => `<div>${o}</div>`).join('')}</div>`,
+            allowHTML: true,
+            delay: [300, 0],
+          }}
           onClick={() => this.handleExpand()}
         >
-          <span class='count-text'>{this.overflowCount}</span>
+          <span class='count-text'>{`+${this.overflowCount}`}</span>
           <span class='icon-monitor icon-arrow-down' />
         </span>
       ) : this.hasAdd ? (
@@ -890,6 +963,7 @@ export default class FilterByCondition extends tsc<IProps> {
                   <div class='values-search'>
                     <bk-input
                       behavior='simplicity'
+                      clearable={true}
                       left-icon='bk-icon icon-search'
                       placeholder={this.$t('请输入关键字')}
                       value={this.searchValue}

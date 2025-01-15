@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError
 
 from alarm_backends.core.cache.mail_report import MailReportCacheManager
@@ -20,6 +21,9 @@ from bkmonitor.action.serializers.report import (
     ReportChannelSerializer,
     ReportContentSerializer,
 )
+from bkmonitor.iam.action import ActionEnum
+from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import RenderImageTask, ReportItems
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.request import get_request
@@ -188,6 +192,19 @@ class RenderImageResource(Resource):
             scale = serializers.IntegerField(default=2)
             with_panel_title = serializers.BooleanField(default=True)
 
+            def validate(self, attrs):
+                # 检查用户是否有权限访问该仪表盘
+                p = Permission()
+                p.skip_check = False
+                result = p.batch_is_allowed(
+                    [ActionEnum.VIEW_SINGLE_DASHBOARD],
+                    [[ResourceEnum.GRAFANA_DASHBOARD.create_instance(attrs["dashboard_uid"])]],
+                )
+                if not result.get(attrs["dashboard_uid"], {}).get(ActionEnum.VIEW_SINGLE_DASHBOARD.id):
+                    raise PermissionDenied("You have no permission to view this dashboard")
+
+                return attrs
+
         def validate(self, attrs):
             options = attrs.pop("options")
             if attrs["type"] == RenderImageTask.Type.DASHBOARD:
@@ -204,7 +221,7 @@ class RenderImageResource(Resource):
         if request:
             username = request.user.username
         else:
-            username = "system"
+            username = "admin"
 
         task = RenderImageTask.objects.create(
             type=params["type"],
@@ -225,7 +242,17 @@ class GetRenderImageResource(Resource):
         task_id = serializers.UUIDField()
 
     def perform_request(self, params):
+        # 尝试获取当前用户
+        request = get_request(peaceful=True)
+        if request:
+            username = request.user.username
+        else:
+            username = "admin"
+
         task = RenderImageTask.objects.get(task_id=params["task_id"])
+
+        if task.username != username:
+            raise ValidationError("You have no permission to visit this task")
 
         return {
             "status": task.status,

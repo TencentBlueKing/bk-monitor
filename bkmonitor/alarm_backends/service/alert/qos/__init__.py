@@ -9,16 +9,40 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+"""
+故障发布流程:
+新增故障缓存，记录故障影响的模块和目标
 
-from django.apps import AppConfig
+failure_publish
+"""
 
-from .management.root import setup
+
+class FailureCollection:
+    def __init__(
+        self,
+    ):
+        self.collection = {}
+
+    def add(self, tag, cls):
+        if tag not in self.collection:
+            self.collection[tag] = cls
 
 
-class DRFResourceConfig(AppConfig):
-    name = "core.drf_resource"
-    verbose_name = "drf_resource"
-    label = "drf_resource"
+FC = FailureCollection()
 
-    def ready(self):
-        setup()
+
+def register_influence(module):
+    # 注册功能控制
+    def register(cls):
+        cls.module = module
+        FC.add(module, cls)
+        return cls
+
+    return register
+
+
+class IncidentInfluence:
+    module = ""
+
+    def __init__(self):
+        self._cache = {}

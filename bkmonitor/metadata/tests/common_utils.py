@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import random
 
-from mockredis import mock_redis_client
+from mockredis import MockRedis
 
 
 def any_return_model(model):
@@ -47,7 +47,7 @@ class KVDelete:
 
 
 class MockCache:
-    mocker_redis = mock_redis_client()
+    mocker_redis = MockRedis()
 
     def __init__(self, *args, **kwargs):
         pass

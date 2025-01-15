@@ -314,7 +314,7 @@ class BCSBase(models.Model):
             try:
                 BCSLabel.objects.bulk_create(bulk_create_label_list, 200)
             except Exception as exc_info:
-                logger.exception(exc_info)
+                logger.warning(f"bulk_create_label_list, exc_info: {exc_info}")
 
         # 获得中间表远程唯一性数据
         new_resource_label_hash_set = {

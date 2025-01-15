@@ -49,14 +49,14 @@ interface ITableChartProps {
   unit: ProfileDataUnit;
   textDirection: TextDirectionType;
   data: ProfilingTableItem[];
-  highlightId: number;
+  highlightName: string;
   filterKeyword: string;
   isCompared: boolean;
   dataType: string;
 }
 
 interface ITableChartEvents {
-  onUpdateHighlightId: number;
+  onUpdateHighlightName: string;
   onSortChange: string;
 }
 
@@ -65,7 +65,7 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   @Prop({ required: true, type: String }) unit: ProfileDataUnit;
   @Prop({ required: true, type: String }) textDirection: TextDirectionType;
   @Prop({ required: true, type: Array }) data: ProfilingTableItem[];
-  @Prop({ default: -1, type: Number }) highlightId: number;
+  @Prop({ default: '', type: String }) highlightName: string;
   @Prop({ default: '', type: String }) filterKeyword: string;
   @Prop({ default: false, type: Boolean }) isCompared: boolean;
   @Prop({ default: '', type: String }) dataType: string;
@@ -92,8 +92,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   hiddenLoading = false;
   renderTableData = [];
   intersectionObserver = null;
-  @Emit('updateHighlightId')
-  handleHighlightIdChange(val: number) {
+  @Emit('updateHighlightName')
+  handleHighlightNameChange(val: string) {
     return val;
   }
 
@@ -218,12 +218,12 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
   handleRowMouseout() {
     this.tipDetail = {};
   }
-  handleHighlightClick(id) {
-    let hightlightId = -1;
-    if (this.highlightId !== id) {
-      hightlightId = id;
+  handleHighlightClick(name) {
+    let highlightName = '';
+    if (this.highlightName !== name) {
+      highlightName = name;
     }
-    this.handleHighlightIdChange(hightlightId);
+    this.handleHighlightNameChange(highlightName);
   }
   isInViewport(element: Element) {
     const rect = element.getBoundingClientRect();
@@ -304,8 +304,8 @@ export default class ProfilingTableChart extends tsc<ITableChartProps, ITableCha
                 this.renderTableData.map(row => (
                   <tr
                     key={row.id}
-                    class={row.id === this.highlightId ? 'hightlight' : ''}
-                    onClick={() => this.handleHighlightClick(row.id)}
+                    class={row.name === this.highlightName ? 'highlight' : ''}
+                    onClick={() => this.handleHighlightClick(row.name)}
                     onMousemove={e => this.handleRowMouseMove(e, row)}
                     onMouseout={() => this.handleRowMouseout()}
                   >

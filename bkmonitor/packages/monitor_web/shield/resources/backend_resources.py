@@ -281,17 +281,22 @@ class AddShieldResource(Resource, EventDimensionMixin):
         alert_id = data["dimension_config"]["id"]
         alert = AlertDocument.get(alert_id)
 
+        dimension_keys = data.get("dimension_keys")
         dimension_config = {}
+        shield_dimensions = []
         for dimension in alert.dimensions:
             dimension_data = dimension.to_dict()
-            dimension_config[dimension_data["key"]] = dimension_data["value"]
+            # 若传递了dimension_keys，则只保留dimension_keys中指定的维度，用于前端动态删除维度信息
+            if dimension_keys is None or dimension_data["key"] in dimension_keys:
+                dimension_config[dimension_data["key"]] = dimension_data["value"]
+                shield_dimensions.append(dimension)
         dimension_config.update(
             {
                 "_alert_id": alert.id,
                 "strategy_id": alert.strategy_id,
                 "_severity": alert.severity,
                 "_alert_message": getattr(alert.event, "description", ""),
-                "_dimensions": AlertDimensionFormatter.get_dimensions_str(alert.dimensions),
+                "_dimensions": AlertDimensionFormatter.get_dimensions_str(shield_dimensions),
             }
         )
 

@@ -214,13 +214,22 @@ export default class UseJsonFormatter {
     return textNode;
   }
 
-  creatSegmentNodes = (vlaues: any[]) => {
+  creatSegmentNodes = (values: any[]) => {
     const segmentNode = document.createElement('span');
     segmentNode.classList.add('segment-content');
+    const tagItems = values.slice(0, 500);
 
-    vlaues.forEach(item => {
+    tagItems.forEach(item => {
       segmentNode.append(this.getChildItem(item));
     });
+
+    const staticItems = values.slice(500);
+    if (staticItems.length > 0) {
+      const textNode = document.createElement('span');
+      textNode.classList.add('others-text');
+      textNode.innerText = staticItems.map(item => item.text).join('');
+      segmentNode.append(textNode);
+    }
 
     return segmentNode;
   };

@@ -470,6 +470,13 @@ export default {
   '内容正在生成中...': 'Content is being generated...',
   '您可以键入“/”查看更多提问示例': 'You can type "/" to view more question examples',
   '监控策略如何使用？': 'How to use bkmonitor strategy?',
+  '是否将该业务设为默认业务？': 'Should this business be set as the default business?',
+  '是否取消默认业务？': 'Should the default business be cancelled?',
+  '设为默认后，每次进入监控平台将会默认选中该业务': 
+    'After setting it as default, the monitoring platform will default to this business every time you enter',
+  '取消默认业务后，每次进入监控平台将会默认选中最近使用的业务而非当前默认业务':
+    'After canceling the default business, the monitoring platform will default to the most recently used business instead of the current default business every time you enter',
+
   // 调用分析
   '仅展示前 30 条数据': 'Only the first 30 data are displayed',
   查看关联调用链: 'View related call chains',
@@ -487,7 +494,6 @@ export default {
     'No call records for the current "{preText}" in {perAfterString} analysis',
   '跳转到「{intersection}」拓扑页面': 'Jump to the "{intersection}" topology page',
   '跳转到「{intersection}」调用分析页面': 'Jump to the "{intersection}" call analysis page',
-  请求量: 'Request volume',
   '成功/异常/超时率': 'Success/Exception/Timeout Rate',
   '耗时（ms）': 'Time consuming (ms)',
   下钻至: 'Drill down to',
@@ -495,8 +501,5 @@ export default {
   不等于: 'not equal',
   前匹配: 'match before',
   后匹配: 'match after',
-  包含: 'Include',
-  不包含: 'Not included',
-  正则: 'regular',
   当前维度外层已选中: 'The outer layer of the current dimension is selected',
 };

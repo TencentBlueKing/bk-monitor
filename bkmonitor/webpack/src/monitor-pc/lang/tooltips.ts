@@ -313,4 +313,5 @@ export default {
   点击显示该指标: 'Click to display this indicator',
   清空整组筛选项: 'Clear all filter options in the group',
   请先删除子级维度: 'Please delete the child dimension first',
+  '该指标在当前级别({0})不可用': 'This indicator is not available at the current level ({0})',
 };

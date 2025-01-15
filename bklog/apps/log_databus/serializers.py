@@ -34,6 +34,7 @@ from apps.log_databus.constants import (
     CLUSTER_NAME_EN_REGEX,
     COLLECTOR_CONFIG_NAME_EN_REGEX,
     ArchiveInstanceType,
+    CollectorBatchOperationType,
     ContainerCollectorType,
     Environment,
     EsSourceType,
@@ -1485,7 +1486,8 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
 
 
 class CustomUpdateSerializer(CustomCollectorBaseSerializer):
-    ...
+    sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
+    target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
 
 
 class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
@@ -1638,3 +1640,9 @@ class CheckCollectorSerializer(serializers.Serializer):
 
 class GetCollectorCheckResultSerializer(serializers.Serializer):
     check_record_id = serializers.CharField(label=_("采集项检查唯一标识"))
+
+
+class CollectorBatchOperationSerializer(serializers.Serializer):
+    collector_config_ids = serializers.ListField(label=_("采集项ID列表"), allow_empty=False)
+    operation_type = serializers.ChoiceField(label=_("操作类型"), choices=CollectorBatchOperationType.get_choices())
+    operation_params = serializers.DictField(label=_("额外的元数据"), required=False)

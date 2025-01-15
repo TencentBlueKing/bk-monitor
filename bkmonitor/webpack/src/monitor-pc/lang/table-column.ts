@@ -97,7 +97,9 @@ export default {
   变量名称: 'Variable Name',
   默认选项: 'Default Option',
   磁盘使用率: 'Disk Usage',
-  CPU使用率: 'CPU Usage',
+  CPU使用量: 'CPU Usage',
+  内存使用量: 'Memory Usage',
+  用量: 'Usage',
   磁盘空间使用率: 'Disk Space Usage ',
   磁盘IO使用率: 'Disk IO Usage',
   应用内存使用率: 'Application Memory Usage',
@@ -153,7 +155,7 @@ export default {
   缩略图: 'Thumbnail',
 
   // 新容器场景(k8s)
-  Pod: 'Pod',
+  pod: 'pod',
   workload: 'workload',
   namespace: 'namespace',
   cluster: 'cluster',

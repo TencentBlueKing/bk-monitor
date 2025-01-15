@@ -1,27 +1,32 @@
 .uptime-check-cards-container {
   width: 100%;
+
   .title {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     height: 30px;
+    padding: 0 16px;
     background: #eaebf0;
     border-radius: 2px;
-    padding: 0 16px;
+
     .left {
       font-size: 14px;
       color: #63656e;
     }
+
     .right-btn {
       font-size: 12px;
     }
   }
+
   .content {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(365px, 1fr));
-    grid-column-gap: 16px;
     grid-row-gap: 8px;
+    grid-column-gap: 16px;
     padding: 8px 0;
+
     &.pack-up {
       height: 214px;
       overflow-y: hidden;

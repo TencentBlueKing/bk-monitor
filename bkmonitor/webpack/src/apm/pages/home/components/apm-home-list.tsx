@@ -275,7 +275,7 @@ export default class ApmServiceList extends tsc<
     this.cancelTokenSource = axios.CancelToken.source();
     const { columns, data, total, filter } = await serviceList(params, { cancelToken: this.cancelTokenSource.token })
       .catch(() => {
-        this.filterLoading = false
+        this.filterLoading = false;
         return {
           columns: [],
           data: [],
@@ -297,15 +297,17 @@ export default class ApmServiceList extends tsc<
 
   loadAsyncData(startTime: number, endTime: number) {
     // const fields = (this.tableColumns || []).filter(col => col.asyncable).map(val => val.id);
-    const fields = (this.tableColumns || []).filter(col => col.asyncable).reduce((fieldArr, val) => {
-      // 指标、日志、调用链、性能分析列的入参，统一使用data_status
-      if (['log_data_status','metric_data_status','trace_data_status', 'profiling_data_status'].includes(val.id)) {
-        !fieldArr.includes('data_status') && fieldArr.push('data_status');
-      } else {
-        fieldArr.push(val.id)
-      }
-      return fieldArr;
-    }, []);
+    const fields = (this.tableColumns || [])
+      .filter(col => col.asyncable)
+      .reduce((fieldArr, val) => {
+        // 指标、日志、调用链、性能分析列的入参，统一使用data_status
+        if (['log_data_status', 'metric_data_status', 'trace_data_status', 'profiling_data_status'].includes(val.id)) {
+          !fieldArr.includes('data_status') && fieldArr.push('data_status');
+        } else {
+          fieldArr.push(val.id);
+        }
+        return fieldArr;
+      }, []);
     const services = (this.tableData || []).map(d => d.service_name.value);
     const valueTitleList = this.tableColumns.map(item => ({
       id: item.id,
@@ -313,7 +315,7 @@ export default class ApmServiceList extends tsc<
     }));
     for (const field of fields) {
       // data_status，增加filter_keys选项获取左侧筛选 数据上报、数据状态 的全量数据
-      const filter_keys = field === 'data_status' ? ["have_data", "apply_module"] : [];
+      const filter_keys = field === 'data_status' ? ['have_data', 'apply_module'] : [];
       serviceListAsync(
         {
           app_name: this.appName,

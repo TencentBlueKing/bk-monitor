@@ -9,12 +9,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import functools
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from django.db.models import Q
+from django.utils.functional import cached_property
 
 from apm_web.metric.constants import SeriesAliasType
-from bkmonitor.data_source import dict_to_q, q_to_dict
+from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.apm import MetricTemporality, TRPCMetricTag
 
@@ -120,19 +121,46 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             raise ValueError(f"Unsupported calculation type -> {calculation_type}")
         return support_calculation_methods[calculation_type]
 
+    def _is_cumulative_metric(self) -> bool:
+        """指标类型为「累加」时返回 True"""
+        return self.temporality == MetricTemporality.CUMULATIVE
+
+    @cached_property
+    def _used_labels(self) -> List[str]:
+        """返回使用到的指标维度字段"""
+        used_labels: Set[str] = set(self.group_by)
+        for cond in filter_dict_to_conditions(self.filter_dict, []):
+            used_labels.add(cond.get("key") or "")
+        return list(used_labels)
+
+    def _add_metric(
+        self, q: QueryConfigBuilder, metric: str, method: str, alias: Optional[str] = ""
+    ) -> QueryConfigBuilder:
+        """添加一个指标到查询表达式
+        处理流程：
+          1）[可选] 路由到相应的预计算指标。
+          2）累加（Cumulative）类型指标统一增加 increase 处理。
+        """
+        result: Dict[str, Any] = {"table_id": self.metric_helper.table_id, "metric": metric, "is_hit": False}
+        if self.pre_calculate_helper:
+            result: Dict[str, str] = self.pre_calculate_helper.router(
+                self.metric_helper.table_id, metric, used_labels=self._used_labels
+            )
+
+        q = q.table(result["table_id"]).metric(result["metric"], method, alias).alias(alias)
+        if self._is_cumulative_metric() and not result["is_hit"]:
+            q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
+
+        return q
+
     def q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
         # 如果是求瞬时量，那么整个时间范围是作为一个区间
         q: QueryConfigBuilder = (
-            self.metric_helper.q.group_by(*self.group_by)
-            .interval(self.interval)
-            .filter(dict_to_q(self.filter_dict) or Q())
+            self.metric_helper.q.group_by(*self.group_by).interval(self.interval).filter(self._filter_dict_to_q())
         )
 
         if self.time_shift:
             q = q.func(_id="time_shift", params=[{"id": "n", "value": self.time_shift}])
-
-        if self.temporality == MetricTemporality.CUMULATIVE:
-            q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
 
         if self.instant:
             interval: int = self.metric_helper.get_interval(start_time, end_time)
@@ -162,10 +190,8 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return self.qs(start_time, end_time).add_query(q).expression("a")
 
     def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
-        q: QueryConfigBuilder = (
-            self.q(start_time, end_time)
-            .alias("a")
-            .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
+        q: QueryConfigBuilder = self._add_metric(
+            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "a"
         )
         # a != 0：非时序计算反应的是一段时间内的统计值，不需要展示请求量为 0 的数据。
         return self.qs(start_time, end_time).add_query(q).expression("a != 0")
@@ -174,15 +200,11 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return list(self._request_total_qs(start_time, end_time))
 
     def _avg_duration_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
-        sum_q: QueryConfigBuilder = (
-            self.q(start_time, end_time)
-            .alias("a")
-            .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_sum"], method="SUM", alias="a")
+        sum_q: QueryConfigBuilder = self._add_metric(
+            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_sum"], "SUM", "a"
         )
-        count_q: QueryConfigBuilder = (
-            self.q(start_time, end_time)
-            .alias("b")
-            .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"], method="SUM", alias="b")
+        count_q: QueryConfigBuilder = self._add_metric(
+            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"], "SUM", "b"
         )
         # b == 0：分母为 0 需短路返回
         return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("b == 0 or (a / b) * 1000")
@@ -196,9 +218,9 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         q: QueryConfigBuilder = (
             self.q(start_time, end_time)
             .group_by("le")
-            .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_bucket"], method="SUM", alias="a")
             .func(_id="histogram_quantile", params=[{"id": "scalar", "value": scalar}])
         )
+        q = self._add_metric(q, self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_bucket"], "SUM", "a")
         return self.qs(start_time, end_time).add_query(q).expression("a * 1000")
 
     def _histogram_quantile_duration(
@@ -220,17 +242,13 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _request_code_rate_qs(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> UnifyQuerySet:
-        code_q: QueryConfigBuilder = (
-            self.q(start_time, end_time)
-            .alias("a")
-            .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="a")
+        code_q: QueryConfigBuilder = self._add_metric(
+            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "a"
         )
         code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)
 
-        total_q: QueryConfigBuilder = (
-            self.q(start_time, end_time)
-            .alias("b")
-            .metric(field=self.METRIC_FIELDS[self.kind]["rpc_handled_total"], method="SUM", alias="b")
+        total_q: QueryConfigBuilder = self._add_metric(
+            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "b"
         )
         return (
             self.qs(start_time, end_time)
