@@ -86,7 +86,6 @@ class CollectorBatchHandler(object):
         :param es_shards: 分片数
         :param allocation_min_days: 热数据天数
         """
-        success_collector_ids = []
         results = []
         for collector in self.collectors:
             collector_info = {
@@ -137,7 +136,6 @@ class CollectorBatchHandler(object):
                 try:
                     etl_handler = EtlHandler.get_instance(collector.collector_config_id)
                     etl_handler.update_or_create(**etl_params)
-                    success_collector_ids.append(collector.collector_config_id)
                 except Exception as e:
                     collector_info.update(
                         {
@@ -168,7 +166,7 @@ class CollectorBatchHandler(object):
                 indices_info = CollectorHandler(collector.collector_config_id).indices_info()
                 total = sum(int(idx["store.size"]) for idx in indices_info)
                 total_store_size += total
-                collector_info.update({"store_size": f"{total}B"})
+                collector_info.update({"store_size": total})
             except Exception as e:
                 collector_info.update(
                     {
@@ -181,5 +179,5 @@ class CollectorBatchHandler(object):
 
         return {
             "storage_data": storage_data,
-            "total_store_size": f"{total_store_size}B",
+            "total_store_size": total_store_size,
         }
