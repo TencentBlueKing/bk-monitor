@@ -374,8 +374,9 @@
         list.forEach(listItem => {
           const displayObj = {};
           const { newObject } = getFlatObjValues(listItem);
+          const { changeFieldName } = useFieldNameHook({ store: this.$store });
           displayFieldNames.forEach(field => {
-            Object.assign(displayObj, { [field]: newObject[field] });
+            Object.assign(displayObj, { [field]: newObject[changeFieldName(field)] });
           });
           filterDisplayList.push(displayObj);
         });
@@ -385,7 +386,7 @@
       async confirmConfig(list) {
         this.isConfigLoading = true;
         const { changeFieldName } = useFieldNameHook({ store: this.$store });
-        const copyList = changeFieldName(list)
+        const copyList = list.map(item => changeFieldName(item))
         const data = { display_fields: copyList };
         try {
           const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
