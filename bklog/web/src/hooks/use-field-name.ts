@@ -57,13 +57,6 @@ export default ({ store }) => {
         const field = store.state.indexFieldInfo.fields.filter(item => item.query_alias === name)
         return field[0]?.field_name || name
     }
-    // 用于返回query_alias对应的field_name的情况
-    const changeFieldName = (fields: any) => {
-        return fields.map(name => {
-            const field = store.state.indexFieldInfo.fields.filter(item => item.query_alias === name)
-            return field[0]?.field_name || name
-        });
-      }
     return {
         getFieldName,
         getFieldNames,
