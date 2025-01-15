@@ -146,7 +146,6 @@ class DiscoverBase(ABC):
         other_rules = []
 
         for rule in rule_instances:
-
             # [!!!] predicate_key 可能为单个也可能为多个
             # 注意这里类型可能是 string 或者 list
             # 目前只有 k8s 规则存在多个
@@ -393,7 +392,11 @@ class TopoHandler:
         trace_id_count = 0
         span_count = 0
         filter_span_count = 0
-        max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        try:
+            max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        except Exception as e:
+            logger.error(f"[TopoHandler] discover方法获取index_name失败, error({e})")
+            return
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
