@@ -2321,7 +2321,7 @@ class SearchHandler(object):
         if sort_fields:
             for index, item in enumerate(log_list):
                 for field in sort_fields + target_fields:
-                    tmp_item = copy.deepcopy(item)
+                    tmp_item = item.copy()
                     sub_field = field
                     while "." in sub_field:
                         prefix, sub_field = sub_field.split(".", 1)
