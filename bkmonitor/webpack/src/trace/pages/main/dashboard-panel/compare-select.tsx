@@ -74,6 +74,7 @@ export default defineComponent({
 
     const localTargetValue = ref<string[]>([]);
 
+    // 当前对比类型
     const compareList = computed(() => {
       return COMPARE_LIST.filter(item => props.compareListEnable.includes(item.id));
     });
@@ -81,11 +82,15 @@ export default defineComponent({
       return props.targetOptions.filter(item => item.name !== props.curTarget);
     });
 
+    /**
+     * @description 目标对比数据
+     * @param list
+     */
     function handleTargetChange(list) {
       const targetCheckedList = list.reduce((total, id) => {
         const item = props.targetOptions.find(item => item.id === id);
         const panel = props.panel?.find(item => item.type === 'target_list');
-        const value = panel?.targets?.[0]?.handleCreateComparesSinge(item);
+        const value = panel?.targets?.[0]?.handleCreateComparesSingle(item);
         total.push({ ...value });
         return total;
       }, []);

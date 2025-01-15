@@ -286,7 +286,7 @@ export class DataQuery implements IDataQuery {
     }, {});
     return isExist ? result : null;
   }
-  handleCreateComparesSinge(data: object) {
+  handleCreateComparesSingle(data: object) {
     const localFieldsSort = this.fieldsSort;
     let isExist = true;
     const result = localFieldsSort.reduce((total, cur) => {

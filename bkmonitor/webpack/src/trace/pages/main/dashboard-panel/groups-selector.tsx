@@ -42,11 +42,15 @@ export default defineComponent({
     name: { type: String, default: 'Groups' },
     list: { type: Array, default: () => [] },
     value: { type: Array, default: () => [] },
+    loading: { type: Boolean, default: false },
   },
   emits: ['change'],
   setup(props, { emit }) {
+    // 可选项
     const selectList = ref<IItem[]>([]);
+    // 已选项
     const selected = ref<string[]>([]);
+    // 已选项tag
     const tagList = ref<IItem[]>([]);
 
     watch(
@@ -57,6 +61,10 @@ export default defineComponent({
       { immediate: true }
     );
 
+    /**
+     * @description 选择
+     * @param value
+     */
     function handleChange(value: string[]) {
       const vSet = new Set(value);
       const tags = [];
@@ -69,6 +77,10 @@ export default defineComponent({
       emit('change', value);
     }
 
+    /**
+     * @description 删除已选中的标签
+     * @param item
+     */
     function handleDelete(item: IItem) {
       const delIndex = selected.value.findIndex(v => v === item.id);
       selected.value.splice(delIndex, 1);
@@ -88,44 +100,48 @@ export default defineComponent({
     return (
       <div class='dashboard-panel__groups-selector'>
         <div class='left-title'>{this.name}: </div>
-        <div class='right-content'>
-          {this.tagList.map(item => (
-            <div
-              key={item.id}
-              class='selected-item'
+        {this.loading ? (
+          <span class='skeleton-element select-skeleton' />
+        ) : (
+          <div class='right-content'>
+            {this.tagList.map(item => (
+              <div
+                key={item.id}
+                class='selected-item'
+              >
+                <span>{item.name}</span>
+                <span
+                  class='icon-monitor icon-mc-close'
+                  onClick={() => this.handleDelete(item)}
+                />
+              </div>
+            ))}
+            <Select
+              v-model={this.selected}
+              input-search={false}
+              popoverMinWidth={300}
+              filterable
+              multiple
+              onChange={this.handleChange}
             >
-              <span>{item.name}</span>
-              <span
-                class='icon-monitor icon-mc-close'
-                onClick={() => this.handleDelete(item)}
-              />
-            </div>
-          ))}
-          <Select
-            v-model={this.selected}
-            input-search={false}
-            popoverMinWidth={300}
-            filterable
-            multiple
-            onChange={this.handleChange}
-          >
-            {{
-              trigger: () => (
-                <div class='select-add'>
-                  <span class='icon-monitor icon-mc-add' />
-                </div>
-              ),
-              default: () =>
-                this.selectList.map(item => (
-                  <Select.Option
-                    id={item.id}
-                    key={item.id}
-                    name={item.name}
-                  />
-                )),
-            }}
-          </Select>
-        </div>
+              {{
+                trigger: () => (
+                  <div class='select-add'>
+                    <span class='icon-monitor icon-mc-add' />
+                  </div>
+                ),
+                default: () =>
+                  this.selectList.map(item => (
+                    <Select.Option
+                      id={item.id}
+                      key={item.id}
+                      name={item.name}
+                    />
+                  )),
+              }}
+            </Select>
+          </div>
+        )}
       </div>
     );
   },

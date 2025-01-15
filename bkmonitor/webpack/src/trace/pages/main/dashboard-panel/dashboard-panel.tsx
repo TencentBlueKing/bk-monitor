@@ -55,7 +55,6 @@ export default defineComponent({
   name: 'DashboardPanel',
   props: {
     sceneId: { type: String, default: '' },
-    sceneViewParams: { type: Object, default: () => ({}) },
     // 是否为单图模式
     isSingleChart: { default: false, type: Boolean },
     sceneData: { type: Object as PropType<BookMarkModel>, required: true },
@@ -75,15 +74,23 @@ export default defineComponent({
       .tz(endTime.value || undefined)
       .add(1, 'hour')
       .format('YYYY-MM-DD HH:mm:ss');
+    // 时间范围
     const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
+    // 对比类型
     const compareType = ref(CompareId.none);
+    // 当前目标
     const currentTarget = ref(null);
+    // 当前目标name
     const curTargetTitle = ref('');
+    // 目标对比的对比列表
     const compareTargets = ref([]);
+    // 时间对比
     const timeOffset = shallowRef([]);
-
+    // 当前选择的变量（当前仅有主机列表与容器列表）
     const filtersVal = shallowRef({});
+    // 目标对比的可选项
     const targetList = shallowRef([]);
+    // group_by 可选项
     const groups = shallowRef([]);
     const viewOptions = shallowRef<IViewOptions>({
       interval: 'auto',
@@ -94,7 +101,9 @@ export default defineComponent({
       filters: {},
       variables: {},
     });
+    // 当前选择的图表分列
     const panelsColumn = ref(1);
+    const groupsLoading = ref(false);
 
     useViewOptionsProvider(viewOptions);
     useTimeOffsetProvider(timeOffset);
@@ -128,7 +137,12 @@ export default defineComponent({
       { immediate: true }
     );
 
+    /**
+     * @description 获取group by 选项数据
+     * @returns
+     */
     async function handleGetGroupsData() {
+      groupsLoading.value = true;
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
       const variablesService = new VariablesService({
         start_time: startTime,
@@ -136,6 +150,7 @@ export default defineComponent({
       });
       const target = groupPanel.value?.targets?.[0];
       if (!target) {
+        groupsLoading.value = false;
         return;
       }
       currentInstance?.appContext.config.globalProperties?.$api[target.apiModule]
@@ -150,33 +165,53 @@ export default defineComponent({
         .catch(err => {
           console.error(err);
           return [];
+        })
+        .finally(() => {
+          groupsLoading.value = false;
         });
     }
 
+    /**
+     * @description 汇聚周期数据
+     * @param val
+     */
     function handleIntervalChange(val) {
       viewOptions.value = {
         ...viewOptions.value,
         interval: val,
       };
     }
+    /**
+     * @description 汇聚方法
+     * @param val
+     */
     function handleMethodChange(val) {
       viewOptions.value = {
         ...viewOptions.value,
         method: val,
       };
     }
-
+    /**
+     * @description 图表分列
+     * @param val
+     */
     function handleChangeLayout(val) {
       panelsColumn.value = val;
     }
-
+    /**
+     * @description group_by数据
+     * @param val
+     */
     function handleGroupChange(val) {
       viewOptions.value = {
         ...viewOptions.value,
         group_by: val,
       };
     }
-
+    /**
+     * @description filters （当前为主机列表与容器列表选择）
+     * @param val
+     */
     function handleFiltersChange(val) {
       filtersVal.value = {
         ...filtersVal.value,
@@ -195,7 +230,10 @@ export default defineComponent({
         current_target: currentTarget.value || undefined,
       };
     }
-
+    /**
+     * @description 对比类型
+     * @param val
+     */
     function handleCompareTypeChange(val) {
       compareType.value = val;
       compareTargets.value = [];
@@ -205,9 +243,18 @@ export default defineComponent({
         compare_targets: [],
       };
     }
+    /**
+     * @description 时间对比
+     * @param val
+     */
     function handleCompareTimeChange(val) {
+      console.log(val);
       timeOffset.value = val;
     }
+    /**
+     * @description 目标对比
+     * @param val
+     */
     function handleCompareTargetChange(val) {
       const compareTargetsTemp = [];
       for (const target of val) {
@@ -225,10 +272,17 @@ export default defineComponent({
         compare_targets: compareTargets.value,
       };
     }
-
+    /**
+     * @description 目标列表数据（当前为主机列表与容器列表中接口获取）
+     * @param val
+     */
     function handleTargetListChange(val) {
       targetList.value = val;
     }
+    /**
+     * @description 当前目标，用于目标对比
+     * @param val
+     */
     function handleCurTargetTitleChange(val) {
       curTargetTitle.value = val;
     }
@@ -242,6 +296,7 @@ export default defineComponent({
       groups,
       compareListEnable,
       curTargetTitle,
+      groupsLoading,
       t,
       handleIntervalChange,
       handleMethodChange,
@@ -278,6 +333,7 @@ export default defineComponent({
             {this.sceneId === 'container' && (
               <GroupsSelector
                 list={this.groups}
+                loading={this.groupsLoading}
                 name={this.groupTitle}
                 value={this.viewOptions.group_by}
                 onChange={this.handleGroupChange}
