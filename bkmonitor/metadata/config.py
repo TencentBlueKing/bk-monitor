@@ -105,6 +105,11 @@ BCS_RESOURCE_DATA_ID_RESOURCE_KIND = "DataID"
 # data_id注入类型查询名
 BCS_RESOURCE_DATA_ID_RESOURCE_PLURAL = "dataids"
 
+# BCS集群相关数据源
+k8s_metric_name = "K8SMetric"
+cluster_custom_metric_name = "CustomMetric"
+k8s_event_name = "K8SEvent"
+
 # 周期任务锁的超时时间
 PERIODIC_TASK_DEFAULT_TTL = 7200
 
