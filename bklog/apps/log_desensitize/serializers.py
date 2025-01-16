@@ -21,11 +21,10 @@ the project delivered to anyone in the future.
 """
 import re
 
-from apps.exceptions import ValidationError
-
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
-from django.utils.translation import ugettext_lazy as _
 
+from apps.exceptions import ValidationError
 from apps.log_desensitize.constants import DesensitizeOperator, DesensitizeRuleTypeEnum
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_search.serializers import DesensitizeConfigsSerializer
@@ -49,11 +48,7 @@ class DesensitizeRuleSerializer(serializers.Serializer):
     rule_name = serializers.CharField(label=_("脱敏规则名称"), required=True, max_length=64)
     match_fields = serializers.ListField(label=_("匹配字段名"), child=serializers.CharField(), required=False, default=list)
     match_pattern = serializers.CharField(
-        label=_("匹配表达式"),
-        required=False,
-        allow_null=True,
-        allow_blank=True,
-        default=""
+        label=_("匹配表达式"), required=False, allow_null=True, allow_blank=True, default=""
     )
     space_uid = SpaceUIDField(label=_("空间唯一标识"), required=False)
     operator = serializers.ChoiceField(label=_("脱敏算子"), choices=DesensitizeOperator.get_choices(), required=True)

@@ -19,8 +19,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import gettext as _
+
 import settings
-from django.utils.translation import ugettext as _
 from home_application.constants import QUEUES
 from home_application.handlers.metrics import (
     HealthzMetric,

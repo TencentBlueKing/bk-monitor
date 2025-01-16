@@ -1,46 +1,44 @@
 # -*- coding: utf-8 -*-
 
-# importlib from celery support
-importlib-metadata==3.4.0
-ujson==4.1.0
+ujson==5.9.0
 
-Django==3.2.15
+Django==4.2
 # 单元测试
-django-fakeredis==0.1.2
-requests==2.23.0
-celery==4.4.7
-redis==3.5.3
-redis-py-cluster==2.1.0
-django-redis==5.0.0
-django-celery-beat==2.2.0
-django-celery-results==2.0.1
-django-dbconn-retry==0.1.5
+fakeredis==2.26.0
+requests==2.31.0
+celery==5.2.7
+redis==5.0.3
+redis-py-cluster==1.3.5
+django-redis==5.4.0
+django-celery-beat==2.5.0
+django-celery-results==2.5.1
+django-dbconn-retry==0.1.8
 
 cloudpickle==2.1.0
 
-pytz==2019.3
+pytz==2024.2
 gunicorn==19.6.0
-urllib3==1.25.9
+urllib3==1.26.18
 django-cors-headers==3.7.0
 django-cors-middleware==1.3.1
-django-jsonfield-backport==1.0.3
-uWSGI==2.0.17.1
+django-jsonfield-backport==1.0.5
+uWSGI==2.0.24
 python-dateutil==2.7.5
-djangorestframework==3.12.4
+djangorestframework==3.15.1
 django-filter==2.4.0
-arrow==0.14.2
-mistune==0.8.4
-gevent==1.2.2
+arrow==1.3.0
+mistune==3.0.2
+gevent==24.2.1
 python-consul==1.1.0
-PyYAML==5.4.1
-dataclasses==0.8
+PyYAML==6.0.2
+dataclasses==0.6
 typing_extensions==3.7.4.3
 Markdown==3.3
 wrapt==1.15.0
 pyinstrument==3.4.2
 
 # for原生es
-elasticsearch==7.0.0
+elasticsearch==7.17.9
 elasticsearch5==5.5.6
 elasticsearch6==6.4.2
 elasticsearch_dsl==7.0.0
@@ -50,44 +48,44 @@ kafka-python==2.0.2
 
 # iam
 cachetools==3.1.1
-certifi==2020.4.5.1
+certifi==2024.2.2
 chardet==3.0.4
 curlify==2.2.1
 idna==2.9
 
 # audit
-bk-audit==1.2.1
+bk-audit==1.2.2
 
 # qcloud cos
 cos-python-sdk-v5==1.9.6
 
 # pipeline
-bamboo-pipeline==3.16.1
+bamboo-pipeline==4.0.0rc0
 mock==2.0.0
 
 # jinjia
-jinja2==2.10.1
+jinja2==3.1.3
 
 # ipython
-ipython==7.16.3
+ipython==8.22.2
 jedi==0.17.2
 
 humanize==3.11.0
 
 # opentelemetry
-protobuf==3.19.5
-opentelemetry-api==1.11.1
-opentelemetry-sdk==1.11.1
-opentelemetry-exporter-otlp-proto-http==1.11.1
-opentelemetry-exporter-otlp-proto-grpc==1.11.1
-opentelemetry-semantic-conventions==0.30b1
-opentelemetry-instrumentation-django==0.30b1
-opentelemetry-instrumentation-elasticsearch==0.30b1
-opentelemetry-instrumentation-dbapi==0.30b1
-opentelemetry-instrumentation-redis==0.30b1
-opentelemetry-instrumentation-requests==0.30b1
-opentelemetry-instrumentation-celery==0.30b1
-opentelemetry-instrumentation-logging==0.30b1
+protobuf==3.19.6
+opentelemetry-api==1.23.0
+opentelemetry-sdk==1.23.0
+opentelemetry-exporter-otlp-proto-http==1.23.0
+opentelemetry-exporter-otlp-proto-grpc==1.23.0
+opentelemetry-semantic-conventions==0.44b0
+opentelemetry-instrumentation-django==0.44b0
+opentelemetry-instrumentation-elasticsearch==0.44b0
+opentelemetry-instrumentation-dbapi==0.44b0
+opentelemetry-instrumentation-redis==0.44b0
+opentelemetry-instrumentation-requests==0.44b0
+opentelemetry-instrumentation-celery==0.44b0
+opentelemetry-instrumentation-logging==0.44b0
 
 
 # kubernetes
@@ -97,15 +95,15 @@ kubernetes==18.20.0
 retrying==1.3.3
 
 # bk_storage bkrepo
-bkstorages==1.0.1
+bkstorages==2.0.0
 
 # telemetry
-bk-monitor-report==1.2.1
+bk-monitor-report==1.2.2
 django-prometheus==2.1.0
 
 # blueapps
-blueapps==4.7.1
-blueapps[opentelemetry]==4.7.1
+blueapps==4.15.4
+blueapps[opentelemetry]==4.15.4
 # blueapps依赖
 whitenoise==5.0
 
@@ -113,7 +111,7 @@ whitenoise==5.0
 pypinyin==0.46.0
 
 # pymysql
-pymysql==1.0.2
+pymysql==1.1.1
 
 # pika, rabbitmq client
 pika==1.2.1
@@ -122,13 +120,13 @@ pika==1.2.1
 luqum==0.12.0
 
 # openapi
-drf-yasg==1.15.1
+drf-yasg==1.21.8
 
 # bk crypto
-bk-crypto-python-sdk==1.1.1
+bk-crypto-python-sdk==2.0.0
 
 # bk notice
-bk-notice-sdk==1.2.0
+bk-notice-sdk==1.3.2
 
 # apigw
 apigw-manager==3.0.2

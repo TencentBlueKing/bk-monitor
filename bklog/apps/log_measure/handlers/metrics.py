@@ -25,6 +25,9 @@ import time
 from functools import wraps
 
 import arrow
+from django.core.cache import cache
+from django.utils.translation import gettext as _
+
 from apps.api import NodeApi, TransferApi
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
@@ -32,8 +35,6 @@ from apps.log_esquery.utils.es_client import es_socket_ping, get_es_client
 from apps.log_measure.exceptions import EsConnectFailException
 from apps.log_search.models import Space
 from apps.utils.log import logger
-from django.core.cache import cache
-from django.utils.translation import ugettext as _
 
 
 class Metric(object):
@@ -103,7 +104,7 @@ class BaseMetricCollector(object):
 
         # 上报时间
         self.collect_interval = collect_interval
-        timestamp = arrow.now().timestamp
+        timestamp = int(arrow.now().timestamp())
         self.report_ts = timestamp // self.collect_interval * self.collect_interval
 
     @property

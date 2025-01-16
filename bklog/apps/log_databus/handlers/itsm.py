@@ -21,6 +21,11 @@ the project delivered to anyone in the future.
 """
 import json
 
+from django.conf import settings
+from django.db import transaction
+from django.utils.translation import gettext as _
+from rest_framework.reverse import reverse
+
 from apps.api import BkItsmApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import (
@@ -37,10 +42,6 @@ from apps.log_databus.models import CollectorConfig, ItsmEtlConfig
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.utils.local import get_request, get_request_username
 from apps.utils.log import logger
-from django.conf import settings
-from django.db import transaction
-from django.utils.translation import ugettext as _
-from rest_framework.reverse import reverse
 
 
 class ItsmHandler(object):

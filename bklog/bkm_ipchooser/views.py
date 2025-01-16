@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+from django.utils.translation import gettext_lazy as _
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework import status
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
+from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet
+
 from bkm_ipchooser.handlers import (
     config_handler,
     dynamic_group_handler,
@@ -13,12 +20,6 @@ from bkm_ipchooser.serializers import (
     template_sers,
     topo_sers,
 )
-from django.utils.translation import ugettext_lazy as _
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
-from rest_framework.authentication import BasicAuthentication, SessionAuthentication
-from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet
 
 try:
     from rest_framework.decorators import detail_route, list_route

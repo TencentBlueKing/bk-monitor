@@ -19,13 +19,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import gettext_lazy as _  # noqa
+
 from apps.api.base import (  # noqa  pylint: disable=unused-import
     DataAPI,
     DataApiRetryClass,
 )
 from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user  # noqa
 from config.domains import AIOPS_APIGATEWAY_ROOT, AIOPS_MODEL_APIGATEWAY_ROOT  # noqa
-from django.utils.translation import ugettext_lazy as _  # noqa
 
 
 class _BkDataAIOPSApi:
@@ -371,5 +372,6 @@ class _BkDataAIOPSApi:
             after_request=None,
             default_timeout=300,
         )
+
 
 BkDataAIOPSApi = _BkDataAIOPSApi()

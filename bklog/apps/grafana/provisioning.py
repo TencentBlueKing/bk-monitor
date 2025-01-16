@@ -21,6 +21,9 @@ the project delivered to anyone in the future.
 """
 from typing import List
 
+from django.conf import settings
+from django.utils.translation import gettext as _
+
 from apps.grafana.constants import TRACE_DATASOURCE_TYPE
 from apps.grafana.data_source import CustomIndexSetESDataSource
 from apps.grafana.model import TraceDatasourceMap
@@ -28,8 +31,6 @@ from apps.log_search.models import LogIndexSet
 from apps.utils.db import array_hash
 from bk_dataview.grafana.provisioning import BaseProvisioning, Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
-from django.utils.translation import ugettext as _
 
 
 class Provisioning(BaseProvisioning):
