@@ -38,7 +38,7 @@
       </div>
     </div>
     <div v-if="switcherValue" class="filter-table-container">
-      <bk-select
+      <!-- <bk-select
         :disabled="false"
         v-model="value"
         searchable
@@ -48,13 +48,42 @@
         ext-cls="select-custom"
         ext-popover-cls="select-popover-custom"
       >
-        <bk-option
-          v-for="option in list"
-          :key="option.id"
-          :id="option.id"
-          :name="option.name"
+        <bk-option-group
+          v-for="(group, index) in groupList"
+          :name="group.name"
+          :key="index"
+          :show-collapse="true"
         >
-        </bk-option>
+          <bk-option
+            v-for="option in group.children"
+            :key="option.id"
+            :id="option.id"
+            :name="option.name"
+          >
+          </bk-option>
+        </bk-option-group>
+      </bk-select> -->
+      <bk-select
+        ref="select"
+        searchable
+        multiple
+        v-model="selectValue"
+        :remote-method="remote"
+        :display-tag="true"
+        :show-empty="false"
+        :auto-height="false"
+        @tab-remove="handleValuesChange"
+        @clear="handleClear"
+      >
+        <bk-big-tree
+          :data="groupList"
+          show-checkbox
+          class="tree-select"
+          ref="tree"
+          :default-checked-nodes="selectValue"
+          @check-change="handleCheckChange"
+        >
+        </bk-big-tree>
       </bk-select>
     </div>
   </div>
@@ -66,23 +95,66 @@ export default {
     return {
       switcherValue: false,
       value: "",
-      list: [
-        { id: 1, name: "爬山" },
-        { id: 2, name: "跑步" },
-        { id: 3, name: "打球" },
-        { id: 4, name: "跳舞" },
-        { id: 5, name: "健身" },
-        { id: 6, name: "骑车" },
-        { id: 7, name: "k8s" },
-        { id: 8, name: "K8S" },
-        { id: 9, name: "mesos" },
-        { id: 10, name: "MESOS" },
+      selectValue: [],
+      groupList: [
+        {
+          id: 1,
+          name: "我是分组1",
+          children: [
+            { id: "1-1", name: "hostname(主机名)" },
+            { id: "1-2", name: "hostid(主机ID)" },
+          ],
+        },
+        {
+          id: 2,
+          name: "我是分组2",
+          children: [
+            { id: "2-1", name: "englishname(中文名)" },
+            { id: "2-2", name: "englishname(中文名)" },
+            { id: "2-3", name: "englishname(中文名)" },
+            { id: "2-4", name: "englishname(中文名)" },
+          ],
+        },
       ],
     };
   },
   computed: {},
   mounted() {},
-  methods: {},
+  methods: {
+    remote(keyword) {
+      this.$refs.tree && this.$refs.tree.filter(keyword);
+    },
+    handleCheckChange(id, checked) {
+      this.selectValue = [...id];
+    },
+    handleValuesChange(options) {
+      this.$refs.tree &&
+        this.$refs.tree.setChecked(options.id, { emitEvent: true, checked: false });
+    },
+    handleClear() {
+      this.$refs.tree && this.$refs.tree.removeChecked({ emitEvent: false });
+    },
+  },
 };
 </script>
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.filter-table-container {
+  margin-top: 10px;
+  width: 518px;
+}
+.tree-select {
+  :deep(.is-root) {
+    font-family: MicrosoftYaHei;
+    font-size: 12px;
+    color: #979ba5;
+    .node-checkbox {
+      display: none;
+    }
+  }
+  :deep(.node-content) {
+    font-family: MicrosoftYaHei;
+    font-size: 12px;
+    color: #4d4f56;
+  }
+}
+</style>
