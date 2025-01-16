@@ -216,7 +216,7 @@
                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                     :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
                     :key="option.id"
-                    class="bk-button"
+                    class="bklog-button"
                     @click="handleSelectConfig(option.id)"
                   >
                     {{ option.name }}
@@ -2888,8 +2888,7 @@
         display: flex;
         align-items: center;
         margin: 10px 0 0;
-
-        .bk-button{
+        .bklog-button{
           font-size: 12px;
         }
       }
