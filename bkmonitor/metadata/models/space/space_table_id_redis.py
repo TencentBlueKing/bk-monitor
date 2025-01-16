@@ -134,6 +134,22 @@ class SpaceTableIDRedis:
                     json.dumps(_table_id_detail),
                     RESULT_TABLE_DETAIL_KEY,
                 )
+                updated_table_id_detail = {}
+                for key, value in _table_id_detail.items():
+                    if '.' not in key:
+                        logger.info(
+                            "push_es_table_id_detail: key(table_id)->[%s] is not valid, try to " "add .__default__", key
+                        )
+                        # 如果 key 不包含 "."，在其后添加 ".__default__"
+                        new_key = f"{key}.__default__"
+                        updated_table_id_detail[new_key] = value
+                    else:
+                        # 如果 key 包含 "."，保持原样
+                        updated_table_id_detail[key] = value
+
+                # 更新 _table_id_detail
+                _table_id_detail = updated_table_id_detail
+
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
                     logger.info(
