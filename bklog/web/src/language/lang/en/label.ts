@@ -723,8 +723,10 @@ export default {
   前往清洗: 'Go to wash',
   索引字段配置: 'Index field configuration',
   字段类型不支持快速修改: 'Field type does not support quick modification',
+  内置字段不支持快速修改: ' Built in field does not support quick modification',
   时间维度: 'Time dimension',
   关联Trace检索: 'Associated Trace Search',
   检索结果为空: 'Search Results Are Empty',
   查询设置: 'Query settings',
+  字段映射: 'field mapping',
 };
