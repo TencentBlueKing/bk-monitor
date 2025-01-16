@@ -50,6 +50,7 @@
         :style="{ height: topoSelectorHeight + 'px' }"
         :class="countInstanceType === 'service_instance' ? 'service-instance-selector' : ''"
         :count-instance-type="countInstanceType"
+        :enable-origin-data="true"
         :node-table-custom-column-list="serviceInstanceColumnList"
         :original-value="originValue"
         :panel-list="ipSelectorPanels"
@@ -280,17 +281,35 @@ export default {
         this.ipSelectorPanels = ['dynamicTopo', 'serviceTemplate', 'setTemplate'];
       } else {
         this.countInstanceType = 'host';
-        this.ipSelectorPanels = ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'];
+        this.ipSelectorPanels = [
+          'staticTopo',
+          'dynamicTopo',
+          'serviceTemplate',
+          'setTemplate',
+          'manualInput',
+          'dynamicGroup',
+        ];
       }
       this.$nextTick(() => {
         this.topoSelectorHeight = this.$refs.topoSelectorWrapper.clientHeight;
       });
     },
+
+    transformValueToMonitorExpand(value, nodeType) {
+      if (nodeType === 'DYNAMIC_GROUP') {
+        return value.dynamic_group_list.map(item => ({
+          bk_obj_id: item.bk_obj_id,
+          bk_inst_id: item.id,
+        }));
+      }
+      return transformValueToMonitor(value, nodeType);
+    },
+
     async handleStart() {
       let data = null;
       let type = null;
       if (!this.isSnmp) {
-        data = transformValueToMonitor(this.ipCheckValue, this.ipTargetType);
+        data = this.transformValueToMonitorExpand(this.ipCheckValue, this.ipTargetType);
         type = this.ipTargetType;
         if (!data.length && !this.isNoHost) {
           this.$emit('update:diffData', { added: [], removed: [], updated: [], unchanged: [] });
@@ -327,7 +346,7 @@ export default {
       }
 
       if (this.$refs.topoSelectorWrapper) {
-        let target = transformValueToMonitor(this.ipCheckValue, this.ipTargetType);
+        let target = this.transformValueToMonitorExpand(this.ipCheckValue, this.ipTargetType);
         // 临时处理
         if (['SERVICE_TEMPLATE', 'SET_TEMPLATE'].includes(this.ipTargetType)) {
           target = await getNodesByTemplate({
