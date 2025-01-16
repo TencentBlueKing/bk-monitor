@@ -349,7 +349,7 @@
 
     .log-item {
       display: flex;
-      align-items: baseline;
+      align-items: start;
       min-height: 24px;
 
       .field-label {

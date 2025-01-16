@@ -1209,7 +1209,7 @@
     .top-operate {
       position: absolute;
       top: 42px;
-      z-index: 99;
+      z-index: 3;
       width: 100%;
       height: 32px;
       font-size: 12px;

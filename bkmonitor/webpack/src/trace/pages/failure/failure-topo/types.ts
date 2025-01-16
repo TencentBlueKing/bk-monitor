@@ -49,6 +49,15 @@ export interface IEntity {
     BcsService?: IEntityTag;
     BcsWorkload?: IEntityTag;
   };
+  observe_time_rage?: {
+    start_at: number | string;
+    end_at: number | string;
+  };
+  rca_trace_info?: {
+    abnormal_message: string;
+    abnormal_traces: Record<string, any>[];
+    abnormal_traces_query: Record<string, any>;
+  };
 }
 
 export interface IEdge {

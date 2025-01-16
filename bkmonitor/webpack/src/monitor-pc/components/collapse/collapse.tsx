@@ -85,7 +85,7 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   openAnimation = false;
 
   created() {
-    this.height = null;
+    // this.height = null;
     this.defaultHeight && (this.loacalMaxHeight = this.defaultHeight);
     if (this.renderAnimation) {
       this.openAnimation = true;
@@ -136,7 +136,7 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   updateHeight(val: boolean) {
     this.loacalMaxHeight = this.maxHeight;
     const contentHeight = this.collapseContentRef?.scrollHeight;
-
+    console.log(contentHeight);
     this.height = val ? contentHeight : contentHeight < this.defaultHeight ? contentHeight : this.defaultHeight;
     !!this.loacalMaxHeight && val && this.height > this.loacalMaxHeight && (this.height = this.loacalMaxHeight);
   }
@@ -184,6 +184,7 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
 
   @Debounce(300)
   handleResize() {
+    console.log(this.height);
     this.$nextTick(() => this.updateHeight(this.expand));
     this.checkOverflow();
   }

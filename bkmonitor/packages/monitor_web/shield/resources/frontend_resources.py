@@ -146,7 +146,9 @@ class FrontendShieldListResource(Resource):
 
         # 过滤策略id
         strategy_ids = set(strategy_ids)
-        shields = [shield for shield in shields if set(manager.get_strategy_ids(shield)) & strategy_ids]
+        shields = [
+            shield for shield in shields if (set(manager.get_strategy_ids(shield)) & strategy_ids) or not strategy_ids
+        ]
 
         # 获取关联策略名
         shield_strategy_ids = {strategy_id for shield in shields for strategy_id in manager.get_strategy_ids(shield)}
@@ -254,14 +256,9 @@ class FrontendShieldDetailResource(Resource):
             strategy_ids = shield["dimension_config"]["strategy_id"]
             if not isinstance(strategy_ids, list):
                 strategy_ids = [strategy_ids]
-            strategy_ids = StrategyModel.objects.filter(id__in=strategy_ids, bk_biz_id=self.bk_biz_id).values_list(
-                "id", flat=True
+            strategies = list(
+                StrategyModel.objects.filter(id__in=strategy_ids, bk_biz_id=self.bk_biz_id).values("id", "name")
             )
-
-            strategies = []
-            for strategy_id in strategy_ids:
-                strategy_info = resource.strategies.strategy_info(id=strategy_id, bk_biz_id=self.bk_biz_id)
-                strategies.append(strategy_info)
             dimension_config.update({"strategies": strategies})
 
         if shield["category"] == ShieldCategory.STRATEGY:

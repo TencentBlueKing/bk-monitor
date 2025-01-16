@@ -938,6 +938,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "double": "double",
             "object": "object",
             "nested": "nested",
+            "boolean": "boolean",
         }.get(es_field_type, "string")
 
 

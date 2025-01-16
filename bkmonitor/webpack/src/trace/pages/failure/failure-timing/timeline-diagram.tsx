@@ -166,6 +166,7 @@ export default defineComponent({
         onClick: e => actionClickFn(e, handleRootCauseConfirm),
       },
     ]);
+    const timeLineZoomRef = ref(null);
     const ratio = ref<number>(0);
     const processRef = ref<HTMLDivElement>();
     const activeName = inject<Ref>('activeName');
@@ -900,15 +901,17 @@ export default defineComponent({
       if (percentage.value === 0) {
         return;
       }
+      timeLineMainRef.value.style.cursor = 'grabbing';
       isDragging.value = true;
       const startX = event.clientX;
+
       const onMouseMove = (e: MouseEvent) => {
         if (!isDragging.value) return;
         const deltaX = e.clientX - startX;
         onTimeLineMouseHandle(deltaX);
       };
-
       const onMouseUp = () => {
+        timeLineMainRef.value.style.cursor = percentage.value > 0 ? 'grab' : 'default';
         isDragging.value = false;
         timeLineMainRef.value.removeEventListener('mousemove', onMouseMove);
         timeLineMainRef.value.removeEventListener('mouseup', onMouseUp);
@@ -916,16 +919,42 @@ export default defineComponent({
       timeLineMainRef.value.addEventListener('mousemove', onMouseMove);
       timeLineMainRef.value.addEventListener('mouseup', onMouseUp);
     };
+    // 滚轮事件处理，缩放时序图
     const handleWheel = e => {
       e.stopPropagation();
       e.preventDefault();
-      if (percentage.value === 0) {
-        return;
-      }
-      const { deltaX } = e;
-      const sensitivity = 2; // 设置滚动灵敏度
-      const dx = -deltaX * sensitivity;
-      onTimeLineMouseHandle(dx);
+
+      const selection = timeLineMainRef.value as HTMLElement;
+      const offsetWidth = selection.offsetWidth;
+      const rect = selection.getBoundingClientRect();
+      const parentWidth = (selection.parentNode as HTMLElement).offsetWidth;
+      const delta = e.deltaY;
+      const mouseX = e.clientX - rect.left;
+      const startTransform = getTransformX(selection);
+      const maxTransformX = offsetWidth - parentWidth;
+      const ratioBeforeZoom = startTransform / maxTransformX;
+
+      // 联动缩放
+      timeLineZoomRef.value.handleUpdateZoom(delta > 0 ? -2 : 2);
+
+      // 需要根据当前鼠标停留位置，重新计算缩放后的最大偏移量
+      const newMaxTransformX = Math.max(0, offsetWidth - parentWidth);
+
+      const newMouseX = (mouseX / rect.width) * offsetWidth;
+      const offsetChange = mouseX - newMouseX;
+
+      // 计算新的偏移量
+      const newTransformX = newMaxTransformX * ratioBeforeZoom;
+
+      const newPos = Math.max(-newMaxTransformX, Math.min(0, newTransformX + offsetChange));
+
+      // 更新偏移量，缩放倍率为0不在执行新的值，避免超出边界
+      mainLeft.value = percentage.value === 0 ? 0 : newPos;
+
+      // 更新鼠标比例
+      const ratio = newMaxTransformX === 0 ? 0 : newPos / newMaxTransformX;
+      mouseRatio.value = Number(Math.abs(ratio).toFixed(3));
+      timeLineMainRef.value.style.cursor = percentage.value > 0 ? 'grab' : 'default';
     };
     return {
       t,
@@ -974,6 +1003,7 @@ export default defineComponent({
       ratio,
       onTimeLineMainMouseDown,
       mouseRatio,
+      timeLineZoomRef,
     };
   },
   render() {
@@ -1043,7 +1073,10 @@ export default defineComponent({
       >
         <div
           ref='timeLineMainRef'
-          style={{ width: `${this.mainWidth}px`, transform: `translateX(${this.mainLeft}px)` }}
+          style={{
+            width: `${this.mainWidth}px`,
+            transform: `translateX(${this.mainLeft}px)`,
+          }}
           class='timeline-diagram-main'
           onMousedown={this.onTimeLineMainMouseDown}
           onWheel={this.handleWheel}
@@ -1090,6 +1123,7 @@ export default defineComponent({
           </div>
         </div>
         <TimelineZoom
+          ref='timeLineZoomRef'
           mouseRatio={this.mouseRatio}
           ratio={this.ratio}
           showTickArr={this.showTickArr}

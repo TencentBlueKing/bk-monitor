@@ -53,12 +53,12 @@ import {
   type ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
-
 const guideInfoData: Record<string, IGuideInfo> = {
   Event: {
     type: '',
@@ -84,6 +84,7 @@ export default defineComponent({
     spanDetails: { type: Object as PropType<Span>, default: () => null },
     isFullscreen: { type: Boolean, default: false } /* 当前是否为全屏状态 */,
     isPageLoading: { type: Boolean, default: false },
+    activeTab: { type: String, default: 'BasicInfo' },
   },
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
@@ -885,6 +886,14 @@ export default defineComponent({
 
     const activeTab = ref<TabName>('BasicInfo');
     provide('SpanDetailActiveTab', activeTab);
+
+    watch(
+      () => props.activeTab,
+      val => {
+        activeTab.value = val as TabName;
+      }
+    );
+
     const tabList = [
       {
         label: t('基础信息'),
@@ -902,6 +911,10 @@ export default defineComponent({
         label: t('主机'),
         name: 'Host',
       },
+      {
+        label: t('容器'),
+        name: 'Container',
+      },
       // 20230525 这期暂时不需要
       // {
       //   label: t('进程'),
@@ -917,7 +930,7 @@ export default defineComponent({
       // }
     ];
 
-    const sceneData = ref<Record<string, any>>({});
+    const sceneData = ref<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
       return (
         sceneData.value?.panelCount < 2 &&
@@ -967,14 +980,30 @@ export default defineComponent({
       if (activeTab.value === 'Host') {
         const result = await getSceneView({
           scene_id: 'apm_trace',
-          id: activeTab.value.toLowerCase(),
+          id: 'host',
           bk_biz_id: window.bk_biz_id,
           apm_app_name: props.spanDetails.app_name,
+          apm_service_name: props.spanDetails.service_name,
           apm_span_id: props.spanDetails.span_id,
-        })
-          .catch(console.log)
-          .finally(() => (isTabPanelLoading.value = false));
+        }).catch(() => null);
         sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
+      }
+      if (activeTab.value === 'Container') {
+        const startTime = dayjs(startTimeProvider.value).unix();
+        const endTime = dayjs(endTimeProvider.value).unix();
+        const result = await getSceneView({
+          scene_id: 'apm_trace',
+          id: 'container',
+          bk_biz_id: window.bk_biz_id,
+          apm_app_name: props.spanDetails.app_name,
+          apm_service_name: props.spanDetails.service_name,
+          apm_span_id: props.spanDetails.span_id,
+          start_time: startTime - 30 * 60,
+          end_time: endTime + 30 * 60,
+        }).catch(() => null);
+        sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
       }
     };
 
@@ -1161,6 +1190,7 @@ export default defineComponent({
                       // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
                       'is-log-tab': activeTab.value === 'Log',
                       'is-host-tab': activeTab.value === 'Host',
+                      'is-container-tab': activeTab.value === 'Container',
                     }}
                   >
                     {info.list.map((item, index) => {
@@ -1292,14 +1322,33 @@ export default defineComponent({
                         >
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
-                            <div>
-                              <FlexDashboardPanel
-                                id={random(10)}
-                                column={3}
-                                dashboardId={random(10)}
+                            <div class='host-tab-container'>
+                              <DashboardPanel
+                                groupTitle={t('主机列表')}
                                 isSingleChart={isSingleChart.value}
-                                needOverviewBtn={!!sceneData.value?.list?.length}
-                                panels={sceneData.value.overview_panels}
+                                sceneData={sceneData.value}
+                                sceneId={'host'}
+                              />
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // 容器 部分
+                      activeTab.value === 'Container' && (
+                        <Loading
+                          style='height: 100%;'
+                          loading={isTabPanelLoading.value}
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div class='host-tab-container'>
+                              <DashboardPanel
+                                groupTitle={'Groups'}
+                                isSingleChart={isSingleChart.value}
+                                sceneData={sceneData.value}
+                                sceneId={'container'}
                               />
                             </div>
                           )}
@@ -1349,7 +1398,7 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        width={960}
+        width={1280}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
         v-model={[localShow.value, 'isShow']}
         v-slots={{
@@ -1422,6 +1471,8 @@ export default defineComponent({
       info,
       detailsMain,
       renderDom,
+      sceneData,
+      isTabPanelLoading,
       // countOfInfo,
     };
   },

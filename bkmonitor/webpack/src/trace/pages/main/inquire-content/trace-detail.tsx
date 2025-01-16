@@ -36,6 +36,7 @@ import {
   watch,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import { Checkbox, Loading, Message, Popover, ResizeLayout, Tab, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -126,6 +127,7 @@ export default defineComponent({
   props: TraceDetailProps,
   emits: ['close'],
   setup(props) {
+    const route = useRoute();
     /** 取消请求方法 */
     let searchCancelFn = () => {};
     const { t } = useI18n();
@@ -608,6 +610,7 @@ export default defineComponent({
         clearCrossApp();
       }
     );
+
     watch(
       () => traceData.value,
       () => {
@@ -617,6 +620,18 @@ export default defineComponent({
         clearCompareParams();
         nextTick(() => handleResize());
         compareSelect.value?.handleCancelCompare();
+      },
+      { deep: true }
+    );
+
+    watch(
+      () => traceData.value.span_classify,
+      val => {
+        if (val && route.query?.incident_query) {
+          const data = val.filter(f => f.type === 'error');
+          // 只有从故障详情页跳转过来才会触发
+          handleSelectFilters(data[0]);
+        }
       },
       { deep: true }
     );

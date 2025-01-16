@@ -55,6 +55,28 @@
         color: #4d4f56;
       }
     }
+
+    .goto-old {
+      display: flex;
+      align-items: center;
+      margin-left: auto;
+      color: #f59500;
+
+      .icon-remind {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 4px;
+        font-size: 16px;
+      }
+
+      .change-version {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 4px;
+      }
+    }
   }
 
   .monitor-k8s-new-header {
@@ -70,7 +92,7 @@
       width: 321px;
       min-height: 50px;
       line-height: 48px;
-      background: #F0F1F5;
+      background: #f0f1f5;
       border: 1px solid #dcdee5;
 
       &.is-unselected::before {

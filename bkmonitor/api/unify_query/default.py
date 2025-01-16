@@ -18,6 +18,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
+from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
@@ -88,11 +89,15 @@ class UnifyQueryAPIResource(Resource):
             space_uid = bk_biz_id_to_space_uid(request.biz_id)
 
         url = urljoin(get_unify_query_url(space_uid), self.path.format(**params))
-        requests_params = {
-            "method": self.method,
-            "url": url,
-            "headers": {"Bk-Query-Source": f"username:{username}" if username else "backend"},
-        }
+
+        # 记录查询来源
+        source = "backend"
+        if username:
+            source = f"username:{username}"
+        elif getattr(local, "strategy_id", None):
+            source = f"strategy:{local.strategy_id}"
+
+        requests_params = {"method": self.method, "url": url, "headers": {"Bk-Query-Source": source}}
         if space_uid is None:
             # 跨业务查询
             requests_params["headers"]["X-Bk-Scope-Skip-Space"] = settings.APP_CODE

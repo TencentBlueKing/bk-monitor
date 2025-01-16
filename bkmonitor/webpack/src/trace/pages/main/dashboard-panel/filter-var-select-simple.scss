@@ -1,0 +1,17 @@
+.dashboard__filter-var-select-simple-wrap {
+  display: flex;
+  align-items: center;
+
+  .filter-var-label {
+    flex-shrink: 0;
+    margin-right: 8px;
+    margin-bottom: 2px;
+    font-size: 12px;
+    font-weight: 400;
+    color: #4D4F56;
+  }
+
+  .filter-var-select {
+    width: 124px;
+  }
+}

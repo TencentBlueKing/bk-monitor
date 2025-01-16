@@ -139,7 +139,7 @@ export interface GroupListItem<T = string> {
 
 export interface K8sDimensionParams extends ICommonParams {
   query_string: string;
-  pageSize: number;
+  page_size: number;
   page_type: 'scrolling' | 'traditional';
 }
 
