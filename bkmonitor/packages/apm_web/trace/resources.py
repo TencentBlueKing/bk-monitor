@@ -639,7 +639,7 @@ class ListSpanResource(Resource):
         try:
             response = api.apm_api.query_span_list(params)
         except BKAPIError as e:
-            raise ValueError(_lazy(f"Span列表请求失败: {e.data.get('message')}"))
+            raise CustomException(_lazy(f"Span列表请求失败: {e.data.get('message')}"))
 
         self.burial_point(data["bk_biz_id"], data["app_name"])
         QueryHandler.handle_span_list(response["data"])
@@ -705,7 +705,7 @@ class ListTraceResource(Resource):
                 ).es_dsl
                 response = api.apm_api.query_trace_list(params)
         except BKAPIError as e:
-            raise ValueError(_lazy(f"Trace列表请求失败: {e.data.get('message')}"))
+            raise CustomException(_lazy(f"Trace列表请求失败: {e.data.get('message')}"))
 
         self.burial_point(data["bk_biz_id"], data["app_name"])
 
@@ -1096,7 +1096,7 @@ class ListSpanStatisticsResource(Resource):
         try:
             response = api.apm_api.query_span_statistics(params)
         except BKAPIError as e:
-            raise ValueError(_lazy("获取接口统计失败: {message}").format(message=e.data.get("message")))
+            raise CustomException(_lazy("获取接口统计失败: {message}").format(message=e.data.get("message")))
 
         return response
 
@@ -1126,7 +1126,7 @@ class ListServiceStatisticsResource(Resource):
         try:
             response = api.apm_api.query_service_statistics(params)
         except BKAPIError as e:
-            raise ValueError(_lazy("获取服务统计失败: {message}".format(message=e.data.get("message"))))
+            raise CustomException(_lazy("获取服务统计失败: {message}".format(message=e.data.get("message"))))
 
         return response
 

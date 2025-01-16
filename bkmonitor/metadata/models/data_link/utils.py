@@ -219,3 +219,38 @@ def is_k8s_metric_data_id(data_name: str) -> bool:
     data_id = obj.bk_data_id
 
     return models.BCSClusterInfo.objects.filter(K8sMetricDataID=data_id).exists()
+
+
+def get_data_source_related_info(bk_data_id):
+    """
+    获取数据源关联信息
+    @param bk_data_id: 数据源ID
+    @return: 数据源ID、数据源名称、结果表ID、VM结果表ID
+    """
+    logger.info("get_data_source_related_info: try to get data_source related info for bk_data_id->[%s]", bk_data_id)
+    try:
+        ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+        dsrt = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id)
+        table_id = dsrt.table_id
+
+        vm_record = models.AccessVMRecord.objects.filter(result_table_id=table_id)
+
+        if vm_record.exists():
+            vm_record = vm_record.first()
+            vm_result_table_id = vm_record.vm_result_table_id
+        else:
+            vm_result_table_id = None
+
+        return {
+            'bk_data_id': bk_data_id,
+            'data_name': ds.data_name,
+            'result_table_id': table_id,
+            'vm_result_table_id': vm_result_table_id,
+        }
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "get_data_source_related_info: get data_source related info failed," "bk_data_id->[%s] error->[%s]",
+            bk_data_id,
+            e,
+        )
+        return {}

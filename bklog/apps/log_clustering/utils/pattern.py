@@ -95,6 +95,10 @@ def match_text_and_tokenize(variables, content, delimeter, number_variables, is_
         return [content]
     variable_dict = {}
     for name, regex in variables:
+        try:
+            re.compile(regex)
+        except re.error as exc:
+            raise ValueError(f"invalid regex: {regex} - {exc}")
         matched_object = re.search(regex, content)
         while matched_object is not None:
             s, e = matched_object.start(), matched_object.end()
