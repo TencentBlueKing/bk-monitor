@@ -42,6 +42,7 @@ import {
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import { generateFormatterFunc, handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import loadingChartSrc from '../../../../static/images/png/new-page/loadingChart.png';
 import { handleYAxisLabelFormatter, EStatusType, EAlertLevel } from '../utils';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
@@ -363,14 +364,25 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
               ref='chart'
               class='chart-instance'
             >
-              {this.init && (
-                <BaseEchart
-                  ref='baseChart'
-                  width={this.width}
-                  height={this.height}
-                  v-bkloading={{ isLoading: this.loading }}
-                  options={this.options}
-                />
+              {!this.loading ? (
+                this.init && (
+                  <BaseEchart
+                    ref='baseChart'
+                    width={this.width}
+                    height={this.height}
+                    options={this.options}
+                  />
+                )
+              ) : (
+                <div class='loading-chart'>
+                  <div class='loading-img'>
+                    <img
+                      alt=''
+                      src={loadingChartSrc}
+                    />
+                  </div>
+                  <span class='loading-text'>加载中…</span>
+                </div>
               )}
             </div>
           </div>

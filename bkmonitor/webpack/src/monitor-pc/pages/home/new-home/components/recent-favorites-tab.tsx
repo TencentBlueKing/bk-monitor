@@ -25,22 +25,16 @@
  */
 import { Component, Mixins, Watch } from 'vue-property-decorator';
 
-import { getFunctionShortcut } from 'monitor-api/modules/overview';
-import { deepClone } from 'monitor-common/utils';
 import bus from 'monitor-common/utils/event-bus';
 import draggable from 'vuedraggable';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
 import { HANDLE_MENU_CHANGE } from '../../../../pages/nav-tools';
-import { COMMON_ROUTE_LIST, GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
-import emptyImageSrc from '../../../../static/images/png/empty.png';
+import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
 import aiWhaleStore from '../../../../store/modules/ai-whale';
-import { QUICK_ACCESS_STORE_KEY, RECENT_FAVORITE_STORE_KEY } from '../utils';
-import AiWhaleInput from './ai-whale-input';
-import HeaderSettingModal from './header-setting-modal';
+import { RECENT_FAVORITE_LIST_KEY } from '../utils';
+import QuickAccess from './quick-access';
 import RecentFavoritesList from './recent-favorites-list';
-
-import type { IRecentList } from '../type';
 
 import './recent-favorites-tab.scss';
 
@@ -66,9 +60,7 @@ interface Category {
 })
 export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   isRecentView = true; // 状态，用于切换视图
-  quickAccessList = []; // 快捷入口列表
   selectedCategories = ['dashboard']; // 用户选择的类别
-  showModal = false; // 控制模态框显示
   categoriesConfig: Category[] = [
     { name: '仪表盘' },
     { name: '服务' },
@@ -78,12 +70,6 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     // { name: '容器服务' },
   ];
 
-  loadingRecentList = true; // 最近列表loading
-  loadingQuickList = true; // 快捷入口loading
-
-  recentItems: IRecentList[] = []; // 最近使用列表
-  favoriteItems: IRecentList[] = []; // 收藏列表
-
   // 展示AI小鲸输入框
   get enableAiAssistant() {
     return aiWhaleStore.enableAiAssistant;
@@ -92,12 +78,6 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   // 是否两行布局
   get categoriesHasTwoRows() {
     return this.selectedCategories.length > 3;
-  }
-
-  @Watch('selectedCategories')
-  handleSelect() {
-    this.onCategoriesOrderChanged();
-    this.updateFunctionShortcut();
   }
 
   @Watch('categoriesConfig')
@@ -110,63 +90,28 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     return this.categoriesConfig.map(item => modeNameMap[item.name]);
   }
 
-  // 根据当前视图状态获取要显示的项目
-  get itemsToDisplay() {
-    const items = this.isRecentView ? this.recentItems : this.favoriteItems;
-    return items
-      .filter(item => this.selectedCategories.includes(item.function))
-      .sort((a, b) => {
-        const orderA = this.orderMap[a.function] !== undefined ? this.orderMap[a.function] : Number.POSITIVE_INFINITY;
-        const orderB = this.orderMap[b.function] !== undefined ? this.orderMap[b.function] : Number.POSITIVE_INFINITY;
-        return orderA - orderB;
-      });
-  }
-
-  get orderMap() {
-    return this.selectedNames.reduce((acc, category, index) => {
-      acc[category] = index;
-      return acc;
-    }, {});
-  }
-
   // 初始化最近使用的数据
   async initRecentUseData() {
     try {
       const [selected, selectList] =
-        (await this.handleGetUserConfig<[string[], []]>(RECENT_FAVORITE_STORE_KEY, {
+        (await this.handleGetUserConfig<[string[], []]>(RECENT_FAVORITE_LIST_KEY, {
           reject403: true,
         })) || [];
-      this.selectedCategories = selected || this.selectedCategories;
-      this.categoriesConfig = this.categoriesConfig.reduce((accumulator: Category[], category: Category) => {
-        if (!accumulator.some(item => item.name === category.name)) {
-          accumulator.push(category);
-        }
-        return accumulator;
-      }, selectList || []);
+      this.selectedCategories = selected.slice() || this.selectedCategories;
+      this.categoriesConfig = this.categoriesConfig
+        .reduce((accumulator: Category[], category: Category) => {
+          if (!accumulator.some(item => item.name === category.name)) {
+            accumulator.push(category);
+          }
+          return accumulator;
+        }, selectList || [])
+        .slice();
     } catch { }
-  }
-  // 初始化快捷入口的数据
-  async initQuickAccessData() {
-    try {
-      this.loadingQuickList = true;
-      const data = await this.handleGetUserConfig<string[]>(QUICK_ACCESS_STORE_KEY, { reject403: true });
-      const routes = [];
-      for (const item of COMMON_ROUTE_LIST) {
-        const list = item.children?.filter(set => data.includes(set.id));
-        list?.length && routes.push(...list);
-      }
-      this.quickAccessList = data.map(id => routes.find(item => item.id === id)).filter(Boolean);
-    } catch {
-    } finally {
-      this.loadingQuickList = false;
-    }
   }
 
   async created() {
     try {
       await this.initRecentUseData();
-      await this.updateFunctionShortcut();
-      await this.initQuickAccessData();
     } catch (error) {
       console.log('error', error);
     }
@@ -175,50 +120,14 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   // 设置存储的最近使用模块并同步到用户配置
   setStoreSelectedCategories() {
     this.handleSetUserConfig(
-      RECENT_FAVORITE_STORE_KEY,
+      RECENT_FAVORITE_LIST_KEY,
       JSON.stringify([this.selectedCategories, this.categoriesConfig])
     );
-  }
-
-  // 缓存快捷入口
-  async handleSetQuickAccess(v) {
-    this.loadingQuickList = true;
-    this.showModal = false;
-    this.quickAccessList = deepClone(v);
-    await this.handleSetUserConfig(QUICK_ACCESS_STORE_KEY, JSON.stringify(this.quickAccessList.map(item => item.id)));
-    this.$nextTick(() => {
-      this.loadingQuickList = false;
-    });
-  }
-
-  async updateFunctionShortcut() {
-    // TODO 分页
-    this.loadingRecentList = true;
-    try {
-      const data = await getFunctionShortcut({
-        type: this.isRecentView ? 'recent' : 'favorite',
-        functions: this.selectedCategories,
-      });
-      if (this.isRecentView) {
-        this.recentItems = data;
-      } else {
-        this.favoriteItems = data;
-      }
-    } catch (error) {
-      console.log('error', error);
-    } finally {
-      this.loadingRecentList = false;
-    }
   }
 
   // 切换视图状态
   toggleView(viewType: 'favorite' | 'recent'): void {
     this.isRecentView = viewType === 'recent';
-  }
-
-  // 显示或隐藏头部设置模态框
-  handleHeaderSettingShowChange(visible: boolean) {
-    this.showModal = visible;
   }
 
   // 处理导航到存储路由
@@ -267,7 +176,10 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
           </div>
 
           <ul class='tool-popover-content'>
-            <bk-checkbox-group v-model={this.selectedCategories}>
+            <bk-checkbox-group
+              v-model={this.selectedCategories}
+              onChange={this.onCategoriesOrderChanged}
+            >
               <draggable
                 class='draggable-container'
                 v-model={this.categoriesConfig}
@@ -336,73 +248,20 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
           {/* 最近/收藏列表 */}
           {
             <RecentFavoritesList
-              class={{ 'loading-element': this.loadingRecentList, 'has-two-row': this.categoriesHasTwoRows }}
-              v-bkloading={{ isLoading: this.loadingRecentList, zIndex: 10 }}
               hasTwoRows={this.categoriesHasTwoRows}
               isRecentView={this.isRecentView}
-              itemsToDisplay={this.itemsToDisplay}
               selectedCategories={this.selectedCategories}
+              selectedNames={this.selectedNames}
             />
           }
         </div>
         {/* 快捷入口 */}
-        <div class='quick-access'>
-          <div class='quick-head'>
-            <div class='quick-title'>{this.$t('快捷入口')}</div>
-            <div
-              class='customize'
-              onClick={() => (this.showModal = true)}
-            >
-              <i class='icon-monitor icon-menu-setting' />
-              <span>{this.$t('自定义')}</span>
-            </div>
-          </div>
-          <div
-            class='quick-list'
-            v-bkloading={{ isLoading: this.loadingQuickList, zIndex: 10 }}
-          >
-            <ul class={{ 'quick-items': true, 'no-ai-whale': !this.enableAiAssistant }}>
-              {this.quickAccessList.length ? (
-                this.quickAccessList
-                  ?.filter(item => item.id)
-                  .map(item => (
-                    <li
-                      key={item.id}
-                      class='quick-item'
-                      onClick={() => this.handleGoStoreRoute(item)}
-                    >
-                      <i class={`${item.icon} list-item-icon`} />
-                      <span>{this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}</span>
-                    </li>
-                  ))
-              ) : (
-                <div class='quick-items-empty'>
-                  {' '}
-                  <div class='empty-img'>
-                    <img
-                      alt=''
-                      src={emptyImageSrc}
-                    />
-                  </div>
-                  {this.$t('暂无快捷入口')}
-                </div>
-              )}
-            </ul>
-          </div>
-          {/* AI 小鲸 */}
-          {this.enableAiAssistant && (
-            <AiWhaleInput
-              categoriesHasTwoRows={this.categoriesHasTwoRows}
-              onKeyDown={this.handleKeyDown}
-            />
-          )}
-        </div>
-        {/* 快捷入口模态框 */}
-        <HeaderSettingModal
-          quickAccessList={this.quickAccessList}
-          show={this.showModal}
-          onChange={this.handleHeaderSettingShowChange}
-          onConfirm={v => this.handleSetQuickAccess(v)}
+        <QuickAccess
+          // @ts-ignore
+          categoriesHasTwoRows={this.categoriesHasTwoRows}
+          enableAiAssistant={this.enableAiAssistant}
+          onHandleGoStoreRoute={this.handleGoStoreRoute}
+          onHandleKeyDown={this.handleKeyDown}
         />
       </div>
     );
