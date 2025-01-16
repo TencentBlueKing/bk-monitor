@@ -21,7 +21,6 @@ from metadata.tests.common_utils import consul_client
 @pytest.fixture
 def create_or_delete_records(mocker):
     """
-    测试用例 - 使用 bulk_create 优化数据创建
     测试用例
     联邦代理集群--BCS-K8S-10001--60010
     联邦代理集群--BCS-K8S-70001 -- 70010
