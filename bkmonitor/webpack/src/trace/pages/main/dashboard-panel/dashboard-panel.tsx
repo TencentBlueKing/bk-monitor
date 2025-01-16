@@ -90,6 +90,10 @@ export default defineComponent({
     // group_by 可选项
     const groups = shallowRef([]);
     const spanId = inject('spanId', '');
+    const method = ref(DEFAULT_METHOD);
+    const interval = ref('auto');
+    const variables = ref({});
+
     const viewOptions = shallowRef<IViewOptions>({
       interval: 'auto',
       method: DEFAULT_METHOD,
@@ -170,25 +174,34 @@ export default defineComponent({
     //     });
     // }
 
+    function viewOptionsUpdate() {
+      viewOptions.value = {
+        ...variables.value,
+        interval: interval.value,
+        method: method.value,
+        span_id: spanId.value,
+        filters: {},
+        variables: variables.value,
+        compare_targets: compareTargets.value,
+        current_target: currentTarget.value || undefined,
+      };
+    }
+
     /**
      * @description 汇聚周期数据
      * @param val
      */
     function handleIntervalChange(val) {
-      viewOptions.value = {
-        ...viewOptions.value,
-        interval: val,
-      };
+      interval.value = val;
+      viewOptionsUpdate();
     }
     /**
      * @description 汇聚方法
      * @param val
      */
     function handleMethodChange(val) {
-      viewOptions.value = {
-        ...viewOptions.value,
-        method: val,
-      };
+      method.value = val;
+      viewOptionsUpdate();
     }
     /**
      * @description 图表分列
@@ -201,17 +214,18 @@ export default defineComponent({
      * @description group_by数据
      * @param val
      */
-    function handleGroupChange(val) {
-      viewOptions.value = {
-        ...viewOptions.value,
-        group_by: val,
-      };
-    }
+    // function handleGroupChange(val) {
+    //   viewOptions.value = {
+    //     ...viewOptions.value,
+    //     group_by: val,
+    //   };
+    // }
     /**
      * @description filters （当前为主机列表与容器列表选择）
      * @param val
      */
     function handleFiltersChange(val) {
+      variables.value = val;
       filtersVal.value = {
         ...filtersVal.value,
         ...val,
@@ -223,11 +237,7 @@ export default defineComponent({
         }
       }
       currentTarget.value = Object.keys(currentTargetTemp).length ? currentTargetTemp : null;
-      viewOptions.value = {
-        ...viewOptions.value,
-        variables: val,
-        current_target: currentTarget.value || undefined,
-      };
+      viewOptionsUpdate();
     }
     /**
      * @description 对比类型
@@ -237,10 +247,7 @@ export default defineComponent({
       compareType.value = val;
       compareTargets.value = [];
       timeOffset.value = [];
-      viewOptions.value = {
-        ...viewOptions.value,
-        compare_targets: [],
-      };
+      viewOptionsUpdate();
     }
     /**
      * @description 时间对比
@@ -265,10 +272,7 @@ export default defineComponent({
         compareTargetsTemp.push(targetTemp);
       }
       compareTargets.value = compareTargetsTemp;
-      viewOptions.value = {
-        ...viewOptions.value,
-        compare_targets: compareTargets.value,
-      };
+      viewOptionsUpdate();
     }
     /**
      * @description 目标列表数据（当前为主机列表与容器列表中接口获取）
@@ -295,11 +299,13 @@ export default defineComponent({
       compareListEnable,
       curTargetTitle,
       groupsLoading,
+      interval,
+      method,
       t,
       handleIntervalChange,
       handleMethodChange,
       handleChangeLayout,
-      handleGroupChange,
+      // handleGroupChange,
       handleFiltersChange,
       handleCompareTypeChange,
       handleCompareTimeChange,
@@ -344,14 +350,14 @@ export default defineComponent({
               class='mr-24'
               label={this.t('汇聚周期') as string}
               options={PANEL_INTERVAL_LIST}
-              value={this.viewOptions.interval}
+              value={this.interval}
               onChange={this.handleIntervalChange}
             />
             <FilterVarSelectSimple
               class='mr-24'
               label={this.t('汇聚方法') as string}
               options={METHOD_LIST.concat(...CP_METHOD_LIST)}
-              value={this.viewOptions.method}
+              value={this.method}
               onChange={this.handleMethodChange}
             />
             <CompareSelect
