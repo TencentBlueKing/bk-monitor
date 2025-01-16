@@ -50,15 +50,13 @@ export default ({ store }) => {
     }
     // 用于直接返回字段名的情况
     const getQueryAlias = (field: any) => {
-      return store.state.showFieldAlias ? field.query_alias || field.field_name : field.field_name;
+        return store.state.showFieldAlias ? field.query_alias || field.field_name : field.field_name;
     }
     // 用于返回query_alias对应的field_name的情况
-    const changeFieldName = (fields: any) => {
-        return fields.map(name => {
-            const field = store.state.indexFieldInfo.fields.filter(item => item.query_alias === name)
-            return field[0]?.field_name || name
-        });
-      }
+    const changeFieldName = (name: string) => {
+        const field = store.state.indexFieldInfo.fields.filter(item => item.query_alias === name)
+        return field[0]?.field_name || name
+    }
     return {
         getFieldName,
         getFieldNames,
