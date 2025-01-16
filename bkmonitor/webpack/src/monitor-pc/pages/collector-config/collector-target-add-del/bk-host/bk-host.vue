@@ -273,7 +273,7 @@ export default {
       this.isNoHost = !!targetNodes.length;
       selector.checkedData = targetNodes;
       if (this.isSnmp) this.snmpTargets = targetNodes.map(item => item.ip);
-      this.ipCheckValue = transformMonitorToValue(targetNodes || [], targetNodeType);
+      this.ipCheckValue = this.transformMonitorToValueExpand(targetNodes || [], targetNodeType);
       this.originValue = deepClone(this.ipCheckValue);
       this.ipTargetType = selector.targetNodeType;
       if (objectType === 'SERVICE') {
@@ -295,6 +295,20 @@ export default {
       });
     },
 
+    /** 接口动态分组类型参数修改，需单独处理 */
+    transformMonitorToValueExpand(data, nodeType) {
+      if (nodeType === 'DYNAMIC_GROUP') {
+        return {
+          dynamic_group_list: data.map(item => ({
+            bk_obj_id: item.bk_obj_id,
+            id: item.bk_inst_id || item.id,
+          })),
+        };
+      }
+      return transformMonitorToValue(data, nodeType);
+    },
+
+    /** 接口动态分组类型参数修改，需单独处理 */
     transformValueToMonitorExpand(value, nodeType) {
       if (nodeType === 'DYNAMIC_GROUP') {
         return value.dynamic_group_list.map(item => ({
