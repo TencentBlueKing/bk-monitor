@@ -59,6 +59,7 @@
   }
 
   .list-item {
+    position: relative;
     display: flex;
     align-items: center;
     height: 32px;
@@ -70,6 +71,10 @@
 
     &:hover {
       background-color: #e1ecff;
+
+      .set-default-button {
+        display: block;
+      }
     }
 
     &.checked {
@@ -97,6 +102,7 @@
     display: inline-flex;
     flex: 1;
     flex-wrap: nowrap;
+    align-items: center;
     margin-right: 8px;
 
     @include ellipsis();
@@ -115,6 +121,25 @@
         color: #66768e;
       }
     }
+
+    .item-default-icon {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 16px;
+      margin-left: 4px;
+      background-color: #4D4F56;
+      border-radius: 2px;
+    }
+
+    .item-default-text {
+      font-size: 16px;
+      color: #fff;
+      vertical-align: middle;
+      transform: scale(0.625);
+    }
   }
 
   .list-item-right {
@@ -131,5 +156,81 @@
         margin-right: 8px;
       }
     }
+  }
+
+  .set-default-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    display: none;
+
+    .btn-style-dark {
+      padding: 0 12px;
+      font-size: 12px;
+      color: #fff;
+      background-color: #3A84FF;
+      border: none;
+      border-radius: 0;
+    }
+
+    .remove {
+      color: #fff;
+      background-color: #5E6678;
+    }
+  }  
+}
+
+// 设置默认弹窗
+.confirm-dialog__set-default {
+  .bk-dialog-body {
+    padding: 20px 32px 0;
+  }
+
+  .bk-dialog-footer {
+    padding: 24px 32px;
+    background-color: #fff;
+    border: none;
+
+    .btn-confirm + .btn-cancel {
+      margin-left: 9px;
+    }
+
+    .btn-confirm, .btn-cancel {
+      min-width: 88px;
+    }
+  }
+
+  .confirm-dialog__hd {
+    font-size: 20px;
+    line-height: 32px;
+    color: #313238;
+    text-align: center;
+    letter-spacing: 0;
+  }
+
+  .confirm-dialog__bd {
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 22px;
+    color: #4D4F56;
+    letter-spacing: 0;
+  }
+
+  .confirm-dialog__bd-name {
+    color: #313238;
+  }
+
+  .confirm-dialog__ft {
+    padding: 12px 16px;
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 22px;
+    color: #4D4F56;
+    word-break: break-all;
+    word-wrap: break-word;
+    background: #F5F6FA;
+    border-radius: 2px;
   }
 }
