@@ -232,6 +232,7 @@ export default {
   关键字搜索: 'Search keyword ',
   搜索拓扑节点: 'Search topology nodes',
   搜索模块名: 'Search module name',
+  搜索动态分组名称: 'Search dynamic group name',
   搜索空间: 'Search space',
   搜索集群名: 'Search cluster name',
   '全站搜索，可以跨业务直接搜索任意资源': 'Site-wide search, can directly search for any resources across spaces',
