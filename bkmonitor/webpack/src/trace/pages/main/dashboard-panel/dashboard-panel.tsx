@@ -134,6 +134,7 @@ export default defineComponent({
       () => props.sceneData,
       sceneData => {
         if (sceneData) {
+          viewOptionsUpdate();
           // handleGetGroupsData();
         }
       },

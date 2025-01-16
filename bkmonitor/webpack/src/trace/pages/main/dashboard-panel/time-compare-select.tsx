@@ -122,7 +122,7 @@ export default defineComponent({
       !timeValue.includes(str) && timeValue.push(str);
       showCustomTime.value = false;
       customTimeVal.value = '';
-      handleTimeChange(localTimeValue.value);
+      // handleTimeChange(localTimeValue.value);
     }
 
     return {
