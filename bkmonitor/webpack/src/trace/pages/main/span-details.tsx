@@ -990,8 +990,10 @@ export default defineComponent({
         isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Container') {
-        const startTime = dayjs(startTimeProvider.value).unix();
-        const endTime = dayjs(endTimeProvider.value).unix();
+        const startTime = dayjs(startTimeProvider.value).unix() - 60 * 60;
+        let endTime = dayjs(endTimeProvider.value).unix() + 30 * 60;
+        const curUnix = dayjs().unix();
+        endTime = endTime > curUnix ? curUnix : endTime;
         const result = await getSceneView({
           scene_id: 'apm_trace',
           id: 'container',
@@ -999,8 +1001,8 @@ export default defineComponent({
           apm_app_name: props.spanDetails.app_name,
           apm_service_name: props.spanDetails.service_name,
           apm_span_id: props.spanDetails.span_id,
-          start_time: startTime - 30 * 60,
-          end_time: endTime + 30 * 60,
+          start_time: startTime,
+          end_time: endTime,
         }).catch(() => null);
         sceneData.value = new BookMarkModel(result);
         isTabPanelLoading.value = false;
@@ -1347,6 +1349,7 @@ export default defineComponent({
                               <DashboardPanel
                                 groupTitle={'Groups'}
                                 isSingleChart={isSingleChart.value}
+                                podName={originalData.value?.resource?.['k8s.pod.name']}
                                 sceneData={sceneData.value}
                                 sceneId={'container'}
                               />
