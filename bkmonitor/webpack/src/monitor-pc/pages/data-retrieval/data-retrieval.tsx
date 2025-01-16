@@ -2814,7 +2814,7 @@ export default class DataRetrieval extends tsc<object> {
   }
 
   handleNeedMenuChange(needMenu: boolean) {
-    this.needMenu = `${needMenu}` !== 'false';
+    this.needMenu = needMenu;
   }
   /**
    * @description: 更新图表标题

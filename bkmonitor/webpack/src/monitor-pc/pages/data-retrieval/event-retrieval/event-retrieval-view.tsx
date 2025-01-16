@@ -371,14 +371,20 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
    * @description: url中的columns并入表格
    */
   handleMergeUrlColumns() {
-    const columns = JSON.parse(this.$route.query.columns as string);
+    const columns = JSON.parse((this.$route.query.columns || '[]') as string);
     if (columns.length) {
       const columnsList = columns.map(item => ({
         label: item.name,
         prop: item.id,
         formatter: row => row[item.id],
       }));
-      this.tableColumnList = [...this.tableColumnList, ...columnsList];
+      const defaultColumnLabel = this.tableColumnList.map(item => item.label);
+      for (const item of columnsList) {
+        // 不同的列名才合并
+        if (!defaultColumnLabel.includes(item.label)) {
+          this.tableColumnList.push(item);
+        }
+      }
     }
   }
 
