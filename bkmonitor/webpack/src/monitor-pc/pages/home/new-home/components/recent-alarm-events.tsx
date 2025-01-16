@@ -492,10 +492,7 @@ export default class RecentAlarmEvents extends tsc<object> {
           onHandleSelectBiz={this.handleSelectBiz}
         />
         {/* 主体内容 */}
-        <div
-          class='content'
-          v-bkloading={{ isLoading: this.loadingAlarmList, zIndex: 10 }}
-        >
+        <div class='content'>
           {this.loadingAlarmList ? (
             <div
               style={{ height: this.getLoadingHeight() }}
