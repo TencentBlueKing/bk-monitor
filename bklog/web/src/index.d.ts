@@ -32,7 +32,9 @@ declare global {
     MONITOR_URL: string;
     BK_SHARED_RES_URL: string;
     VERSION: string;
-    __IS_MONITOR_APM__?: boolean;
+    __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
+    __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
+    __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
   }
 }
 
