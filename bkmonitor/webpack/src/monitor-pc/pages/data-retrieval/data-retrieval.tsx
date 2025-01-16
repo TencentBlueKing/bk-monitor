@@ -308,6 +308,8 @@ export default class DataRetrieval extends tsc<object> {
   cacheTimeRange = [];
   cancelFn = null; // 取消查询接口
 
+  needMenu = true; // 事件检索传来的needMenu
+
   // 自动刷新
   refreshInstance = null;
 
@@ -2810,6 +2812,10 @@ export default class DataRetrieval extends tsc<object> {
       this.eventSelectTimeRange = targetTime;
     }
   }
+
+  handleNeedMenuChange(needMenu: boolean) {
+    this.needMenu = `${needMenu}` !== 'false';
+  }
   /**
    * @description: 更新图表标题
    * @param {string} title
@@ -3458,7 +3464,7 @@ export default class DataRetrieval extends tsc<object> {
             <LogRetrieval />
           ) : (
             <div class='data-retrieval-container'>
-              {!this.onlyShowView && (
+              {!this.onlyShowView && this.needMenu && (
                 <PanelHeader
                   eventSelectTimeRange={this.eventSelectTimeRange}
                   refleshInterval={this.compareValue.tools.refleshInterval}
@@ -3633,6 +3639,7 @@ export default class DataRetrieval extends tsc<object> {
                     onSplitChange={this.handleSplitChange}
                     onTimeRangeChange={this.handleToolsTimeRangeChange}
                     onTimeRangeChangeEvent={this.handleTimeRangeChange}
+                    onNeedMenuChangeEvent={this.handleNeedMenuChange}
                   />
                 </div>
                 {/* 指标选择器 */}

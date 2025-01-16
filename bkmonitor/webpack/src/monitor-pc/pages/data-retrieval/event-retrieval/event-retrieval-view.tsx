@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { toPng } from 'html-to-image';
 import { graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
-import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
+import { Debounce, deepClone, random, getUrlParam } from 'monitor-common/utils/utils';
 import MonitorEcharts from 'monitor-ui/monitor-echarts/monitor-echarts-new.vue';
 
 import BackTop from '../../../components/back-top/back-top';
@@ -140,6 +140,8 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
     },
   ];
 
+  needMenu = true;
+
   get bizId() {
     return this.$store.getters.bizId;
   }
@@ -155,6 +157,7 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
 
   mounted() {
     this.$el.addEventListener('scroll', this.handleScrollToEnd);
+    this.handleSetNeedMenu();
   }
   beforeDestroy() {
     this.$el.removeEventListener('scroll', this.handleScrollToEnd);
@@ -347,6 +350,39 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
   }
 
   /**
+   * @description: 发送needMenu状态
+   */
+  @Emit('needMenuChange')
+  handleNeedMenuChange() {
+    return this.needMenu;
+  }
+
+  /**
+   * @description: needMenu相关处理
+   */
+  handleSetNeedMenu() {
+    const needMenu = getUrlParam('needMenu');
+    this.needMenu = `${needMenu}` !== 'false';
+    !this.needMenu && this.handleMergeUrlColumns();
+    this.handleNeedMenuChange();
+  }
+
+  /**
+   * @description: url中的columns并入表格
+   */
+  handleMergeUrlColumns() {
+    const columns = JSON.parse(this.$route.query.columns as string);
+    if (columns.length) {
+      const columnsList = columns.map(item => ({
+        label: item.name,
+        prop: item.id,
+        formatter: row => row[item.id],
+      }));
+      this.tableColumnList = [...this.tableColumnList, ...columnsList];
+    }
+  }
+
+  /**
    * @description: 处理图表双击
    */
   handleChartDbclick() {
@@ -453,17 +489,24 @@ export default class EventRetrievalView extends tsc<EventRetrievalViewType.IProp
         <div>{this.$slots.header}</div>
         {this.showTip ? (
           <div class='query-time'>
-            <i18n path='查询结果(找到 {0} 条，用时 {1} 毫秒)，将搜索条件 {2}{3}'>
-              <span class='query-count'>{this.total}</span>
-              <span>{this.duration}</span>
-              <span
-                class='add-strategy'
-                onClick={this.handleAddStrategy}
-              >
-                {this.$t('添加为监控')}
-              </span>
-              <i class='icon-monitor icon-mc-link' />
-            </i18n>
+            {this.needMenu ? (
+              <i18n path='查询结果(找到 {0} 条，用时 {1} 毫秒)，将搜索条件 {2}{3}'>
+                <span class='query-count'>{this.total}</span>
+                <span>{this.duration}</span>
+                <span
+                  class='add-strategy'
+                  onClick={this.handleAddStrategy}
+                >
+                  {this.$t('添加为监控')}
+                </span>
+                <i class='icon-monitor icon-mc-link' />
+              </i18n>
+            ) : (
+              <i18n path='查询结果(找到 {0} 条，用时 {1} 毫秒)'>
+                <span class='query-count'>{this.total}</span>
+                <span>{this.duration}</span>
+              </i18n>
+            )}
           </div>
         ) : undefined}
         <div class='event-retrieval-view-main'>
