@@ -32,6 +32,7 @@ import CompareTime from './compare-time';
 import GroupBy from './group-by';
 import { ETypeSelect, type IListItem, type IGroupOption } from './utils';
 
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './group-compare-select.scss';
@@ -54,6 +55,9 @@ interface IProps {
   limitSortMethods?: IListItem[];
   hasGroupOptions?: boolean;
   groupOptionsLimitEnabled?: boolean;
+  timeRange?: TimeRangeType;
+  refreshInterval?: number;
+  refreshImmediate?: string;
   onTimeCompareChange?: (val: string[]) => void;
   onGroupChange?: (val: string[]) => void;
   onLimitSortMethodChange?: (val: string) => void;
@@ -89,6 +93,10 @@ export default class GroupCompareSelect extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) metricCalTypes: IListItem[];
   /* group by 是否默认开启limit */
   @Prop({ type: Boolean, default: false }) groupOptionsLimitEnabled: boolean;
+  /* 用于时间对比时的相对时间显示 */
+  @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
+  @Prop({ type: [String, Number], default: 0 }) refreshInterval: number;
+  @Prop({ type: String, default: '' }) refreshImmediate: string;
 
   @InjectReactive('viewOptions') readonly viewOptions!: IViewOptions;
 
@@ -244,6 +252,9 @@ export default class GroupCompareSelect extends tsc<IProps> {
         <div class='group-compare-wrap'>
           {this.typeSelected === ETypeSelect.compare ? (
             <CompareTime
+              refreshImmediate={this.refreshImmediate}
+              refreshInterval={this.refreshInterval}
+              timeRange={this.timeRange}
               value={this.timeValue}
               onChange={this.handleTimeValueChange}
             />
