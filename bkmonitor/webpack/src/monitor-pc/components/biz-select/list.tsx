@@ -67,7 +67,7 @@ export enum ETagsType {
   MONITOR = 'monitor' /** 监控空间 */,
 }
 
-const DEFAULT_BIZ_ID = 'default_biz_id';
+const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
 @Component
 export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) {
   /** 选中的id */
