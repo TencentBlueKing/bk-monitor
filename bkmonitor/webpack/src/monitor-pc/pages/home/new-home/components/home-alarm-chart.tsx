@@ -330,11 +330,13 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
             ref='menuPopover'
             class='home-chart-more-popover'
             ext-cls='new-home-popover'
+            tippy-options={{
+              trigger: 'click',
+            }}
             arrow={false}
             offset={'0, 0'}
             placement='bottom-start'
-            theme='light'
-            trigger='click'
+            theme='light common-monitor'
           >
             <span class='more-operation'>
               <i class='icon-monitor icon-mc-more' />

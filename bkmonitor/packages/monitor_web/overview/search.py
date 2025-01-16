@@ -427,9 +427,9 @@ class BCSClusterSearchItem(SearchItem):
                     {
                         "bk_biz_id": cluster.bk_biz_id,
                         "bk_biz_name": cls._get_biz_name(cluster.bk_biz_id),
+                        "name": cluster.name,
                         "cluster_name": cluster.name,
                         "bcs_cluster_id": cluster.bcs_cluster_id,
-                        "url": f"/?bizId={cluster.bk_biz_id}#/k8s?cluster={cluster.bcs_cluster_id}",
                     }
                 )
 

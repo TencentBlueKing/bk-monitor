@@ -302,7 +302,7 @@ export default class AiopsContainer extends tsc<IProps> {
     this.isDataInit = true;
     const catchFn = () => (this.isDataInit = false);
     this.showDimensionDrill = !!dimension_drill.is_enabled;
-    if (!!dimension_drill.is_enabled) {
+    if (dimension_drill.is_enabled) {
       /** 维度下钻数据 */
       this.dimensionDrillDownLoading = true;
       dimensionDrillDown(params, { needMessage: false })
@@ -322,7 +322,7 @@ export default class AiopsContainer extends tsc<IProps> {
         });
     }
     this.showMetricRecommendation = !!metric_recommend.is_enabled;
-    if (!!metric_recommend.is_enabled) {
+    if (metric_recommend.is_enabled) {
       /** 关联指标 */
       this.metricRecommendationLoading = true;
       if (!this.showDimensionDrill) {
@@ -411,7 +411,8 @@ export default class AiopsContainer extends tsc<IProps> {
             },
           }}
         />
-        {!this.showDimensionDrill && !this.showMetricRecommendation ? (
+        {(!this.showDimensionDrill && this.tabActive === ETabNames.dimension) ||
+        (!this.showMetricRecommendation && this.tabActive === ETabNames.index) ? (
           <FuctionalDependency
             functionalDesc={this.$t('启用 AI 功能，将支持维度下钻、关联指标事件展示等功能。')}
             guideDescList={[this.$t('1. 基础计算平台：将 AI 相关的模型导入到该环境运行')]}
@@ -423,6 +424,7 @@ export default class AiopsContainer extends tsc<IProps> {
         ) : (
           [
             <DimensionTable
+              key='dimensionTable'
               ref='dimensionTable'
               class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
               v-bkloading={{ isLoading: this.dimensionDrillDownLoading }}
@@ -437,6 +439,7 @@ export default class AiopsContainer extends tsc<IProps> {
               }}
             />,
             <MetricsView
+              key='metricsView'
               ref='metricsView'
               info={this.tabData.index?.info || {}}
               metricRecommendationErr={this.metricRecommendationErr}
