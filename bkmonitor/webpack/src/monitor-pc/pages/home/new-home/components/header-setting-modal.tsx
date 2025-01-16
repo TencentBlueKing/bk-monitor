@@ -26,28 +26,24 @@
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
+import { deepClone } from 'monitor-common/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
-import {
-  COMMON_ROUTE_LIST,
-  COMMON_ROUTE_STORE_KEY,
-  DEFAULT_ROUTE_LIST,
-  type IRouteConfigItem,
-  getLocalStoreRoute,
-} from '../../../../router/router-config';
+import { COMMON_ROUTE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
 
 import './header-setting-modal.scss';
 
 // 定义组件属性接口
 interface IHeaderSettingModalProps {
   show: boolean;
+  quickAccessList: IRouteConfigItem[];
 }
 
 // 定义组件事件接口
 interface IHeaderSettingModalEvent {
   onChange: boolean;
-  onConfirm: () => void;
+  onConfirm: IRouteConfigItem[];
   onStoreRoutesChange: IRouteConfigItem[];
 }
 
@@ -55,38 +51,29 @@ interface IHeaderSettingModalEvent {
 class HeaderSettingModal extends Mixins(UserConfigMixin) {
   // 接收父组件传递的属性，控制模态框显示
   @Prop({ required: true, type: Boolean }) readonly show: boolean;
+  @Prop({ default: () => [], type: Array }) readonly quickAccessList: IRouteConfigItem[];
 
   // 定义组件内部状态
   flatRoutes: IRouteConfigItem[] = [];
   dragoverId = ''; // 当前拖拽经过的路由ID
   dragId = ''; // 当前拖拽的路由ID
-  storeUserConfigList: string[] = []; // 存储用户配置的路由ID列表
   storeRoutes: IRouteConfigItem[] = []; // 当前存储的路由配置
-  localStoreRoutes: IRouteConfigItem[] = []; // 本地存储的路由配置
 
   // 组件创建时调用，初始化用户配置和路由数据
   async created() {
-    // 获取用户配置的路由ID列表
-    this.storeUserConfigList = await this.handleGetUserConfig<string[]>(COMMON_ROUTE_STORE_KEY, { reject403: true });
     // 初始化平面路由列表
     this.flatRoutes = COMMON_ROUTE_LIST;
-    // 获取存储的路由配置
-    this.storeRoutes = this.getStoreRoutes();
-    // 通知父组件路由配置的变化
-    this.handleStoreRoutesChange();
   }
 
   // 监听 show 属性的变化，控制键盘事件的监听
   @Watch('show')
   handleShowChange(v: boolean) {
     if (v) {
+      this.storeRoutes = deepClone(this.quickAccessList);
       window.addEventListener('keyup', this.handleDocumentKeydown);
     } else {
       window.removeEventListener('keyup', this.handleDocumentKeydown);
     }
-    // 获取本地存储的路由配置
-    const list = getLocalStoreRoute();
-    this.localStoreRoutes = !list?.length ? [] : this.getStoreRoutesByIdList(list);
   }
 
   // 发出 change 事件，用于通知父组件模态框显示或隐藏状态的变化
@@ -96,11 +83,7 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
   }
 
   @Emit('confirm')
-  handleConfirm(): void {}
-
-  // 发出 storeRoutesChange 事件，用于通知父组件路由配置的变化
-  @Emit('storeRoutesChange')
-  handleStoreRoutesChange() {
+  handleConfirm() {
     return this.storeRoutes;
   }
 
@@ -111,30 +94,14 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
     }
   }
 
-  // 获取存储的路由配置
-  getStoreRoutes() {
-    // 判断 storeUserConfigList 是否为数组
-    const configList =
-      !Array.isArray(this.storeUserConfigList) || this.storeUserConfigList.length === 0
-        ? DEFAULT_ROUTE_LIST
-        : this.storeUserConfigList;
-    return this.getStoreRoutesByIdList(configList);
-  }
-
   // 根据路由ID列表获取路由配置
   getStoreRoutesByIdList(routeIds: string[]) {
     const routes = [];
-    this.flatRoutes.forEach(item => {
+    for (const item of this.flatRoutes) {
       const list = item.children?.filter(set => routeIds.includes(set.id));
       list?.length && routes.push(...list);
-    });
+    }
     return routeIds.map(id => routes.find(item => item.id === id)).filter(Boolean);
-  }
-
-  // 设置存储的路由配置并同步到用户配置
-  setStoreRoutes() {
-    this.handleSetUserConfig(COMMON_ROUTE_STORE_KEY, JSON.stringify(this.storeRoutes.map(item => item.id)));
-    this.handleStoreRoutesChange();
   }
 
   // 处理拖拽开始事件，记录当前拖拽的路由ID
@@ -168,7 +135,6 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
         }
         return item;
       });
-      this.setStoreRoutes();
       this.dragoverId = '';
       this.dragId = '';
     }
@@ -177,7 +143,6 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
   // 处理删除存储路由的操作
   handleDeleteStoreRoute(index: number) {
     this.storeRoutes.splice(index, 1);
-    this.setStoreRoutes();
   }
 
   // 处理存储路由的切换操作
@@ -186,34 +151,11 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
     if (index > -1) {
       this.storeRoutes.splice(index, 1);
     } else this.storeRoutes.push({ ...item });
-    this.setStoreRoutes();
   }
 
   // 判断某个路由是否已存储
   isStoredRoute(id: string) {
     return this.storeRoutes.some(item => item.id === id);
-  }
-
-  // 渲染最近访问的路由部分
-  contentHeader() {
-    // return (
-    //   <div class='content-header'>
-    //     {this.$t('最近访问')}
-    //     <ul class='latest-list'>
-    //       {this.localStoreRoutes
-    //         .filter(Boolean)
-    //         .slice(-6)
-    //         .map(item => (
-    //           <li
-    //             key={item.id}
-    //             class='latest-item'
-    //           >
-    //             {this.$t(`route-${item.name}`)}
-    //           </li>
-    //         ))}
-    //     </ul>
-    //   </div>
-    // );
   }
 
   // 渲染所有可用路由部分
@@ -237,9 +179,8 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
                 >
                   {this.$t(child.name.startsWith('route-') ? child.name : `route-${child.name}`)}
                   <i
-                    class={`icon-monitor route-check ${
-                      this.isStoredRoute(child.id) ? 'icon-mc-check-fill' : 'icon-check'
-                    }`}
+                    class={`icon-monitor route-check ${this.isStoredRoute(child.id) ? 'icon-mc-check-fill' : 'icon-check'
+                      }`}
                   />
                 </li>
               ))}

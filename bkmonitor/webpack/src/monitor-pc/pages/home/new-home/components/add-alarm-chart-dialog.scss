@@ -7,11 +7,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-
+    padding-right: 6px;
     .strategy-name {
       width: 75%;
       font-family: MicrosoftYaHei;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 22px;
       color: #4d4f56;
       @include ellipsis();
@@ -40,7 +40,7 @@
       }
 
       .icon-monitor {
-        font-size: 24px;
+        font-size: 28px;
         color: #3a84ff;
         vertical-align: middle;
       }
@@ -64,6 +64,10 @@
       }
     }
   }
+}
+
+.add-chart-strategy {
+  margin-bottom: 18px;
 }
 
 .task-add-dialog-footer {

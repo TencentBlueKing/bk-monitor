@@ -25,21 +25,22 @@
  */
 import { Component, Mixins, Watch } from 'vue-property-decorator';
 
-import aiWhaleStore from '../../../../store/modules/ai-whale';
-// import AiBlueking, { MessageStatus, RoleType } from '@blueking/ai-blueking/vue2';
 import { getFunctionShortcut } from 'monitor-api/modules/overview';
+import { deepClone } from 'monitor-common/utils';
+import bus from 'monitor-common/utils/event-bus';
 import draggable from 'vuedraggable';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
-import { GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
+import { HANDLE_MENU_CHANGE } from '../../../../pages/nav-tools';
+import { COMMON_ROUTE_LIST, GLOAB_FEATURE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
-
-import type { IRecentList } from '../type';
-// import aiWhaleSrc from '../../../../static/images/png/new-page/aiWhale.png';
-import { RECENT_FAVORITE_STORE_KEY } from '../utils';
+import aiWhaleStore from '../../../../store/modules/ai-whale';
+import { QUICK_ACCESS_STORE_KEY, RECENT_FAVORITE_STORE_KEY } from '../utils';
 import AiWhaleInput from './ai-whale-input';
 import HeaderSettingModal from './header-setting-modal';
 import RecentFavoritesList from './recent-favorites-list';
+
+import type { IRecentList } from '../type';
 
 import './recent-favorites-tab.scss';
 
@@ -65,7 +66,7 @@ interface Category {
 })
 export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   isRecentView = true; // 状态，用于切换视图
-  userStoreRoutes = []; // 用户存储的路由
+  quickAccessList = []; // 快捷入口列表
   selectedCategories = ['dashboard']; // 用户选择的类别
   showModal = false; // 控制模态框显示
   categoriesConfig: Category[] = [
@@ -128,7 +129,8 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     }, {});
   }
 
-  async created() {
+  // 初始化最近使用的数据
+  async initRecentUseData() {
     try {
       const [selected, selectList] =
         (await this.handleGetUserConfig<[string[], []]>(RECENT_FAVORITE_STORE_KEY, {
@@ -141,7 +143,30 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
         }
         return accumulator;
       }, selectList || []);
+    } catch { }
+  }
+  // 初始化快捷入口的数据
+  async initQuickAccessData() {
+    try {
+      this.loadingQuickList = true;
+      const data = await this.handleGetUserConfig<string[]>(QUICK_ACCESS_STORE_KEY, { reject403: true });
+      const routes = [];
+      for (const item of COMMON_ROUTE_LIST) {
+        const list = item.children?.filter(set => data.includes(set.id));
+        list?.length && routes.push(...list);
+      }
+      this.quickAccessList = data.map(id => routes.find(item => item.id === id)).filter(Boolean);
+    } catch {
+    } finally {
+      this.loadingQuickList = false;
+    }
+  }
+
+  async created() {
+    try {
+      await this.initRecentUseData();
       await this.updateFunctionShortcut();
+      await this.initQuickAccessData();
     } catch (error) {
       console.log('error', error);
     }
@@ -153,6 +178,17 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
       RECENT_FAVORITE_STORE_KEY,
       JSON.stringify([this.selectedCategories, this.categoriesConfig])
     );
+  }
+
+  // 缓存快捷入口
+  async handleSetQuickAccess(v) {
+    this.loadingQuickList = true;
+    this.showModal = false;
+    this.quickAccessList = deepClone(v);
+    await this.handleSetUserConfig(QUICK_ACCESS_STORE_KEY, JSON.stringify(this.quickAccessList.map(item => item.id)));
+    this.$nextTick(() => {
+      this.loadingQuickList = false;
+    });
   }
 
   async updateFunctionShortcut() {
@@ -189,16 +225,13 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   handleGoStoreRoute(item: IRouteConfigItem) {
     const globalSetting = GLOAB_FEATURE_LIST.find(set => set.id === item.id);
     if (globalSetting) {
-      this.handleHeaderSettingShowChange(false);
-      (this.$refs.NavTools as any).handleSet(globalSetting);
+      bus.$emit(HANDLE_MENU_CHANGE, item);
     } else if (this.$route.name !== item.id) {
-      this.handleHeaderSettingShowChange(false);
       const route = item.usePath ? { path: item.path } : { name: item.id };
       const newUrl = this.$router.resolve({
         ...route,
         query: { ...item.query },
       }).href;
-
       // 在新标签页中打开这个 URL
       window.open(newUrl, '_blank');
     }
@@ -211,14 +244,12 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
         width='240'
         ext-cls='myself-popover'
         tippy-options={{
-          arrow: false,
           trigger: 'click',
         }}
-        animation='slide-toggle'
-        offset='1, 4'
+        arrow={false}
+        offset='1, 1'
         placement='bottom-start'
-        theme='light strategy-setting'
-        trigger='click'
+        theme='light common-monitor'
       >
         <div class='customize'>
           <i class='icon-monitor icon-menu-setting' />
@@ -331,8 +362,8 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
             v-bkloading={{ isLoading: this.loadingQuickList, zIndex: 10 }}
           >
             <ul class={{ 'quick-items': true, 'no-ai-whale': !this.enableAiAssistant }}>
-              {this.userStoreRoutes.length ? (
-                this.userStoreRoutes
+              {this.quickAccessList.length ? (
+                this.quickAccessList
                   ?.filter(item => item.id)
                   .map(item => (
                     <li
@@ -368,16 +399,10 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
         </div>
         {/* 快捷入口模态框 */}
         <HeaderSettingModal
+          quickAccessList={this.quickAccessList}
           show={this.showModal}
           onChange={this.handleHeaderSettingShowChange}
-          onConfirm={() => (this.showModal = false)}
-          onStoreRoutesChange={v => {
-            this.loadingQuickList = true;
-            this.$nextTick(() => {
-              this.userStoreRoutes = v;
-              this.loadingQuickList = false;
-            });
-          }}
+          onConfirm={v => this.handleSetQuickAccess(v)}
         />
       </div>
     );

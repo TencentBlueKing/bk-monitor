@@ -72,6 +72,8 @@ export const EFunctionNameType = {
 };
 export const RECENT_FAVORITE_STORE_KEY = 'recent_favorite_store_key'.toLocaleUpperCase();
 export const RECENT_ALARM_TIME_RANGE_KEY = 'recent_alarm_time_range_key'.toLocaleUpperCase();
+// 快捷入口的 route 列表
+export const QUICK_ACCESS_STORE_KEY = 'quick_access_store_key'.toLocaleUpperCase();
 
 /**
  * @description 输入字段匹配字段高亮

@@ -32,6 +32,9 @@
           color: #4d4f56;
           border-bottom: 2px solid #3a84ff;
         }
+        &.is-dragover {
+          background-color: #e1ecff;
+        }
       }
 
       .item-drag {

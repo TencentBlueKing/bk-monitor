@@ -36,8 +36,8 @@ export const SPACE_TYPE_MAP = {
       backgroundColor: '#2B354D',
     },
     light: {
-      color: '#63656E',
-      backgroundColor: '#CDE8FB',
+      color: '#3A84FF',
+      backgroundColor: '#EDF4FF',
     },
   },
   default: {
@@ -48,7 +48,7 @@ export const SPACE_TYPE_MAP = {
     },
     light: {
       color: '#63656E',
-      backgroundColor: '#DEDEDE',
+      backgroundColor: '#F0F1F5',
     },
   },
   bkci: {
@@ -58,8 +58,8 @@ export const SPACE_TYPE_MAP = {
       backgroundColor: '#4C3232',
     },
     light: {
-      color: '#63656E',
-      backgroundColor: '#F8D8D4',
+      color: '#E71818',
+      backgroundColor: '#FFEBEB',
     },
   },
   bcs: {
@@ -69,8 +69,8 @@ export const SPACE_TYPE_MAP = {
       backgroundColor: '#453921',
     },
     light: {
-      color: '#63656E',
-      backgroundColor: '#FFF2C9',
+      color: '#E38B02',
+      backgroundColor: '#FDEED8',
     },
   },
   paas: {
@@ -80,8 +80,8 @@ export const SPACE_TYPE_MAP = {
       backgroundColor: '#223B2B',
     },
     light: {
-      color: '#63656E',
-      backgroundColor: '#D8EDD9',
+      color: '#14A568',
+      backgroundColor: '#E4FAF0',
     },
   },
   bksaas: {
@@ -91,8 +91,8 @@ export const SPACE_TYPE_MAP = {
       backgroundColor: '#223B2B',
     },
     light: {
-      color: '#63656E',
-      backgroundColor: '#D8EDD9',
+      color: '#14A568',
+      backgroundColor: '#E4FAF0',
     },
   },
 };

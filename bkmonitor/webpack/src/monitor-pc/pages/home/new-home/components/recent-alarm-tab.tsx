@@ -169,7 +169,11 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
               >
                 <span class='icon-monitor icon-mc-tuozhuai item-drag' />
                 <span
-                  class={['tab-title', this.activeTabId === id ? 'active' : '']}
+                  class={[
+                    'tab-title',
+                    this.activeTabId === id ? 'active' : '',
+                    this.dragoverId === index.toString() ? 'is-dragover' : '',
+                  ]}
                   onClick={() => this.selectTab(id)}
                 >
                   {name}

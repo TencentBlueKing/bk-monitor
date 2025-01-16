@@ -263,11 +263,11 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
     return (
       <bk-dialog
         width={480}
-        ext-cls='task-add-dialog'
-        v-model={this.showAddTaskDialog}
-        close-icon={false}
+        escClose={false}
         header-position='left'
+        mask-close={false}
         title={this.handleMenuMode === 'edit' ? this.$t('修改图表') : this.$t('新增图表')}
+        value={this.showAddTaskDialog}
         show-footer
         on-after-leave={() => {
           // 重置编辑索引，关闭对话框，清除策略配置
@@ -288,7 +288,8 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
         >
           {
             <bk-form-item
-              iconOffset={-18}
+              ext-cls='add-chart-strategy'
+              error-display-type='normal'
               label={this.$t('策略')}
               property='strategy_ids'
               required
@@ -352,7 +353,7 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
           }
           {
             <bk-form-item
-              iconOffset={-18}
+              error-display-type='normal'
               label={this.$t('图表名称')}
               property='name'
               required
@@ -369,7 +370,7 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
           slot='footer'
         >
           <bk-button
-            disabled={this.loadingStrategyList}
+            disabled={this.loadingStrategyList || !this.strategyConfig.name || !this.strategyConfig.strategy_ids.length}
             theme='primary'
             onClick={this.handleConfirm}
           >
