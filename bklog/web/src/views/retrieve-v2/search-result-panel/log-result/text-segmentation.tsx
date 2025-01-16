@@ -32,9 +32,10 @@ import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import { fabric } from 'fabric';
 import { debounce } from 'lodash';
 
-import './text-segmentation.scss';
-import useKonva from './use-konva';
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
+import useKonva from './use-konva';
+
+import './text-segmentation.scss';
 export default defineComponent({
   props: {
     field: { type: Object, required: true },
@@ -82,6 +83,9 @@ export default defineComponent({
 
     const refSegmentContent: Ref<HTMLElement> = ref();
     const textLineCount = ref(0);
+
+    const formatText = ref('');
+
     const isWrap = computed(() => store.state.tableLineIsWrap);
     const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
     const hasEllipsis = computed(() => !isLimitExpandView.value && textLineCount.value > 3);
@@ -110,6 +114,7 @@ export default defineComponent({
       onSegmentClick: (e, value) => {
         textSegmentInstance?.getCellClickHandler(e, value);
       },
+      text: formatText.value,
     });
 
     // let canvasInstance: fabric.Canvas;
@@ -134,16 +139,6 @@ export default defineComponent({
 
     const getNextText = (list?, size?) => {
       return (list ?? getNextList(size)).map(({ text }) => text).join('');
-    };
-
-    // 根据字符索引查找分词边界
-    const findWordBoundary = charIndex => {
-      for (let word of wordList) {
-        if (charIndex >= word.startIndex && charIndex < word.endIndex) {
-          return word;
-        }
-      }
-      return null;
     };
 
     /**
@@ -183,14 +178,12 @@ export default defineComponent({
       return refContent.value.offsetWidth;
     };
 
-    const initFabricTextBox = (maxLength = 4) => {
+    const initKonvaTextBox = () => {
       const width = getWidth(wordList);
       refCanvas.value.setAttribute('width', `${width}`);
-      initKonvaInstance(refCanvas.value, width, 60, fontFamily);
-      computeWordListPosition(wordList);
-
-      requestAnimationFrame(() => {
-        setNextText(maxLength);
+      initKonvaInstance(refCanvas.value, width, refContent.value.offsetHeight, fontFamily);
+      computeWordListPosition(wordList).then(list => {
+        setHighlightWords(list);
       });
     };
 
@@ -300,7 +293,7 @@ export default defineComponent({
     const setMounted = () => {
       const maxLength = isLimitExpandView.value || showAll.value ? Number.MAX_SAFE_INTEGER : 4;
       if (getSegmentRenderType() === 'fabric') {
-        // initFabricTextBox(maxLength);
+        initKonvaTextBox();
       }
 
       if (getSegmentRenderType() === 'text') {
@@ -308,7 +301,6 @@ export default defineComponent({
       }
     };
 
-    const formatText = ref('');
     onBeforeMount(() => {
       isDispose = false;
       wordList = textSegmentInstance.getChildNodes();
@@ -368,8 +360,8 @@ export default defineComponent({
         return [
           <div class='static-text'>{formatText.value}</div>,
           <div
-            class='canvas-konva'
             ref={refCanvas}
+            class='canvas-konva'
           ></div>,
         ];
       }

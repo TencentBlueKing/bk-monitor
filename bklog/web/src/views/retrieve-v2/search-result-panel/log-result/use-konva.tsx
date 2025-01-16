@@ -1,12 +1,38 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import Konva from 'konva';
+
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
-export default ({ onSegmentClick }) => {
+export default ({ onSegmentClick, text }) => {
   const konvaInstance: {
-    stage: null | Konva.Stage;
-    layer: null | Konva.Layer;
-    actionLayer: null | Konva.Layer;
-    colorLayer: null | Konva.Layer;
-    textBox: null | Konva.Text;
+    stage: Konva.Stage | null;
+    layer: Konva.Layer | null;
+    actionLayer: Konva.Layer | null;
+    colorLayer: Konva.Layer | null;
+    textBox: Konva.Text | null;
   } = {
     stage: null,
     layer: null,
@@ -19,6 +45,8 @@ export default ({ onSegmentClick }) => {
   const fontSize = 12;
   const lineHeight = 20 / 12;
   let tempText;
+  let boxWidth = 0;
+  let boxHeight = 0;
 
   let wordList: WordListItem[];
   let hoverItem;
@@ -68,7 +96,7 @@ export default ({ onSegmentClick }) => {
     const pointer = konvaInstance.stage.getPointerPosition();
     const rectList = [];
     const height = fontSize * lineHeight;
-    const boxWidth = konvaInstance.textBox.width();
+    // const boxWidth = konvaInstance.textBox.width();
 
     const left = Math.min(startPosition.x, pointer.x);
     const top = Math.min(startPosition.y, pointer.y);
@@ -131,7 +159,7 @@ export default ({ onSegmentClick }) => {
     });
   };
 
-  const hanldeTextBoxMousemove = ({ evt }) => {
+  const hanldeTextBoxMousemove = ({}) => {
     if (isMouseDown) {
       requestAnimationFrame(drawSelectionText);
       return;
@@ -176,10 +204,10 @@ export default ({ onSegmentClick }) => {
     }
   };
 
-  const hanldeStageMounsedown = () => {
-    isMouseDown = true;
-    startPosition = konvaInstance.stage.getPointerPosition();
-  };
+  // const hanldeStageMounsedown = () => {
+  //   isMouseDown = true;
+  //   startPosition = konvaInstance.stage.getPointerPosition();
+  // };
 
   const handleTextBoxMouseout = () => {
     if (!isMouseDown) {
@@ -187,9 +215,9 @@ export default ({ onSegmentClick }) => {
     }
   };
 
-  const handleStageMouseup = () => {
-    isMouseDown = false;
-  };
+  // const handleStageMouseup = () => {
+  //   isMouseDown = false;
+  // };
 
   const setMounted = () => {
     konvaInstance.stage.on('mousemove', hanldeTextBoxMousemove);
@@ -201,31 +229,32 @@ export default ({ onSegmentClick }) => {
 
   const initKonvaInstance = (container, width, height, family) => {
     fontFamily = family;
+    boxWidth = width;
     konvaInstance.stage = new Konva.Stage({
       container,
       width,
       height,
     });
 
-    konvaInstance.layer = new Konva.Layer();
+    // konvaInstance.layer = new Konva.Layer();
     konvaInstance.actionLayer = new Konva.Layer();
     konvaInstance.colorLayer = new Konva.Layer();
 
-    konvaInstance.textBox = new Konva.Text({
-      x: 0,
-      y: 0,
-      fontSize,
-      fontFamily: family ?? 'Microsoft YaHei',
-      lineHeight,
-      fill: '#000000',
-      wrap: 'char',
-      width,
-      // height,
-    });
+    // konvaInstance.textBox = new Konva.Text({
+    //   x: 0,
+    //   y: 0,
+    //   fontSize,
+    //   fontFamily: family ?? 'Microsoft YaHei',
+    //   lineHeight,
+    //   fill: '#000000',
+    //   wrap: 'char',
+    //   width,
+    //   // height,
+    // });
 
-    konvaInstance.layer.add(konvaInstance.textBox);
+    // konvaInstance.layer.add(konvaInstance.textBox);
     konvaInstance.stage.add(konvaInstance.actionLayer);
-    konvaInstance.stage.add(konvaInstance.layer);
+    // konvaInstance.stage.add(konvaInstance.layer);
     konvaInstance.stage.add(konvaInstance.colorLayer);
 
     setMounted();
@@ -233,12 +262,12 @@ export default ({ onSegmentClick }) => {
 
   const setText = (text: string, append = true) => {
     if (append) {
-      konvaInstance.textBox.text(konvaInstance.textBox.text() + text);
-      konvaInstance.stage.height(konvaInstance.textBox.height());
+      // konvaInstance.textBox.text(konvaInstance.textBox.text() + text);
+      // konvaInstance.stage.height(konvaInstance.textBox.height());
       return;
     }
 
-    konvaInstance.textBox.text(text);
+    // konvaInstance.textBox.text(text);
   };
 
   const setRect = (width?: number, height?: number) => {
@@ -251,26 +280,26 @@ export default ({ onSegmentClick }) => {
     }
   };
 
-  const computeWordPosition = (word: WordListItem) => {
-    if (word.left && word.top && word.width) {
-      return;
-    }
+  // const computeWordPosition = (word: WordListItem) => {
+  //   if (word.left && word.top && word.width) {
+  //     return;
+  //   }
 
-    const box = getTempText();
-    const text = konvaInstance.textBox.text();
-    const boxWidth = konvaInstance.textBox.width();
-    const startIndex = word.startIndex;
-    const leftText = text.slice(0, startIndex);
+  //   const box = getTempText();
+  //   // const text = konvaInstance.textBox.text();
+  //   // const boxWidth = konvaInstance.textBox.width();
+  //   const startIndex = word.startIndex;
+  //   const leftText = text.slice(0, startIndex);
 
-    box.text(leftText);
-    const width = box.width();
-    const left = width % boxWidth;
-    const top = Math.floor(width / boxWidth) * fontSize * lineHeight;
+  //   box.text(leftText);
+  //   const width = box.width();
+  //   const left = width % boxWidth;
+  //   const top = Math.floor(width / boxWidth) * fontSize * lineHeight;
 
-    box.text(word.text);
-    const rectWidth = box.width();
-    Object.assign(word, { left, top, width: rectWidth });
-  };
+  //   box.text(word.text);
+  //   const rectWidth = box.width();
+  //   Object.assign(word, { left, top, width: rectWidth });
+  // };
 
   const getWrapText = (text: string, leftWidth: number) => {
     const box = getTempText();
@@ -296,9 +325,9 @@ export default ({ onSegmentClick }) => {
 
   const computeWordListPosition = (list: WordListItem[]) => {
     wordList = list;
-    const boxWidth = konvaInstance.textBox.width();
+    // const boxWidth = konvaInstance.textBox.width();
 
-    return new Promise((resolve, reject) => {
+    return new Promise<WordListItem[]>(resolve => {
       let left = 0;
       // 换行产生的偏移量
       let offsetWidth = 0;
@@ -357,7 +386,7 @@ export default ({ onSegmentClick }) => {
     words
       .filter(item => item.isMark)
       .forEach(item => {
-        computeWordPosition(item);
+        // computeWordPosition(item);
         // 创建一个背景矩形
         const rect = new Konva.Rect({
           x: item.left,
@@ -372,7 +401,7 @@ export default ({ onSegmentClick }) => {
   };
 
   const getLines = () => {
-    const lines = konvaInstance.textBox.height() / 20;
+    const lines = boxHeight / 20;
     return lines;
   };
 
