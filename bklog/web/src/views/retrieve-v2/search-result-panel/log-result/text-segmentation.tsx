@@ -53,7 +53,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const refContent: Ref<HTMLElement> = ref();
     const refCanvas: Ref<HTMLElement> = ref();
-    const { initKonvaInstance, setText, setRect, getLines, setHighlightWords, computeWordListPosition } = useKonva();
 
     const fontFamily = 'Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace';
     const store = useStore();
@@ -104,6 +103,12 @@ export default defineComponent({
         content: props.content,
         field: props.field,
         data: props.data,
+      },
+    });
+
+    const { initKonvaInstance, setText, setRect, getLines, setHighlightWords, computeWordListPosition } = useKonva({
+      onSegmentClick: (e, value) => {
+        textSegmentInstance?.getCellClickHandler(e, value);
       },
     });
 
@@ -178,94 +183,15 @@ export default defineComponent({
       return refContent.value.offsetWidth;
     };
 
-    const hanldeTextBoxMousemove = evt => {
-      // const pointer = canvasInstance.getPointer(evt.e);
-      // const charIndex = textBox.getSelectionStartFromPointer(pointer);
-      // if (charIndex !== -1) {
-      //   const wordBoundary = findWordBoundary(charIndex);
-      //   if (wordBoundary?.isCursorText) {
-      //     // 重置所有字符样式
-      //     textBox.setSelectionStyles({ fill: '#313238' }, 0, textBox.text.length);
-      //     // 高亮当前分词
-      //     textBox.setSelectionStyles({ fill: '#3a84ff' }, wordBoundary.startIndex, wordBoundary.endIndex);
-      //   }
-      // }
-      // canvasInstance.renderAll();
-    };
-
-    const hanldeTextBoxClick = evt => {
-      // const pointer = canvasInstance.getPointer(evt.e);
-      // const wordIndex = textBox.getSelectionStartFromPointer(pointer);
-      // if (wordIndex !== -1) {
-      //   const wordBoundary = findWordBoundary(wordIndex);
-      //   if (wordBoundary?.text) {
-      //     textSegmentInstance?.getCellClickHandler(evt.e, wordBoundary.text);
-      //   }
-      // }
-    };
-
-    const handleTextBoxMouseout = () => {
-      // textBox.setSelectionStyles({ fill: '#313238' }, 0, textBox.text.length);
-      // canvasInstance.renderAll();
-    };
-
     const initFabricTextBox = (maxLength = 4) => {
       const width = getWidth(wordList);
       refCanvas.value.setAttribute('width', `${width}`);
-      // const nextListItems = getNextList();
-      // canvasInstance = new fabric.Canvas(refCanvas.value);
-
       initKonvaInstance(refCanvas.value, width, 60, fontFamily);
       computeWordListPosition(wordList);
-
-      // setText();
-
-      // if (!textBox) {
-      //   textBox = new fabric.Textbox(getNextText(nextListItems), {
-      //     fontSize: 12,
-      //     fontFamily,
-      //     width,
-      //     wrapWidth: width,
-      //     lineHeight: 1.6, // 行距
-      //     left: 0,
-      //     top: 4,
-      //     selectable: false,
-      //     editable: false, // 禁止编辑
-      //     hoverCursor: 'pointer',
-      //     backgroundColor: '',
-      //     fill: '#313238',
-      //     fontWeight: 'normal',
-      //     splitByGrapheme: true, // 自动换行
-      //     padding: 0,
-      //     opacity: 0.9,
-      //   });
-      // }
-
-      // // 鼠标移动事件
-      // textBox.on('mousemove', hanldeTextBoxMousemove);
-
-      // // 鼠标离开事件
-      // textBox.on('mouseout', handleTextBoxMouseout);
-
-      // // 鼠标点击事件
-      // textBox.on('mousedown', hanldeTextBoxClick);
 
       requestAnimationFrame(() => {
         setNextText(maxLength);
       });
-    };
-
-    const destroyFabricInstance = () => {
-      // if (!canvasInstance) {
-      //   return;
-      // }
-      // if (textBox) {
-      //   textBox.off('mousemove', hanldeTextBoxMousemove);
-      //   textBox.off('mouseout', handleTextBoxMouseout);
-      //   textBox.off('mousedown', hanldeTextBoxClick);
-      //   textBox = undefined;
-      // }
-      // canvasInstance.clear();
     };
 
     let textSegmentIndex = 0;
@@ -374,7 +300,7 @@ export default defineComponent({
     const setMounted = () => {
       const maxLength = isLimitExpandView.value || showAll.value ? Number.MAX_SAFE_INTEGER : 4;
       if (getSegmentRenderType() === 'fabric') {
-        initFabricTextBox(maxLength);
+        // initFabricTextBox(maxLength);
       }
 
       if (getSegmentRenderType() === 'text') {
@@ -382,9 +308,11 @@ export default defineComponent({
       }
     };
 
+    const formatText = ref('');
     onBeforeMount(() => {
       isDispose = false;
       wordList = textSegmentInstance.getChildNodes();
+      formatText.value = wordList.map(item => item.text).join('');
     });
 
     onMounted(() => {
@@ -394,7 +322,6 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       isDispose = true;
-      destroyFabricInstance();
       if (tableCellCache?.get(props.data)?.get(props.field)) {
         Object.assign(tableCellCache.get(props.data).get(props.field)?.value, {
           showAll: showAll.value,
@@ -425,9 +352,6 @@ export default defineComponent({
           pageIndex = 0;
           const width = refContent.value.offsetWidth;
           setRect(width);
-          // canvasInstance.setWidth(width);
-          // textBox.text = '';
-          // textBox.set({ width, wrapWidth: width });
           setNextText();
         }
 
@@ -441,7 +365,13 @@ export default defineComponent({
 
     const renderSegmentList = () => {
       if (getSegmentRenderType() === 'fabric') {
-        return <div ref={refCanvas}></div>;
+        return [
+          <div class='static-text'>{formatText.value}</div>,
+          <div
+            class='canvas-konva'
+            ref={refCanvas}
+          ></div>,
+        ];
       }
 
       return (

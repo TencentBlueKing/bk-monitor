@@ -16,6 +16,19 @@
   word-break: break-all;
   white-space: pre-line;
 
+  .static-text {
+    position: relative;
+    line-height: 20px;
+  }
+
+  .canvas-konva {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+  }
+
   &.is-expand-all {
     max-height: max-content;
   }

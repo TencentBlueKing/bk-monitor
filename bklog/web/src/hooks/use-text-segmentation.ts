@@ -46,6 +46,8 @@ export type WordListItem = {
   left?: number;
   top?: number;
   width?: number;
+  split?: WordListItem[];
+  line?: number;
 };
 
 export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
