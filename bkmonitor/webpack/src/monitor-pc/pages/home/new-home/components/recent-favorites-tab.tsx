@@ -70,8 +70,6 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     // { name: '容器服务' },
   ];
 
-  loadingRecentList = true; // 最近列表loading
-
   // 展示AI小鲸输入框
   get enableAiAssistant() {
     return aiWhaleStore.enableAiAssistant;
