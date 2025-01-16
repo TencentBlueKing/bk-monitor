@@ -75,13 +75,21 @@ export default defineComponent({
     );
 
     function handleTimeChange(list: string[]) {
-      emit('timeChange', list);
+      localTimeValue.value = list;
+      if (JSON.stringify(localTimeValue.value) !== JSON.stringify(props.timeValue)) {
+        emit('timeChange', list);
+      }
     }
 
+    /**
+     * @description 收起时，清空自定义时间 并且派出事件
+     * @param val
+     */
     function handleSelectToggle(val: boolean) {
       if (!val) {
         customTimeVal.value = '';
         showCustomTime.value = false;
+        handleTimeChange(localTimeValue.value);
       }
     }
 
@@ -99,6 +107,10 @@ export default defineComponent({
       }
     }
 
+    /**
+     * @description 添加自定义时间
+     * @param str
+     */
     function handleAddCustom(str) {
       const timeValue = localTimeValue.value;
       if (compareTimeList.value.every(item => item.id !== str)) {
@@ -132,10 +144,9 @@ export default defineComponent({
           v-model={this.localTimeValue}
           behavior='simplicity'
           filterable={false}
+          multiple={true}
           size={'small'}
-          multiple
           onClear={() => this.handleTimeChange([])}
-          onSelect={list => this.handleTimeChange(list)}
           onToggle={this.handleSelectToggle}
         >
           {{
