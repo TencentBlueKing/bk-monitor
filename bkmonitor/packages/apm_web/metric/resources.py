@@ -3182,6 +3182,10 @@ class HostDetailResource(GetHostOrTopoNodeDetailResource):
 class HostInstanceDetailListResource(Resource):
     """关联主机列表"""
 
+    class SpanSourceType:
+        SPAN = "通过 Span 发现"
+        SERVICE = "通过 Service 发现"
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         app_name = serializers.CharField(label="应用名称")
@@ -3189,11 +3193,21 @@ class HostInstanceDetailListResource(Resource):
         keyword = serializers.CharField(label="关键字", allow_blank=True, required=False)
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
+        span_id = serializers.CharField(label="SpanId", required=False)
 
     def perform_request(self, data):
         keyword = data.pop("keyword", None)
+        span_id = data.pop("span_id", None)
+        host_instances = [
+            {**i, "source": self.SpanSourceType.SERVICE} for i in HostHandler.list_application_hosts(**data)
+        ]
 
-        host_instances = HostHandler.list_application_hosts(**data)
+        if span_id:
+            # 优先展示 span 关联的主机信息
+            host_instances = [
+                {**i, "source": self.SpanSourceType.SPAN}
+                for i in HostHandler.find_host_in_span(data["bk_biz_id"], data["app_name"], span_id)
+            ] + host_instances
 
         host_mapping = {
             int(i["bk_host_id"]): {
@@ -3204,11 +3218,23 @@ class HostInstanceDetailListResource(Resource):
                 "app_name": data["app_name"],
                 "service_name": data["service_name"],
             }
-            for i in host_instances
+            for i in self.remove_duplicates(host_instances)
         }
+
         res = self.filter_keyword(host_mapping, keyword)
         self.add_status(data["bk_biz_id"], res)
         return list(res.values())
+
+    @classmethod
+    def remove_duplicates(cls, hosts):
+        visited = set()
+        res = []
+        for d in hosts:
+            v = d.get("bk_host_innerip")
+            if v not in visited:
+                visited.add(v)
+                res.append(d)
+        return res
 
     def add_status(self, bk_biz_id, hosts):
         """添加主机 agent 状态字段"""
