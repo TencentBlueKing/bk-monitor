@@ -344,12 +344,12 @@ export default defineComponent({
 
     /** 跳转trace详情页，高亮对应span */
     const handleViewSpan = node => {
-      emit('toTracePage', node.entity.rca_trace_info, 'traceDetail');
+      emit('toTracePage', node.entity, 'traceDetail');
     };
 
     /** 跳转trace详情页，打开对应span详情 */
     const handleViewSpanDetail = node => {
-      emit('toTracePage', node.entity.rca_trace_info, 'spanDetail');
+      emit('toTracePage', node.entity, 'spanDetail');
     };
 
     /** 告警详情 */
@@ -765,51 +765,52 @@ export default defineComponent({
                 {truncateText(this.$t('根因'), 28, 11, 'PingFangSC-Medium')}
               </span>
             )}
-            {this.showViewResource &&
-              createCommonIconBtn(
-                this.$t('查看从属'),
-                {
-                  marginLeft: '16px',
-                },
-                true,
-                node,
-                'ViewResource'
-              )}
-            {isShowRootText &&
-              node.entity.rca_trace_info &&
-              Object.keys(node.entity.rca_trace_info).length > 0 &&
-              createCommonIconBtn(
-                this.$t('查看Span'),
-                {
-                  marginLeft: '16px',
-                },
-                true,
-                node,
-                'ViewSpan'
-              )}
-            {this.showViewResource &&
-              node.is_feedback_root &&
-              createCommonIconBtn(
-                this.$t('取消反馈根因'),
-                {
-                  marginLeft: '16px',
-                },
-                true,
-                node,
-                'FeedBack'
-              )}
-            {this.showViewResource &&
-              !node.is_feedback_root &&
-              !node?.entity?.is_root &&
-              createCommonIconBtn(
-                this.$t('反馈新根因'),
-                {
-                  marginLeft: '16px',
-                },
-                true,
-                node,
-                'FeedBack'
-              )}
+            <div class='node-tooltip-header-icon-wrap'>
+              {this.showViewResource &&
+                createCommonIconBtn(
+                  this.$t('查看从属'),
+                  {
+                    marginLeft: '16px',
+                  },
+                  true,
+                  node,
+                  'ViewResource'
+                )}
+              {isShowRootText &&
+                node.entity.rca_trace_info?.abnormal_traces?.length > 0 &&
+                createCommonIconBtn(
+                  this.$t('查看Span'),
+                  {
+                    marginLeft: '16px',
+                  },
+                  true,
+                  node,
+                  'ViewSpan'
+                )}
+              {this.showViewResource &&
+                node.is_feedback_root &&
+                createCommonIconBtn(
+                  this.$t('取消反馈根因'),
+                  {
+                    marginLeft: '16px',
+                  },
+                  true,
+                  node,
+                  'FeedBack'
+                )}
+              {this.showViewResource &&
+                !node.is_feedback_root &&
+                !node?.entity?.is_root &&
+                createCommonIconBtn(
+                  this.$t('反馈新根因'),
+                  {
+                    marginLeft: '16px',
+                  },
+                  true,
+                  node,
+                  'FeedBack'
+                )}
+            </div>
           </div>
           <div class='node-tooltip-content'>
             {node.alert_display.alert_name &&
@@ -854,16 +855,15 @@ export default defineComponent({
                 </>
               ))}
             {isShowRootText &&
-              node.entity.rca_trace_info &&
-              Object.keys(node.entity.rca_trace_info).length > 0 &&
+              node.entity?.rca_trace_info?.abnormal_message &&
               createCommonForm(`${this.$t('异常信息')}：`, () => (
                 <div
                   class='except-info'
                   onClick={this.handleViewSpanDetail.bind(this, node)}
                 >
                   <OverflowTitle
-                    type='tips'
                     class='except-text'
+                    type='tips'
                   >
                     <span>{node.entity.rca_trace_info.abnormal_message}</span>
                   </OverflowTitle>

@@ -9,6 +9,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+
 import pytest
 
 from metadata import models
@@ -21,6 +23,7 @@ from metadata.tests.record_rule.conftest import (
     space_type,
     table_id,
 )
+from metadata.utils.data_link import get_record_rule_metrics_by_biz_id
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
@@ -31,6 +34,7 @@ def test_create_record_rule(create_or_delete_records, mocker):
     mocker.patch(
         'metadata.models.RecordRule.get_src_table_ids', return_value=['2_bcs_custom_metric_result_table_00000']
     )
+    mocker.patch('django.conf.settings.DEFAULT_BKDATA_BIZ_ID', 2)
     mocker.patch(
         'metadata.models.record_rule.utils.refine_bk_sql_and_metrics',
         return_value={
@@ -48,12 +52,34 @@ def test_create_record_rule(create_or_delete_records, mocker):
 
     rule_ins = RecordRule.objects.get(table_id=table_id)
     assert rule_ins.count_freq == 30
+    assert rule_ins.dst_vm_table_id == '2_vm_cc_2_unify_query_tsdb_test_new_prom_node'
+    rt = models.ResultTable.objects.get(table_id=table_id)
+    assert rt.bk_biz_id == 2
+
+    metrics_cache_data = get_record_rule_metrics_by_biz_id(bk_biz_id=2)[0]['field_list']
+    expected_cache_data = [
+        {
+            'field_name': 'unify_query_tsdb_request_seconds_bucket_sum_2m',
+            'type': 'string',
+            'tag': 'metric',
+            'default_value': None,
+            'is_config_by_user': True,
+            'description': 'unify_query_tsdb_request_seconds_bucket_sum_2m',
+            'unit': '',
+            'alias_name': '',
+            'is_disabled': False,
+            'option': {},
+        }
+    ]
+    assert json.dumps(metrics_cache_data) == json.dumps(expected_cache_data)
+
     expected_bksql_config = [
         {
             'name': 'unify_query_tsdb_request_seconds_bucket_sum_2m',
             'count_freq': 60,
             'sql': 'sum by (workload, tsdb_type, space_uid, le, pod) (label_replace(rate('
-            'unify_query_tsdb_request_seconds_bucket[2m]), "workload", "$1", "pod", "bk-datalink-(.*)-([0-9a-z]+)-(['
+            'unify_query_tsdb_request_seconds_bucket[2m]), "workload", "$1", "pod", "bk-datalink-(.*)-(['
+            '0-9a-z]+)-(['
             '0-9a-z]+)"))',
             'metric_name': 'unify_query_tsdb_request_seconds_bucket_sum_2m',
         }

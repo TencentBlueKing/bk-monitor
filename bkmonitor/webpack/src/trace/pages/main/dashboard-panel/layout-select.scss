@@ -1,0 +1,44 @@
+@mixin icon-size($size: 14px, $fontSize: 14px) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: $size;
+  height: $size;
+  overflow: hidden;
+  font-size: $fontSize;
+
+  &::before {
+    width: $fontSize;
+    height: $fontSize;
+  }
+}
+
+.dashboard-panel__layout-select {
+  display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 78px;
+    height: 28px;
+    color: #63656e;
+    border-radius: 2px;
+
+    &:hover {
+      cursor: pointer;
+      background-color: #e1ecff;
+    }
+
+    .icon-monitor {
+      @include icon-size(28px, 14px);
+
+      &.no-name {
+        margin-right: -8px;
+      }
+    }
+
+    .layout-name {
+      margin-left: 6px;
+    }
+}
+// .dashboard-panel__layout-select-item {
+// }
