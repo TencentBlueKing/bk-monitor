@@ -73,6 +73,7 @@ export default defineComponent({
     const localType = ref(CompareId.none);
 
     const localTargetValue = ref<string[]>([]);
+    const timeOffset = ref([]);
 
     // 当前对比类型
     const compareList = computed(() => {
@@ -97,9 +98,11 @@ export default defineComponent({
       emit('targetChange', targetCheckedList);
     }
     function handleTimeChange(val) {
+      timeOffset.value = val;
       emit('timeChange', val);
     }
     function handleTypeChange(val) {
+      timeOffset.value = [];
       emit('typeChange', val);
     }
 
@@ -108,6 +111,7 @@ export default defineComponent({
       compareList,
       localTargetValue,
       targetOptionsFilter,
+      timeOffset,
       handleTargetChange,
       handleTimeChange,
       handleTypeChange,
@@ -120,6 +124,7 @@ export default defineComponent({
           <div>
             <TimeCompareSelect
               class='ml-12'
+              timeValue={this.timeOffset}
               onTimeChange={this.handleTimeChange}
             />
           </div>

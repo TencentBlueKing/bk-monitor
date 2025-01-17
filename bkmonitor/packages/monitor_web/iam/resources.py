@@ -19,7 +19,6 @@ from rest_framework import serializers
 
 from api.itsm.default import TokenVerifyResource
 from bk_dataview.permissions import GrafanaRole
-from bk_dataview.views import ProxyBaseView
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.iam.resource import ApmApplication
@@ -27,11 +26,10 @@ from bkmonitor.models.external_iam import (
     ExternalPermission,
     ExternalPermissionApplyRecord,
 )
-from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.user import get_local_username
 from core.drf_resource import Resource, api, resource
 from monitor.models import GlobalConfig
-from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.grafana.permissions import DashboardPermission
 from monitor_web.iam.serializers import (
     ExternalPermissionApplyRecordSerializer,
@@ -207,19 +205,6 @@ class TestResource(Resource):
         Permission(username="xxx").is_allowed_by_biz(2, ActionEnum.VIEW_BUSINESS, raise_exception=True)
 
 
-def update_dashboard_permission(bk_biz_id, authorized_users):
-    try:
-        request = get_request(peaceful=True)
-        for authorized_user in authorized_users:
-            external_user = f"external_{authorized_user}"
-            GrafanaAuthSync.sync(external_user, bk_biz_id, is_external=True)
-            ProxyBaseView().provision_user(request, external_user)
-            ProxyBaseView().provision_org(str(bk_biz_id), external_user, GrafanaRole.Viewer)
-
-    except Exception as e:
-        logger.error(f"更新仪表盘实例权限异常：{e}")
-
-
 def create_permission(authorized_users, params):
     """
     新增权限
@@ -244,7 +229,6 @@ def create_permission(authorized_users, params):
     ExternalPermission.objects.bulk_create(
         ExternalPermission(authorized_user=authorized_user, **params) for authorized_user in add_authorized_users
     )
-    update_dashboard_permission(params["bk_biz_id"], add_authorized_users)
 
 
 class CreateOrUpdateExternalPermission(Resource):

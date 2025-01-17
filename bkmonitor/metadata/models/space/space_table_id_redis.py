@@ -134,6 +134,28 @@ class SpaceTableIDRedis:
                     json.dumps(_table_id_detail),
                     RESULT_TABLE_DETAIL_KEY,
                 )
+                updated_table_id_detail = {}
+                for key, value in _table_id_detail.items():
+                    parts = key.split(".")  # 通过 "." 分割 key
+                    if len(parts) == 1:
+                        logger.info(
+                            "push_es_table_id_detail: key(table_id)->[%s] is missing '.', adding '.__default__'", key
+                        )
+                        # 如果分割结果长度为 1，补充 ".__default__"
+                        new_key = f"{key}.__default__"
+                        updated_table_id_detail[new_key] = value
+                    elif len(parts) == 2:
+                        # 如果分割结果长度为 2，保持原样
+                        updated_table_id_detail[key] = value
+                    else:
+                        # 如果分割结果长度超过 2，打印错误日志
+                        logger.error(
+                            "push_es_table_id_detail: key(table_id)->[%s] is invalid, contains too many dots", key
+                        )
+
+                # 更新 _table_id_detail
+                _table_id_detail = updated_table_id_detail
+
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
                     logger.info(

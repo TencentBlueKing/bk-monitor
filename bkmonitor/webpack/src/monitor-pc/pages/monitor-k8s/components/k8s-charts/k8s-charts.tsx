@@ -425,11 +425,7 @@ export default class K8SCharts extends tsc<
               if (!data?.items?.length) return [];
               return data.items;
             })
-              .then(data => {
-                if (!data?.items?.length) return [];
-                return data.items;
-              })
-              .catch(() => []);
+            .catch(() => []);
       if (data.length) {
         const container = new Set<string>();
         const pod = new Set<string>();

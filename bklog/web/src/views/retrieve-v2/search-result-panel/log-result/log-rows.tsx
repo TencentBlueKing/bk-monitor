@@ -39,6 +39,7 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { bkMessage } from 'bk-magic-vue';
 import { uniqueId } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -46,7 +47,6 @@ import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
-import { bkMessage } from 'bk-magic-vue';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
@@ -407,7 +407,7 @@ export default defineComponent({
           ''
         );
       }
-      return parseTableRowData(row, field.field_name, field.field_type);
+      return parseTableRowData(row, field.field_name, field.field_type, false);
     };
 
     const getOriginTimeShow = data => {
