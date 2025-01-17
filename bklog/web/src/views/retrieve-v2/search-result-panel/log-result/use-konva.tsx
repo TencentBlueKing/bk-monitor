@@ -26,19 +26,17 @@
 import Konva from 'konva';
 
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
-export default ({ onSegmentClick, text }) => {
+export default ({ onSegmentClick }) => {
   const konvaInstance: {
-    stage: Konva.Stage | null;
-    layer: Konva.Layer | null;
-    actionLayer: Konva.Layer | null;
-    colorLayer: Konva.Layer | null;
-    textBox: Konva.Text | null;
+    backgroundStage: Konva.Stage | null;
+    backgroundLayer: Konva.Layer | null;
+    frontStage: Konva.Stage | null;
+    frontActionLayer: Konva.Layer | null;
   } = {
-    stage: null,
-    layer: null,
-    textBox: null,
-    actionLayer: null,
-    colorLayer: null,
+    backgroundStage: null,
+    backgroundLayer: null,
+    frontStage: null,
+    frontActionLayer: null,
   };
 
   let fontFamily;
@@ -50,6 +48,8 @@ export default ({ onSegmentClick, text }) => {
 
   let wordList: WordListItem[];
   let hoverItem;
+
+  const containerBounds = { x: 0, y: 0, width: 0, height: 0 };
 
   const getTempText = () => {
     if (!tempText) {
@@ -80,117 +80,25 @@ export default ({ onSegmentClick, text }) => {
       lineHeight,
       fontFamily,
       x: word.left,
-      y: word.top,
+      y: word.top + 1,
       text: word.text,
       fill: '#3a84ff',
     });
 
-    konvaInstance.colorLayer.add(rect);
-    konvaInstance.colorLayer.add(text);
+    konvaInstance.frontActionLayer.add(rect);
+    konvaInstance.frontActionLayer.add(text);
   };
 
   let isMouseDown = false;
-  let startPosition = { x: 0, y: 0 };
 
-  const drawSelectionText = () => {
-    const pointer = konvaInstance.stage.getPointerPosition();
-    const rectList = [];
-    const height = fontSize * lineHeight;
-    // const boxWidth = konvaInstance.textBox.width();
-
-    const left = Math.min(startPosition.x, pointer.x);
-    const top = Math.min(startPosition.y, pointer.y);
-    const bottom = Math.max(startPosition.y, pointer.y);
-    const right = Math.max(startPosition.x, pointer.x);
-
-    const startLine = Math.ceil(top / height);
-    const endLine = Math.ceil(bottom / height);
-
-    if (startLine !== endLine) {
-      rectList.push({
-        x: left,
-        y: (startLine - 1) * height,
-        width: boxWidth - left,
-        height,
-        lineNumber: startLine - 1,
-      });
-
-      rectList.push({
-        x: 0,
-        y: (endLine - 1) * height,
-        width: right,
-        height,
-        lineNumber: endLine - 1,
-      });
-
-      new Array(endLine - startLine - 1).fill('').forEach((_, index) => {
-        rectList.push({
-          x: 0,
-          y: (startLine + index) * height,
-          width: boxWidth,
-          height,
-          lineNumber: startLine + index,
-        });
-      });
-    }
-
-    if (startLine === endLine) {
-      rectList.push({
-        x: left,
-        y: (startLine - 1) * height,
-        width: right - left,
-        height,
-        lineNumber: startLine - 1,
-      });
-    }
-
-    konvaInstance.colorLayer.removeChildren();
-    rectList.forEach(item => {
-      const { x, y, width, height } = item;
-      const rect = new Konva.Rect({
-        x,
-        y,
-        width,
-        height,
-        fill: '#1768EF',
-      });
-
-      konvaInstance.colorLayer.add(rect);
-    });
+  const updateContainerBounds = (parentNode: HTMLElement) => {
+    const textContainer = parentNode.querySelector('.static-text');
+    const { x, y, width, height } = textContainer.getBoundingClientRect();
+    Object.assign(containerBounds, { x, y, width, height });
   };
 
-  const hanldeTextBoxMousemove = ({}) => {
-    if (isMouseDown) {
-      requestAnimationFrame(drawSelectionText);
-      return;
-    }
-
-    const pointer = konvaInstance.stage.getPointerPosition();
-    const word = wordList.find(item => {
-      const { left, top, width } = item;
-      const bottom = top + 20;
-      const right = left + width;
-      const { x, y } = pointer;
-      return left <= x && top <= y && bottom >= y && right >= x;
-    });
-
-    if (word?.isCursorText && hoverItem !== word) {
-      hoverItem = word;
-      konvaInstance.colorLayer.destroyChildren();
-      if (word.split?.length) {
-        word.split.forEach(item => {
-          appendColorText(item);
-        });
-
-        return;
-      }
-
-      appendColorText(word);
-    }
-  };
-
-  const hanldeTextBoxClick = ({ evt }) => {
-    const pointer = konvaInstance.stage.getPointerPosition();
+  const handleTextBoxClick = evt => {
+    const pointer = getPointerByMouseEvent(evt);
     const word = wordList.find(item => {
       const { left, top, width } = item;
       const bottom = top + 20;
@@ -204,102 +112,87 @@ export default ({ onSegmentClick, text }) => {
     }
   };
 
-  // const hanldeStageMounsedown = () => {
-  //   isMouseDown = true;
-  //   startPosition = konvaInstance.stage.getPointerPosition();
-  // };
+  const getPointerByMouseEvent = (e: MouseEvent) => {
+    const { x, y } = e;
+    return { x: x - containerBounds.x, y: y - containerBounds.y };
+  };
 
-  const handleTextBoxMouseout = () => {
-    if (!isMouseDown) {
-      konvaInstance.colorLayer.destroyChildren();
+  const handleTextBoxMousemove = evt => {
+    if (isMouseDown) {
+      return;
+    }
+
+    const pointer = getPointerByMouseEvent(evt);
+    const word = wordList.find(item => {
+      const { left, top, width } = item;
+      const bottom = top + 20;
+      const right = left + width;
+      const { x, y } = pointer;
+      return left <= x && top <= y && bottom >= y && right >= x;
+    });
+
+    if (word?.isCursorText && hoverItem !== word) {
+      hoverItem = word;
+      konvaInstance.frontActionLayer.destroyChildren();
+      if (word.split?.length) {
+        word.split.forEach(item => {
+          appendColorText(item);
+        });
+
+        return;
+      }
+
+      appendColorText(word);
     }
   };
 
-  // const handleStageMouseup = () => {
-  //   isMouseDown = false;
-  // };
-
-  const setMounted = () => {
-    konvaInstance.stage.on('mousemove', hanldeTextBoxMousemove);
-    konvaInstance.stage.on('mouseleave', handleTextBoxMouseout);
-    konvaInstance.stage.on('click', hanldeTextBoxClick);
-    // konvaInstance.stage.on('mousedown', hanldeStageMounsedown);
-    // konvaInstance.stage.on('mouseup', handleStageMouseup);
+  const handleTextBoxMouseleave = () => {
+    konvaInstance.frontActionLayer.destroyChildren();
   };
 
-  const initKonvaInstance = (container, width, height, family) => {
+  const initKonvaInstance = (
+    backgroundContainer: HTMLDivElement,
+    frontContainer: HTMLDivElement,
+    width: number,
+    height: number,
+    family: string,
+  ) => {
     fontFamily = family;
     boxWidth = width;
-    konvaInstance.stage = new Konva.Stage({
-      container,
+    konvaInstance.backgroundStage = new Konva.Stage({
+      container: backgroundContainer,
       width,
       height,
     });
 
-    // konvaInstance.layer = new Konva.Layer();
-    konvaInstance.actionLayer = new Konva.Layer();
-    konvaInstance.colorLayer = new Konva.Layer();
+    konvaInstance.frontStage = new Konva.Stage({
+      container: frontContainer,
+      width,
+      height,
+    });
 
-    // konvaInstance.textBox = new Konva.Text({
-    //   x: 0,
-    //   y: 0,
-    //   fontSize,
-    //   fontFamily: family ?? 'Microsoft YaHei',
-    //   lineHeight,
-    //   fill: '#000000',
-    //   wrap: 'char',
-    //   width,
-    //   // height,
-    // });
+    konvaInstance.backgroundLayer = new Konva.Layer({ id: 'backgroundLayer' });
+    konvaInstance.backgroundStage.add(konvaInstance.backgroundLayer);
 
-    // konvaInstance.layer.add(konvaInstance.textBox);
-    konvaInstance.stage.add(konvaInstance.actionLayer);
-    // konvaInstance.stage.add(konvaInstance.layer);
-    konvaInstance.stage.add(konvaInstance.colorLayer);
+    konvaInstance.frontActionLayer = new Konva.Layer({ id: 'frontActionLayer' });
+    konvaInstance.frontStage.add(konvaInstance.frontActionLayer);
 
-    setMounted();
-  };
-
-  const setText = (text: string, append = true) => {
-    if (append) {
-      // konvaInstance.textBox.text(konvaInstance.textBox.text() + text);
-      // konvaInstance.stage.height(konvaInstance.textBox.height());
-      return;
-    }
-
-    // konvaInstance.textBox.text(text);
+    updateContainerBounds(frontContainer.parentElement);
   };
 
   const setRect = (width?: number, height?: number) => {
     if (width) {
-      konvaInstance.stage.width(width);
+      konvaInstance.backgroundStage.width(width);
+      konvaInstance.frontStage.width(width);
     }
 
     if (height) {
-      konvaInstance.stage.height(height);
+      konvaInstance.backgroundStage.height(height);
+      konvaInstance.frontStage.height(height);
     }
+
+    updateContainerBounds(konvaInstance.backgroundStage.container().parentElement);
   };
-
-  // const computeWordPosition = (word: WordListItem) => {
-  //   if (word.left && word.top && word.width) {
-  //     return;
-  //   }
-
-  //   const box = getTempText();
-  //   // const text = konvaInstance.textBox.text();
-  //   // const boxWidth = konvaInstance.textBox.width();
-  //   const startIndex = word.startIndex;
-  //   const leftText = text.slice(0, startIndex);
-
-  //   box.text(leftText);
-  //   const width = box.width();
-  //   const left = width % boxWidth;
-  //   const top = Math.floor(width / boxWidth) * fontSize * lineHeight;
-
-  //   box.text(word.text);
-  //   const rectWidth = box.width();
-  //   Object.assign(word, { left, top, width: rectWidth });
-  // };
 
   const getWrapText = (text: string, leftWidth: number) => {
     const box = getTempText();
@@ -325,8 +218,6 @@ export default ({ onSegmentClick, text }) => {
 
   const computeWordListPosition = (list: WordListItem[]) => {
     wordList = list;
-    // const boxWidth = konvaInstance.textBox.width();
-
     return new Promise<WordListItem[]>(resolve => {
       let left = 0;
       // 换行产生的偏移量
@@ -396,8 +287,18 @@ export default ({ onSegmentClick, text }) => {
           fill: 'rgb(255, 255, 0)',
         });
 
-        konvaInstance.actionLayer.add(rect);
+        konvaInstance.backgroundLayer.add(rect);
       });
+  };
+
+  const handleTextBoxMouseup = () => {
+    isMouseDown = false;
+    document.removeEventListener('mouseup', handleTextBoxMouseup);
+  };
+
+  const handleTextBoxMousedown = () => {
+    isMouseDown = true;
+    document.addEventListener('mouseup', handleTextBoxMouseup);
   };
 
   const getLines = () => {
@@ -405,10 +306,21 @@ export default ({ onSegmentClick, text }) => {
     return lines;
   };
 
+  const fireEvent = (type: string, e: MouseEvent) => {
+    const events = {
+      mousemove: handleTextBoxMousemove,
+      mouseleave: handleTextBoxMouseleave,
+      mousedown: handleTextBoxMousedown,
+      click: handleTextBoxClick,
+    };
+
+    events[type]?.(e);
+  };
+
   return {
-    setText,
     setRect,
     getLines,
+    fireEvent,
     setHighlightWords,
     initKonvaInstance,
     computeWordListPosition,

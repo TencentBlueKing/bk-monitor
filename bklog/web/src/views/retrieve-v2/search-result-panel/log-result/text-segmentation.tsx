@@ -52,8 +52,9 @@ export default defineComponent({
   },
   emits: ['menu-click'],
   setup(props, { emit }) {
-    const refContent: Ref<HTMLElement> = ref();
-    const refCanvas: Ref<HTMLElement> = ref();
+    const refContent: Ref<HTMLDivElement> = ref();
+    const refCanvas: Ref<HTMLDivElement> = ref();
+    const refFrontCanvas: Ref<HTMLDivElement> = ref();
 
     const fontFamily = 'Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace';
     const store = useStore();
@@ -110,11 +111,10 @@ export default defineComponent({
       },
     });
 
-    const { initKonvaInstance, setText, setRect, getLines, setHighlightWords, computeWordListPosition } = useKonva({
+    const { initKonvaInstance, setRect, getLines, setHighlightWords, computeWordListPosition, fireEvent } = useKonva({
       onSegmentClick: (e, value) => {
         textSegmentInstance?.getCellClickHandler(e, value);
       },
-      text: formatText.value,
     });
 
     // let canvasInstance: fabric.Canvas;
@@ -155,7 +155,6 @@ export default defineComponent({
         const nextList = getNextList();
         if (nextList.length > 0) {
           const nextValue = getNextText(nextList);
-          setText(nextValue);
           setHighlightWords(nextList);
           textLineCount.value = getLines();
           if (!isDispose) {
@@ -181,7 +180,7 @@ export default defineComponent({
     const initKonvaTextBox = () => {
       const width = getWidth(wordList);
       refCanvas.value.setAttribute('width', `${width}`);
-      initKonvaInstance(refCanvas.value, width, refContent.value.offsetHeight, fontFamily);
+      initKonvaInstance(refCanvas.value, refFrontCanvas.value, width, refContent.value.offsetHeight, fontFamily);
       computeWordListPosition(wordList).then(list => {
         setHighlightWords(list);
       });
@@ -304,7 +303,7 @@ export default defineComponent({
     onBeforeMount(() => {
       isDispose = false;
       wordList = textSegmentInstance.getChildNodes();
-      formatText.value = wordList.map(item => item.text).join('');
+      formatText.value = textSegmentInstance.formatValue();
     });
 
     onMounted(() => {
@@ -358,10 +357,22 @@ export default defineComponent({
     const renderSegmentList = () => {
       if (getSegmentRenderType() === 'fabric') {
         return [
-          <div class='static-text'>{formatText.value}</div>,
           <div
             ref={refCanvas}
-            class='canvas-konva'
+            class='canvas-konva-background'
+          ></div>,
+          <div
+            class='static-text'
+            onMousemove={e => fireEvent('mousemove', e)}
+            onMouseleave={e => fireEvent('mouseleave', e)}
+            onMousedown={e => fireEvent('mousedown', e)}
+            onClick={e => fireEvent('click', e)}
+          >
+            {formatText.value}
+          </div>,
+          <div
+            ref={refFrontCanvas}
+            class='canvas-konva-front'
           ></div>,
         ];
       }

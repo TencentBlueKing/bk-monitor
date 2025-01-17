@@ -21,12 +21,14 @@
     line-height: 20px;
   }
 
-  .canvas-konva {
+  .canvas-konva-background,
+  .canvas-konva-front {
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
     right: 0;
+    pointer-events: none;
   }
 
   &.is-expand-all {
