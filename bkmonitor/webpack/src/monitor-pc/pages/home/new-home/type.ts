@@ -23,25 +23,71 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteConfig } from 'vue-router';
-// import * as homeAuth from '../../pages/home/authority-map';
-// const Home = () => import(/* webpackChunkName: 'Home' */ '../../pages/home/home');
-const Home = () => import(/* webpackChunkName: 'Home' */ '../../pages/home/new-home/new-home');
-export default [
-  {
-    path: '/',
-    name: 'home',
-    components: {
-      noCache: Home,
-    },
-    meta: {
-      title: '首页',
-      navId: 'home',
-      pageCls: 'home-page',
-      noNavBar: true,
-      // authority: {
-      //   page: homeAuth.VIEW_AUTH
-      // }
-    },
-  },
-] as RouteConfig[];
+
+export interface ISearchItem {
+  bk_biz_id?: string;
+  bk_biz_name?: string;
+  name?: string;
+  bk_host_innerip?: string;
+  bk_cloud_id?: string;
+  bk_cloud_name?: string;
+  bk_host_name?: string;
+  bk_host_id?: string;
+  url?: string;
+  alert_id?: number;
+  nameSearch?: string;
+  type?: string;
+  strategy_id?: number;
+  app_name?: string;
+  trace_id?: string;
+  bcs_cluster_id?: string;
+}
+export interface IDataItem {
+  [key: string]: any;
+}
+
+export interface ISearchListItem {
+  type: string;
+  name: string;
+  items: ISearchItem[];
+}
+export interface IRouteItem {
+  name?: string;
+  icon?: string;
+  id?: string;
+  path?: string;
+  href?: string;
+  canStore?: boolean;
+}
+
+export interface IRecentList {
+  function: string;
+  items: IRecentItem[];
+  name: string;
+  icon?: string;
+}
+
+interface IRecentItem {
+  bk_biz_id: number;
+  bk_biz_name: string;
+  name?: string;
+  url?: string;
+}
+
+export interface IRecentAlarmTab {
+  bk_biz_id: number;
+  bk_biz_name: string;
+}
+
+export interface IAlarmGraphConfig {
+  name: string;
+  strategy_ids: number[];
+  status?: IAlarmGraphStatus[];
+  strategy_names?: string[];
+}
+
+interface IAlarmGraphStatus {
+  name: string;
+  status: string;
+  strategy_id: number;
+}

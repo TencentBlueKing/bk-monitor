@@ -26,93 +26,91 @@
 import { Component, Emit, Mixins, Prop, Watch } from 'vue-property-decorator';
 import * as tsx from 'vue-tsx-support';
 
+import { deepClone } from 'monitor-common/utils';
 import MonitorDialog from 'monitor-ui/monitor-dialog';
 
-import UserConfigMixin from '../mixins/userStoreConfig';
-import {
-  COMMON_ROUTE_LIST,
-  COMMON_ROUTE_STORE_KEY,
-  DEFAULT_ROUTE_LIST,
-  type IRouteConfigItem,
-  getLocalStoreRoute,
-} from '../router/router-config';
+import UserConfigMixin from '../../../../mixins/userStoreConfig';
+import { COMMON_ROUTE_LIST, type IRouteConfigItem } from '../../../../router/router-config';
 
 import './header-setting-modal.scss';
 
+// 定义组件属性接口
 interface IHeaderSettingModalProps {
   show: boolean;
+  quickAccessList: IRouteConfigItem[];
 }
+
+// 定义组件事件接口
 interface IHeaderSettingModalEvent {
   onChange: boolean;
+  onConfirm: IRouteConfigItem[];
   onStoreRoutesChange: IRouteConfigItem[];
 }
+
 @Component
 class HeaderSettingModal extends Mixins(UserConfigMixin) {
+  // 接收父组件传递的属性，控制模态框显示
   @Prop({ required: true, type: Boolean }) readonly show: boolean;
+  @Prop({ default: () => [], type: Array }) readonly quickAccessList: IRouteConfigItem[];
+
+  // 定义组件内部状态
   flatRoutes: IRouteConfigItem[] = [];
-  dragoverId = '';
-  dragId = '';
-  storeUserConfigList: string[] = [];
-  storeRoutes: IRouteConfigItem[] = [];
-  localStoreRoutes: IRouteConfigItem[] = [];
+  dragoverId = ''; // 当前拖拽经过的路由ID
+  dragId = ''; // 当前拖拽的路由ID
+  storeRoutes: IRouteConfigItem[] = []; // 当前存储的路由配置
+
+  // 组件创建时调用，初始化用户配置和路由数据
   async created() {
-    this.storeUserConfigList = await this.handleGetUserConfig<string[]>(COMMON_ROUTE_STORE_KEY, { reject403: true });
+    // 初始化平面路由列表
     this.flatRoutes = COMMON_ROUTE_LIST;
-    this.storeRoutes = this.getStoreRoutes();
-    this.handleStoreRoutesChange();
   }
+
+  // 监听 show 属性的变化，控制键盘事件的监听
   @Watch('show')
   handleShowChange(v: boolean) {
     if (v) {
+      this.storeRoutes = deepClone(this.quickAccessList);
       window.addEventListener('keyup', this.handleDocumentKeydown);
     } else {
       window.removeEventListener('keyup', this.handleDocumentKeydown);
     }
-    const list = getLocalStoreRoute();
-    this.localStoreRoutes = !list?.length ? [] : this.getStoreRoutesByIdList(list);
   }
+
+  // 发出 change 事件，用于通知父组件模态框显示或隐藏状态的变化
   @Emit('change')
   async handleShow(v: boolean) {
     return v;
   }
-  @Emit('storeRoutesChange')
-  handleStoreRoutesChange() {
+
+  @Emit('confirm')
+  handleConfirm() {
     return this.storeRoutes;
   }
+
+  // 处理键盘事件，按下 Esc 键时关闭模态框
   handleDocumentKeydown(e: KeyboardEvent) {
     if (e.code === 'Escape') {
       this.handleShow(false);
     }
   }
-  getStoreRoutes() {
-    const configList =
-      !Array.isArray(this.storeUserConfigList) || this.storeUserConfigList.length === 0
-        ? DEFAULT_ROUTE_LIST
-        : this.storeUserConfigList;
-    return this.getStoreRoutesByIdList(configList);
-  }
-  getStoreRoutesByIdList(routeIds: string[]) {
-    const routes = [];
-    this.flatRoutes.forEach(item => {
-      const list = item.children?.filter(set => routeIds.includes(set.id));
-      list?.length && routes.push(...list);
-    });
-    return routeIds.map(id => routes.find(item => item.id === id)).filter(Boolean);
-  }
-  setStoreRoutes() {
-    this.handleSetUserConfig(COMMON_ROUTE_STORE_KEY, JSON.stringify(this.storeRoutes.map(item => item.id)));
-    this.handleStoreRoutesChange();
-  }
+
+  // 处理拖拽开始事件，记录当前拖拽的路由ID
   handleDragstart(item: IRouteConfigItem) {
     this.dragId = item.id;
   }
+
+  // 处理拖拽经过事件，设置当前拖拽经过的路由ID
   handleDragover(item: IRouteConfigItem, e: MouseEvent) {
     this.dragoverId = item.id;
     e.preventDefault();
   }
+
+  // 处理拖拽离开事件，清除当前拖拽经过的路由ID
   handleDragleave() {
     this.dragoverId = '';
   }
+
+  // 处理拖拽放置事件，交换拖拽和拖拽经过的路由位置
   handleDrop(e: MouseEvent) {
     if (this.dragoverId && this.dragId && this.dragId !== this.dragoverId) {
       e.preventDefault();
@@ -127,45 +125,30 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
         }
         return item;
       });
-      this.setStoreRoutes();
       this.dragoverId = '';
       this.dragId = '';
     }
   }
+
+  // 处理删除存储路由的操作
   handleDeleteStoreRoute(index: number) {
     this.storeRoutes.splice(index, 1);
-    this.setStoreRoutes();
   }
+
+  // 处理存储路由的切换操作
   handleStoreRoute(item: IRouteConfigItem) {
     const index = this.storeRoutes.findIndex(set => item.id === set.id);
     if (index > -1) {
       this.storeRoutes.splice(index, 1);
     } else this.storeRoutes.push({ ...item });
-    this.setStoreRoutes();
   }
+
+  // 判断某个路由是否已存储
   isStoredRoute(id: string) {
     return this.storeRoutes.some(item => item.id === id);
   }
-  contentHeader() {
-    return (
-      <div class='content-header'>
-        {this.$t('最近访问')}
-        <ul class='latest-list'>
-          {this.localStoreRoutes
-            .filter(Boolean)
-            .slice(-6)
-            .map(item => (
-              <li
-                key={item.id}
-                class='latest-item'
-              >
-                {this.$t(`route-${item.name}`)}
-              </li>
-            ))}
-        </ul>
-      </div>
-    );
-  }
+
+  // 渲染所有可用路由部分
   contentRoutes() {
     return (
       <div class='content-routes'>
@@ -186,9 +169,8 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
                 >
                   {this.$t(child.name.startsWith('route-') ? child.name : `route-${child.name}`)}
                   <i
-                    class={`icon-monitor route-check ${
-                      this.isStoredRoute(child.id) ? 'icon-mc-check-fill' : 'icon-check'
-                    }`}
+                    class={`icon-monitor route-check ${this.isStoredRoute(child.id) ? 'icon-mc-check-fill' : 'icon-check'
+                      }`}
                   />
                 </li>
               ))}
@@ -198,55 +180,64 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
       </div>
     );
   }
+
+  // 渲染常用导航的路由部分
   leftRoutes() {
     return (
-      <div class='left-route'>
-        <div class='left-route-title'>
-          {this.$t('常用导航')}
+      <div class='right-route'>
+        <div class='right-route-title'>
+          {this.$t('结果预览')}
           <span class='route-count'>{this.storeRoutes.length}</span>
         </div>
         <ul class='route-list'>
           {this.storeRoutes.map((item, index) => (
             <li
               key={item.id}
-              class={`route-list-item ${this.dragoverId === item.id ? 'is-dragover' : ''}`}
+              class='route-list-item'
               draggable={true}
               onDragleave={this.handleDragleave}
               onDragover={e => this.handleDragover(item, e)}
               onDragstart={() => this.handleDragstart(item)}
               onDrop={this.handleDrop}
             >
-              <i class={`${item.icon} item-icon`} />
               <span class='icon-monitor icon-mc-tuozhuai item-drag' />
-              {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
-              <span
-                class='icon-monitor icon-mc-close item-close'
-                onClick={() => this.handleDeleteStoreRoute(index)}
-              />
+              <div class={`route-list-item-main ${this.dragoverId === item.id ? 'is-dragover' : ''}`}>
+                <i class={`${item.icon} item-icon`} />
+                {this.$t(item.name.startsWith('route-') ? item.name : `route-${item.name}`)}
+                <span
+                  class='icon-monitor icon-mc-close item-close'
+                  onClick={() => this.handleDeleteStoreRoute(index)}
+                />
+              </div>
             </li>
           ))}
         </ul>
       </div>
     );
   }
+
+  // 渲染函数，定义模态框的结构和内容
   render() {
     return (
       <MonitorDialog
-        class='header-setting-modal'
-        fullScreen={true}
+        width='1054'
+        class='quick-access-modal'
+        appendToBody={true}
         maskClose={true}
-        needFooter={false}
+        needCloseIcon={false}
+        needFooter={true}
         needHeader={false}
         value={this.show}
         zIndex={2000}
         onChange={this.handleShow}
+        onConfirm={this.handleConfirm}
       >
         <div class='route-setting'>
-          <div class='route-setting-left'>{this.leftRoutes()}</div>
-          <div class='route-setting-right'>
-            {this.contentHeader()}
+          <div class='route-setting-left'>
+            <div class='content-header'>{this.$t('快捷入口管理')}</div>
             {this.contentRoutes()}
           </div>
+          <div class='route-setting-right'>{this.leftRoutes()}</div>
         </div>
       </MonitorDialog>
     );

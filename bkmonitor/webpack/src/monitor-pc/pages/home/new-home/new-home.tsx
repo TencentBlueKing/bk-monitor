@@ -23,25 +23,33 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteConfig } from 'vue-router';
-// import * as homeAuth from '../../pages/home/authority-map';
-// const Home = () => import(/* webpackChunkName: 'Home' */ '../../pages/home/home');
-const Home = () => import(/* webpackChunkName: 'Home' */ '../../pages/home/new-home/new-home');
-export default [
-  {
-    path: '/',
-    name: 'home',
-    components: {
-      noCache: Home,
-    },
-    meta: {
-      title: '首页',
-      navId: 'home',
-      pageCls: 'home-page',
-      noNavBar: true,
-      // authority: {
-      //   page: homeAuth.VIEW_AUTH
-      // }
-    },
-  },
-] as RouteConfig[];
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import HomeSelect from './components/home-select';
+import RecentAlarmEvents from './components/recent-alarm-events';
+import RecentFavoritesTab from './components/recent-favorites-tab';
+
+import './new-home.scss';
+
+@Component({
+  name: 'NewHome',
+})
+export default class NewHome extends tsc<object> {
+  render() {
+    return (
+      <div class='monitor-new-home'>
+        <div class='new-home-bg' />
+        <div class='new-home-content'>
+          <HomeSelect />
+          <div class='new-home-tool'>
+            <RecentFavoritesTab />
+          </div>
+          <div class='new-home-alarm-list'>
+            <RecentAlarmEvents />
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
