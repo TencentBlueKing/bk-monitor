@@ -1140,14 +1140,17 @@ class TestK8sListResources(TestCase):
             '(rate(container_cpu_usage_seconds_total{'
             'bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m]))',
         )
-        orm_resource = (
-            BCSWorkload.objects.filter(**validated_request_data["filter_dict"])
-            .filter(name__icontains=validated_request_data["query_string"])
-            .only(*K8sWorkloadMeta.only_fields)
-        )
+        # orm_resource = (
+        #     BCSWorkload.objects.filter(**validated_request_data["filter_dict"])
+        #     .filter(name__icontains=validated_request_data["query_string"])
+        #     .only(*K8sWorkloadMeta.only_fields)
+        # )
         # 验证get_from_meta
         workload_list = ListK8SResources()(validated_request_data)
-        expect_workload_list = [obj.to_meta_dict() for obj in orm_resource]
+        expect_workload_list = [
+            {'workload': 'Deployment:bk-monitor-web'},
+            {'workload': 'Deployment:bk-monitor-web-worker'},
+        ]
         self.assertEqual(
             workload_list,
             {"items": expect_workload_list, "count": len(expect_workload_list)},
@@ -1384,9 +1387,7 @@ class TestK8sListResources(TestCase):
         )
         # 验证 get_from_meta
         contianer_list = ListK8SResources()(validated_request_data)
-        expect_container_list = [
-            {'container': 'bk-monitor-web', 'namespace': 'blueking', 'pod': '', 'workload': 'Deployment:bk-monitor-web'}
-        ]
+        expect_container_list = [{'container': 'bk-monitor-web'}]
         self.assertEqual(
             contianer_list,
             {"count": len(expect_container_list), "items": expect_container_list},

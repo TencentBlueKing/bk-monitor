@@ -482,7 +482,7 @@ class ListCollectorsResource(LogSearchAPIGWResource):
     method = "GET"
 
 
-class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):
+class GetUserFavoriteIndexSetResource(LogSearchAPIByApiGwResource):
     """
     获取用户收藏的索引集
     """
@@ -491,12 +491,12 @@ class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        space_uid = serializers.CharField(required=True, label="空间ID")
+        space_uid = serializers.CharField(required=False, label="空间ID")
         username = serializers.CharField(required=True, label="用户名")
         limit = serializers.IntegerField(required=False, label="限制条数", default=10)
 
 
-class GetUserRecentIndexSetResource(LogSearchAPIGWResource):
+class GetUserRecentIndexSetResource(LogSearchAPIByApiGwResource):
     """
     获取用户最近访问的索引集
     """
@@ -505,6 +505,6 @@ class GetUserRecentIndexSetResource(LogSearchAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        space_uid = serializers.CharField(required=True, label="空间ID")
+        space_uid = serializers.CharField(required=False, label="空间ID")
         username = serializers.CharField(required=True, label="用户名")
         limit = serializers.IntegerField(required=False, label="限制条数", default=10)

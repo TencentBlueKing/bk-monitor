@@ -1495,3 +1495,6 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
 
     DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
+
+# 告警图表渲染模式
+ALARM_GRAPH_RENDER_MODE = os.getenv("BKAPP_ALARM_GRAPH_RENDER_MODE", "image_exporter")

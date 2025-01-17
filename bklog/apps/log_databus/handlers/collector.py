@@ -83,6 +83,9 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     TopoType,
     WorkLoadType,
+    CC_HOST_FIELDS,
+    CC_SCOPE_FIELDS,
+    CmdbFieldType,
 )
 from apps.log_databus.exceptions import (
     AllNamespaceNotAllowedException,
@@ -849,6 +852,16 @@ class CollectorHandler(object):
         is_display = params.get("is_display", True)
         params["params"]["encoding"] = data_encoding
         params["params"]["run_task"] = params.get("run_task", True)
+
+        # cmdb元数据补充
+        extra_labels = params["params"].get("extra_labels")
+        if extra_labels:
+            for item in extra_labels:
+                if item["value"] == CmdbFieldType.HOST.value and item["key"] in CC_HOST_FIELDS:
+                    item["value"] = "{{cmdb_instance." + item["value"] + "." + item["key"] + "}}"
+                if item["value"] == CmdbFieldType.SCOPE.value and item["key"] in CC_SCOPE_FIELDS:
+                    item["value"] = "{{cmdb_instance." + item["value"] + "[0]." + item["key"] + "}}"
+
         # 1. 创建CollectorConfig记录
         model_fields = {
             "collector_config_name": collector_config_name,
@@ -2381,6 +2394,8 @@ class CollectorHandler(object):
         collector.log_group_id = resp["log_group_id"]
         collector.save(update_fields=["log_group_id"])
 
+        return resp
+
     def custom_create(
         self,
         bk_biz_id=None,
@@ -2502,15 +2517,19 @@ class CollectorHandler(object):
 
         custom_config.after_hook(self.data)
 
-        # create custom Log Group
-        if custom_type == CustomTypeEnum.OTLP_LOG.value:
-            self.create_custom_log_group(self.data)
-        self.send_create_notify(self.data)
-        return {
+        ret = {
             "collector_config_id": self.data.collector_config_id,
             "index_set_id": self.data.index_set_id,
             "bk_data_id": self.data.bk_data_id,
         }
+
+        # create custom Log Group
+        if custom_type == CustomTypeEnum.OTLP_LOG.value:
+            log_group_info = self.create_custom_log_group(self.data)
+            ret.update({"bk_data_token": log_group_info.get("bk_data_token")})
+        self.send_create_notify(self.data)
+
+        return ret
 
     def custom_update(
         self,
@@ -4837,6 +4856,30 @@ class CollectorHandler(object):
         )
 
         NOTIFY_EVENT(content=content, dimensions={"space_uid": space_uid, "msg_type": "create_collector_config"})
+
+    @staticmethod
+    def search_object_attribute():
+        return_data = defaultdict(list)
+        response = CCApi.search_object_attribute({"bk_obj_id": "host"})
+        for data in response:
+            if data["bk_obj_id"] == "host" and data["bk_property_id"] in CC_HOST_FIELDS:
+                host_data = {
+                    "field": data["bk_property_id"],
+                    "name": data["bk_property_name"],
+                    "group_name": data["bk_property_group_name"]
+                }
+                return_data["host"].append(host_data)
+        return_data["host"].extend([
+            {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
+            {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
+            {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"}
+        ])
+        scope_data = [
+            {"field": "bk_obj_id", "name": "模型ID", "group_name": "基础信息"},
+            {"field": "bk_inst_id", "name": "集群ID", "group_name": "基础信息"}
+        ]
+        return_data["scope"] = scope_data
+        return return_data
 
 
 def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:

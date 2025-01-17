@@ -18,7 +18,7 @@ import threading
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import arrow
 import pytz
@@ -51,6 +51,7 @@ from alarm_backends.service.access.data.records import DataRecord
 from alarm_backends.service.access.priority import PriorityChecker
 from bkmonitor.utils.common_utils import count_md5, get_local_ip
 from bkmonitor.utils.consul import BKConsul
+from bkmonitor.utils.local import local
 from bkmonitor.utils.thread_backend import InheritParentThread
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import MULTI_METRIC_DATA_SOURCES
@@ -181,7 +182,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
                 "count": len(record_list),
             }
 
-    def push(self, records: List = None, output_client=None):
+    def push(self, records: Optional[List] = None, output_client=None):
         """
         推送格式化后的数据到 detect 和 nodata 中(按单个策略，单个item项，写入不同的队列)
         """
@@ -195,8 +196,8 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         PriorityChecker.check_records(records)
 
         # 按item_id分组
-        pending_to_push = {}
-        item_id_to_item = {}
+        pending_to_push: Dict[int, List[DataRecord]] = {}
+        item_id_to_item: Dict[int, Item] = {}
         for record in records:
             for item in record.items:
                 item_id = item.id
@@ -210,7 +211,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         for item_id, record_list in list(pending_to_push.items()):
             item = item_id_to_item[item_id]
             if record_list:
-                strategy_ids.add(item.strategy.strategy_id)
+                strategy_ids.add(item.strategy.id)
 
                 # 推送到检测队列
                 self._push(item, record_list, output_client)
@@ -219,8 +220,15 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
                 try:
                     self._push_noise_data(item, record_list)
                 except BaseException as e:
-                    logger.exception("push noise data of strategy(%s) error, %s", item.strategy.strategy_id, str(e))
+                    logger.exception("push noise data of strategy(%s) error, %s", item.strategy.id, str(e))
 
+            logger.info(
+                "strategy_group_key(%s) strategy(%s) item(%s) push records(%s)",
+                item.strategy.strategy_group_key,
+                item.strategy.id,
+                item.id,
+                0,
+            )
             # 推送无数据处理
             if item.no_data_config["is_enabled"]:
                 self._push(item, records, output_client, key.NO_DATA_LIST_KEY)
@@ -307,7 +315,15 @@ class AccessDataProcess(BaseAccessDataProcess):
             return
 
         # 数据查询
-        points = self.query_data(now_timestamp)
+        local.strategy_id = ",".join([str(item.strategy.id) for item in self.items])
+        try:
+            points = self.query_data(now_timestamp)
+            if getattr(local, "strategy_id", None):
+                delattr(local, "strategy_id")
+        except Exception as e:
+            if getattr(local, "strategy_id", None):
+                delattr(local, "strategy_id")
+            raise e
 
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)

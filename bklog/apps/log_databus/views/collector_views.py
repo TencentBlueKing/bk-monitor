@@ -38,6 +38,7 @@ from apps.iam.handlers.drf import (
 )
 from apps.log_databus.constants import Environment, EtlConfig
 from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.collector_batch_operation import CollectorBatchHandler
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.link import DataLinkHandler
 from apps.log_databus.models import CollectorConfig
@@ -45,6 +46,7 @@ from apps.log_databus.serializers import (
     BatchSubscriptionStatusSerializer,
     BCSCollectorSerializer,
     CleanStashSerializer,
+    CollectorBatchOperationSerializer,
     CollectorCreateSerializer,
     CollectorDataLinkListSerializer,
     CollectorEtlSerializer,
@@ -106,7 +108,7 @@ class CollectorViewSet(ModelViewSet):
             if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 return []
 
-        if self.action in ["list_scenarios", "batch_subscription_status"]:
+        if self.action in ["list_scenarios", "batch_subscription_status", "search_object_attribute"]:
             return []
         if self.action in ["create", "only_create", "custom_create"]:
             return [BusinessActionPermission([ActionEnum.CREATE_COLLECTION])]
@@ -2440,3 +2442,14 @@ class CollectorViewSet(ModelViewSet):
     @list_route(methods=["GET"], url_path="report_host")
     def report_host(self, request):
         return Response(CollectorHandler().get_report_host())
+
+    @list_route(methods=["POST"], url_path="bulk_operation")
+    def collector_batch_operation(self, request):
+        params = self.params_valid(CollectorBatchOperationSerializer)
+        collector_config_ids = params["collector_config_ids"]
+        operation_type = params["operation_type"]
+        return Response(CollectorBatchHandler(collector_config_ids, operation_type).batch_operation(params))
+    
+    @list_route(methods=["GET"], url_path="search_object_attribute")
+    def search_object_attribute(self, request):
+        return Response(CollectorHandler.search_object_attribute())

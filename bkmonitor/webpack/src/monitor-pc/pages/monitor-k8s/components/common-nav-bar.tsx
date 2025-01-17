@@ -108,7 +108,7 @@ export default class CommonNavBar extends tsc<ICommonNavBarProps> {
             onClick={() => this.handleBackGotoPage()}
           />
         )}
-        {!!this.$slots.custom ? (
+        {this.$slots.custom ? (
           <div class='navigation-bar-list'>{this.$slots.custom}</div>
         ) : (
           <ul class='navigation-bar-list'>

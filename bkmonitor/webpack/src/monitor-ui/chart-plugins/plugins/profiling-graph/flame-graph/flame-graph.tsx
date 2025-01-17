@@ -64,6 +64,7 @@ interface IFlameGraphProps {
   bizId?: number;
   showGraphTools?: boolean;
   highlightId?: number;
+  highlightName?: string;
   isCompared?: boolean;
   unit: ProfileDataUnit;
 }
@@ -73,6 +74,7 @@ interface IFlameGraphEvent {
   onShowSpanDetail: () => void;
   onDiffTraceSuccess: () => void;
   onUpdateHighlightId: number;
+  onUpdateHighlightName: string;
 }
 
 const usFormat = getValueFormat('µs');
@@ -96,6 +98,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   @Prop({ default: 0, type: Number }) bizId: number;
   @Prop({ default: true, type: Boolean }) showGraphTools: boolean;
   @Prop({ default: -1, type: Number }) highlightId: number;
+  @Prop({ default: '', type: String }) highlightName: string;
   @Prop({ default: false, type: Boolean }) isCompared: boolean;
   @Prop({ default: 'nanoseconds', type: String }) unit: ProfileDataUnit;
 
@@ -279,6 +282,10 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
   handleHighlightIdChange() {
     this.graphInstance?.highlightNodeId(this.highlightId);
   }
+  @Watch('highlightName')
+  handleHighlightNameChange() {
+    this.graphInstance?.highlightNode(this.highlightName);
+  }
 
   beforeDestroy() {
     this.wrapperRef && removeListener(this.wrapperRef!, this.handleResize);
@@ -344,6 +351,7 @@ export default class ProfilingFlameGraph extends tsc<IFlameGraphProps, IFlameGra
     }
     if (item.id === 'highlight') {
       this.graphInstance.highlightNode(this.contextMenuRect.spanName);
+      this.$emit('updateHighlightName', this.contextMenuRect.spanName);
     }
   }
   /**

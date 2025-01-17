@@ -82,7 +82,7 @@ rules:
 space_type = 'bkcc'
 space_id = '2'
 record_name = 'unify_query_tsdb_test_new_prom_node'
-table_id = 'bkmonitor_bkcc_2_unify_query_tsdb_test_new_prom_node.__default__'
+table_id = 'bkprecal_bkcc_2_unify_query_tsdb_test_new_prom_node.__default__'
 
 
 @pytest.fixture
@@ -97,8 +97,10 @@ def create_or_delete_records(mocker):
         is_default_cluster=True,
         version="5.x",
     )
+    space = models.Space.objects.create(space_type_id=space_type, space_id=space_id, space_name="test_biz")
     yield
     models.ClusterInfo.objects.all().delete()
+    space.delete()
 
 
 @pytest.fixture

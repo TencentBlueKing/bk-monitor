@@ -106,6 +106,9 @@ export default class MonitorK8s extends tsc<object> {
   handleAddCluster() {
     skipToDocsLink('addClusterMd');
   }
+  handleGotoNew() {
+    this.$router.push({ name: 'k8s-new', query: {} });
+  }
   render() {
     if (this.showGuidePage) return <GuidePage guideData={introduce.data.k8s.introduce} />;
     return (
@@ -129,6 +132,13 @@ export default class MonitorK8s extends tsc<object> {
             routeList={this.routeList}
             needCopyLink
           />
+          <bk-button
+            slot='prependTools'
+            onClick={this.handleGotoNew}
+          >
+            <i class='icon-monitor icon-mc-change-version change-version' />
+            {this.$t('切换新版')}
+          </bk-button>
           {!this.readonly && (
             <bk-button
               style='margin-left: 8px;'
