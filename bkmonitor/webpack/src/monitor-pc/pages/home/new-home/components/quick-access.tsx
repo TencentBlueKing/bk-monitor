@@ -29,9 +29,8 @@ import { Emit, Mixins, Prop } from 'vue-property-decorator';
 import { deepClone } from 'monitor-common/utils';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
-import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
+import { COMMON_ROUTE_LIST, COMMON_ROUTE_STORE_KEY, DEFAULT_ROUTE_LIST } from '../../../../router/router-config';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
-import { QUICK_ACCESS_STORE_KEY } from '../utils';
 import AiWhaleInput from './ai-whale-input';
 import HeaderSettingModal from './header-setting-modal';
 
@@ -58,17 +57,29 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
   async initQuickAccessData() {
     try {
       this.loadingQuickList = true;
-      const data = await this.handleGetUserConfig<string[]>(QUICK_ACCESS_STORE_KEY, { reject403: true });
+      const data = (await this.handleGetUserConfig<string[]>(COMMON_ROUTE_STORE_KEY, { reject403: true })) || [];
       const routes = [];
       for (const item of COMMON_ROUTE_LIST) {
         const list = item.children?.filter(set => data.includes(set.id));
         list?.length && routes.push(...list);
       }
-      this.quickAccessList = data.map(id => routes.find(item => item.id === id)).filter(Boolean);
+      this.quickAccessList = data.length
+        ? data.map(id => routes.find(item => item.id === id)).filter(Boolean)
+        : this.getDefaultQuickAccessList();
     } catch {
     } finally {
       this.loadingQuickList = false;
     }
+  }
+
+  // 获取默认快捷入口配置
+  getDefaultQuickAccessList() {
+    const routes = [];
+    for (const item of COMMON_ROUTE_LIST) {
+      const list = item.children?.filter(set => DEFAULT_ROUTE_LIST.includes(set.id));
+      list?.length && routes.push(...list);
+    }
+    return DEFAULT_ROUTE_LIST.map(id => routes.find(item => item.id === id)).filter(Boolean);
   }
 
   // 缓存快捷入口
@@ -76,7 +87,7 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
     this.loadingQuickList = true;
     this.showModal = false;
     this.quickAccessList = deepClone(v);
-    await this.handleSetUserConfig(QUICK_ACCESS_STORE_KEY, JSON.stringify(this.quickAccessList.map(item => item.id)));
+    await this.handleSetUserConfig(COMMON_ROUTE_STORE_KEY, JSON.stringify(this.quickAccessList.map(item => item.id)));
     this.$nextTick(() => {
       this.loadingQuickList = false;
     });
