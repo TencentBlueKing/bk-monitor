@@ -346,9 +346,10 @@ export default defineComponent({
       if (getSegmentRenderType() === 'text') {
         let max = Number.MAX_SAFE_INTEGER;
         if (!showAll.value) {
-          max = 4;
-          pageIndex = 0;
-          refSegmentContent.value.innerHTML = '';
+          // max = 4;
+          // pageIndex = 0;
+          // textSegmentIndex = 0;
+          // refSegmentContent.value.innerHTML = '';
         }
         setTextSegmentChildNodes(max);
       }
