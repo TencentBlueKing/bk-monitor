@@ -67,16 +67,23 @@ class MetricJsonBaseSerializer(serializers.Serializer):
     def validate_metric_json(self, value):
         if not value:
             return value
-            # raise serializers.ValidationError(_("指标维度不能为空"))
+
         metric_name_list = []
         table_name_list = []
+
+        new_value = []
         for value_detail in value:
             # 允许默认分组为空
             if not value_detail.get("fields", "") and value_detail.get("table_name", "") == "group_default":
                 table_name_list.append(value_detail["table_name"])
+                new_value.append(value_detail)
                 continue
-            if not value_detail.get("fields", ""):
-                raise serializers.ValidationError(_("指标维度不能为空"))
+
+            # 如果分组为空，则跳过
+            if not value_detail.get("fields"):
+                continue
+
+            new_value.append(value_detail)
 
             dimension_name_list = []
             for field_detail in value_detail["fields"]:
@@ -118,7 +125,7 @@ class MetricJsonBaseSerializer(serializers.Serializer):
         if len(table_name_list) != len(set(table_name_list)):
             raise serializers.ValidationError(_("指标维度中表名不允许重名"))
 
-        return value
+        return new_value
 
 
 class StringSplitListField(serializers.ListField):

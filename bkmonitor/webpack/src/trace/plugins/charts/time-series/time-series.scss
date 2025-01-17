@@ -1,28 +1,30 @@
 @import '../../../theme/mixin.scss';
 
 .time-series {
+  position: relative;
   display: flex;
-  width: 100%;
-  height: 100%;
   flex: 1;
   flex-direction: column;
-  background-color: white;
-  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+  
+  @include chart-plugin-is-error;
   
   &-header {
-    flex: 0 0 46px;
     display: flex;
+    flex: 0 0 46px;
     align-items: center;
     width: 100%;
     height: 46px;
   }
 
   &-content {
-    flex: 1;
     display: flex;
+    flex: 1;
+    flex-direction: column;
     width: 100%;
     height: calc(100% - 46px);
-    flex-direction: column;
     padding-bottom: 6px;
 
     &.right-legend {
@@ -30,8 +32,8 @@
     }
 
     .chart-instance {
-      flex: 1;
       display: flex;
+      flex: 1;
       flex-grow: 2;
 
       &.is-table-legend {
@@ -41,17 +43,17 @@
     }
 
     .chart-legend {
+      position: relative;
       max-width: 100%;
+      height: auto;
+      min-height: 16px;
       max-height: 40%;
       overflow: auto;
-      height: auto;
-      position: relative;
-      min-height: 16px;
 
       &.right-legend {
-        max-width: 320px;
         width: 320px;
         min-width: 320px;
+        max-width: 320px;
         max-height: 100%;
       }
     }
@@ -59,13 +61,11 @@
 
   .empty-chart {
     display: flex;
+    flex: 1;
     align-items: center;
     justify-content: center;
     height: 100%;
-    flex: 1;
   }
-  
-  @include chart-plugin-is-error;
 }
 
 @include chart-error-tooltip;

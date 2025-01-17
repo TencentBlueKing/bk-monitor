@@ -16,6 +16,7 @@ import re
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from bk_dataview.api import get_or_create_org
 from bkmonitor.action.serializers import DutyRuleDetailSlz, UserGroupDetailSlz
 from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy
@@ -25,7 +26,6 @@ from core.errors.export_import import ImportConfigError
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.export_import.constant import ConfigType, ImportDetailStatus
-from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.models import (
     CollectConfigMeta,
     CollectorPluginMeta,
@@ -359,7 +359,7 @@ def import_view(bk_biz_id, view_config_list, is_overwrite_mode=False):
     # 已存在的视图名，防止重名
     existed_dashboards = resource.grafana.get_dashboard_list(bk_biz_id=bk_biz_id)
     existed_names = {dashboard["name"] for dashboard in existed_dashboards}
-    org_id = GrafanaAuthSync.get_or_create_org_id(bk_biz_id)
+    org_id = get_or_create_org(bk_biz_id)["id"]
 
     data_sources = {
         data_source["type"]: {
