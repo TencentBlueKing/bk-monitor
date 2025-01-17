@@ -66,6 +66,10 @@
     emit('update:active-tab', active);
   };
 
+  const __IS_MONITOR_TRACE__ = computed(() => {
+    return !!window.__IS_MONITOR_TRACE__;
+  });
+
   const rightContentStyle = computed(() => {
     if (isOriginShow.value) {
       return {
@@ -78,10 +82,13 @@
       padding: '8px 16px',
     };
   });
+
+ 
+
 </script>
 
 <template>
-  <div class="search-result-panel flex">
+  <div :class="['search-result-panel', {'flex': !__IS_MONITOR_TRACE__}]">
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
@@ -107,7 +114,7 @@
       </div>
       <div
         :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
-        :style="rightContentStyle"
+        :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
       >
         <SearchResultChart
           v-show="isOriginShow"

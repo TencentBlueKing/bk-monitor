@@ -297,14 +297,21 @@ useResizeObserve(
 );
 
 const isStickyTop = computed(() => {
+  if(window.__IS_MONITOR_TRACE__) {
+    return false;
+  }
   return paddingTop.value === subBarHeight.value;
 });
+
+const isScrollY = computed(() => {
+  return !window.__IS_MONITOR_TRACE__
+})
 
 /*** 结束计算 ***/
 
 </script>
 <template>
-  <div :class="['retrieve-v2-index', { 'scroll-y': true, 'is-sticky-top': isStickyTop }]">
+  <div :class="['retrieve-v2-index', { 'scroll-y': isScrollY, 'is-sticky-top': isStickyTop }]">
     <div class="sub-head">
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"
