@@ -422,10 +422,18 @@ class ResourceTrendResource(Resource):
             # workload 单独处理
             promql_list = []
             for wl in resource_list:
-                filter_obj = load_resource_filter(resource_type, [wl])
-                resource_meta.filter.add(filter_obj)
+                # workload 资源，需要带上namespace 信息: blueking|Deployment:bk-monitor-web
+                try:
+                    ns, wl = wl.split("|")
+                except ValueError:
+                    # 不符合预期的数据， ns置空
+                    ns = ""
+                tmp_filter_chain = []
+                tmp_filter_chain.append(load_resource_filter(resource_type, [wl]))
+                tmp_filter_chain.append(load_resource_filter("namespace", [ns]))
+                [resource_meta.filter.add(filter_obj) for filter_obj in tmp_filter_chain]
                 promql_list.append(getattr(resource_meta, f"meta_prom_with_{column}"))
-                resource_meta.filter.remove(filter_obj)
+                [resource_meta.filter.remove(filter_obj) for filter_obj in tmp_filter_chain]
                 workload_name = wl.split(":")[-1]
                 # 初始化series_map
                 series_map[workload_name] = {"datapoints": [], "unit": unit}
@@ -467,6 +475,9 @@ class ResourceTrendResource(Resource):
 
         for line in series:
             resource_name = resource_meta.get_resource_name(line)
+            if resource_type == "workload":
+                # workload 补充namespace
+                resource_name = f"{line['dimensions']['namespace']}|{resource_name}"
             if line["datapoints"][-1][1] == max_data_point:
                 datapoints = line["datapoints"][-1:]
             else:

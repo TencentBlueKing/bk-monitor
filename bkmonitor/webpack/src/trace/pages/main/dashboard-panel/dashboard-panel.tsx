@@ -23,24 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, getCurrentInstance, inject, type PropType, type Ref, ref } from 'vue';
+import { computed, defineComponent, inject, type PropType, ref } from 'vue';
 import { watch } from 'vue';
 import { shallowRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import dayjs from 'dayjs';
 import { random } from 'monitor-common/utils';
 
 import CommonDetail from '../../../components/common-detail/common-detail';
-import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import FlexDashboardPanel from '../../../plugins/components/flex-dashboard-panel';
 import { useTimeOffsetProvider, useViewOptionsProvider } from '../../../plugins/hooks';
-import { VariablesService } from '../../../utils/index';
 import CompareSelect, { CompareId } from './compare-select';
 // import FilterVarGroup from './filter-var-group';
 import FilterVarSelectSimple from './filter-var-select-simple';
 import FilterVarTagInput from './filter-var-tag-input';
-import GroupsSelector from './groups-selector';
 import LayoutSelect from './layout-select';
 import { CP_METHOD_LIST, DEFAULT_METHOD, METHOD_LIST, PANEL_INTERVAL_LIST } from './utils';
 
@@ -59,23 +55,24 @@ export default defineComponent({
     isSingleChart: { default: false, type: Boolean },
     sceneData: { type: Object as PropType<BookMarkModel>, required: true },
     groupTitle: { type: String, default: 'Groups' },
+    podName: { type: String, default: '' },
   },
 
   setup(props) {
     const { t } = useI18n();
-    const currentInstance = getCurrentInstance();
-    const startTime = inject<Ref>('startTime') || ref('');
-    const endTime = inject<Ref>('endTime') || ref('');
-    const startTimeMinusOneHour = dayjs
-      .tz(startTime.value || undefined)
-      .subtract(1, 'hour')
-      .format('YYYY-MM-DD HH:mm:ss');
-    const endTimeMinusOneHour = dayjs
-      .tz(endTime.value || undefined)
-      .add(1, 'hour')
-      .format('YYYY-MM-DD HH:mm:ss');
+    // const currentInstance = getCurrentInstance();
+    // const startTime = inject<Ref>('startTime') || ref('');
+    // const endTime = inject<Ref>('endTime') || ref('');
+    // const startTimeMinusOneHour = dayjs
+    //   .tz(startTime.value || undefined)
+    //   .subtract(1, 'hour')
+    //   .format('YYYY-MM-DD HH:mm:ss');
+    // const endTimeMinusOneHour = dayjs
+    //   .tz(endTime.value || undefined)
+    //   .add(1, 'hour')
+    //   .format('YYYY-MM-DD HH:mm:ss');
     // 时间范围
-    const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
+    // const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
     // 对比类型
     const compareType = ref(CompareId.none);
     // 当前目标
@@ -92,6 +89,11 @@ export default defineComponent({
     const targetList = shallowRef([]);
     // group_by 可选项
     const groups = shallowRef([]);
+    const spanId = inject('spanId', '');
+    const method = ref(DEFAULT_METHOD);
+    const interval = ref('auto');
+    const variables = ref({});
+
     const viewOptions = shallowRef<IViewOptions>({
       interval: 'auto',
       method: DEFAULT_METHOD,
@@ -100,6 +102,7 @@ export default defineComponent({
       current_target: null,
       filters: {},
       variables: {},
+      span_id: spanId.value,
     });
     // 当前选择的图表分列
     const panelsColumn = ref(1);
@@ -114,9 +117,9 @@ export default defineComponent({
     const variablesPanel = computed(() => {
       return props.sceneData?.variables;
     });
-    const groupPanel = computed(() => {
-      return props.sceneData?.groupPanel;
-    });
+    // const groupPanel = computed(() => {
+    //   return props.sceneData?.groupPanel;
+    // });
     const compareListEnable = computed(() => {
       if (props.sceneId === 'host') {
         return [CompareId.none, CompareId.time, CompareId.target];
@@ -131,7 +134,8 @@ export default defineComponent({
       () => props.sceneData,
       sceneData => {
         if (sceneData) {
-          handleGetGroupsData();
+          viewOptionsUpdate();
+          // handleGetGroupsData();
         }
       },
       { immediate: true }
@@ -141,34 +145,47 @@ export default defineComponent({
      * @description 获取group by 选项数据
      * @returns
      */
-    async function handleGetGroupsData() {
-      groupsLoading.value = true;
-      const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
-      const variablesService = new VariablesService({
-        start_time: startTime,
-        end_time: endTime,
-      });
-      const target = groupPanel.value?.targets?.[0];
-      if (!target) {
-        groupsLoading.value = false;
-        return;
-      }
-      currentInstance?.appContext.config.globalProperties?.$api[target.apiModule]
-        [target.apiFunc]({
-          ...variablesService.transformVariables(target.data),
-          start_time: startTime,
-          end_time: endTime,
-        })
-        .then(data => {
-          groups.value = data;
-        })
-        .catch(err => {
-          console.error(err);
-          return [];
-        })
-        .finally(() => {
-          groupsLoading.value = false;
-        });
+    // async function handleGetGroupsData() {
+    //   groupsLoading.value = true;
+    //   const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
+    //   const variablesService = new VariablesService({
+    //     start_time: startTime,
+    //     end_time: endTime,
+    //   });
+    //   const target = groupPanel.value?.targets?.[0];
+    //   if (!target) {
+    //     groupsLoading.value = false;
+    //     return;
+    //   }
+    //   currentInstance?.appContext.config.globalProperties?.$api[target.apiModule]
+    //     [target.apiFunc]({
+    //       ...variablesService.transformVariables(target.data),
+    //       start_time: startTime,
+    //       end_time: endTime,
+    //     })
+    //     .then(data => {
+    //       groups.value = data;
+    //     })
+    //     .catch(err => {
+    //       console.error(err);
+    //       return [];
+    //     })
+    //     .finally(() => {
+    //       groupsLoading.value = false;
+    //     });
+    // }
+
+    function viewOptionsUpdate() {
+      viewOptions.value = {
+        ...variables.value,
+        interval: interval.value,
+        method: method.value,
+        span_id: spanId.value,
+        filters: {},
+        variables: variables.value,
+        compare_targets: compareTargets.value,
+        current_target: currentTarget.value || undefined,
+      };
     }
 
     /**
@@ -176,20 +193,16 @@ export default defineComponent({
      * @param val
      */
     function handleIntervalChange(val) {
-      viewOptions.value = {
-        ...viewOptions.value,
-        interval: val,
-      };
+      interval.value = val;
+      viewOptionsUpdate();
     }
     /**
      * @description 汇聚方法
      * @param val
      */
     function handleMethodChange(val) {
-      viewOptions.value = {
-        ...viewOptions.value,
-        method: val,
-      };
+      method.value = val;
+      viewOptionsUpdate();
     }
     /**
      * @description 图表分列
@@ -202,17 +215,18 @@ export default defineComponent({
      * @description group_by数据
      * @param val
      */
-    function handleGroupChange(val) {
-      viewOptions.value = {
-        ...viewOptions.value,
-        group_by: val,
-      };
-    }
+    // function handleGroupChange(val) {
+    //   viewOptions.value = {
+    //     ...viewOptions.value,
+    //     group_by: val,
+    //   };
+    // }
     /**
      * @description filters （当前为主机列表与容器列表选择）
      * @param val
      */
     function handleFiltersChange(val) {
+      variables.value = val;
       filtersVal.value = {
         ...filtersVal.value,
         ...val,
@@ -224,11 +238,7 @@ export default defineComponent({
         }
       }
       currentTarget.value = Object.keys(currentTargetTemp).length ? currentTargetTemp : null;
-      viewOptions.value = {
-        ...viewOptions.value,
-        variables: val,
-        current_target: currentTarget.value || undefined,
-      };
+      viewOptionsUpdate();
     }
     /**
      * @description 对比类型
@@ -238,17 +248,13 @@ export default defineComponent({
       compareType.value = val;
       compareTargets.value = [];
       timeOffset.value = [];
-      viewOptions.value = {
-        ...viewOptions.value,
-        compare_targets: [],
-      };
+      viewOptionsUpdate();
     }
     /**
      * @description 时间对比
      * @param val
      */
     function handleCompareTimeChange(val) {
-      console.log(val);
       timeOffset.value = val;
     }
     /**
@@ -267,10 +273,7 @@ export default defineComponent({
         compareTargetsTemp.push(targetTemp);
       }
       compareTargets.value = compareTargetsTemp;
-      viewOptions.value = {
-        ...viewOptions.value,
-        compare_targets: compareTargets.value,
-      };
+      viewOptionsUpdate();
     }
     /**
      * @description 目标列表数据（当前为主机列表与容器列表中接口获取）
@@ -297,11 +300,13 @@ export default defineComponent({
       compareListEnable,
       curTargetTitle,
       groupsLoading,
+      interval,
+      method,
       t,
       handleIntervalChange,
       handleMethodChange,
       handleChangeLayout,
-      handleGroupChange,
+      // handleGroupChange,
       handleFiltersChange,
       handleCompareTypeChange,
       handleCompareTimeChange,
@@ -319,6 +324,7 @@ export default defineComponent({
             {!!this.variablesPanel.length && (
               <FilterVarTagInput
                 panel={this.variablesPanel[0]}
+                podName={this.podName}
                 onChange={this.handleFiltersChange}
                 onCurTargetTitleChange={this.handleCurTargetTitleChange}
                 onTargetListChange={this.handleTargetListChange}
@@ -330,7 +336,7 @@ export default defineComponent({
               onCurTargetTitleChange={this.handleCurTargetTitleChange}
               onTargetListChange={this.handleTargetListChange}
             /> */}
-            {this.sceneId === 'container' && (
+            {/* {this.sceneId === 'container' && (
               <GroupsSelector
                 list={this.groups}
                 loading={this.groupsLoading}
@@ -338,21 +344,21 @@ export default defineComponent({
                 value={this.viewOptions.group_by}
                 onChange={this.handleGroupChange}
               />
-            )}
+            )} */}
           </div>
           <div class='dashboard-tools'>
             <FilterVarSelectSimple
               class='mr-24'
               label={this.t('汇聚周期') as string}
               options={PANEL_INTERVAL_LIST}
-              value={this.viewOptions.interval}
+              value={this.interval}
               onChange={this.handleIntervalChange}
             />
             <FilterVarSelectSimple
               class='mr-24'
               label={this.t('汇聚方法') as string}
               options={METHOD_LIST.concat(...CP_METHOD_LIST)}
-              value={this.viewOptions.method}
+              value={this.method}
               onChange={this.handleMethodChange}
             />
             <CompareSelect

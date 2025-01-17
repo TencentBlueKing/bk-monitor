@@ -26,6 +26,7 @@
 
 import { defineComponent, ref } from 'vue';
 import { watch } from 'vue';
+import { shallowRef } from 'vue';
 
 import { Select } from 'bkui-vue';
 
@@ -47,7 +48,7 @@ export default defineComponent({
   emits: ['change'],
   setup(props, { emit }) {
     // 可选项
-    const selectList = ref<IItem[]>([]);
+    const selectList = shallowRef<IItem[]>([]);
     // 已选项
     const selected = ref<string[]>([]);
     // 已选项tag
@@ -55,8 +56,8 @@ export default defineComponent({
 
     watch(
       () => props.list,
-      () => {
-        selectList.value = props.list;
+      val => {
+        selectList.value = val;
       },
       { immediate: true }
     );
@@ -82,9 +83,14 @@ export default defineComponent({
      * @param item
      */
     function handleDelete(item: IItem) {
-      const delIndex = selected.value.findIndex(v => v === item.id);
-      selected.value.splice(delIndex, 1);
-      handleChange(selected.value);
+      const selectedTemp = [];
+      for (const id of selected.value) {
+        if (id !== item.id) {
+          selectedTemp.push(id);
+        }
+      }
+      selected.value = selectedTemp;
+      handleChange(selectedTemp);
     }
 
     return {
