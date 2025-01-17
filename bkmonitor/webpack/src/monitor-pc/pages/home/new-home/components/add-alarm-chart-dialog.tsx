@@ -342,7 +342,9 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
                     </div>
                     <div class='strategy-status'>
                       <span class='strategy-tag'>
-                        {this.getStrategyStatus(item.is_deleted, item.shield_info?.is_shielded, item.is_enabled)}
+                        {this.$tc(
+                          this.getStrategyStatus(item.is_deleted, item.shield_info?.is_shielded, item.is_enabled)
+                        )}
                       </span>
                       {this.isSelected(item.id) && <span class='icon-monitor icon-mc-check-small' />}
                     </div>

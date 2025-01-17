@@ -96,14 +96,14 @@
         }
 
         .detail {
-          overflow: hidden;
           font-size: 12px;
           line-height: 20px;
           color: #313238;
           text-overflow: ellipsis;
-          letter-spacing: 0;
           white-space: nowrap;
-
+          overflow: hidden;
+          letter-spacing: 0;
+          width: 80%;
           .favorite {
             margin-right: 3px;
             font-size: 14px;

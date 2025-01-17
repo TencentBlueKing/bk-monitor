@@ -56,12 +56,10 @@ const BIZ_COLOR_LIST = [
 interface IProps {
   zIndex?: number;
   bizList: ISpaceItem[];
-  isShrink?: boolean;
   theme?: ThemeType;
   minWidth?: number;
   stickyList?: string[];
   isShowCommon?: boolean;
-  canAddBusiness?: boolean;
 }
 export type ThemeType = 'dark' | 'light';
 interface IEvents {
@@ -75,12 +73,10 @@ interface IEvents {
 @Component
 export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Prop({ default: () => [], type: Array }) bizList: ISpaceItem[];
-  @Prop({ default: false, type: Boolean }) isShrink: boolean;
   @Prop({ default: true, type: Boolean }) isShowCommon: boolean;
   @Prop({ default: null, type: Number }) zIndex: number;
   @Prop({ default: 200, type: Number }) minWidth: number;
   @Prop({ default: () => [], type: Array }) stickyList: string[];
-  @Prop({ default: true, type: Boolean }) canAddBusiness: boolean;
   @Prop({
     default: 'light',
     type: String,
@@ -91,7 +87,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Ref() homePopoverRef: any;
   @Ref('typeList') typeListRef: HTMLDivElement;
 
-  localValue: number = null;
   showBizList = false;
   keyword = '';
 
@@ -101,7 +96,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   commonListIds: number[] = [];
   spaceTypeIdList: { id: string; name: string; styles: any }[] = [];
   searchTypeId = '';
-  bizBgColor = '';
 
   bizListFilter = [];
 
@@ -127,7 +121,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   firstCodeBgColor = '';
 
   created() {
-    this.bizBgColor = this.$store.getters.bizBgColor || this.getRandomColor();
     const spaceTypeMap: Record<string, any> = {};
     for (const item of this.bizList) {
       spaceTypeMap[item.space_type_id] = 1;
@@ -156,7 +149,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Emit('change')
   handleBizChange(id: number) {
     this.homePopoverRef.instance.hide();
-    this.handleCacheBizId(id);
     return id;
   }
 
@@ -296,29 +288,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     }
   }
 
-  getRandomColor() {
-    const color = BIZ_COLOR_LIST[Math.floor(Math.random() * BIZ_COLOR_LIST.length)];
-    this.$store.commit('app/SET_BIZ_BGCOLOR', color);
-    return color;
-  }
-
-  handleCacheBizId(id: number) {
-    const leng = this.commonListIds.length;
-    const isExist = this.commonListIds.includes(id);
-    let newIds = [...this.commonListIds];
-    if (isExist) {
-      newIds = newIds.filter(item => item !== id);
-      newIds.unshift(id);
-    } else {
-      newIds.unshift(id);
-      if (leng >= BIZ_SELECTOR_COMMON_MAX) {
-        newIds.length = BIZ_SELECTOR_COMMON_MAX;
-      }
-    }
-    this.commonListIds = newIds;
-    this.storage.set(BIZ_SELECTOR_COMMON_IDS, this.commonListIds);
-  }
-
   handleSetListWidth() {
     this.bizListFilter = this.getBizListFilter();
     const react = this.$el.getBoundingClientRect();
@@ -333,10 +302,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
         zIndex: this.zIndex,
       });
     this.typeListWrapNextPreShowChange();
-  }
-
-  handleOpenSpaceManager() {
-    this.handleSearchBlur();
   }
 
   handleSearchBlur() {
@@ -414,6 +379,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   }
 
   render() {
+    console.log('= = = >', this.bizListFilter);
     return (
       <div class={['new-biz-select-wrap', this.theme]}>
         <bk-popover
@@ -501,7 +467,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
                 onScroll={this.handleScroll}
               >
                 <List
-                  // checked={this.localValue}
                   list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}

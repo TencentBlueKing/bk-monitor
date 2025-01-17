@@ -250,7 +250,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
                   ) : (
                     <i class={['bk-icon bk-icon', functionName]} />
                   )}
-                  <span class='recent-subtitle'>{EFunctionNameType[functionName]}</span>
+                  <span class='recent-subtitle'>{this.$tc(`route-${EFunctionNameType[functionName]}`)}</span>
                   {/* <span class='more'>更多</span> */}
                 </div>
               ) : (
