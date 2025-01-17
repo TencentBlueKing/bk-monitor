@@ -103,7 +103,8 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
   }
 
   @Watch('selectedCategories')
-  handleSelect() {
+  handleSelect(newVal, oldVal) {
+    if (newVal === oldVal) return;
     this.updateFunctionShortcut();
   }
 
@@ -210,13 +211,8 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
     return typeHandlers[type] || {};
   }
 
-  getShortcutData(param) {
-    // 假设这是获取 shortcut 数据的逻辑
-    // 你可以根据 param 从 API 或其他数据源获取数据
-    return this.getItemByName(param);
-  }
   renderList(param) {
-    const shortcut: IRecentList = this.getShortcutData(param);
+    const shortcut: IRecentList = this.getItemByName(param);
 
     return shortcut?.items.length ? (
       shortcut.items.map(item => this.listItem(this.getListItemParams(shortcut.function, item)))

@@ -130,7 +130,7 @@ export default class RecentAlarmEvents extends tsc<object> {
       <div class='list-content'>
         {list.map((item, index) => (
           <div
-            key={item.name}
+            key={item.name + index}
             class='list-item'
           >
             <HomeAlarmChart
@@ -478,6 +478,7 @@ export default class RecentAlarmEvents extends tsc<object> {
         </div>
         {/* 头部功能区 */}
         <RecentAlarmTab
+          // @ts-ignore
           activeTabId={this.activeTabId}
           showTabLoading={this.showTabLoading}
           tabs={this.businessTab}
