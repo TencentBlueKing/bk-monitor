@@ -44,7 +44,6 @@ import SearchResultPanel from '../search-result-panel/index.vue';
 import useScroll from '../../../hooks/use-scroll';
 import { GLOBAL_SCROLL_SELECTOR } from '../search-result-panel/log-result/log-row-attributes';
 import useResizeObserve from '../../../hooks/use-resize-observe';
-
 const props = defineProps({
   indexSetApi: {
     type: Function,
@@ -297,9 +296,13 @@ watch(
 );
 
 const contentStyle = computed(() => {
-  return {
-    '--left-width': `0px`,
-  };
+    return {
+      '--left-width': `0px`,
+    };
+  });
+
+onMounted(() => {
+  init();
 });
 
 /** 开始处理滚动容器滚动时，收藏夹高度 */
@@ -335,6 +338,7 @@ const isScrollY = computed(() => {
 })
 
 /*** 结束计算 ***/
+
 </script>
 <template>
   <div :class="['retrieve-v2-index', { 'scroll-y': isScrollY, 'is-sticky-top': isStickyTop }]">
