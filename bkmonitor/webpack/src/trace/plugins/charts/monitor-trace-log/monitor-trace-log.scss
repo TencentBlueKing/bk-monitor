@@ -153,6 +153,10 @@
           }
         }
 
+        .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .bklog-list-row::after {
+          display: none;
+        }
+
         .result-row {
           margin-top: 16px;
           box-shadow: none;
