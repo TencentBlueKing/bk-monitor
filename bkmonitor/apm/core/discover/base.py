@@ -397,7 +397,14 @@ class TopoHandler:
         trace_id_count = 0
         span_count = 0
         filter_span_count = 0
-        max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        try:
+            max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        except Exception as e:
+            logger.error(
+                f"[TopoHandler] 业务id: {self.bk_biz_id}和应用名: {self.app_name}"
+                f"构建的TopoHandler对象在discover方法内发生异常, error({e})"
+            )
+            return
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
