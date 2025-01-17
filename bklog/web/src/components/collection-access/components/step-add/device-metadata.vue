@@ -38,21 +38,14 @@
       </div>
     </div>
     <div v-if="switcherValue" class="filter-table-container">
-      <!-- <bk-select
-        :disabled="false"
-        v-model="value"
-        searchable
-        multiple
-        display-tag
-        style="width: 250px"
-        ext-cls="select-custom"
-        ext-popover-cls="select-popover-custom"
-      >
+      <!-- <bk-select :disabled="false" v-model="selectValue" searchable multiple display-tag>
         <bk-option-group
           v-for="(group, index) in groupList"
           :name="group.name"
           :key="index"
           :show-collapse="true"
+          class="bklog-option-group"
+          :show-count="false"
         >
           <bk-option
             v-for="option in group.children"
@@ -60,6 +53,14 @@
             :id="option.id"
             :name="option.name"
           >
+            <bk-checkbox
+              :true-value="true"
+              :false-value="false"
+              v-model="option.isSelected"
+              @click="selectOption"
+            >
+              {{ option.name }}
+            </bk-checkbox>
           </bk-option>
         </bk-option-group>
       </bk-select> -->
@@ -71,7 +72,7 @@
         :remote-method="remote"
         :display-tag="true"
         :show-empty="false"
-        :auto-height="false"
+        :auto-height="true"
         @tab-remove="handleValuesChange"
         @clear="handleClear"
       >
@@ -82,6 +83,10 @@
           ref="tree"
           :default-checked-nodes="selectValue"
           @check-change="handleCheckChange"
+          @select-change="handleSelectChange"
+          :default-expand-all="true"
+          :check-on-click="true"
+          :check-strictly="false"
         >
         </bk-big-tree>
       </bk-select>
@@ -93,38 +98,59 @@ export default {
   props: {},
   data() {
     return {
-      switcherValue: false,
-      value: "",
+      switcherValue: true,
       selectValue: [],
+      demo2: false,
       groupList: [
         {
           id: 1,
           name: "我是分组1",
+          disable: true,
           children: [
-            { id: "1-1", name: "hostname(主机名)" },
-            { id: "1-2", name: "hostid(主机ID)" },
+            { id: "1-1", name: "hostname(主机名)", isSelected: false },
+            { id: "1-2", name: "hostid(主机ID)", isSelected: false },
           ],
         },
         {
           id: 2,
           name: "我是分组2",
+          disable: false,
           children: [
-            { id: "2-1", name: "englishname(中文名)" },
-            { id: "2-2", name: "englishname(中文名)" },
-            { id: "2-3", name: "englishname(中文名)" },
-            { id: "2-4", name: "englishname(中文名)" },
+            { id: "2-1", name: "englishname(中文名)", isSelected: false },
+            { id: "2-2", name: "englishname(中文名)", isSelected: false },
+            { id: "2-3", name: "englishname(中文名)", isSelected: false },
+            { id: "2-4", name: "englishname(中文名)", isSelected: false },
           ],
         },
       ],
     };
   },
   computed: {},
-  mounted() {},
+  mounted() {
+    // this.getDeviceMetaData();
+  },
+  watch: {
+    selectValue(val) {
+      this.groupList.forEach((item) => {
+        item.children.forEach((option) => {
+          option.isSelected = val.includes(option.id);
+        });
+      });
+    },
+  },
   methods: {
     remote(keyword) {
       this.$refs.tree && this.$refs.tree.filter(keyword);
     },
     handleCheckChange(id, checked) {
+      // 过滤最外层选中
+      const list = id.filter((item) => item !== 1 && item !== 2);
+      this.$refs.tree.setChecked(list);
+      if (checked.level === 0) {
+        // const list = id.filter((item) => item !== 1 && item !== 2);
+        // this.$refs.tree.setChecked(list);
+        return;
+      }
       this.selectValue = [...id];
     },
     handleValuesChange(options) {
@@ -134,6 +160,26 @@ export default {
     handleClear() {
       this.$refs.tree && this.$refs.tree.removeChecked({ emitEvent: false });
     },
+    selectOption(option) {
+      // this.$nextTick(() => {
+      //   option.isgetDeviceMetaDataSelected = this.value.includes(option.id);
+      // });
+    },
+    handleSelectChange(option) {
+      console.log(option);
+    },
+    async getDeviceMetaData() {
+      try {
+        const res = await this.$http.request(
+          "linkConfiguration/getSearchObjectAttribute"
+        );
+        console.log(res);
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        this.tableLoading = false;
+      }
+    },
   },
 };
 </script>
@@ -141,6 +187,23 @@ export default {
 .filter-table-container {
   margin-top: 10px;
   width: 518px;
+}
+.bklog-option-group {
+  :deep(.bk-option-group-name) {
+    font-family: MicrosoftYaHei;
+    font-size: 12px;
+    color: #979ba5;
+    border: none;
+    margin-bottom: -5px !important;
+  }
+  :deep(.bk-checkbox-text) {
+    font-family: MicrosoftYaHei;
+    font-size: 12px;
+    color: #4d4f56;
+  }
+  :deep(.bk-option-group-prefix) {
+    display: none !important;
+  }
 }
 .tree-select {
   :deep(.is-root) {
