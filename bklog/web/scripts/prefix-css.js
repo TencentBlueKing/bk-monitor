@@ -23,40 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-const isMonitorCompiler = ['apm', 'trace'].includes(process.env.MONITOR_APP);
-module.exports = function (api) {
-  api?.cache.never();
-  const presets = [
-    [
-      '@babel/preset-env',
-      {
-        targets: {
-          browsers:
-          isMonitorCompiler
-              ? ['> 0.3%', 'Chrome > 90', 'last 2 versions', 'Firefox ESR', 'not dead']
-              : ['> 1%', 'last 2 versions', 'not ie <= 8'],
-          node: 'current',
-        },
-        useBuiltIns: 'usage',
-        corejs: 3,
-        debug: false,
-      },
-    ],
-    ['@vue/babel-preset-jsx', { compositionAPI: true }],
-  ];
-  const plugins = [
-    '@babel/plugin-transform-runtime',
-    process.env.NODE_ENV === 'production' && isMonitorCompiler
-      ? undefined
-      : [
-          'babel-plugin-import-bk-magic-vue',
-          {
-            baseLibName: 'bk-magic-vue',
-          },
-        ],
-  ].filter(Boolean);
-  return {
-    presets,
-    plugins,
-  };
-};
+const fs = require('node:fs');
+const postcss = require('postcss');
+const { resolve } = require('node:path');
+
+const input = fs.readFileSync(resolve(__dirname, '../node_modules/bk-magic-vue/dist/bk-magic-vue.min.css'), 'utf-8'); // 需要添加前缀的输入文件
+postcss([
+  postcss.plugin('postcss-add-monitor-class', () => {
+    return root => {
+      root.walkRules(rule => {
+        // 对于每个规则，更新它的选择器
+        rule.selectors = rule.selectors.map(selector => {
+          if (/^\.(tippy-|bk-tooltip-|bk-option-|bk-select-search-input|bk-select-dropdown-)/.test(selector)) {
+            return selector;
+          }
+          return `.monitor-trace-log ${selector}`;
+        });
+      });
+    };
+  }),
+])
+  .process(input, { from: undefined })
+  .then(result => {
+    const cssText = result.css.replace(/url\((fonts|images)([^)]+)(\))/gim, 'url(../$1$2$3');
+    fs.appendFileSync(resolve(__dirname, '../monitor-trace-retrieve/css/main.css'), cssText); // 最终生成的文件
+  });

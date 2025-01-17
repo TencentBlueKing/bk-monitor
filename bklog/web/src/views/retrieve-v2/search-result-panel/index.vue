@@ -1,12 +1,19 @@
 <script setup>
-  import { computed, ref } from 'vue';
+  import { computed, ref, defineComponent, h } from 'vue';
 
   import useStore from '@/hooks/use-store';
 
   import NoIndexSet from '../result-comp/no-index-set';
+  // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
   import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
+  // #else
+  // #code const SearchResultChart = defineComponent(() => h('div'));
+  // #code const FieldFilter = defineComponent(() => h('div'));
+  // #code const LogClustering = defineComponent(() => h('div'));
+  // #endif
+
   import LogResult from './log-result/index';
 
   const DEFAULT_FIELDS_WIDTH = 220;

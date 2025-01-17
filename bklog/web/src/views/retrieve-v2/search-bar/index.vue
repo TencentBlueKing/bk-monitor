@@ -6,7 +6,7 @@
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
 
-  // #if APP !== 'apm'
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
   // #else
   // #code const BookmarkPop = () => null;
@@ -193,7 +193,7 @@
   };
 
   const handleRefresh = isRefresh => {
-    // #if APP !== 'apm'
+    // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
     emit('refresh', isRefresh);
     // #endif
   };

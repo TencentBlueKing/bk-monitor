@@ -264,7 +264,7 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
         type: 'restore',
       });
 
-      if (window.__IS_MONITOR_APM__) {
+      if (window.__IS_MONITOR_COMPONENT__) {
         handleChartDataZoom([timeFrom, timeTo]);
       } else {
         // 更新Store中的时间范围

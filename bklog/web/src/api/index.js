@@ -70,7 +70,7 @@ axiosInstance.interceptors.request.use(
     if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
     }
-    if (window.__IS_MONITOR_APM__) {
+    if (window.__IS_MONITOR_COMPONENT__) {
       // 监控上层并没有使用 OT 这里直接自己生成traceparent id
       const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
       config.headers.Traceparent = traceparent;

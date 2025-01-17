@@ -187,7 +187,7 @@ export default class Strategy extends tsc<object> {
     try {
       const res = await $http.request('retrieve/getClusteringInfo', {
         params: {
-          index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           strategy_type: strategyType,
         },
       });
@@ -207,7 +207,7 @@ export default class Strategy extends tsc<object> {
       const { label_name, ...otherData } = data;
       $http
         .request(submitPostStr, {
-          params: { index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId },
+          params: { index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId },
           data: otherData,
         })
         .then(res => {
@@ -269,7 +269,7 @@ export default class Strategy extends tsc<object> {
         try {
           const res = await $http.request('retrieve/deleteClusteringInfo', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data: { strategy_type: strategyType },
           });

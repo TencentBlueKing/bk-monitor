@@ -76,7 +76,7 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink) {
     params,
     query: filterQuery,
   };
-  if (window.__IS_MONITOR_APM__) {
+  if (window.__IS_MONITOR_COMPONENT__) {
     return monitorLink(routeData);
   }
   return window.mainComponent.$router.resolve(routeData).href;

@@ -103,7 +103,7 @@
       </template>
       <!-- 操作按钮 -->
       <bk-table-column
-        v-if="showHandleOption"
+        v-if="showHandleOption && !isMonitorTraceLog"
         :label="$t('操作')"
         :resizable="false"
         :width="getOperatorToolsWidth"
@@ -148,6 +148,9 @@
       scrollContent() {
         return document.querySelector('.result-scroll-container');
       },
+      isMonitorTraceLog() {
+        return window?.__IS_MONITOR_TRACE__;
+      }
     },
     activated() {
       // keep-alive之后再进入到原始日志时需要重新布局表格

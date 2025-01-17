@@ -86,3 +86,5 @@ yarn.lock
 .babelcache
 src/views/playground/*
 /monitor-retrieve/*
+/monitor-apm-retrieve/*
+/monitor-trace-retrieve/*
