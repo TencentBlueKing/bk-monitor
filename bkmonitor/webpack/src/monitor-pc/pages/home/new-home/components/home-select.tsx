@@ -100,7 +100,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     return this.isSearchResult ? ESearchPopoverType.searchList : ESearchPopoverType.localHistoryList;
   }
   get computedWidth() {
-    return this.windowWidth <= 2560 ? 920 : 1080;
+    return this.windowWidth < 2560 ? 920 : 1080;
   }
 
   mounted() {
