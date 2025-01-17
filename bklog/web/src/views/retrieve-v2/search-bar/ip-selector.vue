@@ -1,8 +1,14 @@
+<!-- eslint-disable perfectionist/sort-imports -->
 <script setup>
-  import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
   import { computed, watch, ref } from 'vue';
-  import useLocale from '@/hooks/use-locale';
 
+  import useLocale from '@/hooks/use-locale';
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+  import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
+  // #endif
+  // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
+  // #code const LogIpSelector = () => null;
+  // #endif
   const props = defineProps({
     isShow: {
       type: Boolean,
