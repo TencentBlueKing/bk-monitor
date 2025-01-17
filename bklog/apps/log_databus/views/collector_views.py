@@ -1292,6 +1292,10 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {String} assessment_config.log_assessment 单机日志量
         @apiParam {Boolean} assessment_config.need_approval 需要审批
         @apiParam {List} assessment_config.approvals 审批人
+        @apiParam {Object[]} alias_settings 别名配置
+        @apiParam {String} alias_settings.field_name 原字段名
+        @apiParam {String} alias_settings.query_alias 别名
+        @apiParam {String} alias_settings.path_type 字段类型
         @apiParamExample {json} 请求样例:
         {
             "table_id": "xxx",
@@ -2389,6 +2393,10 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} retention 保留时间
         @apiParam {Int} storage_replies 副本数量
         @apiParam {Int} es_shards es分片数量
+        @apiParam {Object[]} alias_settings 别名配置
+        @apiParam {String} alias_settings.field_name 原字段名
+        @apiParam {String} alias_settings.query_alias 别名
+        @apiParam {String} alias_settings.path_type 字段类型
         @apiParamExample {json} 请求样例:
         {
             "collector_config_name": "xxx",
@@ -2449,7 +2457,7 @@ class CollectorViewSet(ModelViewSet):
         collector_config_ids = params["collector_config_ids"]
         operation_type = params["operation_type"]
         return Response(CollectorBatchHandler(collector_config_ids, operation_type).batch_operation(params))
-    
+
     @list_route(methods=["GET"], url_path="search_object_attribute")
     def search_object_attribute(self, request):
         return Response(CollectorHandler.search_object_attribute())
