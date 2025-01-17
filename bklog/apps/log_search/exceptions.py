@@ -566,3 +566,11 @@ class SQLQueryException(BaseException):
 class UserCustomConfigNotExistException(BaseException):
     ERROR_CODE = "1101"
     MESSAGE = _("用户自定义配置不存在")
+
+
+# =================================================
+# ES检索异常
+# =================================================
+class ESSearchException(BaseException):
+    MODULE_CODE = ErrorCode.BKLOG_SEARCH
+    MESSAGE = _("ES检索异常: {e}")
