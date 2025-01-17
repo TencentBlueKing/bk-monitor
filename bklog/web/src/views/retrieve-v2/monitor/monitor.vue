@@ -41,6 +41,9 @@ import { getInputQueryIpSelectItem } from '../search-bar/const.common';
 import SearchBar from '../search-bar/index.vue';
 import QueryHistory from '../search-bar/query-history.vue';
 import SearchResultPanel from '../search-result-panel/index.vue';
+import useScroll from '../../../hooks/use-scroll';
+import { GLOBAL_SCROLL_SELECTOR } from '../search-result-panel/log-result/log-row-attributes';
+import useResizeObserve from '../../../hooks/use-resize-observe';
 const props = defineProps({
   indexSetApi: {
     type: Function,
@@ -262,12 +265,53 @@ watch(
   },
 );
 
+const contentStyle = computed(() => {
+    return {
+      '--left-width': `0px`,
+    };
+  });
+
 onMounted(() => {
   init();
+});
+
+/** 开始处理滚动容器滚动时，收藏夹高度 */
+
+// 顶部二级导航高度，这个高度是固定的
+const subBarHeight = ref(64);
+const paddingTop = ref(0);
+// 滚动容器高度
+const scrollContainerHeight = ref(0);
+
+useScroll(GLOBAL_SCROLL_SELECTOR, event => {
+  const scrollTop = event.target.scrollTop;
+  paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+});
+
+useResizeObserve(
+  GLOBAL_SCROLL_SELECTOR,
+  entry => {
+    scrollContainerHeight.value = entry.target.offsetHeight;
+  },
+  0,
+);
+
+const isStickyTop = computed(() => {
+  if(window.__IS_MONITOR_TRACE__) {
+    return false;
+  }
+  return paddingTop.value === subBarHeight.value;
+});
+
+const isScrollY = computed(() => {
+  return !window.__IS_MONITOR_TRACE__
 })
+
+/*** 结束计算 ***/
+
 </script>
 <template>
-  <div class="retrieve-v2-index">
+  <div :class="['retrieve-v2-index', { 'scroll-y': isScrollY, 'is-sticky-top': isStickyTop }]">
     <div class="sub-head">
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"
@@ -276,9 +320,10 @@ onMounted(() => {
       ></SelectIndexSet>
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
-    <div class="retrieve-body">
+    <div :class="['retrieve-v2-body']"
+      :style="contentStyle">
       <div
-        class="retrieve-context"
+        class="retrieve-v2-content"
       >
         <SearchBar @height-change="handleHeightChange"></SearchBar>
         <div
