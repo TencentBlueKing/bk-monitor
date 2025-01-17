@@ -298,13 +298,19 @@ class SpaceTableIDRedis:
             tid_options = models.ResultTableOption.objects.filter(table_id__in=table_id_list).values(
                 "table_id", "name", "value", "value_type"
             )
+            data_label_map = models.ResultTable.objects.filter(table_id__in=table_id_list).values(
+                "table_id", "data_label"
+            )
         else:
             table_ids = models.ESStorage.objects.values("table_id", "storage_cluster_id", "source_type", "index_set")
             tids = [obj["table_id"] for obj in table_ids]
             tid_options = models.ResultTableOption.objects.filter(table_id__in=tids).values(
                 "table_id", "name", "value", "value_type"
             )
+            data_label_map = models.ResultTable.objects.filter(table_id__in=tids).values("table_id", "data_label")
 
+        # data_label字典 {table_id:data_label}
+        data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
         tid_options_map = {}
         for option in tid_options:
             try:
@@ -328,6 +334,7 @@ class SpaceTableIDRedis:
             tid = record["table_id"]
             storage_id = record.get("storage_cluster_id", 0)
             table_id_db = index_set
+
             try:
                 storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(tid)
             except Exception as e:  # pylint: disable=broad-except
@@ -344,6 +351,7 @@ class SpaceTableIDRedis:
                     "options": tid_options_map.get(tid) or {},
                     'storage_type': models.ESStorage.STORAGE_TYPE,
                     'storage_cluster_records': storage_record,
+                    'data_label': data_label_map_dict.get(tid, ""),
                 }
             )
         return data
