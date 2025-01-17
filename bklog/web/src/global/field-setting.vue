@@ -10,7 +10,7 @@
       :is-show.sync="showSlider"
       :quick-close="true"
       :title="$t('索引集配置')"
-      :width="640"
+      :width="800"
       @animation-end="closeSlider"
     >
       <template #header>
@@ -308,6 +308,7 @@
     participleState: 'default',
     is_edit: true,
   });
+  const alias_settings = ref([])
   const batchAddField = () => {
     console.log(collectorConfigId.value, 'collectorConfigId');
     if (!collectorConfigId.value) return;
@@ -403,7 +404,7 @@
 
   const indexfieldTable = ref(null);
   const addNewField = () => {
-    const fields = deepClone(tableField.value);
+    const fields = deepClone(indexfieldTable.value.getData());
     const newBaseFieldObj = {
       ...baseFieldObj.value,
       field_index: tableField.value.length + 1,
@@ -442,6 +443,15 @@
         },
       })
       .then(res => {
+        const keys = Object.keys(res.data.alias_settings || {}); 
+        const arr = keys.map( key => {
+          return {
+          query_alias : key,
+          field_name : res.data.alias_settings[key].path
+          } 
+        })
+        alias_settings.value = arr
+        concatenationQueryAlias( res.data.fields)
         const collectData = res?.data || {};
         formData.value = collectData;
         cleanType.value = collectData?.etl_config;
@@ -456,12 +466,28 @@
         },
       })
       .then(res => {
+        res.data.etl_fields.forEach(item => {
+          alias_settings.value.forEach(item2 => {
+            if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
+              item.query_alias = item2.query_alias
+            }
+          })
+        })
         tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
       });
     sliderLoading.value = false;
   };
-
+        // 拼接query_alias
+  const concatenationQueryAlias = (fields) => {
+    fields.forEach(item => {
+      alias_settings.value.forEach(item2 => {
+        if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
+          item.query_alias = item2.query_alias
+        }
+      })
+    })
+  }
   const storageList = ref([]);
   const getStorage = async () => {
     try {
@@ -510,6 +536,7 @@
             confirmLoading.value = true;
 
             const originfieldTableData = originfieldTable.value.getData();
+            const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
             const data = {
               collector_config_name: formData.value.collector_config_name,
               storage_cluster_id: formData.value.storage_cluster_id,
@@ -525,6 +552,14 @@
               },
               etl_config: formData.value.etl_config,
               fields: indexfieldTable.value.getData(),
+              alias_settings: [
+                ...indexfieldTableData.map(item =>{
+                  return  {
+                    field_name: item.alias_name || item.field_name,
+                    query_alias: item.query_alias, 
+                    path_type:  item.field_type}
+                }),
+              ],
             };
             await http
               .request('collect/fastUpdateCollection', {
