@@ -311,7 +311,11 @@
         margin-bottom: 0;
 
         .monitor-trace-log {
-          padding-right: 40px;
+          padding-right: 16px;
+
+          .retrieve-v2-index {
+            overflow: hidden;
+          }
         }
       }
     }
