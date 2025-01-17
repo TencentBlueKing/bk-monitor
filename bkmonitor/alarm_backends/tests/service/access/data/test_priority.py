@@ -15,8 +15,15 @@ from mock import MagicMock
 
 from alarm_backends.service.access.priority import PriorityChecker
 
-# 使用nametuple来模拟Strategy和Item，Strategy只需要priority字段，Item只需要strategy字段
-Strategy = namedtuple("Strategy", ["priority"])
+
+class Strategy:
+    def __init__(self, priority):
+        self.priority = priority
+
+    def get_interval(self):
+        return 60
+
+
 Item = namedtuple("Item", ["id", "strategy"])
 
 # 使用nametuple来模拟DataRecord和EventRecord，只需要record_id和items字段

@@ -3,8 +3,47 @@
   "type": "detail",
   "mode": "auto",
   "name": "主机",
-  "variables": [],
-  "panels": [],
+  "variables": [
+    {
+      "title": "主机列表",
+      "type": "target_list",
+      "targets": [
+        {
+          "datasource": "host_list",
+          "dataType": "list",
+          "api": "apm_metric.hostInstanceDetailList",
+          "data": {
+            "app_name": "${app_name}",
+            "service_name": "${service_name}",
+            "span_id": "${span_id}"
+          },
+          "fields": {
+            "bk_host_id": "bk_host_id",
+            "bk_host_innerip": "bk_target_ip",
+            "bk_cloud_id": "bk_cloud_id",
+            "source_type": "source_type",
+            "app_name": "app_name",
+            "service_name": "service_name"
+          },
+          "fields_template": {
+            "bk_host_id": "$bk_host_id",
+            "bk_host_innerip": "$bk_target_ip",
+            "bk_cloud_id": "$bk_cloud_id",
+            "source_type": "$source_type",
+            "app_name": "${app_name}",
+            "service_name": "${service_name}"
+          }
+        }
+      ],
+      "options": {
+        "target_list": {
+          "show_status_bar": true,
+          "show_overview": false,
+          "time_range_change_refresh": true
+        }
+      }
+    }
+  ],
   "overview_panels": [],
   "order": [],
   "options": {
@@ -21,6 +60,21 @@
     "variable_editable": false,
     "alert_filterable": true,
     "overview_panel": {},
-    "overview_detail_panel": {}
+    "overview_detail_panel": {
+      "title": "主机详情",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "apm_metric.hostDetail",
+          "data": {
+            "bk_host_id": "$bk_host_id",
+            "source_type": "$source_type"
+          }
+        }
+      ]
+    },
+    "selector_panel": {}
   }
 }

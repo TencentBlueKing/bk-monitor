@@ -338,12 +338,17 @@
         const list = this.topMenu.filter(menu => {
           return menu.feature === 'on' && (this.isExternal ? this.externalMenu.includes(menu.id) : true);
         });
-        // #if APP === 'apm'
-        if (process.env.NODE_ENV === 'development' && process.env.APP === 'apm' && list?.length) {
-          return [...list, { id: 'monitor-retrieve', name: '监控检索' }];
+        // #if MONITOR_APP === 'apm'
+        if (process.env.NODE_ENV === 'development' && process.env.MONITOR_APP === 'apm' && list?.length) {
+          return [...list, { id: 'monitor-apm-log', name: 'APM Log检索' }];
         }
-        // #endif
+        // #elif MONITOR_APP === 'trace'
+        if (process.env.NODE_ENV === 'development' && process.env.MONITOR_APP === 'trace' && list?.length) {
+          return [...list, { id: 'monitor-trace-log', name: 'Trace Log检索' }];
+        }
+        // #else
         return list;
+        // #endif
       },
       isShowGlobalSetIcon() {
         return !this.welcomeData && !this.isExternal;

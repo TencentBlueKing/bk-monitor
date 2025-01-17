@@ -33,11 +33,6 @@ class PriorityChecker:
     A：会，目前告警优先级的设计是保留高优先级的点并推送到检测队列，丢弃低优先级的数据
     """
 
-    # 过期时间
-    EXPIRE_TIME = 3 * 60
-    # 删除时间
-    DELETE_TIME = 10 * 60
-
     def __init__(self, priority_group_key: str):
         self.priority_group_key = priority_group_key
         self.priority_cache = {}
@@ -90,8 +85,10 @@ class PriorityChecker:
 
         priority, timestamp = priority.split(":")
 
+        interval = item.strategy.get_interval()
+
         # 如果过期或优先级更高，则更新优先级信息
-        if float(timestamp) + self.EXPIRE_TIME < now_timestamp or int(priority) <= strategy_priority:
+        if float(timestamp) + interval * 5 < now_timestamp or int(priority) <= strategy_priority:
             # 如果策略优先级为0，则不更新优先级信息，因为它已经是最小值了，没有存储的意义，减少内存占用
             if strategy_priority:
                 self.need_update[dimensions_md5] = "{}:{}".format(strategy_priority, now_timestamp)
@@ -105,6 +102,9 @@ class PriorityChecker:
         """
         检查数据点是否被抑制
         """
+        if not records:
+            return
+
         priority_checkers: Dict[str, PriorityChecker] = {}
         for record in records:
             items = record.items
@@ -132,16 +132,18 @@ class PriorityChecker:
 
         # 同步优先级信息
         for priority_checker in priority_checkers.values():
-            priority_checker.sync_priority()
+            priority_checker.sync_priority(records[0].items[0])
 
-    def sync_priority(self):
+    def sync_priority(self, item: Item):
         """
         批量同步优先级信息
         """
+        interval = item.strategy.get_interval()
+
         # 删除过期的优先级信息
         for dimensions_md5, priority in self.priority_cache.items():
             priority, timestamp = priority.split(":")
-            if float(timestamp) + self.DELETE_TIME < time.time():
+            if float(timestamp) + interval * 10 < time.time():
                 self.need_delete.append(dimensions_md5)
 
         # 更新优先级信息过期时间

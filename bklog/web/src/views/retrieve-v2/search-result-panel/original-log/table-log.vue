@@ -130,8 +130,13 @@
   import { mapState } from 'vuex';
 
   import { bigNumberToString } from '../../../../common/util';
+  // #if MONITOR_APP !== 'trace'
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
+  // #else
+  // #code const ContextLog = () => null;
+  // #code const RealTimeLog = () => null;
+  // #endif
   import OriginalList from './original-list';
   import TableList from './table-list';
 
@@ -277,7 +282,7 @@
         this.$http
           .request('retrieve/getWebConsoleUrl', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             query: queryData,
           })
@@ -347,7 +352,8 @@
     height: calc(100% - 42px);
 
     .bklog-skeleton-loading {
-      position: absolute;
+      /* stylelint-disable-next-line declaration-no-important */
+      position: absolute !important;
       top: 0;
       z-index: 10;
     }
