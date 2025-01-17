@@ -27,17 +27,19 @@
 import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { blobDownload } from '@/common/util';
+
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
 import { axiosInstance } from '@/api';
-import { blobDownload } from '@/common/util';
+
 import './field-item.scss';
 @Component
 export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: String, default: false }) showFieldAlias: String;
+  @Prop({ type: String, default: false }) showFieldAlias: string;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
@@ -51,7 +53,7 @@ export default class FieldItem extends tsc<object> {
   fieldAnalysisInstance = null;
   ifShowMore = false;
   fieldData = null;
-  distinctCount = 0
+  distinctCount = 0;
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -64,8 +66,8 @@ export default class FieldItem extends tsc<object> {
   get unionIndexItemList() {
     return this.$store.getters.unionIndexItemList;
   }
-  get indexSetList (){
-    return this.$store.state.retrieve?.indexSetList ?? []
+  get indexSetList() {
+    return this.$store.state.retrieve?.indexSetList ?? [];
   }
   get gatherFieldsCount() {
     if (this.isFrontStatistics) return Object.keys(this.statisticalFieldData).length;
@@ -98,7 +100,7 @@ export default class FieldItem extends tsc<object> {
   }
   // 数据变化后关闭图表分析
   @Watch('statisticalFieldData')
-  statisticalFieldDataChange(v) {
+  statisticalFieldDataChange() {
     this.instanceDestroy();
   }
   @Emit('toggleItem')
@@ -136,7 +138,7 @@ export default class FieldItem extends tsc<object> {
     this.fieldAnalysisInstance = new FieldAnalysis();
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
-      : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
+      : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
     this.fieldAnalysisInstance.$props.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
@@ -190,18 +192,18 @@ export default class FieldItem extends tsc<object> {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
-  downloadFieldStatistics (){
+  downloadFieldStatistics() {
     console.log(this.retrieveParams);
     const indexSetIDs = this.isUnionSearch
-    ? this.unionIndexList
-    : [window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId];
-    const downRequestUrl = `/field/index_set/fetch_value_list/`;
+      ? this.unionIndexList
+      : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
+    const downRequestUrl = '/field/index_set/fetch_value_list/';
     const data = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
       agg_field: this.fieldItem.field_name,
-      limit: this.fieldData?.distinct_count
+      limit: this.fieldData?.distinct_count,
     };
     axiosInstance
       .post(downRequestUrl, data)
@@ -213,17 +215,15 @@ export default class FieldItem extends tsc<object> {
           });
           return;
         }
-        let routerIndexSet = window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
-        const lightName = this.indexSetList.find(item => item.index_set_id ===  routerIndexSet)?.lightenName;
-        const downloadName =  `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.txt`
+        const routerIndexSet = window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+        const lightName = this.indexSetList.find(item => item.index_set_id === routerIndexSet)?.lightenName;
+        const downloadName = `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.txt`;
         blobDownload(res, downloadName);
       })
-      .finally(() => {
-      
-      });
+      .finally(() => {});
   }
-  getdistinctCount(val){
-    this.distinctCount = val
+  getdistinctCount(val) {
+    this.distinctCount = val;
   }
   render() {
     return (
@@ -235,7 +235,7 @@ export default class FieldItem extends tsc<object> {
           <div>
             {/* 三角符号 */}
             <div class={{ 'filed-item-triangle': true }}>
-              <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
+              <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }} />
             </div>
 
             {/* 字段类型对应的图标 */}
@@ -251,7 +251,7 @@ export default class FieldItem extends tsc<object> {
                   content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
                   disabled: !this.fieldTypeMap[this.fieldItem.field_type],
                 }}
-              ></span>
+              />
             </div>
 
             {/* 字段名 */}
@@ -271,7 +271,7 @@ export default class FieldItem extends tsc<object> {
                   ext-cls='conflict-popover'
                   theme='light'
                 >
-                  <i class='conflict-icon bk-icon icon-exclamation-triangle-shape'></i>
+                  <i class='conflict-icon bk-icon icon-exclamation-triangle-shape' />
                   <div slot='content'>
                     <p>{this.$t('该字段在以下索引集存在冲突')}</p>
                     {this.unionConflictFieldsName.map(item => (
@@ -302,7 +302,7 @@ export default class FieldItem extends tsc<object> {
                   this.handleClickAnalysisItem();
                 }}
               >
-                <i class='bklog-icon bklog-log-trend'></i>
+                <i class='bklog-icon bklog-log-trend' />
               </div>
             )}
             {/* 设置字段显示或隐藏 */}
@@ -316,11 +316,11 @@ export default class FieldItem extends tsc<object> {
                 this.handleShowOrHiddenItem();
               }}
             >
-              <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
+              <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]} />
             </div>
             {/* 拖动字段位置按钮 */}
             <div>
-              <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]}></span>
+              <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
             </div>
           </div>
         </div>
@@ -337,18 +337,18 @@ export default class FieldItem extends tsc<object> {
         )}
         <bk-sideslider
           width={600}
+          class='sideslider'
           is-show={this.ifShowMore}
           quick-close={true}
-          transfer
           show-mask={false}
+          transfer
           onAnimation-end={this.closeSlider}
-          class='sideslider'
         >
           <template slot='header'>
             <div class='agg-sides-header'>
               <div class='distinct-num'>
                 <span>{this.$t('去重后字段统计')}</span>
-                <span class='distinct-count-num'>{ this.distinctCount}</span>
+                <span class='distinct-count-num'>{this.distinctCount}</span>
               </div>
               <div class='fnBtn'>
                 <bk-button
@@ -359,7 +359,7 @@ export default class FieldItem extends tsc<object> {
                     this.downloadFieldStatistics();
                   }}
                 >
-                {this.$t('下载')}
+                  {this.$t('下载')}
                 </bk-button>
                 {/* <bk-button size='small'>查看仪表盘</bk-button> */}
               </div>
@@ -371,11 +371,11 @@ export default class FieldItem extends tsc<object> {
                 field-name={this.fieldItem.field_name}
                 field-type={this.fieldItem.field_type}
                 is-front-statistics={this.isFrontStatistics}
+                limit={this.fieldData?.distinct_count}
                 parent-expand={this.isExpand}
                 retrieve-params={this.retrieveParams}
                 statistical-field-data={this.statisticalFieldData}
-                limit={this.fieldData?.distinct_count}
-                onDistinctCount={ val => this.getdistinctCount(val)}
+                onDistinctCount={val => this.getdistinctCount(val)}
               />
             </div>
           </template>

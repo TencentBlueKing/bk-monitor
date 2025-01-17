@@ -105,7 +105,7 @@ export default class FilterRule extends tsc<IProps> {
   }
 
   get indexId() {
-    return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+    return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
   }
 
   @Watch('formData.filter_rules', { deep: true })
@@ -140,7 +140,7 @@ export default class FilterRule extends tsc<IProps> {
     try {
       const res = await $http.request('retrieve/getAggsTerms', {
         params: {
-          index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
         },
         data: {
           keyword: this.retrieveParams?.keyword ?? '*',

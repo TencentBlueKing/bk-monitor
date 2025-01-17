@@ -278,14 +278,20 @@ const MaskingList = () =>
     '@/views/manage/log-clean/clean-masking/list'
   );
 
-// #if APP === 'apm'
-const MonitorRetrieve = () =>
+// #if MONITOR_APP === 'apm'
+const MonitorApmLog = () =>
   import(
-    /* webpackChunkName: 'monitor-retrieve' */
+    /* webpackChunkName: 'monitor-apm-log' */
     '@/views/retrieve-v2/monitor/monitor.vue'
   );
 // #endif
-
+// #if MONITOR_APP === 'trace'
+const MonitorTraceLog = () =>
+  import(
+    /* webpackChunkName: 'monitor-trace-log' */
+    '@/views/retrieve-v2/monitor/monitor.vue'
+  );
+// #endif
 const routes = [
   {
     path: '',
@@ -1044,14 +1050,25 @@ const routes = [
     name: 'playground',
     component: playground,
   },
-  // #if APP === 'apm'
+  // #if MONITOR_APP === 'apm'
   {
-    path: '/monitor-retrieve/:indexId?',
-    name: 'monitor-retrieve',
-    component: MonitorRetrieve,
+    path: '/monitor-apm-log/:indexId?',
+    name: 'monitor-apm-log',
+    component: MonitorApmLog,
     meta: {
-      title: '监控检索',
-      navId: 'monitor-retrieve',
+      title: 'APM检索-日志',
+      navId: 'monitor-apm-log',
+    },
+  },
+  // #endif
+  // #if MONITOR_APP === 'trace'
+  {
+    path: '/monitor-trace-log/:indexId?',
+    name: 'monitor-trace-log',
+    component: MonitorTraceLog,
+    meta: {
+      title: 'Trace检索-日志',
+      navId: 'monitor-trace-log',
     },
   },
   // #endif
