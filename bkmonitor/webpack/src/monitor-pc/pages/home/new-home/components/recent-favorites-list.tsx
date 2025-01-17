@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 import Component from 'vue-class-component';
-import { Prop } from 'vue-property-decorator';
+import { Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { getFunctionShortcut } from 'monitor-api/modules/overview';
 
 import emptyImageSrc from '../../../../static/images/png/empty.png';
 import dashboardSrc from '../../../../static/images/png/new-page/dashboard.png';
@@ -40,8 +42,9 @@ import './recent-favorites-list.scss';
 interface IRecentFavoritesListProps {
   hasTwoRows: boolean;
   isRecentView: boolean;
-  itemsToDisplay: IRecentList[];
+  itemsToDisplay?: IRecentList[];
   selectedCategories: string[];
+  selectedNames: string[];
 }
 
 const categoryIcons = {
@@ -51,33 +54,83 @@ const categoryIcons = {
 };
 
 // 三种布局方式
-const strategies = {
-  1: 'row-1',
-  2: 'row-2',
-  3: 'row-3',
-  4: 'row-2',
-  5: 'row-3',
-  6: 'row-3',
+const layoutClassesByLength = {
+  1: 'single-col',
+  2: 'double-col',
+  3: 'triple-col',
+  4: 'double-col',
+  5: 'triple-col',
+  6: 'triple-col',
 };
-
 @Component({
   name: 'RecentFavoritesList',
 })
 export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> {
   @Prop({ default: false, type: Boolean }) hasTwoRows: boolean;
   @Prop({ default: () => [], type: Array }) selectedCategories!: string[];
-  @Prop({ default: () => [], type: Array }) itemsToDisplay!: IRecentList[];
+  @Prop({ default: () => [], type: Array }) selectedNames!: string[];
   @Prop({ default: false, type: Boolean }) isRecentView: boolean;
+
+  recentItems: IRecentList[] = []; // 最近使用列表
+  favoriteItems: IRecentList[] = []; // 收藏列表
+
+  loadingRecentList = false;
 
   // 计算布局策略
   get rowClass() {
-    return strategies[this.selectedCategories.length] || '';
+    return layoutClassesByLength[this.selectedCategories.length] || '';
+  }
+
+  // 根据当前视图状态获取要显示的项目
+  get categoriesAfterSort() {
+    return this.selectedCategories.sort((a, b) => {
+      const orderA = this.orderMap[a] !== undefined ? this.orderMap[a] : Number.POSITIVE_INFINITY;
+      const orderB = this.orderMap[b] !== undefined ? this.orderMap[b] : Number.POSITIVE_INFINITY;
+      return orderA - orderB;
+    });
+  }
+
+  get orderMap() {
+    return this.selectedNames.reduce((acc, category, index) => {
+      acc[category] = index;
+      return acc;
+    }, {});
+  }
+
+  getItemByName(functionName): IRecentList {
+    const items = this.isRecentView ? this.recentItems : this.favoriteItems;
+    return items.filter(item => item.function === functionName)?.[0];
+  }
+
+  @Watch('selectedCategories')
+  handleSelect(newVal, oldVal) {
+    if (newVal === oldVal) return;
+    this.updateFunctionShortcut();
+  }
+
+  async updateFunctionShortcut() {
+    // TODO 分页
+    this.loadingRecentList = true;
+    try {
+      const data = await getFunctionShortcut({
+        type: this.isRecentView ? 'recent' : 'favorite',
+        functions: this.selectedCategories,
+      });
+      if (this.isRecentView) {
+        this.recentItems = data;
+      } else {
+        this.favoriteItems = data;
+      }
+    } catch (error) {
+      console.log('error', error);
+    } finally {
+      this.loadingRecentList = false;
+    }
   }
 
   /** 处理点击最近使用列表，实现跳转 */
   handleRecentList(type: string, item: any) {
     const currentUrl = window.location.href;
-    // 找到 '?' 的位置
     const questionMarkIndex = currentUrl.indexOf('?');
     // 如果有 '?'，则截取字符串；否则返回完整的 URL
     let baseUrl = questionMarkIndex !== -1 ? currentUrl.substring(0, questionMarkIndex) : currentUrl;
@@ -158,42 +211,65 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
     return typeHandlers[type] || {};
   }
 
+  renderList(param) {
+    const shortcut: IRecentList = this.getItemByName(param);
+
+    return shortcut?.items.length ? (
+      shortcut.items.map(item => this.listItem(this.getListItemParams(shortcut.function, item)))
+    ) : (
+      <div class='recent-list-empty'>
+        <div class='empty-img'>
+          <img
+            alt=''
+            src={emptyImageSrc}
+          />
+        </div>
+        {this.$t('暂无相关记录')}
+      </div>
+    );
+  }
+
   render() {
     return (
       <div class={['recent-content', this.rowClass, this.hasTwoRows ? 'has-line' : '']}>
-        {this.itemsToDisplay.map(shortcut => (
+        {this.categoriesAfterSort.map(functionName => (
           <div
-            key={shortcut.function}
+            key={functionName}
             class='category'
           >
             <div class='sub-head'>
-              <div>
-                {categoryIcons[shortcut.function] ? (
-                  <div class='img'>
-                    <img
-                      alt=''
-                      src={categoryIcons[shortcut.function]}
-                    />
-                  </div>
-                ) : (
-                  <i class={['bk-icon bk-icon icon-search', shortcut.icon]} />
-                )}
-                <span class='recent-subtitle'>{EFunctionNameType[shortcut.function]}</span>
-                {/* <span class='more'>更多</span> */}
-              </div>
+              {!this.loadingRecentList ? (
+                <div class='head'>
+                  {categoryIcons[functionName] ? (
+                    <div class='img'>
+                      <img
+                        alt=''
+                        src={categoryIcons[functionName]}
+                      />
+                    </div>
+                  ) : (
+                    <i class={['bk-icon bk-icon', functionName]} />
+                  )}
+                  <span class='recent-subtitle'>{EFunctionNameType[functionName]}</span>
+                  {/* <span class='more'>更多</span> */}
+                </div>
+              ) : (
+                <div class='skeleton-element' />
+              )}
             </div>
             <ul class='recent-list'>
-              {shortcut.items.length ? (
-                shortcut.items.map(item => this.listItem(this.getListItemParams(shortcut.function, item)))
+              {!this.loadingRecentList ? (
+                this.renderList(functionName)
               ) : (
-                <div class='recent-list-empty'>
-                  <div class='empty-img'>
-                    <img
-                      alt=''
-                      src={emptyImageSrc}
-                    />
-                  </div>
-                  {this.$t('暂无相关记录')}
+                <div class='skeleton-list'>
+                  {Array(5)
+                    .fill(null)
+                    .map((_, index) => (
+                      <div
+                        key={index}
+                        class='skeleton-element'
+                      />
+                    ))}
                 </div>
               )}
             </ul>

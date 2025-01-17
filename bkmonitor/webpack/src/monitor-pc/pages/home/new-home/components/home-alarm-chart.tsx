@@ -28,6 +28,7 @@ import { ofType } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
+import { CancelToken } from 'monitor-api/index';
 import { alertDateHistogram } from 'monitor-api/modules/alert';
 import { Debounce } from 'monitor-common/utils/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
@@ -42,6 +43,7 @@ import {
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import { generateFormatterFunc, handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import loadingChartSrc from '../../../../static/images/png/new-page/loadingChart.png';
 import { handleYAxisLabelFormatter, EStatusType, EAlertLevel } from '../utils';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
@@ -84,14 +86,9 @@ const handleSetTooltip = params => {
 };
 
 @Component
-class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin & LegendMixin & ErrorMsgMixins>(
-  IntersectionMixin,
-  ChartLoadingMixin,
-  ToolsMxin,
-  ResizeMixin,
-  LegendMixin,
-  ErrorMsgMixins
-) {
+class HomeAlarmChart extends Mixins<
+  ChartLoadingMixin & IntersectionMixin & ToolsMxin & ResizeMixin & LegendMixin & ErrorMsgMixins
+>(IntersectionMixin, ChartLoadingMixin, ToolsMxin, ResizeMixin, LegendMixin, ErrorMsgMixins) {
   @Prop({ default: () => ({}) }) config: IAlarmGraphConfig;
   @Prop() currentActiveId: number;
   @Prop({ default: () => ['', ''] }) timeRange: TimeRangeType;
@@ -204,31 +201,51 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
    */
   @Debounce(100)
   async getPanelData() {
-    this.formatterFunc = generateFormatterFunc(this.timeRange);
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
+    if (!this.isInViewPort()) {
+      if (this.intersectionObserver) {
+        this.unregisterOberver();
+      }
+      this.registerObserver();
+      return;
+    }
+    this.formatterFunc = generateFormatterFunc(this.timeRange);
     if (this.init) this.handleLoadingChange(true);
     this.emptyText = window.i18n.tc('加载中...');
     this.loading = true;
     try {
-      // const seriesData = chartData.series;
+      this.unregisterOberver();
       const [start, end] = handleTransformToTimestamp(this.timeRange);
       const conditions = [{ key: 'strategy_id', value: this.config.strategy_ids || [] }];
       // 下拉切换告警级别筛选
       if (this.searchValue.length !== this.searchList.length) {
         conditions.push({ key: 'severity', value: this.searchValue.map(val => EAlertLevel[val]) });
       }
-      const { series } = await alertDateHistogram({
-        bk_biz_ids: [this.currentActiveId],
-        conditions,
-        start_time: start,
-        end_time: end,
-      });
-      this.updateChartData(series);
+      const { series } = await alertDateHistogram(
+        {
+          bk_biz_ids: [this.currentActiveId],
+          conditions,
+          start_time: start,
+          end_time: end,
+        },
+        {
+          cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+          needMessage: false,
+        }
+      );
+      if (series?.length) {
+        this.empty = false;
+        this.updateChartData(series);
+      } else {
+        this.empty = true;
+        this.emptyText = window.i18n.tc('暂无数据');
+      }
     } catch {
       this.empty = true;
       this.emptyText = window.i18n.tc('出错了');
     } finally {
+      this.cancelTokens = [];
       this.loading = false;
     }
     this.handleLoadingChange(false);
@@ -363,14 +380,25 @@ class HomeAlarmChart extends Mixins<ChartLoadingMixin & ToolsMxin & ResizeMixin 
               ref='chart'
               class='chart-instance'
             >
-              {this.init && (
-                <BaseEchart
-                  ref='baseChart'
-                  width={this.width}
-                  height={this.height}
-                  v-bkloading={{ isLoading: this.loading }}
-                  options={this.options}
-                />
+              {!this.loading ? (
+                this.init && (
+                  <BaseEchart
+                    ref='baseChart'
+                    width={this.width}
+                    height={this.height}
+                    options={this.options}
+                  />
+                )
+              ) : (
+                <div class='loading-chart'>
+                  <div class='loading-img'>
+                    <img
+                      alt=''
+                      src={loadingChartSrc}
+                    />
+                  </div>
+                  <span class='loading-text'>加载中…</span>
+                </div>
               )}
             </div>
           </div>

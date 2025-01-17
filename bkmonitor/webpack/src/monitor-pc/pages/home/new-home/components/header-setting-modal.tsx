@@ -94,16 +94,6 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
     }
   }
 
-  // 根据路由ID列表获取路由配置
-  getStoreRoutesByIdList(routeIds: string[]) {
-    const routes = [];
-    for (const item of this.flatRoutes) {
-      const list = item.children?.filter(set => routeIds.includes(set.id));
-      list?.length && routes.push(...list);
-    }
-    return routeIds.map(id => routes.find(item => item.id === id)).filter(Boolean);
-  }
-
   // 处理拖拽开始事件，记录当前拖拽的路由ID
   handleDragstart(item: IRouteConfigItem) {
     this.dragId = item.id;
