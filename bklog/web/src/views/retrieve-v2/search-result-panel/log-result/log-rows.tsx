@@ -39,6 +39,7 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { bkMessage } from 'bk-magic-vue';
 import { uniqueId } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -407,7 +408,7 @@ export default defineComponent({
           ''
         );
       }
-      return parseTableRowData(row, field.field_name, field.field_type);
+      return parseTableRowData(row, field.field_name, field.field_type, false);
     };
 
     const getOriginTimeShow = data => {

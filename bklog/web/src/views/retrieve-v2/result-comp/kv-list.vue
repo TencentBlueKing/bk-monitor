@@ -42,7 +42,7 @@
             :class="getFieldIcon(field)"
             :style="{ backgroundColor: getFieldIconColor(field) }"
           ></span>
-          <span class="field-text">{{ field }}</span>
+          <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
           <template v-if="isJsonFormat(formatterStr(data, field))">
@@ -83,7 +83,7 @@
   import { mapGetters, mapState } from 'vuex';
   import JsonFormatter from '@/global/json-formatter.vue';
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   export default {
     components: {
       TextSegmentation,
@@ -161,6 +161,7 @@
       }),
       ...mapState({
         formatJson: state => state.tableJsonFormat,
+        showFieldAlias: state => state.showFieldAlias ?? false
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -332,6 +333,10 @@
       getFieldItem(fieldName) {
         return this.fieldList.find(item => item.field_name === fieldName);
       },
+      getFieldName(name){
+        const { getFieldName } = useFieldNameHook({ store: this.$store });
+        return getFieldName(name);
+      }
     },
   };
 </script>
@@ -344,7 +349,7 @@
 
     .log-item {
       display: flex;
-      align-items: baseline;
+      align-items: start;
       min-height: 24px;
 
       .field-label {

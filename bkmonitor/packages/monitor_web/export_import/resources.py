@@ -29,6 +29,7 @@ from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from api.grafana.exporter import DashboardExporter
+from bk_dataview.api import get_or_create_org
 from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.text import convert_filename
@@ -60,7 +61,6 @@ from monitor_web.export_import.parse_config import (
     StrategyConfigParse,
     ViewConfigParse,
 )
-from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.models import (
     CollectConfigMeta,
     CollectorPluginMeta,
@@ -439,7 +439,7 @@ class ExportPackageResource(Resource):
 
         dashboard_file_path = os.path.join(self.package_path, "view_config_directory")
         os.makedirs(dashboard_file_path)
-        org_id = GrafanaAuthSync.get_or_create_org_id(self.bk_biz_id)
+        org_id = get_or_create_org(self.bk_biz_id)["id"]
         data_sources = api.grafana.get_all_data_source(org_id=org_id)["data"]
 
         for view_config_id in self.view_config_ids:

@@ -188,7 +188,10 @@
                   data-test-id="fieldExtractionBox_span_applyTemp"
                   @click="openTemplateDialog(false)"
                 >
-                  <span class="bklog-icon bklog-daoru"></span>
+                  <i  
+                    class="bk-icon bklog-icon bklog-app-store"
+                    v-bk-tooltips.top="$t('隐藏')"
+                  ></i>
                   {{ $t('应用模版') }}
                 </span>
                 <span
@@ -196,7 +199,11 @@
                   class="template-text documentation button-text"
                   @click="handleGotoLink('logExtract')"
                 >
-                  {{ $t('说明文档') }}<span class="bklog-icon bklog-jump"></span>
+                  <i  
+                    class="bk-icon bklog-icon bklog-help"
+                    v-bk-tooltips.top="$t('隐藏')"
+                  ></i>
+                  {{ $t('说明文档') }}
                 </span>
               </div>
 
@@ -209,6 +216,7 @@
                     :data-test-id="`fieldExtractionBox_button_filterMethod${option.id}`"
                     :disabled="(isCleanField && !cleanCollector) || isSetDisabled"
                     :key="option.id"
+                    class="bklog-button"
                     @click="handleSelectConfig(option.id)"
                   >
                     {{ option.name }}
@@ -322,13 +330,13 @@
             ext-cls="en-bk-form"
             :label="$t('字段列表')"
           >
-            <div
+            <!-- <div
               v-if="!isTempField"
               :class="{ 'view-log-btn': true, disabled: !hasFields }"
               @click.stop="viewStandard"
             >
               {{ $t('查看内置字段') }}
-            </div>
+            </div> -->
             <div
               :style="isClearTemplate ? { 'margin-top': '10px' } : ''"
               class="field-method-result"
@@ -345,10 +353,13 @@
                 :key="renderKey"
                 :original-text-tokenize-on-chars="defaultParticipleStr"
                 :retain-extra-json="formData.etl_params.retain_extra_json"
+                :built-field-show = "builtFieldShow"
                 :select-etl-config="params.etl_config"
                 @delete-visible="visibleHandle"
+                @delete-field="deleteField"
                 @handle-keep-field="handleKeepField"
                 @handle-table-data="handleTableData"
+                @handle-built-field="handleBuiltField"
                 @reset="getDetail"
                 @standard="dialogVisible = true"
               >
@@ -1026,6 +1037,7 @@
           is_delete: false,
           is_dimension: false,
           is_time: false,
+          query_alias:'',
           value: '',
           option: {
             time_format: '',
@@ -1085,9 +1097,11 @@
           field_name: '',
           field_type: '',
           description: '',
+          query_alias:'',
           is_case_sensitive: false,
           is_analyzed: false,
           is_built_in: false,
+          is_add_in: true,
           is_dimension: false,
           previous_type: '',
           tokenize_on_chars: '',
@@ -1112,6 +1126,9 @@
         timeCheckContent: '',
         metaDataList: [],
         isDebugLoading: false,
+        builtFieldShow:false,
+        fieldsObjectData: [],
+        alias_settings:[]
       };
     },
     computed: {
@@ -1299,6 +1316,7 @@
       }
       await this.getCleanStash(collectorID);
       this.getDataLog('init');
+      
     },
     methods: {
       handlerSearchTemplate() {
@@ -1311,6 +1329,22 @@
       },
       handleTableData(data) {
         this.fieldNameList = data;
+      },
+      // 切换显示内置字段
+      handleBuiltField(value){
+        this.builtFieldShow = value
+        if(value){
+          const allFields = this.$refs.fieldTable.getData();
+          this.formData.fields = [...allFields, ...this.copyBuiltField]
+          this.savaFormData();
+        }else{
+          const allFields = this.$refs.fieldTable.getData();
+          const builtFields = allFields.filter( item => item.is_built_in)
+          this.formData.fields = allFields.filter( item => !item.is_built_in)
+          if(builtFields.length){
+            this.copyBuiltField = builtFields;
+          }
+        }
       },
       // 初始化清洗项
       initCleanItem() {
@@ -1511,11 +1545,30 @@
           // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
+          if( this.params.etl_config === 'bk_log_json'){
+            if(!this.builtFieldShow){
+              this.copyBuiltField.forEach(field => {
+                if (field.hasOwnProperty('expand')) {
+                  if (field.expand === false) {
+                    this.copyBuiltField.push(...field.children)
+                  } 
+                }
+              })
+              data.etl_fields.push(...this.copyBuiltField)
+            }
+            data.alias_settings = fieldTableData.filter(item => item.query_alias).map(item => {
+              return {
+                field_name: item.alias_name || item.field_name,
+                query_alias: item.query_alias,
+                path_type: item.field_type
+              }
+            })
+            data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
+          }
         } else {
           delete data.etl_params['separator_regexp'];
           delete data.etl_params['separator'];
         }
-
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -1601,8 +1654,8 @@
       },
       /** 入库请求 */
       async fieldCollectionRequest(atLastFormData, callback) {
-        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields } = atLastFormData;
-        // 检索设置 直接入库
+        const { clean_type: etlConfig, etl_params: etlParams, etl_fields: etlFields, alias_settings } = atLastFormData;
+        // 检索设置 直接入库 
         const {
           table_id,
           storage_cluster_id,
@@ -1625,14 +1678,15 @@
           etl_config: etlConfig,
           fields: etlFields,
           etl_params: etlParams,
+          alias_settings,
         };
+
         const updateData = {
           params: {
             collector_config_id: this.curCollect.collector_config_id,
           },
           data,
         };
-
         this.$http
           .request('collect/fieldCollection', updateData)
           .then(res => {
@@ -1840,6 +1894,7 @@
           etl_config,
           etl_params: etlParams,
           fields,
+          index_set_id
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
         const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
@@ -1858,7 +1913,6 @@
             row.option = Object.assign({}, option);
           }
         });
-
         this.params.etl_config = etl_config;
         Object.assign(this.params.etl_params, {
           separator_regexp: etlParams?.separator_regexp || '',
@@ -1899,6 +1953,7 @@
         if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
           this.formatResult = true;
         }
+        this.requestFields(index_set_id)
       },
       clickFile() {
         this.defaultSettings.isShow = true;
@@ -2245,6 +2300,7 @@
           .then(res => {
             if (res.data) {
               const { clean_type, etl_params: etlParams, etl_fields: etlFields } = res.data;
+              this.concatenationQueryAlias(etlFields)
               this.formData.fields.splice(0, this.formData.fields.length);
 
               this.params.etl_config = clean_type;
@@ -2314,15 +2370,35 @@
           })
           .then(async res => {
             if (res.data) {
+              const keys = Object.keys(res.data.alias_settings || {});
+              const arr = keys.map( key => {
+               return {
+                query_alias : key,
+                field_name : res.data.alias_settings[key].path
+               } 
+              })
+              this.alias_settings = arr
+              this.concatenationQueryAlias( res.data.fields)
               this.$store.commit('collect/setCurCollect', res.data);
               this.getDetail();
               await this.getCleanStash(id);
               this.getDataLog('init');
+              this.requestFields(res.data.index_set_id)
             }
           })
           .finally(() => {
             this.basicLoading = false;
           });
+      },
+      // 拼接query_alias
+      concatenationQueryAlias(fields) {
+        fields.forEach(item => {
+          this.alias_settings.forEach(item2 => {
+            if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
+              item.query_alias = item2.query_alias
+            }
+          })
+        })
       },
       // 新增、编辑清洗选择采集项
       async handleCollectorChange(id) {
@@ -2348,6 +2424,7 @@
         });
         if (curCollect.create_clean_able || this.isEditCleanItem) {
           this.setAdvanceCleanTab(false);
+          
           // 获取采集项详情
           await this.setDetail(id);
         } else {
@@ -2383,6 +2460,9 @@
       },
       /** 切换匹配模式 */
       handleSelectConfig(id) {
+        if(this.params.etl_config === id){
+          return
+        }
         if (!this.isFinishCatchFrom) {
           this.catchFields = this.$refs.fieldTable.getData();
           this.isFinishCatchFrom = true;
@@ -2393,6 +2473,7 @@
           this.isFinishCatchFrom = false;
           return;
         }
+        this.handleBuiltField(false)
         this.formData.fields = []; // 切换匹配模式时需要清空字段
       },
       /** json格式新增字段 */
@@ -2459,6 +2540,7 @@
       },
       getNotParticipleFieldTableData() {
         const fieldsData = this.$refs.fieldTable.getData() || [];
+
         const { field_name, time_zone, time_format } = this.formData;
         const isReportingTime = this.formData.log_reporting_time;
         const result = fieldsData.map(item => {
@@ -2512,6 +2594,40 @@
           }, {}),
         );
       },
+       /** 获取fields */
+      async requestFields(indexSetId) {
+        const typeConversion= {
+          keyword : 'string'
+        }
+        try {
+          const res = await this.$http.request('retrieve/getLogTableHead', {
+            params: {
+              index_set_id: indexSetId
+            },
+          });
+          this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'))
+          this.fieldsObjectData.forEach(item => {
+            let name = item.field_name.split('.')[0]
+            item.field_type = typeConversion[item.field_type]
+            item.is_objectKey = true
+            this.copyBuiltField.forEach( builtField => {
+              if(builtField.field_type === "object" && name.includes(builtField.field_name)){
+                if (!Array.isArray(builtField.children)) {
+                  builtField.children = [];
+                  this.$set(builtField, 'expand', false);
+                }
+                builtField.children.push(item);
+              }
+            } )
+          })
+          
+        } catch (err) {
+          console.warn(err);
+        }
+      },
+      deleteField(field) {
+        this.formData.fields =  this.formData.fields.filter(item => item.field_index !== field.field_index)
+      }
     },
   };
 </script>
@@ -2772,6 +2888,13 @@
         display: flex;
         align-items: center;
         margin: 10px 0 0;
+        .bklog-button{
+          font-size: 12px;
+        }
+      }
+
+      .bklog-icon{
+        font-size: 16px;
       }
 
       .documentation {
@@ -2801,7 +2924,7 @@
     }
 
     .field-method-result {
-      margin-top: -20px;
+      margin-top: 10px;
     }
 
     .add-field-container {
