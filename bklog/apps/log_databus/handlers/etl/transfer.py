@@ -57,6 +57,7 @@ class TransferEtlHandler(EtlHandler):
         sort_fields=None,
         target_fields=None,
         username="",
+        alias_settings=None,
         *args,
         **kwargs,
     ):
@@ -123,6 +124,7 @@ class TransferEtlHandler(EtlHandler):
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
             es_shards=es_shards,
+            alias_settings=alias_settings,
         )
 
         if not view_roles:
