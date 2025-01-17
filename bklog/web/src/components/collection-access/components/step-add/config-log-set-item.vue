@@ -238,7 +238,9 @@
           :label="$t('设备元数据')"
           required
         >
-        <device-metadata>
+        <device-metadata
+          @extra-labels-change="extraLabelsChange"
+        >
         </device-metadata>
         </bk-form-item>
       </div>
@@ -468,6 +470,7 @@
             winlog_name: [], // windows事件名称
             winlog_level: [], // windows事件等级
             winlog_event_id: [], // windows事件id
+            extra_labels: [], // 补充元数据
           },
         },
         type: 'and',
@@ -711,6 +714,9 @@
           this.$refs.logFilterRef?.initContainerData();
         });
       },
+      extraLabelsChange(val) {
+        this.$set(this.subFormData.params, 'extra_labels', val);
+      }
     },
   };
 </script>

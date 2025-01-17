@@ -38,32 +38,6 @@
       </div>
     </div>
     <div v-if="switcherValue" class="filter-table-container">
-      <!-- <bk-select :disabled="false" v-model="selectValue" searchable multiple display-tag>
-        <bk-option-group
-          v-for="(group, index) in groupList"
-          :name="group.name"
-          :key="index"
-          :show-collapse="true"
-          class="bklog-option-group"
-          :show-count="false"
-        >
-          <bk-option
-            v-for="option in group.children"
-            :key="option.id"
-            :id="option.id"
-            :name="option.name"
-          >
-            <bk-checkbox
-              :true-value="true"
-              :false-value="false"
-              v-model="option.isSelected"
-              @click="selectOption"
-            >
-              {{ option.name }}
-            </bk-checkbox>
-          </bk-option>
-        </bk-option-group>
-      </bk-select> -->
       <bk-select
         ref="select"
         searchable
@@ -81,13 +55,16 @@
           show-checkbox
           class="tree-select"
           ref="tree"
+          :options="treeOption"
           :default-checked-nodes="selectValue"
           @check-change="handleCheckChange"
-          @select-change="handleSelectChange"
           :default-expand-all="true"
           :check-on-click="true"
           :check-strictly="false"
         >
+          <div slot-scope="{ node, data }">
+            {{ data.group_name ? ` ${data.field}(${data.name})` : data.name }}
+          </div>
         </bk-big-tree>
       </bk-select>
     </div>
@@ -98,36 +75,28 @@ export default {
   props: {},
   data() {
     return {
-      switcherValue: true,
+      switcherValue: false,
       selectValue: [],
-      demo2: false,
+      treeOption: {
+        idKey: "field",
+      },
       groupList: [
         {
-          id: 1,
-          name: "我是分组1",
-          disable: true,
-          children: [
-            { id: "1-1", name: "hostname(主机名)", isSelected: false },
-            { id: "1-2", name: "hostid(主机ID)", isSelected: false },
-          ],
+          field: 1,
+          name: "host",
+          children: [],
         },
         {
-          id: 2,
-          name: "我是分组2",
-          disable: false,
-          children: [
-            { id: "2-1", name: "englishname(中文名)", isSelected: false },
-            { id: "2-2", name: "englishname(中文名)", isSelected: false },
-            { id: "2-3", name: "englishname(中文名)", isSelected: false },
-            { id: "2-4", name: "englishname(中文名)", isSelected: false },
-          ],
+          field: 2,
+          name: "scope",
+          children: [],
         },
       ],
     };
   },
   computed: {},
   mounted() {
-    // this.getDeviceMetaData();
+    this.getDeviceMetaData();
   },
   watch: {
     selectValue(val) {
@@ -147,11 +116,10 @@ export default {
       const list = id.filter((item) => item !== 1 && item !== 2);
       this.$refs.tree.setChecked(list);
       if (checked.level === 0) {
-        // const list = id.filter((item) => item !== 1 && item !== 2);
-        // this.$refs.tree.setChecked(list);
         return;
       }
       this.selectValue = [...id];
+      this.emitExtraLabels();
     },
     handleValuesChange(options) {
       this.$refs.tree &&
@@ -161,23 +129,33 @@ export default {
       this.$refs.tree && this.$refs.tree.removeChecked({ emitEvent: false });
     },
     selectOption(option) {
-      // this.$nextTick(() => {
-      //   option.isgetDeviceMetaDataSelected = this.value.includes(option.id);
-      // });
     },
-    handleSelectChange(option) {
-      console.log(option);
+    emitExtraLabels() {
+      const values = ["host", "scope"];
+      const result = this.groupList.reduce((acc, group, index) => {
+        const value = values[index]; 
+        const children = group.children.reduce((innerAcc, item) => {
+          if (this.selectValue.includes(item.field)) {
+            innerAcc.push({ key: item.field, value });
+          }
+          return innerAcc;
+        }, []);
+        return acc.concat(children);
+      }, []);
+      this.$emit("extra-labels-change", result);
     },
+    // 获取元数据
     async getDeviceMetaData() {
       try {
         const res = await this.$http.request(
           "linkConfiguration/getSearchObjectAttribute"
         );
-        console.log(res);
+        const { scope, host } = res.data;
+        this.groupList[0].children = host;
+        this.groupList[1].children = scope;
+        this.$refs.tree.setData(this.groupList);
       } catch (e) {
         console.warn(e);
-      } finally {
-        this.tableLoading = false;
       }
     },
   },
