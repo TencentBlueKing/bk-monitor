@@ -26,10 +26,9 @@
 import { Component, Emit, Prop, Mixins } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import store from '../../store/store';
-
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import UserConfigMixin from '../../mixins/userStoreConfig';
+import store from '../../store/store';
 
 import type { ThemeType } from './biz-select';
 
@@ -39,6 +38,7 @@ interface IProps {
   list: IListItem[];
   checked?: number;
   theme?: ThemeType;
+  canSetDefaultSpace?: boolean;
 }
 interface IEvents {
   onSelected: number;
@@ -72,6 +72,8 @@ const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
 export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) {
   /** 选中的id */
   @Prop({ type: Number }) checked: number;
+  /** 可设置默认空间 */
+  @Prop({ default: true, type: Boolean }) canSetDefaultSpace: boolean;
   /** 列表数据 */
   @Prop({ default: () => [], type: Array }) list: IListItem[];
   /** 主题 */
@@ -171,7 +173,7 @@ export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) 
                     >
                       ({child.space_type_id === ETagsType.BKCC ? `#${child.id}` : child.space_id || child.space_code})
                     </span>
-                    {this.defaultBizId && Number(this.defaultBizId) === child.id && (
+                    {this.canSetDefaultSpace && this.defaultBizId && Number(this.defaultBizId) === child.id && (
                       <span class='item-default-icon'>
                         <span class='item-default-text'>{this.$tc('默认')}</span>
                       </span>
@@ -190,23 +192,25 @@ export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) 
                       ))}
                     </span>
                   )}
-                  <div class='set-default-button'>
-                    {this.defaultBizId && Number(this.defaultBizId) === child.id ? (
-                      <div
-                        class={`btn-style-${this.theme} remove`}
-                        onClick={e => this.handleDefaultBizIdDialog(e, child, false)}
-                      >
-                        {this.$tc('取消默认')}
-                      </div>
-                    ) : (
-                      <div
-                        class={`btn-style-${this.theme}`}
-                        onClick={e => this.handleDefaultBizIdDialog(e, child, true)}
-                      >
-                        {this.$tc('设为默认')}
-                      </div>
-                    )}
-                  </div>
+                  {this.canSetDefaultSpace && (
+                    <div class='set-default-button'>
+                      {this.defaultBizId && Number(this.defaultBizId) === child.id ? (
+                        <div
+                          class={`btn-style-${this.theme} remove`}
+                          onClick={e => this.handleDefaultBizIdDialog(e, child, false)}
+                        >
+                          {this.$tc('取消默认')}
+                        </div>
+                      ) : (
+                        <div
+                          class={`btn-style-${this.theme}`}
+                          onClick={e => this.handleDefaultBizIdDialog(e, child, true)}
+                        >
+                          {this.$tc('设为默认')}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

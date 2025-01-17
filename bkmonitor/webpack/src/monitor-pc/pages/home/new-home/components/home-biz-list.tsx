@@ -39,19 +39,6 @@ import './home-biz-list.scss';
 
 /** 业务组件常用的业务缓存key */
 const BIZ_SELECTOR_COMMON_IDS = 'BIZ_SELECTOR_COMMON_IDS';
-/** 业务组件常用业务缓存最大个数 */
-const BIZ_SELECTOR_COMMON_MAX = 5;
-const BIZ_COLOR_LIST = [
-  '#7250A9',
-  '#3563BE',
-  '#3799BA',
-  '#4FB17F',
-  '#86AF4A',
-  '#E9AE1D',
-  '#EB9258',
-  '#D36C68',
-  '#BC4FB3',
-];
 
 interface IProps {
   zIndex?: number;
@@ -106,11 +93,11 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     limit: number;
     data: IListItem[];
   } = {
-    current: 1,
-    count: 0,
-    limit: 20,
-    data: [],
-  };
+      current: 1,
+      count: 0,
+      limit: 20,
+      data: [],
+    };
 
   typeWrapInfo = {
     showBtn: false,
@@ -379,7 +366,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   }
 
   render() {
-    console.log('= = = >', this.bizListFilter);
     return (
       <div class={['new-biz-select-wrap', this.theme]}>
         <bk-popover
@@ -467,6 +453,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
                 onScroll={this.handleScroll}
               >
                 <List
+                  canSetDefaultSpace={false}
                   list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}

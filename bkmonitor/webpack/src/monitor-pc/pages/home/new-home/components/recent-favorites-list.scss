@@ -1,3 +1,5 @@
+@import 'monitor-pc/theme/mixin.scss';
+
 .recent-content {
   display: flex;
   flex-wrap: wrap;
@@ -138,6 +140,7 @@
           color: #979BA5;
           text-align: right;
           letter-spacing: 0;
+          @include ellipsis;
         }
 
         &:last-child {
