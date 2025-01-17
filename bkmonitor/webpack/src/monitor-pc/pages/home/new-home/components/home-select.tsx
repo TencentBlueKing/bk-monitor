@@ -71,6 +71,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   searchLenArr: number[] = [];
   isComposing = false;
   currentAbortController: IDataItem = null;
+  /** 窗口宽度 */
+  windowWidth = 0;
 
   /** 处理数据 */
   flattenRoute(tree: IRouteItem[]) {
@@ -97,14 +99,24 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   get currentListKey() {
     return this.isSearchResult ? ESearchPopoverType.searchList : ESearchPopoverType.localHistoryList;
   }
+  get computedWidth() {
+    return this.windowWidth <= 2560 ? 920 : 1080;
+  }
 
   mounted() {
     this.autoResize();
+    this.updateWidth();
     this.routeList = this.flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
+    window.addEventListener('resize', this.updateWidth);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
+    window.removeEventListener('resize', this.updateWidth);
+  }
+  /** 窗口变化时更新宽度值 */
+  updateWidth() {
+    this.windowWidth = window.innerWidth;
   }
   /** 点击收起下拉框 */
   handleClickOutside(event: Event) {
@@ -112,12 +124,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       this.showPopover = false;
     }
   }
+  /** 后台eventStream数据处理 Start */
   /** 解析后台返回的eventStream */
-  @debounceDecorator(300)
+  @debounceDecorator(500)
   async fetchEventStream(url: string) {
-    // 如果已经存在一个请求，取消它
+    // 如果已经存在一个请求，取消请求
     if (this.currentAbortController) {
-      this.currentAbortController?.abort();
+      this.currentAbortController.abort();
     }
     this.currentAbortController = new AbortController();
     const { signal } = this.currentAbortController;
@@ -207,6 +220,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       console.error('Error parsing event string:', error);
     }
   }
+  /** 后台eventStream数据处理 End */
 
   /** 获取搜索结果 */
   getSearchList() {
@@ -224,7 +238,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.handleSearchJumpPage(item, key);
   }
 
-  /** 渲染查询结果Item */
+  /**
+   * 渲染查询结果Item
+   * @param item - 当前渲染的查询结果Item。
+   * @param type - 当前渲染的查询结果Item的类型，类型包含可见 ESearchType
+   * @param parentInd - 当前渲染的查询结果Item的父级下标。
+   * @param ind - 当前渲染的查询结果Item的下标。
+   */
   renderGroupItem(item: ISearchItem, type: string, parentInd: number, ind: number) {
     const isHost = type === ESearchType.host;
     const isStrategy = type === ESearchType.strategy;
@@ -636,7 +656,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
           <span>
             {this.$t('当前输入条件无匹配结果，请清空后重新输入')}
             <label
-              class='clear-btn'
+              class='empty-clear-btn'
               onClick={this.clearInput}
             >
               {this.$t('清空搜索')}
@@ -666,6 +686,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       <div class='new-home-select'>
         <div
           ref='select'
+          style={{ width: `${this.computedWidth}px` }}
           class='new-home-select-input'
         >
           <span class='new-home-select-icon'></span>
@@ -688,12 +709,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
               onClick={this.clearInput}
             />
           )}
+          {this.showPopover && (
+            <div class='new-home-select-popover'>
+              {this.isSearchResult ? this.renderSearchView() : this.renderHistoryView()}
+            </div>
+          )}
         </div>
-        {this.showPopover && (
-          <div class='new-home-select-popover'>
-            {this.isSearchResult ? this.renderSearchView() : this.renderHistoryView()}
-          </div>
-        )}
       </div>
     );
   }
