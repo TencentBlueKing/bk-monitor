@@ -133,6 +133,8 @@
         color: #4D4F56;
         cursor: pointer;
         transition: color 0.3s;
+        display: flex;
+        align-items: center;
 
         .icon-monitor {
           margin-right: 5px;

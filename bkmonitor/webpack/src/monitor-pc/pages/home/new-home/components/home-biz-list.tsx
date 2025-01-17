@@ -39,29 +39,14 @@ import './home-biz-list.scss';
 
 /** 业务组件常用的业务缓存key */
 const BIZ_SELECTOR_COMMON_IDS = 'BIZ_SELECTOR_COMMON_IDS';
-/** 业务组件常用业务缓存最大个数 */
-const BIZ_SELECTOR_COMMON_MAX = 5;
-const BIZ_COLOR_LIST = [
-  '#7250A9',
-  '#3563BE',
-  '#3799BA',
-  '#4FB17F',
-  '#86AF4A',
-  '#E9AE1D',
-  '#EB9258',
-  '#D36C68',
-  '#BC4FB3',
-];
 
 interface IProps {
   zIndex?: number;
   bizList: ISpaceItem[];
-  isShrink?: boolean;
   theme?: ThemeType;
   minWidth?: number;
   stickyList?: string[];
   isShowCommon?: boolean;
-  canAddBusiness?: boolean;
 }
 export type ThemeType = 'dark' | 'light';
 interface IEvents {
@@ -75,12 +60,10 @@ interface IEvents {
 @Component
 export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Prop({ default: () => [], type: Array }) bizList: ISpaceItem[];
-  @Prop({ default: false, type: Boolean }) isShrink: boolean;
   @Prop({ default: true, type: Boolean }) isShowCommon: boolean;
   @Prop({ default: null, type: Number }) zIndex: number;
   @Prop({ default: 200, type: Number }) minWidth: number;
   @Prop({ default: () => [], type: Array }) stickyList: string[];
-  @Prop({ default: true, type: Boolean }) canAddBusiness: boolean;
   @Prop({
     default: 'light',
     type: String,
@@ -91,7 +74,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Ref() homePopoverRef: any;
   @Ref('typeList') typeListRef: HTMLDivElement;
 
-  localValue: number = null;
   showBizList = false;
   keyword = '';
 
@@ -101,7 +83,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   commonListIds: number[] = [];
   spaceTypeIdList: { id: string; name: string; styles: any }[] = [];
   searchTypeId = '';
-  bizBgColor = '';
 
   bizListFilter = [];
 
@@ -112,11 +93,11 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     limit: number;
     data: IListItem[];
   } = {
-    current: 1,
-    count: 0,
-    limit: 20,
-    data: [],
-  };
+      current: 1,
+      count: 0,
+      limit: 20,
+      data: [],
+    };
 
   typeWrapInfo = {
     showBtn: false,
@@ -127,7 +108,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   firstCodeBgColor = '';
 
   created() {
-    this.bizBgColor = this.$store.getters.bizBgColor || this.getRandomColor();
     const spaceTypeMap: Record<string, any> = {};
     for (const item of this.bizList) {
       spaceTypeMap[item.space_type_id] = 1;
@@ -156,7 +136,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Emit('change')
   handleBizChange(id: number) {
     this.homePopoverRef.instance.hide();
-    this.handleCacheBizId(id);
     return id;
   }
 
@@ -296,29 +275,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     }
   }
 
-  getRandomColor() {
-    const color = BIZ_COLOR_LIST[Math.floor(Math.random() * BIZ_COLOR_LIST.length)];
-    this.$store.commit('app/SET_BIZ_BGCOLOR', color);
-    return color;
-  }
-
-  handleCacheBizId(id: number) {
-    const leng = this.commonListIds.length;
-    const isExist = this.commonListIds.includes(id);
-    let newIds = [...this.commonListIds];
-    if (isExist) {
-      newIds = newIds.filter(item => item !== id);
-      newIds.unshift(id);
-    } else {
-      newIds.unshift(id);
-      if (leng >= BIZ_SELECTOR_COMMON_MAX) {
-        newIds.length = BIZ_SELECTOR_COMMON_MAX;
-      }
-    }
-    this.commonListIds = newIds;
-    this.storage.set(BIZ_SELECTOR_COMMON_IDS, this.commonListIds);
-  }
-
   handleSetListWidth() {
     this.bizListFilter = this.getBizListFilter();
     const react = this.$el.getBoundingClientRect();
@@ -333,10 +289,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
         zIndex: this.zIndex,
       });
     this.typeListWrapNextPreShowChange();
-  }
-
-  handleOpenSpaceManager() {
-    this.handleSearchBlur();
   }
 
   handleSearchBlur() {
@@ -501,7 +453,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
                 onScroll={this.handleScroll}
               >
                 <List
-                  // checked={this.localValue}
+                  canSetDefaultSpace={false}
                   list={this.bizListFilter}
                   theme={this.theme}
                   onSelected={this.handleBizChange}

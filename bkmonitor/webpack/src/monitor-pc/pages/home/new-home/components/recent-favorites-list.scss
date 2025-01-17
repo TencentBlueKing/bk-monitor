@@ -1,3 +1,5 @@
+@import 'monitor-pc/theme/mixin.scss';
+
 .recent-content {
   display: flex;
   flex-wrap: wrap;
@@ -96,14 +98,14 @@
         }
 
         .detail {
-          overflow: hidden;
           font-size: 12px;
           line-height: 20px;
           color: #313238;
           text-overflow: ellipsis;
-          letter-spacing: 0;
           white-space: nowrap;
-
+          overflow: hidden;
+          letter-spacing: 0;
+          width: 80%;
           .favorite {
             margin-right: 3px;
             font-size: 14px;
@@ -138,6 +140,7 @@
           color: #979BA5;
           text-align: right;
           letter-spacing: 0;
+          @include ellipsis;
         }
 
         &:last-child {

@@ -40,12 +40,12 @@ import './recent-favorites-tab.scss';
 
 // 模块名称映射
 const modeNameMap = {
-  [window.i18n.tc('仪表盘')]: 'dashboard',
-  [window.i18n.tc('服务')]: 'apm_service',
-  [window.i18n.tc('日志检索')]: 'log_retrieve',
-  [window.i18n.tc('服务拨测')]: '-',
-  [window.i18n.tc('主机监控')]: '-',
-  [window.i18n.tc('容器服务')]: '-',
+  仪表盘: 'dashboard',
+  服务: 'apm_service',
+  日志检索: 'log_retrieve',
+  服务拨测: '-',
+  主机监控: '-',
+  容器服务: '-',
 };
 
 interface Category {
@@ -195,7 +195,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
                       }
                       value={modeNameMap[item.name]}
                     >
-                      <span>{item.name}</span>
+                      <span>{this.$tc(item.name)}</span>
                     </bk-checkbox>
                     <i class='icon-monitor icon-mc-tuozhuai' />
                   </li>

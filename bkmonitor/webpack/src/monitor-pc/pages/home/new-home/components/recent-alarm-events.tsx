@@ -341,6 +341,7 @@ export default class RecentAlarmEvents extends tsc<object> {
     let detail = this.$t('业务：{0}', {
       0: this.businessTab.filter(item => item.bk_biz_id === this.currentDelId)[0]?.bk_biz_name,
     });
+    let width = 680;
     let tips = this.$t('删除后，该tab下的视图也会一起删除');
     let info = this.$t('确定删除该业务视图？');
     let handleDelFunction = this.delTaskByIndex;
@@ -350,11 +351,12 @@ export default class RecentAlarmEvents extends tsc<object> {
       info = this.$t('确定删除该视图？');
       this.alarmGraphBizId = this.activeTabId;
       this.isAppendMode = true;
+      width = 580;
       handleDelFunction = this.handleSaveAlarmGraphConfig;
     }
     return (
       <bk-dialog
-        width={480}
+        width={width}
         ext-cls='task-del-dialog'
         v-model={this.showDelDialog}
         header-position='left'

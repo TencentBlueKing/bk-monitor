@@ -28,7 +28,7 @@ export default {
   // 规范： 动词-主体-结果  如 新建应用成功 New application successful
   // 规范： 仅首字母大写
   容器服务: 'Container service',
-  日志检索: 'Log retrieval',
+  日志检索: 'Logs',
   关联的告警: 'Related Alarms',
   关联的屏蔽策略: 'Associated blocking policy',
   '有问题就问 AI 小鲸': 'If you have any questions, ask Xiaojing',
@@ -38,10 +38,10 @@ export default {
   暂无快捷入口: 'No quick entry',
   快捷入口管理: 'Quick entry management',
   最近告警事件: 'Recent warning events',
-  '业务：{0}': 'Business: {0}',
+  '业务：{0}': 'Space: {0}',
   '删除后，该tab下的视图也会一起删除': 'After deletion, the views under the tab will also be deleted.',
   '确定删除该视图？': 'Are you sure you want to delete this view?',
-  '确定删除该业务视图？': 'Are you sure you want to delete this business view?',
+  '确定删除该业务视图？': 'Are you sure you want to delete this space view?',
   新增图表: 'New charts',
   修改图表: 'Modify chart',
   图表名称: 'Chart name',
@@ -51,7 +51,7 @@ export default {
   '请输入图表名称，默认为策略名称': 'Please enter a chart name, the default is the strategy name',
   '当前还未配置业务，快点击添加业务按钮新增图表':
     'There is no service configured yet. Click the Add Service button to add a new chart.',
-  删除该业务: 'Delete this business',
+  删除该业务: 'Delete this space',
   添加业务: 'Add a service',
   '请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索':
     'Please enter IP / Trace ID / container cluster / alarm ID / policy name to search',

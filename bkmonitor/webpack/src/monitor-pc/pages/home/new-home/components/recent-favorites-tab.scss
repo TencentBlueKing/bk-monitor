@@ -79,15 +79,15 @@
 
     /* 通过传递参数来动态控制每个 div 的宽度 */
     .single-col .category {
-      min-width: 100%;
+      width: 100%;
     }
 
     .double-col .category {
-      min-width: 50%;
+      width: 50%;
     }
 
     .triple-col .category {
-      min-width: 32%;
+      width: 32%;
     }
 
     .has-line {
