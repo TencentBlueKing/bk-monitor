@@ -175,8 +175,8 @@ class CacheCronJobCheck(CheckStep):
                 continue
 
             last_cache_duration = CMDBCacheManager.CACHE_TIMEOUT - ttl
-            if last_cache_duration > 7200:
-                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}在2小时内未刷新, key: {key}", self.story)
+            if last_cache_duration > 6 * 60 * 60:
+                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}在6小时内未刷新, key: {key}", self.story)
                 p_list.append(p)
                 continue
 

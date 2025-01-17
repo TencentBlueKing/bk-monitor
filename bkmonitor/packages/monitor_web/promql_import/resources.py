@@ -13,6 +13,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bk_dataview.api import get_or_create_org
 from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.models import ActionSignal, MetricMappingConfigModel, UserGroup
 from bkmonitor.strategy.new_strategy import get_metric_id
@@ -20,7 +21,6 @@ from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
-from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.grafana.resources import ConvertGrafanaPromqlDashboardResource
 from monitor_web.promql_import.utils import check_metric_field
 
@@ -109,7 +109,7 @@ class ImportGrafanaDashboard(ImportBaseResource):
 
     @classmethod
     def create_dashboard(cls, grafana_config, bk_biz_id):
-        org_id = GrafanaAuthSync.get_or_create_org_id(bk_biz_id)
+        org_id = get_or_create_org(bk_biz_id)["id"]
         result = api.grafana.import_dashboard(dashboard=grafana_config, org_id=org_id)
         return result
 

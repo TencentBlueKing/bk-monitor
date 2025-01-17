@@ -1,0 +1,23 @@
+.common-tag-list {
+  display: inline-block;
+  overflow: hidden;
+  .common-tag-list-main {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: -5px;
+    margin-left: -5px;
+    .common-tag-item {
+      display: inline-block;
+      height: 22px;
+      line-height: 22px;
+      white-space: nowrap;
+      padding: 0 10px;
+      margin-top: 5px;
+      margin-left: 5px;
+      color: #63656e;
+      border: 1px solid rgba(151,155,165,.30);
+      border-radius: 2px;
+      background: #fafbfd;
+    }
+  }
+}

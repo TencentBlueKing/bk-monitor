@@ -831,14 +831,39 @@ class Alert:
     def key(self) -> AlertKey:
         return AlertKey(alert_id=self.id, strategy_id=self.strategy_id)
 
+    def pre_qos_check(self):
+        from alarm_backends.service.converge.shield.shielder.saas_config import (
+            IncidentShielder,
+        )
+
+        message = _("当前告警处理正常")
+        is_blocked = False
+        try:
+            # 加入故障影响范围匹配模块
+            incident_checker = IncidentShielder(self.to_document())
+            is_blocked = incident_checker.is_matched()
+            if is_blocked:
+                message = incident_checker.detail
+                logger.info(f"[告警抑制]: 告警{self.id} 被抑制，原因: {message}")
+        except Exception as e:
+            logger.exception(f"[告警抑制] raise error: {e}")
+        return is_blocked, message
+
     def qos_check(self):
         """
         告警QOS检测
         """
-        message = _("当前告警处理正常")
-        qos_threshold = settings.QOS_ALERT_THRESHOLD
-        if qos_threshold == 0 or not self.is_blocked and not self.is_new():
+        if not self.is_blocked and not self.is_new():
             # 如果不是新的，并且未被熔断，直接返回
+            return {"is_blocked": False, "message": ""}
+
+        # 新增 pre_qos_check 用以在QOS检测之前进行额外流控
+        is_blocked, message = self.pre_qos_check()
+        if is_blocked:
+            return {"is_blocked": True, "message": message}
+
+        qos_threshold = settings.QOS_ALERT_THRESHOLD
+        if qos_threshold == 0:
             # 如果当前设置阈值为0表示没有QOS，直接返回
             return {"is_blocked": self.is_blocked, "message": message}
 
