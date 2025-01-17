@@ -33,6 +33,7 @@
     background-origin: padding-box, border-box;
     border: 2px solid transparent;
     border-radius: 8px;
+    margin: 0 auto;
 
     .clear-btn {
       position: absolute;
@@ -147,7 +148,7 @@
     color: #4d4f56;
   }
 
-  .clear-btn {
+  .empty-clear-btn {
     display: block;
     margin-top: 10px;
     font-size: 12px;
@@ -160,11 +161,10 @@
   position: absolute;
   left: 0;
   z-index: 500;
-  width: 840px;
+  width: 100%;
   max-height: 405px;
   margin-top: 4px;
   background: #fff;
-  border-radius: 2px;
   border-radius: 8px;
 }
 
