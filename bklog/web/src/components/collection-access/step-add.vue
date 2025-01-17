@@ -1121,8 +1121,6 @@
           return;
         }
         const params = this.handleParams();
-        // console.log(params);
-        // return 
         if (deepEqual(this.localParams, params)) {
           this.isHandle = false;
           if (this.isFinishCreateStep) {

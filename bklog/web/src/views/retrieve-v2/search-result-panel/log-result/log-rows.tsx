@@ -47,7 +47,6 @@ import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
-import { bkMessage } from 'bk-magic-vue';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,

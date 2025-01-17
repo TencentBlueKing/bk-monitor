@@ -2189,7 +2189,6 @@ export default defineComponent({
             onToDetailTab={this.handleToDetailTab}
             onToTracePage={this.goToTracePage}
             onViewResource={this.handleViewResource}
-            onToTracePage={this.goToTracePage}
           />
         </div>
       </div>
