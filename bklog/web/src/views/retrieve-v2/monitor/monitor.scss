@@ -5,10 +5,35 @@
   background: #f5f7fa;
 
   &.scroll-y {
-    height: calc(100vh - 52px);
+    height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
   }
+
+  &.is-sticky-top {
+    .search-bar-wrapper {
+      margin-left: 0;
+    }
+
+    .search-result-panel {
+      &.flex {
+        .field-list-sticky {
+          &.is-show {
+            height: calc(100% - var(--offset-search-bar) - 0);
+
+            .search-field-filter-new {
+              .field-filter-box {
+                .field-filter-container-new {
+                  height: calc(100% - var(--offset-search-bar) - 128px);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
 
   .sub-head {
     position: relative;
@@ -107,6 +132,11 @@
 
       align-self: start;
       overflow: visible;
+    }
+    
+
+    .search-result-panel.flex .field-list-sticky.is-show {
+      height: calc(100% -  var(--offset-search-bar) - 48px);
     }
   }
 
