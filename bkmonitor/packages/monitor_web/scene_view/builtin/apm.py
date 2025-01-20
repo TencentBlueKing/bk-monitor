@@ -23,12 +23,13 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application, CodeRedefinedConfigRelation
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.apm import MetricTemporality, TelemetryDataType
+from constants.apm import MetricTemporality, TelemetryDataType, Vendor
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
@@ -37,47 +38,111 @@ from monitor_web.scene_view.builtin.utils import gen_string_md5
 logger = logging.getLogger(__name__)
 
 
-@using_cache(CacheType.APM(60 * 1))
-def discover_caller_callee(
-    bk_biz_id: int, app_name: str, service_name: str
-) -> Dict[str, Union[Dict[str, Any], List[str]]]:
-    # 页面请求时，get_scene_view_list -> get_scene_view 依次调用这段逻辑，缓存 1min 以复用上一次的服务发现结果，加速页面加载。
-    # 后续这段逻辑可以下沉到统一的框架/语言发现任务，而不是每次请求都要执行一遍。
-    def _fetch_server_list(_group: metric_group.TrpcMetricGroup):
+def discover_config_from_node_or_none(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    predicate_systems: List[str] = [
+        meta["name"] for meta in node.get("system") or [] if meta.get("name") == metric_group.GroupEnum.TRPC
+    ]
+    if not predicate_systems:
+        logger.info("[apm][discover_config_from_node_or_none] system not fount: node -> %s", node)
+        return None
+
+    temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
+        Vendor.has_sdk(node.get("sdk"), Vendor.G)
+    ]
+    logger.info("[apm][discover_config_from_node_or_none] temporality -> %s, node -> %s", temporality, node)
+    return MetricTemporality.get_metric_config(temporality)
+
+
+def discover_config_from_metric_or_none(
+    bk_biz_id: int, app_name: str, table_id: str, service_name: str
+) -> Optional[Dict[str, Any]]:
+    metric_fields: List[str] = [
+        metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"],
+        metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"],
+    ]
+    metric_exists: bool = (
+        MetricListCache.objects.filter(
+            result_table_id=table_id,
+            data_source_label=DataSourceLabel.CUSTOM,
+            data_type_label=DataTypeLabel.TIME_SERIES,
+        )
+        .filter(metric_field__in=metric_fields)
+        .exists()
+    )
+    if not metric_exists:
+        logger.info("[apm][discover_config_from_metric_or_none] rpc metric not found: table_id -> %s", table_id)
+        return None
+
+    def _fetch_server_list():
         discover_result["server_list"] = group.fetch_server_list()
 
-    def _get_server_config(_group: metric_group.TrpcMetricGroup):
-        server_config: Dict[str, Any] = group.get_server_config(server=service_name)
-        try:
-            code_redefined_config = CodeRedefinedConfigRelation.objects.get(
-                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-            )
-            server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
-        except CodeRedefinedConfigRelation.DoesNotExist:
-            server_config["ret_code_as_exception"] = False
-
-        # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case
-        server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
-        discover_result["server_config"] = server_config
+    def _get_server_config():
+        discover_result["server_config"] = group.get_server_config(server=service_name)
 
     discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = {}
     group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
         metric_group.GroupEnum.TRPC, bk_biz_id, app_name
     )
-    run_threads(
-        [
-            InheritParentThread(target=_fetch_server_list, args=(group,)),
-            InheritParentThread(target=_get_server_config, args=(group,)),
-        ]
-    )
+    run_threads([InheritParentThread(target=_fetch_server_list), InheritParentThread(target=_get_server_config)])
 
     # run_threads 会吃掉异常，这里需要二次检查补偿，有异常也要在外层抛出
     if "server_list" not in discover_result:
-        _fetch_server_list(group)
+        _fetch_server_list()
 
     if "server_config" not in discover_result:
-        _get_server_config(group)
+        _get_server_config()
 
+    logger.info("[apm][discover_config_from_metric_or_none] discover_result -> %s", discover_result)
+    if service_name not in discover_result["server_list"]:
+        return None
+
+    return discover_result["server_config"]
+
+
+@using_cache(CacheType.APM(60 * 2))
+def discover_caller_callee(
+    bk_biz_id: int, app_name: str, table_id: str, service_name: str
+) -> Dict[str, Union[Dict[str, Any], List[str]]]:
+    """RPC 服务发现
+    页面请求顺序：get_scene_view_list -> get_scene_view 依次调用这段逻辑，缓存 1min 以复用上一次的服务发现结果，加速页面加载。
+    :param bk_biz_id: 业务 ID
+    :param app_name: 应用名称
+    :param table_id: 指标 Table ID
+    :param service_name: 服务名称
+    :return:
+    """
+    discover_result: Dict[str, Union[Dict[str, Any], bool]] = {"exists": False}
+    node: Optional[Dict[str, Any]] = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
+    if not node:
+        # 服务还没被发现（页面没有），直接跳过
+        logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
+        return discover_result
+
+    server_config: Optional[Dict[str, Any]] = discover_config_from_node_or_none(
+        node
+    ) or discover_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
+    if not server_config:
+        return discover_result
+
+    try:
+        code_redefined_config = CodeRedefinedConfigRelation.objects.get(
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+        )
+        server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
+    except CodeRedefinedConfigRelation.DoesNotExist:
+        server_config["ret_code_as_exception"] = False
+
+    # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case。
+    server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
+    discover_result["server_config"] = server_config
+    discover_result["exists"] = True
+    logger.info(
+        "[apm][discover_caller_callee] %s / %s / %s, discover_result -> %s",
+        bk_biz_id,
+        app_name,
+        service_name,
+        discover_result,
+    )
     return discover_result
 
 
@@ -268,25 +333,15 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
             discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
-                bk_biz_id, app_name, params["service_name"]
+                bk_biz_id, app_name, table_id, params["service_name"]
             )
-            server_list: List[str] = discover_result["server_list"]
-            server_config: Dict[str, Any] = discover_result["server_config"]
-
             # 探测服务，存在再展示页面
-            view_config["hidden"] = True
-            for server in server_list:
-                if not server:
-                    continue
-
-                if server.endswith(params["service_name"]):
-                    view_config["hidden"] = False
-                    break
-
-            # 如果页面隐藏或者只需要列表信息，提前返回减少渲染耗时
+            view_config["hidden"] = not discover_result["exists"]
             if view_config["hidden"] or params.get("only_simple_info"):
+                # 如果页面隐藏或者只需要列表信息，提前返回减少渲染耗时
                 return view_config
 
+            server_config: Dict[str, Any] = discover_result["server_config"]
             if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                 # 指标为累加类型，需要添加 increase 函数
                 cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
@@ -361,7 +416,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             view_variables = {}
             if not view_switches.get("only_dimension", False):
                 discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
-                    bk_biz_id, app_name, params["service_name"]
+                    bk_biz_id, app_name, result_table_id, params["service_name"]
                 )
                 server_config: Dict[str, Any] = discover_result["server_config"]
 

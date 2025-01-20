@@ -1033,13 +1033,29 @@ class MetricTemporality:
     def choices(cls):
         return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]
 
+    @classmethod
+    def get_metric_config(cls, temporality: str) -> Dict[str, str]:
+        if temporality == cls.DELTA:
+            return {
+                "temporality": MetricTemporality.DELTA,
+                "server_filter_method": "reg",
+                "server_field": TRPCMetricTag.TARGET,
+                "service_field": ".*${service_name}$",
+            }
+        return {
+            "temporality": MetricTemporality.CUMULATIVE,
+            "server_filter_method": "eq",
+            "server_field": "${server}",
+            "service_field": "${service_name}",
+        }
+
 
 class Vendor:
     G = "Z2FsaWxlbw=="
 
     @classmethod
     def equal(cls, e, v):
-        return base64.b64encode(v.encode()).decode() == e
+        return e == v or base64.b64encode(v.encode()).decode() == e
 
     @classmethod
     def has_sdk(cls, service_sdk, expect_sdk):
