@@ -631,7 +631,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   async initData() {
     this.localSceneType = this.sceneType;
     this.loading = true;
-    this.columns = +localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY) || 2;
+    const storedValue = localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY);
+    this.columns = storedValue === '0' ? 0 : +storedValue || 2;
     this.filtersReady = false;
     this.selectorReady = false;
     await this.$nextTick();
