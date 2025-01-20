@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-import { computed, ref, watch, defineProps, provide } from 'vue';
+import { computed, ref, watch, defineProps, provide, onMounted } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';

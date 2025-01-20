@@ -481,8 +481,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 1.0.1-beta.1
-        version: 1.0.1-beta.1
+        specifier: 1.0.1-beta.3
+        version: 1.0.1-beta.3
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -1444,8 +1444,8 @@ packages:
   '@blueking/login-modal@1.0.5':
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
 
-  '@blueking/monitor-apm-log@1.0.1-beta.1':
-    resolution: {integrity: sha512-CexbCRXEbMm3bogFDJ11Cay5ulF3s2dsvgdgYZVErC8FMdGPgMlNkM6/zCyl0BxaAByBnDi4w/2Y0epJq3hmPg==}
+  '@blueking/monitor-apm-log@1.0.1-beta.3':
+    resolution: {integrity: sha512-plU2f0cjEwUGWlRzTVYPDSnDxm4buRc/sX9mk8ym9Fi6RkJcDr05ATM21uZ0Eh3YvhT/w7USJiMNoIGAUencLw==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -9429,7 +9429,7 @@ snapshots:
 
   '@blueking/login-modal@1.0.5': {}
 
-  '@blueking/monitor-apm-log@1.0.1-beta.1': {}
+  '@blueking/monitor-apm-log@1.0.1-beta.3': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
