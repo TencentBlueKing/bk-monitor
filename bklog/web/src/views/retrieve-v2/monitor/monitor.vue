@@ -36,14 +36,14 @@ import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import { isEqual } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
+import useResizeObserve from '../../../hooks/use-resize-observe';
+import useScroll from '../../../hooks/use-scroll';
 import SelectIndexSet from '../condition-comp/select-index-set.tsx';
 import { getInputQueryIpSelectItem } from '../search-bar/const.common';
 import SearchBar from '../search-bar/index.vue';
 import QueryHistory from '../search-bar/query-history.vue';
 import SearchResultPanel from '../search-result-panel/index.vue';
-import useScroll from '../../../hooks/use-scroll';
 import { GLOBAL_SCROLL_SELECTOR } from '../search-result-panel/log-result/log-row-attributes';
-import useResizeObserve from '../../../hooks/use-resize-observe';
 const props = defineProps({
   indexSetApi: {
     type: Function,
@@ -295,6 +295,12 @@ watch(
   },
 );
 
+const stickyStyle = computed(() => {
+    return {
+      '--offset-search-bar': `${searchBarHeight.value + 8}px`,
+    };
+  });
+
 const contentStyle = computed(() => {
     return {
       '--left-width': `0px`,
@@ -337,11 +343,11 @@ const isScrollY = computed(() => {
   return !window.__IS_MONITOR_TRACE__
 })
 
-/*** 结束计算 ***/
+/** * 结束计算 ***/
 
 </script>
 <template>
-  <div :class="['retrieve-v2-index', { 'scroll-y': isScrollY, 'is-sticky-top': isStickyTop }]">
+  <div :style="stickyStyle" :class="['retrieve-v2-index', { 'scroll-y': isScrollY, 'is-sticky-top': isStickyTop }]">
     <div class="sub-head">
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"
@@ -351,8 +357,8 @@ const isScrollY = computed(() => {
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div
-      :class="['retrieve-v2-body']"
       :style="contentStyle"
+      :class="['retrieve-v2-body']"
     >
       <div class="retrieve-v2-content">
         <SearchBar @height-change="handleHeightChange"></SearchBar>
