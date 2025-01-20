@@ -51,7 +51,6 @@
             >
               <span
                 style="margin-right: 20px; line-height: 30px"
-                class="bk-label"
                 >{{ $t('显示内置字段') }}</span
               >
             </bk-checkbox>
@@ -152,7 +151,7 @@
                 </div>
                 <bk-form-item
                   v-else
-                  :class="{ 'is-required is-error': props.row.fieldErr || props.row.fieldAliasErr,'disable-background': props.row.is_built_in}"
+                  :class="{ 'is-required is-error':props.row.fieldErr,'disable-background': props.row.is_built_in}"
                   class="participle-form-item"
                 >
                   <span v-if="props.row.field_type === 'object' && props.row.children?.length && !props.row.expand" @click="expandObject(props.row,true)" class="ext-btn rotate bklog-icon bklog-arrow-down-filled"></span>
@@ -163,7 +162,6 @@
                     v-model.trim="props.row.alias_name"
                     class="participle-field-name-input-pl5"
                     :disabled="getFieldEditDisabled(props.row)"
-                    v-bk-tooltips.top="props.row.field_name"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
                   <bk-input
@@ -172,7 +170,6 @@
                     v-model.trim="props.row.field_name"
                     class="participle-field-name-input-pl5"
                     :disabled="getFieldEditDisabled(props.row)"
-                    v-bk-tooltips.top="props.row.field_name"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
                   <template v-if="(props.row.alias_name || props.row.alias_name_show) && !props.row.is_built_in">
@@ -188,7 +185,6 @@
                     <bk-input
                       class="participle-alias-name-input"
                       v-model.trim="props.row.alias_name"
-                      v-bk-tooltips.top="props.row.alias_name"
                       :disabled="getFieldEditDisabled(props.row)"
                       @blur="checkAliasNameItem(props.row)"
                     ></bk-input>
@@ -203,7 +199,7 @@
                   </template>
                   <!-- 重命名按钮，在json格式下重复内置字段或非法字符触发 -->
                   <!-- <template v-if="selectEtlConfig === 'bk_log_json' && props.row.btnShow && !props.row.alias_name"> -->
-                  <template v-if="selectEtlConfig === 'bk_log_json' && props.row.btnShow && !props.row.alias_name  && !props.row.alias_name_show">
+                  <template v-if="selectEtlConfig === 'bk_log_json' && props.row.fieldAliasErr && !props.row.alias_name  && !props.row.alias_name_show">
                     <bk-button  
                       :theme="'danger'" 
                       class="tooltips-btn" 
@@ -1051,14 +1047,14 @@
         return result || aliasResult;
       },
       checkAliasNameItem(row) {
-        
         let  { alias_name, is_delete, field_index } = row;
-        if(alias_name){
-          row.alias_name_show = false
-          return
-        }
-        // alias_name = this.currentAliasName
         let queryResult = ''
+        row.btnShow = false
+        if(!alias_name){
+          row.alias_name_show = false
+          row.btnShow = true
+          return false
+        }
         if (!is_delete) { 
           if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(alias_name)) {
               queryResult = this.$t('重命名只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾')
@@ -1076,7 +1072,7 @@
         } else {
           queryResult = '';
         }
-        this.$set(row, 'fieldAliasErr', queryResult);
+        this.$set(row, 'fieldErr', queryResult);
         this.$emit('handle-table-data', this.changeTableList);
         return queryResult;
       },
@@ -1085,18 +1081,19 @@
           try {
             let result = true;
             this.formData.tableList.forEach(row => {
-              // 如果有别名，不判断字段名，判断别名
-              if (!row.query_alias && row.is_built_in === false && !!this.checkFieldNameItem(row)) {
-                // 返回 true 的时候未通过
-                result = false;
-              }else if(this.checkQueryAliasItem(row)){
-                result = true;
+              // 如果有别名，不判断字段名，判断别名，如果为内置字段不判断
+              if (!row.is_built_in) {
+                const hasAliasNameIssue = row.alias_name && this.checkAliasNameItem(row);
+                const hasFieldNameIssue = this.checkFieldNameItem(row);
+                if (hasAliasNameIssue || hasFieldNameIssue) {
+                  result = false;
+                }
               }
             });
             if (result) {
               resolve();
             } else {
-              console.warn('FieldName或QueryName校验错误');
+              console.warn('FieldName或aliasName校验错误');
               reject(result);
             }
           } catch (err) {
@@ -1105,7 +1102,29 @@
           }
         });
       },
-
+      checkAliasName(){
+        return new Promise((resolve, reject) => {
+          try {
+            let result = true;
+            this.formData.tableList.forEach(row => {
+              if (!row.is_built_in) {
+                if (this.checkAliasNameItem(row)) {
+                  result = false;
+                }
+              }
+            });
+            if (result) {
+              resolve();
+            } else {
+              console.warn('AliasName校验错误');
+              reject(result);
+            }
+          } catch (err) {
+            console.warn('AliasName校验错误');
+            reject(err);
+          }
+        });
+      },
       checkQueryAliasItem(row) {
         const { field_name: fieldName, query_alias: queryAlias, is_delete: isDelete } = row;
         if (isDelete) {
@@ -1123,13 +1142,6 @@
             row.aliasErr = this.$t('别名不能与内置字段名相同');
             return false;
           }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
-          // 字段名与内置字段冲突，如果没有设置重命名且不是内置字段，必须设置别名
-          if(row.query_alias || row.is_built_in){
-            return true
-          }
-          row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
-          return false;
         }
 
         row.aliasErr = '';
@@ -1158,6 +1170,7 @@
       },
       validateFieldTable() {
         const promises = [];
+        promises.push(this.checkAliasName());
         promises.push(this.checkFieldName());
         promises.push(this.checkQueryAlias());
         promises.push(this.checkType());
@@ -1232,8 +1245,6 @@
       },
       filedNameIsConflict(fieldIndex, fieldName) {
         const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
-        console.log(otherFieldNameList);
-        
         return otherFieldNameList.some(item => item.field_name === fieldName);
       },
       /** 当前字段是否禁用 */
@@ -1366,7 +1377,7 @@
             }
           }
           .tooltips-icon {
-            top: 24px;
+            top: 18px;
           }
           .red-icon{
             color: #EA3636;

@@ -1569,7 +1569,6 @@
           delete data.etl_params['separator_regexp'];
           delete data.etl_params['separator'];
         }
-        let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
           // 检索设置 直接入库
