@@ -54,7 +54,7 @@
           :data="groupList"
           show-checkbox
           class="tree-select"
-          ref="tree"
+          ref="treeRef"
           :options="treeOption"
           :default-checked-nodes="selectValue"
           @check-change="handleCheckChange"
@@ -72,7 +72,11 @@
 </template>
 <script>
 export default {
-  props: {},
+  props: {
+    metadata: {
+      type: Array,
+    },
+  },
   data() {
     return {
       switcherValue: false,
@@ -97,9 +101,15 @@ export default {
   computed: {},
   mounted() {
     this.getDeviceMetaData();
+    if (this.metadata.filter(item => item.key).length) {
+      this.switcherValue = true;
+    }
   },
   watch: {
     selectValue(val) {
+      this.$refs.treeRef?.setChecked(val, {
+        checked: true,
+      });
       this.groupList.forEach((item) => {
         item.children.forEach((option) => {
           option.isSelected = val.includes(option.id);
@@ -109,12 +119,12 @@ export default {
   },
   methods: {
     remote(keyword) {
-      this.$refs.tree && this.$refs.tree.filter(keyword);
+      this.$refs.treeRef && this.$refs.treeRef.filter(keyword);
     },
     handleCheckChange(id, checked) {
       // 过滤最外层选中
       const list = id.filter((item) => item !== 1 && item !== 2);
-      this.$refs.tree.setChecked(list);
+      this.$refs.treeRef.setChecked(list);
       if (checked.level === 0) {
         return;
       }
@@ -122,18 +132,16 @@ export default {
       this.emitExtraLabels();
     },
     handleValuesChange(options) {
-      this.$refs.tree &&
-        this.$refs.tree.setChecked(options.id, { emitEvent: true, checked: false });
+      this.$refs.treeRef &&
+        this.$refs.treeRef.setChecked(options.id, { emitEvent: true, checked: false });
     },
     handleClear() {
-      this.$refs.tree && this.$refs.tree.removeChecked({ emitEvent: false });
-    },
-    selectOption(option) {
+      this.$refs.treeRef && this.$refs.treeRef.removeChecked({ emitEvent: false });
     },
     emitExtraLabels() {
       const values = ["host", "scope"];
       const result = this.groupList.reduce((acc, group, index) => {
-        const value = values[index]; 
+        const value = values[index];
         const children = group.children.reduce((innerAcc, item) => {
           if (this.selectValue.includes(item.field)) {
             innerAcc.push({ key: item.field, value });
@@ -153,7 +161,8 @@ export default {
         const { scope, host } = res.data;
         this.groupList[0].children = host;
         this.groupList[1].children = scope;
-        this.$refs.tree.setData(this.groupList);
+        this.$refs.treeRef.setData(this.groupList);
+        this.selectValue = this.metadata.map((item) => item.key);
       } catch (e) {
         console.warn(e);
       }

@@ -234,11 +234,13 @@
           />
         </bk-form-item>
         <bk-form-item
+          v-if="currentEnvironment=='linux' || currentEnvironment=='windows'"
           class="mt"
           :label="$t('设备元数据')"
           required
         >
         <device-metadata
+          :metadata="configData.extra_labels"
           @extra-labels-change="extraLabelsChange"
         >
         </device-metadata>
