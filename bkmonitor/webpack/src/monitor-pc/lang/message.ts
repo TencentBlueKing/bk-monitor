@@ -472,7 +472,7 @@ export default {
   '监控策略如何使用？': 'How to use bkmonitor strategy?',
   '是否将该业务设为默认业务？': 'Should this business be set as the default business?',
   '是否取消默认业务？': 'Should the default business be cancelled?',
-  '设为默认后，每次进入监控平台将会默认选中该业务': 
+  '设为默认后，每次进入监控平台将会默认选中该业务':
     'After setting it as default, the monitoring platform will default to this business every time you enter',
   '取消默认业务后，每次进入监控平台将会默认选中最近使用的业务而非当前默认业务':
     'After canceling the default business, the monitoring platform will default to the most recently used business instead of the current default business every time you enter',
@@ -502,4 +502,5 @@ export default {
   前匹配: 'match before',
   后匹配: 'match after',
   当前维度外层已选中: 'The outer layer of the current dimension is selected',
+  无请求数据: 'No request data',
 };
