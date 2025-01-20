@@ -127,7 +127,6 @@ export default defineComponent({
     };
   },
   render() {
-    console.log(this.displayedTags, 'displayedTags');
     return (
       <div
         ref='tagContainer'
