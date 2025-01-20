@@ -76,7 +76,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
   }
 
   get indexId() {
-    return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+    return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
   }
 
   get bkBizId() {

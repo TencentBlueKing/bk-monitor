@@ -533,6 +533,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (key === K8sTableColumnKeysEnum.CONTAINER) {
       return `${data[K8sTableColumnKeysEnum.POD]}:${data[K8sTableColumnKeysEnum.CONTAINER]}`;
     }
+    if (key === K8sTableColumnKeysEnum.WORKLOAD) {
+      return `${data[K8sTableColumnKeysEnum.NAMESPACE]}|${data[key]}`;
+    }
     return data[key];
   }
 

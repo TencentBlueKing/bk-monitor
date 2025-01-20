@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, ref, watch } from 'vue';
+import { type PropType, defineComponent, ref, watch, defineExpose } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Popover, Slider } from 'bkui-vue';
@@ -315,6 +315,11 @@ export default defineComponent({
         selectionLeft.value = left;
       }
     );
+
+    defineExpose({
+      handleUpdateZoom,
+    });
+
     return {
       MIN_ZOOM,
       showMinimap,

@@ -345,9 +345,7 @@ class EtlConfig(object):
 class MetadataTypeEnum(ChoicesEnum):
     PATH = "path"
 
-    _choices_labels = (
-        (PATH, _("路径元数据")),
-    )
+    _choices_labels = ((PATH, _("路径元数据")),)
 
 
 class EtlConfigChoices(ChoicesEnum):
@@ -657,4 +655,18 @@ class KafkaInitialOffsetEnum(ChoicesEnum):
     _choices_labels = (
         (OLDEST, _("最旧")),
         (NEWEST, _("最新")),
+    )
+
+
+class CollectorBatchOperationType(ChoicesEnum):
+    STOP = "stop"
+    START = "start"
+    MODIFY_STORAGE = "modify_storage"
+    QUERY_STORAGE = "query_storage"
+
+    _choices_labels = (
+        (STOP, _("停用")),
+        (START, _("启用")),
+        (MODIFY_STORAGE, _("修改存储配置")),
+        (QUERY_STORAGE, _("查询存储")),
     )

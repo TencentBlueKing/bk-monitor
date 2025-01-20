@@ -659,7 +659,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     def distinct(cls, queryset):
         query_set = (
             queryset.values('type', "name")
-            .order_by()
+            .order_by("name")
             .annotate(
                 distinct_name=Max("id"),
                 workload=Concat(F("type"), Value(":"), F("name")),
@@ -683,7 +683,7 @@ class K8sContainerMeta(K8sResourceMeta):
     def distinct(cls, queryset):
         query_set = (
             queryset.values('name')
-            .order_by()
+            .order_by('name')
             .annotate(distinct_name=Max("id"))
             .annotate(container=F("name"))
             .values("container")
@@ -740,7 +740,7 @@ class K8sContainerMeta(K8sResourceMeta):
     (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
     ) *
-    on(pod_name, namespace)
+    on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       kube_pod_container_resource_requests_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
@@ -757,7 +757,7 @@ class K8sContainerMeta(K8sResourceMeta):
     (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_cpu_usage_seconds_total{{{self.filter.filter_string()}}}
     ) *
-    on(pod_name, namespace)
+    on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       kube_pod_container_resource_limits_cpu_cores{{{self.filter.filter_string(exclude="workload")}}}
@@ -774,7 +774,7 @@ class K8sContainerMeta(K8sResourceMeta):
     (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_memory_rss{{{self.filter.filter_string()}}}
     ) *
-    on(pod_name, namespace)
+    on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       kube_pod_container_resource_requests_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}
@@ -791,7 +791,7 @@ class K8sContainerMeta(K8sResourceMeta):
     (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
         container_memory_rss{{{self.filter.filter_string()}}}
     ) *
-    on(pod_name, namespace)
+    on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
       kube_pod_container_resource_limits_memory_bytes{{{self.filter.filter_string(exclude="workload")}}}

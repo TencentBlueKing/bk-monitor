@@ -26,25 +26,51 @@
 const webpack = require('webpack');
 const WebpackBar = require('webpackbar');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { resolve } = require('node:path');
-const outputUrl = resolve(__dirname, '../monitor-retrieve');
+const outputUrl = resolve(__dirname, `../monitor-${process.env.MONITOR_APP}-retrieve`);
 const createMonitorConfig = config => {
   const production = process.env.NODE_ENV === 'production';
-  delete config.plugins[0];
+  const isTrace = process.env.MONITOR_APP === 'trace';
   config.plugins.push(
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: resolve(__dirname, './link-package.json'),
+          from: resolve(__dirname, `./${process.env.MONITOR_APP}-package.json`),
           to: resolve(outputUrl, './package.json'),
         },
-      ],
+        isTrace
+          ? {
+              from: resolve(__dirname, '../node_modules/bk-magic-vue/dist/fonts/iconcool.*'),
+              to: resolve(outputUrl, './fonts/[name][ext]'),
+            }
+          : undefined,
+        isTrace
+          ? {
+              from: resolve(__dirname, '../node_modules/bk-magic-vue/dist/images/*.(png|svg)'),
+              to: resolve(outputUrl, './images/[name][ext]'),
+            }
+          : undefined,
+      ].filter(Boolean),
     }),
   );
+  config.plugins.push(
+    new webpack.DefinePlugin({
+      NODE_ENV: JSON.stringify('production'),
+      APP: JSON.stringify(process.env.MONITOR_APP),
+      MONITOR_APP: JSON.stringify(process.env.MONITOR_APP),
+    }),
+  );
+  const fileLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.ttf'));
+  const imgLoaders = config.module.rules[1].oneOf.find(item => item.test.test('.png'));
+  const urlLoaderOptions = fileLoaders.use.find(item => item.loader === 'url-loader').options;
+  imgLoaders.options.publicPath = '../img';
+  urlLoaderOptions.publicPath = '../fonts';
   return {
     ...config,
     entry: {
-      main: './src/views/retrieve-v2/monitor/index.ts',
+      main: isTrace ? './src/views/retrieve-v2/monitor/trace.ts' : './src/views/retrieve-v2/monitor/index.ts',
     },
     output: {
       filename: '[name].js',
@@ -58,6 +84,7 @@ const createMonitorConfig = config => {
       chunkFormat: 'module',
       module: true,
       clean: true,
+      publicPath: '',
     },
     resolve: {
       ...config.resolve,
@@ -74,44 +101,83 @@ const createMonitorConfig = config => {
       mangleExports: false,
     },
     externalsType: 'module',
-    externals: [
-      /@blueking\/date-picker/,
-      /@blueking\/ip-selector/,
-      /@blueking\/user-selector/,
-      /@blueking\/bkui-library/,
-      /bk-magic-vue/,
-      /vue-i18n/,
-      'vue',
-      'axios',
-      'vuex',
-      'vue-property-decorator',
-      'vuedraggable',
-      'sortablejs',
-      'clipboard',
-      'vue-tsx-support',
-      'qs',
-      /dayjs\//,
-      'dayjs',
-      /lodash/,
-      /vue-json-pretty/,
-      ({ request, context }, cb) => {
-        if (request === 'echarts') {
-          return cb(undefined, request.replace(request, request));
+    externals: isTrace
+      ? [
+          /@blueking\/date-picker/,
+          // /@blueking\/ip-selector/,
+          // /@blueking\/user-selector/,
+          /@blueking\/bkui-library/,
+          // /bk-magic-vue/,
+          // /vue-i18n/,
+          // 'vue',
+          'axios',
+          // 'vuex',
+          // 'vue-property-decorator',
+          'vuedraggable',
+          'sortablejs',
+          // 'clipboard',
+          // 'vue-tsx-support',
+          'qs',
+          /dayjs\//,
+          'dayjs',
+          /lodash/,
+          // /vue-json-pretty/,
+          ({ request }, cb) => {
+            // if (request === 'echarts') {
+            //   return cb(undefined, request.replace(request, request));
+            // }
+            if (request === 'resize-detector') {
+              return cb(undefined, '@blueking/fork-resize-detector');
+            }
+            cb();
+          },
+        ]
+      : [
+          /@blueking\/date-picker/,
+          /@blueking\/ip-selector/,
+          /@blueking\/user-selector/,
+          /@blueking\/bkui-library/,
+          /bk-magic-vue/,
+          /vue-i18n/,
+          'vue',
+          'axios',
+          'vuex',
+          'vue-property-decorator',
+          'vuedraggable',
+          'sortablejs',
+          'clipboard',
+          'vue-tsx-support',
+          'qs',
+          /dayjs\//,
+          'dayjs',
+          /lodash/,
+          /vue-json-pretty/,
+          ({ request }, cb) => {
+            if (request === 'echarts') {
+              return cb(undefined, request.replace(request, request));
+            }
+            if (request === 'resize-detector') {
+              return cb(undefined, '@blueking/fork-resize-detector');
+            }
+            cb();
+          },
+        ],
+    plugins: config.plugins
+      .filter(plugin => !(plugin instanceof HtmlWebpackPlugin))
+      .map(plugin => {
+        if (plugin instanceof MiniCssExtractPlugin) {
+          return new MiniCssExtractPlugin({
+            filename: 'css/main.css',
+            ignoreOrder: true,
+          });
         }
-        if (request === 'resize-detector') {
-          return cb(undefined, '@blueking/fork-resize-detector');
-        }
-        cb();
-      },
-    ],
-    plugins: config.plugins.filter(Boolean).map(plugin => {
-      return plugin instanceof webpack.ProgressPlugin
-        ? new WebpackBar({
-            profile: true,
-            name: `监控日志 ${production ? 'Production模式' : 'Development模式'} 构建`,
-          })
-        : plugin;
-    }),
+        return plugin instanceof webpack.ProgressPlugin
+          ? new WebpackBar({
+              profile: true,
+              name: `监控日志检索组件 ${production ? 'Production模式' : 'Development模式'} 构建`,
+            })
+          : plugin;
+      }),
     cache: production ? false : config.cache,
   };
 };

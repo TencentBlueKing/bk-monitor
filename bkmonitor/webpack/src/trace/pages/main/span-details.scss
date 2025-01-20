@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 %json-style {
   height: 100%;
   overflow: auto;
@@ -33,16 +34,16 @@
 }
 
 .span-details-sideslider {
-  /* stylelint-disable-next-line declaration-no-important */
+  
   position: fixed !important;
 
   .bk-modal-header {
-    /* stylelint-disable-next-line declaration-no-important */
+    
     display: block !important;
   }
 
   .bk-sideslider-title {
-    /* stylelint-disable-next-line declaration-no-important */
+    
     width: auto !important;
   }
 
@@ -112,12 +113,12 @@
     top: 0;
     z-index: 99;
 
-    /* stylelint-disable-next-line declaration-no-important */
+    
     width: auto !important;
     height: 100%;
 
     .bk-modal-content {
-      width: 960px;
+      width: 1280px;
       height: 100%;
       background: #f5f7fa;
 
@@ -184,7 +185,7 @@
   .header {
     padding: 24px 40px 0 40px;
 
-    /* stylelint-disable-next-line declaration-no-important */
+    
     margin-right: 20px !important;
   }
 
@@ -228,7 +229,7 @@
         white-space: normal;
 
         .icon-type {
-          /* stylelint-disable-next-line declaration-no-important */
+          
           margin: 0 4px 0 0 !important;
         }
 
@@ -278,11 +279,11 @@
     // margin-top: 24px;
     height: calc(100% - 166px);
     padding: 0 40px 14px;
-    overflow: auto;
+    overflow-y: auto;
     background: #fff;
 
     .time-series {
-      /* stylelint-disable-next-line declaration-no-important */
+      
       border: 1px solid #dcdee5 !important;
 
       &:hover {
@@ -292,8 +293,11 @@
       }
 
       .chart-legend {
-        /* stylelint-disable-next-line declaration-no-important */
         max-height: 72px !important;
+
+        &.right-legend {
+          max-height: 100% !important;
+        }
       }
     }
 
@@ -309,6 +313,15 @@
         .monitor-trace-log {
           padding-right: 40px;
         }
+      }
+    }
+
+    &.is-host-tab,
+    &.is-container-tab {
+      padding: 0 0  0 40px;
+
+      .host-tab-container {
+        height: 100%;
       }
     }
   }
@@ -778,6 +791,7 @@
   }
 
   &.is-main {
+    height: 100%;
     padding: 0 16px;
 
     .header {
@@ -844,8 +858,14 @@
     }
 
     .content-list {
-      height: calc(100% - 155px);
+      height: calc(100% - 150px);
       padding: 0 16px 14px;
+
+      &.is-host-tab,
+      &.is-container-tab {
+        padding-right: 0;
+        padding-bottom: 0;
+      }
     }
 
     .retrieve-v2-index {
@@ -870,7 +890,6 @@
   }
 
   .graph-tools {
-    /* stylelint-disable-next-line declaration-no-important */
     left: 60px !important;
   }
 }

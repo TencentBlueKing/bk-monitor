@@ -3,22 +3,8 @@
   "type": "detail",
   "mode": "auto",
   "name": "容器",
-  "variables": [],
-  "overview_panels": [],
-  "order": [],
-  "options": {
-    "panel_tool": {
-      "compare_select": true,
-      "columns_toggle": true,
-      "interval_select": true,
-      "split_switcher": false,
-      "method_select": true
-    },
-    "show_panel_count": false,
-    "enable_index_list": true,
-    "enable_group": true,
-    "alert_filterable": true,
-    "selector_panel": {
+  "variables": [
+    {
       "title": "容器列表",
       "type": "target_list",
       "targets": [
@@ -50,7 +36,23 @@
         }
       ],
       "options": {}
+    }
+  ],
+  "overview_panels": [],
+  "order": [],
+  "options": {
+    "panel_tool": {
+      "compare_select": true,
+      "columns_toggle": true,
+      "interval_select": true,
+      "split_switcher": false,
+      "method_select": true
     },
+    "show_panel_count": false,
+    "enable_index_list": true,
+    "enable_group": true,
+    "alert_filterable": true,
+    "selector_panel": {},
     "overview_detail_panel": {
       "title": "Pod",
       "type": "info",

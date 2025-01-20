@@ -1,6 +1,5 @@
-openapi: 3.0.1
-servers:
-- url: /
+swagger: '2.0'
+basePath: /
 info:
   version: '2.0'
   title: API Gateway Resources

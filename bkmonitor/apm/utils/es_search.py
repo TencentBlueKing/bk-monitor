@@ -8,13 +8,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import re
 import time
 from functools import wraps
 from threading import Semaphore
+from typing import Any, List
 
+import arrow
+from dateutil.rrule import DAILY, MONTHLY, rrule
 from elasticsearch.helpers.errors import ScanError
 from elasticsearch_dsl import Search
 from elasticsearch_dsl.connections import get_connection
+from elasticsearch_dsl.search import ProxyDescriptor, QueryProxy
 
 from common.log import logger
 
@@ -80,7 +85,39 @@ def _scan(
             )
 
 
+class EsQueryProxy(QueryProxy):
+    def __call__(self, *args, **kwargs):
+        filters = kwargs.get("filter", [])
+        if filters:
+            for _filter in filters:
+                if hasattr(_filter, "end_time"):
+                    gt_time = getattr(_filter.end_time, "gt", None) or getattr(_filter.end_time, "gte", None)
+                    lt_time = getattr(_filter.end_time, "lt", None) or getattr(_filter.end_time, "lte", None)
+                    optimizer = QueryIndexOptimizer(
+                        indices=self._search._index,
+                        start_timestamp=gt_time,
+                        end_timestamp=lt_time,
+                        use_time_range=bool(gt_time),
+                    )
+                    self._search.fix_index(optimizer.index)
+                    break
+        s = super().__call__(*args, **kwargs)
+        return s
+
+
 class EsSearch(Search):
+    query = ProxyDescriptor("es_query")
+    post_filter = ProxyDescriptor("es_post_filter")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._es_query_proxy = EsQueryProxy(self, "query")
+        self._es_post_filter_proxy = EsQueryProxy(self, "post_filter")
+
+    def fix_index(self, indices: List[str]):
+        if indices:
+            self._index = indices
+
     def scan(self):
         es = get_connection(self._using)
 
@@ -116,3 +153,100 @@ class RateLimiter:
 
 def limits(calls, period):
     return RateLimiter(calls, period)
+
+
+class QueryIndexOptimizer(object):
+    def __init__(
+        self,
+        indices: list,
+        start_timestamp: int = None,
+        end_timestamp: int = None,
+        time_zone: str = "GMT",
+        use_time_range: bool = True,
+    ):
+        self._index: str = ""
+        if not indices or use_time_range is False:
+            return
+
+        start_time = arrow.get(int(start_timestamp / 1000000)) if start_timestamp else None
+        end_time = arrow.get(int(end_timestamp / 1000000)) if end_timestamp else None
+        filtered_indices = self.index_filter(indices, start_time, end_time, time_zone)
+
+        if filtered_indices:
+            self._index = ",".join(filtered_indices)
+
+    @property
+    def index(self):
+        return [self._index] if self._index else None
+
+    def index_filter(self, indices, start_time: arrow.Arrow, end_time: arrow.Arrow, time_zone: str) -> List[str]:
+        # BkData索引集优化
+        indices_list = set()
+        for indices_str in indices:
+            for _index in indices_str.split(","):
+                indices_list.add(_index)
+        index_filters = self.index_time_filters(start_time, end_time, time_zone)
+        final_index_list = [_index for _index in indices_list if self.check_index_date(_index, index_filters)]
+        return final_index_list
+
+    def index_time_filters(self, date_start: arrow.Arrow, date_end: arrow.Arrow, time_zone: str):
+        now = arrow.now(time_zone)
+        date_start = date_start.to(time_zone)
+        date_end = date_end.to(time_zone) if date_end else now
+        if date_end > now:
+            date_end = now
+
+        date_day_list: List[Any] = list(
+            rrule(DAILY, interval=1, dtstart=date_start.floor("day").datetime, until=date_end.ceil("day").datetime)
+        )
+
+        date_month_list: List[Any] = list(
+            rrule(
+                MONTHLY, interval=1, dtstart=date_start.floor("month").datetime, until=date_end.ceil("month").datetime
+            )
+        )
+
+        return self._generate_filter_list(date_day_list, date_month_list)
+
+    @classmethod
+    def _generate_filter_list(cls, date_day_list, date_month_list):
+        date_filter_template = r"^.*_bkapm_trace_.+_{}_\d+$"
+        month_filter_template = r"^.*_bkapm_trace_.+_{}.*_\d+$"
+
+        filter_mapping = {}
+        if len(date_day_list) == 1:
+            for x in date_day_list:
+                pattern = date_filter_template.format(x.strftime("%Y%m%d"))
+                if pattern not in filter_mapping:
+                    filter_mapping[pattern] = re.compile(pattern)
+        elif len(date_day_list) > 1 and len(date_month_list) == 1:
+            if len(date_day_list) > 14:
+                for x in date_month_list:
+                    pattern = month_filter_template.format(x.strftime("%Y%m"))
+                    if pattern not in filter_mapping:
+                        filter_mapping[pattern] = re.compile(pattern)
+            else:
+                for x in date_day_list:
+                    pattern = date_filter_template.format(x.strftime("%Y%m%d"))
+                    if pattern not in filter_mapping:
+                        filter_mapping[pattern] = re.compile(pattern)
+        elif len(date_day_list) > 1 and len(date_month_list) > 1:
+            if len(date_month_list) <= 6:
+                for x in date_month_list:
+                    pattern = month_filter_template.format(x.strftime("%Y%m"))
+                    if pattern not in filter_mapping:
+                        filter_mapping[pattern] = re.compile(pattern)
+            else:
+                for x in date_month_list[-6::1]:
+                    pattern = month_filter_template.format(x.strftime("%Y%m"))
+                    if pattern not in filter_mapping:
+                        filter_mapping[pattern] = re.compile(pattern)
+        return list(filter_mapping.values())
+
+    @classmethod
+    def check_index_date(cls, index, index_filters):
+        # 从索引名称中提取日期部分
+        for filter_pattern in index_filters:
+            if filter_pattern.match(index):
+                return True
+        return False
