@@ -241,7 +241,7 @@ export default defineComponent({
         let max = Number.MAX_SAFE_INTEGER;
         if (!showAll.value) {
           max = 4;
-          pageIndex = 0;
+          // pageIndex = 0;
           refSegmentContent.value.innerHTML = '';
         }
         setTextSegmentChildNodes(max);
@@ -331,8 +331,8 @@ export default defineComponent({
         containerWidth = refContent.value.offsetWidth;
 
         if (getSegmentRenderType() === 'canvas') {
-          mountedAllTag = false;
-          pageIndex = 0;
+          // mountedAllTag = false;
+          // pageIndex = 0;
           const width = refContent.value.offsetWidth;
           setRect(width);
           // setNextText();
