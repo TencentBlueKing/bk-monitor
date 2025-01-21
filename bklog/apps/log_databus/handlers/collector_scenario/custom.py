@@ -19,27 +19,33 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import ugettext as _
+
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.handlers.collector_scenario.base import CollectorScenario
-from django.utils.translation import ugettext as _
 
 
 class CustomCollectorScenario(CollectorScenario):
     @classmethod
-    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT):
+    def get_built_in_config(cls, es_version="5.X", etl_config=EtlConfig.BK_LOG_TEXT, **kwargs):
         """
         获取采集器标准字段
         """
+        unique_field_list = cls.get_unique_field_list(
+            field_list=[
+                "cloudId",
+                "serverIp",
+                "path",
+                "gseIndex",
+                "iterationIndex",
+                "dtEventTimeStamp",
+            ],
+            target_fields=kwargs.get("target_fields"),
+            sort_fields=kwargs.get("sort_fields"),
+        )
         return {
             "option": {
-                "es_unique_field_list": [
-                    "cloudId",
-                    "serverIp",
-                    "path",
-                    "gseIndex",
-                    "iterationIndex",
-                    "dtEventTimeStamp",
-                ],
+                "es_unique_field_list": unique_field_list,
                 "separator_node_source": "",
                 "separator_node_action": "",
                 "separator_node_name": "",
