@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import os
+import socket
 import sys
 
 from django.apps import AppConfig, apps
@@ -17,6 +18,7 @@ from django.conf import settings
 from django.db.models.signals import post_migrate
 
 from bkmonitor.trace.log_trace import BluekingInstrumentor
+from bkmonitor.utils.common_utils import get_local_ip
 from bkmonitor.utils.dynamic_settings import hack_settings
 from patches.bkoauth import patch_bkoauth_update_user_access_token
 
@@ -64,14 +66,23 @@ class Config(AppConfig):
                 # those data collecting may cause 2-5% overhead
                 # enabling manually is a safer way to do in production
                 try:
-                    from ddtrace.profiling.profiler import Profiler
+                    import pyroscope
 
-                    from bkmonitor.profiling import patch_ddtrace_to_pyroscope
-
-                    patch_ddtrace_to_pyroscope()
-                    prof = Profiler()
-                    prof.start()
-
+                    auth_token = os.getenv("BKAPP_CONTINUOUS_PROFILING_TOKEN") or os.getenv("BKAPP_OTLP_BK_DATA_TOKEN")
+                    pyroscope.configure(
+                        application_name=settings.SERVICE_NAME,
+                        server_address=os.getenv("BKAPP_CONTINUOUS_PROFILING_ENDPOINT", ""),
+                        tags={
+                            "service.name": settings.SERVICE_NAME,
+                            "service.version": settings.VERSION,
+                            "service.environment": settings.ENVIRONMENT,
+                            "net.host.ip": get_local_ip(),
+                            "net.host.name": socket.gethostname(),
+                        },
+                        http_headers={
+                            "X-BK-TOKEN": auth_token,
+                        },
+                    )
                 except Exception as err:  # pylint: disable=broad-except
                     print("start continues profiling failed: %s" % err)
 
