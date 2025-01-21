@@ -1038,9 +1038,9 @@ class MetricTemporality:
         if temporality == cls.DELTA:
             return {
                 "temporality": MetricTemporality.DELTA,
-                "server_filter_method": "reg",
-                "server_field": TRPCMetricTag.TARGET,
-                "service_field": ".*${service_name}$",
+                "server_filter_method": "eq",
+                "server_field": TRPCMetricTag.SERVICE_NAME,
+                "service_field": "${service_name}",
             }
         return {
             "temporality": MetricTemporality.CUMULATIVE,

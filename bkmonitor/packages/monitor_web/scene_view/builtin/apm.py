@@ -60,15 +60,12 @@ def discover_config_from_metric_or_none(
         metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"],
         metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"],
     ]
-    metric_exists: bool = (
-        MetricListCache.objects.filter(
-            result_table_id=table_id,
-            data_source_label=DataSourceLabel.CUSTOM,
-            data_type_label=DataTypeLabel.TIME_SERIES,
-        )
-        .filter(metric_field__in=metric_fields)
-        .exists()
-    )
+    metric_exists: bool = MetricListCache.objects.filter(
+        result_table_id=table_id,
+        data_source_label=DataSourceLabel.CUSTOM,
+        data_type_label=DataTypeLabel.TIME_SERIES,
+        metric_field__in=metric_fields,
+    ).exists()
     if not metric_exists:
         logger.info("[apm][discover_config_from_metric_or_none] rpc metric not found: table_id -> %s", table_id)
         return None
