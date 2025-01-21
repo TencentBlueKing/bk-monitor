@@ -77,6 +77,23 @@
     }
   }
 
+  .retrieve-v2-body {
+    .retrieve-v2-content {
+      &::after {
+        width: 1px;
+      }
+
+      .search-bar-wrapper {
+        margin: 0 0 8px 0;
+      }
+
+      .search-result-panel {
+        padding: 0;
+      }
+    }
+  }
+  
+
   .empty-chart-log {
     display: flex;
     flex: 1;

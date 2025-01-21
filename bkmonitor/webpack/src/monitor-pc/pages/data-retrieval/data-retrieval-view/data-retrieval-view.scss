@@ -78,6 +78,10 @@
       padding: 0;
     }
 
+    &.is-full-screen {
+      height: calc(100vh - 14px);
+    }
+
     .total-tips {
       display: flex;
       justify-content: space-between;

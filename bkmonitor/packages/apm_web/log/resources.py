@@ -117,7 +117,8 @@ def log_relation_list(bk_biz_id, app_name, service_name, span_id=None, start_tim
             # 默认查询: 服务名称 / 根据不同 SDK 进行调整
             node = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
             if node and Vendor.has_sdk(node.get("sdk"), Vendor.G):
-                index_info["addition"] = [{"field": "target", "operator": "=", "value": [service_name]}]
+                # G.SDK 中，日志 server 字段 = app.server。
+                index_info["addition"] = [{"field": "server", "operator": "=", "value": [service_name]}]
             else:
                 index_info["addition"] = [{"field": "resource.service.name", "operator": "=", "value": [service_name]}]
 
