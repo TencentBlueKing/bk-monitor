@@ -965,13 +965,28 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
               rightIcon={'bk-icon icon-search'}
               onInput={this.handleSearch}
             />
-            <bk-button
-              class='refresh-btn'
-              disabled={this.refreshLoading}
-              icon={this.refreshLoading ? 'loading' : 'refresh'}
-              text
-              onClick={this.handleRefreshClick}
-            />
+            <div class='refresh-div'>
+              <div>{this.$tc('搜不到想要的？')}</div>
+              <div>
+                <bk-button
+                  class='refresh-btn'
+                  v-bkloading={{
+                    isLoading: this.refreshLoading,
+                    opacity: 1,
+                    zIndex: 10,
+                    theme: 'primary',
+                    mode: 'spin',
+                    size: 'mini',
+                  }}
+                  disabled={this.refreshLoading}
+                  text
+                  onClick={this.handleRefreshClick}
+                >
+                  {this.$tc('刷新')}
+                </bk-button>
+                &nbsp;{this.$tc('试试。')}
+              </div>
+            </div>
           </div>
           <div
             class='metric-selector-content-wrap'
