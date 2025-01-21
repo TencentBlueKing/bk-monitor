@@ -34,6 +34,9 @@
     min-width: 100%;
     font-weight: 700;
     color: #63656e;
+    .chart-title-wrap {
+      z-index: 1;
+    }
 
     :deep(.chart-title-wrap) {
       cursor: pointer;

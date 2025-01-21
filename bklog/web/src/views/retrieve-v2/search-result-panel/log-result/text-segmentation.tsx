@@ -312,6 +312,11 @@ export default defineComponent({
       }
     });
 
+    const resetMounted = () => {
+      textSegmentIndex = 0;
+      refSegmentContent.value.innerHTML = '';
+    };
+
     watch(
       () => [isLimitExpandView.value],
       () => {
@@ -319,6 +324,21 @@ export default defineComponent({
           textSegmentIndex = 0;
           setMoreLines();
         }
+      },
+    );
+
+    watch(
+      () => props.content,
+      () => {
+        textSegmentInstance.update({
+          options: {
+            content: props.content,
+          },
+        });
+
+        wordList = textSegmentInstance.getChildNodes();
+        resetMounted();
+        setMounted();
       },
     );
 

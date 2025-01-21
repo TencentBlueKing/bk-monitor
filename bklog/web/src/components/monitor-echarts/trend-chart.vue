@@ -91,7 +91,7 @@
       return;
     }
 
-    const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+    const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
     if ((!isUnionSearch.value && !!indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
       // 从检索切到其他页面时 表格初始化的时候路由中indexID可能拿不到 拿不到 则不请求图表
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';

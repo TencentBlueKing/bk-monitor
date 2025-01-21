@@ -36,7 +36,12 @@ from bkmonitor.utils.request import get_app_code_by_request, get_request
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import Resource, api
 from metadata import config, models
-from metadata.config import ES_ROUTE_ALLOW_URL
+from metadata.config import (
+    ES_ROUTE_ALLOW_URL,
+    cluster_custom_metric_name,
+    k8s_event_name,
+    k8s_metric_name,
+)
 from metadata.models.bcs import (
     BCSClusterInfo,
     LogCollectorInfo,
@@ -44,6 +49,7 @@ from metadata.models.bcs import (
     ServiceMonitorInfo,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.data_link.utils import get_data_source_related_info
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.service.data_source import (
@@ -53,6 +59,7 @@ from metadata.service.data_source import (
 from metadata.service.storage_details import ResultTableAndDataSource
 from metadata.task.bcs import refresh_dataid_resource
 from metadata.utils.bcs import get_bcs_dataids
+from metadata.utils.data_link import get_record_rule_metrics_by_biz_id
 from metadata.utils.es_tools import get_client
 
 logger = logging.getLogger("metadata")
@@ -240,8 +247,24 @@ class ListResultTableResource(Resource):
         if request_data["bk_biz_id"] is not None:
             bk_biz_id.append(request_data["bk_biz_id"])
 
+        record_rule_metrics = []
         if len(bk_biz_id) != 0:
             result_table_queryset = result_table_queryset.filter(bk_biz_id__in=bk_biz_id)
+            # 拼接预计算指标信息
+            logger.info("ListResultTableResource: try to get precal metrics for bk_biz_ids->[%s]", bk_biz_id)
+            for biz_id in bk_biz_id:
+                logger.info("ListResultTableResource: try to get precal metrics for bk_biz_id->[%s]", biz_id)
+                try:
+                    precal_metrics = get_record_rule_metrics_by_biz_id(bk_biz_id=biz_id)
+                except Exception as e:
+                    logger.error(
+                        "ListResultTableResource: get_record_rule_metrics_by_biz_id failed, "
+                        "bk_biz_id->[%s], error->[%s]",
+                        bk_biz_id,
+                        e,
+                    )
+                    precal_metrics = []
+                record_rule_metrics.extend(precal_metrics)
 
         # 判断是否需要带上非用户字段的内容
         if request_data["is_config_by_user"]:
@@ -265,6 +288,10 @@ class ListResultTableResource(Resource):
         result_list = models.ResultTable.batch_to_json(
             result_table_id_list=result_table_id_list, with_option=request_data["with_option"]
         )
+
+        if record_rule_metrics:
+            logger.info("ListResultTableResource: bk_biz_ids->[%s] get precal metrics,try to extend them", bk_biz_id)
+            result_list.extend(record_rule_metrics)
         return result_list
 
 
@@ -2101,6 +2128,43 @@ class KafkaTailResource(Resource):
                 if msg.offset == end_offset - 1:
                     break
 
+        return result
+
+
+class GetBCSClusterRelatedDataLinkResource(Resource):
+    """
+    获取BCS集群关联的数据链路（K8SMetric、CustomMetric、K8SEvent）
+    返回关联的DataId、ResultTable、VMResultTable
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bcs_cluster_id = serializers.CharField(required=True, label="集群ID")
+
+    def perform_request(self, validated_request_data):
+        bcs_cluster_id = validated_request_data.get("bcs_cluster_id", None)
+        if not bcs_cluster_id:
+            logger.info(
+                "GetBCSClusterRelatedDataLinkResource: get bcs_cluster_id failed for request_data->[%s]",
+                validated_request_data,
+            )
+            raise ValidationError(_("集群ID不能为空"))
+
+        logger.info(
+            "GetBCSClusterRelatedDataLinkResource: try to get cluster related data_link infos "
+            "for bcs_cluster_id->[%s]",
+            bcs_cluster_id,
+        )
+        cluster_ins = BCSClusterInfo.objects.get(cluster_id=bcs_cluster_id)
+
+        k8s_metric_data_id = cluster_ins.K8sMetricDataID
+        custom_metric_data_id = cluster_ins.CustomMetricDataID
+        k8s_event_data_id = cluster_ins.K8sEventDataID
+
+        result = {
+            k8s_metric_name: get_data_source_related_info(k8s_metric_data_id),
+            cluster_custom_metric_name: get_data_source_related_info(custom_metric_data_id),
+            k8s_event_name: get_data_source_related_info(k8s_event_data_id),
+        }
         return result
 
 

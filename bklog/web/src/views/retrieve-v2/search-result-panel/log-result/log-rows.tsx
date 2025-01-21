@@ -39,6 +39,7 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { bkMessage } from 'bk-magic-vue';
 import { uniqueId } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -46,7 +47,6 @@ import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
 import LogCell from './log-cell';
-import { bkMessage } from 'bk-magic-vue';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
@@ -377,27 +377,32 @@ export default defineComponent({
       },
     ]);
 
-    const rightColumns = computed(() => [
-      {
-        field: ROW_F_ORIGIN_OPT,
-        key: ROW_F_ORIGIN_OPT,
-        title: $t('操作'),
-        width: operatorToolsWidth.value,
-        fixed: 'right',
-        resize: false,
-        renderBodyCell: ({ row }) => {
-          return (
-            // @ts-ignore
-            <OperatorTools
-              handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
-              index={row[ROW_INDEX]}
-              operator-config={indexSetOperatorConfig.value}
-              row-data={row}
-            />
-          );
+    const rightColumns = computed(() => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return [];
+      }
+      return [
+        {
+          field: ROW_F_ORIGIN_OPT,
+          key: ROW_F_ORIGIN_OPT,
+          title: $t('操作'),
+          width: operatorToolsWidth.value,
+          fixed: 'right',
+          resize: false,
+          renderBodyCell: ({ row }) => {
+            return (
+              // @ts-ignore
+              <OperatorTools
+                handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
+                index={row[ROW_INDEX]}
+                operator-config={indexSetOperatorConfig.value}
+                row-data={row}
+              />
+            );
+          },
         },
-      },
-    ]);
+      ];
+    });
 
     const getTableColumnContent = (row, field) => {
       // 日志来源 展示来源的索引集名称
@@ -407,7 +412,7 @@ export default defineComponent({
           ''
         );
       }
-      return parseTableRowData(row, field.field_name, field.field_type);
+      return parseTableRowData(row, field.field_name, field.field_type, false);
     };
 
     const getOriginTimeShow = data => {
@@ -955,6 +960,9 @@ export default defineComponent({
     };
 
     const renderFixRightShadow = () => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return null;
+      }
       if (tableDataSize.value > 0) {
         return <div class='fixed-right-shadown'></div>;
       }

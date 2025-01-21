@@ -50,7 +50,7 @@ class ShieldCacheManager(CacheManager):
         获取最近一次故障的结束时间
         """
         end_time = cls.cache.hget(cls.FAILURE_KEY_TEMPLATE.format(module), target) or 0
-        return end_time
+        return int(end_time)
 
     @classmethod
     def get_all_failures(cls, module: str):

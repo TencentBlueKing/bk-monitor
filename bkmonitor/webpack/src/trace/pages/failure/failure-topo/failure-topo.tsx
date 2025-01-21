@@ -37,6 +37,7 @@ import {
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+
 import {
   Arrow,
   Graph,
@@ -1706,7 +1707,17 @@ export default defineComponent({
           graph.updateItem(node, { ...item, comboId: model.comboId, subComboId: model.subComboId });
         }
       });
-
+      const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      combos.forEach(combo => {
+        const { id } = combo.getModel();
+        const nodes = topoRawDataCache.value.complete.nodes.filter(node => node.subComboId === id);
+        const showNodes = nodes.filter(({ id }) => {
+          const node = graph.findById(id);
+          return node?._cfg.visible;
+        });
+        graph[showNodes.length > 0 ? 'showItem' : 'hideItem'](combo);
+      });
       return currNodes.length === 0 || !next;
     };
     /** 判断资源图是否开启状态 是的话关闭状态并等待重新布局 */
@@ -1788,6 +1799,18 @@ export default defineComponent({
           if (targetEdge) {
             graph.updateItem(edge, { ...edge, ...targetEdge });
           }
+        });
+        /** 子combo需要根据节点时候有展示来决定 */
+        const combos = graph.getCombos().filter(combo => combo.getModel().parentId);
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        combos.forEach(combo => {
+          const { id } = combo.getModel();
+          const nodes = topoRawDataCache.value.complete.nodes.filter(node => node.subComboId === id);
+          const showNodes = nodes.filter(({ id }) => {
+            const node = graph.findById(id);
+            return node?._cfg.visible;
+          });
+          graph[showNodes.length > 0 ? 'showItem' : 'hideItem'](combo);
         });
       }
     };
@@ -1891,22 +1914,29 @@ export default defineComponent({
       data.id = node.alert_ids[0];
       window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
     };
-    const goToTracePage = (data, type) => {
-      const incident_query = {
-        trace_id: data?.abnormal_traces[0].trace_id || '',
-        span_id: data?.abnormal_traces[0].span_id || '',
+    const goToTracePage = (entity: IEntity, type) => {
+      const { rca_trace_info, observe_time_rage } = entity;
+      const query: Record<string, number | string> = {};
+      const incidentQuery = {
+        trace_id: rca_trace_info?.abnormal_traces[0].trace_id || '',
+        span_id: rca_trace_info?.abnormal_traces[0].span_id || '',
         type,
       };
+      if (observe_time_rage && Object.keys(observe_time_rage).length > 0) {
+        query.start_time = observe_time_rage.start_at;
+        query.end_time = observe_time_rage.end_at;
+      }
       const newPage = router.resolve({
         path: '/trace/home',
         query: {
-          app_name: data?.abnormal_traces_query.app_name,
+          app_name: rca_trace_info?.abnormal_traces_query.app_name,
           search_type: 'scope',
           search_id: 'traceID',
           refleshInterval: '-1',
-          query: data.abnormal_traces_query.query,
+          query: rca_trace_info.abnormal_traces_query.query,
           listType: 'trace',
-          incident_query: encodeURIComponent(JSON.stringify(incident_query)),
+          incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
+          ...query,
         },
       });
       window.open(newPage.href, '_blank');
@@ -2157,8 +2187,8 @@ export default defineComponent({
             onToDetail={this.handleToDetail}
             onToDetailSlider={this.handleToDetailSlider}
             onToDetailTab={this.handleToDetailTab}
-            onViewResource={this.handleViewResource}
             onToTracePage={this.goToTracePage}
+            onViewResource={this.handleViewResource}
           />
         </div>
       </div>

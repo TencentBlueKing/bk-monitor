@@ -1,0 +1,108 @@
+
+@mixin common-route-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0 12px;
+  overflow: hidden;
+  font-size: 12px;
+  color: #DCDEE5;
+}
+
+@mixin customize {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 70px;
+  height: 23px;
+  cursor: pointer;
+  background: #0F1216;
+  border: 1px solid #33415B;
+  border-radius: 2px;
+
+  &:hover {
+    background: #293241;
+    border: 1px solid #405680;
+  }
+
+  .icon-menu-setting {
+    color: #699DF4;
+  }
+
+  span {
+    font-size: 12px;
+    line-height: 20px;
+    color: #699DF4;
+    letter-spacing: 0;
+  }
+}
+
+.recent-and-quick-access {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0 auto;
+  border-radius: 8px;
+
+  .recent-use {
+    position: relative;
+    width: 78%;
+
+    .recent-head {
+      display: flex;
+      justify-content: space-between;
+
+      .tab-buttons {
+        margin-bottom: 12px;
+
+        .recent-title {
+          margin-right: 32px;
+          font-family: MicrosoftYaHei;
+          font-size: 14px;
+          color: #FFFFFF;
+          cursor: pointer;
+        }
+
+        .active {
+          font-family: MicrosoftYaHei-Bold;
+          font-size: 18px;
+          font-weight: 700;
+        }
+      }
+
+      .customize {
+        @include customize;
+      }
+    }
+
+    /* 通过传递参数来动态控制每个 div 的宽度 */
+    .single-col .category {
+      width: 100%;
+    }
+
+    .double-col .category {
+      width: 50%;
+    }
+
+    .triple-col .category {
+      width: 32%;
+    }
+
+    .has-line {
+      gap: 27px 0;
+
+      &::after {
+        position: absolute;
+        right: 30px;
+        bottom: 252px;
+        left: 30px;
+        display: block;
+        height: 1px;
+        content: '';
+        background: #EAEBF0;
+      }
+    }
+  }
+}

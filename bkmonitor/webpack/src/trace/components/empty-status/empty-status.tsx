@@ -54,7 +54,7 @@ export default defineComponent({
     },
     scene: {
       type: String as PropType<EmptyStatusScene>,
-      default: 'empty',
+      default: 'part',
     },
     showOperation: {
       type: Boolean,
@@ -114,8 +114,9 @@ export default defineComponent({
     return (
       <div class='empty-status-container'>
         <Exception
+          scene={this.scene}
           type={this.type}
-          {...{ props: this.$attrs }}
+          {...this.$attrs}
         >
           <div class='empty-text-content'>
             <p class='empty-text'>{this.typeText}</p>

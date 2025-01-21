@@ -49,7 +49,16 @@ def publish_failure(module, target):
     if cls is None:
         return
     influence = cls()
-    ShieldCacheManager.publish_failure(module, target, influence.get_influence_duration(target))
+    duration = influence.get_influence_duration(target)
+    ShieldCacheManager.publish_failure(module, target, duration)
+    return duration
+
+
+def clear_failure(module, target):
+    duration = ShieldCacheManager.get_last_failure_end(module, target)
+    if duration > int(time.time()):
+        ShieldCacheManager.publish_failure(module, target, 0)
+    return 0
 
 
 def get_failure_scope_config():

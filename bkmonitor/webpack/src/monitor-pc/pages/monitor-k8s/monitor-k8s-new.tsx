@@ -520,6 +520,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       });
     }
   }
+  handleGotoOld() {
+    this.$router.push({
+      name: 'k8s',
+      query: {},
+    });
+  }
 
   tabContentRender() {
     switch (this.activeTab) {
@@ -582,6 +588,22 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 <span class='text'>{this.$t('取消下钻')}</span>
               </div>
             )}
+            <div
+              style={{
+                'margin-left': this.showCancelDrill ? '0px' : 'auto',
+              }}
+              class='goto-old'
+            >
+              <i class='icon-monitor icon-remind' />
+              {this.$t('新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看')}
+              <bk-button
+                style='margin-left: 6px'
+                onClick={this.handleGotoOld}
+              >
+                <i class='icon-monitor icon-mc-change-version change-version' />
+                {this.$t('回到旧版')}
+              </bk-button>
+            </div>
           </K8sNavBar>
         </div>
         <div class='monitor-k8s-new-header ____monitor-k8s-new-header'>
@@ -592,6 +614,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               class='cluster-select'
               clearable={false}
               value={this.cluster}
+              searchable
               onChange={this.handleClusterChange}
             >
               {this.clusterList.map(cluster => (

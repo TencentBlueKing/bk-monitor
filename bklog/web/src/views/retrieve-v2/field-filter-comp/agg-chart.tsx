@@ -43,7 +43,7 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Object, required: true }) retrieveParams: any;
   @Prop({ type: Boolean, default: false }) isFrontStatistics: boolean;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: any;
-  @Prop({ type: Number, default: 5}) limit: number;
+  @Prop({ type: Number, default: 5 }) limit: number;
   showAllList = false;
   listLoading = false;
   mappingKay = {
@@ -81,7 +81,6 @@ export default class AggChart extends tsc<object> {
     return this.showAllList ? totalList : totalList.filter((item, index) => index < 5);
   }
   get showFiveList() {
-
     return this.isFrontStatistics ? this.topFiveList : this.fieldValueData.values;
   }
   get showValidCount() {
@@ -123,7 +122,7 @@ export default class AggChart extends tsc<object> {
     const router = this.$router;
     const route = this.$route;
     // const store = this.$store;
-    
+
     store.dispatch('setQueryCondition', { field: this.fieldName, operator, value: [value] }).then(() => {
       const query = { ...route.query };
 
@@ -164,7 +163,7 @@ export default class AggChart extends tsc<object> {
     try {
       const indexSetIDs = this.isUnionSearch
         ? this.unionIndexList
-        : [window.__IS_MONITOR_APM__ ? this.route.query.indexId : this.route.params.indexId];
+        : [window.__IS_MONITOR_COMPONENT__ ? this.route.query.indexId : this.route.params.indexId];
       this.listLoading = true;
       const data = {
         ...this.retrieveParams,
@@ -177,7 +176,7 @@ export default class AggChart extends tsc<object> {
       });
       if (res.code === 0) {
         await this.$nextTick();
-        this.emitDistinctCount(res.data.distinct_count)
+        this.emitDistinctCount(res.data.distinct_count);
         Object.assign(this.fieldValueData, res.data);
       }
     } catch (error) {
