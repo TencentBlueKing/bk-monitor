@@ -600,6 +600,7 @@
             winlog_name: [], // windows事件名称
             winlog_level: [], // windows事件等级
             winlog_event_id: [], // windows事件id
+            extra_labels: [], // 补充元数据
           },
           environment: 'linux', // 容器环境
           bcs_cluster_id: '', // 集群ID
