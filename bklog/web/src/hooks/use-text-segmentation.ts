@@ -227,7 +227,7 @@ export default class UseTextSegmentation {
     };
 
     return typeof val !== 'string'
-      ? val
+      ? `${val}`
       : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 

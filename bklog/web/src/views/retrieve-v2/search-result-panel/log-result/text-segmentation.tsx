@@ -111,60 +111,56 @@ export default defineComponent({
       },
     });
 
-    const { initKonvaInstance, setRect, getLines, setHighlightWords, computeWordListPosition, fireEvent } = useKonva({
+    const { initKonvaInstance, setRect, setHighlightWords, computeWordListPosition, fireEvent } = useKonva({
       onSegmentClick: (e, value) => {
         textSegmentInstance?.getCellClickHandler(e, value);
       },
     });
 
-    // let canvasInstance: fabric.Canvas;
-    // let textBox: fabric.Textbox;
     let wordList: WordListItem[];
-    let pageIndex = getCachedValue('pageIndex', 0);
-    let mountedAllTag = false;
+    // let pageIndex = getCachedValue('pageIndex', 0);
     let isDispose = false;
-    const pageSize = 400;
+    // const pageSize = 400;
 
-    const getNextList = (size?) => {
-      const startIndex = pageIndex * (size ?? pageSize);
-      const endIndex = (pageIndex + 1) * (size ?? pageSize);
-      if (startIndex <= wordList.length - 1) {
-        pageIndex++;
-        return wordList.slice(startIndex, endIndex);
-      }
+    // const getNextList = (size?) => {
+    //   const startIndex = pageIndex * (size ?? pageSize);
+    //   const endIndex = (pageIndex + 1) * (size ?? pageSize);
+    //   if (startIndex <= wordList.length - 1) {
+    //     pageIndex++;
+    //     return wordList.slice(startIndex, endIndex);
+    //   }
 
-      mountedAllTag = endIndex >= wordList.length;
-      return [];
-    };
+    //   return [];
+    // };
 
-    const getNextText = (list?, size?) => {
-      return (list ?? getNextList(size)).map(({ text }) => text).join('');
-    };
+    // const getNextText = (list?, size?) => {
+    //   return (list ?? getNextList(size)).map(({ text }) => text).join('');
+    // };
 
     /**
      * 初始化前三行数据
      */
-    const setNextText = (max?) => {
-      if (mountedAllTag) {
-        return;
-      }
+    // const setNextText = (max?) => {
+    //   if (mountedAllTag) {
+    //     return;
+    //   }
 
-      textLineCount.value = getLines();
-      const maxLength = isLimitExpandView.value || showAll.value ? max : 3;
-      if (textLineCount.value <= maxLength) {
-        const nextList = getNextList();
-        if (nextList.length > 0) {
-          const nextValue = getNextText(nextList);
-          setHighlightWords(nextList);
-          textLineCount.value = getLines();
-          if (!isDispose) {
-            requestAnimationFrame(() => {
-              setNextText(max);
-            });
-          }
-        }
-      }
-    };
+    //   textLineCount.value = getLines();
+    //   const maxLength = isLimitExpandView.value || showAll.value ? max : 3;
+    //   if (textLineCount.value <= maxLength) {
+    //     const nextList = getNextList();
+    //     if (nextList.length > 0) {
+    //       const nextValue = getNextText(nextList);
+    //       setHighlightWords(nextList);
+    //       textLineCount.value = getLines();
+    //       if (!isDispose) {
+    //         requestAnimationFrame(() => {
+    //           setNextText(max);
+    //         });
+    //       }
+    //     }
+    //   }
+    // };
 
     const getWidth = wordList => {
       if (props.autoWidth && wordList.length === 1) {
@@ -237,9 +233,9 @@ export default defineComponent({
     };
 
     const setMoreLines = () => {
-      if (getSegmentRenderType() === 'fabric' && showAll.value) {
-        setNextText(Number.MAX_SAFE_INTEGER);
-      }
+      // if (getSegmentRenderType() === 'canvas' && showAll.value) {
+      //   setNextText(Number.MAX_SAFE_INTEGER);
+      // }
 
       if (getSegmentRenderType() === 'text') {
         let max = Number.MAX_SAFE_INTEGER;
@@ -262,15 +258,11 @@ export default defineComponent({
     };
 
     const getSegmentRenderType = () => {
-      if (wordList.length < 100) {
+      if (wordList.length < 10) {
         return 'text';
       }
 
-      if (wordList.length < 3000) {
-        return 'fabric';
-      }
-
-      return 'text';
+      return 'canvas';
     };
 
     const getTagName = item => {
@@ -291,7 +283,7 @@ export default defineComponent({
 
     const setMounted = () => {
       const maxLength = isLimitExpandView.value || showAll.value ? Number.MAX_SAFE_INTEGER : 4;
-      if (getSegmentRenderType() === 'fabric') {
+      if (getSegmentRenderType() === 'canvas') {
         initKonvaTextBox();
       }
 
@@ -338,12 +330,12 @@ export default defineComponent({
       if (containerWidth !== refContent.value.offsetWidth) {
         containerWidth = refContent.value.offsetWidth;
 
-        if (getSegmentRenderType() === 'fabric') {
+        if (getSegmentRenderType() === 'canvas') {
           mountedAllTag = false;
           pageIndex = 0;
           const width = refContent.value.offsetWidth;
           setRect(width);
-          setNextText();
+          // setNextText();
         }
 
         if (getSegmentRenderType() === 'text') {
@@ -355,7 +347,7 @@ export default defineComponent({
     useResizeObserve(refContent, debounceUpdateWidth);
 
     const renderSegmentList = () => {
-      if (getSegmentRenderType() === 'fabric') {
+      if (getSegmentRenderType() === 'canvas') {
         return [
           <div
             ref={refCanvas}
@@ -363,10 +355,10 @@ export default defineComponent({
           ></div>,
           <div
             class='static-text'
-            onMousemove={e => fireEvent('mousemove', e)}
-            onMouseleave={e => fireEvent('mouseleave', e)}
-            onMousedown={e => fireEvent('mousedown', e)}
             onClick={e => fireEvent('click', e)}
+            onMouseenter={e => fireEvent('mouseenter', e)}
+            onMouseleave={e => fireEvent('mouseleave', e)}
+            onMousemove={e => fireEvent('mousemove', e)}
           >
             {formatText.value}
           </div>,

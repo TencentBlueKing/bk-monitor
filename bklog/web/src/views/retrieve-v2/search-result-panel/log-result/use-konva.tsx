@@ -42,12 +42,13 @@ export default ({ onSegmentClick }) => {
   let fontFamily;
   const fontSize = 12;
   const lineHeight = 20 / 12;
-  let tempText;
+  let tempText: Konva.Text;
   let boxWidth = 0;
   let boxHeight = 0;
 
   let wordList: WordListItem[];
   let hoverItem;
+  let textContainer: HTMLDivElement;
 
   const containerBounds = { x: 0, y: 0, width: 0, height: 0 };
 
@@ -89,10 +90,7 @@ export default ({ onSegmentClick }) => {
     konvaInstance.frontActionLayer.add(text);
   };
 
-  let isMouseDown = false;
-
-  const updateContainerBounds = (parentNode: HTMLElement) => {
-    const textContainer = parentNode.querySelector('.static-text');
+  const updateContainerBounds = () => {
     const { x, y, width, height } = textContainer.getBoundingClientRect();
     Object.assign(containerBounds, { x, y, width, height });
   };
@@ -117,18 +115,38 @@ export default ({ onSegmentClick }) => {
     return { x: x - containerBounds.x, y: y - containerBounds.y };
   };
 
+  const isSelectionCurrentNode = () => {
+    const selection = window.getSelection();
+    if (!selection?.isCollapsed) {
+      const node = selection.focusNode.parentElement;
+      return node === konvaInstance.frontStage.container().parentElement.querySelector('.static-text');
+    }
+
+    return false;
+  };
+
   const handleTextBoxMousemove = evt => {
-    if (isMouseDown) {
+    // 如果有文本被选中此时跳过后续高亮逻辑
+
+    if (isSelectionCurrentNode()) {
+      konvaInstance.frontActionLayer.destroyChildren();
       return;
     }
 
     const pointer = getPointerByMouseEvent(evt);
-    const word = wordList.find(item => {
+    const validateWordRect = item => {
       const { left, top, width } = item;
       const bottom = top + 20;
       const right = left + width;
       const { x, y } = pointer;
       return left <= x && top <= y && bottom >= y && right >= x;
+    };
+    const word = wordList.find(item => {
+      if (item.split?.length) {
+        return item.split.some(child => validateWordRect(child));
+      }
+
+      return validateWordRect(item);
     });
 
     if (word?.isCursorText && hoverItem !== word) {
@@ -159,6 +177,8 @@ export default ({ onSegmentClick }) => {
   ) => {
     fontFamily = family;
     boxWidth = width;
+    textContainer = frontContainer.parentElement.querySelector('.static-text');
+
     konvaInstance.backgroundStage = new Konva.Stage({
       container: backgroundContainer,
       width,
@@ -177,7 +197,7 @@ export default ({ onSegmentClick }) => {
     konvaInstance.frontActionLayer = new Konva.Layer({ id: 'frontActionLayer' });
     konvaInstance.frontStage.add(konvaInstance.frontActionLayer);
 
-    updateContainerBounds(frontContainer.parentElement);
+    updateContainerBounds();
   };
 
   const setRect = (width?: number, height?: number) => {
@@ -191,7 +211,7 @@ export default ({ onSegmentClick }) => {
       konvaInstance.frontStage.height(height);
     }
 
-    updateContainerBounds(konvaInstance.backgroundStage.container().parentElement);
+    updateContainerBounds();
   };
 
   const getWrapText = (text: string, leftWidth: number) => {
@@ -213,63 +233,197 @@ export default ({ onSegmentClick }) => {
       }
     }
 
-    return [{ text: leftText.join(''), width: width - bufferWidth }, { text: chars.join('') }];
+    return [
+      { text: leftText.join(''), width: width > bufferWidth ? width - bufferWidth : 0 },
+      { text: chars.join('') },
+    ];
+  };
+
+  const resetWordWrapPositon = (
+    textNode,
+    itemList: WordListItem[],
+    currentIndex: number,
+    originLeft: number,
+    updateLeft = true,
+  ) => {
+    const item = itemList[currentIndex];
+
+    const getDiffWidth = (diffL, diffT, target: WordListItem) => {
+      if (target.top < diffT) {
+        return diffL + containerBounds.width - target.left;
+      }
+
+      return diffL - target.left;
+    };
+
+    if (item.split) {
+      const [leftText, rightText] = item.split;
+      const offsetXIndex = leftText?.text?.length ?? 0;
+      const range = document.createRange();
+      range.setStart(textNode, item.startIndex + offsetXIndex);
+      range.setEnd(textNode, item.endIndex);
+
+      const { x, y } = range.getBoundingClientRect();
+      const top = Math.floor((y - containerBounds.y) / (lineHeight * fontSize)) * lineHeight * fontSize;
+      const offsetLeft = x - containerBounds.x;
+
+      if (offsetLeft > rightText.left || top > rightText.top) {
+        const diffWidth = getDiffWidth(offsetLeft, top, rightText);
+        rightText.left = offsetLeft;
+        rightText.top = top;
+
+        while (leftText.text.length > 0 && rightText.left > 0) {
+          rightText.text = leftText.text.slice(-1) + rightText.text;
+          leftText.text = leftText.text.slice(0, -1);
+
+          const text = getTempText();
+          text.text(rightText.text);
+          const width = text.width();
+          const diff = width - rightText.width;
+          leftText.width = leftText.width - diff;
+          rightText.left = rightText.left - diff;
+          rightText.width = width;
+        }
+
+        if (updateLeft) {
+          originLeft = originLeft + diffWidth;
+        }
+
+        if (leftText.text.length === 0) {
+          item.left = rightText.left;
+          item.top = rightText.top;
+          item.line = rightText.line;
+          item.split = undefined;
+        }
+
+        if (item.left > 0) {
+          return resetWordWrapPositon(textNode, itemList, currentIndex - 1, originLeft, false);
+        }
+      }
+
+      return originLeft;
+    }
+
+    const range = document.createRange();
+    const offsetXIndex = item.text.length - 1;
+    range.setStart(textNode, item.startIndex + offsetXIndex);
+    range.setEnd(textNode, item.endIndex);
+
+    const { x, y } = range.getBoundingClientRect();
+    const top = Math.floor((y - containerBounds.y) / (lineHeight * fontSize));
+    const offsetLeft = x - containerBounds.x;
+
+    if (offsetLeft > item.left || top > item.top) {
+      const diffWidth = getDiffWidth(offsetLeft, top, item);
+      if (updateLeft) {
+        originLeft = originLeft + diffWidth;
+      }
+
+      if (item.text.length > 1) {
+        const rightText = item.text.slice(-1);
+        const text = getTempText();
+        text.text(rightText);
+        const width = text.width();
+        item.split = [
+          {
+            ...item,
+            text: item.text.slice(0, -1),
+            width: item.width - width,
+            top: item.top,
+          },
+          {
+            ...item,
+            text: rightText,
+            width,
+            left: offsetLeft,
+            top,
+          },
+        ];
+
+        return resetWordWrapPositon(textNode, itemList, currentIndex, originLeft, false);
+      }
+
+      item.left = offsetLeft;
+      item.top = top;
+      return resetWordWrapPositon(textNode, itemList, currentIndex - 1, originLeft, true);
+    }
+
+    return originLeft;
+  };
+
+  const getRequestAnimationFrame = () => {
+    if (window.requestIdleCallback) {
+      return window.requestIdleCallback;
+    }
+
+    return window.requestAnimationFrame;
   };
 
   const computeWordListPosition = (list: WordListItem[]) => {
     wordList = list;
     return new Promise<WordListItem[]>(resolve => {
-      let left = 0;
-      // 换行产生的偏移量
-      let offsetWidth = 0;
-      let preWidth = 0;
-      wordList.forEach(item => {
-        const box = getTempText();
-        preWidth = left;
-        box.text(item.text);
-        const width = box.width();
-        const line = Math.floor(left / boxWidth);
+      getRequestAnimationFrame()(() => {
+        let left = 0;
+        // 换行产生的偏移量
+        let offsetWidth = 0;
+        wordList.forEach((item, index) => {
+          const box = getTempText();
+          box.text(item.text);
+          const width = box.width();
+          const line = Math.floor(left / boxWidth);
 
-        Object.assign(item, {
-          left: (left % boxWidth) + offsetWidth,
-          top: line * fontSize * lineHeight,
-          width,
-          line,
+          Object.assign(item, {
+            left: (left % boxWidth) + offsetWidth,
+            top: line * fontSize * lineHeight,
+            width,
+            line,
+          });
+
+          left = left + width;
+          const nextLine = Math.floor(left / boxWidth);
+
+          // 分词在换行被截断
+          if (nextLine > line) {
+            const diffWidth = left % boxWidth;
+            const [leftText, rightText] = getWrapText(item.text, width - diffWidth);
+            rightText.width = item.width - leftText.width;
+            left = boxWidth * nextLine + width - leftText.width;
+
+            item.split = [
+              {
+                text: leftText.text,
+                isMark: item.isMark,
+                isCursorText: item.isCursorText,
+                left: item.left,
+                top: item.top,
+                width: leftText.width,
+                line,
+              },
+              {
+                text: rightText.text,
+                isMark: item.isMark,
+                isCursorText: item.isCursorText,
+                left: 0,
+                top: item.top + fontSize * lineHeight,
+                width: width - leftText.width,
+                line: nextLine,
+              },
+            ].filter(item => item.width > 0);
+
+            if (item.split.length === 1) {
+              item.left = item.split[0].left;
+              item.top = item.split[0].top;
+              item.width = item.split[0].width;
+              item.line = item.split[0].line;
+              item.split = undefined;
+            }
+
+            left = resetWordWrapPositon(textContainer.firstChild, wordList, index, left, true);
+          }
         });
 
-        left = left + width;
-        const nextLine = Math.floor(left / boxWidth);
-
-        // 分词在换行被截断
-        if (nextLine > line) {
-          const diffWidth = left - boxWidth;
-          const [leftText, rightText] = getWrapText(item.text, width - diffWidth);
-          offsetWidth = boxWidth - (preWidth % boxWidth) - leftText.width;
-
-          item.split = [
-            {
-              text: leftText.text,
-              isMark: item.isMark,
-              isCursorText: item.isCursorText,
-              left: item.left,
-              top: item.top,
-              width: leftText.width,
-              line,
-            },
-            {
-              text: rightText.text,
-              isMark: item.isMark,
-              isCursorText: item.isCursorText,
-              left: 0,
-              top: item.top + fontSize * lineHeight,
-              width: width - leftText.width,
-              line: nextLine,
-            },
-          ];
-        }
+        resolve(wordList);
       });
-
-      resolve(wordList);
     });
   };
 
@@ -291,14 +445,8 @@ export default ({ onSegmentClick }) => {
       });
   };
 
-  const handleTextBoxMouseup = () => {
-    isMouseDown = false;
-    document.removeEventListener('mouseup', handleTextBoxMouseup);
-  };
-
-  const handleTextBoxMousedown = () => {
-    isMouseDown = true;
-    document.addEventListener('mouseup', handleTextBoxMouseup);
+  const handleTextBoxMouseenter = () => {
+    updateContainerBounds();
   };
 
   const getLines = () => {
@@ -306,15 +454,17 @@ export default ({ onSegmentClick }) => {
     return lines;
   };
 
-  const fireEvent = (type: string, e: MouseEvent) => {
-    const events = {
-      mousemove: handleTextBoxMousemove,
-      mouseleave: handleTextBoxMouseleave,
-      mousedown: handleTextBoxMousedown,
-      click: handleTextBoxClick,
-    };
+  const events = {
+    mouseenter: handleTextBoxMouseenter,
+    mousemove: handleTextBoxMousemove,
+    mouseleave: handleTextBoxMouseleave,
+    click: handleTextBoxClick,
+  };
 
-    events[type]?.(e);
+  const fireEvent = (type: string, e: MouseEvent) => {
+    requestAnimationFrame(() => {
+      events[type]?.(e);
+    });
   };
 
   return {
