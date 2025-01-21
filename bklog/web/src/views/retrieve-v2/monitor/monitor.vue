@@ -94,8 +94,8 @@ const setDefaultIndexsetId = () => {
     if (store.state.indexId) {
       router.replace({
         query: {
-          indexId: store.state.indexId,
           ...route.query,
+          indexId: store.state.indexId,
           ...resolver.resolveParamsToUrl(),
         },
       });
