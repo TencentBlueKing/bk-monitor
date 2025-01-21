@@ -23,9 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { KeepAlive, type PropType, type Ref, computed, defineComponent, inject, ref, watch, nextTick, provide } from 'vue';
+import {
+  KeepAlive,
+  type PropType,
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  ref,
+  watch,
+  nextTick,
+  provide,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
 
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
 
@@ -119,7 +129,7 @@ export default defineComponent({
         icon: 'icon-mc-list',
       },
     ];
-    const chooseOperation = ref<IIncidentOperation | any>();
+    const chooseOperation = ref<any | IIncidentOperation>();
     const currentNodeData = computed(() => {
       return props.currentNode;
     });
@@ -227,9 +237,9 @@ export default defineComponent({
               alertAggregateData={this.$props.alertAggregateData}
               chooseOperation={this.chooseOperation}
               scrollTop={this.$props.scrollTop}
+              onChangeTab={this.goAlertDetail}
               onGoAlertDetail={this.goAlertDetail}
               onRefresh={this.refresh}
-              onChangeTab={this.goAlertDetail}
             />
           )}
           {this.active === FailureContentTabView.FAILURE_VIEW && (

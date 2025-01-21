@@ -585,7 +585,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   }
   // 跳转关联事件
   handleClickEventCount(item: IncidentItem) {
-    this.handleShowDetail(item, 'relatedEvents');
+    this.handleShowDetail(item, 'FailureView');
   }
   /**
    * @description: 跳转到告警列表
