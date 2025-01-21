@@ -1545,7 +1545,6 @@
           // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
-          if( this.params.etl_config === 'bk_log_json'){
             if(!this.builtFieldShow){
               this.copyBuiltField.forEach(field => {
                 if (field.hasOwnProperty('expand')) {
@@ -1564,11 +1563,11 @@
               }
             })
             data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
-          }
         } else {
           delete data.etl_params['separator_regexp'];
           delete data.etl_params['separator'];
         }
+        let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
           // 检索设置 直接入库
@@ -2595,6 +2594,9 @@
       },
        /** 获取fields */
       async requestFields(indexSetId) {
+        if(!indexSetId){
+          return
+        }
         const typeConversion= {
           keyword : 'string'
         }

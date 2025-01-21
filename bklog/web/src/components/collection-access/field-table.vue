@@ -42,7 +42,7 @@
           </label> -->
           <div class="bk-form-content">
             <bk-checkbox
-              v-if="!isPreviewMode && selectEtlConfig === 'bk_log_json' && retainExtraJsonIsOpen && !isTempField"
+              v-if="!isPreviewMode &&  retainExtraJsonIsOpen && !isTempField"
               v-model="builtFieldVisible"
               :checked="false"
               :false-value="false"
@@ -107,7 +107,7 @@
           col-border
         >
           <template>
-            <bk-table-column
+            <!-- <bk-table-column
               v-if="!isPreviewMode && extractMethod === 'bk_log_delimiter'"
               width="40"
               :resizable="false"
@@ -117,7 +117,7 @@
               <template #default="props">
                 <span>{{ props.row.field_index }}</span>
               </template>
-            </bk-table-column>
+            </bk-table-column> -->
             <!-- 来源 -->
             <bk-table-column
               :label="$t('来源')"
@@ -790,15 +790,14 @@
           return list;
         }, arr);
         arr.forEach(item => (item.previous_type = item.field_type));
-        if (!this.isPreviewMode) {
+        // if (!this.isPreviewMode) {
           // arr = arr.filter(item => !item.is_built_in);
-        }
-
+        // }
         if (this.isEditJson === false && !this.isTempField) {
           // 新建JSON时，类型如果不是数字，则默认为字符串
           arr.forEach(item => {
             if (typeof item.value !== 'number') {
-              item.field_type = 'string';
+              item.field_type =  item.field_type || 'string';
               item.previous_type = 'string';
             }
           });
