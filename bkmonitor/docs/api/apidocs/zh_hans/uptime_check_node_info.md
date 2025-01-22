@@ -31,25 +31,25 @@
 | data    | dict   | 数据         |
 
 #### data
-| 字段              | 类型   | 描述       |
-|-----------------|------|----------|
-| bk_biz_id       | int  | 业务ID     |
-| id              | int  | 拨测节点ID   |
-| is_common       | bool | 是否为通用节点  |
-| **biz_scope**       | list | 指定业务可见范围 |
-| ip_type         | int  | IP类型     |
-| name            | str  | 节点名称     |
-| ip              | str  | IP地址     |
-| bk_host_id      | int  | 主机ID     |
-| location        | dict | 地区       |
-| carrieroperator | str  | 外网运营商    |
-| bk_cloud_id      | int  | 云区域ID    |
-| bk_host_id       | int  | 主机ID     |
-| create_time      | str  | 创建时间     |
-| create_user      | str  | 创建者      |
-| update_time      | str  | 更新时间     |
-| update_user      | str  | 更新者      |
-| is_deleted       | bool | 是否已删除    |
+| 字段              | 类型        | 描述       |
+|-----------------|-----------|----------|
+| bk_biz_id       | int       | 业务ID     |
+| id              | int       | 拨测节点ID   |
+| is_common       | bool      | 是否为通用节点  |
+| biz_scope       | list[int] | 指定业务可见范围 |
+| ip_type         | int       | IP类型     |
+| name            | str       | 节点名称     |
+| ip              | str       | IP地址     |
+| bk_host_id      | int       | 主机ID     |
+| location        | dict      | 地区       |
+| carrieroperator | str       | 外网运营商    |
+| bk_cloud_id     | int       | 云区域ID    |
+| bk_host_id      | int       | 主机ID     |
+| create_time     | str       | 创建时间     |
+| create_user     | str       | 创建者      |
+| update_time     | str       | 更新时间     |
+| update_user     | str       | 更新者      |
+| is_deleted      | bool      | 是否已删除    |
 
 #### data.location
 | 字段                  | 类型   | 描述  |

@@ -38,14 +38,14 @@
 | is_enabled      | bool        | 是     | 是否启用               |
 
 #### frequency
-| 字段           | 类型    | 必选   | 描述     |
-|----------------|-------|--------|--------|
-| type           | int   | 是     | 频率类型   |
-| **day_list**       | list  | 是     | 几天     |
-| **week_list**      | list  | 是     | 周几     |
-| run_time       | str   | 是     | 运行时间   |
-| hour           | float | 否     | 小时频率   |
-| data_range      | dict  | 否     | 数据范围   |
+| 字段         | 类型        | 必选   | 描述     |
+|------------|-----------|--------|--------|
+| type       | int       | 是     | 频率类型   |
+| day_list   | list[int] | 是     | 几天     |
+| week_list  | list[int] | 是     | 周几     |
+| run_time   | str       | 是     | 运行时间   |
+| hour       | float     | 否     | 小时频率   |
+| data_range | dict      | 否     | 数据范围   |
 
 #### frequency.data_range
 | 字段           | 类型     | 必选   | 描述                 |
@@ -73,7 +73,49 @@
 #### 示例数据
 
 ```json
-
+{
+    "report_id": 123,
+    "name": "报表名称xxx",
+    "bk_biz_id": 2,
+    "scenario": "clustering",
+    "channels": [
+        {
+            "is_enabled": true,
+            "subscribers": [
+                {
+                    "id": "123",
+                    "type": "user",
+                    "is_enabled": true
+                }
+            ],
+            "channel_name": "email",
+            "send_text": "xxxxxx"
+        }
+    ],
+    "frequency": {
+        "type": 4,
+        "day_list": [1, 15],
+        "week_list": [],
+        "run_time": "08:00"
+    },
+    "content_config": {
+        "title": "内容标题xxx",
+        "is_link_enabled": true
+    },
+    "scenario_config": {
+        "index_set_id": 789,
+        "is_show_new_pattern": true,
+        "pattern_level": "09",
+        "log_display_count": 100,
+        "year_on_year_change": "rise",
+        "year_on_year_hour": 0,
+        "generate_attachment": true
+    },
+    "start_time": 1696118400,
+    "end_time": 1696204800,
+    "is_manager_created": false,
+    "is_enabled": true
+}
 ```
 
 ### 响应参数

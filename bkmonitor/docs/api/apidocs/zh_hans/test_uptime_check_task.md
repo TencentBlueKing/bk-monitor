@@ -16,43 +16,43 @@
 | config        | dict      | 是  | 拨测配置                            |
 
 #### config
-| 字段                    | 类型        | 必选 | 描述                                           |
-|-----------------------|-----------|------|------------------------------------------------|
-| bk_host_id            | int       | 否   | 主机 ID                                       |
-| ip                    | str       | 否   | 主机 IP                                       |
-| outer_ip              | str       | 否   | 外部 IP                                       |
-| target_type           | str       | 否   | 目标类型                                     |
-| bk_biz_id             | int       | 否   | 业务 ID                                       |
-| bk_inst_id            | int       | 否   | 实例 ID                                       |
-| bk_obj_id             | str       | 否   | 对象 ID                                       |
-| node_path             | str       | 否   | 节点路径                                     |
-| method                | str       | 否   | HTTP 方法，默认值为 "GET"                     |
-| authorize             | dict      | 否   | 授权配置                                       |
-| body                  | dict      | 否   | 请求体                                        |
-| query_params          | list      | 否   | 查询参数                                      |
-| headers               | list      | 否   | 请求头                                        |
-| response_code         | str       | 否   | 响应代码                                      |
-| port                  | str       | 否   | 端口                                          |
-| node_list             | list      | 否   | 主机列表                                      |
-| ip_list               | list[str] | 否   | IP 列表                                       |
-| output_fields         | list[str] | 否   | 输出字段                                      |
-| target_ip_type        | int       | 否   | 目标 IP 类型，默认值为 0                      |
-| dns_check_mode        | str       | 否   | DNS 检查模式，默认值为 "single"               |
-| request               | str       | 否   | 请求内容                                      |
-| request_format        | str       | 否   | 请求格式                                      |
-| wait_empty_response   | bool      | 否   | 是否等待空响应                                 |
-| max_rtt               | int       | 否   | 最大往返时间                                   |
-| total_num             | int       | 否   | 总数                                          |
-| size                  | int       | 否   | 数据包大小                                     |
-| send_interval         | str       | 否   | 发送间隔                                      |
-| **target_labels**     | dict      | 否   | 目标标签                                      |
-| url_list              | list[str] | 否   | URL 列表                                      |
-| period                | int       | 是   | 周期                                          |
-| response_format       | str       | 否   | 响应格式                                      |
-| response              | str       | 否   | 响应内容                                      |
-| timeout               | int       | 否   | 超时时间，最大值为 `settings.MAX_AVAILABLE_DURATION_LIMIT` |
-| urls                  | str       | 否   | URL                                           |
-| hosts                 | list      | 否   | 主机列表                                      |
+| 字段                | 类型        | 必选 | 描述                                           |
+|-------------------|-----------|------|------------------------------------------------|
+| bk_host_id        | int       | 否   | 主机 ID                                       |
+| ip                | str       | 否   | 主机 IP                                       |
+| outer_ip          | str       | 否   | 外部 IP                                       |
+| target_type       | str       | 否   | 目标类型                                     |
+| bk_biz_id         | int       | 否   | 业务 ID                                       |
+| bk_inst_id        | int       | 否   | 实例 ID                                       |
+| bk_obj_id         | str       | 否   | 对象 ID                                       |
+| node_path         | str       | 否   | 节点路径                                     |
+| method            | str       | 否   | HTTP 方法，默认值为 "GET"                     |
+| authorize         | dict      | 否   | 授权配置                                       |
+| body              | dict      | 否   | 请求体                                        |
+| query_params      | list      | 否   | 查询参数                                      |
+| headers           | list      | 否   | 请求头                                        |
+| response_code     | str       | 否   | 响应代码                                      |
+| port              | str       | 否   | 端口                                          |
+| node_list         | list      | 否   | 主机列表                                      |
+| ip_list           | list[str] | 否   | IP 列表                                       |
+| output_fields     | list[str] | 否   | 输出字段                                      |
+| target_ip_type    | int       | 否   | 目标 IP 类型，默认值为 0                      |
+| dns_check_mode    | str       | 否   | DNS 检查模式，默认值为 "single"               |
+| request           | str       | 否   | 请求内容                                      |
+| request_format    | str       | 否   | 请求格式                                      |
+| wait_empty_response | bool      | 否   | 是否等待空响应                                 |
+| max_rtt           | int       | 否   | 最大往返时间                                   |
+| total_num         | int       | 否   | 总数                                          |
+| size              | int       | 否   | 数据包大小                                     |
+| send_interval     | str       | 否   | 发送间隔                                      |
+| target_labels     | dict      | 否   | 目标标签                                      |
+| url_list          | list[str] | 否   | URL 列表                                      |
+| period            | int       | 是   | 周期                                          |
+| response_format   | str       | 否   | 响应格式                                      |
+| response          | str       | 否   | 响应内容                                      |
+| timeout           | int       | 否   | 超时时间，最大值为 `settings.MAX_AVAILABLE_DURATION_LIMIT` |
+| urls              | str       | 否   | URL                                           |
+| hosts             | list      | 否   | 主机列表                                      |
 
 #### config.authorize
 
@@ -109,6 +109,10 @@
 | bk_inst_id   | int         | 否   | 实例 ID，允许为空                              |
 | bk_obj_id    | str         | 否   | 对象 ID，可以为空                              |
 | node_path    | str         | 否   | 节点路径，可以为空                              |
+
+#### config.target_labels
+- 字段名是 目标主机IP 或者是 url
+- 字段值是 目标主机的标签
 
 #### config.hosts
 | 字段          | 类型                | 必选   | 描述                             |

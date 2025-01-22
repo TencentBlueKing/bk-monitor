@@ -41,22 +41,22 @@
 | is_enabled      | bool        | 是     | 是否启用               |
 
 #### report_contents
-| 字段                | 类型               | 必选   | 描述                       |
-|---------------------|------------------|--------|----------------------------|
-| content_title       | str              | 是     | 子内容标题                 |
-| content_details     | str              | 是     | 子内容说明                 |
-| row_pictures_num    | int              | 是     | 一行几幅图                 |
-| **graphs**              | list             | 是     | 图表                       |
+| 字段                | 类型        | 必选   | 描述                     |
+|---------------------|-----------|--------|--------------------------|
+| content_title       | str       | 是     | 子内容标题                 |
+| content_details     | str       | 是     | 子内容说明                 |
+| row_pictures_num    | int       | 是     | 一行几幅图                 |
+| graphs              | list[str] | 是     | 图表Panels信息                       |
 
 #### frequency
-| 字段           | 类型    | 必选   | 描述     |
-|----------------|-------|--------|--------|
-| type           | int   | 是     | 频率类型   |
-| **day_list**       | list  | 是     | 几天     |
-| **week_list**      | list  | 是     | 周几     |
-| run_time       | str   | 是     | 运行时间   |
-| hour           | float | 否     | 小时频率   |
-| data_range      | dict  | 否     | 数据范围   |
+| 字段         | 类型        | 必选   | 描述     |
+|------------|-----------|--------|--------|
+| type       | int       | 是     | 频率类型   |
+| day_list   | list[int] | 是     | 几天     |
+| week_list  | list[int] | 是     | 周几     |
+| run_time   | str       | 是     | 运行时间   |
+| hour       | float     | 否     | 小时频率   |
+| data_range | dict      | 否     | 数据范围   |
 
 #### frequency.data_range
 | 字段           | 类型     | 必选   | 描述                 |
@@ -67,7 +67,53 @@
 #### 示例数据
 
 ```json
-
+{
+    "creator": "张三",
+    "mail_title": "邮件标题xxx",
+    "receivers": [
+        {
+            "is_enabled": true,
+            "id": "001",
+            "name": "李四",
+            "group": "用户组1",
+            "type": "user"
+        },
+        {
+            "is_enabled": true,
+            "id": "003",
+            "name": "用户组3",
+            "type": "group"
+        }
+    ],
+    "channels": [
+        {
+            "is_enabled": true,
+            "channel_name": "email",
+            "subscribers": [
+                {
+                    "id": "001",
+                    "type": "user",
+                    "is_enabled": true
+                }
+            ]
+        }
+    ],
+    "is_link_enabled": true,
+    "report_contents": [
+        {
+            "content_title": "456asd",
+            "content_details": "xxxx",
+            "row_pictures_num": 2,
+            "graphs": ["2-bLlNuRLWz-8"]
+        }
+    ],
+    "frequency": {
+        "type": 4,
+        "day_list": [1],
+        "week_list": [],
+        "run_time": "09:00"
+    }
+}
 ```
 
 ### 响应参数
