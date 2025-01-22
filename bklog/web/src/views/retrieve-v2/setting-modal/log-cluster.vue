@@ -283,7 +283,7 @@
         this.globalLoading = true;
         try {
           const params = {
-            index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           };
           const data = { collector_config_id: this.configID };
           const baseUrl = '/logClustering';

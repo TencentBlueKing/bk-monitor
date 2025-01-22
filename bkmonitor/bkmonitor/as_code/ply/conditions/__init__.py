@@ -43,7 +43,7 @@ t_REGNEQ = r"!~"
 t_INCLUDE = r"=-"
 t_EXCLUDE = r"!-"
 t_STRING = r'("([^"]|\\")*")|(\'([^\']|\\\')*\')'
-t_NUMBER = r"\d+(\.\d+)?"
+t_NUMBER = r"-?\d+(\.\d+)?([ \t]*,[ \t]*-?\d+(\.\d+)?)*"
 t_GT = r">"
 t_GTE = r">="
 t_LT = r"<"

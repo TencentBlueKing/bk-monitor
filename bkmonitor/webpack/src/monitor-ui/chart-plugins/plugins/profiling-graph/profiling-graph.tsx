@@ -47,6 +47,7 @@ import {
   TextDirectionType,
   ViewModeType,
 } from '../../typings';
+import { assignUniqueIds } from '../../utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import ChartTitle from './chart-title/chart-title';
 import DiffChart from './diff-chart/diff-chart';
@@ -84,6 +85,7 @@ class ProfilingChart extends CommonSimpleChart {
   activeMode: ViewModeType = ViewModeType.Combine;
   textDirection: TextDirectionType = TextDirectionType.Ltr;
   highlightId = -1;
+  highlightName = '';
   filterKeyword = '';
   topoSrc = '';
   dataTypeList: DataTypeItem[] = [];
@@ -268,6 +270,8 @@ class ProfilingChart extends CommonSimpleChart {
       cancelToken: new CancelToken(c => (this.cancelTableFlameFn = c)),
     })
       .then(data => {
+        // 为数据节点及其子节点分配唯一 ID
+        data?.flame_data?.children && assignUniqueIds(data.flame_data.children);
         if (data && Object.keys(data)?.length) {
           this.unit = data.unit || '';
           this.tableData = data.table_data?.items ?? [];
@@ -506,7 +510,7 @@ class ProfilingChart extends CommonSimpleChart {
                       class='link-text'
                       onClick={() => this.goLink()}
                     >
-                      {this.$t('Profiling 检索')}
+                      {`Profiling ${this.$t('检索')}`}
                     </span>
                   </i18n>
                 </div>
@@ -570,12 +574,12 @@ class ProfilingChart extends CommonSimpleChart {
                         data={this.tableData}
                         dataType={this.queryParams.data_type}
                         filterKeyword={this.filterKeyword}
-                        highlightId={this.highlightId}
+                        highlightName={this.highlightName}
                         isCompared={this.queryParams.is_compared}
                         textDirection={this.textDirection}
                         unit={this.unit}
                         onSortChange={this.handleSortChange}
-                        onUpdateHighlightId={id => (this.highlightId = id)}
+                        onUpdateHighlightName={name => (this.highlightName = name)}
                       />
                     )}
                     {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
@@ -588,11 +592,13 @@ class ProfilingChart extends CommonSimpleChart {
                         data={this.flameData}
                         filterKeywords={this.flameFilterKeywords}
                         highlightId={this.highlightId}
+                        highlightName={this.highlightName}
                         isCompared={this.queryParams.is_compared}
                         showGraphTools={false}
                         textDirection={this.textDirection}
                         unit={this.unit}
                         onUpdateHighlightId={id => (this.highlightId = id)}
+                        onUpdateHighlightName={name => (this.highlightName = name)}
                       />
                     )}
                     {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}

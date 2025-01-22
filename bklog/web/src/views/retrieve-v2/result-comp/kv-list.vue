@@ -279,7 +279,7 @@
         }
 
         if (path) {
-          const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+          const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
           window.open(url, '_blank');
         }
       },
@@ -344,7 +344,7 @@
 
     .log-item {
       display: flex;
-      align-items: baseline;
+      align-items: start;
       min-height: 24px;
 
       .field-label {

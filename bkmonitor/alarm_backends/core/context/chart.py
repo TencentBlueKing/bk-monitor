@@ -8,10 +8,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import asyncio
+import base64
 import datetime
 import json
 import logging
 import os
+import tempfile
+from typing import Optional
 
 import arrow
 import pytz
@@ -22,9 +26,8 @@ from django.utils.translation import gettext as _
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
-from alarm_backends.service.scheduler.tasks.image_exporter import (
-    render_html_string_to_graph,
-)
+from alarm_backends.service.scheduler.tasks.image_exporter import render_html_string_to_graph
+from bkmonitor.browser import get_browser, get_or_create_eventloop
 from bkmonitor.utils import time_tools
 from constants.data_source import DataTypeLabel
 from constants.strategy import AGG_METHOD_REAL_TIME
@@ -33,14 +36,64 @@ from core.unit import load_unit
 logger = logging.getLogger("fta_action.run")
 
 
-def get_chart_image(chart_data):
+async def render_html(html_file_path: str) -> Optional[bytes]:
+    """
+    渲染html字符串为图片
+    """
+    browser = await get_browser()
+
+    # 打开页面
+    page = await browser.newPage()
+    await page.goto(f"file://{html_file_path}")
+
+    # 设置页面大小
+    await page.setViewport({"width": 1520, "height": 635, "deviceScaleFactor": 1})
+
+    # 额外等待一段时间确保动画完成
+    await asyncio.sleep(0.03)
+
+    panel = await page.querySelector(".chart-contain")
+    if not panel:
+        return
+
+    # 截图
+    img_bytes = await panel.screenshot({"type": "jpeg", "quality": 90})
+
+    # 关闭页面
+    try:
+        await page.close()
+    except Exception as e:
+        logger.exception(f"[render_alarm_graph] close page error: {e}")
+
+    return img_bytes
+
+
+def get_chart_image(chart_data) -> str:
     try:
         template_path = os.path.join(settings.BASE_DIR, "alarm_backends", "templates", "image_exporter")
         template = get_template("image_exporter/graph.html")
         html_string = template.render({"context": json.dumps(chart_data)})
-        return render_html_string_to_graph(html_string, template_path)
+
+        # 使用pyppeteer渲染
+        if settings.ALARM_GRAPH_RENDER_MODE == "pyppeteer":
+            return render_html_string_to_graph(html_string)
+        else:
+            # 将html写入临时文件，并使用浏览器渲染
+            with tempfile.NamedTemporaryFile(prefix="tmp_chart_image_", dir=template_path, suffix=".html") as f:
+                f.write(html_string.encode("utf-8"))
+                f.flush()
+
+                loop = get_or_create_eventloop()
+                img_bytes = loop.run_until_complete(render_html(f.name))
+                if not img_bytes:
+                    return ""
+
+                # 转换为base64
+                img_base64 = base64.b64encode(img_bytes).decode("utf-8")
+                return img_base64
     except Exception as e:
-        logger.error("get_chart_image fail", e)
+        logger.exception(f"[render_alarm_graph] get_chart_image fail: {e}")
+        return ""
 
 
 def get_chart_by_origin_alarm(item, source_time, title=""):

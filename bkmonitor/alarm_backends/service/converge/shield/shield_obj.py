@@ -395,6 +395,7 @@ class AlertShieldObj(ShieldObj):
             node for node in alert.event_document.bk_topo_node
         ]
         dimension["bk_host_id"] = dimension.get("bk_host_id") or alert.event_document.bk_host_id
+        dimension["bk_biz_id"] = alert.event_document.bk_biz_id
         metric_ids = []
 
         if alert.strategy_id:

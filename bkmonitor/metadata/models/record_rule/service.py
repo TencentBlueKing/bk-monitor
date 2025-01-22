@@ -19,7 +19,7 @@ from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.models.record_rule.constants import DEFAULT_RULE_TYPE, RecordRuleStatus
 from metadata.models.record_rule.rules import RecordRule, ResultTableFlow
-from metadata.models.record_rule.utils import generate_table_id
+from metadata.models.record_rule.utils import generate_pre_cal_table_id
 from metadata.models.vm import utils as vm_utils
 
 logger = logging.getLogger("metadata")
@@ -53,9 +53,10 @@ class RecordRuleService:
             logger.error("no valid table id found for record_name: %s", self.record_name)
             return
         # 转换到监控结果表
-        table_id = generate_table_id(self.space_type, self.space_id, self.record_name)
+        table_id = generate_pre_cal_table_id(self.space_type, self.space_id, self.record_name)
         dst_rt = RecordRule.get_dst_table_id(table_id)
         # 创建预计算配置
+        self._create_result_table(space_type=self.space_type, space_id=self.space_id, table_id=table_id)
         self._create_record_rule_record(
             table_id, bksql_metrics["bksql"], bksql_metrics["rule_metrics"], src_rts, dst_rt, count_freq=self.count_freq
         )
@@ -97,7 +98,7 @@ class RecordRuleService:
             table_id=table_id,
             table_name_zh=table_id,
             is_custom_table=True,
-            default_storage="influxdb",
+            default_storage=models.ClusterInfo.TYPE_VM,
             creator="system",
             bk_biz_id=biz_id,
         )

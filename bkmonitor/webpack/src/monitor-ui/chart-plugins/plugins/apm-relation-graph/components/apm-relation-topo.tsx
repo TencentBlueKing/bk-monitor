@@ -279,6 +279,9 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
 
   @Watch('data')
   handleDataChange() {
+    this.toolsPopoverInstance?.hide?.();
+    this.toolsPopoverInstance?.destroy?.();
+    this.toolsPopoverInstance = null;
     this.hideMenu();
     this.initGraph();
   }
@@ -736,7 +739,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
   }
 
   hideMenu(e?: Event) {
-    if (e && this.menuListRef.contains(e.target as HTMLElement)) return;
+    if (e && this.menuListRef?.contains?.(e.target as HTMLElement)) return;
     if (e && this.menuCfg.show && this.menuCfg.isDrilling) return;
     this.menuCfg = {
       x: 0,
@@ -951,6 +954,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
    * 展示图例
    */
   handleShowLegend() {
+    if (!this.formatData.nodes.length) return;
     this.showLegend = !this.showLegend;
     this.showThumbnail = false;
     if (this.showLegend) {
@@ -969,7 +973,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
    * 展示缩略图
    */
   handleShowThumbnail() {
-    if (!(this as any).graph) return;
+    if (!(this as any).graph || !this.formatData.nodes.length) return;
     this.showThumbnail = !this.showThumbnail;
     this.showLegend = false;
     if (this.showThumbnail) {
@@ -980,7 +984,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
       this.initToolsPopover(this.lastShowImage !== 'thumbnail');
       this.lastShowImage = 'thumbnail';
     } else {
-      this.toolsPopoverInstance?.hide();
+      this.toolsPopoverInstance?.hide?.();
     }
   }
 
@@ -1011,7 +1015,7 @@ export default class ApmRelationTopo extends tsc<ApmRelationTopoProps, ApmRelati
         zIndex: '1001',
       });
     }
-    this.toolsPopoverInstance.show();
+    this.toolsPopoverInstance?.show?.();
   }
 
   @Emit('edgeTypeChange')

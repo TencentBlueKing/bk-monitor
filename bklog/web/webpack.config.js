@@ -89,8 +89,8 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, { app, mobile, production, fta, email = false }) => {
-  const isMonitorRetrieveBuild = app === 'apm' && production; // 判断是否监控检索构建
+module.exports = (baseConfig, { app, mobile, production, fta, log, email = false }) => {
+  const isMonitorRetrieveBuild = ['apm', 'trace'].includes(process.env.MONITOR_APP) && production; // 判断是否监控检索构建
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
   if (!production) {
@@ -114,7 +114,8 @@ module.exports = (baseConfig, { app, mobile, production, fta, email = false }) =
             devHost: JSON.stringify(`${devConfig.host}`),
             loginHost: JSON.stringify(devConfig.loginHost),
             loginUrl: JSON.stringify(`${devConfig.loginHost}/login/`),
-            APP: JSON.stringify(`${app}`),
+            APP: JSON.stringify(`${process.env.MONITOR_APP}`),
+            MONITOR_APP: JSON.stringify(`${process.env.MONITOR_APP}`),
           },
         },
       }),
@@ -188,6 +189,15 @@ module.exports = (baseConfig, { app, mobile, production, fta, email = false }) =
           })
         : plugin;
     }),
-    cache: typeof devConfig.cache === 'boolean' ? devConfig.cache : config.cache,
+    cache: production
+      ? false
+      : {
+          buildDependencies: {
+            config: [__filename],
+          },
+          cacheDirectory: path.resolve(__dirname, '.cache'),
+          name: `${process.env.MONITOR_APP || config.app}-cache`,
+          type: 'filesystem',
+        },
   };
 };

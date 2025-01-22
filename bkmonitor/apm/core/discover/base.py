@@ -19,6 +19,7 @@ from collections import defaultdict
 from typing import List, NamedTuple, Tuple, Union
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
@@ -28,6 +29,7 @@ from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, SpanKind, TelemetryDataType
+from core.drf_resource.exceptions import CustomException
 
 logger = logging.getLogger("apm")
 
@@ -127,7 +129,10 @@ class DiscoverBase(ABC):
 
     @property
     def application(self):
-        return ApmApplication.get_application(self.bk_biz_id, self.app_name)
+        app = ApmApplication.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
+        if not app:
+            raise CustomException(_("业务下的应用: {} 不存在").format(self.app_name))
+        return app
 
     def _get_key_pair(self, key: str):
         pair = key.split(".", 1)
@@ -146,7 +151,6 @@ class DiscoverBase(ABC):
         other_rules = []
 
         for rule in rule_instances:
-
             # [!!!] predicate_key 可能为单个也可能为多个
             # 注意这里类型可能是 string 或者 list
             # 目前只有 k8s 规则存在多个
@@ -393,7 +397,14 @@ class TopoHandler:
         trace_id_count = 0
         span_count = 0
         filter_span_count = 0
-        max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        try:
+            max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        except Exception as e:
+            logger.error(
+                f"[TopoHandler] 业务id: {self.bk_biz_id}和应用名: {self.app_name}"
+                f"构建的TopoHandler对象在discover方法内发生异常, error({e})"
+            )
+            return
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:

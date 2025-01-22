@@ -514,6 +514,12 @@ class CheckPluginVersionResource(Resource):
                 bk_obj_id=validated_request_data["target_node_type"],
                 template_ids=template_ids,
             )
+        elif validated_request_data["target_node_type"] == TargetNodeType.DYNAMIC_GROUP:
+            hosts = api.cmdb.execute_dynamic_group(
+                bk_biz_id=validated_request_data["bk_biz_id"],
+                id=validated_request_data["target_nodes"][0]["bk_inst_id"],
+                bk_obj_id=validated_request_data["target_nodes"][0]["bk_obj_id"],
+            )
 
         bk_host_ids = [h.bk_host_id for h in hosts]
         return bk_host_ids[:500]
@@ -531,6 +537,8 @@ class CheckPluginVersionResource(Resource):
             if target_nodes[0].get("bk_host_id"):
                 bk_host_ids = [node["bk_host_id"] for node in target_nodes]
             elif target_nodes[0].get("ip"):
+                bk_host_ids = self.get_host_ids(validated_request_data)
+            elif target_nodes[0].get("bk_inst_id"):
                 bk_host_ids = self.get_host_ids(validated_request_data)
         # 无法获取对应目标，跳过版本校验
         if not bk_host_ids:
