@@ -1020,8 +1020,8 @@ export default defineComponent({
         isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Container') {
-        const startTime = Math.floor(spanTime.value / 1000) - 60 * 60;
-        let endTime = Math.floor(spanTime.value / 1000) + 30 * 60;
+        const startTime = dayjs(spanTime.value).unix() - 60 * 60;
+        let endTime = dayjs(spanTime.value).unix() + 30 * 60;
         const curUnix = dayjs().unix();
         endTime = endTime > curUnix ? curUnix : endTime;
         const result = await getSceneView(
