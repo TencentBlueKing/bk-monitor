@@ -1,8 +1,8 @@
 .new-home-select {
-  position: relative;
+  position: fixed;
   width: 100%;
   min-height: 52px;
-
+  z-index: 2000;
   .loading-view {
     width: 170px;
     height: 24px;
@@ -343,10 +343,8 @@
 }
 /** 展示在顶部导航栏的时候的样式处理 */
 .home-select-bar-tool {
-  position: fixed;
   top: 10px;
   right: 262px;
-  z-index: 2000;
   width: 720px !important;
   min-height: 32px;
   .icon-search {
