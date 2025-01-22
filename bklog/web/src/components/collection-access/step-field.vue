@@ -1545,28 +1545,28 @@
           // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
-            if(!this.builtFieldShow){
-              this.copyBuiltField.forEach(field => {
-                if (field.hasOwnProperty('expand')) {
-                  if (field.expand === false) {
-                    this.copyBuiltField.push(...field.children)
-                  } 
-                }
-              })
-              data.etl_fields.push(...this.copyBuiltField)
-            }
-            data.alias_settings = fieldTableData.filter(item => item.query_alias).map(item => {
-              return {
-                field_name: item.alias_name || item.field_name,
-                query_alias: item.query_alias,
-                path_type: item.field_type
+          if(!this.builtFieldShow){
+            this.copyBuiltField.forEach(field => {
+              if (field.hasOwnProperty('expand')) {
+                if (field.expand === false) {
+                  this.copyBuiltField.push(...field.children)
+                } 
               }
             })
-            data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
-        } else {
+            data.etl_fields.push(...this.copyBuiltField)
+          }
+         
           delete data.etl_params['separator_regexp'];
           delete data.etl_params['separator'];
         }
+        data.alias_settings = fieldTableData.filter(item => item.query_alias).map(item => {
+          return {
+            field_name: item.alias_name || item.field_name,
+            query_alias: item.query_alias,
+            path_type: item.field_type
+          }
+        })
+        data.etl_fields = data.etl_fields.filter( item => !item.is_built_in )
         let requestUrl;
         const urlParams = {};
         if (this.isSetEdit) {
@@ -1892,10 +1892,13 @@
           etl_config,
           etl_params: etlParams,
           fields,
-          index_set_id
+          index_set_id,
+          alias_settings
         } = this.curCollect;
         const option = { time_zone: '', time_format: '' };
         const copyFields = fields ? JSON.parse(JSON.stringify(fields)) : [];
+        this.alias_settings = this.changeAliasSettings(alias_settings)
+        this.concatenationQueryAlias(copyFields)
         copyFields.forEach(row => {
           row.value = '';
           if (row.is_delete) {
@@ -2368,15 +2371,8 @@
           })
           .then(async res => {
             if (res.data) {
-              const keys = Object.keys(res.data.alias_settings || {});
-              const arr = keys.map( key => {
-               return {
-                query_alias : key,
-                field_name : res.data.alias_settings[key].path
-               } 
-              })
-              this.alias_settings = arr
-              this.concatenationQueryAlias( res.data.fields)
+              this.alias_settings = this.changeAliasSettings(res.data.alias_settings)
+              this.concatenationQueryAlias(res.data.fields)
               this.$store.commit('collect/setCurCollect', res.data);
               this.getDetail();
               await this.getCleanStash(id);
@@ -2628,6 +2624,16 @@
       },
       deleteField(field) {
         this.formData.fields =  this.formData.fields.filter(item => item.field_index !== field.field_index)
+      },
+      // 转换alias_settings格式
+      changeAliasSettings(alias_settings){
+        const keys = Object.keys(alias_settings || {});
+        return keys.map( key => {
+          return {
+            query_alias : key,
+            field_name : alias_settings[key].path
+          } 
+        })
       }
     },
   };
