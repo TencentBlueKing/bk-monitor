@@ -171,7 +171,7 @@ export default defineComponent({
     const showRestore = inject<Ref>('showRestore') || ref(false);
     const timeRange = computed(() => {
       // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
-      return customTimeProvider.value?.length ? customTimeProvider.value : useTimeRanceInject();
+      return customTimeProvider.value?.length ? customTimeProvider.value : useTimeRanceInject()?.value || [];
     });
     const timeOffset = useTimeOffsetInject();
     const viewOptions = useViewOptionsInject();
