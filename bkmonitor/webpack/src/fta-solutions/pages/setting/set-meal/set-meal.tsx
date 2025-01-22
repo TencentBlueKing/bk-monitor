@@ -85,15 +85,21 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
 
   private emptyType: EmptyStatusType = 'empty';
 
+  /** 搜索的时候前端过滤出来的数据 */
+  get filterData() {
+    return this.data.filter(
+      item =>
+        String(item.name).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) ||
+        String(item.plugin_name).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) ||
+        String(item.update_user).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase())
+    );
+  }
+  /** 表格中每一页需要展示的数据 */
   get tableData() {
-    return this.data
-      .filter(
-        item =>
-          String(item.name).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) ||
-          String(item.plugin_name).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase()) ||
-          String(item.update_user).toLocaleLowerCase().includes(this.keyword.toLocaleLowerCase())
-      )
-      .slice(this.pagination.limit * (this.pagination.current - 1), this.pagination.limit * this.pagination.current);
+    return this.filterData.slice(
+      this.pagination.limit * (this.pagination.current - 1),
+      this.pagination.limit * this.pagination.current
+    );
   }
 
   activated() {
@@ -141,8 +147,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   handleSearch(v: string) {
     this.pagination.current = 1;
     this.keyword = v;
-    /** 当不输入内容的时候数据总条数为全部数据的数量，输入内容后则是过滤后的数据数量 */
-    this.pagination.count = !v ? this.data.length : this.tableData.length;
+    this.pagination.count = this.filterData.length;
     this.emptyType = v ? 'search-empty' : 'empty';
   }
   // message组件
