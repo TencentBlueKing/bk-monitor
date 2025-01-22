@@ -141,6 +141,8 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
   handleSearch(v: string) {
     this.pagination.current = 1;
     this.keyword = v;
+    /** 当不输入内容的时候数据总条数为全部数据的数量，输入内容后则是过滤后的数据数量 */
+    this.pagination.count = !v ? this.data.length : this.tableData.length;
     this.emptyType = v ? 'search-empty' : 'empty';
   }
   // message组件
