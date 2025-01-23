@@ -69,11 +69,11 @@ axiosInstance.interceptors.request.use(
     if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
     }
-    if (window.__IS_MONITOR_COMPONENT__) {
+    // if (window.__IS_MONITOR_COMPONENT__) {
       // 监控上层并没有使用 OT 这里直接自己生成traceparent id
       const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
       config.headers.Traceparent = traceparent;
-    }
+    // }
     return config;
   },
   error => Promise.reject(error),
@@ -83,8 +83,19 @@ axiosInstance.interceptors.request.use(
  * response interceptor
  */
 axiosInstance.interceptors.response.use(
-  response => response.data,
-  error => Promise.reject(error),
+  response => {
+    // 打印请求后的 traceparent
+    // const traceparent = response.config.headers.Traceparent;
+    // console.log('请求后的 traceparent:', response);
+
+    return response.data;
+  },
+  error => {
+    // 如果请求失败，打印traceparent
+    const traceparent = error.config && error.config.headers.Traceparent;
+    console.error('请求失败时的 traceparent:', traceparent);
+    return Promise.reject(error);
+  }
 );
 
 const http = {
@@ -285,12 +296,12 @@ function handleReject(error, config) {
  * @return {Promise} 本次 http 请求的 Promise
  */
 function initConfig(method, url, userConfig) {
-  const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+  // const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
   const copyUserConfig = Object.assign({}, userConfig ?? {});
-  copyUserConfig.headers = {
-    ...(userConfig.headers ?? {}),
-    traceparent,
-  };
+  // copyUserConfig.headers = {
+  //   ...(userConfig.headers ?? {}),
+  //   traceparent,
+  // };
   const defaultConfig = {
     ...getCancelToken(),
     // http 请求默认 id

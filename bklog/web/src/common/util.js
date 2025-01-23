@@ -669,13 +669,13 @@ export const makeMessage = (message, traceId) => {
     ${traceId || '--'} ：
     ${message}
   `;
-  message &&
-    console.log(`
-  ------------------【日志】------------------
-  【TraceID】：${traceId}
-  【Message】：${message}
-  ----------------------------------------------
-  `);
+  // message &&
+  //   console.log(`
+  // ------------------【日志】------------------
+  // 【TraceID】：${traceId}
+  // 【Message】：${message}
+  // ----------------------------------------------
+  // `);
   return resMsg;
 };
 
