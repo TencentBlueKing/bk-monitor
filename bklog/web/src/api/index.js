@@ -83,19 +83,8 @@ axiosInstance.interceptors.request.use(
  * response interceptor
  */
 axiosInstance.interceptors.response.use(
-  response => {
-    // 打印请求后的 traceparent
-    // const traceparent = response.config.headers.Traceparent;
-    // console.log('请求后的 traceparent:', response);
-
-    return response.data;
-  },
-  error => {
-    // 如果请求失败，打印traceparent
-    const traceparent = error.config && error.config.headers.Traceparent;
-    console.error('请求失败时的 traceparent:', traceparent);
-    return Promise.reject(error);
-  }
+  response => response.data,
+  error => Promise.reject(error),
 );
 
 const http = {
