@@ -23,13 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, inject, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount } from 'vue';
+import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
-import { fabric } from 'fabric';
 import { debounce } from 'lodash';
 
 import { WordListItem } from '../../../../hooks/use-text-segmentation';
@@ -59,28 +58,28 @@ export default defineComponent({
     const fontFamily = 'Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace';
     const store = useStore();
     const { $t } = useLocale();
-    const tableCellCache: WeakMap<
-      object,
-      WeakMap<object, Ref<{ showAll: boolean; textBox: fabric.Textbox; pageIndex: number }>>
-    > = inject('tableCellCache');
+    // const tableCellCache: WeakMap<
+    //   object,
+    //   WeakMap<object, Ref<{ showAll: boolean; textBox: fabric.Textbox; pageIndex: number }>>
+    // > = inject('tableCellCache');
 
-    if (props.data && props.field) {
-      if (!tableCellCache.has(props.data)) {
-        tableCellCache.set(props.data, new WeakMap());
-      }
+    // if (props.data && props.field) {
+    //   if (!tableCellCache.has(props.data)) {
+    //     tableCellCache.set(props.data, new WeakMap());
+    //   }
 
-      if (!tableCellCache.get(props.data).has(props.field)) {
-        tableCellCache.get(props.data).set(props.field, ref({ showAll: false, textBox: null, pageIndex: 0 }));
-      }
-    }
+    //   if (!tableCellCache.get(props.data).has(props.field)) {
+    //     tableCellCache.get(props.data).set(props.field, ref({ showAll: false, textBox: null, pageIndex: 0 }));
+    //   }
+    // }
 
-    const getCachedValue = (attr: string, defaultValue?: any) => {
-      return tableCellCache?.get(props.data)?.get(props.field)?.value?.[attr] ?? defaultValue;
-    };
+    // const getCachedValue = (attr: string, defaultValue?: any) => {
+    //   return tableCellCache?.get(props.data)?.get(props.field)?.value?.[attr] ?? defaultValue;
+    // };
 
     let containerWidth = 0;
 
-    const showAll = ref(getCachedValue('showAll', false));
+    const showAll = ref(false);
 
     const refSegmentContent: Ref<HTMLElement> = ref();
     const textLineCount = ref(0);
@@ -90,6 +89,7 @@ export default defineComponent({
     const isWrap = computed(() => store.state.tableLineIsWrap);
     const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
     const hasEllipsis = computed(() => !isLimitExpandView.value && textLineCount.value > 3);
+
     const btnText = computed(() => {
       if (showAll.value) {
         return ` ...${$t('收起')}`;
@@ -111,56 +111,15 @@ export default defineComponent({
       },
     });
 
-    const { initKonvaInstance, setRect, setHighlightWords, computeWordListPosition, fireEvent } = useKonva({
-      onSegmentClick: (e, value) => {
-        textSegmentInstance?.getCellClickHandler(e, value);
+    const { initKonvaInstance, setHighlightWords, computeWordListPosition, fireEvent, resetWordList } = useKonva({
+      onSegmentClick: (e, value, { offsetX = 0, offsetY = 0 }: { offsetX: number; offsetY: number }) => {
+        textSegmentInstance?.getCellClickHandler(e, value, { offsetX, offsetY });
       },
     });
 
     let wordList: WordListItem[];
-    // let pageIndex = getCachedValue('pageIndex', 0);
     let isDispose = false;
-    // const pageSize = 400;
-
-    // const getNextList = (size?) => {
-    //   const startIndex = pageIndex * (size ?? pageSize);
-    //   const endIndex = (pageIndex + 1) * (size ?? pageSize);
-    //   if (startIndex <= wordList.length - 1) {
-    //     pageIndex++;
-    //     return wordList.slice(startIndex, endIndex);
-    //   }
-
-    //   return [];
-    // };
-
-    // const getNextText = (list?, size?) => {
-    //   return (list ?? getNextList(size)).map(({ text }) => text).join('');
-    // };
-
-    /**
-     * 初始化前三行数据
-     */
-    // const setNextText = (max?) => {
-    //   if (mountedAllTag) {
-    //     return;
-    //   }
-
-    //   textLineCount.value = getLines();
-    //   const maxLength = isLimitExpandView.value || showAll.value ? max : 3;
-    //   if (textLineCount.value <= maxLength) {
-    //     const nextList = getNextList();
-    //     if (nextList.length > 0) {
-    //       const nextValue = getNextText(nextList);
-    //       setHighlightWords(nextList);
-    //       textLineCount.value = getLines();
-    //       if (!isDispose) {
-    //         requestAnimationFrame(() => {
-    //           setNextText(max);
-    //         });
-    //       }
-    //     }
-    //   }
-    // };
+    let isMounted = false;
 
     const getWidth = wordList => {
       if (props.autoWidth && wordList.length === 1) {
@@ -176,9 +135,10 @@ export default defineComponent({
     const initKonvaTextBox = () => {
       const width = getWidth(wordList);
       refCanvas.value.setAttribute('width', `${width}`);
-      initKonvaInstance(refCanvas.value, refFrontCanvas.value, width, refContent.value.offsetHeight, fontFamily);
+      initKonvaInstance(refCanvas.value, refFrontCanvas.value, width, refContent.value.scrollHeight, fontFamily);
       computeWordListPosition(wordList).then(list => {
         setHighlightWords(list);
+        isMounted = true;
       });
     };
 
@@ -186,14 +146,9 @@ export default defineComponent({
     const textSegmentPageSize = 50;
     const setTextSegmentChildNodes = (maxLength = 4) => {
       const fragment = new DocumentFragment();
-      textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
-
-      if (textLineCount.value >= maxLength) {
-        return;
-      }
 
       const stepRun = (size?) => {
-        if (textSegmentIndex >= 500) {
+        if (textSegmentIndex >= 10) {
           const text = wordList
             .slice(textSegmentIndex)
             .map(item => item.text)
@@ -233,16 +188,10 @@ export default defineComponent({
     };
 
     const setMoreLines = () => {
-      // if (getSegmentRenderType() === 'canvas' && showAll.value) {
-      //   setNextText(Number.MAX_SAFE_INTEGER);
-      // }
-
       if (getSegmentRenderType() === 'text') {
         let max = Number.MAX_SAFE_INTEGER;
         if (!showAll.value) {
           max = 4;
-          // pageIndex = 0;
-          refSegmentContent.value.innerHTML = '';
         }
         setTextSegmentChildNodes(max);
       }
@@ -289,7 +238,12 @@ export default defineComponent({
 
       if (getSegmentRenderType() === 'text') {
         setTextSegmentChildNodes(maxLength);
+        requestAnimationFrame(() => {
+          isMounted = true;
+        });
       }
+
+      textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
     };
 
     onBeforeMount(() => {
@@ -305,27 +259,17 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       isDispose = true;
-      if (tableCellCache?.get(props.data)?.get(props.field)) {
-        Object.assign(tableCellCache.get(props.data).get(props.field)?.value, {
-          showAll: showAll.value,
-        });
-      }
+      // if (tableCellCache?.get(props.data)?.get(props.field)) {
+      //   Object.assign(tableCellCache.get(props.data).get(props.field)?.value, {
+      //     showAll: showAll.value,
+      //   });
+      // }
     });
 
     const resetMounted = () => {
       textSegmentIndex = 0;
       refSegmentContent.value.innerHTML = '';
     };
-
-    watch(
-      () => [isLimitExpandView.value],
-      () => {
-        if (isLimitExpandView.value) {
-          textSegmentIndex = 0;
-          setMoreLines();
-        }
-      },
-    );
 
     watch(
       () => props.content,
@@ -343,7 +287,7 @@ export default defineComponent({
     );
 
     const debounceUpdateWidth = debounce(() => {
-      if (!refContent.value) {
+      if (!refContent.value || !isMounted) {
         return;
       }
 
@@ -351,15 +295,13 @@ export default defineComponent({
         containerWidth = refContent.value.offsetWidth;
 
         if (getSegmentRenderType() === 'canvas') {
-          // mountedAllTag = false;
-          // pageIndex = 0;
-          const width = refContent.value.offsetWidth;
-          setRect(width);
-          // setNextText();
-        }
-
-        if (getSegmentRenderType() === 'text') {
-          setTextSegmentChildNodes();
+          const textWrapper = refContent.value.querySelector('.static-text') as HTMLElement;
+          const { offsetWidth, scrollHeight } = textWrapper;
+          resetWordList();
+          initKonvaInstance(refCanvas.value, refFrontCanvas.value, offsetWidth, scrollHeight, fontFamily);
+          computeWordListPosition(wordList).then(list => {
+            setHighlightWords(list);
+          });
         }
       }
     });
@@ -423,7 +365,7 @@ export default defineComponent({
             class={[
               'btn-more-action',
               `word-${getSegmentRenderType()}`,
-              { 'is-show': hasEllipsis.value || showAll.value },
+              { 'is-show': hasEllipsis.value || (showAll.value && !isLimitExpandView.value) },
             ]}
             onClick={handleClickMore}
           >

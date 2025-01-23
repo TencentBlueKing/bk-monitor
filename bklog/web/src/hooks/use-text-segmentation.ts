@@ -69,7 +69,7 @@ export default class UseTextSegmentation {
     Object.assign(this.options, cfg.options ?? {});
   }
 
-  getCellClickHandler(e: MouseEvent, value) {
+  getCellClickHandler(e: MouseEvent, value, { offsetY = 0, offsetX = 0 }) {
     const x = e.clientX;
     const y = e.clientY;
     let virtualTarget = document.body.querySelector('.bklog-virtual-target') as HTMLElement;
@@ -82,8 +82,8 @@ export default class UseTextSegmentation {
       document.body.appendChild(virtualTarget);
     }
 
-    virtualTarget.style.setProperty('left', `${x}px`);
-    virtualTarget.style.setProperty('top', `${y}px`);
+    virtualTarget.style.setProperty('left', `${x + offsetX}px`);
+    virtualTarget.style.setProperty('top', `${y + offsetY}px`);
 
     this.handleSegmentClick(virtualTarget, value);
   }

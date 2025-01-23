@@ -192,6 +192,7 @@ export default defineComponent({
 
       const length = idxs.length > 0 ? idxs.length : pageSize.value;
       const buffer = Math.max(length, 1);
+
       const max = Math.max(...idxs, 0) + buffer;
       const min = idxs.length ? Math.min(...idxs) - buffer : 0;
       const end = Math.min(max, tableDataSize.value);
@@ -653,6 +654,7 @@ export default defineComponent({
       () => {
         if (!isRequesting.value) {
           if (isLoading.value) {
+            scrollToTop(0);
             renderList.value.length = 0;
             renderList.value = [];
 
@@ -751,7 +753,7 @@ export default defineComponent({
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, computeRect } = useLazyRender({
+    const { offsetWidth, computeRect, scrollToTop } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,

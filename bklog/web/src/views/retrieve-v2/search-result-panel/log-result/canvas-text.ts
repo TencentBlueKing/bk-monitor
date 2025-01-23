@@ -23,52 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Application } from 'pixi.js';
-export default class PixiAppPool {
-  maxConcurrentApps: number;
-  activeApps: Application[];
-  queue: (() => void)[];
-  constructor(maxConcurrentApps = 5) {
-    this.maxConcurrentApps = maxConcurrentApps;
-    this.activeApps = [];
-    this.queue = [];
+export default class CanvasText {
+  fontSize;
+  fontFamily;
+  canvasInstance: HTMLCanvasElement;
+  canvasContext: CanvasRenderingContext2D;
+  constructor({ fontSize, fontFamily }) {
+    this.canvasInstance = document.createElement('canvas');
+    this.canvasContext = this.canvasInstance.getContext('2d');
+    this.fontSize = fontSize;
+    this.fontFamily = fontFamily;
+    this.canvasContext.font = `${this.fontSize}px ${this.fontFamily}`;
   }
 
-  async createApp(taskFunction: (app: Application) => Promise<void>) {
-    return new Promise<void>((resolve, reject) => {
-      const runTask = () => {
-        const app = new Application();
-        this.activeApps.push(app);
-
-        // 执行任务
-        taskFunction(app)
-          .then(() => {
-            this.releaseApp(app);
-            resolve();
-          })
-          .catch(reject);
-      };
-
-      if (this.activeApps.length < this.maxConcurrentApps) {
-        runTask();
-      } else {
-        this.queue.push(runTask);
-      }
-    });
+  width(txt: string) {
+    return this.canvasContext.measureText(txt ?? '').width;
   }
 
-  releaseApp(app) {
-    const index = this.activeApps.indexOf(app);
-    if (index !== -1) {
-      this.activeApps.splice(index, 1);
-      app.destroy(true, { children: true });
-
-      if (this.queue.length > 0) {
-        const nextTask = this.queue.shift();
-        nextTask();
-      }
-    }
+  destroy() {
+    this.canvasInstance = null;
   }
 }
-
-export const PixiAppPoolInstance = new PixiAppPool();
