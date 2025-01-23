@@ -515,7 +515,7 @@ class PreCheckAsyncExportException(BaseException):
 
 class BKBaseExportException(BaseException):
     ERROR_CODE = "505"
-    MESSAGE = _("计算平台暂不支持快速下载")
+    MESSAGE = _("计算平台索引集暂不支持快速下载")
 
 
 # =================================================
