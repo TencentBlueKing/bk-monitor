@@ -137,19 +137,55 @@ export default ({ onSegmentClick }) => {
     boxHeight = height;
   };
 
+  const isWordInClickSection = (item: WordListItem, pointer) => {
+    const { left, top, width } = item;
+    const bottom = top + 20;
+    const right = left + width;
+    const { x, y } = pointer;
+    return left <= x && top <= y && bottom >= y && right >= x;
+  };
+
+  const getDistance = (x1, y1, x2, y2) => {
+    return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
+  };
+
+  const getClickOffset = (item: WordListItem, pointer) => {
+    if (item.split?.length) {
+      const [leftItem, rightItem] = item.split;
+      const leftDistance = Math.abs(
+        getDistance(leftItem.left + leftItem.width / 2, leftItem.top + fontSize / 2, pointer.x, pointer.y),
+      );
+      const rightDistance = Math.abs(
+        getDistance(rightItem.left + rightItem.width / 2, rightItem.top + fontSize / 2, pointer.x, pointer.y),
+      );
+
+      if (leftDistance < rightDistance) {
+        return { offsetX: 0, offsetY: leftItem.top + fontSize - pointer.y + 2 };
+      }
+
+      return { offsetX: 0, offsetY: rightItem.top + fontSize - pointer.y + 2 };
+    }
+
+    return { offsetX: 0, offsetY: item.top + fontSize - pointer.y + 2 };
+  };
+
   const handleTextBoxClick = evt => {
     const pointer = getPointerByMouseEvent(evt);
     const word = wordList.find(item => {
-      const { left, top, width } = item;
-      const bottom = top + 20;
-      const right = left + width;
-      const { x, y } = pointer;
-      return left <= x && top <= y && bottom >= y && right >= x;
+      if (!item.isCursorText) {
+        return false;
+      }
+
+      if (item.split?.length) {
+        return item.split.some(child => isWordInClickSection(child, pointer));
+      }
+
+      return isWordInClickSection(item, pointer);
     });
 
     if (word?.isCursorText && word?.text) {
-      const offsetY = word.top + fontSize - pointer.y;
-      onSegmentClick?.(evt, word?.text, { offsetX: 0, offsetY });
+      const { offsetX, offsetY } = getClickOffset(word, pointer);
+      onSegmentClick?.(evt, word?.text, { offsetX, offsetY });
     }
   };
 
