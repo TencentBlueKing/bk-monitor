@@ -1799,8 +1799,12 @@ class SearchHandler(object):
                         index_set_id=str(index_set_id) + "_" + tmp_index_obj.index_set_name
                     )
                 )
+            self.origin_indices = ",".join(index_list)
             self.custom_indices = self.search_dict.get("custom_indices")
-            self.origin_indices = ",".join(index_list) if not self.custom_indices else self.custom_indices
+            if self.custom_indices and index_list:
+                self.origin_indices = ",".join(
+                    _index for _index in self.custom_indices.split(",") if _index in index_list
+                )
             self.origin_scenario_id = tmp_index_obj.scenario_id
             for addition in self.search_dict.get("addition", []):
                 # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
