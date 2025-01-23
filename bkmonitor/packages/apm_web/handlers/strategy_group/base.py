@@ -14,12 +14,12 @@ import logging
 from typing import Dict, List, Set, Tuple, Type
 
 from apm_web.handlers.strategy_group.typing import StrategyKeyT, StrategyT
+from apm_web.models import Application
 
 logger = logging.getLogger(__name__)
 
 
 class StrategyGroupRegistry:
-
     _GROUPS: Dict[str, Type["BaseStrategyGroup"]] = {}
 
     @classmethod
@@ -60,6 +60,13 @@ class BaseStrategyGroup(metaclass=StrategyGroupMeta):
     def __init__(self, bk_biz_id: int, app_name: str, **kwargs):
         self.bk_biz_id: int = bk_biz_id
         self.app_name: str = app_name
+
+        try:
+            self.application: Application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        except Application.DoesNotExist:
+            raise ValueError(
+                "Application ({bk_biz_id}-{app_name}) not found".format(bk_biz_id=bk_biz_id, app_name=app_name)
+            )
 
     def apply(self, *args, **kwargs):
         def _format(_strategies: List[StrategyT]) -> Tuple[Set[StrategyKeyT], Dict[StrategyKeyT, StrategyT]]:
