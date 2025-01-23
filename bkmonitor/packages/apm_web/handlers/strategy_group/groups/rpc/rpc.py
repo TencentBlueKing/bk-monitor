@@ -234,8 +234,15 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
     def _add_member_to_notice_group(
         cls, bk_biz_id: int, user_id: str, group_name: str, notice_ways: Optional[List[str]] = None
     ) -> int:
-        instances = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=group_name)
-        if not instances.exists():
+        """增加成员到告警组，告警组不存在时默认创建
+        :param bk_biz_id: 业务 ID
+        :param user_id: 用户 ID
+        :param group_name: 告警组名称
+        :param notice_ways: 通知方式
+        :return:
+        """
+        user_group_inst: Optional[UserGroup] = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=group_name).first()
+        if user_group_inst is None:
             notice_config: Dict[str, Any] = copy.deepcopy(PUBLIC_NOTICE_CONFIG)
             for notice_way_config in (
                 notice_config["alert_notice"][0]["notify_config"] + notice_config["action_notice"][0]["notify_config"]
@@ -247,7 +254,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                 "notice_receiver": [{"id": user_id, "type": "user"}],
                 **notice_config,
             }
-            user_group_serializer = UserGroupDetailSlz(
+            user_group_serializer: UserGroupDetailSlz = UserGroupDetailSlz(
                 data={
                     "bk_biz_id": bk_biz_id,
                     "name": six.text_type(user_group["name"]),
@@ -259,21 +266,19 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             )
         else:
             # 检索用户是否已经存在在当前告警组，存在则跳过添加步骤
-            inst = instances[0]
-            duty_arranges = UserGroupDetailSlz(inst).data["duty_arranges"]
-            # 目前按照《直接通知》方式进行判定和添加成员
-            current_users = duty_arranges[0]["users"]
-            for user in current_users:
-                if user["type"] == "user" and user["id"] == user_id:
-                    return inst.id
+            duty_arranges: List[Dict[str, Any]] = UserGroupDetailSlz(user_group_inst).data["duty_arranges"]
+            current_users: List[Dict[str, Any]] = duty_arranges[0]["users"]
+            if user_id in {user["id"] for user in current_users if user["type"] == "user"}:
+                # 已存在，无需重复添加
+                return user_group_inst.id
+
             current_users.append({"id": user_id, "type": "user"})
             user_group_serializer = UserGroupDetailSlz(
-                inst, data={"duty_arranges": [{"users": current_users}]}, partial=True
+                user_group_inst, data={"duty_arranges": [{"users": current_users}]}, partial=True
             )
 
         user_group_serializer.is_valid(True)
-        inst = user_group_serializer.save()
-        return inst.id
+        return user_group_serializer.save().id
 
     def _apply_default_notice_group(self) -> int:
         return self._add_member_to_notice_group(
