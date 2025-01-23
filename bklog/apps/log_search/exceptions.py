@@ -513,6 +513,11 @@ class PreCheckAsyncExportException(BaseException):
     MESSAGE = _("创建异步导出任务前置检查失败,请检查索引集字段配置")
 
 
+class BKBaseExportException(BaseException):
+    ERROR_CODE = "505"
+    MESSAGE = _("计算平台暂不支持快速下载")
+
+
 # =================================================
 # JWT
 # =================================================
