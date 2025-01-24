@@ -647,11 +647,20 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     "service_name": service_name,
                 }
             )
+            # 将图表的维度全部改为显示在下方 而不是右边
+            for i in pod_view.get("overview_panels", []):
+                for j in i.get("panels", []):
+                    j.update({"options": {"legend": {"placement": "bottom", "displayMode": "list"}}})
 
-        # 不展示事件页面 时间页面单独页面进行展示
-        pod_view["overview_panels"] = [
-            i for i in pod_view["overview_panels"] if i["id"] != 'bk_monitor.time_series.k8s.events'
-        ]
+        # 不展示事件页面 和 图表为空列表的分类
+        o_views = []
+        for i in pod_view["overview_panels"]:
+            if i["id"] == "bk_monitor.time_series.k8s.events":
+                continue
+            if not i["panels"]:
+                continue
+            o_views.append(i)
+        pod_view["overview_panels"] = o_views
         return pod_view
 
     @classmethod
