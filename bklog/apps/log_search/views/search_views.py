@@ -323,7 +323,13 @@ class SearchViewSet(APIViewSet):
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
-        return Response(search_handler.search())
+
+        from apps.log_unifyquery.handler import UnifyQueryHandler
+        data["index_set_ids"] = [index_set_id]
+        data["start_time"] = request.data.get("start_time")
+        data["end_time"] = request.data.get("end_time")
+        unifyquery_handler = UnifyQueryHandler(data)
+        return Response(unifyquery_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
     def original_search(self, request, index_set_id=None):

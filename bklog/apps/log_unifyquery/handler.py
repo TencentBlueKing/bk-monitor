@@ -25,23 +25,31 @@ from apps.log_search.constants import (
     OperatorEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
+    MAX_RESULT_WINDOW,
 )
+from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, UserIndexSetSearchHistory
 from apps.log_unifyquery.constants import (
     BASE_OP_MAP,
     FLOATING_NUMERIC_FIELD_TYPES,
     REFERENCE_ALIAS,
 )
 from apps.log_unifyquery.utils import transform_advanced_addition
+from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.utils.ipchooser import IPChooser
-from apps.utils.local import get_local_param
+from apps.utils.local import get_local_param, get_request_username, get_request_external_username
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
+from apps.utils.cache import cache_five_minute
+from apps.utils.core.cache.cmdb_host import CmdbHostCache
 from bkm_ipchooser.constants import CommonEnum
 
+max_len_dict = Dict[str, int]  # pylint: disable=invalid-name
 
 class UnifyQueryHandler(object):
     def __init__(self, params):
@@ -62,8 +70,17 @@ class UnifyQueryHandler(object):
         # 聚合查询：字段名称
         self.agg_field = self.search_params.get("agg_field", "")
 
+        # 请求用户名
+        self.request_username = get_request_external_username() or get_request_username()
+
         # 排序参数
-        self.order_by = self.search_params.get("sort_list", [])
+        self.origin_order_by = self._init_sort()
+        self.order_by = []
+        for param in self.origin_order_by:
+            if param[1] == "asc":
+                self.order_by.append(param[0])
+            elif param[1] == "desc":
+                self.order_by.append(f"-{param[0]}")
 
         # 是否为联合查询
         self.is_multi_rt: bool = len(self.index_set_ids) > 1
@@ -71,6 +88,41 @@ class UnifyQueryHandler(object):
         # 查询时间范围
         self.start_time = self.search_params["start_time"]
         self.end_time = self.search_params["end_time"]
+
+        # result fields
+        self.field: Dict[str, max_len_dict] = {}
+
+        self.is_desensitize = params.get("is_desensitize", True)
+
+        # 初始化DB脱敏配置
+        desensitize_config_obj = DesensitizeConfig.objects.filter(index_set_id=self.index_set_ids[0]).first()
+        desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(index_set_id=self.index_set_ids[0])
+
+        # 脱敏配置原文字段
+        self.text_fields = desensitize_config_obj.text_fields if desensitize_config_obj else []
+
+        self.field_configs = list()
+
+        self.text_fields_field_configs = list()
+
+        for field_config_obj in desensitize_field_config_objs:
+            _config = {
+                "field_name": field_config_obj.field_name or "",
+                "rule_id": field_config_obj.rule_id or 0,
+                "operator": field_config_obj.operator,
+                "params": field_config_obj.params,
+                "match_pattern": field_config_obj.match_pattern,
+                "sort_index": field_config_obj.sort_index,
+            }
+            if field_config_obj.field_name not in self.text_fields:
+                self.field_configs.append(_config)
+            else:
+                self.text_fields_field_configs.append(_config)
+
+        # 初始化脱敏工厂对象
+        self.desensitize_handler = DesensitizeHandler(self.field_configs)
+
+        self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
@@ -357,6 +409,8 @@ class UnifyQueryHandler(object):
                 new_field_list, new_condition_list = transform_advanced_addition(addition)
                 field_list.extend(new_field_list)
                 condition_list.extend(new_condition_list)
+        for field in field_list:
+            field["value"] = [str(value) for value in field["value"]]
         return {"field_list": field_list, "condition_list": condition_list}
 
     @staticmethod
@@ -505,3 +559,278 @@ class UnifyQueryHandler(object):
             bucket_count = self.get_bucket_count(start, end)
             bucket_data.append([start, bucket_count])
         return bucket_data
+
+    def _init_sort(self) -> list:
+        index_set_id = self.search_params.get("index_set_ids", [])[0]
+        # 获取用户对sort的排序需求
+        sort_list: List = self.search_params.get("sort_list", [])
+        is_union_search = self.search_params.get("is_union_search", False)
+
+        if sort_list:
+            return sort_list
+
+        # 用户已设置排序规则  （联合检索时不使用用户在单个索引集上设置的排序规则）
+        scope = self.search_params.get("search_type", "default")
+        if not is_union_search:
+            from apps.log_search.models import UserIndexSetFieldsConfig
+            config_obj = UserIndexSetFieldsConfig.get_config(
+                index_set_id=index_set_id, username=self.request_username, scope=scope
+            )
+            if config_obj:
+                sort_list = config_obj.sort_list
+                if sort_list:
+                    return sort_list
+        # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
+        index_info = self._init_index_info_list(self.search_params.get("index_set_ids", []))[0]
+        return MappingHandlers.get_default_sort_list(
+            index_set_id=index_set_id,
+            scenario_id=index_info["scenario_id"],
+            scope=scope,
+            default_sort_tag=self.search_params.get("default_sort_tag", False),
+        )
+
+    @staticmethod
+    def query_ts_raw(search_dict, raise_exception=False):
+        """
+        查询时序型日志数据
+        """
+        try:
+            return UnifyQueryApi.query_ts_raw(search_dict)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
+            if raise_exception:
+                raise e
+            return {"list": []}
+
+    def search(self, search_type="default", is_export=False):
+        """
+        search
+        @param search_type:
+        @return:
+        """
+        search_dict = copy.deepcopy(self.base_dict)
+        # 校验是否超出最大查询数量
+        if self.search_params["size"] > MAX_RESULT_WINDOW:
+            self.search_params["size"] = MAX_RESULT_WINDOW
+
+        # 判断size，单次最大查询10000条数据
+        once_size = copy.deepcopy(self.search_params["size"])
+        if self.search_params["size"] > MAX_RESULT_WINDOW:
+            once_size = MAX_RESULT_WINDOW
+
+        # 下载操作
+        if is_export:
+            once_size = MAX_RESULT_WINDOW
+            self.search_params["size"] = MAX_RESULT_WINDOW
+
+        # 参数补充
+        for query in search_dict["query_list"]:
+            query["from"] = self.search_params["begin"]
+            query["limit"] = once_size
+
+        result = UnifyQueryApi.query_ts_raw(search_dict)
+        result = self._deal_query_result(result)
+
+        # 脱敏配置日志原文检索 提前返回
+        if self.search_params.get("original_search"):
+            return result
+
+        field_dict = self._analyze_field_length(result.get("list"))
+        result.update({"fields": field_dict})
+
+        # 保存检索历史，按用户、索引集、检索条件缓存5分钟
+        # 保存首页检索和trace通用查询检索历史
+        # 联合检索不保存单个索引集的检索历史
+        is_union_search = self.search_params.get("is_union_search", False)
+        if search_type and not is_union_search:
+            self._save_history(result, search_type)
+
+        return result
+
+    def _deal_query_result(self, result):
+        log_list = []
+        for log in result["list"]:
+            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
+                log = self._log_desensitize(log)
+            log = self._add_cmdb_fields(log)
+            log_list.append(log)
+        result["list"] = log_list
+        result.update({"aggregations": {}, "aggs": {}, "origin_log_list": log_list})
+
+        return result
+
+    def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
+        for item in log_list:
+            def get_field_and_get_length(_item: dict, father: str = ""):
+                for key in _item:
+                    _key: str = ""
+                    if isinstance(_item[key], dict):
+                        if father:
+                            get_field_and_get_length(_item[key], f"{father}.{key}")
+                        else:
+                            get_field_and_get_length(_item[key], key)
+                    else:
+                        if father:
+                            _key = "{}.{}".format(father, key)
+                        else:
+                            _key = "%s" % key
+                    if _key:
+                        self._update_result_fields(_key, _item[key])
+            get_field_and_get_length(item)
+        return self.field
+
+    def _update_result_fields(self, _key: str, _item: Any):
+        max_len_dict_obj: max_len_dict = self.field.get(_key)
+        if max_len_dict_obj:
+            # modify
+            _len: int = max_len_dict_obj.get("max_length")
+            try:
+                new_len: int = len(str(_item))
+            except BaseSearchResultAnalyzeException:
+                new_len: int = 16
+            if new_len >= _len:
+                if new_len > len(_key):
+                    max_len_dict_obj.update({"max_length": new_len})
+                else:
+                    max_len_dict_obj.update({"max_length": len(_key)})
+            return
+        # insert
+        try:
+            new_len: int = len(str(_item))
+        except BaseSearchResultAnalyzeException:
+            new_len: int = 16
+
+        if new_len > len(_key):
+            self.field.update({_key: {"max_length": new_len}})
+        else:
+            self.field.update({_key: {"max_length": len(_key)}})
+
+    def _log_desensitize(self, log: dict = None):
+        """
+        字段脱敏
+        """
+        if not log:
+            return log
+
+        # 展开object对象
+        log = expand_nested_data(log)
+        # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
+        log_content_tmp = copy.deepcopy(log)
+
+        # 字段脱敏处理
+        log = self.desensitize_handler.transform_dict(log)
+
+        # 原文字段应用其他字段的脱敏结果
+        if not self.text_fields:
+            return log
+
+        for text_field in self.text_fields:  # ["log"]
+            # 判断原文字段是否存在log中
+            if text_field not in log.keys():
+                continue
+
+            for _config in self.field_configs:
+                field_name = _config["field_name"]
+                if field_name not in log.keys() or field_name == text_field:
+                    continue
+                log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
+
+        # 处理原文字段自身绑定的脱敏逻辑
+        if self.text_fields:
+            log = self.text_fields_desensitize_handler.transform_dict(log)
+        # 折叠object对象
+        log = merge_nested_data(log)
+        return log
+
+    def _add_cmdb_fields(self, log):
+        if not self.search_params.get("bk_biz_id"):
+            return log
+
+        bk_biz_id = self.search_params.get("bk_biz_id")
+        bk_host_id = log.get("bk_host_id")
+        server_ip = log.get("serverIp", log.get("ip"))
+        bk_cloud_id = log.get("cloudId", log.get("cloudid"))
+        if not bk_host_id and not server_ip:
+            return log
+        # 以上情况说明请求不包含能去cmdb查询主机信息的字段，直接返回
+        log["__module__"] = ""
+        log["__set__"] = ""
+        log["__ipv6__"] = ""
+
+        host_key = bk_host_id if bk_host_id else server_ip
+        host_info = CmdbHostCache.get(bk_biz_id, host_key)
+        # 当主机被迁移业务或者删除的时候, 会导致缓存中没有该主机信息, 放空处理
+        if not host_info:
+            return log
+
+        if bk_host_id and host_info:
+            host = host_info
+        else:
+            if not bk_cloud_id:
+                host = next(iter(host_info.values()))
+            else:
+                host = host_info.get(str(bk_cloud_id))
+        if not host:
+            return log
+
+        set_list, module_list = [], []
+        if host.get("topo"):
+            for _set in host.get("topo", []):
+                set_list.append(_set["bk_set_name"])
+                for module in _set.get("module", []):
+                    module_list.append(module["bk_module_name"])
+        # 兼容旧缓存数据
+        else:
+            set_list = [_set["bk_inst_name"] for _set in host.get("set", [])]
+            module_list = [_module["bk_inst_name"] for _module in host.get("module", [])]
+
+        log["__set__"] = " | ".join(set_list)
+        log["__module__"] = " | ".join(module_list)
+        log["__ipv6__"] = host.get("bk_host_innerip_v6", "")
+        return log
+
+    def _save_history(self, result, search_type):
+        # 避免回显尴尬, 检索历史存原始未增强的query_string
+        params = {
+            "keyword": self.origin_query_string,
+            "ip_chooser": self.search_params.get("ip_chooser", {}),
+            "addition": self.search_params.get("addition", [])
+        }
+        # 全局查询不记录
+        if (not self.origin_query_string or self.origin_query_string == "*") and not self.search_params.get("addition", []):
+            return
+        self._cache_history(
+            username=self.request_username,
+            index_set_id=self.index_set_ids[0],
+            params=params,
+            search_type=search_type,
+            search_mode=self.search_params.get("search_mode", "ui"),
+            result=result,
+        )
+
+    @cache_five_minute("search_history_{username}_{index_set_id}_{search_type}_{params}_{search_mode}", need_md5=True)
+    def _cache_history(self, *, username, index_set_id, params, search_type, search_mode, result):  # noqa
+        history_params = copy.deepcopy(params)
+        history_params.update({"start_time": self.start_time, "end_time": self.end_time, "time_range": self.search_params.get("time_range")})
+
+        # 首页检索历史在decorator记录
+        if search_type == "default":
+            result.update(
+                {
+                    "history_obj": {
+                        "params": history_params,
+                        "index_set_id": self.index_set_ids[0],
+                        "search_type": search_type,
+                        "search_mode": search_mode,
+                        "from_favorite_id": self.search_params.get("from_favorite_id", 0),
+                    }
+                }
+            )
+        else:
+            UserIndexSetSearchHistory.objects.create(
+                index_set_id=self.index_set_ids[0],
+                params=history_params,
+                search_type=search_type,
+                search_mode=search_mode,
+                from_favorite_id=self.search_params.get("from_favorite_id", 0),
+            )
