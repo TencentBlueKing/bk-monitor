@@ -36,11 +36,9 @@ def watch_bkbase_meta_redis_task():
 def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
     """
     监听 Redis 键的变化事件，并动态获取键的内容。
-
-    Args:
-        redis_conn: Redis 连接实例
-        key_pattern: 要监听的键模式
-        runtime_limit: 任务的最大运行时长（秒），默认 1 天
+    @param redis_conn: Redis 连接实例
+    @param key_pattern: 监听键的模式
+    @param runtime_limit: 任务运行时间限制，单位秒,默认一天
     """
     # 构建键空间通知的订阅频道名称
     keyspace_channel = f"__keyspace@0__:{key_pattern}"
@@ -48,7 +46,7 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
 
     # 在任务开始时编译正则表达式,减少正则开销
     bkbase_pattern = getattr(settings, "BKBASE_PATTERN", "databus_v4_dataid")
-    channel_regex = re.compile(rf"{bkbase_pattern}:\d+$")
+    channel_regex = re.compile(rf"__keyspace@\d+__:{bkbase_pattern}:\d+$")
 
     # 计算任务结束时间
     start_time = datetime.now()
