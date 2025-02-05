@@ -38,16 +38,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=/app/requirements.txt \
     python -m venv venv \
     && /app/venv/bin/pip install --upgrade pip \
-    && /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i "${pypi_index_url}" \
-    && rm -rf /app/requirements.txt
+    && /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i "${pypi_index_url}"
 
 # copy code
 COPY ./ /app/code
 
 RUN rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace /app/code/static/external \
-  && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/
-
-RUN rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
+  && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/ \
+  && rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
 
 FROM python:3.7-bullseye
 
