@@ -74,7 +74,7 @@ RUN groupadd -r ${username}  \
 
 # move code and python packages
 COPY --chown=${username}:${username} . /app/code/
-COPY --from=node-builder --chown=${username}:${username} /app/dist/* /app/code/static/
+COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
 RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
 
