@@ -8,8 +8,7 @@ ARG replace_debian_source=false
 
 # update debian source
 RUN if [ ${replace_debian_source} ] ; then \
-        echo "update debian source to tencent" &&\
-        mv /etc/apt/sources.list /etc/apt/sources.list.bakevan && \
+        echo "update debian source to tencent" && \
         echo "deb https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
         echo "deb-src https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
         echo "deb https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
