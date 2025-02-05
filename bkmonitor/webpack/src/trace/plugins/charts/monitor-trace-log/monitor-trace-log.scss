@@ -1,8 +1,9 @@
 /* stylelint-disable declaration-no-important */
 .monitor-trace-log {
-  // display: flex;
   width: 100%;
   height: 100%;
+  // display: flex;
+  margin-top: -1px;
   --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
   --table-fount-size: 13px;
   --table-fount-color: #313238;
@@ -123,10 +124,20 @@
       background: #fff;
     }
 
-    .retrieve-body {
+    .retrieve-v2-body {
       background: #fff;
 
-      .retrieve-context {
+      .retrieve-v2-content {
+        background: #fff;
+
+        &::after {
+          display: none;
+        }
+
+        .search-bar-wrapper {
+          margin: 0;
+        }
+
         .search-bar-container {
           border: 1px solid #dcdee5;
           box-shadow: none;
@@ -142,11 +153,17 @@
           }
         }
 
+        .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .bklog-list-row::after {
+          display: none;
+        }
+
         .result-row {
           margin-top: 16px;
           box-shadow: none;
 
           .search-result-panel {
+            padding: 0;
+
             .search-result-content {
               padding: 0;
 
@@ -162,6 +179,8 @@
 
               .original-log-panel {
                 .original-log-panel-tools {
+                  padding: 0;
+
                   .left-operate {
                     .json-depth-num {
                       width: 96px;

@@ -1029,9 +1029,21 @@ class MetricTemporality:
     # 差值（Delta）：指标为 Gauge 类型，数值是上报间隔，计算固定间隔（比如 1 分钟内）的请求量，需要用 sum_over_time 函数
     DELTA: str = "delta"
 
+    # 默认使用 `service_name` 标识一个服务，允许通过动态配置，支持 callee_server & caller_server 此类非标准的服务检索。
+    DYNAMIC_SERVER_FIELD: str = "${server}"
+
     @classmethod
     def choices(cls):
         return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]
+
+    @classmethod
+    def get_metric_config(cls, temporality: str) -> Dict[str, str]:
+        return {
+            "temporality": temporality,
+            "server_filter_method": "eq",
+            "server_field": TRPCMetricTag.SERVICE_NAME,
+            "service_field": "${service_name}",
+        }
 
 
 class Vendor:
@@ -1039,7 +1051,7 @@ class Vendor:
 
     @classmethod
     def equal(cls, e, v):
-        return base64.b64encode(v.encode()).decode() == e
+        return e == v or base64.b64encode(v.encode()).decode() == e
 
     @classmethod
     def has_sdk(cls, service_sdk, expect_sdk):

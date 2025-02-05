@@ -309,6 +309,9 @@ class SearchAttrSerializer(serializers.Serializer):
 
     track_total_hits = serializers.BooleanField(label=_("是否统计总数"), required=False, default=False)
 
+    # 自定义索引列表 Eg. -> "2_bklog.0001,2_bklog.0002"
+    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
         if attrs.get("keyword") and attrs["keyword"].strip() == "":
@@ -491,6 +494,8 @@ class SearchExportSerializer(serializers.Serializer):
     file_type = serializers.ChoiceField(
         label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
     )
+    # 自定义索引列表 Eg. -> "2_bklog.0001,2_bklog.0002"
+    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
 
 
 class UnionSearchSearchExportSerializer(SearchExportSerializer):

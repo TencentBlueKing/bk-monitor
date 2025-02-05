@@ -1,0 +1,97 @@
+.ai-whale-input {
+  position: absolute;
+  top: calc(100% - 43px);
+  width: 100%;
+
+  &.max-height {
+    top: calc(100% - 108px);
+  }
+
+  .editable-div-wrapper {
+    position: relative;
+    width: 90%;
+    margin: 0 auto;
+    margin-bottom: 12px;
+    background: #FFFFFF;
+    border-radius: 2px;
+
+    .editable-div {
+      position: relative;
+      box-sizing: border-box;
+      min-height: 96px;
+      max-height: 96px;
+      padding: 6px 8px;
+      padding-right: 30px; // 为图标腾出空间
+      line-height: 18px;
+      text-overflow: ellipsis;
+      background-image: linear-gradient(#fff, #fff), linear-gradient(#74B9FF, #64DCD7);
+      background-clip: padding-box, border-box;
+      border: 1px solid transparent;
+      border-radius: 2px;
+
+      .placeholder {
+        font-size: 12px;
+        color: #C4C6CC;
+      }
+
+      &.animated {
+        min-height: 32px;
+        max-height: 32px;
+        animation: shrink 0.3s forwards;
+
+        &:focus {
+          overflow-y: auto;
+          white-space: normal;
+          outline: none;
+          animation: expand 0.3s ease forwards; // 聚焦时运行扩展动画
+        }
+      }
+
+      &::-webkit-scrollbar {
+        width: 3px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: #dbdbdb;
+        border-radius: 10px;
+
+        &:hover {
+          background: #555;
+        }
+      }
+    }
+
+    .icon {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 20px;
+      height: 17px;
+      pointer-events: none;
+
+      /* 防止图标干扰文本输入 */
+    }
+  }
+
+
+  .clear-icon {
+    position: absolute;
+    top: 40px;
+    right: 10px;
+    display: none;
+    width: 20px;
+    height: 20px;
+
+    /* 图标下方 */
+    cursor: pointer;
+  }
+
+  .editable-div-wrapper:hover .clear-icon {
+    display: block;
+  }
+}
