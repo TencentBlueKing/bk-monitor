@@ -1,17 +1,14 @@
-FROM python:3.7-bullseye as builder
-ARG build_frontend=true
+FROM python:3.7-bullseye as python-base
+
+# variables
+ARG username=bkmonitor
+ARG pypi_index_url=https://pypi.org/simple/
 ARG replace_debian_source=false
-ARG replace_python_source=false
 
-# download fonts
-RUN mkdir -p /app/fonts \
-    && wget https://github.com/adobe-fonts/source-han-sans/raw/release/Variable/TTF/SourceHanSansSC-VF.ttf -O /app/fonts/SourceHanSansSC-VF.ttf \
-    && wget https://github.com/adobe-fonts/source-han-serif/raw/release/Variable/TTF/SourceHanSerifSC-VF.ttf -O /app/fonts/SourceHanSerifSC-VF.ttf
-
-# update debian source to ustc
+# update debian source
 RUN if [ ${replace_debian_source} ] ; then \
-        echo "update debian source to ustc" &&\
-        mv /etc/apt/sources.list /etc/apt/sources.list.bakevan && \
+        echo "update debian source to tencent" && \
+        rm -rf /etc/apt/sources.list && \
         echo "deb https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
         echo "deb-src https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
         echo "deb https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
@@ -24,64 +21,65 @@ RUN if [ ${replace_debian_source} ] ; then \
         echo "don't need change debian source"; \
     fi
 
-# install node and pnpm
-RUN apt-get update && apt-get install -y curl && curl -sL https://deb.nodesource.com/setup_20.x | bash - && apt-get install -y nodejs
+# install chinese fonts
+RUN --mount=type=cache,target=/app/fonts \
+    if [ ! -f /app/fonts/SourceHanSansSC-VF.ttf ]; then \
+        wget https://github.com/adobe-fonts/source-han-sans/raw/release/Variable/TTF/SourceHanSansSC-VF.ttf -O /app/fonts/SourceHanSansSC-VF.ttf; \
+    fi \
+    && if [ ! -f /app/fonts/SourceHanSerifSC-VF.ttf ]; then \
+        wget https://github.com/adobe-fonts/source-han-serif/raw/release/Variable/TTF/SourceHanSerifSC-VF.ttf -O /app/fonts/SourceHanSerifSC-VF.ttf; \
+    fi \
+    && install -m644 /app/fonts/* /usr/share/fonts/truetype/
+
+# install tools
+RUN apt-get update && apt-get install -y vim chromium wget strace graphviz tini
+
+
+# build python packages
+FROM python-base as python-builder
+
+# install python packages
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=bind,source=requirements.txt,target=/app/requirements.txt \
+    python -m venv /app/venv \
+    && /app/venv/bin/pip install --upgrade pip \
+    && /app/venv/bin/pip install -r /app/requirements.txt -i "${pypi_index_url}"
+
+
+
+# build frontend
+FROM node:20-bullseye-slim as node-builder
+
+# pnpm
 RUN npm install -g pnpm@9
 
 WORKDIR /app
 
 # build frontend
 COPY ./webpack /app/webpack
-RUN if [ "${build_frontend}" = true ] ; then \
-  cd /app/webpack/ && pnpm i && npm run prod; \
-fi
+RUN cd /app/webpack/ && pnpm i && npm run prod \
+    && mkdir -p /app/dist && mv apm monitor fta weixin trace external /app/dist/
 
-# install python packages
-COPY ./requirements.txt /app
 
-RUN if [ "${replace_python_source}" != "false" ]; then python_source="${replace_python_source}"; else python_source="https://pypi.org/simple/"; fi \
-&& python -m venv venv \
-&& /app/venv/bin/pip install --upgrade pip \
-&& /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i "$python_source" \
-&& rm -rf /app/requirements.txt
 
-# copy code
-COPY ./ /app/code
-
-RUN if [ "${build_frontend}" = true ] ; then \
-  rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace /app/code/static/external \
-  && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/; \
-fi
-
-RUN rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
-
-FROM python:3.7-bullseye
-
-ARG username=bkmonitor
-ARG version
-
-# copy source.list file
-COPY --from=builder /etc/apt/sources.list /etc/apt/sources.list
-# install fonts
-COPY --from=builder /app/fonts/ /app/fonts/
-RUN install -m644 /app/fonts/SourceHanSansSC-VF.ttf /usr/share/fonts/truetype/ \
-    && install -m644 /app/fonts/SourceHanSerifSC-VF.ttf /usr/share/fonts/truetype/ \
-    && rm -rf /app/fonts
+# final image
+FROM python-base
 
 # install vim and chromium
-RUN apt-get update  \
-    && apt-get install -y vim chromium wget strace graphviz tini \
-    && groupadd -r ${username}  \
+RUN groupadd -r ${username}  \
     && useradd -r -g ${username} ${username}  \
     && mkdir -p /data/ /app/ /home/${username} \
     && chown -R ${username}:${username} /data/ /app/ /home/${username}
 
 # move code and python packages
-COPY --from=builder --chown=${username}:${username} /app/venv /app/venv
-COPY --from=builder --chown=${username}:${username} /app/code/ /app/code/
-COPY --from=builder --chown=${username}:${username} /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
-RUN echo ${version} > /app/code/VERSION
+COPY --chown=${username}:${username} . /app/code/
+COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
+COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
 
+ARG version
+RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
+
+# set user
 USER ${username}
 
 # set workdir
