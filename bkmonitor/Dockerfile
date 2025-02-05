@@ -30,8 +30,8 @@ RUN npm install -g pnpm@9
 WORKDIR /app
 
 # build frontend
-RUN --mount=type=bind,source=webpack,target=/app/webpack/ \
-    cd /app/webpack/ && pnpm i && npm run prod
+COPY ./webpack /app/webpack
+RUN cd /app/webpack/ && pnpm i && npm run prod
 
 # install python packages
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY ./ /app/code
 
 RUN rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace /app/code/static/external \
-  && cp -r /app/code/webpack/apm/ /app/code/webpack/monitor/ /app/code/webpack/fta/ /app/code/webpack/weixin/ /app/code/webpack/trace/ /app/code/webpack/external/ /app/code/static/
+  && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/
 
 RUN rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
 
