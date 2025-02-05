@@ -25,10 +25,10 @@ RUN if [ ${replace_debian_source} ] ; then \
 # install chinese fonts
 RUN --mount=type=cache,target=/app/fonts \
     if [ ! -f /app/fonts/SourceHanSansSC-VF.ttf ]; then \
-        wget https://github.com/adobe-fonts/source-han-sans/raw/release/Variable/TTF/SourceHanSansSC-VF.ttf -O /app/fonts/SourceHanSansSC-VF.ttf \
+        wget https://github.com/adobe-fonts/source-han-sans/raw/release/Variable/TTF/SourceHanSansSC-VF.ttf -O /app/fonts/SourceHanSansSC-VF.ttf; \
     fi \
     && if [ ! -f /app/fonts/SourceHanSerifSC-VF.ttf ]; then \
-        wget https://github.com/adobe-fonts/source-han-serif/raw/release/Variable/TTF/SourceHanSerifSC-VF.ttf -O /app/fonts/SourceHanSerifSC-VF.ttf \
+        wget https://github.com/adobe-fonts/source-han-serif/raw/release/Variable/TTF/SourceHanSerifSC-VF.ttf -O /app/fonts/SourceHanSerifSC-VF.ttf; \
     fi \
     && install -m644 /app/fonts/* /usr/share/fonts/truetype/
 
