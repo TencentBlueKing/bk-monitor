@@ -1,7 +1,6 @@
 FROM python:3.7-bullseye as python-base
 
 # variables
-ARG version
 ARG username=bkmonitor
 ARG pypi_index_url=https://pypi.org/simple/
 ARG replace_debian_source=false
@@ -75,6 +74,8 @@ RUN groupadd -r ${username}  \
 COPY --chown=${username}:${username} . /app/code/
 COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
+
+ARG version
 RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
 
 # set user
