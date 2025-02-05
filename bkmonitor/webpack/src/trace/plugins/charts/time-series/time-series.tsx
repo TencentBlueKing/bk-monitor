@@ -169,9 +169,10 @@ export default defineComponent({
     const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom') || (() => null);
     const handleRestoreEvent = inject<() => void>('handleRestoreEvent') || (() => null);
     const showRestore = inject<Ref>('showRestore') || ref(false);
+    const timeRanceInject = useTimeRanceInject();
     const timeRange = computed(() => {
       // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
-      return customTimeProvider.value?.length ? customTimeProvider.value : useTimeRanceInject()?.value || [];
+      return customTimeProvider.value?.length ? customTimeProvider.value : timeRanceInject?.value || [];
     });
     const timeOffset = useTimeOffsetInject();
     const viewOptions = useViewOptionsInject();
@@ -916,6 +917,7 @@ export default defineComponent({
       hoverAllTooltips,
       tooltipsContentLastItem,
       setOptions,
+      customTimeProvider,
     };
   },
   render() {
