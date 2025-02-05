@@ -67,8 +67,7 @@ RUN cd /app/webpack/ && pnpm i && npm run prod \
 FROM python-base
 
 # install vim and chromium
-RUN apt-get update && apt-get install -y vim chromium wget strace graphviz tini \
-    && groupadd -r ${username}  \
+RUN groupadd -r ${username}  \
     && useradd -r -g ${username} ${username}  \
     && mkdir -p /data/ /app/ /home/${username} \
     && chown -R ${username}:${username} /data/ /app/ /home/${username}
