@@ -1,6 +1,7 @@
 FROM python:3.7-bullseye as builder
 ARG build_frontend=true
 ARG replace_debian_source=false
+ARG replace_python_source=false
 
 # download fonts
 RUN mkdir -p /app/fonts \
@@ -37,9 +38,11 @@ fi
 
 # install python packages
 COPY ./requirements.txt /app
-RUN python -m venv venv \
+
+RUN if [ "${replace_python_source}" != "false" ]; then python_source="${replace_python_source}"; else python_source="https://pypi.org/simple/"; fi \
+&& python -m venv venv \
 && /app/venv/bin/pip install --upgrade pip \
-&& /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i https://mirrors.tencent.com/pypi/simple/ \
+&& /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i "$python_source" \
 && rm -rf /app/requirements.txt
 
 # copy code
