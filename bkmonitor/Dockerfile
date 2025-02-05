@@ -1,7 +1,7 @@
 FROM python:3.7-bullseye as builder
 ARG build_frontend=true
 ARG replace_debian_source=false
-ARG replace_python_source=false
+ARG pypi_index_url=https://pypi.org/simple/
 
 # download fonts
 RUN mkdir -p /app/fonts \
@@ -31,26 +31,25 @@ RUN npm install -g pnpm@9
 WORKDIR /app
 
 # build frontend
-COPY ./webpack /app/webpack
-RUN if [ "${build_frontend}" = true ] ; then \
-  cd /app/webpack/ && pnpm i && npm run prod; \
-fi
+RUN --mount=type=bind,source=webpack,target=/app/webpack/ \
+    if [ "${build_frontend}" = true ] ; then \
+        cd /app/webpack/ && pnpm i && npm run prod; \
+    fi
 
 # install python packages
-COPY ./requirements.txt /app
-
-RUN if [ "${replace_python_source}" != "false" ]; then python_source="${replace_python_source}"; else python_source="https://pypi.org/simple/"; fi \
-&& python -m venv venv \
-&& /app/venv/bin/pip install --upgrade pip \
-&& /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i "$python_source" \
-&& rm -rf /app/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=bind,source=requirements.txt,target=/app/requirements.txt \
+    python -m venv venv \
+    && /app/venv/bin/pip install --upgrade pip \
+    && /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt -i "${pypi_index_url}" \
+    && rm -rf /app/requirements.txt
 
 # copy code
 COPY ./ /app/code
 
 RUN if [ "${build_frontend}" = true ] ; then \
   rm -rf /app/code/static/monitor /app/code/static/weixin /app/code/static/fta /app/code/static/apm /app/code/static/trace /app/code/static/external \
-  && cp -r /app/webpack/apm/ /app/webpack/monitor/ /app/webpack/fta/ /app/webpack/weixin/ /app/webpack/trace/ /app/webpack/external/ /app/code/static/; \
+  && cp -r /app/code/webpack/apm/ /app/code/webpack/monitor/ /app/code/webpack/fta/ /app/code/webpack/weixin/ /app/code/webpack/trace/ /app/code/webpack/external/ /app/code/static/; \
 fi
 
 RUN rm -rf /app/code/webpack /app/code/.git /app/code/support-files/pkgs
