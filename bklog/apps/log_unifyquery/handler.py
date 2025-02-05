@@ -124,6 +124,8 @@ class UnifyQueryHandler(object):
 
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
+        self.export_fields = self.search_params.get("export_fields")
+
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
 
@@ -647,17 +649,47 @@ class UnifyQueryHandler(object):
 
         return result
 
-    def _deal_query_result(self, result):
+    def _deal_query_result(self, result_dict: dict) -> dict:
         log_list = []
-        for log in result["list"]:
+        origin_log_list = []
+        for log in result_dict["list"]:
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
+            if self.export_fields:
+                new_origin_log = {}
+                for _export_field in self.export_fields:
+                    # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
+                    if _export_field in log:
+                        new_origin_log[_export_field] = log[_export_field]
+                    # 处理a.b.c的情况
+                    elif "." in _export_field:
+                        # 在log中找不到时,去log的子级查找
+                        key, *field_list = _export_field.split(".")
+                        _result = log.get(key, {})
+                        for _field in field_list:
+                            if isinstance(_result, dict) and _field in _result:
+                                _result = _result[_field]
+                            else:
+                                _result = ""
+                                break
+                        new_origin_log[_export_field] = _result
+                    else:
+                        new_origin_log[_export_field] = log.get(_export_field, "")
+                origin_log = new_origin_log
+            else:
+                origin_log = log
             log_list.append(log)
-        result["list"] = log_list
-        result.update({"aggregations": {}, "aggs": {}, "origin_log_list": log_list})
-
-        return result
+            origin_log_list.append(origin_log)
+        result_dict.update(
+            {
+                "aggregations": {},
+                "aggs": {},
+                "list": log_list,
+                "origin_log_list": origin_log_list,
+            }
+        )
+        return result_dict
 
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
         for item in log_list:
