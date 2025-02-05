@@ -305,6 +305,7 @@ class CreateSubscriptionResource(NodeManAPIGWResource):
                     TargetNodeType.INSTANCE,
                     TargetNodeType.SET_TEMPLATE,
                     TargetNodeType.SERVICE_TEMPLATE,
+                    TargetNodeType.DYNAMIC_GROUP,
                 ],
             )
             nodes = serializers.ListField(required=True, label="节点列表")
@@ -341,6 +342,7 @@ class UpdateSubscriptionResource(NodeManAPIGWResource):
                     TargetNodeType.TOPO,
                     TargetNodeType.SET_TEMPLATE,
                     TargetNodeType.SERVICE_TEMPLATE,
+                    TargetNodeType.DYNAMIC_GROUP,
                 ],
             )
             nodes = serializers.ListField(required=True, label="节点列表")

@@ -27,7 +27,7 @@
 import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { TABLE_LOG_FIELDS_SORT_REGULAR, Debounce } from '@/common/util';
+import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
@@ -226,7 +226,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
 
   get indexSetId() {
-    return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+    return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
   }
 
   @Watch('indexSetId')
@@ -318,7 +318,7 @@ export default class FieldFilterComp extends tsc<object> {
             clearable
             onChange={() => this.filterListByCondition()}
             onClear={() => this.handleSearchException('clear-filter')}
-          ></bk-input>
+          />
         </div>
         <div
           ref='fieldFilter'
@@ -339,12 +339,12 @@ export default class FieldFilterComp extends tsc<object> {
                       class='bklog-icon bklog-log-refresh'
                       v-bk-tooltips={{ content: this.$t('刷新') }}
                       onClick={() => this.handleSearchException('refresh')}
-                    ></i>
+                    />
                     <i
                       class={`bklog-icon bklog-${this.isShowErrInfo ? 'collapse-small' : 'expand-small'}`}
                       v-bk-tooltips={{ content: this.$t('详情') }}
                       onClick={() => (this.isShowErrInfo = !this.isShowErrInfo)}
-                    ></i>
+                    />
                   </p>
                   {this.isShowErrInfo && <div class='error-info'>{this.errInfo}</div>}
                 </div>

@@ -377,27 +377,32 @@ export default defineComponent({
       },
     ]);
 
-    const rightColumns = computed(() => [
-      {
-        field: ROW_F_ORIGIN_OPT,
-        key: ROW_F_ORIGIN_OPT,
-        title: $t('操作'),
-        width: operatorToolsWidth.value,
-        fixed: 'right',
-        resize: false,
-        renderBodyCell: ({ row }) => {
-          return (
-            // @ts-ignore
-            <OperatorTools
-              handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
-              index={row[ROW_INDEX]}
-              operator-config={indexSetOperatorConfig.value}
-              row-data={row}
-            />
-          );
+    const rightColumns = computed(() => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return [];
+      }
+      return [
+        {
+          field: ROW_F_ORIGIN_OPT,
+          key: ROW_F_ORIGIN_OPT,
+          title: $t('操作'),
+          width: operatorToolsWidth.value,
+          fixed: 'right',
+          resize: false,
+          renderBodyCell: ({ row }) => {
+            return (
+              // @ts-ignore
+              <OperatorTools
+                handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
+                index={row[ROW_INDEX]}
+                operator-config={indexSetOperatorConfig.value}
+                row-data={row}
+              />
+            );
+          },
         },
-      },
-    ]);
+      ];
+    });
 
     const getTableColumnContent = (row, field) => {
       // 日志来源 展示来源的索引集名称
@@ -955,6 +960,9 @@ export default defineComponent({
     };
 
     const renderFixRightShadow = () => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return null;
+      }
       if (tableDataSize.value > 0) {
         return <div class='fixed-right-shadown'></div>;
       }

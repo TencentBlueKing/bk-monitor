@@ -27,6 +27,7 @@
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { isEqual } from 'lodash';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
 import { deepClone, isObject, random } from 'monitor-common/utils/utils';
@@ -631,7 +632,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   async initData() {
     this.localSceneType = this.sceneType;
     this.loading = true;
-    this.columns = +localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY) || 2;
+    const storedValue = localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY);
+    this.columns = storedValue === '0' ? 0 : +storedValue || 2;
     this.filtersReady = false;
     this.selectorReady = false;
     await this.$nextTick();
@@ -697,7 +699,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       } else if (key.match(/^groups/)) {
         this.groups = Array.isArray(val) ? val : [val];
       } else if (!['key'].includes(key)) {
-        if (typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
+        if (customRouterQueryKeys.includes(key)) {
+          this.customRouteQuery[key] = val;
+        } else if (typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
           this[key] = +val;
         } else if (['from', 'to'].includes(key)) {
           // this[key] = Array.isArray(val) ? val : isNaN(+val) ? val : +val;
@@ -748,8 +752,6 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             this.timezone = val as string;
             updateTimezone(val as string);
           }
-        } else if (customRouterQueryKeys.includes(key)) {
-          this.customRouteQuery[key] = val;
         } else if (key === 'groupByVariables') {
           try {
             this.groupByVariables = JSON.parse(decodeURIComponent(val as string));
@@ -1407,41 +1409,44 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         groupByVariables: JSON.stringify(this.groupByVariables),
       };
     }
-    this.$router.replace({
-      name: this.$route.name,
-      query: {
-        ...filters,
-        ...this.customRouteQuery,
-        ...groupByVariables,
-        method: this.method,
-        interval: this.interval.toString(),
-        groups: this.groups,
-        dashboardId: this.dashboardId,
-        // timeRange: this.timeRange as string,
-        from: this.timeRange[0],
-        to: this.timeRange[1],
-        timezone: this.timezone,
-        refleshInterval: this.refleshInterval.toString(),
-        // selectorSearchCondition: encodeURIComponent(JSON.stringify(this.selectorSearchCondition)),
-        queryData: queryDataStr,
-        key: random(10),
-        // 详情名称，用于面包屑
-        name: this.$route.query?.name,
-        sceneId: this.sceneId,
-        sceneType: this.localSceneType,
-        queryString: this.queryString,
-        preciseFilter: String(this.isPreciseFilter) /** 是否开启精准过滤 */,
-        compares:
-          this.compareType === 'target' && !!this.compares.targets?.length
-            ? encodeURIComponent(JSON.stringify(this.compares))
-            : undefined /** 目标对比 */,
-        timeOffset:
-          this.compareType === 'time' && !!this.timeOffset.length
-            ? encodeURIComponent(JSON.stringify(this.timeOffset))
-            : undefined /** 时间对比 */,
-        isGroupByLimit: this.isGroupByLimit ? 'true' : 'false',
-      },
-    });
+    const query = {
+      ...filters,
+      ...this.customRouteQuery,
+      ...groupByVariables,
+      method: this.method,
+      interval: this.interval.toString(),
+      groups: this.groups,
+      dashboardId: this.dashboardId,
+      // timeRange: this.timeRange as string,
+      from: this.timeRange[0],
+      to: this.timeRange[1],
+      timezone: this.timezone,
+      refleshInterval: this.refleshInterval.toString(),
+      // selectorSearchCondition: encodeURIComponent(JSON.stringify(this.selectorSearchCondition)),
+      queryData: queryDataStr,
+      key: random(10),
+      // 详情名称，用于面包屑
+      name: this.$route.query?.name,
+      sceneId: this.sceneId,
+      sceneType: this.localSceneType,
+      queryString: this.queryString,
+      preciseFilter: String(this.isPreciseFilter) /** 是否开启精准过滤 */,
+      compares:
+        this.compareType === 'target' && !!this.compares.targets?.length
+          ? encodeURIComponent(JSON.stringify(this.compares))
+          : undefined /** 目标对比 */,
+      timeOffset:
+        this.compareType === 'time' && !!this.timeOffset.length
+          ? encodeURIComponent(JSON.stringify(this.timeOffset))
+          : undefined /** 时间对比 */,
+      isGroupByLimit: this.isGroupByLimit ? 'true' : 'false',
+    };
+    if (!isEqual(query, this.$route.query)) {
+      this.$router.replace({
+        name: this.$route.name,
+        query,
+      });
+    }
   }
   /** 更新viewOptions的值 */
   async handleViewOptionsChange(viewOptions: IViewOptions) {

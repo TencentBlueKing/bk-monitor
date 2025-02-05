@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import functools
 import gzip
 import hashlib
@@ -100,9 +101,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
 
         data = uploaded.read()
         md5 = hashlib.md5(data).hexdigest()
-        exist_record = ProfileUploadRecord.objects.filter(bk_biz_id=validated_data["bk_biz_id"], file_md5=md5).first()
-        if exist_record:
-            raise ValueError(_(f"已上传过相同文件，名称：{exist_record.file_name}({exist_record.origin_file_name})"))
 
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
         try:
@@ -155,9 +153,13 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             filter_params["app_name"] = validated_data.get("app_name")
         if validated_data.get("origin_file_name"):
             filter_params["origin_file_name"] = validated_data.get("origin_file_name")
-        if validated_data.get("service_name "):
+        if validated_data.get("service_name"):
             filter_params["service_name"] = validated_data.get("service_name")
-        queryset = ProfileUploadRecord.objects.filter(**filter_params)
+
+        # 过滤掉过期的文件 (过期文件在 bkbase 中已查不到不需要显示)
+        datasource = api.apm_api.query_builtin_profile_datasource()
+        last_retention = datetime.datetime.now() - datetime.timedelta(days=datasource["retention"])
+        queryset = ProfileUploadRecord.objects.filter(**filter_params, uploaded_time__gte=last_retention)
         return Response(data=ProfileUploadRecordSLZ(queryset, many=True).data)
 
 

@@ -1,0 +1,155 @@
+@import '../../../../theme/index.scss';
+
+.recent-alarm-events {
+  padding-bottom: 20px;
+  margin: 0 auto;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+
+  .title {
+    margin-bottom: 12px;
+    font-family: MicrosoftYaHei;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+  }
+
+
+  .content {
+    .loading-element {
+      transition: height 0.5s ease; /* 0.3 秒的过渡时间，可以根据需要调整 */
+    }
+    .list-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px 2%;
+      align-items: center;
+
+      .list-item {
+        width: 32%;
+        height: 210px;
+        background: #ffffff;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919290d;
+
+        &:hover {
+          cursor: pointer;
+        }
+      }
+
+      .add-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: MicrosoftYaHei;
+        font-size: 14px;
+        line-height: 22px;
+        color: #3a84ff;
+        text-align: center;
+        background: #f0f5ff;
+        border: 1px dashed #a3c5fd;
+        border-radius: 2px;
+
+        .icon-mc-add {
+          font-size: 22px;
+        }
+
+        &:hover {
+          background: #e1ecff;
+        }
+      }
+    }
+
+    .empty-content {
+      .empty-img {
+        width: 220px;
+        height: 100px;
+        margin: 70px auto 0;
+
+        img {
+          width: 100%;
+          height: 100%;
+        }
+      }
+    }
+
+    .empty-info {
+      margin-bottom: 24px;
+      font-family: MicrosoftYaHei;
+      font-size: 14px;
+      line-height: 22px;
+      color: #4d4f56;
+      text-align: center;
+    }
+
+    .empty-btn {
+      margin-bottom: 100px;
+      text-align: center;
+    }
+  }
+}
+
+.task-del-dialog {
+  .bk-dialog-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 32px 24px;
+
+    .icon {
+      width: 42px;
+      height: 42px;
+      margin-bottom: 19px;
+      font-size: 30px;
+      line-height: 42px;
+      color: #ff9c01;
+      text-align: center;
+      background: #ffe8c3;
+      border-radius: 50%;
+    }
+
+    .info {
+      height: 32px;
+      margin-bottom: 16px;
+      font-family: MicrosoftYaHei;
+      font-size: 20px;
+      line-height: 32px;
+      color: #313238;
+      text-align: center;
+    }
+
+    .detail {
+      width: 100%;
+      height: 22px;
+      margin-bottom: 16px;
+      font-family: MicrosoftYaHei;
+      font-size: 14px;
+      line-height: 22px;
+      color: #4d4f56;
+    }
+
+    .tips {
+      width: 100%;
+      height: 46px;
+      padding: 12px 16px;
+      margin: 0 auto;
+      margin-bottom: 24px;
+      font-family: MicrosoftYaHei;
+      font-size: 14px;
+      line-height: 22px;
+      color: #4d4f56;
+      background: #f5f6fa;
+      border-radius: 2px;
+    }
+
+    .foot {
+      &:first-child,
+      button {
+        margin-right: 9px;
+        width: 88px;
+      }
+    }
+  }
+}
