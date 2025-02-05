@@ -77,8 +77,7 @@ RUN apt-get update && apt-get install -y vim chromium wget strace graphviz tini 
 COPY --chown=${username}:${username} . /app/code/
 COPY --from=node-builder /app/dist/* /app/code/static/
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
-COPY --from=python-builder --chown=${username}:${username} /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
-RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack
+RUN echo ${version} > /app/code/VERSION && rm -r /app/code/webpack && cp /app/code/docs/api/monitor_v3.yaml /app/code/kernel_api/monitor_v3.yaml
 
 # set user
 USER ${username}
