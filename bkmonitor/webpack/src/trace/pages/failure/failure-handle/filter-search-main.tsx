@@ -86,7 +86,7 @@ export default defineComponent({
     const inputStatus = ref<string>('success');
     const isErr = ref(false);
     const selectRef = ref();
-    const trigger = ref('default')
+    const trigger = ref('default');
     const handleBiz = (data: any) => {
       const list = JSON.parse(JSON.stringify(spaceFilter.value));
       spaceFilter.value.push(data.bk_biz_id);
@@ -103,7 +103,7 @@ export default defineComponent({
     );
     watch(
       () => isErr.value,
-      (val) => {
+      val => {
         trigger.value = val ? 'manual' : 'default';
       }
     );
@@ -122,7 +122,7 @@ export default defineComponent({
       const list = (window.space_list || []).filter(item => currentBizList.value.includes(item.bk_biz_id));
       return getSpaceList(list || []);
     });
-    const changeSpace = (space: string) => {     
+    const changeSpace = (space: string) => {
       isErr.value = !space.length;
       emit('changeSpace', space, isErr.value);
     };
@@ -140,6 +140,7 @@ export default defineComponent({
           tags,
           isCheck: false,
           show: true,
+          spaceName: `${item.name} (#${item.bk_biz_id})`,
         };
         list.push(newItem);
       });
@@ -189,7 +190,7 @@ export default defineComponent({
       inputStatus,
       isErr,
       selectRef,
-      trigger
+      trigger,
     };
   },
   render() {
@@ -197,12 +198,9 @@ export default defineComponent({
       <div class='failure-search-main'>
         <div class='main-top'>
           <Select
-            ref="selectRef"
+            ref='selectRef'
             selected-style='checkbox'
-            class={[
-              'main-select',
-              { error: this.isErr }
-            ]}
+            class={['main-select', { error: this.isErr }]}
             trigger={this.trigger}
             v-model={this.spaceFilter}
             clearable={false}
@@ -220,10 +218,10 @@ export default defineComponent({
                 id={item.id}
                 key={item.id}
                 class='main-select-item'
-                name={item.name}
+                name={item.spaceName}
               >
                 <span class='item-name'>
-                  <span class={['name', { disabled: !!item.noAuth && !item.hasData }]}>{item.name}</span>
+                  <span class={['name', { disabled: !!item.noAuth && !item.hasData }]}>{item.spaceName}</span>
                 </span>
                 <div class='space-tags'>
                   {item.tags.map(tag =>

@@ -244,7 +244,8 @@ def discover_bcs_clusters():
                 update_fields.append("api_key_content")
 
             if int(bk_biz_id) != cluster.bk_biz_id:
-                # 更新业务ID
+                # 记录旧业务ID，更新新业务ID
+                old_bk_biz_id = cluster.bk_biz_id
                 cluster.bk_biz_id = int(bk_biz_id)
                 update_fields.append("bk_biz_id")
 
@@ -256,7 +257,7 @@ def discover_bcs_clusters():
                 )
 
                 # 变更对应的路由元信息
-                change_cluster_router(cluster, old_bk_biz_id=cluster.bk_biz_id, new_bk_biz_id=int(bk_biz_id))
+                change_cluster_router(cluster=cluster, old_bk_biz_id=old_bk_biz_id, new_bk_biz_id=int(bk_biz_id))
 
             # 如果project_id改动，需要更新集群信息
             if project_id != cluster.project_id:

@@ -69,3 +69,10 @@ class AIOpsDisableError(Error):
     code = 3324007
     name = _("AIOps功能未开启")
     message_tpl = _("当前空间尚未开[{func}]功能")
+
+
+class AIOpsAccessedError(Error):
+    status_code = 200
+    code = 3324008
+    name = _("AIOps功能接入失败")
+    message_tpl = _("当前空间接入[{func}]功能失败")

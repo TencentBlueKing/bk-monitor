@@ -39,6 +39,7 @@ import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { bkMessage } from 'bk-magic-vue';
 import { uniqueId } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -112,12 +113,15 @@ export default defineComponent({
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
-    const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
+    const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+
+    const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
+
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
 
@@ -300,7 +304,9 @@ export default defineComponent({
               content={getTableColumnContent(row, field)}
               field={field}
               row={row}
-              onIcon-click={(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)}
+              onIcon-click={(type, content, isLink, depth, isNestedField) =>
+                handleIconClick(type, content, field, row, isLink, depth, isNestedField)
+              }
             ></TableColumn>
           );
         },
@@ -373,27 +379,32 @@ export default defineComponent({
       },
     ]);
 
-    const rightColumns = computed(() => [
-      {
-        field: ROW_F_ORIGIN_OPT,
-        key: ROW_F_ORIGIN_OPT,
-        title: $t('操作'),
-        width: operatorToolsWidth.value,
-        fixed: 'right',
-        resize: false,
-        renderBodyCell: ({ row }) => {
-          return (
-            // @ts-ignore
-            <OperatorTools
-              handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
-              index={row[ROW_INDEX]}
-              operator-config={indexSetOperatorConfig.value}
-              row-data={row}
-            />
-          );
+    const rightColumns = computed(() => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return [];
+      }
+      return [
+        {
+          field: ROW_F_ORIGIN_OPT,
+          key: ROW_F_ORIGIN_OPT,
+          title: $t('操作'),
+          width: operatorToolsWidth.value,
+          fixed: 'right',
+          resize: false,
+          renderBodyCell: ({ row }) => {
+            return (
+              // @ts-ignore
+              <OperatorTools
+                handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
+                index={row[ROW_INDEX]}
+                operator-config={indexSetOperatorConfig.value}
+                row-data={row}
+              />
+            );
+          },
         },
-      },
-    ]);
+      ];
+    });
 
     const getTableColumnContent = (row, field) => {
       // 日志来源 展示来源的索引集名称
@@ -403,7 +414,7 @@ export default defineComponent({
           ''
         );
       }
-      return parseTableRowData(row, field.field_name, field.field_type);
+      return parseTableRowData(row, field.field_name, field.field_type, false);
     };
 
     const getOriginTimeShow = data => {
@@ -432,9 +443,9 @@ export default defineComponent({
       });
     };
 
-    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined) => {
+    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined, isNestedField = 'false') => {
       store
-        .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
+        .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           setRouteParams();
           if (isLink) {
@@ -444,20 +455,46 @@ export default defineComponent({
         });
     };
 
-    const handleIconClick = (type, content, field, row, isLink, depth) => {
+    const handleTraceIdClick = traceId => {
+      if (apmRelation.value?.is_active) {
+        const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.value.extra;
+        const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        window.open(url, '_blank');
+      } else {
+        bkMessage({
+          theme: 'warning',
+          message: $t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+        });
+      }
+    };
+
+    const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
       let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
 
+      if (type === 'trace-view') {
+        handleTraceIdClick(value);
+        return;
+      }
+
       if (type === 'search') {
         // 将表格单元添加到过滤条件
-        handleAddCondition(field.field_name, 'eq', [value], isLink);
-      } else if (type === 'copy') {
+        handleAddCondition(field.field_name, 'eq', [value], isLink, depth, isNestedField);
+        return;
+      }
+
+      if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
-      } else if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth);
+        return;
+      }
+
+      if (['is', 'is not', 'new-search-page-is'].includes(type)) {
+        handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth, isNestedField);
+        return;
       }
     };
 
@@ -553,8 +590,8 @@ export default defineComponent({
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
-            onValue-click={(type, content, isLink, field, depth) =>
-              handleIconClick(type, content, field, row, isLink, depth)
+            onValue-click={(type, content, isLink, field, depth, isNestedField) =>
+              handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }
           ></ExpandView>
         );
@@ -925,6 +962,9 @@ export default defineComponent({
     };
 
     const renderFixRightShadow = () => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return null;
+      }
       if (tableDataSize.value > 0) {
         return <div class='fixed-right-shadown'></div>;
       }

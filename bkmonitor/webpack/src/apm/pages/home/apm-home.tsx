@@ -53,6 +53,7 @@ import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
+import { addAccessRecord } from 'monitor-api/modules/overview';
 
 @Component({})
 export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) {
@@ -205,7 +206,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             : String(appSearchParams.is_enabled_profiling),
       },
     };
-    this.$router.replace(routerParams).catch(() => {});
+    this.$router.replace(routerParams).catch(() => { });
   }
   /**
    * @description 时间范围
@@ -222,6 +223,27 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
   handleImmediateRefresh() {
     this.getAppList();
     this.refreshKey++;
+  }
+
+  /**
+   * apm 服务埋点
+   * @param item 调整的服务相关参数
+   */
+  handleGotoService(item) {
+    try {
+      const queryString = item.url.split('?')[1];
+      const params = new URLSearchParams(queryString);
+      // 获取 filter-app_name 的值
+      const appName = params.get('filter-app_name');
+      const app = this.appList.find(app => app.app_name === appName);
+      // 新版首页最近使用埋点
+      addAccessRecord({
+        function: 'apm_service',
+        config: { application_id: app.application_id, service_name: item.value },
+      });
+    } catch (error) {
+      console.log('error', error);
+    }
   }
 
   /**
@@ -504,6 +526,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
               authority={this.appData?.permission[authorityMap.VIEW_AUTH]}
               authorityDetail={authorityMap.VIEW_AUTH}
               timeRange={this.timeRange}
+              onGoToServiceByLink={val => this.handleGotoService(val)}
               onRouteUrlChange={this.handleReplaceRouteUrl}
             />
           </div>

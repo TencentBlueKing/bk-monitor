@@ -88,7 +88,7 @@ export default {
     'Enter the plugin name, which only starts with a letter, only supports letters, underscores and numbers, and the length cannot exceed 30 characters',
   '输入请求 URL': 'Enter Request URL',
   '输入指标名/ID': 'Enter Metric Name/ID',
-  '输入屏蔽内容、ID': 'Enter the content and ID to be blocked',
+  '输入屏蔽内容、ID、策略ID': 'Enter the intensity content, ID, strategy ID to be blocked',
   '输入关键字，模糊搜索': 'Enter keywords for fuzzy search',
   '输入空间ID、空间名': 'Space ID / Name',
   输入规则组名: 'Enter rule group name',

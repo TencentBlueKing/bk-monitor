@@ -134,6 +134,28 @@ class SpaceTableIDRedis:
                     json.dumps(_table_id_detail),
                     RESULT_TABLE_DETAIL_KEY,
                 )
+                updated_table_id_detail = {}
+                for key, value in _table_id_detail.items():
+                    parts = key.split(".")  # 通过 "." 分割 key
+                    if len(parts) == 1:
+                        logger.info(
+                            "push_es_table_id_detail: key(table_id)->[%s] is missing '.', adding '.__default__'", key
+                        )
+                        # 如果分割结果长度为 1，补充 ".__default__"
+                        new_key = f"{key}.__default__"
+                        updated_table_id_detail[new_key] = value
+                    elif len(parts) == 2:
+                        # 如果分割结果长度为 2，保持原样
+                        updated_table_id_detail[key] = value
+                    else:
+                        # 如果分割结果长度超过 2，打印错误日志
+                        logger.error(
+                            "push_es_table_id_detail: key(table_id)->[%s] is invalid, contains too many dots", key
+                        )
+
+                # 更新 _table_id_detail
+                _table_id_detail = updated_table_id_detail
+
                 RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, _table_id_detail)
                 if is_publish:
                     logger.info(
@@ -276,13 +298,19 @@ class SpaceTableIDRedis:
             tid_options = models.ResultTableOption.objects.filter(table_id__in=table_id_list).values(
                 "table_id", "name", "value", "value_type"
             )
+            data_label_map = models.ResultTable.objects.filter(table_id__in=table_id_list).values(
+                "table_id", "data_label"
+            )
         else:
             table_ids = models.ESStorage.objects.values("table_id", "storage_cluster_id", "source_type", "index_set")
             tids = [obj["table_id"] for obj in table_ids]
             tid_options = models.ResultTableOption.objects.filter(table_id__in=tids).values(
                 "table_id", "name", "value", "value_type"
             )
+            data_label_map = models.ResultTable.objects.filter(table_id__in=tids).values("table_id", "data_label")
 
+        # data_label字典 {table_id:data_label}
+        data_label_map_dict = {item["table_id"]: item["data_label"] for item in data_label_map}
         tid_options_map = {}
         for option in tid_options:
             try:
@@ -306,6 +334,7 @@ class SpaceTableIDRedis:
             tid = record["table_id"]
             storage_id = record.get("storage_cluster_id", 0)
             table_id_db = index_set
+
             try:
                 storage_record = models.StorageClusterRecord.compose_table_id_storage_cluster_records(tid)
             except Exception as e:  # pylint: disable=broad-except
@@ -322,6 +351,7 @@ class SpaceTableIDRedis:
                     "options": tid_options_map.get(tid) or {},
                     'storage_type': models.ESStorage.STORAGE_TYPE,
                     'storage_cluster_records': storage_record,
+                    'data_label': data_label_map_dict.get(tid, ""),
                 }
             )
         return data

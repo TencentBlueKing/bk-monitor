@@ -23,10 +23,10 @@ from alarm_backends.service.report.render.dashboard import (
     RenderDashboardConfig,
     render_dashboard_panel,
 )
-from alarm_backends.service.report.utils import get_or_create_eventloop
 from alarm_backends.service.scheduler.app import app
 from alarm_backends.service.selfmonitor.collect.redis import RedisMetricCollectReport
 from alarm_backends.service.selfmonitor.collect.transfer import TransferMetricHelper
+from bkmonitor.browser import get_or_create_eventloop
 from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import (
     RenderImageTask,

@@ -74,15 +74,17 @@ export class VariablesService {
       return target ?? '';
     }
     this.regex.lastIndex = 0;
-    let value: string | undefined = undefined;
+    let value: string;
     let isObj = true;
     const val = target.replace(this.regex, (_match: any, var1: any, var2: any, _fmt2: any, var3: any) => {
       const variableName = var1 || var2 || var3;
+      // 查询当前变量名是否有相关的配置值，有可能返回 undefined 。
       value = this.getVariableAtIndex(variableName);
       if (value === undefined && scopedVars) {
         value = this.getVariableValue(variableName, scopedVars);
       }
       isObj = typeof value === 'object';
+      // 如果 value 为 undefined 则 replace 结果值 val 为 'undefined'，这里做一次空值合并，避免返回 'undefined'
       return value;
     });
     return isObj ? value : val;
@@ -100,8 +102,7 @@ export class VariablesService {
     const newData = deepClone(source);
     const mergeVars = { ...this.index, ...scopedVars, bk_biz_id: window.cc_biz_id };
     const setVariables = (data: Record<string, any>) => {
-      Object.keys(data).forEach(key => {
-        const val = data[key];
+      for (const [key, val] of Object.entries(data)) {
         if (typeof val === 'string') {
           if (this.hasVariables(val)) {
             const v = this.replaceString(val.toString(), mergeVars);
@@ -112,9 +113,10 @@ export class VariablesService {
             val.forEach((item, index) => {
               if (typeof item === 'string') {
                 if (this.hasVariables(item)) {
-                  const v = this.replace(item, scopedVars);
+                  const v = this.replaceString(item, scopedVars);
                   if (
                     typeof v === 'undefined' ||
+                    v === 'undefined' ||
                     (Object.prototype.toString.call(v) === '[object Object]' && Object.keys(v).length === 0)
                   ) {
                     val.splice(index, 1, undefined);
@@ -122,7 +124,7 @@ export class VariablesService {
                     Array.isArray(v) ? val.splice(index, 1, ...v) : val.splice(index, 1, v);
                   }
                 }
-                data[key] = val.filter(v => typeof v !== 'undefined');
+                data[key] = val.filter(v => typeof v !== 'undefined' && v !== null);
               } else if (Object.prototype.toString.call(item) === '[object Object]') {
                 this.hasVariables(item) && setVariables(item);
               }
@@ -131,7 +133,7 @@ export class VariablesService {
         } else if (Object.prototype.toString.call(val) === '[object Object]') {
           this.hasVariables(val) && setVariables(val);
         }
-      });
+      }
     };
     setVariables(newData);
     return newData;

@@ -235,7 +235,7 @@
         this.loading = true;
         this.$http
           .request('retrieve/getRealTimeLog', {
-            params: { index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId },
+            params: { index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId },
             data: Object.assign({ order: '-', size: 50, zero: this.zero }, this.params),
           })
           .then(res => {

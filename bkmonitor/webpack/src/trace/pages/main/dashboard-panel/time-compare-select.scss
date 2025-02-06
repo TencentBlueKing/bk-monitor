@@ -1,0 +1,45 @@
+.dashboard-panel__time-compare-select {
+  .time-compare-select {
+    min-width: 130px;
+    max-width: 130px;
+  }
+}
+
+.dashboard-panel__compare-time-select-custom {
+  margin-bottom: 6px;
+
+  .custom-text {
+    display: inline-block;
+    width: 100%;
+    height: 32px;
+    padding: 0 16px;
+    line-height: 32px;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+      background-color: #eaf3ff;
+    }
+  }
+
+  .time-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 32px;
+    padding: 0 16px;
+
+    .bk-form-control {
+      line-height: 26px;
+    }
+
+    .help-icon {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      font-size: 12px;
+      transform: translate(0, -50%);
+    }
+  }
+}

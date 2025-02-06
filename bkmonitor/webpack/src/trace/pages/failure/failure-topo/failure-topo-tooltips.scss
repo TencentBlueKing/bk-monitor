@@ -11,6 +11,13 @@
   border-radius: 2px;
   box-shadow: 0 2px;
 
+  .node-tooltip-header-icon-wrap {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: end;
+  }
+
   .node-root-icon {
     position: absolute;
     bottom: -5px;
@@ -676,6 +683,26 @@
 
         &:nth-child(2n + 1) {
           background-color: #4f4f52;
+        }
+      }
+
+      .except-info {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        cursor: pointer;
+
+        .except-text {
+          padding-right: 6px;
+          overflow: hidden;
+          color: #ff6161;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .except-icon {
+          padding-right: 8px;
+          color: #699df4;
         }
       }
     }
