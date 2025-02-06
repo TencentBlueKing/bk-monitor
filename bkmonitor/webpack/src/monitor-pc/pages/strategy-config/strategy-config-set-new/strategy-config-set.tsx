@@ -49,6 +49,7 @@ import {
   queryConfigToPromql,
   saveStrategyV2,
 } from 'monitor-api/modules/strategies';
+import { dashboardPanelToQueryConfig } from 'monitor-api/modules/strategies';
 import debouceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 // import StrategyMetricSelector from './components/strategy-metric-selector';
@@ -1128,8 +1129,34 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
     const targetType = strategyTarget?.node_type || '';
     this.targetType = targetType;
-    this.hasPanelVal = !!strategyDetail.panel; // panel字段有值，则不允许编辑监控数据版块
     let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
+    this.hasPanelVal = !!strategyDetail.panel; // panel字段有值，则不允许编辑监控数据版块
+    /* 检查是否是grafana关联策略跳转过来 */
+    if (this.$route.query?.grafana_related_strategy) {
+      try {
+        let relatedStrategy = localStorage.getItem('grafana-related-strategy');
+        if (relatedStrategy) {
+          relatedStrategy = JSON.parse(relatedStrategy);
+          const data = await dashboardPanelToQueryConfig({
+            dashboard_uid: relatedStrategy.dashboard_uid,
+            panel_id: relatedStrategy.panel_id,
+            ref_id: relatedStrategy.ref_id,
+            variables: relatedStrategy.variables,
+          }).catch(() => null);
+          if (data) {
+            strategyDetail.items[0].expression = data.expression;
+            strategyDetail.items[0].functions = data.functions;
+            strategyDetail.items[0].queryConfigs = data.queryConfigs;
+            targetList = data.target?.[0]?.[0]?.value || [];
+            localStorage.removeItem('grafana-related-strategy');
+            this.$router.resolve({ query: { ...this.$route.query, grafana_related_strategy: undefined } });
+          }
+        }
+      } catch (err) {
+        console.log(err);
+      }
+    }
+
     // 对旧版的策略target进行特殊处理
     if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
       targetList = targetList.map(item => ({ ...item, ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }));
@@ -1212,6 +1239,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       metric_type,
       // actions: [{ notice_template: template = noticeTemplate }]
     } = data;
+
     this.expression = (expression || '').toLocaleLowerCase();
     this.localExpress = this.expression;
     this.localExpFunctions = functions || [];
@@ -2589,8 +2617,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           defaultCheckedTarget={this.defaultCheckedTarget}
           defaultScenario={this.baseConfig.scenario}
           isEdit={this.isEdit}
-          readonly={this.hasPanelVal}
           metricData={this.metricData as any}
+          readonly={this.hasPanelVal}
           scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
           onMetricChange={this.handleSceneConfigMetricChange}
@@ -2604,13 +2632,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       const { sourceCode, step } = this.sourceData;
       return (
         <QueryConfigsMain
-          strategyId={Number(this.strategyId)}
-          metricData={this.metricData}
-          editMode={this.monitorDataEditMode}
-          expression={this.expression}
-          expFunctions={this.localExpFunctions}
-          sourceData={{ sourceCode, step }}
           detailData={this.detailData}
+          editMode={this.monitorDataEditMode}
+          expFunctions={this.localExpFunctions}
+          expression={this.expression}
+          metricData={this.metricData}
+          sourceData={{ sourceCode, step }}
+          strategyId={Number(this.strategyId)}
         />
       );
     }
