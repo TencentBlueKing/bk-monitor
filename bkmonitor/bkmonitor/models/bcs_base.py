@@ -118,6 +118,7 @@ class BCSBase(models.Model):
 
     api_labels = {}
 
+    id = models.BigAutoField(primary_key=True)
     labels = models.ManyToManyField(BCSLabel)
     bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, db_index=True)
     bcs_cluster_id = models.CharField(max_length=32, db_index=True)
