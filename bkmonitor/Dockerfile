@@ -1,5 +1,8 @@
-FROM python:3.11-bullseye as builder
-ARG build_frontend=true
+FROM python:3.11-bullseye as python-base
+
+# variables
+ARG username=bkmonitor
+ARG pypi_index_url=https://pypi.org/simple/
 ARG replace_debian_source=false
 
 # update debian source
