@@ -62,6 +62,7 @@ export default class ApmServiceList extends tsc<
   IProps,
   {
     onRouteUrlChange: (params: Record<string, any>) => void;
+    onGoToServiceByLink?: () => void;
   }
 > {
   @Prop() appData: Partial<IAppListItem>;
@@ -510,6 +511,10 @@ export default class ApmServiceList extends tsc<
     });
   }
 
+  handleGotoService(item) {
+    this.$emit('goToServiceByLink', item);
+  }
+
   /**
    * @description 清空搜索条件
    * @param value
@@ -690,6 +695,7 @@ export default class ApmServiceList extends tsc<
                               pagination={this.pagination}
                               scrollLoading={false}
                               onCollect={val => this.handleCollect(val)}
+                              onGoToServiceByLink={val => this.handleGotoService(val)}
                               onLimitChange={this.handlePageLimitChange}
                               onPageChange={this.handlePageChange}
                               onSortChange={val => this.handleSortChange(val as any)}

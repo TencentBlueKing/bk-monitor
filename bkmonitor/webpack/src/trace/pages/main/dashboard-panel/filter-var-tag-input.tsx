@@ -33,6 +33,7 @@ import { Select } from 'bkui-vue';
 import dayjs from 'dayjs';
 
 import { handleTransformToTimestamp } from '../../../components/time-range/utils';
+import { useViewOptionsInject } from '../../../plugins/hooks';
 import { VariablesService } from '../../../utils/index';
 
 import type { IVariableModel } from 'monitor-ui/chart-plugins/typings';
@@ -44,6 +45,7 @@ export default defineComponent({
   props: {
     panel: { type: Object as PropType<IVariableModel>, default: () => null },
     multiple: { type: Boolean, default: false },
+    podName: { type: String, default: '' },
   },
   emits: ['change', 'targetListChange', 'curTargetTitleChange'],
   setup(props, { emit }) {
@@ -60,6 +62,7 @@ export default defineComponent({
       .add(1, 'hour')
       .format('YYYY-MM-DD HH:mm:ss');
     const timeRange = ref([startTimeMinusOneHour, endTimeMinusOneHour]);
+    const viewOptions = useViewOptionsInject();
 
     // 可选项
     const localOptions = shallowRef([]);
@@ -108,6 +111,7 @@ export default defineComponent({
       loading.value = true;
       const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
       const variablesService = new VariablesService({
+        ...viewOptions?.value,
         start_time: startTime,
         end_time: endTime,
       });
@@ -185,7 +189,14 @@ export default defineComponent({
      */
     function defaultValueChange() {
       if (localOptions.value.length) {
-        localValue.value = localOptions.value[0].id;
+        let defaultValue = localOptions.value[0].id;
+        for (const item of localOptions.value) {
+          if (item?.pod_name === props.podName) {
+            defaultValue = item.id;
+            break;
+          }
+        }
+        localValue.value = defaultValue;
         handleChange();
       }
     }

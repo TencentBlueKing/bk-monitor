@@ -129,7 +129,7 @@ const allActionFieldList = [
   'strategy_name',
   'operate_target_string',
 ];
-const allIncidentFieldList = ['incident_name', 'status', 'level', 'assignees', 'handlers', 'labels'];
+const allIncidentFieldList = ['status', 'level', 'assignees', 'handlers', 'labels'];
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 export const commonAlertFieldMap = {
   status: [
@@ -607,8 +607,10 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         });
         vm.handleBatchAlert(params.batchAction);
       } else {
-        // 正常进入告警页情况下不打开详情，只有通过告警通知进入的才展开详情
-        const needShowDetail = !!vm.$route.query.collectId && location.search.includes('specEvent');
+        // 正常进入告警页情况下不打开详情，只有通过告警通知进入的才展开详情（带collectId）
+        // 新版首页搜索跳转过来打开详情(带alertId)
+        const needShowDetail =
+          (!!vm.$route.query.collectId || !!vm.$route.query.alertId) && location.search.includes('specEvent');
         if (needShowDetail) {
           vm.handleFirstShowDetail();
         }
@@ -736,6 +738,14 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       /* 带collectId是事件范围设为近15天 */
       defaultData.timeRange = ['now-30d', 'now'];
     }
+
+    /** 新版首页带alertId跳转事件中心 */
+    if (defaultData.alertId) {
+      defaultData.queryString = defaultData.queryString
+        ? `${defaultData.queryString} AND id : ${defaultData.alertId}`
+        : `id : ${defaultData.alertId}`;
+    }
+
     /** 处理指标参数 */
     if (defaultData.metricId?.length) {
       const metricStr = `metric : (${defaultData.metricId.map(item => `"${item}"`).join(' OR ')})`;

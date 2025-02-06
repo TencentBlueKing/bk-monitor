@@ -425,6 +425,8 @@ class EtlStorage(object):
         hot_warm_config: dict = None,
         es_shards: int = settings.ES_SHARDS,
         index_settings: dict = None,
+        sort_fields: list = None,
+        target_fields: list = None,
         alias_settings: list = None,
     ):
         """
@@ -441,6 +443,8 @@ class EtlStorage(object):
         :param hot_warm_config: 冷热数据配置
         :param es_shards: es分片数
         :param index_settings: 索引配置
+        :param sort_fields: 排序字段
+        :param target_fields: 定位字段
         :param alias_settings: 别名配置
         """
         from apps.log_databus.handlers.collector import build_result_table_id
@@ -544,7 +548,12 @@ class EtlStorage(object):
 
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=instance.collector_scenario_id)
-        built_in_config = collector_scenario.get_built_in_config(es_version, self.etl_config)
+        built_in_config = collector_scenario.get_built_in_config(
+            es_version,
+            self.etl_config,
+            sort_fields=sort_fields,
+            target_fields=target_fields,
+        )
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
 
         # 添加元数据路径配置到结果表配置中

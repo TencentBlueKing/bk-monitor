@@ -941,7 +941,7 @@ const store = new Vuex.Store({
         ids.push(...result?.unionList);
         commit('updateUnionIndexList', ids);
       } else {
-        const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+        const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
         if (indexId) {
           ids.push(indexId);
         }
@@ -1415,6 +1415,7 @@ const store = new Vuex.Store({
       const isLink = newQueryList[0]?.isLink;
       const searchMode = state.indexItem.search_mode;
       const depth = Number(payload.depth ?? '0');
+      const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
@@ -1456,7 +1457,7 @@ const store = new Vuex.Store({
           }
         }
 
-        if (depth > 1 && textType === 'keyword') {
+        if ((depth > 1 || isNestedField === 'true') && textType === 'keyword') {
           mappingKey = keywordMappingKey;
         }
         return mappingKey[operator] ?? operator; // is is not 值映射

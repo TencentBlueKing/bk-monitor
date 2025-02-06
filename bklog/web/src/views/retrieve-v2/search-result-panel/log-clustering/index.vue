@@ -314,7 +314,7 @@
         return this.indexFieldInfo.is_loading || this.isFieldInit;
       },
       routerIndexSet() {
-        return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+        return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
       getDimensionStr() {
         return this.fingerOperateData.dimensionList.length
@@ -668,7 +668,7 @@
           'retrieve/getClusteringConfigStatus',
           {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
           },
           {

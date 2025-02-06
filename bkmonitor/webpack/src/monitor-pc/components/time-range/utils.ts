@@ -150,6 +150,32 @@ export const shortcuts = [
   },
 ];
 
+// 生成 formatterFunc 函数
+export const generateFormatterFunc = value => {
+  const [start, end] = handleTransformToTimestamp(value);
+  return timestamp => {
+    const duration = end - start;
+    const time = dayjs(timestamp);
+
+    if (duration < 60) {
+      return time.format('mm:ss');
+    }
+    if (duration < 60 * 60) {
+      return time.format('HH:mm:ss');
+    }
+    if (duration <= 60 * 60 * 24) {
+      return time.format('HH:mm');
+    }
+    if (duration < 60 * 60 * 24 * 7) {
+      return time.format('MM-DD HH:mm');
+    }
+    if (duration < 60 * 60 * 24 * 30) {
+      return time.format('MM-DD');
+    }
+    return time.format('MM-DD');
+  };
+};
+
 /** 默认的时间范围：近一小时 */
 export const DEFAULT_TIME_RANGE: TimeRangeType = ['now-1h', 'now'];
 

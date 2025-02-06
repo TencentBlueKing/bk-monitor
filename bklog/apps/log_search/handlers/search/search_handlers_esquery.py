@@ -1822,6 +1822,11 @@ class SearchHandler(object):
                     )
                 )
             self.origin_indices = ",".join(index_list)
+            self.custom_indices = self.search_dict.get("custom_indices")
+            if self.custom_indices and index_list:
+                self.origin_indices = ",".join(
+                    _index for _index in self.custom_indices.split(",") if _index in index_list
+                )
             self.origin_scenario_id = tmp_index_obj.scenario_id
             for addition in self.search_dict.get("addition", []):
                 # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered

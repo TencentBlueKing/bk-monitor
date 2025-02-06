@@ -1,0 +1,36 @@
+.monitor-new-home {
+  position: relative;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #f5f7fa;
+
+  .new-home-bg {
+    width: 100%;
+    height: 270px;
+    background: url('../../../static/images/png/new-page/home-bg.png');
+    background-size: 100% 100%;
+  }
+
+  .new-home-content {
+    width: 78%;
+    min-width: 840px;
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    padding-bottom: 40px;
+    transform: translateX(-50%);
+
+    .new-home-tool {
+      width: 100%;
+      min-height: 300px;
+      margin-top: 50px;
+    }
+
+    .new-home-alarm-list {
+      width: 100%;
+      min-height: 300px;
+      margin-top: 40px;
+    }
+  }
+}

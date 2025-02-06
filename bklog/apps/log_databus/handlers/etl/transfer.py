@@ -109,6 +109,11 @@ class TransferEtlHandler(EtlHandler):
         #     raise CollectorResultTableIDDuplicateException(
         #         CollectorResultTableIDDuplicateException.MESSAGE.format(result_table_id=table_id)
         #     )
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
+        if sort_fields is None and index_set_obj:
+            sort_fields = index_set_obj.sort_fields
+        if sort_fields is None and index_set_obj:
+            target_fields = index_set_obj.target_fields
 
         # 1. meta-创建/修改结果表
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
@@ -124,6 +129,8 @@ class TransferEtlHandler(EtlHandler):
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
             es_shards=es_shards,
+            sort_fields=sort_fields,
+            target_fields=target_fields,
             alias_settings=alias_settings,
         )
 
