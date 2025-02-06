@@ -83,9 +83,9 @@ from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     BaseSearchResultAnalyzeException,
     BaseSearchSortListException,
-    ESSearchException,
     IntegerErrorException,
     IntegerMaxErrorException,
+    LogSearchException,
     MultiSearchErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
@@ -752,14 +752,13 @@ class SearchHandler(object):
             try:
                 data = search_func(params)
                 # 把shards中的failures信息解析后raise异常出来
-                if self.scenario_id in [Scenario.ES, Scenario.LOG] and data["_shards"]["failed"]:
-                    failures = data["_shards"]["failures"]
-                    errors = [f"index -> {item['index']}, reason: {item['reason']['reason']}" for item in failures]
-                    raise ESSearchException(ESSearchException.MESSAGE.format(e=errors))
+                if data["_shards"]["failed"]:
+                    errors = data["_shards"]["failures"][0]["reason"]["reason"]
+                    raise LogSearchException(errors)
 
                 return data
-            except ApiResultError as e:
-                raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
+            except Exception as e:
+                raise LogSearchException(LogSearchException.MESSAGE.format(e=e))
 
         storage_cluster_ids = {self.storage_cluster_id}
 

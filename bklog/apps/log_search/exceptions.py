@@ -488,6 +488,11 @@ class MultiFieldsErrorException(BaseSearchException):
     MESSAGE = _("跨集群获取字段结果处理异常")
 
 
+class LogSearchException(BaseSearchException):
+    ERROR_CODE = "447"
+    MESSAGE = _("日志检索异常, 原因: {e}")
+
+
 # =================================================
 # 导出
 # =================================================
@@ -566,11 +571,3 @@ class SQLQueryException(BaseException):
 class UserCustomConfigNotExistException(BaseException):
     ERROR_CODE = "1101"
     MESSAGE = _("用户自定义配置不存在")
-
-
-# =================================================
-# ES检索异常
-# =================================================
-class ESSearchException(BaseException):
-    MODULE_CODE = ErrorCode.BKLOG_SEARCH
-    MESSAGE = _("ES检索异常: {e}")
