@@ -218,8 +218,16 @@ export default class FieldItem extends tsc<object> {
       })
       .finally(() => {});
   }
-  getdistinctCount(val) {
-    this.distinctCount = val;
+  getdistinctCount(val){
+    this.distinctCount = val
+  }
+  retuanFieldName(){
+    let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
+    if(this.isFieldObject){
+      const objectName = name.split('.')
+      name = objectName[objectName.length - 1] || objectName[0]
+    }
+    return  name
   }
   render() {
     return (
