@@ -51,9 +51,8 @@ class DynamicGroupHandler:
                 "name": group["name"],
                 "meta": cls.meta,
                 "last_time": group["last_time"],
-                # TODO: 当需要支持动态分组为集群时, 去掉这个注释
-                # "object_id": group["bk_obj_id"],
-                # "object_name": constants.ObjectType.get_member_value__alias_map().get(group["bk_obj_id"]),
+                "bk_obj_id": group["bk_obj_id"],
+                "bk_obj_name": constants.ObjectType.get_member_value__alias_map().get(group["bk_obj_id"]),
             }
             for group in groups
             # 仅返回主机动态分组

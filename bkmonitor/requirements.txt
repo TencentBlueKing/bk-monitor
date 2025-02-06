@@ -75,7 +75,7 @@ apigw-manager==2.0.0
 # monitor
 supervisor==4.2.5
 pyinstrument==4.6.2
-ddtrace==1.7.5
+pyroscope-io==0.8.8
 
 # other
 pyppeteer==1.0.2

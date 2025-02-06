@@ -25,7 +25,7 @@
 @mixin icon-hover-mixin {
   color: #d3d9e4;
   cursor: pointer;
-  background: linear-gradient( 270deg ,#253047,#263247);
+  background: linear-gradient(270deg, #253047, #263247);
   border-radius: 100%;
 }
 
@@ -40,7 +40,7 @@
   background: #fff;
   border: 1px solid #e1e1e1;
   border-radius: 2px;
-  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, .06);
+  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, 0.06);
 
   .nav-item {
     display: flex;

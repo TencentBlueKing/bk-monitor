@@ -2045,7 +2045,9 @@ class ApplyStrategiesToServicesResource(Resource):
         apply_services = serializers.ListSerializer(
             label="服务列表", child=serializers.CharField(label="服务"), required=False, default=[]
         )
-        notice_group_ids = serializers.ListSerializer(label="告警组 ID 列表", child=serializers.IntegerField(label="告警组 ID"))
+        notice_group_ids = serializers.ListSerializer(
+            label="告警组 ID 列表", child=serializers.IntegerField(label="告警组 ID"), required=False, default=[]
+        )
         config = serializers.CharField(label="配置文本", default="{}")
         options = serializers.DictField(label="配置", required=False)
 
@@ -2074,7 +2076,7 @@ class ApplyStrategiesToServicesResource(Resource):
             bk_biz_id,
             app_name,
             metric_helper=MetricHelper(bk_biz_id, app_name),
-            notice_group_ids=validated_request_data["notice_group_ids"],
+            notice_group_ids=validated_request_data.get("notice_group_ids") or [],
             apply_types=validated_request_data["apply_types"],
             apply_services=validated_request_data["apply_services"],
             options=validated_request_data["options"],

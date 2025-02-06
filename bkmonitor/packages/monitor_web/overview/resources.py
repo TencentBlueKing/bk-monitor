@@ -285,6 +285,8 @@ class GetFunctionShortcutResource(Resource):
     获取首页功能入口
     """
 
+    RECENT_INDEX_SET_RECORD_LIMIT = 200
+
     function_name_map = {
         "dashboard": _lazy("仪表盘"),
         "apm_service": _lazy("APM服务"),
@@ -385,12 +387,21 @@ class GetFunctionShortcutResource(Resource):
                         break
             elif function == "log_retrieve":
                 try:
-                    records = api.log_search.get_user_recent_index_set(username=username, limit=limit)
+                    # 由于访问记录的索引集可能是重复的，这里的 limit 没法直接使用
+                    records = api.log_search.get_user_recent_index_set(
+                        username=username, limit=cls.RECENT_INDEX_SET_RECORD_LIMIT
+                    )
                 except BKAPIError as e:
                     logger.exception("get user recent index set error: %s", e)
                     continue
 
+                index_set_ids = set()
                 for record in records:
+                    # 如果索引集已经存在，则跳过
+                    if record["index_set_id"] in index_set_ids:
+                        continue
+                    index_set_ids.add(record["index_set_id"])
+
                     space = SpaceApi.get_space_detail(space_uid=record["space_uid"])
                     items.append(
                         {
@@ -401,6 +412,10 @@ class GetFunctionShortcutResource(Resource):
                             "space_uid": space.space_uid,
                         }
                     )
+
+                    # limit 限制
+                    if len(items) >= limit:
+                        break
             else:
                 continue
 

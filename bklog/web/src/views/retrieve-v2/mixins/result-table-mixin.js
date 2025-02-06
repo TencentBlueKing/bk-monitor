@@ -212,7 +212,9 @@ export default {
       return this.$store.state.retrieve.catchFieldCustomConfig;
     },
     indexSetId() {
-      return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+      return window.__IS_MONITOR_COMPONENT__
+        ? this.$route?.query?.indexId || this.$store.state.indexId
+        : this.$route.params.indexId;
     },
   },
   watch: {
@@ -449,7 +451,7 @@ export default {
       if (this.apmRelation.is_active) {
         const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
         const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
-        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
         window.open(url, '_blank');
       } else {
         this.$bkMessage({

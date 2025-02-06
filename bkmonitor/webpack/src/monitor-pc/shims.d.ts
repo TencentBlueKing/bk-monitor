@@ -79,6 +79,7 @@ declare global {
     csrf_cookie_name: string;
     cc_biz_id: number | string;
     bk_biz_id: number | string;
+    default_biz_id: number | string;
     space_uid: string;
     Vue?: any;
     i18n: VueI18n;

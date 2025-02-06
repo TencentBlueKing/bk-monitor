@@ -194,7 +194,7 @@ class HttpRequst {
       ext || {},
       config,
     );
-    if (window.__IS_MONITOR_APM__) {
+    if (window.__IS_MONITOR_COMPONENT__) {
       // 兼容监控逻辑
       this.__initParams(param);
     }

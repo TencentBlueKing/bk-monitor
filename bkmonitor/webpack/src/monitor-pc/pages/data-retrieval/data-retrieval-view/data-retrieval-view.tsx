@@ -233,6 +233,8 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
   /** 是否禁用图表分栏布局按钮 */
   disabledLayout = true;
 
+  needMenu = true;
+
   /** 查询图表时长提示 */
   get searchTipsObj(): IDataRetrievalView.ISearchTipsObj {
     return {
@@ -462,6 +464,12 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
     return timeRange;
   }
 
+  @Emit('needMenuChangeEvent')
+  handleNeedMenuChange(needMenu: boolean) {
+    this.needMenu = needMenu;
+    return needMenu;
+  }
+
   /** 展示索引面板 */
   handleShowIndexPanel(show?: boolean) {
     if (this.disabledLayout) return;
@@ -536,7 +544,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
           </PanelHeader> */}
         </div>
         <div
-          class={['charts-view-wrapper', { 'is-event': this.retrievalType === 'event' }]}
+          class={['charts-view-wrapper', { 'is-event': this.retrievalType === 'event', 'is-full-screen': !this.needMenu }]}
           v-bkloading={{ isLoading: this.loading }}
         >
           {this.hasTips ? (
@@ -640,6 +648,7 @@ export default class DataRetrievalView extends tsc<IDataRetrievalView.IProps, ID
                   onDrillSearch={this.handleDrillSearch}
                   onIntervalChange={this.handleEventChartIntervalChange}
                   onTimeRangeChange={this.handleTimeRangeChange}
+                  onNeedMenuChange={this.handleNeedMenuChange}
                 />
               ) : undefined}
             </div>
