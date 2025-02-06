@@ -117,6 +117,21 @@
               <template #default="props">
                 <span>{{ props.row.field_index }}</span>
               </template>
+            </bk-table-column> -->
+            <!-- 来源 -->
+            <bk-table-column
+              :label="$t('来源')"
+              align="center"
+              :resizable="false"
+              width="60"
+            >
+              <template #default="props">
+              <div class="source-box">
+                <span v-if="props.row.is_built_in" class="source-built">{{ $t('内置') }}</span>
+                <span v-else-if="props.row.is_add_in" class="source-add" >{{ $t('添加') }}</span>
+                <span v-else class="source-debug">{{ $t('调试') }}</span>
+              </div>
+              </template>
             </bk-table-column>
             <!-- 字段名 -->
             <bk-table-column
@@ -155,7 +170,6 @@
                     v-model.trim="props.row.field_name"
                     class="participle-field-name-input-pl5"
                     :disabled="getFieldEditDisabled(props.row)"
-                    v-bk-tooltips.top="props.row.field_name"
                     @blur="checkFieldNameItem(props.row)"
                   ></bk-input>
                   <template v-if="(props.row.alias_name || props.row.alias_name_show) && !props.row.is_built_in">
@@ -1230,8 +1244,6 @@
       },
       filedNameIsConflict(fieldIndex, fieldName) {
         const otherFieldNameList = this.formData.tableList.filter(item => item.field_index !== fieldIndex);
-        console.log(otherFieldNameList);
-        
         return otherFieldNameList.some(item => item.field_name === fieldName);
       },
       /** 当前字段是否禁用 */
