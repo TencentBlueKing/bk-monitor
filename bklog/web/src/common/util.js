@@ -889,6 +889,16 @@ export const parseTableRowData = (
           break;
         }
 
+        // 这里用于处理nested field
+        if (Array.isArray(data)) {
+          data = data
+            .map(item =>
+              parseTableRowData(item, keyArr.slice(index).join('.'), fieldType, isFormatDate, emptyCharacter),
+            )
+            .filter(item => item !== emptyCharacter);
+          break;
+        }
+
         if (data[item]) {
           data = data[item];
         } else {
@@ -914,7 +924,7 @@ export const parseTableRowData = (
   }
 
   if (Array.isArray(data)) {
-    return data.toString();
+    return data.toString() || emptyCharacter;
   }
 
   if (typeof data === 'object' && data !== null) {
@@ -1219,4 +1229,30 @@ export const getHaveValueIndexItem = indexList => {
   return (
     indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
   );
+};
+
+export const isNestedField = (fieldKeys, obj) => {
+  if (!obj) {
+    return false;
+  }
+
+  if (fieldKeys.length > 1) {
+    if (obj[fieldKeys[0]] !== undefined && obj[fieldKeys[0]] !== null) {
+      if (typeof obj[fieldKeys[0]] === 'object') {
+        if (Array.isArray(obj[fieldKeys[0]])) {
+          return true;
+        }
+
+        return isNestedField(fieldKeys.slice(1), obj[fieldKeys[0]]);
+      }
+
+      return false;
+    }
+
+    if (obj[fieldKeys[0]] === undefined) {
+      return isNestedField([`${fieldKeys[0]}.${fieldKeys[1]}`, ...fieldKeys.slice(2)], obj);
+    }
+  }
+
+  return false;
 };

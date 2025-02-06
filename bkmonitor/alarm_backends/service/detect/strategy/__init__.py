@@ -561,6 +561,7 @@ class SDKPreDetectMixin(object):
         """
         local_pre_detect_results = getattr(self, "_local_pre_detect_results", {})
         predict_result = local_pre_detect_results.get(data_point.record_id, {})
+        dimension_fields = getattr(data_point, "dimension_fields", None) or list(data_point.dimensions.keys())
 
         if predict_result:
             return DataPoint(
@@ -570,7 +571,7 @@ class SDKPreDetectMixin(object):
                     "values": predict_result,
                     "time": int(predict_result["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
-                    "dimension_fields": list(data_point.dimensions.keys()),
+                    "dimension_fields": dimension_fields,
                 },
                 item=data_point.item,
             )
