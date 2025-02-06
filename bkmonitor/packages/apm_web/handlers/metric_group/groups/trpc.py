@@ -53,7 +53,6 @@ class CodeType:
 
 
 class TrpcMetricGroup(base.BaseMetricGroup):
-
     # tRPC-Go Recovery 插件写入指标，通用框架指标，和上报 SDK 无关。
     PANIC_METRIC_FIELD: str = "trpc_PanicNum"
 
@@ -357,16 +356,6 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             start_time=start_time,
             end_time=end_time,
         )
-        if apps:
-            return {
-                "temporality": MetricTemporality.CUMULATIVE,
-                "server_filter_method": "eq",
-                "server_field": "${server}",
-                "service_field": "${service_name}",
-            }
-        return {
-            "temporality": MetricTemporality.DELTA,
-            "server_filter_method": "reg",
-            "server_field": TRPCMetricTag.TARGET,
-            "service_field": ".*${service_name}$",
-        }
+
+        temporality: str = MetricTemporality.CUMULATIVE if apps else MetricTemporality.DELTA
+        return MetricTemporality.get_metric_config(temporality=temporality)

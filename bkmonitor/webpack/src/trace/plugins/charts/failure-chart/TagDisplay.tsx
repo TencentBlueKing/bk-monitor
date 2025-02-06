@@ -23,20 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, computed, onMounted, onBeforeUnmount, watchEffect } from 'vue';
+import { defineComponent, ref, computed, onMounted, onBeforeUnmount, type PropType } from 'vue';
 
 import './TagDisplay.scss';
+
+interface ITagItem {
+  display_key: string;
+  display_value: string;
+  value: string;
+  key: string;
+}
 
 export default defineComponent({
   name: 'TagDisplay',
   props: {
     tagsList: {
-      type: Array,
+      type: Array as PropType<ITagItem[]>,
       required: true,
+    },
+    tipsName: {
+      type: String,
     },
   },
   setup(props) {
-    const tags = ref(props.tagsList);
+    const tags = ref<ITagItem[]>(props.tagsList);
     const isAllShown = ref(true);
     const tagContainerWidth = ref(0);
 
@@ -93,12 +103,27 @@ export default defineComponent({
       tagContainerWidth.value = tagContainer.value?.offsetWidth;
       isAllShown.value = tags.value.length <= visibleTagCount.value;
     };
+    /** 渲染tag的tips */
+    const renderTagToolTips = (list: ITagItem[]) => {
+      return (
+        <div>
+          {props.tipsName}
+          <br />
+          {list.map(item => (
+            <div style={{ marginTop: '5px' }}>
+              {item.display_key} = {item.display_value}
+            </div>
+          ))}
+        </div>
+      );
+    };
     return {
       tagContainer,
       remainingCount,
       displayedTags,
       visibleTagCount,
       showMoreIndicator,
+      renderTagToolTips,
     };
   },
   render() {
@@ -108,12 +133,24 @@ export default defineComponent({
         class='display-tag-container'
       >
         {this.displayedTags.slice(0, this.visibleTagCount).map(item => (
-          <span class='tag-item'>
+          <span
+            class='tag-item'
+            v-bk-tooltips={{
+              content: this.renderTagToolTips([item]),
+            }}
+          >
             {item.display_key} = {item.display_value}
           </span>
         ))}
         {this.showMoreIndicator && (
-          <span class='more-indicator'>{this.remainingCount > 0 ? `+${this.remainingCount}` : ''}</span>
+          <span
+            class='more-indicator'
+            v-bk-tooltips={{
+              content: this.renderTagToolTips(this.displayedTags.slice(this.visibleTagCount)),
+            }}
+          >
+            {this.remainingCount > 0 ? `+${this.remainingCount}` : ''}
+          </span>
         )}
       </div>
     );

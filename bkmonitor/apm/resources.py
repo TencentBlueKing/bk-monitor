@@ -72,6 +72,7 @@ from constants.apm import (
     TraceWaterFallDisplayKey,
 )
 from core.drf_resource import Resource, api
+from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
 
@@ -383,7 +384,9 @@ class ReleaseAppConfigResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
 
-        ApmApplication.get_application(bk_biz_id, app_name)
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
@@ -505,7 +508,9 @@ class DeleteAppConfigResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
 
-        ApmApplication.get_application(bk_biz_id, app_name)
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
@@ -824,9 +829,12 @@ class QuerySpanResource(Resource):
         group_keys = serializers.ListField(required=False, label="聚和字段", default=[])
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.get_application(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
+
         param = {
             "start_time": validated_request_data["start_time"],
             "end_time": validated_request_data["end_time"],
@@ -897,9 +905,11 @@ class QueryEventResource(Resource):
         category = serializers.CharField(required=False, label="类别")
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.get_application(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         return application.trace_datasource.query_event(
             start_time=validated_request_data["start_time"],
@@ -1069,9 +1079,11 @@ class QueryFieldsResource(Resource):
         app_name = serializers.CharField(label="应用名称", max_length=50)
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.get_application(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.trace_datasource.fields()
 
 
@@ -1082,9 +1094,11 @@ class UpdateMetricFieldsResource(Resource):
         field_list = serializers.ListField(label="字段列表")
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.get_application(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.metric_datasource.update_fields(validated_request_data["field_list"])
 
 

@@ -49,6 +49,7 @@ import './nav-tools.scss';
 
 export const HANDLE_SHOW_SETTING = 'HANDLE_SHOW_SETTING';
 export const HANDLE_HIDDEN_SETTING = 'HANDLE_HIDDEN_SETTING';
+export const HANDLE_MENU_CHANGE = 'HANDLE_MENU_CHANGE';
 interface INavToolsProps {
   show: boolean;
 }
@@ -143,11 +144,13 @@ class NavTools extends DocumentLinkMixin {
     document.addEventListener('keydown', this.handleKeyupSearch);
     bus.$on(HANDLE_SHOW_SETTING, this.handleShowSetting);
     bus.$on('handle-keyup-search', this.handleKeyupSearch);
+    bus.$on(HANDLE_MENU_CHANGE, this.handleSet);
     window.addEventListener('blur', this.hidePopoverSetOrHelp);
   }
   beforeDestroy() {
     document.removeEventListener('keydown', this.handleKeyupSearch);
     bus.$off('handle-keyup-search', this.handleKeyupSearch);
+    bus.$off(HANDLE_MENU_CHANGE, this.handleSet);
     window.removeEventListener('blur', this.hidePopoverSetOrHelp);
   }
 
@@ -304,14 +307,17 @@ class NavTools extends DocumentLinkMixin {
       <div class='nav-tools'>
         {
           // #if APP !== 'external'
-          <div
-            id='nav-search-bar'
-            class='search-bar'
-            onClick={this.handleGlobalSearch}
-          >
-            <span class='search-text'>{this.globalSearchPlaceholder}</span>
-            <span class='bk-icon icon-search' />
-          </div>
+          /** 新版首页无需展示右侧的全站搜索框 */
+          this.$route.name && this.$route.name !== 'home' && (
+            <div
+              id='nav-search-bar'
+              class='search-bar'
+              onClick={this.handleGlobalSearch}
+            >
+              <span class='search-text'>{this.globalSearchPlaceholder}</span>
+              <span class='bk-icon icon-search' />
+            </div>
+          )
           // #endif
         }
         {
