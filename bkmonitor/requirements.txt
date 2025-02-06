@@ -25,7 +25,7 @@ django-jinja==2.7.1
 # django rest framework
 djangorestframework==3.12.4
 django-filter==2.4.0
-drf-yasg==1.21.8
+drf-yasg==1.21.5
 
 # celery & django
 celery==5.1.2
