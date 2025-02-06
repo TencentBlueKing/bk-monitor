@@ -38,7 +38,10 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { bkMessage } from 'bk-magic-vue';
 import { uniqueId } from 'lodash';
+import { useRoute, useRouter } from 'vue-router/composables';
 
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
@@ -72,6 +75,9 @@ type RowConfig = {
   rowMinHeight?: number;
 };
 
+type RowData = Record<string, any>;
+type ColumnFiled = Record<string, any>;
+
 export default defineComponent({
   props: {
     contentType: {
@@ -93,6 +99,7 @@ export default defineComponent({
     const visibleRowLength = ref(50);
 
     const tableRowConfig = new WeakMap();
+    const tableCellCache = new WeakMap<RowData, WeakMap<ColumnFiled, any>>();
 
     const renderList = ref([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -106,14 +113,20 @@ export default defineComponent({
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
-    const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
+    const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+
+    const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
+
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
+
+    const router = useRouter();
+    const route = useRoute();
 
     const totalCount = computed(() => {
       const count = store.state.indexSetQueryResult.total;
@@ -178,11 +191,12 @@ export default defineComponent({
         .map(([, { rowIndex }]) => rowIndex);
 
       const length = idxs.length > 0 ? idxs.length : pageSize.value;
-      const max = Math.max(...idxs, 0) + length;
-      const min = idxs.length ? Math.min(...idxs) - length : 0;
+      const buffer = Math.max(length, 1);
+      const max = Math.max(...idxs, 0) + buffer;
+      const min = idxs.length ? Math.min(...idxs) - buffer : 0;
       const end = Math.min(max, tableDataSize.value);
       const start = Math.max(min, 0);
-      visibleRowLength.value = length;
+      visibleRowLength.value = buffer;
       Object.assign(rowProxy, { start, end });
     };
 
@@ -214,29 +228,20 @@ export default defineComponent({
       });
     };
 
-    const intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        const index = entry.target.getAttribute('data-row-index');
-        updateIntersectionArgs(index, entry.isIntersecting);
-      });
-      delayUpdate();
-    });
-
-    // const resizeObserver = new ResizeObserver(entries => {
-    //   entries.forEach(entry => {
-    //     const index = entry.target.getAttribute('data-row-index');
-    //     console.log('index', index, entry.contentRect);
-    //     // const changed = (rowProxy[index]?.height ?? 40) !== entry.contentRect.height;
-    //     // if (changed && !entry.target.classList.contains('is-pending')) {
-    //     //   updateIntersectionArgs(index, undefined, entry.contentRect.height);
-    //     //   entry.target.parentElement.style.setProperty('min-height', `${entry.contentRect.height}px`);
-    //     // }
-    //   });
-    // });
+    const intersectionObserver = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          const index = entry.target.getAttribute('data-row-index');
+          updateIntersectionArgs(index, entry.isIntersecting);
+        });
+        delayUpdate();
+      },
+      { threshold: 0.001 },
+    );
 
     provide('intersectionObserver', intersectionObserver);
-    // provide('resizeObserver', resizeObserver);
     provide('rowProxy', intersectionArgs);
+    provide('tableCellCache', tableCellCache);
 
     const searchContainerHeight = ref(52);
 
@@ -298,8 +303,10 @@ export default defineComponent({
             <TableColumn
               content={getTableColumnContent(row, field)}
               field={field}
-              is-wrap={tableLineIsWrap.value}
-              onIcon-click={(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)}
+              row={row}
+              onIcon-click={(type, content, isLink, depth, isNestedField) =>
+                handleIconClick(type, content, field, row, isLink, depth, isNestedField)
+              }
             ></TableColumn>
           );
         },
@@ -372,27 +379,32 @@ export default defineComponent({
       },
     ]);
 
-    const rightColumns = computed(() => [
-      {
-        field: ROW_F_ORIGIN_OPT,
-        key: ROW_F_ORIGIN_OPT,
-        title: $t('操作'),
-        width: operatorToolsWidth.value,
-        fixed: 'right',
-        resize: false,
-        renderBodyCell: ({ row }) => {
-          return (
-            // @ts-ignore
-            <OperatorTools
-              handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
-              index={row[ROW_INDEX]}
-              operator-config={indexSetOperatorConfig.value}
-              row-data={row}
-            />
-          );
+    const rightColumns = computed(() => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return [];
+      }
+      return [
+        {
+          field: ROW_F_ORIGIN_OPT,
+          key: ROW_F_ORIGIN_OPT,
+          title: $t('操作'),
+          width: operatorToolsWidth.value,
+          fixed: 'right',
+          resize: false,
+          renderBodyCell: ({ row }) => {
+            return (
+              // @ts-ignore
+              <OperatorTools
+                handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
+                index={row[ROW_INDEX]}
+                operator-config={indexSetOperatorConfig.value}
+                row-data={row}
+              />
+            );
+          },
         },
-      },
-    ]);
+      ];
+    });
 
     const getTableColumnContent = (row, field) => {
       // 日志来源 展示来源的索引集名称
@@ -402,7 +414,7 @@ export default defineComponent({
           ''
         );
       }
-      return parseTableRowData(row, field.field_name, field.field_type);
+      return parseTableRowData(row, field.field_name, field.field_type, false);
     };
 
     const getOriginTimeShow = data => {
@@ -416,10 +428,26 @@ export default defineComponent({
       return data;
     };
 
-    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined) => {
+    const setRouteParams = () => {
+      const query = { ...route.query };
+
+      const resolver = new RetrieveUrlResolver({
+        keyword: store.getters.retrieveParams.keyword,
+        addition: store.getters.retrieveParams.addition,
+      });
+
+      Object.assign(query, resolver.resolveParamsToUrl());
+
+      router.replace({
+        query,
+      });
+    };
+
+    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined, isNestedField = 'false') => {
       store
-        .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
+        .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
+          setRouteParams();
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
             window.open(openUrl, '_blank');
@@ -427,20 +455,46 @@ export default defineComponent({
         });
     };
 
-    const handleIconClick = (type, content, field, row, isLink, depth) => {
+    const handleTraceIdClick = traceId => {
+      if (apmRelation.value?.is_active) {
+        const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.value.extra;
+        const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
+        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        window.open(url, '_blank');
+      } else {
+        bkMessage({
+          theme: 'warning',
+          message: $t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+        });
+      }
+    };
+
+    const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
       let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
 
+      if (type === 'trace-view') {
+        handleTraceIdClick(value);
+        return;
+      }
+
       if (type === 'search') {
         // 将表格单元添加到过滤条件
-        handleAddCondition(field.field_name, 'eq', [value], isLink);
-      } else if (type === 'copy') {
+        handleAddCondition(field.field_name, 'eq', [value], isLink, depth, isNestedField);
+        return;
+      }
+
+      if (type === 'copy') {
         // 复制单元格内容
         copyMessage(value);
-      } else if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth);
+        return;
+      }
+
+      if (['is', 'is not', 'new-search-page-is'].includes(type)) {
+        handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth, isNestedField);
+        return;
       }
     };
 
@@ -521,6 +575,14 @@ export default defineComponent({
       }
     };
 
+    const isRequesting = ref(false);
+
+    const debounceSetLoading = () => {
+      setTimeout(() => {
+        isRequesting.value = false;
+      }, 120);
+    };
+
     const expandOption = {
       render: ({ row }) => {
         return (
@@ -528,8 +590,8 @@ export default defineComponent({
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
-            onValue-click={(type, content, isLink, field, depth) =>
-              handleIconClick(type, content, field, row, isLink, depth)
+            onValue-click={(type, content, isLink, field, depth, isNestedField) =>
+              handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }
           ></ExpandView>
         );
@@ -612,6 +674,9 @@ export default defineComponent({
         });
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
+      {
+        immediate: true,
+      },
     );
 
     const handleColumnWidthChange = (w, col) => {
@@ -647,18 +712,11 @@ export default defineComponent({
       const field = visibleFields.value.find(item => item.field_name === col.field);
       field.width = width;
 
-      store.commit('updateVisibleFields', visibleFields.value);
       store.dispatch('userFieldConfigChange', {
         fieldsWidth: newFieldsWidthObj,
       });
-    };
 
-    const isRequesting = ref(false);
-
-    const debounceSetLoading = () => {
-      setTimeout(() => {
-        isRequesting.value = false;
-      }, 120);
+      store.commit('updateVisibleFields', visibleFields.value);
     };
 
     const loadMoreTableData = () => {
@@ -708,12 +766,14 @@ export default defineComponent({
       };
 
       const leftWidth = leftColumns.value.reduce(callback, 0);
-
       const rightWidth = rightColumns.value.reduce(callback, 0);
-
       const visibleWidth = getFieldColumns().reduce(callback, 0);
 
-      return leftWidth + rightWidth + visibleWidth;
+      if (isNaN(visibleWidth)) {
+        return offsetWidth.value;
+      }
+
+      return leftWidth + rightWidth + visibleWidth - 2;
     });
 
     const hasScrollX = computed(() => {
@@ -902,7 +962,14 @@ export default defineComponent({
     };
 
     const renderFixRightShadow = () => {
-      return <div class='fixed-right-shadown'></div>;
+      if (window?.__IS_MONITOR_TRACE__) {
+        return null;
+      }
+      if (tableDataSize.value > 0) {
+        return <div class='fixed-right-shadown'></div>;
+      }
+
+      return null;
     };
 
     const isTableLoading = computed(() => {

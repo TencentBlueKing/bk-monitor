@@ -73,13 +73,10 @@ STRATEGIES = [
 
 
 class TestCleanResult(TestCase):
-
     databases = {"monitor_api", "default"}
 
     def setUp(self):
         CacheNode.refresh_from_settings()
-        self.redis_patcher = patch(ALARM_BACKENDS_REDIS, return_value=fakeredis.FakeRedis(decode_responses=True))
-        self.redis_patcher.start()
         redis_pipeline = CheckResult.pipeline()
 
         self.strategy_cache_patcher = patch(
@@ -127,7 +124,6 @@ class TestCleanResult(TestCase):
         redis_pipeline.execute()
 
     def tearDown(self):
-        self.redis_patcher.stop()
         self.strategy_cache_patcher.stop()
 
     @patch(ALARM_BACKENDS_CLEAN_STRATEGY_CACHE_MANAGER_REFRESH, MagicMock(return_value=True))
@@ -146,8 +142,3 @@ class TestCleanResult(TestCase):
             all_members,
             ["{}|{}".format(self.three_hours_ago, "ANOMALY"), "{}|{}".format(self.now_timestamp, "ANOMALY")],
         )
-
-        # FakeRedis的zremrangebyrank存在问题，0, -1参数会清空所有数据
-        # clean.CleanResult.clean_expired_detect_result(expired_timestamp=self.two_hours_ago)
-        # all_members = key.CHECK_RESULT_CACHE_KEY.client.zrangebyscore(check_result_cache_key, 0, float("inf"))
-        # self.assertEqual(all_members, ["{}|{}".format(self.now_timestamp, "ANOMALY")])

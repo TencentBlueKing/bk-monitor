@@ -13,6 +13,7 @@ import pytest
 
 from metadata.models.record_rule import utils
 
+from ...models.record_rule.utils import generate_pre_cal_table_id
 from .conftest import SPACE_ID, SPACE_TYPE
 
 
@@ -85,3 +86,54 @@ def test_refine_bk_sql_and_metrics(mocker):
     # 校验数据
     assert data["promql"] == "max_over_time(mem_usage_avg_1h[1d])"
     assert data["metrics"] == {"mem_usage_avg_1h"}
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_generate_pre_cal_table_id():
+    """
+    测试 generate_pre_cal_table_id 的各种实际输入场景
+    """
+    # Case 1: 正常输入
+    space_type = "bkcc"
+    space_id = "12345"
+    record_name = "cpu_usage"
+    expected = "bkprecal_bkcc_12345_cpu_usage.__default__"
+    assert generate_pre_cal_table_id(space_type, space_id, record_name) == expected
+
+    # Case 2: space_type 为 bksaas，含有合法的 record_name
+    space_type = "bksaas"
+    space_id = "67890"
+    record_name = "memory_usage"
+    expected = "bkprecal_bksaas_67890_memory_usage.__default__"
+    assert generate_pre_cal_table_id(space_type, space_id, record_name) == expected
+
+    # Case 3: record_name 含非法字符，需替换为下划线
+    space_type = "bkci"
+    space_id = "54321"
+    record_name = "http.requests-total"
+    expected = "bkprecal_bkci_54321_http_requests_total.__default__"
+    assert generate_pre_cal_table_id(space_type, space_id, record_name) == expected
+
+    # Case 4: record_name 含多种非法字符，且有连续非法字符
+    space_type = "bkci"
+    space_id = "67890"
+    record_name = "http-requests//total.usage"
+    expected = "bkprecal_bkci_67890_http_requests_total_usage.__default__"
+    assert generate_pre_cal_table_id(space_type, space_id, record_name) == expected
+
+    # Case 5: 超长 record_name，需截断
+    space_type = "bksaas"
+    space_id = "12345"
+    record_name = "a" * 120  # 长度超过 110
+    truncated_record_name = "a" * (110 - len("bkprecal_bksaas_12345_"))
+    expected = f"bkprecal_bksaas_12345_{truncated_record_name}.__default__"
+    assert generate_pre_cal_table_id(space_type, space_id, record_name) == expected
+
+    # Case 6: space_id 为非标字符串，验证正常处理
+    space_type = "bkci"
+    space_id = "game-test"
+    record_name = "disk_io"
+    expected = "bkprecal_bkci_game_test_disk_io.__default__"
+    assert generate_pre_cal_table_id(space_type, space_id, record_name) == expected
+
+    print("All tests passed!")

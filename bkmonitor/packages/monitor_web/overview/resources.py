@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 import itertools
+import logging
 from typing import Any, Dict, Iterable, List, Set, Tuple, Union
 
 from django.db import transaction
@@ -25,6 +26,7 @@ from apm_web.models.application import ApmMetaConfig, Application
 from bk_dataview.models import Dashboard, Org, Star, User
 from bk_dataview.permissions import GrafanaRole
 from bkm_space.api import SpaceApi
+from bkm_space.define import Space
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import filter_data_by_permission
@@ -38,8 +40,9 @@ from bkmonitor.utils.time_tools import get_datetime_range, localtime
 from bkmonitor.views import serializers
 from bkmonitor.views.serializers import BusinessOnlySerializer
 from constants.alert import EventStatus
-from core.drf_resource import Resource
+from core.drf_resource import Resource, api
 from core.drf_resource.contrib.cache import CacheResource
+from core.errors.api import BKAPIError
 from monitor.models import UserConfig
 from monitor_web.grafana.permissions import DashboardPermission
 from monitor_web.overview.tools import (
@@ -49,6 +52,8 @@ from monitor_web.overview.tools import (
     ServiceMonitorInfo,
     UptimeCheckMonitorInfo,
 )
+
+logger = logging.getLogger("monitor_web")
 
 
 class AlarmRankResource(CacheResource):
@@ -275,12 +280,12 @@ class MonitorInfoResource(CacheResource):
         return result_data
 
 
-class GetFunctionShortcutResource(CacheResource):
+class GetFunctionShortcutResource(Resource):
     """
     获取首页功能入口
     """
 
-    cache_type = CacheType.BIZ
+    RECENT_INDEX_SET_RECORD_LIMIT = 200
 
     function_name_map = {
         "dashboard": _lazy("仪表盘"),
@@ -325,22 +330,22 @@ class GetFunctionShortcutResource(CacheResource):
                 org_ids_to_biz_id = {org.id: org.name for org in Org.objects.filter(id__in=org_ids)}
 
                 # 确定已存在的仪表盘
-                exists_dashboard_set: Set[Tuple[str, str]] = {
-                    (org_ids_to_biz_id[dashboard.org_id], dashboard.uid)
+                exists_dashboards: Dict[Tuple[str, str], Dashboard] = {
+                    (org_ids_to_biz_id[dashboard.org_id], dashboard.uid): dashboard
                     for dashboard in dashboards
                     if dashboard.org_id in org_ids_to_biz_id
                 }
 
                 for access_record in access_records:
-                    # 如果仪表盘不存在，则跳过
-                    if (str(access_record["bk_biz_id"]), access_record["dashboard_uid"]) not in exists_dashboard_set:
+                    dashboard = exists_dashboards.get((str(access_record["bk_biz_id"]), access_record["dashboard_uid"]))
+                    if not dashboard:
                         continue
 
                     items.append(
                         {
                             "bk_biz_id": access_record["bk_biz_id"],
                             "dashboard_uid": access_record["dashboard_uid"],
-                            "dashboard_title": dashboards.get(uid=access_record["dashboard_uid"]).title,
+                            "dashboard_title": dashboard.title,
                         }
                     )
 
@@ -374,6 +379,37 @@ class GetFunctionShortcutResource(CacheResource):
                             "service_name": access_record["service_name"],
                             "application_id": app.application_id,
                             "app_alias": app.app_alias,
+                        }
+                    )
+
+                    # limit 限制
+                    if len(items) >= limit:
+                        break
+            elif function == "log_retrieve":
+                try:
+                    # 由于访问记录的索引集可能是重复的，这里的 limit 没法直接使用
+                    records = api.log_search.get_user_recent_index_set(
+                        username=username, limit=cls.RECENT_INDEX_SET_RECORD_LIMIT
+                    )
+                except BKAPIError as e:
+                    logger.exception("get user recent index set error: %s", e)
+                    continue
+
+                index_set_ids = set()
+                for record in records:
+                    # 如果索引集已经存在，则跳过
+                    if record["index_set_id"] in index_set_ids:
+                        continue
+                    index_set_ids.add(record["index_set_id"])
+
+                    space = SpaceApi.get_space_detail(space_uid=record["space_uid"])
+                    items.append(
+                        {
+                            "bk_biz_id": space.bk_biz_id,
+                            "bk_biz_name": space.space_name,
+                            "index_set_id": record["index_set_id"],
+                            "index_set_name": record["index_set_name"],
+                            "space_uid": space.space_uid,
                         }
                     )
 
@@ -506,11 +542,28 @@ class GetFunctionShortcutResource(CacheResource):
                     instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
                     mode="any",
                 )[:limit]
+            elif function == "log_retrieve":
+                try:
+                    records = api.log_search.get_user_favorite_index_set(username=username, limit=limit)
+                except BKAPIError as e:
+                    logger.exception("get user favorite index set error: %s", e)
+                    continue
+
+                for record in records:
+                    space: Space = SpaceApi.get_space_detail(space_uid=record["space_uid"])
+                    items.append(
+                        {
+                            "bk_biz_id": space.bk_biz_id,
+                            "bk_biz_name": space.space_name,
+                            "index_set_id": record["index_set_id"],
+                            "index_set_name": record["index_set_name"],
+                            "space_uid": space.space_uid,
+                        }
+                    )
             else:
                 continue
 
             result.append({"function": function, "name": name, "items": items})
-
         return result
 
     def perform_request(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:

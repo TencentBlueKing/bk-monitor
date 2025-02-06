@@ -19,7 +19,7 @@ from metadata import config, models
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.models.record_rule.constants import DEFAULT_RULE_TYPE, RecordRuleStatus
 from metadata.models.record_rule.rules import RecordRule, ResultTableFlow
-from metadata.models.record_rule.utils import generate_table_id
+from metadata.models.record_rule.utils import generate_pre_cal_table_id
 from metadata.models.vm import utils as vm_utils
 
 logger = logging.getLogger("metadata")
@@ -35,12 +35,14 @@ class RecordRuleService:
         record_name: str,
         rule_type: Optional[str] = DEFAULT_RULE_TYPE,
         rule_config: Optional[dict] = "",
+        count_freq: Optional[int] = 60,
     ) -> None:
         self.space_type = space_type
         self.space_id = space_id
         self.record_name = record_name
         self.rule_type = rule_type
         self.rule_config = rule_config
+        self.count_freq = count_freq
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_record_rule(self):
@@ -51,18 +53,19 @@ class RecordRuleService:
             logger.error("no valid table id found for record_name: %s", self.record_name)
             return
         # 转换到监控结果表
-        table_id = generate_table_id(self.space_type, self.space_id, self.record_name)
+        table_id = generate_pre_cal_table_id(self.space_type, self.space_id, self.record_name)
         dst_rt = RecordRule.get_dst_table_id(table_id)
         # 创建预计算配置
+        self._create_result_table(space_type=self.space_type, space_id=self.space_id, table_id=table_id)
         self._create_record_rule_record(
-            table_id, bksql_metrics["bksql"], bksql_metrics["rule_metrics"], src_rts, dst_rt
+            table_id, bksql_metrics["bksql"], bksql_metrics["rule_metrics"], src_rts, dst_rt, count_freq=self.count_freq
         )
         # 创建结果表对应的指标
         self._create_table_id_fields(table_id, list(bksql_metrics["rule_metrics"].values()))
         self._create_vm_storage(table_id, dst_rt)
 
     def _create_record_rule_record(
-        self, table_id: str, bksql: List, rule_metrics: Dict, src_table_ids: List, dst_rt: str
+        self, table_id: str, bksql: List, rule_metrics: Dict, src_table_ids: List, dst_rt: str, count_freq: int
     ):
         """创建预计算记录"""
         vm_info = vm_utils.get_vm_cluster_id_name(space_type=self.space_type, space_id=self.space_id)
@@ -79,6 +82,7 @@ class RecordRuleService:
             "vm_cluster_id": vm_info["cluster_id"],
             "dst_vm_table_id": dst_rt,
             "status": RecordRuleStatus.CREATED.value,
+            "count_freq": count_freq,
         }
         # 创建记录
         try:
@@ -94,7 +98,7 @@ class RecordRuleService:
             table_id=table_id,
             table_name_zh=table_id,
             is_custom_table=True,
-            default_storage="influxdb",
+            default_storage=models.ClusterInfo.TYPE_VM,
             creator="system",
             bk_biz_id=biz_id,
         )

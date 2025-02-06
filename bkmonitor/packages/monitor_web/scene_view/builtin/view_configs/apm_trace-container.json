@@ -1,0 +1,87 @@
+{
+  "id": "container",
+  "type": "detail",
+  "mode": "auto",
+  "name": "容器",
+  "variables": [
+    {
+      "title": "容器列表",
+      "type": "target_list",
+      "targets": [
+        {
+          "datasource": "host_list",
+          "dataType": "list",
+          "api": "apm_container.listServicePods",
+          "data": {
+            "app_name": "$app_name",
+            "service_name": "$service_name",
+            "start_time": "${start_time}",
+            "end_time": "${end_time}",
+            "span_id": "${span_id}"
+          },
+          "fields": {
+            "bcs_cluster_id": "bcs_cluster_id",
+            "namespace": "namespace",
+            "pod_name": "pod_name",
+            "app_name": "app_name",
+            "service_name": "service_name"
+          },
+          "fields_template": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "namespace": "$namespace",
+            "pod_name": "$pod_name",
+            "app_name": "$app_name",
+            "service_name": "$service_name"
+          }
+        }
+      ],
+      "options": {}
+    }
+  ],
+  "overview_panels": [],
+  "order": [],
+  "options": {
+    "panel_tool": {
+      "compare_select": true,
+      "columns_toggle": true,
+      "interval_select": true,
+      "split_switcher": false,
+      "method_select": true
+    },
+    "show_panel_count": false,
+    "enable_index_list": true,
+    "enable_group": true,
+    "alert_filterable": true,
+    "selector_panel": {},
+    "overview_detail_panel": {
+      "title": "Pod",
+      "type": "info",
+      "targets": [
+        {
+          "datasource": "info",
+          "dataType": "info",
+          "api": "apm_container.podDetail",
+          "data": {
+            "bcs_cluster_id": "$bcs_cluster_id",
+            "namespace": "$namespace",
+            "pod_name": "$pod_name"
+          }
+        }
+      ]
+    },
+    "group_panel": {
+      "targets": [
+        {
+          "datasource": "dimensions",
+          "dataType": "list",
+          "api": "scene_view.getSceneViewDimensions",
+          "data": {
+            "scene_id": "kubernetes",
+            "type": "detail",
+            "id": "pod"
+          }
+        }
+      ]
+    }
+  }
+}

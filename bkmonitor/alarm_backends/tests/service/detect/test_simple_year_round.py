@@ -15,7 +15,11 @@ import pytest
 
 from alarm_backends.service.detect.strategy.simple_year_round import SimpleYearRound
 from alarm_backends.tests.service.detect import DataPoint
-from core.errors.alarm_backends.detect import InvalidAlgorithmsConfig, InvalidDataPoint, InvalidSimpleYearRoundConfig
+from core.errors.alarm_backends.detect import (
+    InvalidAlgorithmsConfig,
+    InvalidDataPoint,
+    InvalidSimpleYearRoundConfig,
+)
 
 datapoint200 = DataPoint(200, 100000000, "%", "item")
 datapoint100 = DataPoint(100, 100000000, "%", "item")
@@ -80,7 +84,7 @@ class TestSimpleYearRound(object):
             # 上升超过100%（包含等于）
             algorithms_config = {"floor": None, "ceil": 100}
             detect_engine = SimpleYearRound(config=algorithms_config)
-            from .test_threshold import mock_datapoint_with_value
+            from .mocked_data import mock_datapoint_with_value
 
             _datapoint1 = mock_datapoint_with_value(1)
             detect_result = detect_engine.detect_records([_datapoint1], 1)

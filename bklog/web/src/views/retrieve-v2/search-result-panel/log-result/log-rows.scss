@@ -85,10 +85,6 @@
     content-visibility: auto;
     will-change: auto;
 
-    &.is-visible {
-      transition: all 0.2s ease;
-    }
-
     .bklog-row-observe {
       width: fit-content;
       min-width: 100%;
@@ -303,6 +299,28 @@
       width: 100%;
       padding-right: var(--padding-right);
       border-top: 1px solid #dfe0e5;
+
+      .view-content {
+        &.kv-view-content {
+          .kv-list-wrapper {
+            .kv-content {
+              width: 100%;
+
+              .log-item {
+                .field-value {
+                  width: 100%;
+
+                  .bklog-text-segment {
+                    &.is-text-show {
+                      width: fit-content;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
     &.is-intersecting {

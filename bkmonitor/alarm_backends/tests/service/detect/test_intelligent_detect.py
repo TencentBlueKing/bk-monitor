@@ -1,14 +1,25 @@
 # -*- coding: utf-8 -*-
+import copy
+from unittest import TestCase
+
 import mock
 import pytest
+
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy.intelligent_detect import IntelligentDetect
-from alarm_backends.tests.service.detect.test_threshold import mocked_item
+from alarm_backends.tests.service.detect.mocked_data import mocked_item
+from bkmonitor.models import CacheNode
 
-pytestmark = pytest.mark.django_db
 
+@pytest.mark.django_db
+class TestIntelligentDetect(TestCase):
+    def setUp(self):
+        # 重置测试用例的Item防止ID超过用例上限
+        CacheNode.refresh_from_settings()
 
-class TestIntelligentDetect:
+        self.mocked_aiops_item = copy.deepcopy(mocked_item)
+        self.mocked_aiops_item.query_configs[0]["intelligent_detect"] = {"use_sdk": False, "status": "running"}
+
     def test_anomaly_message(self):
         datapoint99 = DataPoint(
             {
@@ -18,7 +29,7 @@ class TestIntelligentDetect:
                 "dimensions": {"ip": "127.0.0.1"},
                 "time": 1569246480,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         detect_engine = IntelligentDetect(config={})
@@ -35,7 +46,7 @@ class TestIntelligentDetect:
                 "dimensions": {"ip": "127.0.0.1"},
                 "time": 1569246480,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         detect_engine = IntelligentDetect(config={})
@@ -51,7 +62,7 @@ class TestIntelligentDetect:
                 "dimensions": {"ip": "127.0.0.1"},
                 "time": 1569246480,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         detect_engine = IntelligentDetect(config={})
@@ -68,7 +79,7 @@ class TestIntelligentDetect:
                 "dimensions": {"ip": "127.0.0.1"},
                 "time": 1569246480,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         detect_engine = IntelligentDetect(config={})
@@ -85,7 +96,7 @@ class TestIntelligentDetect:
                 "dimensions": {"ip": "127.0.0.1"},
                 "time": 1569246480,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         previous_datapoint = DataPoint(
@@ -96,7 +107,7 @@ class TestIntelligentDetect:
                 "dimensions": {"ip": "127.0.0.1"},
                 "time": 1569246420,
             },
-            mocked_item,
+            self.mocked_aiops_item,
         )
 
         with mock.patch(

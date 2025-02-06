@@ -119,7 +119,12 @@ class PatternHandler:
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
         clustering_remarks = ClusteringRemark.objects.filter(bk_biz_id=self._clustering_config.bk_biz_id).values(
-            "signature", "origin_pattern", "group_hash", "remark", "owners"
+            "signature",
+            "origin_pattern",
+            "group_hash",
+            "remark",
+            "owners",
+            "groups",
         )
 
         signature_map_remark = {}
@@ -130,10 +135,13 @@ class PatternHandler:
 
         for remark in clustering_remarks:
             signature_map_remark[(remark["signature"], remark["group_hash"])] = remark
-            signature_map_remark_without_group[remark["signature"]] = remark
+            if not remark["groups"]:
+                # 只有不带分组的备注才允许继承到带分组的 pattern 中
+                signature_map_remark_without_group[remark["signature"]] = remark
             if remark["origin_pattern"]:
                 origin_pattern_map_remark[(remark["origin_pattern"], remark["group_hash"])] = remark
-                origin_pattern_map_remark_without_group[remark["signature"]] = remark
+                if not remark["groups"]:
+                    origin_pattern_map_remark_without_group[remark["origin_pattern"]] = remark
 
         result = []
         for pattern in pattern_aggs:

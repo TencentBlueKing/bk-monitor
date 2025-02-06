@@ -165,8 +165,12 @@
 </template>
 
 <script>
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log-ip-selector/log-ip-selector';
-  // import IpSelect from '@/views/extract/create/ip-select';
+  // #else
+  // #code const LogIpSelector = () => null;
+  // #endif
+
   import FilesInput from '@/views/extract/create/files-input';
   import PreviewFiles from '@/views/extract/create/preview-files';
   import TextFilter from '@/views/extract/create/test-filter';

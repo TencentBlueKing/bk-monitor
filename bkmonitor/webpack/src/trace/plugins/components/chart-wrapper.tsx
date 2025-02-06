@@ -225,14 +225,6 @@ export default defineComponent({
             onClick={this.handleChartCheck}
           />
         )}
-        {!!window.graph_watermark && this.needWaterMask && (
-          <div
-            class='wm'
-            v-watermark={{
-              text: window.user_name || window.username,
-            }}
-          />
-        )}
         {!!this.errorMsg && (
           <span
             class='is-error'

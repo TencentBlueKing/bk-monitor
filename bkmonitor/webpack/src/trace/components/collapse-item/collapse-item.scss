@@ -1,0 +1,39 @@
+.collapse-item-comp {
+  .item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+		cursor: pointer;
+
+    .title-container {
+      flex: 1;
+			overflow: hidden;
+    }
+
+    .arrow {
+      transition: all 0.2s linear;
+
+      &.collapse-expand {
+        position: relative;
+        transform: rotate(90deg);
+      }
+
+      .icon-arrow-right {
+        font-size: 20px;
+      }
+    }
+  }
+
+  .item-content {
+    margin-top: 10px;
+    transition: height 0.2s ease-in-out
+  }
+}
+
+.collapse-enter-active,
+.collapse-leave-active {
+  transition:
+    height 0.2s ease-in-out,
+    padding-top 0.2s ease-in-out,
+    padding-bottom 0.2s ease-in-out;
+}

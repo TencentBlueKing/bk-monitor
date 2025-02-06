@@ -513,6 +513,11 @@ class PreCheckAsyncExportException(BaseException):
     MESSAGE = _("创建异步导出任务前置检查失败,请检查索引集字段配置")
 
 
+class BKBaseExportException(BaseException):
+    ERROR_CODE = "505"
+    MESSAGE = _("计算平台索引集暂不支持快速下载")
+
+
 # =================================================
 # JWT
 # =================================================
@@ -556,3 +561,13 @@ class IndexSetDorisQueryException(BaseException):
 class SQLQueryException(BaseException):
     ERROR_CODE = "1005"
     MESSAGE = _("SQL查询异常: {name}")
+
+
+# =================================================
+# 用户自定义配置
+# =================================================
+
+
+class UserCustomConfigNotExistException(BaseException):
+    ERROR_CODE = "1101"
+    MESSAGE = _("用户自定义配置不存在")

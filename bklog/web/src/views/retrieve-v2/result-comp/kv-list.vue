@@ -52,13 +52,6 @@
               @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
             ></JsonFormatter>
           </template>
-          <template v-else>
-            <text-segmentation
-              :content="formatterStr(data, field)"
-              :field="getFieldItem(field)"
-              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
-            />
-          </template>
 
           <span
             v-if="getRelationMonitorField(field)"
@@ -68,6 +61,15 @@
             <span>{{ getRelationMonitorField(field) }}</span>
             <i class="bklog-icon bklog-jump"></i>
           </span>
+          <template v-if="!isJsonFormat(formatterStr(data, field))">
+            <text-segmentation
+              :content="formatterStr(data, field)"
+              :field="getFieldItem(field)"
+              :forceAll="true"
+              :autoWidth="true"
+              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
+            />
+          </template>
         </div>
       </div>
     </div>
@@ -231,10 +233,10 @@
       handleJsonSegmentClick({ isLink, option }, fieldName) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
-        const { operation, value, depth } = option;
+        const { operation, value, depth, isNestedField } = option;
         const operator = operation === 'not' ? 'is not' : operation;
         const field = this.totalFields.find(f => f.field_name === fieldName);
-        this.$emit('value-click', operator, value, isLink, field, depth);
+        this.$emit('value-click', operator, value, isLink, field, depth, isNestedField);
       },
 
       /**
@@ -277,7 +279,7 @@
         }
 
         if (path) {
-          const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+          const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
           window.open(url, '_blank');
         }
       },
@@ -342,7 +344,7 @@
 
     .log-item {
       display: flex;
-      align-items: baseline;
+      align-items: start;
       min-height: 24px;
 
       .field-label {
@@ -388,7 +390,9 @@
     }
 
     .relation-monitor-btn {
-      margin-left: 12px;
+      min-width: fit-content;
+      padding-right: 6px;
+      // margin-left: 12px;
       font-size: 12px;
       color: #3a84ff;
       cursor: pointer;

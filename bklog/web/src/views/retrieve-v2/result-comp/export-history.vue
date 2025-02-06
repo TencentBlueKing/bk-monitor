@@ -390,7 +390,7 @@
         axiosInstance
           .post(`/search/index_set/${stringParamsIndexSetID}/export/`, data)
           .then(res => {
-            if (res?.result ?? true) {
+            if (typeof res !== 'string') {
               this.$bkMessage({
                 theme: 'error',
                 message: this.$t('导出失败'),
@@ -416,7 +416,7 @@
         this.$http
           .request('retrieve/exportAsync', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data,
           })
@@ -486,10 +486,12 @@
               break;
           }
         }
-        const params = Object.keys(queryParamsStr).reduce((output, key) => {
-          output.push(`${key}=${encodeURIComponent(queryParamsStr[key])}`);
-          return output;
-        }, []).join('&') ;
+        const params = Object.keys(queryParamsStr)
+          .reduce((output, key) => {
+            output.push(`${key}=${encodeURIComponent(queryParamsStr[key])}`);
+            return output;
+          }, [])
+          .join('&');
         const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
         window.open(jumpUrl, '_blank');
       },
@@ -535,7 +537,7 @@
         const { limit, current } = this.pagination;
         const queryUrl = this.isUnionSearch ? 'unionSearch/unionExportHistory' : 'retrieve/getExportHistoryList';
         const params = {
-          index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           bk_biz_id: this.bkBizId,
           page: current,
           pagesize: limit,

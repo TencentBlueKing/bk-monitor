@@ -757,6 +757,7 @@ const store = new Vuex.Store({
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
       store.commit('updateIsNotVisibleFieldsShow', !visibleFields.length);
+
       if (state.indexItem.isUnionIndex) store.dispatch('showShowUnionSource', { keepLastTime: true });
     },
     resetIndexSetOperatorConfig(state) {
@@ -937,7 +938,7 @@ const store = new Vuex.Store({
         ids.push(...result?.unionList);
         commit('updateUnionIndexList', ids);
       } else {
-        const indexId = window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId;
+        const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
         if (indexId) {
           ids.push(indexId);
         }
@@ -1279,6 +1280,8 @@ const store = new Vuex.Store({
           commit('updateIndexSetFieldConfigList', {
             data: resp.data ?? [],
           });
+
+          return resp;
         })
         .finally(() => {
           commit('updateIndexSetFieldConfigList', {
@@ -1304,9 +1307,19 @@ const store = new Vuex.Store({
       return dispatch('requestIndexSetFieldInfo');
     },
 
+    /**
+     * 请求提示词列表
+     * @param {*} param0
+     * @param {*} payload: { force: boolean; fields: []; addition: []; size: number; commit: boolean; cancelToken: boolean }
+     * @returns
+     */
     requestIndexSetValueList({ commit, state }, payload) {
       const { start_time, end_time } = state.indexItem;
       const lastQueryTimerange = `${start_time}_${end_time}`;
+
+      const cancelTokenKey = 'requestIndexSetValueListCancelToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = payload.cancelToken ? RequestPool.getCancelToken(cancelTokenKey) : null;
 
       // 本次请求与上次请求时间范围不一致，重置缓存数据
       if (state.indexFieldInfo.last_eggs_request_token !== lastQueryTimerange) {
@@ -1361,10 +1374,17 @@ const store = new Vuex.Store({
         data: queryData,
       };
 
-      return http.request(urlStr, body).then(resp => {
-        commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
-        return resp;
-      });
+      return http
+        .request(urlStr, body, {
+          cancelToken: requestCancelToken,
+        })
+        .then(resp => {
+          if (payload?.commit !== false) {
+            commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
+          }
+
+          return resp;
+        });
     },
 
     requestFavoriteList({ commit, state }, payload) {
@@ -1393,6 +1413,7 @@ const store = new Vuex.Store({
       const isLink = newQueryList[0]?.isLink;
       const searchMode = state.indexItem.search_mode;
       const depth = Number(payload.depth ?? '0');
+      const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
       const getFieldType = field => {
         const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
@@ -1434,7 +1455,7 @@ const store = new Vuex.Store({
           }
         }
 
-        if (depth > 1 && textType === 'keyword') {
+        if ((depth > 1 || isNestedField === 'true') && textType === 'keyword') {
           mappingKey = keywordMappingKey;
         }
         return mappingKey[operator] ?? operator; // is is not 值映射

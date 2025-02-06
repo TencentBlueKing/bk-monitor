@@ -389,8 +389,14 @@ class CloseStatusChecker(BaseChecker):
             return False
 
         latest_priority, latest_timestamp = result.split(":")
-        # 如果缓存过期或当前事件优先级更高，则不需要关闭
-        if float(latest_timestamp) + checker.EXPIRE_TIME < time.time() or int(latest_priority) <= priority:
+
+        interval = 60
+        for item in latest_strategy["items"]:
+            for query_config in item["query_configs"]:
+                if "agg_interval" in query_config and query_config["agg_interval"] > interval:
+                    interval = query_config["agg_interval"]
+
+        if float(latest_timestamp) + interval * 5 < time.time() or int(latest_priority) <= priority:
             return False
 
         self.close(alert, _("存在更高优先级的告警，告警关闭"))

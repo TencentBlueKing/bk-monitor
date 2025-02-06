@@ -62,6 +62,7 @@ import './app.scss';
 // import NoticeComponent from '@blueking/notice-component-vue2';
 import '@blueking/notice-component-vue2/dist/style.css';
 import GlobalConfigMixin from '../mixins/globalConfig';
+import aiwhaleStore from '../store/modules/ai-whale';
 const changeNoticeRouteList = [
   'strategy-config-add',
   'strategy-config-edit',
@@ -80,7 +81,6 @@ const userConfigModal = new UserConfigMixin();
 const globalConfigModal = new GlobalConfigMixin();
 const NEW_UER_GUDE_KEY = 'NEW_UER_GUDE_KEY';
 const OVERSEAS_SITES_MENU = 'OVERSEAS_SITES_MENU';
-const AI_USER_LIST = 'AI_USER_LIST';
 const STORE_USER_MENU_KEY = 'USER_STORE_MENU_KEY';
 const ERROR_PAGE_ROUTE_NAME = 'error-exception';
 export const WATCH_SPACE_STICKY_LIST = 'WATCH_SPACE_STICKY_LIST'; /** 监听空间置顶列表数据事件key */
@@ -114,7 +114,6 @@ export default class App extends tsc<object> {
   headerNav = 'home';
   headerNavChange = true;
   overseaGlobalList: IOverseasConfig[] = [];
-  enableAiAssistant = false; // 是否显示AI智能助手
   menuStore = '';
   hideNavCount = 0;
   spacestickyList: string[] = []; /** 置顶的空间列表 */
@@ -126,6 +125,10 @@ export default class App extends tsc<object> {
   @ProvideReactive('toggleSet') toggleSet: boolean = localStorage.getItem('navigationToogle') === 'true';
   @ProvideReactive('readonly') readonly: boolean = !!window.__BK_WEWEB_DATA__?.readonly || !!getUrlParam('readonly');
   routeViewKey = random(10);
+  // 是否显示AI智能助手
+  get enableAiAssistant() {
+    return aiwhaleStore.enableAiAssistant;
+  }
   get bizId() {
     return this.$store.getters.bizId;
   }
@@ -270,7 +273,9 @@ export default class App extends tsc<object> {
   // 一级导航宽度变化时触发自动计算收缩
   handleNavHeaderResize() {
     if (!(this.$refs.NavTools as any)?.$el) return;
-    const minWidth = 772 + (this.$refs.NavTools as any).$el.clientWidth + 2;
+    /** 新版首页无需展示右侧的全站搜索框 */
+    const BASE_MIM_WIDTH = this.$route.name && this.$route.name === 'home' ? 672 : 772;
+    const minWidth = BASE_MIM_WIDTH + (this.$refs.NavTools as any).$el.clientWidth + 2;
     if (this.navHeaderRef?.clientWidth >= minWidth + SPACE_WIDTH) {
       this.hideNavCount = 0;
       return;
@@ -481,8 +486,11 @@ export default class App extends tsc<object> {
       setTimeout(async () => {
         await this.handleUpdateRoute({ bizId: `${v}` }, promise).then(hasAuth => {
           if (hasAuth) {
-            this.routeViewKey = random(10);
-            this.$router.push({ name: navId === 'k8s' ? 'k8s-new' : 'k8s' });
+            this.$router
+              .push({ name: this.$store.getters.isEnableK8sV2 ? 'k8s-new' : 'k8s', query: {} })
+              .finally(() => {
+                this.routeViewKey = random(10);
+              });
           }
         });
         window.requestIdleCallback(() => introduce.initIntroduce(this.$route));
@@ -695,12 +703,7 @@ export default class App extends tsc<object> {
     this.overseaGlobalList = await globalConfigModal.handleGetGlobalConfig<IOverseasConfig[]>(OVERSEAS_SITES_MENU);
   }
   async getAiUserConfig() {
-    if (!window.enable_ai_assistant) {
-      this.enableAiAssistant = false;
-      return;
-    }
-    const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
-    this.enableAiAssistant = list.includes(window.username);
+    aiwhaleStore.setEnableAiAssistantAction();
   }
 
   render() {
@@ -728,7 +731,7 @@ export default class App extends tsc<object> {
           class='page-wrapper'
           name='noCache'
         />
-        {this.$route.name === 'home' ? (
+        {this.$route.name === 'home' || this.$route.name === 'newHome' ? (
           <div class='monitor-footer'>
             <div
               class='footer-link'
@@ -772,7 +775,7 @@ export default class App extends tsc<object> {
               slot='header'
             >
               <div class='header-list'>
-                {process.env.APP !== 'external' && this.commonHeader()}
+                {process.env.APP !== 'external' && this.$route.name !== 'home' && this.commonHeader()}
                 {this.routeList.map(
                   ({ id, route, name }, index) =>
                     this.routeList.length - index > this.hideNavCount && (
@@ -875,8 +878,13 @@ export default class App extends tsc<object> {
                           {item.children
                             .filter(child => !child.hidden)
                             .filter(menu => {
-                              if (menu.id === 'k8s') return !this.$store.getters.isEnableK8sV2;
-                              if (menu.id === 'k8s-new') return this.$store.getters.isEnableK8sV2;
+                              if (menu.id === 'k8s' || menu.id === 'k8s-new') {
+                                if (['k8s', 'k8s-new'].includes(this.$route.name)) {
+                                  return this.$route.name === menu.id;
+                                }
+                                if (this.$store.getters.k8sV2EnableList && menu.id === 'k8s-new') return true;
+                                return false;
+                              }
                               return true;
                             })
                             .map(child => (

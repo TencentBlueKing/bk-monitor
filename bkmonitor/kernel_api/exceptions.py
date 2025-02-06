@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import logging
 
 import six
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from bkmonitor.utils.common_utils import failed
@@ -19,11 +20,17 @@ from bkmonitor.utils.common_utils import failed
 logger = logging.getLogger(__name__)
 
 
+IGNORE_EXCEPTIONS = (ValidationError,)
+
+
 def api_exception_handler(exc, context):
     """
     针对CustomException返回的错误进行特殊处理，增加了传递数据的特性
     """
-    logger.exception(exc)
+    # 有些预期内的错误， 比如ValidationError， 不需要记录日志
+    if not isinstance(exc, IGNORE_EXCEPTIONS):
+        logger.exception(exc)
+
     json_data = failed(six.text_type(exc))
     code = getattr(exc, "code", 500)
     if hasattr(exc, "detail"):

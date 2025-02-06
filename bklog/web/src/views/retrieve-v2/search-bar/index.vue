@@ -6,7 +6,7 @@
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
 
-  // #if APP !== 'apm'
+  // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
   // #else
   // #code const BookmarkPop = () => null;
@@ -22,7 +22,6 @@
   import { bkMessage } from 'bk-magic-vue';
   // import CommonFilterSelect from './common-filter-select.vue';
   import useResizeObserve from '../../../hooks/use-resize-observe';
-  import { debounce } from 'lodash';
 
   const props = defineProps({
     activeFavorite: {
@@ -194,7 +193,7 @@
   };
 
   const handleRefresh = isRefresh => {
-    // #if APP !== 'apm'
+    // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
     emit('refresh', isRefresh);
     // #endif
   };

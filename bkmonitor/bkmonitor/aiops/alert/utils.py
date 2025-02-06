@@ -35,7 +35,11 @@ from constants.alert import CLUSTER_PATTERN
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import SPLIT_DIMENSIONS
 from core.drf_resource import api
-from core.errors.alert import AIOpsFunctionAccessedError, AIOpsResultError
+from core.errors.alert import (
+    AIOpsAccessedError,
+    AIOpsFunctionAccessedError,
+    AIOpsResultError,
+)
 from core.errors.api import BKAPIError
 from core.unit import load_unit
 
@@ -43,7 +47,9 @@ logger = logging.getLogger("bkmonitor")
 
 
 class AIOPSManager(abc.ABC):
-    AIOPS_FUNCTION_NOT_ACCESSED_CODE = 1513810
+    AIOPS_FUNCTION_NOT_ACCESSED_CODE = "1513810"
+    AIOPS_FUNCTION_ACCESS_ERROR_CODE = "1513817"
+    AIOPS_FUNCTION_LOGIC_ERROR_CODE = "1583136"
     AVAILABLE_DATA_LABEL = (
         (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
         (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
@@ -240,7 +246,10 @@ class AIOPSManager(abc.ABC):
                     metrics = []
                     filter_dict = dimensions
                 else:
-                    where = cls.create_where_with_dimensions(query_config["agg_condition"], dimensions)
+                    where = cls.create_where_with_dimensions(
+                        query_config["agg_condition"],
+                        {key: value for key, value in dimensions.items() if key in query_config["agg_dimension"]},
+                    )
                     agg_dimension = list(set(query_config["agg_dimension"]) & set(dimensions.keys()))
                     if "le" in query_config["agg_dimension"]:
                         # 针对le做特殊处理
@@ -563,7 +572,6 @@ class DimensionDrillManager(AIOPSManager):
             query_configs = base_graph_panel["targets"][0]["data"]["query_configs"]
             for query_config in query_configs:
                 query_config["group_by"] = []
-                query_config["functions"] = [{"id": "time_shift", "params": [{"id": "n", "value": "$time_shift"}]}]
 
             # 补充维度下钻的维度过滤条件
             dimension_keys = sorted(dimension["root"].keys())
@@ -831,6 +839,8 @@ class DimensionDrillManager(AIOPSManager):
 
             if e.data.get("code") == self.AIOPS_FUNCTION_NOT_ACCESSED_CODE:
                 raise AIOpsFunctionAccessedError({"func": _("维度下钻")})
+            elif e.data.get("code") == self.AIOPS_FUNCTION_ACCESS_ERROR_CODE:
+                raise AIOpsAccessedError({"func": _("维度下钻")})
             else:
                 raise AIOpsResultError({"err": str(e)})
 
@@ -911,6 +921,8 @@ class RecommendMetricManager(AIOPSManager):
             )
             if not response["result"]:
                 logger.exception(f"aiops api serving return error: ({processing_id}): {response['message']}")
+                if self.AIOPS_FUNCTION_LOGIC_ERROR_CODE in response["message"]:
+                    return {"info": {}, "recommended_metrics": []}
                 raise AIOpsResultError({"err": response['message']})
 
             if len(response["data"]["data"][0]["output"]) == 0:
@@ -919,7 +931,9 @@ class RecommendMetricManager(AIOPSManager):
             logger.exception(f'failed to call aiops api serving({processing_id}): {e}')
 
             if e.data.get("code") == self.AIOPS_FUNCTION_NOT_ACCESSED_CODE:
-                raise AIOpsFunctionAccessedError({"func": _("指标推荐")})
+                raise AIOpsFunctionAccessedError({"func": _("维度下钻")})
+            elif e.data.get("code") == self.AIOPS_FUNCTION_ACCESS_ERROR_CODE:
+                raise AIOpsAccessedError({"func": _("维度下钻")})
             else:
                 raise AIOpsResultError({"err": str(e)})
 
@@ -980,6 +994,9 @@ class RecommendMetricManager(AIOPSManager):
         # 总的查询需要显示的字段集合
         field_set = pre_field_set.copy()
         recommend_metrics = json.loads(recommended_results["recommend_metrics"])
+
+        if len(recommend_metrics) == 0:
+            return []
 
         for recommend_metric in recommend_metrics:
             # 获取当前推荐指标的详情

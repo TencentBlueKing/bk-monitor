@@ -1,0 +1,77 @@
+@import '../../../../theme/index.scss';
+
+.add-task-select-ext {
+  padding: 3px 0;
+  background: #fff !important;
+  .bk-option-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-right: 6px;
+    .strategy-name {
+      width: 75%;
+      font-family: MicrosoftYaHei;
+      font-size: 12px;
+      line-height: 22px;
+      color: #4d4f56;
+      @include ellipsis();
+
+      &.selected {
+        color: #3a84ff;
+      }
+      &.has-tag {
+        color: #c4c6cc;
+        .icon-monitor {
+          color: #c4c6cc;
+        }
+      }
+    }
+
+    .strategy-status {
+      .strategy-tag {
+        display: inline-block;
+        padding: 0 12px;
+        font-size: 12px;
+        line-height: 22px;
+        color: #4d4f56;
+        text-align: center;
+        background: #f0f1f5;
+        border-radius: 2px;
+      }
+
+      .icon-monitor {
+        font-size: 28px;
+        color: #3a84ff;
+        vertical-align: middle;
+      }
+    }
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+  &.is-deleted {
+    .bk-option-content {
+      .strategy-tag {
+        color: #e71818;
+        background-color: #ffebeb;
+      }
+      .strategy-name {
+        color: #c4c6cc;
+        text-decoration: line-through;
+      }
+      .icon-monitor {
+        color: #c4c6cc;
+      }
+    }
+  }
+}
+
+.add-chart-strategy {
+  margin-bottom: 18px;
+}
+
+.task-add-dialog-footer {
+  button {
+    margin-left: 8px;
+  }
+}

@@ -29,7 +29,7 @@ from apps.log_clustering.constants import StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_search.constants import InnerTag
+from apps.log_search.constants import InnerTag, DataFlowResourceUsageType
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet
 from apps.utils.function import ignored
@@ -196,6 +196,7 @@ class CreatePredictFlowService(BaseService):
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
         flow = DataFlowHandler().create_predict_flow(index_set_id=index_set_id)
+        DataFlowHandler().set_dataflow_resource(index_set_id, flow["flow_id"], DataFlowResourceUsageType.online)
         LogIndexSet.set_tag(index_set_id, InnerTag.CLUSTERING.value)
         DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode="from_tail")
         return True
@@ -225,7 +226,7 @@ class CreateLogCountAggregationFlowService(BaseService):
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
         flow = DataFlowHandler().create_log_count_aggregation_flow(index_set_id=index_set_id)
-
+        DataFlowHandler().set_dataflow_resource(index_set_id, flow["flow_id"], DataFlowResourceUsageType.agg)
         DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode="continue")
         # 添加索引集表标签
         LogIndexSet.set_tag(index_set_id, InnerTag.CLUSTERING.value)

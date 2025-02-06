@@ -485,7 +485,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("DEFAULT_BKDATA_BIZ_ID", slz.IntegerField(label="接入计算平台使用的业务 ID", default=0)),
         ("IS_SUBSCRIPTION_ENABLED", slz.BooleanField(label="是否开启采集订阅巡检功能", default=True)),
         # K8S新版灰度配置
-        ("K8S_V2_BIZ_LIST", slz.ListField(label=_("支持ipv6的业务列表"), default=[])),
+        ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
         # 文档链接配置
         ("DOC_LINK_MAPPING", slz.DictField(label=_("文档链接配置"), default={})),
         # 自定义事件休眠开关

@@ -114,6 +114,16 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
     };
   }
 
+  get chartResourceList() {
+    const obj = {};
+    for (const key in this.resourceDetail) {
+      if (key !== 'externalParam' && key !== K8sTableColumnKeysEnum.CLUSTER && this.resourceDetail[key]?.length) {
+        obj[key] = this.resourceDetail[key];
+      }
+    }
+    return [obj] as Record<K8sTableColumnKeysEnum, string>[];
+  }
+
   @Watch('isShow')
   handleResourceChange(v: boolean) {
     if (!v) return;
@@ -220,6 +230,7 @@ export default class K8sDetailSlider extends tsc<K8sDetailSliderProps, K8sDetail
             hideMetrics={this.hideMetrics}
             isDetailMode={true}
             metricList={this.metricList}
+            resourceListData={this.chartResourceList}
           />
         </div>
         {this.groupByField !== K8sTableColumnKeysEnum.NAMESPACE ? (

@@ -145,6 +145,7 @@ export default {
   '{num} 个': '{num}',
   '查询结果(找到 {0} 条，用时 {1} 毫秒)，将搜索条件 {2}{3}':
     'Query results (found {0} , cost {1} milliseconds), add search criteria {2}{3}',
+  '查询结果(找到 {0} 条，用时 {1} 毫秒)': 'Query results (found {0} , cost {1} milliseconds)',
   '成功复制{0}个IP': 'Successfully Copied {0} IPs',
   '您一共选择了{0}条告警': 'You have selected a total of {0} alarms',
   '已停用{0}个节点内的{1}台主机': '{1} hosts in {0} nodes have been disabled',
@@ -288,4 +289,6 @@ export default {
   '关联日志方法：\n1. 开启应用的日志上报开关，开启后会自动关联对应的索引集\n2. 在服务配置 - 关联日志出关联对应索引集\n3. 在 Span 中增加 IP 地址，将会自动关联此主机对应的采集项':
     'Associated log method:\n1. Turn on the log reporting switch of the application, which will automatically associate the corresponding index set\n2. In service configuration - associate log out and associate the corresponding index set\n3. Add IP address in Span, will automatically associate the corresponding collection item of this host',
   暂不支持: 'Not supported yet',
+  在拓扑图中高亮该节点: 'Highlight the node in the topology map',
+  '点击前往：主机详情页/服务详情页': 'Click to go to: Host details page/Service details page',
 };

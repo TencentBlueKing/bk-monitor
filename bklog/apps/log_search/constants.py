@@ -938,6 +938,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "double": "double",
             "object": "object",
             "nested": "nested",
+            "boolean": "boolean",
         }.get(es_field_type, "string")
 
 
@@ -1704,3 +1705,8 @@ ES_RESERVED_CHARACTERS = [
     "/",
     " ",
 ]
+
+
+class DataFlowResourceUsageType(object):
+    online = "log_clustering_online"
+    agg = "log_clustering_agg"

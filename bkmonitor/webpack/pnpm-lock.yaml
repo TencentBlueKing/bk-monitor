@@ -196,8 +196,8 @@ importers:
   src/fta-solutions:
     dependencies:
       '@blueking/bk-weweb':
-        specifier: 0.0.26-beta.6
-        version: 0.0.26-beta.6
+        specifier: 0.0.29-beta.3
+        version: 0.0.29-beta.3
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
@@ -342,8 +342,8 @@ importers:
         specifier: 0.3.17
         version: 0.3.17(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
-        specifier: 0.0.26-beta.6
-        version: 0.0.26-beta.6
+        specifier: 0.0.29-beta.3
+        version: 0.0.29-beta.3
       '@blueking/bkui-library':
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
@@ -481,8 +481,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 1.0.0
-        version: 1.0.0
+        specifier: 1.0.1-beta.5
+        version: 1.0.1-beta.5
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -1404,8 +1404,8 @@ packages:
       markdown-it: ^13.0.1
       markdown-it-code-copy: ^0.2.1
 
-  '@blueking/bk-weweb@0.0.26-beta.6':
-    resolution: {integrity: sha512-hU4pbmQedYWaHKUSUJUmDJI/MJO59cGypkOemjsSHCSJ0fxjtNb5+CmBJJlRRwpTbIo5s8Y6TilvUuwYnd+HHg==}
+  '@blueking/bk-weweb@0.0.29-beta.3':
+    resolution: {integrity: sha512-Jxhbnl/oEAgCf3ZFT4IXjebKs48HhdFfHZXBECCOqaNhiSCU7hPhljEdqEW6/7seTLPJJd315KJD70WyAehHEA==}
     engines: {node: '>=14.18.1'}
 
   '@blueking/bkmonitor-cli@5.0.0-beta.21':
@@ -1444,8 +1444,8 @@ packages:
   '@blueking/login-modal@1.0.5':
     resolution: {integrity: sha512-iTiajeVT+hm0f+X93sfnm98OD1lmr+Q3m4/Hv6vnh126ZWwhNBavgzcCBLnhog9T5mLWeZH9dq8g9ltM4fI3FA==}
 
-  '@blueking/monitor-apm-log@1.0.0':
-    resolution: {integrity: sha512-8r/6ZTnukJAvdHik9Emb+q1UdH0NmawemYilaoQ8pXaRmBvxOqzTsTcQLPuhmWqw/I2aLKOV+9gTq2QhSNND0Q==}
+  '@blueking/monitor-apm-log@1.0.1-beta.5':
+    resolution: {integrity: sha512-XguRphdrw+EXs+GSeD+Ul5TkiTZloXq1qvxUJ/DSvVFaEDneYUPqFMgGJYtiIWfH9VXw4F31JGWEdssektMbEg==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -9223,7 +9223,7 @@ snapshots:
       markdown-it: 13.0.2
       markdown-it-code-copy: 0.2.1
 
-  '@blueking/bk-weweb@0.0.26-beta.6': {}
+  '@blueking/bk-weweb@0.0.29-beta.3': {}
 
   '@blueking/bkmonitor-cli@5.0.0-beta.21(@types/node@22.9.0)(@vue/compiler-sfc@3.5.12)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.3.3)(vue-template-compiler@2.7.16)(vue@3.5.12(typescript@5.6.3))':
     dependencies:
@@ -9429,7 +9429,7 @@ snapshots:
 
   '@blueking/login-modal@1.0.5': {}
 
-  '@blueking/monitor-apm-log@1.0.0': {}
+  '@blueking/monitor-apm-log@1.0.1-beta.5': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:

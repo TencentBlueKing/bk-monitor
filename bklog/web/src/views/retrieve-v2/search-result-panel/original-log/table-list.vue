@@ -101,7 +101,7 @@
     </template>
     <!-- 操作按钮 -->
     <bk-table-column
-      v-if="showHandleOption"
+      v-if="showHandleOption && !isMonitorTraceLog"
       :label="$t('操作')"
       :width="getOperatorToolsWidth"
       align="right"
@@ -129,5 +129,10 @@
     name: 'TableList',
     mixins: [resultTableMixin],
     inheritAttrs: false,
+    computed: {
+      isMonitorTraceLog() {
+        return window?.__IS_MONITOR_TRACE__;
+      }
+    }
   };
 </script>

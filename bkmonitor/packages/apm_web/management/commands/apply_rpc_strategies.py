@@ -13,7 +13,7 @@ import logging
 from typing import Any, Dict, List
 
 from django.core.management import BaseCommand
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.strategy_group import (
@@ -49,7 +49,7 @@ class Command(BaseCommand):
             help=_("应用告警策略类型列表"),
         )
         parser.add_argument("-s", "--apply-services", nargs="+", type=str, default=[], help=_("服务列表"))
-        parser.add_argument("-g", "--notice-group-ids", nargs="+", type=int, help=_("告警组 ID 列表"))
+        parser.add_argument("-g", "--notice-group-ids", nargs="+", type=int, default=[], help=_("告警组 ID 列表"))
         parser.add_argument("--config", type=str, default="{}", help=_("配置"))
 
     def handle(self, *args, **options):
@@ -57,7 +57,7 @@ class Command(BaseCommand):
         app_name: str = options["app_name"]
         apply_types: List[str] = list(options.get("apply_types") or [])
         apply_services: List[str] = list(options.get("apply_services") or [])
-        notice_group_ids: List[int] = options["notice_group_ids"]
+        notice_group_ids: List[int] = list(options.get("notice_group_ids") or [])
         options_config: Dict[str, Any] = json.loads(options.get("config") or "{}")
 
         logger.info(

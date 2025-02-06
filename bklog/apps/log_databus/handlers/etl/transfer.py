@@ -54,6 +54,8 @@ class TransferEtlHandler(EtlHandler):
         view_roles=None,
         etl_params=None,
         fields=None,
+        sort_fields=None,
+        target_fields=None,
         username="",
         *args,
         **kwargs,
@@ -106,6 +108,11 @@ class TransferEtlHandler(EtlHandler):
         #     raise CollectorResultTableIDDuplicateException(
         #         CollectorResultTableIDDuplicateException.MESSAGE.format(result_table_id=table_id)
         #     )
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
+        if sort_fields is None and index_set_obj:
+            sort_fields = index_set_obj.sort_fields
+        if sort_fields is None and index_set_obj:
+            target_fields = index_set_obj.target_fields
 
         # 1. meta-创建/修改结果表
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
@@ -121,13 +128,22 @@ class TransferEtlHandler(EtlHandler):
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
             es_shards=es_shards,
+            sort_fields=sort_fields,
+            target_fields=target_fields,
         )
 
         if not view_roles:
             view_roles = []
 
         # 2. 创建索引集
-        index_set = self._update_or_create_index_set(etl_config, storage_cluster_id, view_roles, username=username)
+        index_set = self._update_or_create_index_set(
+            etl_config,
+            storage_cluster_id,
+            view_roles,
+            username=username,
+            sort_fields=sort_fields,
+            target_fields=target_fields,
+        )
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
         LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})

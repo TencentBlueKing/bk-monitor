@@ -892,6 +892,10 @@ class SaveCollectConfigResource(Resource):
             # 校验主机实例
             elif target_type == (TargetObjectType.HOST, TargetNodeType.INSTANCE):
                 for node in attrs["target_nodes"]:
+                    if "bk_target_ip" in node and "bk_target_cloud_id" in node:
+                        node["ip"] = node.pop("bk_target_ip")
+                        node["bk_cloud_id"] = node.pop("bk_target_cloud_id")
+
                     if not ("ip" in node and "bk_cloud_id" in node) and "bk_host_id" not in node:
                         raise serializers.ValidationError("target_nodes needs ip, bk_cloud_id or bk_host_id")
             # 校验服务模板、集群模板
@@ -908,6 +912,10 @@ class SaveCollectConfigResource(Resource):
                 for node in attrs["target_nodes"]:
                     if "bcs_cluster_id" not in node:
                         raise serializers.ValidationError("target_nodes needs bcs_cluster_id")
+            elif attrs["target_node_type"] == TargetNodeType.DYNAMIC_GROUP:
+                for node in attrs["target_nodes"]:
+                    if not ("bk_inst_id" in node and "bk_obj_id" in node):
+                        raise serializers.ValidationError("target_nodes needs bk_inst_id, bk_obj_id")
             else:
                 raise serializers.ValidationError(
                     "{} {} is not supported".format(attrs["target_object_type"], attrs["target_node_type"])
@@ -936,6 +944,15 @@ class SaveCollectConfigResource(Resource):
                     if rule_name in name_set:
                         raise CollectConfigParamsError(msg="Duplicate keyword rule name({})".format(rule_name))
                     name_set.add(rule_name)
+
+            # 克隆时 插件 bk-pull 密码不能为bool
+            if not attrs.get("id") and attrs["collect_type"] == CollectConfigMeta.CollectType.PUSHGATEWAY:
+                password = attrs["params"]["collector"].get("password")
+                if password is True:
+                    raise serializers.ValidationError("Please reset your password")  # 表示需要重置密码
+                elif password is False:
+                    # 将如果密码为空则设为空密码
+                    attrs["params"]["collector"]["password"] = ""
 
             return attrs
 
@@ -1161,7 +1178,7 @@ class RollbackDeploymentConfigResource(Resource):
             raise CollectConfigNotExist({"msg": data["id"]})
 
         # 判断是否支持回滚
-        if not self.collect_config.allow_rollback:
+        if not collect_config.allow_rollback:
             raise CollectConfigRollbackError({"msg": _("当前操作不支持回滚，或采集配置正处于执行中")})
 
         installer = get_collect_installer(collect_config)

@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import datetime
 import json
 import logging
@@ -16,9 +17,10 @@ import urllib.parse
 from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Set
 
+import six
 from django.conf import settings
 from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import TelemetrySdkLanguageValues
 from rest_framework import exceptions as drf_exc
 from rest_framework import serializers
@@ -31,9 +33,11 @@ from apm_web.handlers.metric_group import MetricHelper, TrpcMetricGroup
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import CodeRedefinedConfigRelation
+from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.data_source import q_to_dict
+from bkmonitor.models import UserGroup
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
+from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, PUBLIC_NOTICE_CONFIG
 from constants.apm import MetricTemporality, TRPCMetricTag
 from core.drf_resource import resource
 
@@ -82,7 +86,6 @@ class RPCStrategyOptions(serializers.Serializer):
 
 
 class RPCStrategyGroup(base.BaseStrategyGroup):
-
     _NOT_SUPPORT_FILTER_RPC_DIMENSIONS: List[str] = ["time", TRPCMetricTag.TARGET, TRPCMetricTag.SERVICE_NAME]
 
     DEPLOYMENT_POD_NAME_PATTERN = re.compile("^([a-z0-9-]+?)(-[a-z0-9]{5,10}-[a-z0-9]{5})$")
@@ -108,6 +111,8 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         self.metric_helper: MetricHelper = metric_helper
         # 策略告警组 ID 列表
         self.notice_group_ids: List[int] = notice_group_ids
+        if not self.notice_group_ids:
+            self.notice_group_ids = [self._apply_default_notice_group()]
 
         # 策略标签，目前的管理范围是一个具体的 APM 应用（APP）的某个场景（RPC）
         self.scene_label: str = define.StrategyLabelType.scene_label(app_name)
@@ -225,27 +230,90 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             **conf,
         ).build()
 
+    @classmethod
+    def _add_member_to_notice_group(
+        cls, bk_biz_id: int, user_id: str, group_name: str, notice_ways: Optional[List[str]] = None
+    ) -> int:
+        """增加成员到告警组，告警组不存在时默认创建
+        :param bk_biz_id: 业务 ID
+        :param user_id: 用户 ID
+        :param group_name: 告警组名称
+        :param notice_ways: 通知方式
+        :return:
+        """
+        user_group_inst: Optional[UserGroup] = UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=group_name).first()
+        if user_group_inst is None:
+            notice_config: Dict[str, Any] = copy.deepcopy(PUBLIC_NOTICE_CONFIG)
+            for notice_way_config in (
+                notice_config["alert_notice"][0]["notify_config"] + notice_config["action_notice"][0]["notify_config"]
+            ):
+                notice_way_config["type"] = notice_ways or ["rtx"]
+
+            user_group: Dict[str, Any] = {
+                "name": group_name,
+                "notice_receiver": [{"id": user_id, "type": "user"}],
+                **notice_config,
+            }
+            user_group_serializer: UserGroupDetailSlz = UserGroupDetailSlz(
+                data={
+                    "bk_biz_id": bk_biz_id,
+                    "name": six.text_type(user_group["name"]),
+                    "duty_arranges": [{"users": user_group["notice_receiver"]}],
+                    "desc": user_group["message"],
+                    "alert_notice": user_group["alert_notice"],
+                    "action_notice": user_group["action_notice"],
+                }
+            )
+        else:
+            # 检索用户是否已经存在在当前告警组，存在则跳过添加步骤
+            duty_arranges: List[Dict[str, Any]] = UserGroupDetailSlz(user_group_inst).data["duty_arranges"]
+            current_users: List[Dict[str, Any]] = duty_arranges[0]["users"]
+            if user_id in {user["id"] for user in current_users if user["type"] == "user"}:
+                # 已存在，无需重复添加
+                return user_group_inst.id
+
+            current_users.append({"id": user_id, "type": "user"})
+            user_group_serializer = UserGroupDetailSlz(
+                user_group_inst, data={"duty_arranges": [{"users": current_users}]}, partial=True
+            )
+
+        user_group_serializer.is_valid(True)
+        return user_group_serializer.save().id
+
+    def _apply_default_notice_group(self) -> int:
+        return self._add_member_to_notice_group(
+            bk_biz_id=self.bk_biz_id,
+            user_id=self.application.update_user,
+            group_name=_("【APM】{app_name} 告警组".format(app_name=self.app_name)),
+        )
+
     def _fetch_service_infos(self) -> List[Dict[str, Any]]:
         service_config: Dict[str, Any] = (
             settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{self.bk_biz_id}-{self.app_name}") or {}
         )
+        config_server_field: str = service_config.get("server_field") or TRPCMetricTag.SERVICE_NAME
+        if config_server_field == MetricTemporality.DYNAMIC_SERVER_FIELD:
+            caller_server_field: str = TRPCMetricTag.CALLER_SERVER
+            callee_server_field: str = TRPCMetricTag.CALLEE_SERVER
+        else:
+            caller_server_field: str = config_server_field
+            callee_server_field: str = config_server_field
+
         callee_servers: Set[str] = set(
             self.metric_helper.get_field_option_values(
-                TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"],
-                service_config.get("server_field") or TRPCMetricTag.CALLEE_SERVER,
+                TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"], callee_server_field
             )
         )
         caller_servers: Set[str] = set(
             self.metric_helper.get_field_option_values(
-                TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"],
-                service_config.get("server_field") or TRPCMetricTag.CALLER_SERVER,
+                TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"], caller_server_field
             )
         )
 
         group: metric_group.TrpcMetricGroup = self.rpc_metric_group_constructor()
         with_app_attr_services: Set[str] = set(group.fetch_server_list(filter_dict={f"{TRPCMetricTag.APP}__neq": ""}))
 
-        code_redefined_configs: List[CodeRedefinedConfigRelation] = CodeRedefinedConfigRelation.objects.filter(
+        code_redefined_configs = CodeRedefinedConfigRelation.objects.filter(
             bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=callee_servers | caller_servers
         )
         ret_code_as_exception_services: List[str] = [
@@ -260,38 +328,23 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
             if service_name == "." or (service_name not in callee_servers and service_name not in caller_servers):
                 continue
 
-            server_field: Optional[str] = service_config.get("server_field")
             service_info: Dict[str, Any] = {
                 "name": service_name,
                 SeriesAliasType.CALLEE.value: service_name in callee_servers,
                 SeriesAliasType.CALLER.value: service_name in caller_servers,
                 "language": service.get("extra_data", {}).get("service_language", ""),
+                "temporality": MetricTemporality.DELTA,
+                "server_filter_method": "eq",
+                "server_filter_value": service_name,
+                "server_fields": {
+                    SeriesAliasType.CALLER.value: caller_server_field,
+                    SeriesAliasType.CALLEE.value: callee_server_field,
+                },
                 "ret_code_as_exception": service_name in ret_code_as_exception_services,
             }
+
             if service_name in with_app_attr_services:
-                service_info.update(
-                    {
-                        "temporality": MetricTemporality.CUMULATIVE,
-                        "server_filter_method": "eq",
-                        "server_fields": {
-                            SeriesAliasType.CALLER.value: server_field or TRPCMetricTag.CALLER_SERVER,
-                            SeriesAliasType.CALLEE.value: server_field or TRPCMetricTag.CALLEE_SERVER,
-                        },
-                        "server_filter_value": service_name,
-                    }
-                )
-            else:
-                service_info.update(
-                    {
-                        "temporality": MetricTemporality.DELTA,
-                        "server_filter_method": "reg",
-                        "server_fields": {
-                            SeriesAliasType.CALLER.value: server_field or TRPCMetricTag.TARGET,
-                            SeriesAliasType.CALLEE.value: server_field or TRPCMetricTag.TARGET,
-                        },
-                        "server_filter_value": f".*{service_name}$",
-                    }
-                )
+                service_info["temporality"] = MetricTemporality.CUMULATIVE
 
             service_info.update(service_config)
             service_infos.append(service_info)

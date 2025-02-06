@@ -19,6 +19,7 @@ from collections import defaultdict
 from typing import List, NamedTuple, Tuple, Union
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
@@ -28,6 +29,7 @@ from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey, SpanKind, TelemetryDataType
+from core.drf_resource.exceptions import CustomException
 
 logger = logging.getLogger("apm")
 
@@ -127,7 +129,10 @@ class DiscoverBase(ABC):
 
     @property
     def application(self):
-        return ApmApplication.get_application(self.bk_biz_id, self.app_name)
+        app = ApmApplication.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
+        if not app:
+            raise CustomException(_("业务下的应用: {} 不存在").format(self.app_name))
+        return app
 
     def _get_key_pair(self, key: str):
         pair = key.split(".", 1)
@@ -146,7 +151,6 @@ class DiscoverBase(ABC):
         other_rules = []
 
         for rule in rule_instances:
-
             # [!!!] predicate_key 可能为单个也可能为多个
             # 注意这里类型可能是 string 或者 list
             # 目前只有 k8s 规则存在多个
@@ -270,15 +274,14 @@ class TopoHandler:
 
         return body
 
-    def list_trace_ids(self):
+    def list_trace_ids(self, index_name):
         start = datetime.datetime.now()
         after_key = None
 
         while True:
             query_body = self._get_after_key_body(after_key)
-            response = self.datasource.es_client.search(
-                index=self.datasource.index_name, body=query_body, request_timeout=60
-            )
+            logger.info(f"[TopoHandler] {self.bk_biz_id} {self.app_name} list_trace_ids body: {query_body}")
+            response = self.datasource.es_client.search(index=index_name, body=query_body, request_timeout=60)
 
             per_round_trace_ids = []
             # 处理结果
@@ -393,9 +396,17 @@ class TopoHandler:
         start = datetime.datetime.now()
         trace_id_count = 0
         span_count = 0
-        max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        filter_span_count = 0
+        try:
+            max_result_count, per_trace_size, index_name = self._get_trace_task_splits()
+        except Exception as e:
+            logger.error(
+                f"[TopoHandler] 业务id: {self.bk_biz_id}和应用名: {self.app_name}"
+                f"构建的TopoHandler对象在discover方法内发生异常, error({e})"
+            )
+            return
 
-        for round_index, trace_ids in enumerate(self.list_trace_ids()):
+        for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
                 continue
 
@@ -411,7 +422,8 @@ class TopoHandler:
                 per_trace_size = self.calculate_round_count(avg_group_span_count)
 
                 logger.info(
-                    f"[TopoHandler] "
+                    f"[TopoHandler] {self.bk_biz_id} {self.app_name} "
+                    f"index_name: {index_name} "
                     f"per_trace_size: {per_trace_size} "
                     f"avg_group_span_count: {avg_group_span_count} "
                     f"span_count: {len(all_spans)}"
@@ -422,20 +434,20 @@ class TopoHandler:
             # 拓扑发现任务
             # endpoint\relation\remote_service_relation\root_endpoint 需要 kind != 0/1 数据
             # host\instance\node 需要全部 span 数据
-            topo_params = [
-                (
-                    c,
-                    [[i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND], all_spans][c.DISCOVERY_ALL_SPANS],
-                    "topo",
-                )
-                for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value)
-            ]
+            topo_params = []
+            filter_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
+            filter_span_count += len(filter_spans)
+            for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
+                if c.DISCOVERY_ALL_SPANS:
+                    topo_params.append((c, all_spans, "topo"))
+                else:
+                    topo_params.append((c, filter_spans, "topo"))
 
             pool.map_ignore_exception(self._discover_handle, topo_params)
 
         logger.info(
             f"[TopoHandler] discover finished {self.bk_biz_id} {self.app_name} "
-            f"trace count: {trace_id_count} span count: {span_count} "
+            f"trace count: {trace_id_count} all span count: {span_count} filter span count: {filter_span_count}"
             f"elapsed: {(datetime.datetime.now() - start).seconds}s"
         )
         return True

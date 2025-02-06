@@ -178,13 +178,18 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
             updatePanelsGridpos(item.panels);
           }
         } else {
+          const commonLegendOptions = {
+            displayMode: this.column === 1 ? 'table' : 'list',
+            placement: this.column === 1 ? 'right' : 'bottom',
+          };
           item.options = {
             ...item.options,
-            legend: {
-              displayMode: this.column === 1 ? 'table' : 'list',
-              placement: this.column === 1 ? 'right' : 'bottom',
-              ...item.options?.legend,
-            },
+            legend: ['k8s_custom_graph'].includes(item.type)
+              ? {
+                  ...commonLegendOptions,
+                  ...item.options?.legend,
+                }
+              : commonLegendOptions,
           } as any;
         }
       });
@@ -399,7 +404,7 @@ export default class FlexDashboardPanel extends tsc<IDashboardPanelProps, IDashb
             >
               {(this as any).localPanels.slice(0, 1000).map((panel, index) => (
                 <div
-                  id={`${panel.id}__key__`}
+                  id={`${CSS.escape(panel.id)}__key__`}
                   key={`${panel.id}__key__`}
                   style={{
                     width: `calc(${(1 / +this.column) * 100}% - 16px)`,

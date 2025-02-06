@@ -1,6 +1,7 @@
 import base64
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Dict, List
 
 from django.db.models import TextChoices
@@ -1028,9 +1029,21 @@ class MetricTemporality:
     # 差值（Delta）：指标为 Gauge 类型，数值是上报间隔，计算固定间隔（比如 1 分钟内）的请求量，需要用 sum_over_time 函数
     DELTA: str = "delta"
 
+    # 默认使用 `service_name` 标识一个服务，允许通过动态配置，支持 callee_server & caller_server 此类非标准的服务检索。
+    DYNAMIC_SERVER_FIELD: str = "${server}"
+
     @classmethod
     def choices(cls):
         return [(cls.CUMULATIVE, _("累积")), (cls.DELTA, _("差值"))]
+
+    @classmethod
+    def get_metric_config(cls, temporality: str) -> Dict[str, str]:
+        return {
+            "temporality": temporality,
+            "server_filter_method": "eq",
+            "server_field": TRPCMetricTag.SERVICE_NAME,
+            "service_field": "${service_name}",
+        }
 
 
 class Vendor:
@@ -1038,7 +1051,7 @@ class Vendor:
 
     @classmethod
     def equal(cls, e, v):
-        return base64.b64encode(v.encode()).decode() == e
+        return e == v or base64.b64encode(v.encode()).decode() == e
 
     @classmethod
     def has_sdk(cls, service_sdk, expect_sdk):
@@ -1046,3 +1059,77 @@ class Vendor:
         if not service_sdk:
             return False
         return any(cls.equal(expect_sdk, i.get("name")) for i in service_sdk)
+
+
+class CachedEnum(Enum):
+    @classmethod
+    @lru_cache(maxsize=None)
+    def from_value(cls, value):
+        try:
+            return cls(value)
+        except Exception:  # pylint: disable=broad-except
+            return cls.get_default(value)  # 处理未找到的情况
+
+    @classmethod
+    def get_default(cls, value):
+        class _DefaultEnum:
+            def __init__(self):
+                self._value = value
+
+            @property
+            def value(self):
+                return self._value
+
+            def __getattr__(self, item):
+                return getattr(self, item, None)
+
+            def __setattr__(self, item, default_value):
+                object.__setattr__(self, item, default_value)
+
+        return _DefaultEnum()
+
+
+class SpanKindCachedEnum(CachedEnum):
+    SPAN_KIND_UNSPECIFIED = 0
+    SPAN_KIND_INTERNAL = 1
+    SPAN_KIND_SERVER = 2
+    SPAN_KIND_CLIENT = 3
+    SPAN_KIND_PRODUCER = 4
+    SPAN_KIND_CONSUMER = 5
+
+    @cached_property
+    def label(self):
+        return str({label["value"]: label["text"] for label in self.list()}.get(self, self.value))
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def list(cls):
+        return [
+            {"value": cls.SPAN_KIND_UNSPECIFIED.value, "text": _("未指定(unspecified)")},
+            {"value": cls.SPAN_KIND_INTERNAL.value, "text": _("内部(internal)")},
+            {"value": cls.SPAN_KIND_SERVER.value, "text": _("被调")},
+            {"value": cls.SPAN_KIND_CLIENT.value, "text": _("主调")},
+            {"value": cls.SPAN_KIND_PRODUCER.value, "text": _("异步主调")},
+            {"value": cls.SPAN_KIND_CONSUMER.value, "text": _("异步被调")},
+        ]
+
+    @classmethod
+    def called_kinds(cls):
+        """被调类型"""
+        return [cls.SPAN_KIND_SERVER.value, cls.SPAN_KIND_CONSUMER.value]
+
+    @classmethod
+    def calling_kinds(cls):
+        """主调类型"""
+        return [cls.SPAN_KIND_CLIENT.value, cls.SPAN_KIND_PRODUCER.value]
+
+    @classmethod
+    def async_kinds(cls):
+        """异步类型"""
+        return [cls.SPAN_KIND_CONSUMER.value, cls.SPAN_KIND_PRODUCER.value]
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        return default

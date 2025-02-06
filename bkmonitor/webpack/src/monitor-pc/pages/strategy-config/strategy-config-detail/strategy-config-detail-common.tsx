@@ -445,10 +445,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
       promiseList.push(SetMealAddStore.getNoticeWay());
     }
     promiseList.push(this.getStrategyConfigDetail(this.id));
-    this.getTargetsTableData();
     Promise.all(promiseList)
       .then(() => {
         this.handleDisplaybackDetail();
+        this.getTargetsTableData();
       })
       .catch(err => {
         console.log(err);
@@ -515,13 +515,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   handleDisplaybackDetail() {
     /** 基本信息 */
     this.getBaseInfo(this.detailData);
-    this.targetsDesc = handleSetTargetDesc(
-      this.targetDetail.target_detail,
-      this.metricData[0]?.targetType || this.targetDetail?.node_type || '',
-      this.metricData[0]?.objectType || this.targetDetail?.instance_type || '',
-      this.checkedTarget.node_count,
-      this.checkedTarget.instance_count
-    );
     /** 同级别算法关系 */
     const {
       detects: [{ connector, level }],
@@ -708,14 +701,17 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     };
 
     // 更新目标描述
-    const { targetType: metricTargetType = '', objectType: metricObjectType = '' } = this.metricData[0] || {};
     this.targetsDesc = handleSetTargetDesc(
       this.targetDetail.target_detail,
-      metricTargetType || this.targetDetail.node_type || '',
-      metricObjectType || this.targetDetail.instance_type || '',
-      this.checkedTarget.node_count,
-      this.checkedTarget.instance_count
+      this.targetDetail.node_type || '',
+      this.targetDetail.instance_type || '',
+      this.targetDetail.node_count || this.checkedTarget.node_count,
+      this.targetDetail.instance_count || this.checkedTarget.instance_count
     );
+    for (const item of this.metricData || []) {
+      item.objectType = this.targetDetail.instance_type;
+      item.targetType = this.targetDetail.node_type;
+    }
     /** 监控目标数据 */
     this.targetsTableData = this.targetDetail.detail ? transformDataKey(this.targetDetail.detail) : null;
   }
@@ -744,8 +740,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     this.detailData = strategyDetail;
     this.detectionConfig.data = strategyDetail?.items?.[0]?.algorithms?.filter(item => !!item.type) || [];
     this.detectionConfig.unit = strategyDetail?.items?.[0]?.algorithms?.[0]?.unit_prefix || '';
-    const targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
-    this.targetDetail = { target_detail: targetList };
+    // const targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
+    // this.targetDetail = { target_detail: targetList };
     await this.handleQueryConfigData();
     await this.handleProcessData({
       ...strategyDetail,
