@@ -483,6 +483,7 @@ class BCSPod(BCSBase, BCSBaseResources):
 
 
 class BCSPodLabels(models.Model):
+    id = models.BigAutoField(primary_key=True)
     resource = models.ForeignKey(BCSPod, db_constraint=False, on_delete=models.CASCADE)
     label = models.ForeignKey(BCSLabel, db_constraint=False, on_delete=models.CASCADE)
     bcs_cluster_id = models.CharField(verbose_name="集群ID", max_length=128, db_index=True)
