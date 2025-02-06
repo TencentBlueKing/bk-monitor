@@ -10,12 +10,12 @@ specific language governing permissions and limitations under the License.
 """
 from api.bcs.tasks import (
     sync_bcs_cluster_to_db,
-    sync_bcs_node_to_db_sub_task,
-    sync_bcs_pod_monitor_to_db_sub_task,
-    sync_bcs_pod_to_db_sub_task,
-    sync_bcs_service_monitor_to_db_sub_task,
-    sync_bcs_service_to_db_sub_task,
-    sync_bcs_workload_to_db_sub_task,
+    sync_bcs_node,
+    sync_bcs_pod,
+    sync_bcs_pod_monitor,
+    sync_bcs_service,
+    sync_bcs_service_monitor,
+    sync_bcs_workload,
 )
 
 """
@@ -36,15 +36,15 @@ class Command(BaseCommand):
         # 同步全量集群列表
         sync_bcs_cluster_to_db()
         print(f"[workload] start sync {bcs_cluster_id} to db")
-        sync_bcs_workload_to_db_sub_task(bcs_cluster_id)
+        sync_bcs_workload(bcs_cluster_id)
         print(f"[service] start sync {bcs_cluster_id} to db")
-        sync_bcs_service_to_db_sub_task(bcs_cluster_id)
+        sync_bcs_service(bcs_cluster_id)
         print(f"[pod&container] start sync {bcs_cluster_id} to db")
-        sync_bcs_pod_to_db_sub_task(bcs_cluster_id)
+        sync_bcs_pod(bcs_cluster_id)
         print(f"[node] start sync {bcs_cluster_id} to db")
-        sync_bcs_node_to_db_sub_task(bcs_cluster_id)
+        sync_bcs_node(bcs_cluster_id)
         print(f"[service monitor] start sync {bcs_cluster_id} to db")
-        sync_bcs_service_monitor_to_db_sub_task(bcs_cluster_id)
+        sync_bcs_service_monitor(bcs_cluster_id)
         print(f"[pod monitor] start sync {bcs_cluster_id} to db")
-        sync_bcs_pod_monitor_to_db_sub_task(bcs_cluster_id)
+        sync_bcs_pod_monitor(bcs_cluster_id)
         print(f"finish sync {bcs_cluster_id} to db")
