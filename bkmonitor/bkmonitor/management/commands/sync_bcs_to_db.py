@@ -20,6 +20,8 @@ from api.bcs.tasks import (
 
 """
 主动同步指定集群信息
+
+python manage.py sync_bcs_to_db --bcs_cluster_id=BCS-K8S-00000
 """
 
 from django.core.management.base import BaseCommand
