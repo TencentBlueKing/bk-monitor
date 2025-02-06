@@ -95,7 +95,7 @@ class TestPriority:
         assert set(pc.need_update.keys()) == {record.record_id.split(".")[0] for record in RECORD_LIST}
 
         pc.client = MagicMock()
-        pc.sync_priority()
+        pc.sync_priority(ITEMS[0])
         assert pc.client.expire.call_count == 1
         assert pc.client.hmset.call_count == 1
         assert len(pc.client.hmset.call_args[0][1]) == 3
