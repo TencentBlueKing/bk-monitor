@@ -323,6 +323,7 @@ class SearchViewSet(APIViewSet):
         search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
+        # return Response(search_handler.search())
 
         from apps.log_unifyquery.handler import UnifyQueryHandler
         data["index_set_ids"] = [index_set_id]
@@ -566,11 +567,17 @@ class SearchViewSet(APIViewSet):
             raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
 
         output = StringIO()
-        export_fields = data.get("export_fields", [])
-        search_handler = SearchHandlerEsquery(
-            index_set_id, search_dict=data, export_fields=export_fields, export_log=True
-        )
-        result = search_handler.search(is_export=True)
+        # export_fields = data.get("export_fields", [])
+        # search_handler = SearchHandlerEsquery(
+        #     index_set_id, search_dict=data, export_fields=export_fields, export_log=True
+        # )
+        # result = search_handler.search(is_export=True)
+        from apps.log_unifyquery.handler import UnifyQueryHandler
+        data["index_set_ids"] = [index_set_id]
+        data["start_time"] = request.data.get("start_time")
+        data["end_time"] = request.data.get("end_time")
+        query_handler = UnifyQueryHandler(data)
+        result = query_handler.search(is_export=True)
         result_list = result.get("origin_log_list")
         for item in result_list:
             output.write(f"{json.dumps(item, ensure_ascii=False)}\n")
