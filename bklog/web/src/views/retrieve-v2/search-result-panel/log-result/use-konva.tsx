@@ -408,9 +408,13 @@ export default ({ onSegmentClick }) => {
         item.left = item.split[0].left;
         item.width = item.split[0].width;
         item.split = undefined;
+
+        if (item.left === 0) {
+          return originLeft;
+        }
       }
 
-      return resetWordWrapPositon(textNode, itemList, currentIndex, originLeft, false);
+      return resetWordWrapPositon(textNode, itemList, currentIndex - 1, originLeft, false);
     }
 
     return originLeft;

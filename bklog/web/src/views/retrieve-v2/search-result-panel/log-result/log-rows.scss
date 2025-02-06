@@ -2,7 +2,7 @@
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  width: fit-content;
+  // width: fit-content;
   width: 100%;
   min-width: 100%;
   min-height: 400px;
@@ -98,6 +98,7 @@
       display: inline-flex;
       align-items: flex-start;
       width: var(--scroll-width);
+      min-width: fit-content;
       min-height: 40px;
       font-family: var(--table-fount-family);
       font-size: var(--table-fount-size);
