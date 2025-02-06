@@ -23,8 +23,8 @@ jinja2==2.11.3
 django-jinja==2.7.1
 
 # django rest framework
-djangorestframework==3.12.4
-django-filter==23.5
+djangorestframework==3.15.1
+django-filter==2.4.0
 drf-yasg==1.21.8
 
 # celery & django
