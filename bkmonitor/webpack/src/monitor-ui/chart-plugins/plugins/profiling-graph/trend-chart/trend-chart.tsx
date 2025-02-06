@@ -53,9 +53,9 @@ interface ITrendChartProps {
 }
 
 interface ITrendChartEvents {
-  onSeriesData(series: any[]): void;
+  (series: any[]): void;
   onOptionsLoaded(): void;
-  onLoading(loading: boolean): void;
+  onLoonSeriesDataading(loading: boolean): void;
 }
 
 @Component

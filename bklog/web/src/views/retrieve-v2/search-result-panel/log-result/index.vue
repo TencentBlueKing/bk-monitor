@@ -45,56 +45,56 @@
           </bk-button>
         </div>
         <bk-checkbox
+          style="margin: 0 12px"
+          class="bklog-option-item"
           :value="showRowIndex"
           theme="primary"
           @change="handleShowRowIndexChange"
-          style="margin: 0 12px"
-          class="bklog-option-item"
         >
           <span class="switch-label">{{ $t('行号') }}</span>
         </bk-checkbox>
         <bk-checkbox
+          style="margin: 0 12px 0 0"
+          class="bklog-option-item"
           v-model="expandTextView"
           theme="primary"
           @change="handleChangeExpandView"
-          style="margin: 0 12px 0 0"
-          class="bklog-option-item"
         >
           <span class="switch-label">{{ $t('展开长字段') }}</span>
         </bk-checkbox>
         <bk-checkbox
+          style="margin: 0 12px 0 0"
+          class="bklog-option-item"
           :value="isWrap"
           theme="primary"
-          class="bklog-option-item"
           @change="handleChangeIsWarp"
-          style="margin: 0 12px 0 0"
           ><span class="switch-label">{{ $t('换行') }}</span></bk-checkbox
         >
 
         <bk-checkbox
+          style="margin: 0 12px 0 0"
           :value="isJsonFormat"
           theme="primary"
           @change="handleJsonFormat"
-          style="margin: 0 12px 0 0"
           ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
         >
 
         <bk-input
-          type="number"
-          class="json-depth-num"
-          :value="jsonFormatDeep"
-          :min="1"
-          :max="15"
-          @change="handleJsonFormatDeepChange"
           v-if="isJsonFormat"
+          class="json-depth-num"
+          :max="15"
+          :min="1"
+          :value="jsonFormatDeep"
+          type="number"
+          @change="handleJsonFormatDeepChange"
         ></bk-input>
       </div>
       <div class="tools-more">
         <div class="operation-icons">
           <export-log
-            :index-set-list="indexSetList"
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
+            :index-set-list="indexSetList"
             :queue-status="queueStatus"
             :retrieve-params="retrieveParams"
             :total-count="totalCount"
@@ -291,7 +291,7 @@
     .original-log-panel-tools {
       display: flex;
       justify-content: space-between;
-      padding-left: 16px;
+      padding: 0 3px 0 16px;
     }
 
     .tools-more {

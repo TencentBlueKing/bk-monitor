@@ -26,13 +26,19 @@ logger = logging.getLogger("metadata")
 def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id):
     """
     当集群发生迁移时，需要同步更新对应路由元信息
-    :param cluster: 集群信息
+    :param cluster: 集群实例 BCSClusterInfo
     :param new_bk_biz_id: 新的bk_biz_id
     :param old_bk_biz_id: 旧的bk_biz_id
     :return:
     """
+    from metadata.models import EventGroup
+
     logger.info(
-        f"change_cluster_router: cluster_id:{cluster.cluster_id}, new_bk_biz_id:{new_bk_biz_id}, old_bk_biz_id:{old_bk_biz_id}"
+        "change_cluster_router: try to update cluster data router,cluster_id->[%s],new_bk_biz_id->[%s]"
+        ",old_bk_bz_id->[%s]",
+        cluster.cluster_id,
+        new_bk_biz_id,
+        old_bk_biz_id,
     )
 
     try:
@@ -54,10 +60,39 @@ def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id):
                 space_type_id=SpaceTypes.BKCC.value, space_id=old_bk_biz_id, bk_data_id__in=data_ids
             ).delete()
 
-        logger.info(f"change_cluster_router: cluster_id:{cluster.cluster_id}, space_uid:{space_uid} successfully")
+            # 创建新的SpaceDataSource信息
+            for data_id in data_ids:
+                logger.info(
+                    "change_cluster_router: try to create SpaceDataSource record,bk_data_id->[%s],"
+                    "new_bk_biz_id->[%s]",
+                    data_id,
+                    new_bk_biz_id,
+                )
+                SpaceDataSource.objects.get_or_create(
+                    space_type_id=SpaceTypes.BKCC.value, space_id=new_bk_biz_id, bk_data_id=data_id
+                )
+
+            # 针对K8S Event，单独处理
+            k8s_event_data_id = cluster.K8sEventDataID
+            EventGroup.objects.filter(bk_data_id=k8s_event_data_id).update(bk_biz_id=new_bk_biz_id)
+
+        logger.info(
+            "change_cluster_router: Successfully updated cluster data router,cluster_id->[%s],"
+            "new_bk_biz_id->[%s],old_bk_biz_id->[%s]",
+            cluster.cluster_id,
+            new_bk_biz_id,
+            old_bk_biz_id,
+        )
 
     except Exception as e:  # pylint: disable=broad-except
-        logger.error(f"Failed to change cluster router for cluster_id:{cluster.cluster_id}. Error: {e}")
+        logger.error(
+            "change_cluster_router: Failed to change cluster data router,cluster_id->[%s],new_bk_biz_id->["
+            "%s],old_bk_bz_id->[%s],error->[%s]",
+            cluster.cluster_id,
+            new_bk_biz_id,
+            old_bk_biz_id,
+            e,
+        )
 
 
 def get_bcs_dataids(bk_biz_ids: list = None, cluster_ids: list = None, mode: str = "both"):

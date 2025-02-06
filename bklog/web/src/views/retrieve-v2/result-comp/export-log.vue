@@ -310,7 +310,7 @@
         return [];
       },
       routerIndexSet() {
-        return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+        return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
       },
     },
     beforeUnmount() {
@@ -382,6 +382,12 @@
                 theme: 'success',
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
+              });
+            }else{
+              this.$bkMessage({
+                theme: 'error',
+                ellipsisLine: 2,
+                message: res.message,
               });
             }
           })

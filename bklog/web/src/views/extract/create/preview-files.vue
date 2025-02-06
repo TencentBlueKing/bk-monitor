@@ -284,7 +284,7 @@
         file_path: downloadFiles,
       }) {
         this.timeRange = timeRange;
-        this.timeValue = [new Date(startTime), new Date(endTime)];
+        this.timeValue = [formatDate(new Date(startTime)), formatDate(new Date(endTime))];
         this.isSearchChild = isSearchChild;
         const findIpList = this.findPreviewIpListValue(previewIpList, ipList);
         this.previewIp = findIpList.map(item => this.getIpListID(item));

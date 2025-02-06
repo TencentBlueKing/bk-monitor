@@ -1,0 +1,106 @@
+.recent-alarm-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  .tabs {
+    display: flex;
+    align-items: center;
+
+    .tab {
+      position: relative;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-right: 10px;
+      border: 1px solid transparent;
+
+      .tab-title {
+        padding: 8px 8px 9px 8px;
+        font-family: MicrosoftYaHei;
+        font-size: 14px;
+        line-height: 22px;
+        color: #4d4f56;
+        vertical-align: middle;
+        cursor: pointer;
+
+        &.active {
+          font-family: MicrosoftYaHei-Bold;
+          font-size: 16px;
+          font-weight: 700;
+          color: #4d4f56;
+          border-bottom: 2px solid #3a84ff;
+        }
+        &.is-dragover {
+          background-color: #e1ecff;
+        }
+      }
+
+      .item-drag {
+        position: absolute;
+        top: 12px;
+        left: -13px;
+        height: 16px;
+        color: #979ba5;
+        visibility: hidden;
+
+        &:hover {
+          cursor: move;
+          visibility: visible;
+        }
+      }
+
+      .item-close {
+        font-size: 13px;
+        color: #4d4f56;
+        visibility: hidden;
+
+        &:hover {
+          color: #ea3636;
+          cursor: pointer;
+        }
+      }
+
+      &:hover {
+        .item-drag {
+          cursor: move;
+          visibility: visible;
+        }
+
+        .item-close {
+          visibility: visible;
+        }
+      }
+    }
+
+    .add-task {
+      margin-left: auto;
+      font-family: MicrosoftYaHei;
+      font-size: 12px;
+      line-height: 20px;
+      color: #3a84ff;
+      letter-spacing: 0;
+      cursor: pointer;
+
+      .icon-plus-circle {
+        margin-right: 5px;
+        font-size: 14px;
+      }
+    }
+
+    .task-disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+  }
+
+  .alarm-time-filter {
+    color: #4d4f56;
+    background: #ffffff;
+    width: 116px;
+    .icon-angle-down {
+      color: #979ba5;
+    }
+  }
+}

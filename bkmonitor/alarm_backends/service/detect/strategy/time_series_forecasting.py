@@ -94,6 +94,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
         }
 
         predict_result = self.PREDICT_FUNC(**predict_params)
+        dimension_fields = getattr(data_point, "dimension_fields", None) or list(data_point.dimensions.keys())
 
         return self.detect_by_bkdata(
             DataPoint(
@@ -103,7 +104,7 @@ class TimeSeriesForecasting(BasicAlgorithmsCollection, SDKPreDetectMixin):
                     "values": predict_result[0],
                     "time": int(predict_result[0]["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
-                    "dimension_fields": list(data_point.dimensions.keys()),
+                    "dimension_fields": dimension_fields,
                 },
                 item=data_point.item,
             )

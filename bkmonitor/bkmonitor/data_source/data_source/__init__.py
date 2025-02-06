@@ -1932,6 +1932,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
             time_field=time_fields,
             custom_event_name=custom_event_name,
             data_label=query_config.get("data_label", ""),
+            bk_biz_id=kwargs.get("bk_biz_id", 0),
         )
 
     def __init__(self, *args, **kwargs):

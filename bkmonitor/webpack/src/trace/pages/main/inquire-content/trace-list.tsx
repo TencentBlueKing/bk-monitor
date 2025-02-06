@@ -39,7 +39,7 @@ import {
   onUnmounted,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { Checkbox, Loading, Popover, Radio, Table, Sideslider } from 'bkui-vue';
@@ -146,6 +146,7 @@ export default defineComponent({
     let listOptionCancelFn = () => {};
     let searchCancelFn = () => {};
     const route = useRoute();
+    const router = useRouter();
     const store = useTraceStore();
     const searchStore = useSearchStore();
     const { t } = useI18n();
@@ -725,9 +726,23 @@ export default defineComponent({
             selectedSpanType.value = selectedType;
             break;
         }
+        if (!route.query.incident_query) return;
+        const spanInfo = JSON.parse(decodeURIComponent((route.query.incident_query as string) || '{}'));
+        if (spanInfo.trace_id !== '') {
+          // 打开trace详情侧滑
+          nextTick(() => {
+            isFullscreen.value = true;
+            getTraceDetails(spanInfo.trace_id);
+            setTimeout(() => {
+              document.getElementById(spanInfo.span_id)?.scrollIntoView({ behavior: 'smooth' });
+              console.log(spanInfo, document.getElementById(spanInfo.span_id));
+            }, 2000);
+          });
+        }
       },
       { immediate: true }
     );
+
     // 当在 table header 上选择筛选并确定后执行的回调方法。
     const handleSpanFilter = (options: any) => {
       const {
@@ -830,6 +845,22 @@ export default defineComponent({
 
       // TODO: 开发模式下会卡一下，这里设置一秒后执行可以减缓这种情况。
       store.setTraceDetail(false);
+
+      // 弹窗关闭时重置路由
+      route.query?.incident_query &&
+        router.replace({
+          path: '/trace/home',
+          query: {
+            app_name: route.query?.app_name,
+            search_type: 'scope',
+            search_id: 'traceID',
+            refleshInterval: '-1',
+            listType: 'trace',
+            start_time: 'now-1h',
+            end_time: 'now',
+            query: route.query?.query,
+          },
+        });
     };
     const traceListFilter = reactive<TraceListType>({
       // 属于 Trace 列表的

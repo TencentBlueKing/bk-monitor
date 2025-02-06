@@ -96,7 +96,7 @@ export default defineComponent({
                   checkable
                   onChange={checked => handleCheckChange(checked, item)}
                 >
-                  {`[${item.bk_biz_id}] ${item.bk_biz_name}`}
+                  {`${item.bk_biz_name} (#${item.bk_biz_id})`}
                 </Tag>
               )),
               <Tag
@@ -148,6 +148,7 @@ export default defineComponent({
             const replacements = {
               0: (
                 <label
+                  v-bk-tooltips={{ content: t('在拓扑图中高亮该节点') }}
                   onClick={() => {
                     const node = entities.filter(item => item.is_root) || [];
                     node.length > 0 && emit('chooseNode', [node[0].entity_id]);

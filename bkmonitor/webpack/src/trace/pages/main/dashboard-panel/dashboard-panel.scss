@@ -1,0 +1,52 @@
+/* stylelint-disable declaration-no-important */
+.span-details__dashboard-panel {
+  display: flex;
+  height: 100%;
+  overflow-x: hidden;
+
+  .mr-24 {
+    margin-right: 24px;
+  }
+
+  .ml-auto {
+    margin: 0 0 0 auto;
+  }
+
+  .bk-input--text {
+    background: #F5F7FA;
+  }
+
+
+  .dashboard-panel__charts {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    padding-right: 24px;
+    overflow: auto;
+  }
+
+  .dashboard-panel__content {
+    display: flex;
+    flex: 1;
+    padding-top: 16px;
+    overflow: hidden;
+
+    .trace-common-detail {
+      height: auto;
+    }
+
+    .dashboard-panel {
+      height: 100%;
+    }
+  }
+
+  .dashboard-tools {
+    display: flex;
+    align-items: center;
+    height: 48px;
+    padding-left: 16px;
+    margin-right: 16px;
+    background: #F5F7FA;
+    border-radius: 2px;
+  }
+}

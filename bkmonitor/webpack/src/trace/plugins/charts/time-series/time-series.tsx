@@ -34,6 +34,7 @@ import {
   ref,
   watch,
   onUnmounted,
+  type ComputedRef,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -159,31 +160,19 @@ export default defineComponent({
     let cancelTokens: (() => void)[] = [];
     // 自动粒度降采样
     const downSampleRange = 'auto';
-    const startTime = inject<Ref>('startTime') || ref('');
-    const endTime = inject<Ref>('endTime') || ref('');
-    const startTimeMinusOneHour = dayjs
-      .tz(startTime.value || undefined)
-      .subtract(1, 'hour')
-      .format('YYYY-MM-DD HH:mm:ss');
-    const endTimeMinusOneHour = dayjs
-      .tz(endTime.value || undefined)
-      .add(1, 'hour')
-      .format('YYYY-MM-DD HH:mm:ss');
-    const spanDetailActiveTab = inject<Ref>('SpanDetailActiveTab') || ref('');
+    const customTimeProvider = inject<ComputedRef<string[]>>(
+      'customTimeProvider',
+      computed(() => [])
+    );
     // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
     const enableSelectionRestoreAll = inject<Ref<boolean>>('enableSelectionRestoreAll') || ref(false);
     const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom') || (() => null);
     const handleRestoreEvent = inject<() => void>('handleRestoreEvent') || (() => null);
     const showRestore = inject<Ref>('showRestore') || ref(false);
-
-    // 主机标签页需要特殊处理：因为这里的开始\结束时间是从当前 span 数据的开始时间（-1小时）和结束时间（+1小时）去进行提交、而非直接 inject 时间选择器的时间区间。
-    /**
-     * 20230807 注意：目前能打开主机标签页的方式有以下两种方式。
-     * 1. span 列表打开
-     * 2. trace 详情点击瀑布图打开
-     */
-    const timeRange =
-      spanDetailActiveTab.value === 'Host' ? ref([startTimeMinusOneHour, endTimeMinusOneHour]) : useTimeRanceInject();
+    const timeRange = computed(() => {
+      // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
+      return customTimeProvider.value?.length ? customTimeProvider.value : useTimeRanceInject()?.value || [];
+    });
     const timeOffset = useTimeOffsetInject();
     const viewOptions = useViewOptionsInject();
     const options = ref<MonitorEchartOptions>();

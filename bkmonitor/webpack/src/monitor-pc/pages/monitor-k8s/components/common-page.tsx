@@ -560,7 +560,8 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   async initData() {
     this.localSceneType = this.sceneType;
     this.loading = true;
-    this.columns = +localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY) || 2;
+    const storedValue = localStorage.getItem(DASHBOARD_PANEL_COLUMN_KEY);
+    this.columns = storedValue === '0' ? 0 : +storedValue || 2;
     this.filtersReady = false;
     this.selectorReady = false;
     await this.$nextTick();
@@ -1141,9 +1142,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   /** 变量数据请求完毕 */
   handleFilterVarDataReady(list: FilterDictType[]) {
     /** 统计filter参与过滤的数量 */
-    this.filterCount = list.reduce((len, cur) => {
-      Object.entries(cur).every(item => (Array.isArray(item[1]) ? !!item[1].length : item[1] !== '')) && (len += 1);
-      return len;
+    this.filterCount = list.reduce((accumulator, cur) => {
+      const allPropertiesValid = Object.entries(cur).every(([, value]) =>
+        Array.isArray(value) ? value.length > 0 : value !== ''
+      );
+      return allPropertiesValid ? accumulator + 1 : accumulator;
     }, 0);
     this.variables = this.handleGetVariables(list);
     this.handleUpdateViewOptions();
