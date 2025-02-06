@@ -752,7 +752,7 @@ class SearchHandler(object):
             try:
                 data = search_func(params)
                 # 把shards中的failures信息解析后raise异常出来
-                if data["_shards"]["failed"]:
+                if data.get("_shards", {}).get("failed"):
                     errors = data["_shards"]["failures"][0]["reason"]["reason"]
                     raise LogSearchException(errors)
 
