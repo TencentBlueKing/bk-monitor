@@ -20,7 +20,6 @@ class BCSServiceMonitorManager(BCSBaseManager):
 
 
 class BCSServiceMonitor(BCSMonitor):
-
     # 资源复数名
     PLURAL = "ServiceMonitor"
     PLURALS = "servicemonitors"
@@ -42,6 +41,7 @@ class BCSServiceMonitor(BCSMonitor):
 
 
 class BCSServiceMonitorLabels(models.Model):
+    id = models.BigAutoField(primary_key=True)
     resource = models.ForeignKey(BCSServiceMonitor, db_constraint=False, on_delete=models.CASCADE)
     label = models.ForeignKey(BCSLabel, db_constraint=False, on_delete=models.CASCADE)
     bcs_cluster_id = models.CharField(verbose_name="集群ID", max_length=128, db_index=True)
