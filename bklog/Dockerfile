@@ -3,7 +3,7 @@ FROM python:3.6.12 as builder
 RUN apt-get update && apt-get install -y curl vim
 RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - && apt-get install -y nodejs
 
-COPY ./code /app/code
+COPY . /app/code
 
 WORKDIR /app
 
