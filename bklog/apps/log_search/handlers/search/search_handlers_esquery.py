@@ -85,6 +85,7 @@ from apps.log_search.exceptions import (
     BaseSearchSortListException,
     IntegerErrorException,
     IntegerMaxErrorException,
+    LogSearchException,
     MultiSearchErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
@@ -772,9 +773,14 @@ class SearchHandler(object):
         if not storage_cluster_record_objs:
             try:
                 data = search_func(params)
+                # 把shards中的failures信息解析后raise异常出来
+                if data.get("_shards", {}).get("failed"):
+                    errors = data["_shards"]["failures"][0]["reason"]["reason"]
+                    raise LogSearchException(errors)
+
                 return data
-            except ApiResultError as e:
-                raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
+            except Exception as e:
+                raise LogSearchException(LogSearchException.MESSAGE.format(e=e))
 
         storage_cluster_ids = {self.storage_cluster_id}
 
