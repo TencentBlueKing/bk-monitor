@@ -34,12 +34,11 @@ import Vue from 'vue';
 
 import { messageError } from '@/common/bkmagic';
 import { bus } from '@/common/bus';
-import { makeMessage } from '@/common/util';
+import { makeMessage, blobToJson } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
 import { showLoginModal } from '@blueking/login-modal';
 import axios from 'axios';
-
 import { random } from '../common/util';
 import HttpRequst from './_httpRequest';
 import CachedPromise from './cached-promise';
@@ -70,9 +69,9 @@ axiosInstance.interceptors.request.use(
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
     }
     // if (window.__IS_MONITOR_COMPONENT__) {
-      // 监控上层并没有使用 OT 这里直接自己生成traceparent id
-      const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
-      config.headers.Traceparent = traceparent;
+    // 监控上层并没有使用 OT 这里直接自己生成traceparent id
+    const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+    config.headers.Traceparent = traceparent;
     // }
     return config;
   },
@@ -83,38 +82,27 @@ axiosInstance.interceptors.request.use(
  * response interceptor
  */
 axiosInstance.interceptors.response.use(
-  response => {
-    // const traceparent = response.config.headers.Traceparent || response.config.headers.traceparent;
-    // console.log('请求后的 traceparent:', traceparent);
-
+  async response => {
+    const responseCopy = response.data instanceof Blob? await blobToJson(response.data): response.data
+    const traceparent = response.config.headers.Traceparent || response.config.headers.traceparent;
+    const config = initConfig('', '', {headers:{traceparent}});
     new Promise(async (resolve, reject) => {
       try {
-        const config = initConfig('', '', {});
-        handleResponse({ config, response: response.data, resolve, reject });
+        handleResponse({ config, response: responseCopy, resolve, reject });
       } catch (error) {
-        console.error('处理响应时出错:', error);
         return reject(error);
       }
-    }).catch(error => {
-      console.log(error);
-      
-      const config = initConfig('', '', {});
-      // handleReject(error, config);
-      // return Promise.reject(error); // 确保错误被传递下去
+    }).catch(async error => {
+      await handleReject(error, config);
+    }).catch(rejectError => {
+      console.error('处理拒绝时出错:', rejectError);
     });
     return response.data
   },
   error => {
-    console.log('jinlaile');
-    
     const traceparent = error.config && (error.config.headers.Traceparent || error.config.headers.traceparent);
     console.error('请求失败时的 traceparent:', traceparent);
-
-    // 直接调用 handleReject 处理网络错误或其他 Axios 错误
-    const config = initConfig('', '', {});
-    handleReject(error, config);
-
-    return Promise.reject(error);
+    return error
   }
 );
 
@@ -183,16 +171,15 @@ async function getPromise(method, url, data, userConfig = {}) {
     try {
       const axiosRequest = http.$request.request(url, data, config);
       const response = await axiosRequest;
-      // console.log(response);
-      
       Object.assign(config, response.config || {});
       handleResponse({ config, response, resolve, reject });
     } catch (error) {
       Object.assign(config, error.config);
       reject(error);
     }
-  })
-  // .catch(error => handleReject(error, config));
+  }).catch(
+    // error => handleReject(error, config)
+  );
 
   // 添加请求队列
   http.queue.set(config);
