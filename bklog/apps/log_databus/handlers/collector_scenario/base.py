@@ -97,6 +97,20 @@ class CollectorScenario(object):
         """
         raise NotImplementedError()
 
+    @staticmethod
+    def get_unique_field_list(field_list: list, target_fields: list, sort_fields: list):
+        """
+        获取唯一字段列表
+        :param field_list: 字段列表
+        :param target_fields: 定位字段
+        :param sort_fields: 排序字段
+        """
+        if target_fields:
+            field_list.extend(target_fields)
+        if sort_fields:
+            field_list.extend(sort_fields)
+        return sorted(set(field_list))
+
     @classmethod
     def change_data_stream(
         cls, collector_config: CollectorConfig, mq_topic: Optional[str] = None, mq_partition: int = 1

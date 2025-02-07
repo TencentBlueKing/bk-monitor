@@ -33,7 +33,7 @@ class ActionConfigViewSet(viewsets.ModelViewSet):
     queryset = ActionConfig.objects.exclude(plugin_id=ActionConfig.NOTICE_PLUGIN_ID).all()
     serializer_class = serializers.ActionConfigDetailSlz
 
-    filter_fields = {
+    filterset_fields = {
         "plugin_id": ["exact", "in"],
         "name": ["exact", "icontains"],
     }

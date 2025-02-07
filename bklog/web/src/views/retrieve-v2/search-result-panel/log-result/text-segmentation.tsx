@@ -25,6 +25,7 @@
  */
 import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount } from 'vue';
 
+import { isNestedField } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
@@ -99,6 +100,7 @@ export default defineComponent({
     });
 
     const handleMenuClick = event => {
+      console.log('handleMenuClick', event);
       emit('menu-click', event);
     };
 
@@ -191,7 +193,10 @@ export default defineComponent({
       if (getSegmentRenderType() === 'text') {
         let max = Number.MAX_SAFE_INTEGER;
         if (!showAll.value) {
-          max = 4;
+          // max = 4;
+          // pageIndex = 0;
+          // textSegmentIndex = 0;
+          // refSegmentContent.value.innerHTML = '';
         }
         setTextSegmentChildNodes(max);
       }
@@ -237,6 +242,7 @@ export default defineComponent({
       }
 
       if (getSegmentRenderType() === 'text') {
+        refSegmentContent.value.setAttribute('is-nested-value', `${isNestedValue}`);
         setTextSegmentChildNodes(maxLength);
         requestAnimationFrame(() => {
           isMounted = true;
@@ -246,10 +252,44 @@ export default defineComponent({
       textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
     };
 
+    // const isNestedField = (fieldKeys: string[], obj: Record<string, any>) => {
+    //   if (!obj) {
+    //     return false;
+    //   }
+
+    //   if (fieldKeys.length > 1) {
+    //     if (obj[fieldKeys[0]] !== undefined && obj[fieldKeys[0]] !== null) {
+    //       if (typeof obj[fieldKeys[0]] === 'object') {
+    //         if (Array.isArray(obj[fieldKeys[0]])) {
+    //           return true;
+    //         }
+
+    //         return isNestedField(fieldKeys.slice(1), obj[fieldKeys[0]]);
+    //       }
+
+    //       return false;
+    //     }
+
+    //     if (obj[fieldKeys[0]] === undefined) {
+    //       return isNestedField([`${fieldKeys[0]}.${fieldKeys[1]}`, ...fieldKeys.slice(2)], obj);
+    //     }
+    //   }
+
+    //   return false;
+    // };
+
+    let isNestedValue = false; // data-depth
+    const setWordList = () => {
+      const fieldName = props.field.field_name;
+      const fieldKeys = fieldName.split('.');
+      isNestedValue = isNestedField(fieldKeys, props.data);
+
+      wordList = textSegmentInstance.getChildNodes(isNestedValue);
+    };
+
     onBeforeMount(() => {
       isDispose = false;
-      wordList = textSegmentInstance.getChildNodes();
-      formatText.value = textSegmentInstance.formatValue();
+      setWordList();
     });
 
     onMounted(() => {
@@ -280,7 +320,7 @@ export default defineComponent({
           },
         });
 
-        wordList = textSegmentInstance.getChildNodes();
+        setWordList();
         resetMounted();
         setMounted();
       },

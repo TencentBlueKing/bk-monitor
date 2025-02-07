@@ -56,6 +56,7 @@ def get_node_id(server):
 def when_ready(server):
     if os.getenv("DEPLOY_MODE") == "kubernetes":
         return
+
     _ip, _port = get_bind_info(server)
     node_name = "{}-{}".format(node_name_prefix, get_node_id(server))
 

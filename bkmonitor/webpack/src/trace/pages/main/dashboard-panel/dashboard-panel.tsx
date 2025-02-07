@@ -44,6 +44,7 @@ import type { BookMarkModel, IViewOptions } from '../../../plugins/typings';
 
 import './dashboard-panel.scss';
 
+const LAYOUT_COLUMN_KEY = 'trace_span_detail_layout_column_key';
 const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
 const ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
 
@@ -105,7 +106,7 @@ export default defineComponent({
       span_id: spanId.value,
     });
     // 当前选择的图表分列
-    const panelsColumn = ref(1);
+    const panelsColumn = ref(Number(localStorage.getItem(LAYOUT_COLUMN_KEY) || '1'));
     const groupsLoading = ref(false);
 
     useViewOptionsProvider(viewOptions);
@@ -210,6 +211,7 @@ export default defineComponent({
      */
     function handleChangeLayout(val) {
       panelsColumn.value = val;
+      localStorage.setItem(LAYOUT_COLUMN_KEY, String(val));
     }
     /**
      * @description group_by数据

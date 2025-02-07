@@ -383,6 +383,12 @@
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
+            }else{
+              this.$bkMessage({
+                theme: 'error',
+                ellipsisLine: 2,
+                message: res.message,
+              });
             }
           })
           .finally(() => {

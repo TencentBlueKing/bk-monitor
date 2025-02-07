@@ -212,3 +212,11 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
             is_match = is_match and extra_agg_condition_target_obj.is_match(dimensions)
 
         return is_match
+
+    @cached_property
+    def use_aiops_sdk(self):
+        for query_config in self.query_configs:
+            if query_config.get("intelligent_detect") and query_config["intelligent_detect"].get("use_sdk", False):
+                return True
+
+        return False

@@ -714,28 +714,6 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
-  /search_index_set/{index_set_id}/tailf/:
-    post:
-      operationId: search_tailf
-      description: 日志平台-检索-实时日志
-      tags:
-      - 查询
-      x-bk-apigateway-resource:
-        isPublic: true
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: post
-          path: /api/v1/search/index_set/{index_set_id}/tailf/
-          matchSubpath: false
-          timeout: 0
-        pluginConfigs: []
-        authConfig:
-          userVerifiedRequired: false
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
-        descriptionEn:
   /databus_collectors/:
     post:
       operationId: create_databus_collectors
