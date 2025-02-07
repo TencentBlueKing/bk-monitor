@@ -95,15 +95,10 @@ axiosInstance.interceptors.response.use(
     }).catch(async error => {
       await handleReject(error, config);
     }).catch(rejectError => {
-      console.error('处理拒绝时出错:', rejectError);
     });
     return response.data
   },
-  error => {
-    const traceparent = error.config && (error.config.headers.Traceparent || error.config.headers.traceparent);
-    console.error('请求失败时的 traceparent:', traceparent);
-    return error
-  }
+  error => error
 );
 
 const http = {
