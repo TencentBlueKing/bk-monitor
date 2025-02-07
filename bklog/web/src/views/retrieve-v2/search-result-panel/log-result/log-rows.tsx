@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, set } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref } from 'vue';
 
 import {
   parseTableRowData,
@@ -55,7 +55,6 @@ import {
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
-  RowProxyData,
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
@@ -75,8 +74,8 @@ type RowConfig = {
   rowMinHeight?: number;
 };
 
-type RowData = Record<string, any>;
-type ColumnFiled = Record<string, any>;
+// type RowData = Record<string, any>;
+// type ColumnFiled = Record<string, any>;
 
 export default defineComponent({
   props: {
@@ -96,10 +95,10 @@ export default defineComponent({
     // 前端本地分页
     const pageSize = ref(50);
     const isRending = ref(false);
-    const visibleRowLength = ref(50);
+    // const visibleRowLength = ref(50);
 
     const tableRowConfig = new WeakMap();
-    const tableCellCache = new WeakMap<RowData, WeakMap<ColumnFiled, any>>();
+    // const tableCellCache = new WeakMap<RowData, WeakMap<ColumnFiled, any>>();
 
     const renderList = ref([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -141,8 +140,8 @@ export default defineComponent({
       () => totalCount.value > tableList.value.length || pageIndex.value * pageSize.value < totalCount.value,
     );
 
-    const intersectionArgs: Ref<RowProxyData> = ref({});
-    const rowProxy: RowProxyData = {};
+    // const intersectionArgs: Ref<RowProxyData> = ref({});
+    // const rowProxy: RowProxyData = {};
 
     const setRenderList = (length?, next?) => {
       const targetLength = length ?? tableDataSize.value;
@@ -172,77 +171,77 @@ export default defineComponent({
       appendChildNodes();
     };
 
-    const resetRowState = () => {
-      for (let i = 0; i < tableDataSize.value; i++) {
-        const target = intersectionArgs.value[`${i}`];
-        if (target && !target.visible) {
-          rowProxy[`${i}`].mounted = false;
-          set(target, 'mounted', false);
-        }
-      }
-    };
+    // const resetRowState = () => {
+    //   for (let i = 0; i < tableDataSize.value; i++) {
+    //     const target = intersectionArgs.value[`${i}`];
+    //     if (target && !target.visible) {
+    //       rowProxy[`${i}`].mounted = false;
+    //       set(target, 'mounted', false);
+    //     }
+    //   }
+    // };
 
     /**
      * 设置预加载区域
      */
-    const setVisibleIndexSection = () => {
-      const idxs = Object.entries(rowProxy ?? {})
-        .filter(([, v]) => v.visible)
-        .map(([, { rowIndex }]) => rowIndex);
+    // const setVisibleIndexSection = () => {
+    //   const idxs = Object.entries(rowProxy ?? {})
+    //     .filter(([, v]) => v.visible)
+    //     .map(([, { rowIndex }]) => rowIndex);
 
-      const length = idxs.length > 0 ? idxs.length : pageSize.value;
-      const buffer = Math.max(length, 1);
+    //   const length = idxs.length > 0 ? idxs.length : pageSize.value;
+    //   const buffer = Math.max(length, 1);
 
-      const max = Math.max(...idxs, 0) + buffer;
-      const min = idxs.length ? Math.min(...idxs) - buffer : 0;
-      const end = Math.min(max, tableDataSize.value);
-      const start = Math.max(min, 0);
-      visibleRowLength.value = buffer;
-      Object.assign(rowProxy, { start, end });
-    };
+    //   const max = Math.max(...idxs, 0) + buffer;
+    //   const min = idxs.length ? Math.min(...idxs) - buffer : 0;
+    //   const end = Math.min(max, tableDataSize.value);
+    //   const start = Math.max(min, 0);
+    //   visibleRowLength.value = buffer;
+    //   Object.assign(rowProxy, { start, end });
+    // };
 
-    const delayUpdate = () => {
-      setVisibleIndexSection();
-      Object.keys(rowProxy).forEach(key => {
-        set(intersectionArgs.value, key, rowProxy[key]);
-      });
-    };
+    // const delayUpdate = () => {
+    //   setVisibleIndexSection();
+    //   Object.keys(rowProxy).forEach(key => {
+    //     set(intersectionArgs.value, key, rowProxy[key]);
+    //   });
+    // };
 
-    const updateIntersectionArgs = (index, visible?, height?) => {
-      if (height && rowProxy[index]?.mounted === false) {
-        rowProxy[index].mounted = true;
-      }
+    // const updateIntersectionArgs = (index, visible?, height?) => {
+    //   if (height && rowProxy[index]?.mounted === false) {
+    //     rowProxy[index].mounted = true;
+    //   }
 
-      if (!rowProxy[index]) {
-        Object.assign(rowProxy, {
-          [index]: {
-            visible,
-            height,
-            rowIndex: Number(index),
-            mounted: false,
-          },
-        });
-      }
-      Object.assign(rowProxy[index], {
-        visible: visible ?? rowProxy[index].visible,
-        height: height ?? rowProxy[index].height,
-      });
-    };
+    //   if (!rowProxy[index]) {
+    //     Object.assign(rowProxy, {
+    //       [index]: {
+    //         visible,
+    //         height,
+    //         rowIndex: Number(index),
+    //         mounted: false,
+    //       },
+    //     });
+    //   }
+    //   Object.assign(rowProxy[index], {
+    //     visible: visible ?? rowProxy[index].visible,
+    //     height: height ?? rowProxy[index].height,
+    //   });
+    // };
 
-    const intersectionObserver = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          const index = entry.target.getAttribute('data-row-index');
-          updateIntersectionArgs(index, entry.isIntersecting);
-        });
-        delayUpdate();
-      },
-      { threshold: 0.001 },
-    );
+    // const intersectionObserver = new IntersectionObserver(
+    //   entries => {
+    //     entries.forEach(entry => {
+    //       const index = entry.target.getAttribute('data-row-index');
+    //       updateIntersectionArgs(index, entry.isIntersecting);
+    //     });
+    //     delayUpdate();
+    //   },
+    //   { threshold: 0.001 },
+    // );
 
-    provide('intersectionObserver', intersectionObserver);
-    provide('rowProxy', intersectionArgs);
-    provide('tableCellCache', tableCellCache);
+    // provide('intersectionObserver', intersectionObserver);
+    // provide('rowProxy', intersectionArgs);
+    // provide('tableCellCache', tableCellCache);
 
     const searchContainerHeight = ref(52);
 
@@ -619,7 +618,7 @@ export default defineComponent({
 
         setTimeout(() => {
           showCtxType.value = props.contentType;
-          resetRowState();
+          // resetRowState();
           const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
           setRenderList(maxLength, () => {
             isRending.value = false;
@@ -958,7 +957,7 @@ export default defineComponent({
     const renderLoader = () => {
       return (
         <div class={['bklog-requsting-loading']}>
-          <div style={{ width: `${offsetWidth.value}px` }}>{loadingText.value}</div>
+          <div style={{ width: `${offsetWidth.value}px`, minWidth: '100%' }}>{loadingText.value}</div>
         </div>
       );
     };

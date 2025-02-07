@@ -59,24 +59,6 @@ export default defineComponent({
     const fontFamily = 'Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace';
     const store = useStore();
     const { $t } = useLocale();
-    // const tableCellCache: WeakMap<
-    //   object,
-    //   WeakMap<object, Ref<{ showAll: boolean; textBox: fabric.Textbox; pageIndex: number }>>
-    // > = inject('tableCellCache');
-
-    // if (props.data && props.field) {
-    //   if (!tableCellCache.has(props.data)) {
-    //     tableCellCache.set(props.data, new WeakMap());
-    //   }
-
-    //   if (!tableCellCache.get(props.data).has(props.field)) {
-    //     tableCellCache.get(props.data).set(props.field, ref({ showAll: false, textBox: null, pageIndex: 0 }));
-    //   }
-    // }
-
-    // const getCachedValue = (attr: string, defaultValue?: any) => {
-    //   return tableCellCache?.get(props.data)?.get(props.field)?.value?.[attr] ?? defaultValue;
-    // };
 
     let containerWidth = 0;
 
@@ -100,7 +82,6 @@ export default defineComponent({
     });
 
     const handleMenuClick = event => {
-      console.log('handleMenuClick', event);
       emit('menu-click', event);
     };
 
@@ -192,12 +173,6 @@ export default defineComponent({
     const setMoreLines = () => {
       if (getSegmentRenderType() === 'text') {
         let max = Number.MAX_SAFE_INTEGER;
-        if (!showAll.value) {
-          // max = 4;
-          // pageIndex = 0;
-          // textSegmentIndex = 0;
-          // refSegmentContent.value.innerHTML = '';
-        }
         setTextSegmentChildNodes(max);
       }
     };
@@ -252,32 +227,6 @@ export default defineComponent({
       textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
     };
 
-    // const isNestedField = (fieldKeys: string[], obj: Record<string, any>) => {
-    //   if (!obj) {
-    //     return false;
-    //   }
-
-    //   if (fieldKeys.length > 1) {
-    //     if (obj[fieldKeys[0]] !== undefined && obj[fieldKeys[0]] !== null) {
-    //       if (typeof obj[fieldKeys[0]] === 'object') {
-    //         if (Array.isArray(obj[fieldKeys[0]])) {
-    //           return true;
-    //         }
-
-    //         return isNestedField(fieldKeys.slice(1), obj[fieldKeys[0]]);
-    //       }
-
-    //       return false;
-    //     }
-
-    //     if (obj[fieldKeys[0]] === undefined) {
-    //       return isNestedField([`${fieldKeys[0]}.${fieldKeys[1]}`, ...fieldKeys.slice(2)], obj);
-    //     }
-    //   }
-
-    //   return false;
-    // };
-
     let isNestedValue = false; // data-depth
     const setWordList = () => {
       const fieldName = props.field.field_name;
@@ -289,7 +238,8 @@ export default defineComponent({
 
     onBeforeMount(() => {
       isDispose = false;
-      setWordList();
+      wordList = textSegmentInstance.getChildNodes();
+      formatText.value = textSegmentInstance.formatValue();
     });
 
     onMounted(() => {
@@ -299,11 +249,6 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       isDispose = true;
-      // if (tableCellCache?.get(props.data)?.get(props.field)) {
-      //   Object.assign(tableCellCache.get(props.data).get(props.field)?.value, {
-      //     showAll: showAll.value,
-      //   });
-      // }
     });
 
     const resetMounted = () => {
