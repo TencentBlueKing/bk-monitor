@@ -28,9 +28,13 @@ def watch_bkbase_meta_redis_task():
     """
     周期监听 计算平台元数据Redis键变化事件
     """
-
-    bkbase_redis = bkbase_redis_client()
-    watch_bkbase_meta_redis(bkbase_redis, "databus_v4_dataid:*", runtime_limit=86400)
+    logger.info("watch_bkbase_meta_redis_task: Start watching bkbase meta redis")
+    try:
+        bkbase_redis = bkbase_redis_client()
+        key_pattern = f'{settings.BKBASE_REDIS_PATTERN}:*'
+        watch_bkbase_meta_redis(redis_conn=bkbase_redis, key_pattern=key_pattern, runtime_limit=86400)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception("watch_bkbase_meta_redis_task: Error watching bkbase meta redis,error->[%s]", e)
 
 
 def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
@@ -45,7 +49,7 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
     logger.info("watch_bkbase_meta_redis: Start watching Redis for pattern -> [%s]", key_pattern)
 
     # 在任务开始时编译正则表达式,减少正则开销
-    bkbase_pattern = getattr(settings, "BKBASE_PATTERN", "databus_v4_dataid")
+    bkbase_pattern = settings.BKBASE_REDIS_PATTERN
     channel_regex = re.compile(rf"__keyspace@\d+__:{bkbase_pattern}:\d+$")
 
     # 计算任务结束时间
@@ -94,13 +98,13 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
                 sync_bkbase_v4_metadata.delay(key=key)
 
         except redis.exceptions.ConnectionError as e:
-            logger.error("Redis connection error->[%s]", e)
-            logger.info("Retrying connection in 10 seconds...")
+            logger.error("watch_bkbase_meta_redis: Redis connection error->[%s]", e)
+            logger.info("watch_bkbase_meta_redis: Retrying connection in 10 seconds...")
             time.sleep(10)  # 等待 10 秒后尝试重连
 
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("Unexpected error->[%s]", e, exc_info=True)
-            logger.info("Retrying listener in 10 seconds...")
+            logger.error("watch_bkbase_meta_redis: Unexpected error->[%s]", e, exc_info=True)
+            logger.info("watch_bkbase_meta_redis: Retrying listener in 10 seconds...")
             time.sleep(10)  # 等待 10 秒后重试
 
         finally:
@@ -108,6 +112,6 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
                 pubsub.close()  # 确保 pubsub 在异常退出时被正确关闭
                 logger.info("watch_bkbase_meta_redis: Pubsub connection closed.")
             except Exception as close_error:  # pylint: disable=broad-except
-                logger.warning("Failed to close pubsub->[%s]", close_error)
+                logger.warning("watch_bkbase_meta_redis: Failed to close pubsub->[%s]", close_error)
 
     logger.info("watch_bkbase_meta_redis: Task completed after reaching runtime limit.")

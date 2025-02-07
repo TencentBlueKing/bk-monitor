@@ -305,6 +305,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
         ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
         ("DEFAULT_VM_DATA_LINK_NAMESPACE", slz.CharField(label="创建计算平台链路资源所属的命名空间", default="bkmonitor")),
+        ("BKBASE_REDIS_PATTERN", slz.CharField(label="计算平台Redis监听模式", default="databus_v4_dataid")),
         ("ACCESS_DATA_BATCH_PROCESS_THRESHOLD", slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0)),
         ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
