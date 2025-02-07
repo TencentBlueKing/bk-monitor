@@ -27,13 +27,16 @@
 <template>
   <div class="log-filter-container">
     <div class="switcher-container">
-      <bk-switcher v-model="switcherValue" size="large" theme="primary"></bk-switcher>
+      <bk-switcher
+        v-model="switcherValue"
+        size="large"
+        theme="primary"
+        @change="switcherChange"
+      ></bk-switcher>
       <div class="switcher-tips">
         <i class="bk-icon icon-info-circle" />
         <span>
-          {{
-            this.$t("过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本")
-          }}
+          {{ this.$t("该设置可以将采集设备的元数据信息补充至日志中") }}
         </span>
       </div>
     </div>
@@ -42,6 +45,7 @@
         ref="select"
         searchable
         multiple
+        selected-style="checkbox"
         v-model="selectValue"
         :remote-method="remote"
         :display-tag="true"
@@ -50,22 +54,13 @@
         @tab-remove="handleValuesChange"
         @clear="handleClear"
       >
-        <bk-big-tree
-          :data="groupList"
-          show-checkbox
-          class="tree-select"
-          ref="treeRef"
-          :options="treeOption"
-          :default-checked-nodes="selectValue"
-          @check-change="handleCheckChange"
-          :default-expand-all="true"
-          :check-on-click="true"
-          :check-strictly="false"
+        <bk-option
+          v-for="option in groupList"
+          :key="option.field"
+          :id="option.field"
+          :name="`${option.field}(${option.name})`"
         >
-          <div slot-scope="{ node, data }">
-            {{ data.group_name ? ` ${data.field}(${data.name})` : data.name }}
-          </div>
-        </bk-big-tree>
+        </bk-option>
       </bk-select>
     </div>
   </div>
@@ -84,53 +79,31 @@ export default {
       treeOption: {
         idKey: "field",
       },
-      groupList: [
-        {
-          field: 1,
-          name: "host",
-          children: [],
-        },
-        {
-          field: 2,
-          name: "scope",
-          children: [],
-        },
-      ],
+      groupList: [],
     };
   },
   computed: {},
   mounted() {
     this.getDeviceMetaData();
-    if (this.metadata.filter(item => item.key).length) {
+    if (this.metadata.filter((item) => item.key).length) {
       this.switcherValue = true;
     }
   },
   watch: {
     selectValue(val) {
-      this.$refs.treeRef?.setChecked(val, {
-        checked: true,
-      });
-      this.groupList.forEach((item) => {
-        item.children.forEach((option) => {
-          option.isSelected = val.includes(option.id);
-        });
-      });
+      this.emitExtraLabels();
     },
   },
   methods: {
+    switcherChange(val) {
+      if (!val) {
+        this.$emit("extra-labels-change", []);
+      }
+    },
     remote(keyword) {
       this.$refs.treeRef && this.$refs.treeRef.filter(keyword);
     },
-    handleCheckChange(id, checked) {
-      // 过滤最外层选中
-      const list = id.filter((item) => item !== 1 && item !== 2);
-      this.$refs.treeRef.setChecked(list);
-      if (checked.level === 0) {
-        return;
-      }
-      this.selectValue = [...id];
-      this.emitExtraLabels();
-    },
+
     handleValuesChange(options) {
       this.$refs.treeRef &&
         this.$refs.treeRef.setChecked(options.id, { emitEvent: true, checked: false });
@@ -139,16 +112,11 @@ export default {
       this.$refs.treeRef && this.$refs.treeRef.removeChecked({ emitEvent: false });
     },
     emitExtraLabels() {
-      const values = ["host", "scope"];
-      const result = this.groupList.reduce((acc, group, index) => {
-        const value = values[index];
-        const children = group.children.reduce((innerAcc, item) => {
-          if (this.selectValue.includes(item.field)) {
-            innerAcc.push({ key: item.field, value });
-          }
-          return innerAcc;
-        }, []);
-        return acc.concat(children);
+      const result = this.groupList.reduce((accumulator, item) => {
+        if (this.selectValue.includes(item.field)) {
+          accumulator.push({ key: item.field, value: item.key });
+        }
+        return accumulator;
       }, []);
       this.$emit("extra-labels-change", result);
     },
@@ -159,9 +127,18 @@ export default {
           "linkConfiguration/getSearchObjectAttribute"
         );
         const { scope, host } = res.data;
-        this.groupList[0].children = host;
-        this.groupList[1].children = scope;
-        this.$refs.treeRef.setData(this.groupList);
+        this.groupList.push(
+          ...scope.map((item) => {
+            item.key = "scope";
+            return item;
+          })
+        );
+        this.groupList.push(
+          ...host.map((item) => {
+            item.key = "host";
+            return item;
+          })
+        );
         this.selectValue = this.metadata.map((item) => item.key);
       } catch (e) {
         console.warn(e);

@@ -1009,4 +1009,5 @@ export default {
   复制当前查询: 'Copy the current query',
   清理当前查询: 'Clean up the current query',
   收藏当前查询: 'Add current query to favorites',
+  该设置可以将采集设备的元数据信息补充至日志中:'The setting can augment the metadata information of the collection device into the log'
 };
