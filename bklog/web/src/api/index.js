@@ -83,8 +83,39 @@ axiosInstance.interceptors.request.use(
  * response interceptor
  */
 axiosInstance.interceptors.response.use(
-  response => response.data,
-  error => Promise.reject(error),
+  response => {
+    // const traceparent = response.config.headers.Traceparent || response.config.headers.traceparent;
+    // console.log('请求后的 traceparent:', traceparent);
+
+    new Promise(async (resolve, reject) => {
+      try {
+        const config = initConfig('', '', {});
+        handleResponse({ config, response: response.data, resolve, reject });
+      } catch (error) {
+        console.error('处理响应时出错:', error);
+        return reject(error);
+      }
+    }).catch(error => {
+      console.log(error);
+      
+      const config = initConfig('', '', {});
+      // handleReject(error, config);
+      // return Promise.reject(error); // 确保错误被传递下去
+    });
+    return response.data
+  },
+  error => {
+    console.log('jinlaile');
+    
+    const traceparent = error.config && (error.config.headers.Traceparent || error.config.headers.traceparent);
+    console.error('请求失败时的 traceparent:', traceparent);
+
+    // 直接调用 handleReject 处理网络错误或其他 Axios 错误
+    const config = initConfig('', '', {});
+    handleReject(error, config);
+
+    return Promise.reject(error);
+  }
 );
 
 const http = {
@@ -152,13 +183,16 @@ async function getPromise(method, url, data, userConfig = {}) {
     try {
       const axiosRequest = http.$request.request(url, data, config);
       const response = await axiosRequest;
+      // console.log(response);
+      
       Object.assign(config, response.config || {});
       handleResponse({ config, response, resolve, reject });
     } catch (error) {
       Object.assign(config, error.config);
       reject(error);
-      }
-  }).catch(error => handleReject(error, config));
+    }
+  })
+  // .catch(error => handleReject(error, config));
 
   // 添加请求队列
   http.queue.set(config);
