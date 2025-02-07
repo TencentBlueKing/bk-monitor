@@ -218,8 +218,8 @@ export default class FieldItem extends tsc<object> {
       })
       .finally(() => {});
   }
-  getdistinctCount(val) {
-    this.distinctCount = val;
+  getdistinctCount(val){
+    this.distinctCount = val
   }
   retuanFieldName(){
     let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
@@ -237,7 +237,7 @@ export default class FieldItem extends tsc<object> {
         >
           <div>
             {/* 三角符号 */}
-            <div  class={ this.isFieldObject? 'filed-item-object': 'filed-item-triangle' }>
+            <div  class={ this.isFieldObject? 'filed-item-object': 'filed-item-triangle' }> 
             </div>
 
             {/* 字段类型对应的图标 */}
@@ -323,7 +323,7 @@ export default class FieldItem extends tsc<object> {
               </div>
               )
             }
-
+          
             {/* 拖动字段位置按钮 */}
             <div>
               <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />

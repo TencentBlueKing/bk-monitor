@@ -15,7 +15,7 @@
   import IPSelector from './ip-selector';
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   const props = defineProps({
     value: {
       type: Array,
@@ -181,7 +181,8 @@
   const getMatchName = field => {
     if (field === '*') return $t('全文');
     if (field === '_ip-select_') return $t('IP目标');
-    return field;
+    const { getFieldName } = useFieldNameHook({ store });
+    return getFieldName(field);
   };
 
   const emitChange = value => {
