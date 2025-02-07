@@ -775,7 +775,7 @@ export default class App extends tsc<object> {
               slot='header'
             >
               <div class='header-list'>
-                {process.env.APP !== 'external' && this.$route.name !== 'home' && this.commonHeader()}
+                {/* {process.env.APP !== 'external' && this.$route.name !== 'home' && this.commonHeader()} */}
                 {this.routeList.map(
                   ({ id, route, name }, index) =>
                     this.routeList.length - index > this.hideNavCount && (

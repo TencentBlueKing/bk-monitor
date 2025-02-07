@@ -27,6 +27,7 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
+import { random } from 'monitor-common/utils/utils';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
 import { highLightContent, ESearchType, ESearchPopoverType } from '../utils';
@@ -51,11 +52,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   searchType = '';
   showPopover = false;
   routeList: IRouteItem[] = [];
-  /** 策略可跳转列表 */
-  operatorList = [
-    { name: this.$t('关联的告警'), key: 'strategy-alarm' },
-    { name: this.$t('关联的屏蔽配置'), key: 'alarm-shield' },
-  ];
+  /** 策略/集群可跳转列表 */
+  operatorList = {
+    strategy: [
+      { name: this.$t('关联的告警'), key: 'strategy-alarm' },
+      { name: this.$t('关联的屏蔽配置'), key: 'alarm-shield' },
+    ],
+    bcs_cluster: [{ name: this.$t('集群管理'), key: 'bsc-detail' }],
+  };
   isLoading = false;
   /** 高亮选中的index, 第一个表示组的下标，第二个表示items的下标 */
   highlightedIndex: number[] = [-1, -1];
@@ -140,7 +144,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.highlightedItem = null;
     this.isLoading = true;
     try {
-      const response = await fetch(url, { signal });
+      const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+      const response = await fetch(url, {
+        method: 'GET',
+        signal,
+        headers: {
+          traceparent,
+        },
+      });
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
@@ -224,13 +235,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
 
   /** 获取搜索结果 */
   getSearchList() {
-    this.isLoading = true;
     this.fetchEventStream(`${location.origin}/rest/v2/overview/search/?query=${this.searchValue}`);
   }
   /* 显示弹出层 */
   handleMousedown() {
     this.showPopover = true;
-    this.localHistoryList = JSON.parse(localStorage.getItem(storageKey)) || [];
+    this.localHistoryList = JSON.parse(localStorage.getItem(storageKey)).slice(0, 10) || [];
   }
   /** 关联的屏蔽策略/关联的告警  */
   handleOperator(e: Event, item: ISearchItem, key: string) {
@@ -248,6 +258,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   renderGroupItem(item: ISearchItem, type: string, parentInd: number, ind: number) {
     const isHost = type === ESearchType.host;
     const isStrategy = type === ESearchType.strategy;
+    const isBcsCluster = type === ESearchType.bcs_cluster;
     return (
       <div
         class={[
@@ -262,10 +273,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         <span class='item-label'>
           <span domPropsInnerHTML={item.nameSearch}></span>
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
+          {isBcsCluster && <span class='ip-sub'>（{item.bcs_cluster_id}）</span>}
         </span>
-        {isStrategy && (
+        {(isStrategy || isBcsCluster) && (
           <span class='item-operator'>
-            {this.operatorList.map(operator => (
+            {this.operatorList[type].map(operator => (
               <span
                 key={operator.key}
                 class='item-operator-item'
@@ -292,7 +304,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         ]}
         onClick={e => this.handleClickHistoryItem(e, item)}
       >
-        <i class='icon-monitor icon-lishijilu item-icon'></i>
+        <i class='icon-monitor icon-History item-icon'></i>
         <span class='history-item-name'>{item.name}</span>
       </div>
     );
@@ -307,6 +319,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 获取搜索结果 */
   handleGetSearchData() {
+    this.isLoading = true;
     this.searchValue && this.getSearchList();
   }
   /** 跳转到具体的功能 */
@@ -322,7 +335,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     return (
       <div class='secondary-list'>
         <span class='new-home-select-item-title'>
-          {this.$t('相关功能')} ( {this.searchRouteList.length} )
+          {this.$t('相关功能')}（{this.searchRouteList.length}）
         </span>
         <div class='new-home-select-router-list'>
           {(this.searchRouteList || [])
@@ -388,7 +401,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       return (
         <div key={item.name}>
           <span class='new-home-select-item-title'>
-            {item.name} ( {item.items.length} )
+            {item.name}（{item.items.length}）
           </span>
           {data.map((child, key) => this.renderGroupItem(child, item.type, ind, key))}
         </div>
@@ -401,7 +414,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     e.stopPropagation();
     this.searchList = [];
     this.handleResetData();
-    this.textareaInputRef.style.height = '52px';
+    this.textareaInputRef.style.height = '48px';
   }
   /** 重置相关的数据 */
   handleResetData() {
@@ -412,7 +425,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   /** 溢出动态展示输入框高度 */
   autoResize(event?: Event) {
-    !this.isComposing && this.handleGetSearchData();
+    !this.isComposing && setTimeout(this.handleGetSearchData, 500);
     this.isInput = !!event?.target?.value;
     this.textareaInputRef.style.height = 'auto';
     this.textareaInputRef.style.height = `${this.textareaInputRef.scrollHeight}px`;
@@ -621,12 +634,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       return (
         <div class='new-home-select-popover-content'>
           <div class='item-list-title'>
-            <span>{this.$t('历史搜索')}</span>
+            <span>
+              {this.$t('搜索历史')}（{this.localHistoryList.length}）
+            </span>
             <span
               class='item-list-clear'
               onClick={this.clearHistory}
             >
-              <i class='icon-monitor icon-mc-clear'></i>
+              <i class='icon-monitor icon-a-Clearqingkong history-clear-icon'></i>
               {this.$t('清空历史')}
             </span>
           </div>
@@ -654,12 +669,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
           type='search-empty'
         >
           <span>
-            {this.$t('当前输入条件无匹配结果，请清空后重新输入')}
+            {this.$t('检索结果为空，请重新输入关键词')}
             <label
               class='empty-clear-btn'
               onClick={this.clearInput}
             >
-              {this.$t('清空搜索')}
+              {this.$t('清空检索')}
             </label>
           </span>
         </bk-exception>
@@ -668,12 +683,19 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     return (
       <div class='new-home-select-popover-content'>
         <div class='item-list'>
-          {this.renderGroupList()}
-          {this.isLoading && (
-            <div
-              class='loading-view mt30'
-              v-bkloading={{ isLoading: this.isLoading, size: 'small' }}
-            ></div>
+          {this.isLoading ? (
+            <div class='skeleton-loading'>
+              {Array(6)
+                .fill(null)
+                .map((_, index) => (
+                  <div
+                    key={index}
+                    class='skeleton-element'
+                  />
+                ))}
+            </div>
+          ) : (
+            this.renderGroupList()
           )}
           {this.renderRouteAndWord()}
         </div>
@@ -689,7 +711,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
           style={{ width: `${this.computedWidth}px` }}
           class='new-home-select-input'
         >
-          <span class='new-home-select-icon'></span>
+          <span class='icon-monitor new-home-select-icon icon-mc-search'></span>
           <textarea
             ref='textareaInput'
             class='home-select-input'
