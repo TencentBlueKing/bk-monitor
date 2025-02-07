@@ -919,7 +919,7 @@ def sync_bkbase_v4_metadata(key):
             logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
 
     # 处理 ES 信息
-    es_info = bkbase_metadata.get('es')
+    es_info = bkbase_metadata.get('es')[0]
     if es_info:
         with transaction.atomic():  # 单独事务
             logger.info(

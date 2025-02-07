@@ -10,31 +10,73 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 import re
+import threading
 import time
 from datetime import datetime, timedelta
 
 import redis
 from django.conf import settings
 
-from alarm_backends.core.lock.service_lock import share_lock
 from metadata.task.tasks import sync_bkbase_v4_metadata
-from metadata.utils.redis_tools import bkbase_redis_client
+from metadata.tools.redis_lock import DistributedLock
+from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 
 logger = logging.getLogger("metadata")
 
 
-@share_lock(ttl=86400, identify="watch_bkbase_meta_redis_task")
 def watch_bkbase_meta_redis_task():
     """
-    周期监听 计算平台元数据Redis键变化事件
+    任务入口 计算平台元数据Redis键变化事件
     """
     logger.info("watch_bkbase_meta_redis_task: Start watching bkbase meta redis")
+
+    # 初始化分布式锁
+    bkm_redis_client = RedisTools.metadata_redis_client
+    lock = DistributedLock(
+        redis_client=bkm_redis_client,
+        lock_name=settings.BKBASE_REDIS_LOCK_NAME,
+        timeout=settings.BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS,
+    )
+
+    if not lock.acquire():
+        logger.info("watch_bkbase_meta_redis_task: Lock is held by another instance. Exiting.")
+        return
+
+    # 创建停止事件
+    stop_event = threading.Event()
+
     try:
         bkbase_redis = bkbase_redis_client()
         key_pattern = f'{settings.BKBASE_REDIS_PATTERN}:*'
-        watch_bkbase_meta_redis(redis_conn=bkbase_redis, key_pattern=key_pattern, runtime_limit=86400)
+        runtime_limit = settings.BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS  # 任务运行时间限制为一天
+
+        # 启动锁续约线程
+        def renew_lock():
+            while not stop_event.is_set():
+                lock.renew()
+                logger.info("watch_bkbase_meta_redis_task: Lock is being renewed...")
+                time.sleep(settings.BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS)  # 每15秒续约一次锁
+
+        # 启动守护线程进行锁续约
+        renew_thread = threading.Thread(target=renew_lock)
+        renew_thread.daemon = True  # 设置为守护线程
+        renew_thread.start()
+
+        # 执行watch_bkbase_meta_redis并在过程中进行续约
+        watch_bkbase_meta_redis(
+            redis_conn=bkbase_redis,
+            key_pattern=key_pattern,
+            runtime_limit=runtime_limit,
+        )
+
     except Exception as e:  # pylint: disable=broad-except
-        logger.exception("watch_bkbase_meta_redis_task: Error watching bkbase meta redis,error->[%s]", e)
+        logger.exception("watch_bkbase_meta_redis_task: Error watching bkbase meta redis, error->[%s]", e)
+
+    finally:
+        # 确保在任务完成后释放锁
+        stop_event.set()  # 设置停止事件来终止守护线程
+        lock.release()  # 释放锁
+        logger.info("Lock released successfully.")
 
 
 def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
@@ -63,7 +105,7 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
             pubsub.psubscribe(keyspace_channel)  # 监听特定模式的键事件
             logger.info("watch_bkbase_meta_redis: Subscribed to Redis channel -> [%s]", keyspace_channel)
 
-            # 开始监听消息
+            # 监听消息
             for message in pubsub.listen():
                 if datetime.now() >= end_time:  # 超出运行时间，退出监听
                     logger.info("watch_bkbase_meta_redis: Runtime limit reached, stopping listener.")
@@ -100,12 +142,12 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
         except redis.exceptions.ConnectionError as e:
             logger.error("watch_bkbase_meta_redis: Redis connection error->[%s]", e)
             logger.info("watch_bkbase_meta_redis: Retrying connection in 10 seconds...")
-            time.sleep(10)  # 等待 10 秒后尝试重连
+            time.sleep(settings.BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS)  # 等待x秒后尝试重连
 
         except Exception as e:  # pylint: disable=broad-except
             logger.error("watch_bkbase_meta_redis: Unexpected error->[%s]", e, exc_info=True)
             logger.info("watch_bkbase_meta_redis: Retrying listener in 10 seconds...")
-            time.sleep(10)  # 等待 10 秒后重试
+            time.sleep(settings.BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS)  # 等待x秒后重试
 
         finally:
             try:

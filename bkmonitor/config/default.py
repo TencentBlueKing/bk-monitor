@@ -1390,7 +1390,19 @@ ENABLE_V2_BKDATA_GSE_RESOURCE = False
 ENABLE_V2_VM_DATA_LINK = False
 ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
+# 计算平台&监控平台数据一致性Redis相关配置
+# 计算平台Redis监听模式
 BKBASE_REDIS_PATTERN = "databus_v4_dataid"
+# Redis Watch锁续约间隔(秒)
+BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS = 15
+# 计算平台Redis Watch锁过期时间(秒)
+BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS = 60
+# 单个任务最长执行时间(秒),默认一天
+BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS = 86400
+# 重连等待间隔时间(秒)
+BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
+# Redis默认锁名称
+BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 
 # 是否启用新版方式接入计算平台
 ENABLE_V2_ACCESS_BKBASE_METHOD = False

@@ -258,7 +258,7 @@ DEFAULT_CRONTAB += [
     # 关联协议数据同步--cmdb_relation
     ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
     # 计算平台元数据一致性 Redis Watch
-    ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "0 0 * * *", "global"),
+    ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [
