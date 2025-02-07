@@ -126,6 +126,9 @@ class DateHistogramSerializer(TraceSearchAttrSerializer):
     fields = serializers.ListField(child=DateHistogramFieldSerializer(), required=False, default=[])
     interval = serializers.CharField(required=False, default="auto", max_length=16)
 
+    # 自定义索引列表 Eg. -> "2_bklog.0001,2_bklog.0002"
+    custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+
 
 class UnionSearchDateHistogramSerializer(DateHistogramSerializer):
     index_set_ids = serializers.ListField(

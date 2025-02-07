@@ -74,7 +74,7 @@ def get_viewset(model, read_only=True):
         {
             "queryset": model.objects.all(),
             "serializer_class": getattr(serializers, serializer_name),
-            "filter_class": getattr(filtersets, filterset_name),
+            "filterset_class": getattr(filtersets, filterset_name),
             "ordering_fields": "__all__",
         },
     )
@@ -92,7 +92,7 @@ class UserConfigViewSet(NestedRouterMixin, viewsets.ModelViewSet):
     ordering_fields = "__all__"
     queryset = app_models.UserConfig.objects.all()
     serializer_class = serializers.UserConfigSerializer
-    filter_class = filtersets.UserConfigFilterSet
+    filterset_class = filtersets.UserConfigFilterSet
 
     def create(self, request, *args, **kwargs):
         mutable = request.POST._mutable

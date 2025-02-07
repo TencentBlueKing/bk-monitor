@@ -1417,6 +1417,8 @@ class Item(AbstractConfig):
         query_configs = serializers.ListField(allow_empty=False)
         algorithms = Algorithm.Serializer(many=True)
         metric_type = serializers.CharField(allow_blank=True, default="")
+        # 目前只允许后台修改
+        # time_delay = serializers.IntegerField(default=0)
 
     def __init__(
         self,
@@ -1432,6 +1434,7 @@ class Item(AbstractConfig):
         algorithms: List[Dict] = None,
         metric_type: str = "",
         instance: ItemModel = None,
+        time_delay: int = None,
         **kwargs,
     ):
         self.functions = functions or []
@@ -1445,6 +1448,7 @@ class Item(AbstractConfig):
         self.strategy_id = strategy_id
         self.id = id
         self.instance = instance
+        self.time_delay = time_delay
 
         if metric_type:
             self.metric_type = metric_type
@@ -1497,6 +1501,7 @@ class Item(AbstractConfig):
             "query_configs": [query_config.to_dict() for query_config in self.query_configs],
             "algorithms": [algorithm.to_dict() for algorithm in self.algorithms],
             "metric_type": metric_type,
+            "time_delay": self.time_delay,
         }
 
     def to_unify_query_config(self):
@@ -1591,6 +1596,7 @@ class Item(AbstractConfig):
                 item.functions = self.functions
                 item.origin_sql = self.origin_sql
                 item.metric_type = self.metric_type
+                item.time_delay = self.time_delay if self.time_delay else item.time_delay
                 item.save()
             else:
                 item = self._create()
@@ -1626,6 +1632,7 @@ class Item(AbstractConfig):
                 target=item.target,
                 metric_type=item.metric_type,
                 instance=item,
+                time_delay=item.time_delay,
             )
             record.algorithms = Algorithm.from_models(algorithms[item.id])
             record.query_configs = QueryConfig.from_models(query_configs[item.id])

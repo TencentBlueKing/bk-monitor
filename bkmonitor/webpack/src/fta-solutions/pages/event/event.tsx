@@ -129,7 +129,7 @@ const allActionFieldList = [
   'strategy_name',
   'operate_target_string',
 ];
-const allIncidentFieldList = ['incident_name', 'status', 'level', 'assignees', 'handlers', 'labels'];
+const allIncidentFieldList = ['status', 'level', 'assignees', 'handlers', 'labels'];
 const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 export const commonAlertFieldMap = {
   status: [
