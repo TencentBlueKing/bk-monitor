@@ -167,20 +167,37 @@ export class FilterByOptions {
   }
 
   queryStringParams(dimension: EDimensionKey, categoryDim?: string) {
+    const dimensionIndex = [
+      EDimensionKey.namespace,
+      EDimensionKey.workload,
+      EDimensionKey.pod,
+      EDimensionKey.container,
+    ];
+    const filterDict = {};
+    for (const key of dimensionIndex) {
+      if (key === dimension) {
+        break;
+      }
+      if (this.commonParams.filter_dict?.[key]?.length) {
+        filterDict[key] = this.commonParams.filter_dict[key];
+      }
+    }
     if (this.commonParams.query_string) {
       return {
         query_string: this.commonParams.query_string,
-        filter_dict:
-          dimension === EDimensionKey.workload && categoryDim
+        filter_dict: {
+          ...filterDict,
+          ...(dimension === EDimensionKey.workload && categoryDim
             ? {
                 [EDimensionKey.workload]: `${categoryDim}:`,
               }
-            : {},
+            : {}),
+        },
       };
     }
     return {
       query_string: dimension === EDimensionKey.workload && categoryDim ? `${categoryDim}:` : '',
-      filter_dict: {},
+      filter_dict: filterDict,
     };
   }
 
@@ -257,7 +274,10 @@ export class FilterByOptions {
     this.pageMap[dimension] = page;
   }
   async setWorkloadOverview(params: any) {
-    const data = await workloadOverview(params).catch(() => []);
+    const data = await workloadOverview({
+      ...params,
+      namespace: this.commonParams?.filter_dict?.namespace?.join?.(',') || undefined,
+    }).catch(() => []);
     for (const dim of this.dimensionData) {
       if (dim.id === EDimensionKey.workload) {
         let total = 0;

@@ -243,6 +243,31 @@ export default class K8SCharts extends tsc<
   }
   createCommonPromqlContent(onlyNameSpace = false, needExcludePod = true) {
     let content = `bcs_cluster_id="${this.filterCommonParams.bcs_cluster_id}"`;
+    if (this.isDetailMode) {
+      for (const key in this.filterCommonParams?.filter_dict as any) {
+        const values = this.filterCommonParams.filter_dict[key];
+        if (key === K8sTableColumnKeysEnum.NAMESPACE) {
+          content += `,namespace=~"^(${values.join('|')})$"`;
+        }
+        if (key === K8sTableColumnKeysEnum.WORKLOAD) {
+          const workloads = values.map(item => {
+            const [kind, name] = item.split(':');
+            return {
+              kind,
+              name,
+            };
+          });
+          content += `,workload_kind=~"^(${workloads.map(item => item.kind).join('|')})$",workload_name=~"^(${workloads.map(item => item.name).join('|')})$"`;
+        }
+        if (key === K8sTableColumnKeysEnum.POD) {
+          content += `,pod_name=~"^(${values.join('|')})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
+        }
+        if (key === K8sTableColumnKeysEnum.CONTAINER) {
+          content += `,container_name=~"^(${values.join('|')})$"`;
+        }
+      }
+      return content;
+    }
     const namespace = this.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE) || '';
     if (onlyNameSpace) {
       content += `,namespace=~"^(${namespace})$"`;
@@ -426,6 +451,7 @@ export default class K8SCharts extends tsc<
               return data.items;
             })
             .catch(() => []);
+      console.log(data);
       if (data.length) {
         const container = new Set<string>();
         const pod = new Set<string>();

@@ -113,11 +113,17 @@ export default class FilterByCondition extends tsc<IProps> {
       return;
     }
     this.loading = true;
+    const filterDict = {};
+    for (const key in this.filterBy) {
+      if (this.filterBy[key]?.length) {
+        filterDict[key] = JSON.parse(JSON.stringify(this.filterBy[key]));
+      }
+    }
     this.filterByOptions = new FilterByOptions({
       ...this.commonParams,
       page_size: 10,
       page_type: 'scrolling',
-      filter_dict: {},
+      filter_dict: filterDict,
       with_history: false,
       query_string: this.searchValue,
     });
@@ -195,6 +201,9 @@ export default class FilterByCondition extends tsc<IProps> {
         filterDict[item.key] = item.value;
       }
       this.$emit('change', filterDict);
+      this.filterByOptions.setCommonParams({
+        filter_dict: filterDict,
+      });
     }
     this.oldLocalFilterBy = JSON.parse(JSON.stringify(filterBy));
   }
