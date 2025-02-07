@@ -626,9 +626,8 @@ class UnifyQueryHandler(object):
             self.search_params["size"] = MAX_RESULT_WINDOW
 
         # 参数补充
-        for query in search_dict["query_list"]:
-            query["from"] = self.search_params["begin"]
-            query["limit"] = once_size
+        search_dict["from"] = self.search_params["begin"]
+        search_dict["limit"] = self.search_params["size"]
 
         result = UnifyQueryApi.query_ts_raw(search_dict)
         result = self._deal_query_result(result)
