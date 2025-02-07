@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount } from 'vue';
+import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, inject } from 'vue';
 
 import { isNestedField } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -59,6 +59,11 @@ export default defineComponent({
     const fontFamily = 'Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace';
     const store = useStore();
     const { $t } = useLocale();
+
+    const wheelTrigger: Ref<{ isWheeling: boolean; id: string }> = inject(
+      'wheelTrigger',
+      ref({ isWheeling: false, id: '' }),
+    );
 
     let containerWidth = 0;
 
@@ -342,6 +347,7 @@ export default defineComponent({
               'is-inline': !isWrap.value,
               'is-show-long': isLimitExpandView.value,
               'is-expand-all': showAll.value,
+              'is-wheeling': wheelTrigger.value.isWheeling,
             },
           ]}
         >

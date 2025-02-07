@@ -437,8 +437,16 @@ export default ({ onSegmentClick }) => {
           }
 
           if (item.left === undefined && item.top === undefined) {
-            const box = getTempText();
-            const width = box.width(item.text);
+            const isWrap = /^(\n|\r)$/.test(item.text);
+            const isEmpty = /^\t$/.test(item.text);
+
+            let width = 0;
+
+            if (!isWrap) {
+              const box = getTempText();
+              width = box.width(item.text);
+            }
+
             const line = Math.floor(left / boxWidth);
 
             Object.assign(item, {
@@ -449,10 +457,20 @@ export default ({ onSegmentClick }) => {
             });
 
             left = left + width;
+
+            if (isWrap && item.left > 0) {
+              left = left + boxWidth - item.left;
+            }
+
+            if (isEmpty) {
+              left = left - width;
+              item.width = 0;
+            }
+
             const nextLine = Math.floor(left / boxWidth);
 
             // 分词在换行被截断
-            if (nextLine > line) {
+            if (nextLine > line && item.width > 0) {
               if (item.text?.length) {
                 const diffWidth = left % boxWidth;
                 const [leftText, rightText] = getWrapText(item.text, width - diffWidth);
@@ -691,6 +709,7 @@ export default ({ onSegmentClick }) => {
     setHighlightWords,
     initKonvaInstance,
     computeWordListPosition,
+    updateContainerBounds,
     resetWordList,
     initLayer,
   };

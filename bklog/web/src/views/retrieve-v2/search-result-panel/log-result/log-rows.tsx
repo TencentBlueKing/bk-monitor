@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide } from 'vue';
 
 import {
   parseTableRowData,
@@ -40,7 +40,7 @@ import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
-import { uniqueId } from 'lodash';
+import { uniqueId, debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import ExpandView from '../original-log/expand-view.vue';
@@ -50,6 +50,7 @@ import LogCell from './log-cell';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
+  ROW_F_JSON,
   ROW_F_ORIGIN_CTX,
   ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
@@ -95,10 +96,11 @@ export default defineComponent({
     // 前端本地分页
     const pageSize = ref(50);
     const isRending = ref(false);
-    // const visibleRowLength = ref(50);
 
     const tableRowConfig = new WeakMap();
-    // const tableCellCache = new WeakMap<RowData, WeakMap<ColumnFiled, any>>();
+
+    const wheelTrigger = ref({ isWheeling: false, id: '' });
+    provide('wheelTrigger', wheelTrigger);
 
     const renderList = ref([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -140,10 +142,7 @@ export default defineComponent({
       () => totalCount.value > tableList.value.length || pageIndex.value * pageSize.value < totalCount.value,
     );
 
-    // const intersectionArgs: Ref<RowProxyData> = ref({});
-    // const rowProxy: RowProxyData = {};
-
-    const setRenderList = (length?, next?) => {
+    const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
       const inteval = 50;
 
@@ -157,91 +156,41 @@ export default defineComponent({
             ...new Array(stepLength).fill('').map((_, i) => {
               const index = i + startIndex + 1;
               const row = tableList.value[index];
-              return { item: row, [ROW_KEY]: `${row.dtEventTimeStamp}_${index}` };
+              return {
+                item: row,
+                [ROW_KEY]: `${row.dtEventTimeStamp}_${index}`,
+              };
             }),
           );
           appendChildNodes();
-
           return;
         }
-
-        next?.();
       };
 
       appendChildNodes();
     };
 
-    // const resetRowState = () => {
-    //   for (let i = 0; i < tableDataSize.value; i++) {
-    //     const target = intersectionArgs.value[`${i}`];
-    //     if (target && !target.visible) {
-    //       rowProxy[`${i}`].mounted = false;
-    //       set(target, 'mounted', false);
-    //     }
-    //   }
-    // };
-
     /**
-     * 设置预加载区域
+     * 分步更新行属性
+     * 主要是是否Json格式化
+     * @param startIndex
      */
-    // const setVisibleIndexSection = () => {
-    //   const idxs = Object.entries(rowProxy ?? {})
-    //     .filter(([, v]) => v.visible)
-    //     .map(([, { rowIndex }]) => rowIndex);
+    const stepUpdateRowProp = (startIndex = 0, formatJson = false) => {
+      const inteval = 50;
+      const endIndex = startIndex + inteval;
 
-    //   const length = idxs.length > 0 ? idxs.length : pageSize.value;
-    //   const buffer = Math.max(length, 1);
+      for (let i = startIndex; i < endIndex; i++) {
+        if (i < tableList.value.length) {
+          const row = tableList.value[i];
+          const config = tableRowConfig.get(row);
+          config.value[ROW_F_JSON] = formatJson;
+        }
+      }
 
-    //   const max = Math.max(...idxs, 0) + buffer;
-    //   const min = idxs.length ? Math.min(...idxs) - buffer : 0;
-    //   const end = Math.min(max, tableDataSize.value);
-    //   const start = Math.max(min, 0);
-    //   visibleRowLength.value = buffer;
-    //   Object.assign(rowProxy, { start, end });
-    // };
-
-    // const delayUpdate = () => {
-    //   setVisibleIndexSection();
-    //   Object.keys(rowProxy).forEach(key => {
-    //     set(intersectionArgs.value, key, rowProxy[key]);
-    //   });
-    // };
-
-    // const updateIntersectionArgs = (index, visible?, height?) => {
-    //   if (height && rowProxy[index]?.mounted === false) {
-    //     rowProxy[index].mounted = true;
-    //   }
-
-    //   if (!rowProxy[index]) {
-    //     Object.assign(rowProxy, {
-    //       [index]: {
-    //         visible,
-    //         height,
-    //         rowIndex: Number(index),
-    //         mounted: false,
-    //       },
-    //     });
-    //   }
-    //   Object.assign(rowProxy[index], {
-    //     visible: visible ?? rowProxy[index].visible,
-    //     height: height ?? rowProxy[index].height,
-    //   });
-    // };
-
-    // const intersectionObserver = new IntersectionObserver(
-    //   entries => {
-    //     entries.forEach(entry => {
-    //       const index = entry.target.getAttribute('data-row-index');
-    //       updateIntersectionArgs(index, entry.isIntersecting);
-    //     });
-    //     delayUpdate();
-    //   },
-    //   { threshold: 0.001 },
-    // );
-
-    // provide('intersectionObserver', intersectionObserver);
-    // provide('rowProxy', intersectionArgs);
-    // provide('tableCellCache', tableCellCache);
+      if (endIndex < tableList.value.length) {
+        requestAnimationFrame(() => stepUpdateRowProp(endIndex, formatJson));
+      }
+    };
 
     const searchContainerHeight = ref(52);
 
@@ -298,11 +247,13 @@ export default defineComponent({
         align: 'top',
         resize: true,
         renderBodyCell: ({ row }) => {
+          const config: RowConfig = tableRowConfig.get(row).value;
           return (
             // @ts-ignore
             <TableColumn
               content={getTableColumnContent(row, field)}
               field={field}
+              formatJson={config[ROW_F_JSON]}
               row={row}
               onIcon-click={(type, content, isLink, depth, isNestedField) =>
                 handleIconClick(type, content, field, row, isLink, depth, isNestedField)
@@ -549,13 +500,10 @@ export default defineComponent({
     };
 
     const getRowConfigWithCache = () => {
-      return [
-        ['expand', false],
-        ['isIntersect', true],
-        ['minHeight', 40],
-        ['rowMinHeight', 40],
-        ['stickyTop', 0],
-      ].reduce((cfg, item: [keyof RowConfig, any]) => Object.assign(cfg, { [item[0]]: item[1] }), {});
+      return [['expand', false]].reduce(
+        (cfg, item: [keyof RowConfig, any]) => Object.assign(cfg, { [item[0]]: item[1] }),
+        {},
+      );
     };
 
     const updateTableRowConfig = (nextIdx = 0) => {
@@ -568,6 +516,7 @@ export default defineComponent({
             ref({
               [ROW_KEY]: rowKey,
               [ROW_INDEX]: index,
+              [ROW_F_JSON]: formatJson.value,
               ...getRowConfigWithCache(),
             }),
           );
@@ -612,20 +561,10 @@ export default defineComponent({
       () => {
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
-        isRending.value = true;
-        renderList.value = [];
-        pageIndex.value = 1;
 
-        setTimeout(() => {
-          showCtxType.value = props.contentType;
-          // resetRowState();
-          const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-          setRenderList(maxLength, () => {
-            isRending.value = false;
-          });
-
-          computeRect();
-        });
+        showCtxType.value = props.contentType;
+        stepUpdateRowProp(0, formatJson.value);
+        computeRect();
       },
     );
 
@@ -670,9 +609,8 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
-        setRenderList(null, () => {
-          debounceSetLoading();
-        });
+        setRenderList(null);
+        debounceSetLoading();
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
       {
@@ -729,7 +667,8 @@ export default defineComponent({
         isRequesting.value = true;
         pageIndex.value++;
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-        setRenderList(maxLength, debounceSetLoading);
+        setRenderList(maxLength);
+        debounceSetLoading();
         return;
       }
 
@@ -781,10 +720,18 @@ export default defineComponent({
       return offsetWidth.value < scrollWidth.value;
     });
 
+    const debounceSetWheel = debounce(() => {
+      wheelTrigger.value.isWheeling = false;
+    }, 300);
+
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
         const maxOffset = scrollWidth.value - offsetWidth.value;
+        wheelTrigger.value.isWheeling = true;
+        wheelTrigger.value.id = uniqueId();
+
+        debounceSetWheel();
 
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();

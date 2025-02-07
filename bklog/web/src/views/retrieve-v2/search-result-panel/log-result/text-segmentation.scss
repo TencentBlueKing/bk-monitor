@@ -16,8 +16,15 @@
   word-break: break-all;
   white-space: pre-line;
 
+  &.is-wheeling {
+    .canvas-konva-front {
+      pointer-events: all;
+    }
+  }
+
   .static-text {
     position: relative;
+    width: 100%;
     line-height: 20px;
     cursor: pointer;
   }
