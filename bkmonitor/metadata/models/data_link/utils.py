@@ -57,6 +57,7 @@ def clean_redundant_underscores(table_id: str) -> str:
     """
     while '__' in table_id:
         table_id = table_id.replace('__', '_')
+    table_id = table_id.rstrip('_')
     return table_id
 
 
@@ -84,9 +85,6 @@ def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
     else:
         table_id = f'bkm_{table_id}'
 
-    # 确保不会出现连续的下划线
-    table_id = clean_redundant_underscores(table_id)
-
     # 计算哈希值, 采用 hash 方式确保 table_id 唯一
     hash_suffix = hashlib.md5(table_id.encode()).hexdigest()[:5]
 
@@ -99,6 +97,8 @@ def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
         table_id = f"{table_id[:base_length]}_{hash_suffix}{suffix}"
     else:
         table_id = f"{table_id}{suffix}"
+
+    table_id = clean_redundant_underscores(table_id)
 
     return table_id
 

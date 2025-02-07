@@ -414,3 +414,40 @@ class QueryDataLinkInfoResource(Resource):
                 continue
 
         return space_to_result_table_router_infos
+
+
+class QueryDataIdsByBizIdResource(Resource):
+    """
+    根据业务ID查询其下所有数据源ID
+    @param bk_biz_id 业务ID
+    @return [{'bk_data_id': 123, 'monitor_table_id': 'xxx', 'storage_type': 'xxx'}]
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.CharField(label="业务ID", required=True)
+
+    def perform_request(self, data):
+        bk_biz_id = data["bk_biz_id"]
+
+        # 获取所有相关的 ResultTable
+        result_tables = models.ResultTable.objects.filter(bk_biz_id=bk_biz_id)
+        table_ids = list(result_tables.values_list('table_id', flat=True))
+
+        # 获取 table_id 对应的 default_storage，存入字典方便后续快速查找
+        table_storage_mapping = dict(result_tables.values_list('table_id', 'default_storage'))
+
+        # 查询 DataSourceResultTable，获取 bk_data_id 和 table_id，确保数据一致性
+        data_source_mappings = models.DataSourceResultTable.objects.filter(table_id__in=table_ids).values(
+            'bk_data_id', 'table_id'
+        )
+
+        # 组合最终结果
+        result = [
+            {
+                'bk_data_id': item['bk_data_id'],
+                'monitor_table_id': item['table_id'],
+                'storage_type': table_storage_mapping.get(item['table_id']),
+            }
+            for item in data_source_mappings
+        ]
+        return result
