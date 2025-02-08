@@ -10,7 +10,6 @@
 
 | 字段        | 类型  | 必选 | 描述     |
 |-----------|-----|----|--------|
-| bk_biz_id | int | 是  | 业务ID   |
 | task_id   | int | 是  | 拨测任务ID |
 | status    | str | 是  | 拨测任务状态 |
 
@@ -19,7 +18,6 @@
 ```json
 {
   "status": "running",
-  "bk_biz_id": 2,
   "task_id": 10013
 }
 ```
