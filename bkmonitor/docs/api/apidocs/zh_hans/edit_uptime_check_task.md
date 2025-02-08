@@ -23,14 +23,6 @@
 
 | 字段                  | 类型        | 必选 | 描述                                                |
 |---------------------|-----------|----|---------------------------------------------------|
-| bk_host_id          | int       | 否  | 主机 ID                                             |
-| ip                  | str       | 否  | 主机 IP                                             |
-| outer_ip            | str       | 否  | 外部 IP                                             |
-| target_type         | str       | 否  | 目标类型                                              |
-| bk_biz_id           | int       | 否  | 业务 ID                                             |
-| bk_inst_id          | int       | 否  | 实例 ID                                             |
-| bk_obj_id           | str       | 否  | 对象 ID                                             |
-| node_path           | str       | 否  | 节点路径                                              |
 | method              | str       | 否  | HTTP 方法，默认值为 "GET"                                |
 | authorize           | dict      | 否  | 授权配置                                              |
 | body                | dict      | 否  | 请求体                                               |
