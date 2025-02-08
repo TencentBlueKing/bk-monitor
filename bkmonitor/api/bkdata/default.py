@@ -1371,3 +1371,17 @@ class GetBkbaseRawDataWithDataId(UseSaaSAuthInfoMixin, DataAccessAPIResource):
 
     class RequestSerializer(CommonRequestSerializer):
         bkbase_data_id = serializers.CharField(required=True, label="计算平台对应的data_id")
+
+
+class TailKafkaData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    计算平台Kafka采样接口
+    """
+
+    action = "v4/namespaces/{namespace}/dataids/{name}/tail_kafka/?"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        namespace = serializers.CharField(required=True, label="命名空间")
+        name = serializers.CharField(required=True, label="数据源名称（计算平台）")
+        limit = serializers.IntegerField(required=False, default=10, label="条数")
