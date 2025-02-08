@@ -169,7 +169,26 @@ export default ({ onSegmentClick }) => {
     return { offsetX: 0, offsetY: item.top + fontSize - pointer.y + 2 };
   };
 
+  const getPointerByMouseEvent = (e: MouseEvent) => {
+    const { x, y } = e;
+    return { x: x - containerBounds.x, y: y - containerBounds.y };
+  };
+
+  const isSelectionCurrentNode = () => {
+    const selection = window.getSelection();
+    if (!selection?.isCollapsed) {
+      const node = selection.focusNode.parentElement;
+      return node === konvaInstance.frontStage.container().parentElement.querySelector('.static-text');
+    }
+
+    return false;
+  };
+
   const handleTextBoxClick = evt => {
+    if (isSelectionCurrentNode()) {
+      return;
+    }
+
     const pointer = getPointerByMouseEvent(evt);
     const word = wordList.find(item => {
       if (!item.isCursorText) {
@@ -187,21 +206,6 @@ export default ({ onSegmentClick }) => {
       const { offsetX, offsetY } = getClickOffset(word, pointer);
       onSegmentClick?.(evt, word?.text, { offsetX, offsetY });
     }
-  };
-
-  const getPointerByMouseEvent = (e: MouseEvent) => {
-    const { x, y } = e;
-    return { x: x - containerBounds.x, y: y - containerBounds.y };
-  };
-
-  const isSelectionCurrentNode = () => {
-    const selection = window.getSelection();
-    if (!selection?.isCollapsed) {
-      const node = selection.focusNode.parentElement;
-      return node === konvaInstance.frontStage.container().parentElement.querySelector('.static-text');
-    }
-
-    return false;
   };
 
   const initKonvaInstance = (

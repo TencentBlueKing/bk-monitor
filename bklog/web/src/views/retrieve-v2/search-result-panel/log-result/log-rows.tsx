@@ -526,10 +526,10 @@ export default defineComponent({
 
     const isRequesting = ref(false);
 
-    const debounceSetLoading = () => {
+    const debounceSetLoading = (delay = 120) => {
       setTimeout(() => {
         isRequesting.value = false;
-      }, 120);
+      }, delay);
     };
 
     const expandOption = {
@@ -595,6 +595,7 @@ export default defineComponent({
         if (!isRequesting.value) {
           if (isLoading.value) {
             scrollToTop(0);
+
             renderList.value.length = 0;
             renderList.value = [];
 
@@ -668,7 +669,7 @@ export default defineComponent({
         pageIndex.value++;
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
         setRenderList(maxLength);
-        debounceSetLoading();
+        debounceSetLoading(0);
         return;
       }
 
@@ -677,7 +678,7 @@ export default defineComponent({
 
         return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
           pageIndex.value++;
-          debounceSetLoading();
+          debounceSetLoading(0);
         });
       }
 
@@ -690,6 +691,13 @@ export default defineComponent({
 
     const scrollXOffsetLeft = ref(0);
     const refScrollXBar = ref();
+
+    const afterScrollTop = () => {
+      pageIndex.value = 1;
+
+      const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
+      renderList.value = renderList.value.slice(0, maxLength);
+    };
 
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
@@ -819,7 +827,7 @@ export default defineComponent({
     };
 
     const renderScrollTop = () => {
-      return <ScrollTop></ScrollTop>;
+      return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
     const renderRowCells = (row, rowIndex) => {
