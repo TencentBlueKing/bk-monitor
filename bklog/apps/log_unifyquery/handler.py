@@ -648,48 +648,6 @@ class UnifyQueryHandler(object):
 
         return result
 
-    def _deal_query_result(self, result_dict: dict) -> dict:
-        log_list = []
-        origin_log_list = []
-        for log in result_dict["list"]:
-            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
-                log = self._log_desensitize(log)
-            log = self._add_cmdb_fields(log)
-            if self.export_fields:
-                new_origin_log = {}
-                for _export_field in self.export_fields:
-                    # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
-                    if _export_field in log:
-                        new_origin_log[_export_field] = log[_export_field]
-                    # 处理a.b.c的情况
-                    elif "." in _export_field:
-                        # 在log中找不到时,去log的子级查找
-                        key, *field_list = _export_field.split(".")
-                        _result = log.get(key, {})
-                        for _field in field_list:
-                            if isinstance(_result, dict) and _field in _result:
-                                _result = _result[_field]
-                            else:
-                                _result = ""
-                                break
-                        new_origin_log[_export_field] = _result
-                    else:
-                        new_origin_log[_export_field] = log.get(_export_field, "")
-                origin_log = new_origin_log
-            else:
-                origin_log = log
-            log_list.append(log)
-            origin_log_list.append(origin_log)
-        result_dict.update(
-            {
-                "aggregations": {},
-                "aggs": {},
-                "list": log_list,
-                "origin_log_list": origin_log_list,
-            }
-        )
-        return result_dict
-
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
         for item in log_list:
             def get_field_and_get_length(_item: dict, father: str = ""):
@@ -735,6 +693,64 @@ class UnifyQueryHandler(object):
             self.field.update({_key: {"max_length": new_len}})
         else:
             self.field.update({_key: {"max_length": len(_key)}})
+
+    def _deal_query_result(self, result_dict: dict) -> dict:
+        log_list = []
+        origin_log_list = []
+        for log in result_dict["list"]:
+            log = merge_nested_data(log)
+            if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
+                log = self._log_desensitize(log)
+            log = self._add_cmdb_fields(log)
+            if self.export_fields:
+                new_origin_log = {}
+                for _export_field in self.export_fields:
+                    # 此处是为了虚拟字段[__set__, __module__, ipv6]可以导出
+                    if _export_field in log:
+                        new_origin_log[_export_field] = log[_export_field]
+                    # 处理a.b.c的情况
+                    elif "." in _export_field:
+                        # 在log中找不到时,去log的子级查找
+                        key, *field_list = _export_field.split(".")
+                        _result = log.get(key, {})
+                        for _field in field_list:
+                            if isinstance(_result, dict) and _field in _result:
+                                _result = _result[_field]
+                            else:
+                                _result = ""
+                                break
+                        new_origin_log[_export_field] = _result
+                    else:
+                        new_origin_log[_export_field] = log.get(_export_field, "")
+                origin_log = new_origin_log
+            else:
+                origin_log = log
+            _index = log.pop("__index")
+            log.update({"index": _index})
+            doc_id = log.pop("__doc_id")
+            log.update({"__id__": doc_id})
+
+            if "__highlight" not in log:
+                origin_log_list.append(origin_log)
+                log_list.append(log)
+                continue
+            else:
+                origin_log_list.append(copy.deepcopy(origin_log))
+
+            if not (self.field_configs or self.text_fields_field_configs) or not self.is_desensitize:
+                log = self._deal_object_highlight(log=log, highlight=log["__highlight"])
+
+            del log["__highlight"]
+            log_list.append(log)
+        result_dict.update(
+            {
+                "aggregations": {},
+                "aggs": {},
+                "list": log_list,
+                "origin_log_list": origin_log_list,
+            }
+        )
+        return result_dict
 
     def _log_desensitize(self, log: dict = None):
         """
@@ -865,3 +881,38 @@ class UnifyQueryHandler(object):
                 search_mode=search_mode,
                 from_favorite_id=self.search_params.get("from_favorite_id", 0),
             )
+
+    @classmethod
+    def update_nested_dict(cls, base_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        递归更新嵌套字典
+        """
+        if not isinstance(base_dict, dict):
+            return base_dict
+        for key, value in update_dict.items():
+            if isinstance(value, dict):
+                base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
+            else:
+                base_dict[key] = value
+        return base_dict
+
+    @staticmethod
+    def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
+        result = {}
+        for key, value in dotted_dict.items():
+            parts = key.split('.')
+            current_level = result
+            for part in parts[:-1]:
+                if part not in current_level:
+                    current_level[part] = {}
+                current_level = current_level[part]
+            current_level[parts[-1]] = "".join(value)
+        return result
+
+    def _deal_object_highlight(self, log: Dict[str, Any], highlight: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        兼容Object类型字段的高亮
+        ES层会返回打平后的高亮字段, 该函数将其高亮的字段更新至对应Object字段
+        """
+        nested_dict = self.nested_dict_from_dotted_key(dotted_dict=highlight)
+        return self.update_nested_dict(log, nested_dict)
