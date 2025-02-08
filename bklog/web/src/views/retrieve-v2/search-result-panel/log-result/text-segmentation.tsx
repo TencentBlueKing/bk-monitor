@@ -77,6 +77,7 @@ export default defineComponent({
     const isWrap = computed(() => store.state.tableLineIsWrap);
     const isLimitExpandView = computed(() => store.state.isLimitExpandView || props.forceAll);
     const hasEllipsis = computed(() => !isLimitExpandView.value && textLineCount.value > 3);
+    const tableShowRowIndex = computed(() => store.state.tableShowRowIndex);
 
     const btnText = computed(() => {
       if (showAll.value) {
@@ -276,10 +277,19 @@ export default defineComponent({
       },
     );
 
+    watch(
+      () => [tableShowRowIndex.value],
+      () => {
+        console.log('--watch tableShowRowIndex');
+      },
+    );
+
     const debounceUpdateWidth = debounce(() => {
       if (!refContent.value || !isMounted) {
         return;
       }
+
+      console.log('--debounceUpdateWidth');
 
       if (containerWidth !== refContent.value.offsetWidth) {
         containerWidth = refContent.value.offsetWidth;

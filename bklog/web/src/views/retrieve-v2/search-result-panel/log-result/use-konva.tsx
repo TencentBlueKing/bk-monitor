@@ -254,9 +254,22 @@ export default ({ onSegmentClick }) => {
     updateContainerBounds();
   };
 
-  const getWrapText = (text: string, leftWidth: number) => {
+  const getRangePosition = (startIndex: number, endIndex: number) => {
+    const range = document.createRange();
+
+    range.setStart(textContainer.firstChild, startIndex);
+    range.setEnd(textContainer.firstChild, endIndex);
+
+    const { x, y } = range.getBoundingClientRect();
+    const top = Math.floor((y - containerBounds.y) / rowHeight) * rowHeight;
+    const offsetLeft = x - containerBounds.x;
+
+    return { top, left: offsetLeft };
+  };
+
+  const getWrapText = (item: WordListItem, leftWidth: number) => {
     const box = getTempText();
-    const chars = text.split('');
+    const chars = item.text.split('');
     const leftText = [];
     let width = 0;
     let bufferWidth = 0;
@@ -268,14 +281,45 @@ export default ({ onSegmentClick }) => {
         bufferWidth = 0;
         leftText.push(char);
       } else {
-        chars.unshift(char);
+        if (width - leftWidth < 1) {
+          const startIndex = item.startIndex + leftText.length;
+          const { top } = getRangePosition(startIndex, startIndex + 1);
+
+          if (top === item.top) {
+            bufferWidth = 0;
+            leftText.push(char);
+          } else {
+            chars.unshift(char);
+          }
+        } else {
+          chars.unshift(char);
+        }
       }
     }
 
+    const leftTextWidth = width > bufferWidth ? width - bufferWidth : 0;
     return [
-      { text: leftText.join(''), width: width > bufferWidth ? width - bufferWidth : 0 },
+      {
+        text: leftText.join(''),
+        width: leftTextWidth <= leftWidth ? leftTextWidth : leftWidth,
+        renderWidth: leftTextWidth,
+      },
       { text: chars.join('') },
     ];
+  };
+
+  const resetSplitWordWrap = (leftText: WordListItem, rightText: WordListItem) => {
+    while (leftText.text.length > 0 && rightText.left > 0) {
+      rightText.text = leftText.text.slice(-1) + rightText.text;
+      leftText.text = leftText.text.slice(0, -1);
+
+      const text = getTempText();
+      const width = text.width(rightText.text);
+      const diff = width - rightText.width;
+      leftText.width = leftText.width - diff;
+      rightText.left = rightText.left - diff;
+      rightText.width = width;
+    }
   };
 
   const resetWordWrapPositon = (
@@ -302,30 +346,15 @@ export default ({ onSegmentClick }) => {
     if (item.split) {
       const [leftText, rightText] = item.split;
       const offsetXIndex = leftText?.text?.length ?? 0;
-      const range = document.createRange();
-      range.setStart(textNode, item.startIndex + offsetXIndex);
-      range.setEnd(textNode, item.endIndex);
 
-      const { x, y } = range.getBoundingClientRect();
-      const top = Math.floor((y - containerBounds.y) / rowHeight) * rowHeight;
-      const offsetLeft = x - containerBounds.x;
+      const { top, left } = getRangePosition(item.startIndex + offsetXIndex, item.endIndex);
 
-      if (offsetLeft > rightText.left || top > rightText.top) {
-        const diffWidth = getDiffWidth(offsetLeft, top, rightText);
-        rightText.left = offsetLeft;
+      if (left > rightText.left || top > rightText.top) {
+        const diffWidth = getDiffWidth(left, top, rightText);
+        rightText.left = left;
         rightText.top = top;
 
-        while (leftText.text.length > 0 && rightText.left > 0) {
-          rightText.text = leftText.text.slice(-1) + rightText.text;
-          leftText.text = leftText.text.slice(0, -1);
-
-          const text = getTempText();
-          const width = text.width(rightText.text);
-          const diff = width - rightText.width;
-          leftText.width = leftText.width - diff;
-          rightText.left = rightText.left - diff;
-          rightText.width = width;
-        }
+        resetSplitWordWrap(leftText, rightText);
 
         if (updateLeft) {
           originLeft = originLeft + diffWidth;
@@ -346,25 +375,19 @@ export default ({ onSegmentClick }) => {
       return originLeft;
     }
 
-    const range = document.createRange();
+    // const range = document.createRange();
     // 这里获取分词最后一个字符
     // 用于判定当前分词是否因为系统渲染进行了换行操作
     const offsetXIndex = item.text.length > 1 ? item.text.length - 1 : 0;
-    range.setStart(textNode, item.startIndex + offsetXIndex);
-    range.setEnd(textNode, item.endIndex);
-
-    const { x, y } = range.getBoundingClientRect();
-    const top = Math.floor((y - containerBounds.y) / rowHeight) * rowHeight;
-    const offsetLeft = x - containerBounds.x;
+    const { top, left } = getRangePosition(item.startIndex + offsetXIndex, item.endIndex);
 
     // 说明整个分词在当前行，此时只需要偏移计算量
     // 继续回溯上一个分词
     if (top === item.top) {
       const rightText = item.text.slice(-1);
       const text = getTempText();
-      const width = text.width(rightText);
-      const textWidth = text.width(item.text);
-      const wordLeft = offsetLeft - textWidth + width;
+      const rightTxtWidth = text.width(rightText);
+      const wordLeft = left - item.width + rightTxtWidth;
 
       // 实际位置肯定会比计算位置靠后
       // 此时需要整个分词向后偏移差异量
@@ -374,7 +397,6 @@ export default ({ onSegmentClick }) => {
         }
 
         item.left = wordLeft;
-
         return resetWordWrapPositon(textNode, itemList, currentIndex - 1, originLeft, false);
       }
 
@@ -388,7 +410,7 @@ export default ({ onSegmentClick }) => {
       const width = text.width(rightText);
 
       if (updateLeft) {
-        originLeft = boxWidth - item.left + originLeft + offsetLeft;
+        originLeft = boxWidth - item.left + originLeft + left;
       }
 
       item.split = [
@@ -402,12 +424,17 @@ export default ({ onSegmentClick }) => {
           ...item,
           text: rightText,
           width,
-          left: offsetLeft,
+          left,
           top,
         },
       ].filter(item => item.text.length > 0);
 
-      if (item.split.length === 1) {
+      if (item.split?.length > 1) {
+        const [leftText, rightText] = item.split;
+        resetSplitWordWrap(leftText, rightText);
+      }
+
+      if (item.split?.length === 1) {
         item.top = item.split[0].top;
         item.left = item.split[0].left;
         item.width = item.split[0].width;
@@ -418,7 +445,7 @@ export default ({ onSegmentClick }) => {
         }
       }
 
-      return resetWordWrapPositon(textNode, itemList, currentIndex - 1, originLeft, false);
+      return resetWordWrapPositon(textNode, itemList, currentIndex - (item.split ? 0 : 1), originLeft, false);
     }
 
     return originLeft;
@@ -446,8 +473,8 @@ export default ({ onSegmentClick }) => {
 
             let width = 0;
 
-            if (item.text === 'submitted') {
-              console.log('submitted');
+            if (item.text === '实际模型提交数可能存在变化，请以启动评比时的数量为准。') {
+              console.log('catch uuuu');
             }
 
             if (!isWrap) {
@@ -486,7 +513,7 @@ export default ({ onSegmentClick }) => {
             if (nextLine > line && nextLineOffset > 0 && item.width > 0) {
               if (item.text?.length) {
                 const diffWidth = left % boxWidth;
-                const [leftText, rightText] = getWrapText(item.text, width - diffWidth);
+                const [leftText, rightText] = getWrapText(item, width - diffWidth);
                 rightText.width = item.width - leftText.width;
                 left = boxWidth * nextLine + width - leftText.width;
 
@@ -498,6 +525,7 @@ export default ({ onSegmentClick }) => {
                     left: item.left,
                     top: item.top,
                     width: leftText.width,
+                    renderWidth: leftText.renderWidth,
                     line,
                   },
                   {
@@ -516,6 +544,7 @@ export default ({ onSegmentClick }) => {
                   item.top = item.split[0].top;
                   item.width = item.split[0].width;
                   item.line = item.split[0].line;
+                  item.renderWidth = item.split[0].renderWidth;
                   item.split = undefined;
                 }
 

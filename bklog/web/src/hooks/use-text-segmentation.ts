@@ -46,6 +46,7 @@ export type WordListItem = {
   left?: number;
   top?: number;
   width?: number;
+  renderWidth?: number;
   split?: WordListItem[];
   line?: number;
 };
