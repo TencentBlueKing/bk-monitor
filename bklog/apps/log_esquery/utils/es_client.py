@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import ipaddress
 import socket
 
 from django.utils.translation import gettext_lazy as _
@@ -45,7 +46,7 @@ def get_es_client(
     port: int,
     sniffer_timeout=600,
     verify_certs=False,
-    **kwargs
+    **kwargs,
 ) -> Elasticsearch:
     # 根据版本加载客户端
     if version.startswith("5."):
@@ -58,10 +59,15 @@ def get_es_client(
     # 由于IPV6地址需要加[], 所以需要对hosts进行处理
     new_hosts = []
     for host in hosts:
-        if not host.startswith("["):
-            host = "[" + host
-        if not host.endswith("]"):
-            host += "]"
+        try:
+            # 尝试将主机名解析为 IP 地址
+            ip = ipaddress.ip_address(host)
+            # 如果是 IPv6 地址，返回带方括号的格式
+            if isinstance(ip, ipaddress.IPv6Address):
+                host = f'[{host}]'
+        except ValueError:
+            # 如果不是有效的 IP 地址，返回原始主机名
+            pass
         new_hosts.append(host)
     hosts = new_hosts
 
