@@ -11,8 +11,9 @@ specific language governing permissions and limitations under the License.
 
 
 import django_filters
-from monitor_api import views
 from rest_framework import serializers
+
+from monitor_api import views
 
 
 class BaseAlarmViewSet(views.BaseAlarmViewSet):
@@ -30,10 +31,10 @@ class BaseAlarmViewSet(views.BaseAlarmViewSet):
 
     serializer_class = BaseAlarmSerializer
 
-    class BaseAlarmFilterSet(views.BaseAlarmViewSet.filter_class):
+    class BaseAlarmFilterSet(views.BaseAlarmViewSet.filterset_class):
         pass
 
-    filter_class = BaseAlarmFilterSet
+    filterset_class = BaseAlarmFilterSet
 
 
 class UserConfigViewSet(views.UserConfigViewSet):
@@ -52,10 +53,10 @@ class UserConfigViewSet(views.UserConfigViewSet):
 
     serializer_class = UserConfigSerializer
 
-    class UserConfigFilterSet(views.UserConfigViewSet.filter_class):
+    class UserConfigFilterSet(views.UserConfigViewSet.filterset_class):
         bk_username = django_filters.CharFilter(name="username", label="用户名")
 
-    filter_class = UserConfigFilterSet
+    filterset_class = UserConfigFilterSet
 
 
 class ApplicationConfigViewSet(views.ApplicationConfigViewSet):
@@ -72,10 +73,10 @@ class ApplicationConfigViewSet(views.ApplicationConfigViewSet):
 
     serializer_class = ApplicationConfigSerializer
 
-    class ApplicationConfigFilterSet(views.ApplicationConfigViewSet.filter_class):
+    class ApplicationConfigFilterSet(views.ApplicationConfigViewSet.filterset_class):
         bk_biz_id = django_filters.NumberFilter(name="cc_biz_id", label="业务id")
 
-    filter_class = ApplicationConfigFilterSet
+    filterset_class = ApplicationConfigFilterSet
 
 
 class GlobalConfigViewSet(views.GlobalConfigViewSet):
@@ -90,10 +91,10 @@ class GlobalConfigViewSet(views.GlobalConfigViewSet):
 
     serializer_class = GlobalConfigSerializer
 
-    class GlobalConfigFilterSet(views.GlobalConfigViewSet.filter_class):
+    class GlobalConfigFilterSet(views.GlobalConfigViewSet.filterset_class):
         pass
 
-    filter_class = GlobalConfigFilterSet
+    filterset_class = GlobalConfigFilterSet
 
 
 class SnapshotHostIndexViewSet(views.SnapshotHostIndexViewSet):
@@ -102,7 +103,7 @@ class SnapshotHostIndexViewSet(views.SnapshotHostIndexViewSet):
 
     serializer_class = SnapshotHostIndexSerializer
 
-    class SnapshotHostIndexFilterSet(views.SnapshotHostIndexViewSet.filter_class):
+    class SnapshotHostIndexFilterSet(views.SnapshotHostIndexViewSet.filterset_class):
         pass
 
-    filter_class = SnapshotHostIndexFilterSet
+    filterset_class = SnapshotHostIndexFilterSet
