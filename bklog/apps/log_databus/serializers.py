@@ -197,7 +197,7 @@ class PluginParamSerializer(serializers.Serializer):
     multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=5000)
     multiline_timeout = serializers.IntegerField(label=_("最大耗时"), required=False, max_value=10)
     tail_files = serializers.BooleanField(label=_("是否增量采集"), required=False, default=True)
-    ignore_older = serializers.IntegerField(label=_("文件扫描忽略时间"), required=False, default=2678400)
+    ignore_older = serializers.IntegerField(label=_("文件扫描忽略时间"), required=False, default=86400)
     max_bytes = serializers.IntegerField(label=_("单行日志最大长度"), required=False, default=204800)
 
     scan_frequency = serializers.IntegerField(label=_("文件扫描间隔"), required=False, min_value=1)
