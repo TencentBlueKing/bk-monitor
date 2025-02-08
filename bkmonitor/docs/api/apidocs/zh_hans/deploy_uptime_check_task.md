@@ -24,21 +24,21 @@
 
 ### 响应参数
 
-| 字段    | 类型    | 描述         |
-| ------- |-------| ------------ |
-| result  | bool  | 请求是否成功 |
-| code    | int   | 返回的状态码 |
-| message | str   | 描述信息     |
-| data    | str   | 描述信息         |
+| 字段      | 类型   | 描述     |
+|---------|------|--------|
+| result  | bool | 请求是否成功 |
+| code    | int  | 返回的状态码 |
+| message | str  | 描述信息   |
+| data    | str  | 描述信息   |
 
 #### 示例数据
 
 ```json
 {
-    "result": true,
-    "code": 200,
-    "message": "OK",
-    "data": "success"
+  "result": true,
+  "code": 200,
+  "message": "OK",
+  "data": "success"
 }
 ```
 

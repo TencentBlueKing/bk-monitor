@@ -26,31 +26,31 @@
 
 ### 响应参数
 
-| 字段    | 类型   | 描述         |
-| ------- | ------ | ------------ |
-| result  | bool   | 请求是否成功 |
-| code    | int    | 返回的状态码 |
-| message | string | 描述信息     |
-| data    | dict   | 数据         |
+| 字段      | 类型   | 描述     |
+|---------|------|--------|
+| result  | bool | 请求是否成功 |
+| code    | int  | 返回的状态码 |
+| message | str  | 描述信息   |
+| data    | dict | 数据     |
 
 #### data
 
-| 字段   | 类型  | 描述     |
-|------|-----|--------|
-| id   | int | 拨测任务ID |
+| 字段     | 类型  | 描述     |
+|--------|-----|--------|
+| id     | int | 拨测任务ID |
 | status | str | 拨测任务状态 |
 
 #### 示例数据
 
 ```json
 {
-    "result": true,
-    "code": 200,
-    "message": "OK",
-    "data": {
-        "id": 10013,
-        "status": "running"
-    }
+  "result": true,
+  "code": 200,
+  "message": "OK",
+  "data": {
+    "id": 10013,
+    "status": "running"
+  }
 }
 ```
 
