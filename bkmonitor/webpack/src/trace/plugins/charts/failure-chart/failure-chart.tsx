@@ -1103,29 +1103,17 @@ export default defineComponent({
                   </div>
                 ),
                 tagTitle: () => (
-                  <div
-                    class='tag-head'
-                    v-bk-tooltips={{
-                      content: (
-                        <div>
-                          {this.t('维度：')}
-                          <br />
-                          {this.dimensionsList.map(item => (
-                            <div style={{ marginTop: '5px' }}>
-                              {item.display_key} = {item.display_value}
-                            </div>
-                          ))}
-                        </div>
-                      ),
-                    }}
-                  >
-                    <TagDisplay tagsList={this.dimensionsList} />
+                  <div class='tag-head'>
+                    <TagDisplay
+                      tagsList={this.dimensionsList}
+                      tipsName={this.t('维度：')}
+                    />
                   </div>
                 ),
               }}
               isShowAlarm={true}
               menuList={this.chartOption.tool.list || []}
-              showMore={!this.readonly && this.showTitleTool}
+              showMore={true}
               subtitle={this.$props.subtitle || ''}
               title={this.$props.title}
               onMenuClick={this.handleMoreToolItemSet}

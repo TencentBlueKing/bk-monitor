@@ -84,7 +84,7 @@ class Command(BaseCommand):
                 data_sources["platform_data_id_list"] = space_type_data_ids.get(key[0]) or []
             val["data_sources"] = data_sources
 
-        self.stdout.write(json.dumps(space_dict.values()))
+        self.stdout.write(json.dumps(list(space_dict.values())))
 
     def _refine_space(self, options) -> List[Dict]:
         space_uids = options.get("space_uid")

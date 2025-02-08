@@ -81,9 +81,9 @@ export default class UseTextSegmentation {
     }
   }
 
-  getChildNodes() {
+  getChildNodes(forceSplit = false) {
     let start = 0;
-    return this.getSplitList(this.options.field, this.options.content).map(item => {
+    return this.getSplitList(this.options.field, this.options.content, forceSplit).map(item => {
       Object.assign(item, {
         startIndex: start,
         endIndex: start + item.text.length,
@@ -111,6 +111,7 @@ export default class UseTextSegmentation {
     const tippyInstance = segmentPopInstance.getInstance();
     const currentValue = this.clickValue;
     const depth = tippyInstance.reference.closest('[data-depth]')?.getAttribute('data-depth');
+    const isNestedField = tippyInstance.reference.closest('[is-nested-value]')?.getAttribute('is-nested-value');
 
     const activeField = this.getField();
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
@@ -122,6 +123,7 @@ export default class UseTextSegmentation {
       operation: val === 'not' ? 'is not' : val,
       value: (target ?? currentValue).replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
       depth,
+      isNestedField,
     };
 
     this.onSegmentClick?.({ option, isLink });
@@ -217,11 +219,11 @@ export default class UseTextSegmentation {
       : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
-  private getSplitList(field: any, content: any) {
+  private getSplitList(field: any, content: any, forceSplit = false) {
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
-    if (this.isAnalyzed(field)) {
+    if (this.isAnalyzed(field) || forceSplit) {
       // 这里进来的都是开了分词的情况
       return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));
     }

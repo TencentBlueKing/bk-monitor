@@ -20,6 +20,7 @@ import shutil
 import tarfile
 import uuid
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
 from django.conf import settings
@@ -29,6 +30,7 @@ from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from api.grafana.exporter import DashboardExporter
+from bk_dataview.api import get_or_create_org
 from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.text import convert_filename
@@ -45,7 +47,6 @@ from core.errors.export_import import (
     ImportHistoryNotExistError,
     UploadPackageError,
 )
-from monitor_web.collecting.deploy import get_collect_installer
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
 from monitor_web.commons.report.resources import send_frontend_report_event
@@ -60,11 +61,9 @@ from monitor_web.export_import.parse_config import (
     StrategyConfigParse,
     ViewConfigParse,
 )
-from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.models import (
     CollectConfigMeta,
     CollectorPluginMeta,
-    DeploymentConfigVersion,
     ImportDetail,
     ImportHistory,
     ImportParse,
@@ -439,7 +438,7 @@ class ExportPackageResource(Resource):
 
         dashboard_file_path = os.path.join(self.package_path, "view_config_directory")
         os.makedirs(dashboard_file_path)
-        org_id = GrafanaAuthSync.get_or_create_org_id(self.bk_biz_id)
+        org_id = get_or_create_org(self.bk_biz_id)["id"]
         data_sources = api.grafana.get_all_data_source(org_id=org_id)["data"]
 
         for view_config_id in self.view_config_ids:
@@ -1045,7 +1044,17 @@ class AddMonitorTargetResource(Resource):
             TargetFieldType.service_set_template: TargetObjectType.SERVICE,
             TargetFieldType.host_service_template: TargetObjectType.HOST,
             TargetFieldType.host_set_template: TargetObjectType.HOST,
+            TargetFieldType.dynamic_group: TargetObjectType.HOST,
         }
+        taget_node_type_map = {
+            TargetFieldType.host_target_ip: TargetNodeType.INSTANCE,
+            TargetFieldType.service_service_template: TargetNodeType.SERVICE_TEMPLATE,
+            TargetFieldType.host_service_template: TargetNodeType.SERVICE_TEMPLATE,
+            TargetFieldType.service_set_template: TargetNodeType.SET_TEMPLATE,
+            TargetFieldType.host_set_template: TargetNodeType.SET_TEMPLATE,
+            TargetFieldType.dynamic_group: TargetNodeType.DYNAMIC_GROUP,
+        }
+
         bk_biz_id = validated_request_data["bk_biz_id"]
         history_id = validated_request_data["import_history_id"]
         target = validated_request_data["target"]
@@ -1062,18 +1071,6 @@ class AddMonitorTargetResource(Resource):
         if field_target_map[target_field] != target_type:
             raise AddTargetError({"msg": _("所选目标与配置需求目标不一致")})
 
-        collect_target = copy.deepcopy(target[0][0]["value"])
-        target_node_type = TargetNodeType.TOPO
-        if target[0][0]["field"] == TargetFieldType.host_target_ip:
-            target_node_type = TargetNodeType.INSTANCE
-            collect_target = [{"ip": x["bk_target_ip"], "bk_cloud_id": x["bk_target_cloud_id"]} for x in collect_target]
-        elif target[0][0]["field"] in [TargetFieldType.service_service_template, TargetFieldType.host_service_template]:
-            # 适配服务模板
-            target_node_type = TargetNodeType.SERVICE_TEMPLATE
-        elif target[0][0]["field"] in [TargetFieldType.service_set_template, TargetFieldType.host_set_template]:
-            # 适配集群模板
-            target_node_type = TargetNodeType.SET_TEMPLATE
-
         strategy_config_ids = [
             int(config.config_id)
             for config in ImportDetail.objects.filter(
@@ -1087,21 +1084,38 @@ class AddMonitorTargetResource(Resource):
             )
         ]
         # 添加采集配置目标
+        target_node_type = taget_node_type_map.get(target_field, TargetNodeType.TOPO)
+        params_list = []
         for instance in CollectConfigMeta.objects.filter(id__in=collect_config_ids):
-            deploy_config = DeploymentConfigVersion.objects.get(id=instance.deployment_config_id)
-            deployment_config_params = {
-                "plugin_version": instance.plugin.packaged_release_version,
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "id": instance.id,
+                "name": instance.name,
+                "collect_type": instance.collect_type,
+                "plugin_id": instance.plugin.plugin_id,
+                "target_object_type": instance.target_object_type,
                 "target_node_type": target_node_type,
-                "params": deploy_config.params,
-                "target_nodes": collect_target,
-                "remote_collecting_host": deploy_config.remote_collecting_host,
+                "target_nodes": target[0][0]["value"],
+                "params": instance.deployment_config.params,
+                "remote_collecting_host": instance.deployment_config.remote_collecting_host,
+                "label": instance.label,
             }
-            installer = get_collect_installer(instance)
-            installer.install(deployment_config_params)
+            if target_node_type != TargetNodeType.DYNAMIC_GROUP:
+                params["target_object_type"] = instance.target_object_type
+            params_list.append(params)
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            for params in params_list:
+                executor.submit(resource.collecting.save_collect_config, **params)
 
         # 添加策略配置目标
+        strategy_target = copy.deepcopy(target)
+        for target_list in strategy_target:
+            for target_detail in target_list:
+                if target_detail["field"] == TargetFieldType.dynamic_group:
+                    target_detail["value"] = [{"dynamic_group_id": x["bk_inst_id"]} for x in target_detail["value"]]
         resource.strategies.update_partial_strategy_v2(
-            bk_biz_id=bk_biz_id, ids=strategy_config_ids, edit_data={"target": target}
+            bk_biz_id=bk_biz_id, ids=strategy_config_ids, edit_data={"target": strategy_target}
         )
         StrategyModel.objects.filter(id__in=strategy_config_ids).update(is_enabled=True)
 

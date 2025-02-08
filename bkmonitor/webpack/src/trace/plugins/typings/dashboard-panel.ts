@@ -227,7 +227,8 @@ export class DataQuery implements IDataQuery {
   handleCreateFieldsKey(fieldsSort) {
     return fieldsSort.reduce((total, cur, index) => {
       const joiner = !index ? '' : '-';
-      return (total = `${total}${joiner}${cur[1]}`);
+      const result = `${total}${joiner}${cur[1]}`;
+      return result;
     }, '');
   }
   /** 对象生成有序的二维数组 */
@@ -542,4 +543,5 @@ export interface IViewOptions {
   matchFields?: Record<string, any>;
   // 策略id 用于hostIntelligenAnomalyRange接口
   strategy_id?: number | string;
+  span_id?: string;
 }

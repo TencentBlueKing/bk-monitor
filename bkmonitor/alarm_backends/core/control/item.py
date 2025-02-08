@@ -58,6 +58,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
 
         self.expression = item_config.get("expression")
         self.functions = item_config.get("functions")
+        self.time_delay = item_config.get("time_delay")
         self.metric_ids = set()
         self.data_source_types = set()
         self.data_source_labels = set()
@@ -212,3 +213,11 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
             is_match = is_match and extra_agg_condition_target_obj.is_match(dimensions)
 
         return is_match
+
+    @cached_property
+    def use_aiops_sdk(self):
+        for query_config in self.query_configs:
+            if query_config.get("intelligent_detect") and query_config["intelligent_detect"].get("use_sdk", False):
+                return True
+
+        return False

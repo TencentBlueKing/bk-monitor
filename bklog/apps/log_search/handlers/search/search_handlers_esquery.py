@@ -85,6 +85,7 @@ from apps.log_search.exceptions import (
     BaseSearchSortListException,
     IntegerErrorException,
     IntegerMaxErrorException,
+    LogSearchException,
     MultiSearchErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
@@ -750,9 +751,14 @@ class SearchHandler(object):
         if not storage_cluster_record_objs:
             try:
                 data = search_func(params)
+                # 把shards中的failures信息解析后raise异常出来
+                if data.get("_shards", {}).get("failed"):
+                    errors = data["_shards"]["failures"][0]["reason"]["reason"]
+                    raise LogSearchException(errors)
+
                 return data
-            except ApiResultError as e:
-                raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
+            except Exception as e:
+                raise LogSearchException(LogSearchException.MESSAGE.format(e=e))
 
         storage_cluster_ids = {self.storage_cluster_id}
 
@@ -1800,6 +1806,11 @@ class SearchHandler(object):
                     )
                 )
             self.origin_indices = ",".join(index_list)
+            self.custom_indices = self.search_dict.get("custom_indices")
+            if self.custom_indices and index_list:
+                self.origin_indices = ",".join(
+                    _index for _index in self.custom_indices.split(",") if _index in index_list
+                )
             self.origin_scenario_id = tmp_index_obj.scenario_id
             for addition in self.search_dict.get("addition", []):
                 # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered

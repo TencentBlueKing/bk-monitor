@@ -227,6 +227,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return this.activeTab === K8sNewTabEnum.LIST;
   }
 
+  /** 资源类型 */
+  get resourceType() {
+    const { groupByDimensions: dimensions } = this.groupInstance;
+    return this.isListTab
+      ? this.groupInstance?.getResourceType()
+      : (dimensions[dimensions.length - 1] as K8sTableColumnResourceKey);
+  }
+
   get tableChartColumns() {
     const ids: K8sTableColumnChartKey[] = [];
     const columns: K8sTableColumn<K8sTableColumnKeysEnum>[] = [];
@@ -498,13 +506,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (config.needRefresh) {
       this.asyncDataCache.clear();
     }
-    const { groupByDimensions: dimensions } = this.groupInstance;
     // 汇聚类型
     const method = this.metricsForConvergeMap[this.sortContainer.prop] || K8sConvergeTypeEnum.SUM;
     // 资源类型
-    const resourceType = this.isListTab
-      ? this.groupInstance?.getResourceType()
-      : (dimensions[dimensions.length - 1] as K8sTableColumnResourceKey);
+    const resourceType = this.resourceType;
 
     /** 获取资源列表请求接口参数 */
     const requestParam = {
@@ -532,6 +537,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   getResourceId(key: K8sTableColumnKeysEnum, data: Record<K8sTableColumnKeysEnum, string>) {
     if (key === K8sTableColumnKeysEnum.CONTAINER) {
       return `${data[K8sTableColumnKeysEnum.POD]}:${data[K8sTableColumnKeysEnum.CONTAINER]}`;
+    }
+    if (key === K8sTableColumnKeysEnum.WORKLOAD) {
+      return `${data[K8sTableColumnKeysEnum.NAMESPACE]}|${data[key]}`;
     }
     return data[key];
   }
@@ -801,7 +809,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         needRefresh: true,
       });
     } else {
-      const resourceType = this.groupInstance.getResourceType();
+      const resourceType = this.resourceType;
       const resourceParam = this.formatTableData(this.tableData, resourceType, [columnKey]);
       this.loadAsyncData(resourceType, resourceParam, [columnKey]);
     }

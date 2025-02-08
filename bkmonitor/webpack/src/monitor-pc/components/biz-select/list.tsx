@@ -23,15 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop, Mixins } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { partialUpdateUserConfig } from 'monitor-api/modules/model';
-
-import store from '../../store/store';
-
 import { SPACE_TYPE_MAP } from '../../common/constant';
-import PerformanceModule from '../../store/modules/performance';
+import UserConfigMixin from '../../mixins/userStoreConfig';
+import store from '../../store/store';
 
 import type { ThemeType } from './biz-select';
 
@@ -41,6 +38,7 @@ interface IProps {
   list: IListItem[];
   checked?: number;
   theme?: ThemeType;
+  canSetDefaultSpace?: boolean;
 }
 interface IEvents {
   onSelected: number;
@@ -60,11 +58,7 @@ interface ITagsItem {
   name: string;
   type: ETagsType;
 }
-interface IDialogData {
-  id: number | string;
-  type: boolean;
-  targetName: string;
-}
+
 export enum ETagsType {
   BCS = 'bcs' /** 容器项目 */,
   BKCC = 'bkcc' /** 业务 */,
@@ -72,10 +66,14 @@ export enum ETagsType {
   BKSAAS = 'bksaas' /** 蓝鲸应用 */,
   MONITOR = 'monitor' /** 监控空间 */,
 }
+
+const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
 @Component
-export default class List extends tsc<IProps, IEvents> {
+export default class List extends Mixins(UserConfigMixin, tsc<IProps, IEvents>) {
   /** 选中的id */
   @Prop({ type: Number }) checked: number;
+  /** 可设置默认空间 */
+  @Prop({ default: true, type: Boolean }) canSetDefaultSpace: boolean;
   /** 列表数据 */
   @Prop({ default: () => [], type: Array }) list: IListItem[];
   /** 主题 */
@@ -86,17 +84,9 @@ export default class List extends tsc<IProps, IEvents> {
   })
   theme: ThemeType;
 
-  stickyId = -1;
-
-  dialogShow = false;
-
-  dialogData: IDialogData = {
-    id: 0,
-    type: false,
-    targetName: '',
-  }
-
-  btnLoading = false;
+  defaultSpace: IListItem = null;
+  setDefaultBizIdLoading = false;
+  isSetBizIdDefault = true;
 
   get defaultBizId() {
     return store.getters.defaultBizId;
@@ -108,51 +98,50 @@ export default class List extends tsc<IProps, IEvents> {
   }
 
   created() {
-    this.getUserConfig();
+    !store.getters.defaultBizIdApiId && this.getUserConfigId();
   }
 
-  // 获取当前用户的置顶配置id
-  async getUserConfig() {
-    const stickyList = await PerformanceModule.getUserConfigList({
-      key: 'DEFAULT_BIZ_ID',
-    });
-    if (!stickyList.length) {
-      // 如果用户配置不存在就创建配置
-      PerformanceModule.createUserConfig({
-        key: 'DEFAULT_BIZ_ID',
-        value: JSON.stringify({}),
+  // 获取当前用户的配置id
+  getUserConfigId() {
+    this.handleGetUserConfig(DEFAULT_BIZ_ID)
+      .then((res: number) => {
+        if (res) {
+          store.commit('app/SET_APP_STATE', {
+            defaultBizIdApiId: this.storeId,
+          });
+        }
       })
-        .then(data => {
-          this.stickyId = data[0].id || -1;
-        })
-        .catch(e => console.log(e));
-    } else {
-      this.stickyId = stickyList[0].id;
-    }
+      .catch(e => {
+        console.log(e);
+      });
   }
 
   // 默认id处理
   async handleDefaultId() {
-    this.btnLoading = true;
-    const result = await partialUpdateUserConfig(this.stickyId, {
-      key: 'default_biz_id',
-      value: this.dialogData.type ? Number(this.dialogData.id) : 'undefined',
-    }).finally(() => {
-      this.btnLoading = false;
-      this.dialogShow = false;
-    });
-    if (result) {
-      store.commit('app/SET_APP_STATE', {
-        defaultBizId: this.dialogData.type ? Number(this.dialogData.id) : '',
+    this.setDefaultBizIdLoading = true;
+    const defaultBizId = this.isSetBizIdDefault ? Number(this.defaultSpace.id) : 'undefined';
+    this.handleSetUserConfig(DEFAULT_BIZ_ID, `${defaultBizId}`, store.getters.defaultBizIdApiId || 0)
+      .then(result => {
+        if (result) {
+          store.commit('app/SET_APP_STATE', {
+            defaultBizId,
+          });
+        }
       })
-    }
+      .catch(e => {
+        console.log(e);
+      })
+      .finally(() => {
+        this.setDefaultBizIdLoading = false;
+        this.defaultSpace = null;
+      });
   }
 
   // 打开弹窗
-  handleOpenDialog(data: IDialogData, e: MouseEvent) {
+  handleDefaultBizIdDialog(e: MouseEvent, data: IListItem, isSetDefault: boolean) {
     e.stopPropagation();
-    this.dialogData = data;
-    this.dialogShow = true;
+    this.defaultSpace = data;
+    this.isSetBizIdDefault = isSetDefault;
   }
 
   render() {
@@ -184,7 +173,7 @@ export default class List extends tsc<IProps, IEvents> {
                     >
                       ({child.space_type_id === ETagsType.BKCC ? `#${child.id}` : child.space_id || child.space_code})
                     </span>
-                    {this.defaultBizId && Number(this.defaultBizId) === child.id && (
+                    {this.canSetDefaultSpace && this.defaultBizId && Number(this.defaultBizId) === child.id && (
                       <span class='item-default-icon'>
                         <span class='item-default-text'>{this.$tc('默认')}</span>
                       </span>
@@ -203,23 +192,25 @@ export default class List extends tsc<IProps, IEvents> {
                       ))}
                     </span>
                   )}
-                  <div class='set-default-button'>
-                    {this.defaultBizId && Number(this.defaultBizId) === child.id ? (
-                      <div
-                        class={`btn-style-${this.theme} remove`}
-                        onClick={e => this.handleOpenDialog({ id: child.id, type: false, targetName: child.name }, e)}
-                      >
-                        {this.$tc('取消默认')}
-                      </div>
-                    ) : (
-                      <div
-                        class={`btn-style-${this.theme}`}
-                        onClick={e => this.handleOpenDialog({ id: child.id, type: true, targetName: child.name }, e)}
-                      >
-                        {this.$tc('设为默认')}
-                      </div>
-                    )}
-                  </div>
+                  {this.canSetDefaultSpace && (
+                    <div class='set-default-button'>
+                      {this.defaultBizId && Number(this.defaultBizId) === child.id ? (
+                        <div
+                          class={`btn-style-${this.theme} remove`}
+                          onClick={e => this.handleDefaultBizIdDialog(e, child, false)}
+                        >
+                          {this.$tc('取消默认')}
+                        </div>
+                      ) : (
+                        <div
+                          class={`btn-style-${this.theme}`}
+                          onClick={e => this.handleDefaultBizIdDialog(e, child, true)}
+                        >
+                          {this.$tc('设为默认')}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -235,33 +226,39 @@ export default class List extends tsc<IProps, IEvents> {
           width={480}
           ext-cls='confirm-dialog__set-default'
           footer-position='center'
-          value={this.dialogShow}
+          mask-close={false}
+          value={!!this.defaultSpace}
           transfer
+          on-value-change={val => {
+            if (!val) {
+              this.defaultSpace = null;
+            }
+          }}
         >
           <div class='confirm-dialog__hd'>
-            {this.dialogData.type ? this.$tc('是否将该业务设为默认业务？') : this.$tc('是否取消默认业务？')}
+            {this.isSetBizIdDefault ? this.$tc('是否将该业务设为默认业务？') : this.$tc('是否取消默认业务？')}
           </div>
           <div class='confirm-dialog__bd'>
-            {this.$tc('业务名称')}：<span class='confirm-dialog__bd-name'>{this.dialogData.targetName}</span>
+            {this.$tc('业务名称')}：<span class='confirm-dialog__bd-name'>{this.defaultSpace?.name || ''}</span>
           </div>
           <div class='confirm-dialog__ft'>
-            {this.dialogData.type
+            {this.isSetBizIdDefault
               ? this.$tc('设为默认后，每次进入监控平台将会默认选中该业务')
               : this.$tc('取消默认业务后，每次进入监控平台将会默认选中最近使用的业务而非当前默认业务')}
           </div>
           <div slot='footer'>
             <bk-button
               class='btn-confirm'
-              loading={this.btnLoading}
+              loading={this.setDefaultBizIdLoading}
               theme='primary'
               onClick={this.handleDefaultId}
             >
               {this.$tc('确认')}
             </bk-button>
             <bk-button
-              class='btn-cancel' 
+              class='btn-cancel'
               onClick={() => {
-                this.dialogShow = false;
+                this.defaultSpace = null;
               }}
             >
               {this.$tc('取消')}

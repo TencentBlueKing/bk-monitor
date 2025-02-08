@@ -121,7 +121,22 @@ class UseSegmentProp {
           iconName: 'bklog-icon bklog-jump',
         },
       },
-    ];
+    ]
+      .filter(item => {
+        if (window?.__IS_MONITOR_TRACE__) {
+          return item.text !== this.$t('新建检索');
+        }
+        return true;
+      })
+      .map(item => {
+        if (window?.__IS_MONITOR_TRACE__) {
+          return {
+            ...item,
+            link: undefined,
+          };
+        }
+        return item;
+      });
 
     return h('div', { class: 'segment-event-icons event-tippy-content', ref: refName }, [
       eventBoxList.map(item =>

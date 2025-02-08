@@ -51,7 +51,9 @@ class WorkloadOverview(Resource):
 
         # 如果前端传值则添加过滤
         if validated_request_data.get("namespace"):
-            queryset = queryset.filter(namespace=validated_request_data["namespace"])
+            # 支持多个ns传递， 默认半角逗号连接
+            ns_list = validated_request_data["namespace"].split(",")
+            queryset = queryset.filter(namespace__in=ns_list)
         if validated_request_data.get("query_string"):
             queryset = queryset.filter(name__icontains=validated_request_data["query_string"])
 
@@ -422,21 +424,23 @@ class ResourceTrendResource(Resource):
             # workload 单独处理
             promql_list = []
             for wl in resource_list:
-                filter_obj = load_resource_filter(resource_type, [wl])
-                resource_meta.filter.add(filter_obj)
+                # workload 资源，需要带上namespace 信息: blueking|Deployment:bk-monitor-web
+                try:
+                    ns, wl = wl.split("|")
+                except ValueError:
+                    # 不符合预期的数据， ns置空
+                    ns = ""
+                tmp_filter_chain = []
+                tmp_filter_chain.append(load_resource_filter(resource_type, [wl]))
+                tmp_filter_chain.append(load_resource_filter("namespace", [ns]))
+                [resource_meta.filter.add(filter_obj) for filter_obj in tmp_filter_chain]
                 promql_list.append(getattr(resource_meta, f"meta_prom_with_{column}"))
-                resource_meta.filter.remove(filter_obj)
-                workload_name = wl.split(":")[-1]
-                # 初始化series_map
-                series_map[workload_name] = {"datapoints": [], "unit": unit}
+                [resource_meta.filter.remove(filter_obj) for filter_obj in tmp_filter_chain]
             promql = " or ".join(promql_list)
         else:
             resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
             # 不用topk 因为有resource_list
             promql = getattr(resource_meta, f"meta_prom_with_{column}")
-            # 初始化series_map
-            # for resource_id in resource_list:
-            #     series_map[resource_id] = {"datapoints": [], "unit": unit}
         interval = get_interval_number(start_time, end_time, interval=60)
         query_params = {
             "bk_biz_id": bk_biz_id,
@@ -467,6 +471,9 @@ class ResourceTrendResource(Resource):
 
         for line in series:
             resource_name = resource_meta.get_resource_name(line)
+            if resource_type == "workload":
+                # workload 补充namespace
+                resource_name = f"{line['dimensions']['namespace']}|{resource_name}"
             if line["datapoints"][-1][1] == max_data_point:
                 datapoints = line["datapoints"][-1:]
             else:

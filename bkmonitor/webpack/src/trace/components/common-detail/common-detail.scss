@@ -1,0 +1,65 @@
+.trace-common-detail {
+  height: 100%;
+
+  .common-detail-container {
+    height: 100%;
+    overflow-y: auto;
+    background: #fafbfd;
+    box-shadow: -1px 0 0 0 #0000001a;
+
+    .container-padding {
+      padding: 10px 24px;
+    }
+
+    .common-detail-header {
+      margin-bottom: 10px;
+      font-size: 14px;
+      line-height: 22px;
+      color: #313238;
+    }
+
+    .host-detail-view {
+      height: calc(100% - 32px);
+
+      .detail-collapse-content {
+        background-color: #fff;
+      }
+    }
+  }
+
+  .monitor-drag {
+    .theme-line {
+      &:not(.is-show) {
+        .line-trigger {
+          color: #fff;
+          background-color: #699df4;
+        }
+      }
+    }
+  }
+
+  .skeleton-container {
+    .skeleton-element {
+      height: 20px;
+
+      & + .skeleton-element {
+        margin-top: 10px;
+      }
+
+      &.status {
+        height: 32px;
+        margin-bottom: 16px;
+      }
+    }
+  }
+
+  .empty-status-container {
+    .bk-exception-img {
+      overflow: hidden;
+    }
+
+    .bk-exception-footer {
+      top: 0;
+    }
+  }
+}

@@ -478,7 +478,10 @@ class SDKPreDetectMixin(object):
         :return: 维度字典
         """
         if "agg_dimension" not in data_point.item.query_configs[0]:
-            dimensions = copy.deepcopy(data_point.dimensions)
+            if getattr(data_point, "dimension_fields", None):
+                dimensions = {key: data_point.dimensions[key] for key in data_point.dimension_fields}
+            else:
+                dimensions = copy.deepcopy(data_point.dimensions)
         else:
             dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
         dimensions["strategy_id"] = int(data_point.item.strategy.id)
@@ -561,6 +564,7 @@ class SDKPreDetectMixin(object):
         """
         local_pre_detect_results = getattr(self, "_local_pre_detect_results", {})
         predict_result = local_pre_detect_results.get(data_point.record_id, {})
+        dimension_fields = getattr(data_point, "dimension_fields", None) or list(data_point.dimensions.keys())
 
         if predict_result:
             return DataPoint(
@@ -570,7 +574,7 @@ class SDKPreDetectMixin(object):
                     "values": predict_result,
                     "time": int(predict_result["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
-                    "dimension_fields": list(data_point.dimensions.keys()),
+                    "dimension_fields": dimension_fields,
                 },
                 item=data_point.item,
             )

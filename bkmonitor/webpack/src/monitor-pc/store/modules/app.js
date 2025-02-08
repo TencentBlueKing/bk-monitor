@@ -84,6 +84,7 @@ const state = {
   paddingRoute: null,
   k8sV2EnableList: [],
   defaultBizId: '',
+  defaultBizIdApiId: '',
 };
 
 const mutations = {

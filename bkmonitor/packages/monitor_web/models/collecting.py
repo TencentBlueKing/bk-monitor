@@ -281,6 +281,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
         (TargetNodeType.SERVICE_TEMPLATE, _lazy("服务模板")),
         (TargetNodeType.SET_TEMPLATE, _lazy("集群模板")),
         (TargetNodeType.CLUSTER, _lazy("集群")),
+        (TargetNodeType.DYNAMIC_GROUP, _lazy("动态分组")),
     )
 
     plugin_version = models.ForeignKey(

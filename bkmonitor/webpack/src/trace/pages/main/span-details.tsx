@@ -30,6 +30,7 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
+import { CancelToken } from 'monitor-api/index';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
@@ -53,12 +54,12 @@ import {
   type ITagsItem,
 } from '../../typings/trace';
 import { downFile, getSpanKindIcon } from '../../utils';
+import DashboardPanel from './dashboard-panel/dashboard-panel';
 
 import type { Span } from '../../components/trace-view/typings';
 
 import './span-details.scss';
 import 'vue-json-pretty/lib/styles.css';
-
 const guideInfoData: Record<string, IGuideInfo> = {
   Event: {
     type: '',
@@ -119,14 +120,37 @@ export default defineComponent({
 
     const spans = computed(() => store.spanGroupTree);
 
+    /** 主机容器接口 */
+    let hostAndContainerCancelToken = null;
+
     // const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
+    /** 主机和容器的自定义时间，不走右上角的时间选择器 */
+    const customTimeProvider = computed(() => {
+      if (activeTab.value === 'Container' || activeTab.value === 'Host') {
+        // 当前时间减去一小时
+        const oneHourAgo = dayjs().subtract(1, 'hour');
+        const isBefore = dayjs(spanTime.value).isBefore(oneHourAgo);
+        /**
+         * 2025/1/22 容器，主机起止时间取值
+         * 如果span时间在当前时间的一小时内，取值为span的前一小时
+         * 如果span时间在当前时间的一小时前，取值为span的前后半小时
+         */
+        if (isBefore) {
+          return [
+            dayjs(spanTime.value).subtract(30, 'minute').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs(spanTime.value).add(30, 'minute').format('YYYY-MM-DD HH:mm:ss'),
+          ];
+        }
+        return [
+          dayjs(spanTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(spanTime.value).format('YYYY-MM-DD HH:mm:ss'),
+        ];
+      }
+      return [];
+    });
+    provide('customTimeProvider', customTimeProvider);
 
-    // 20230807 当前 span 开始和结束时间。用作 主机（host）标签下请求接口的时间区间参数。
-    const startTimeProvider = ref('');
-    provide('startTime', startTimeProvider);
-    const endTimeProvider = ref('');
-    provide('endTime', endTimeProvider);
     const serviceNameProvider = ref('');
     // 服务、应用 名在日志 tab 里能用到
     provide('serviceName', serviceNameProvider);
@@ -135,6 +159,7 @@ export default defineComponent({
     // 用于关联日志跳转信息
     const traceId = ref('');
     provide('traceId', traceId);
+    const spanTime = ref(0);
     const originSpanStartTime = ref(0);
     provide('originSpanStartTime', originSpanStartTime);
     const originSpanEndTime = ref(0);
@@ -235,8 +260,7 @@ export default defineComponent({
       // 根据span_id获取原始数据
       const curSpan = originalDataList.find((data: any) => data.span_id === originalSpanId);
       if (!curSpan) return;
-      startTimeProvider.value = `${formatDate(curSpan.start_time)} ${formatTime(curSpan.start_time)}`;
-      endTimeProvider.value = `${formatDate(curSpan.end_time)} ${formatTime(curSpan.end_time)}`;
+      spanTime.value = Number(curSpan.time || 0);
       originSpanStartTime.value = Math.floor(startTime / 1000);
       originSpanEndTime.value = Math.floor((startTime + duration) / 1000);
       if (curSpan) originalData.value = handleFormatJson(curSpan);
@@ -885,7 +909,6 @@ export default defineComponent({
     );
 
     const activeTab = ref<TabName>('BasicInfo');
-    provide('SpanDetailActiveTab', activeTab);
 
     watch(
       () => props.activeTab,
@@ -911,6 +934,10 @@ export default defineComponent({
         label: t('主机'),
         name: 'Host',
       },
+      {
+        label: t('容器'),
+        name: 'Container',
+      },
       // 20230525 这期暂时不需要
       // {
       //   label: t('进程'),
@@ -926,7 +953,7 @@ export default defineComponent({
       // }
     ];
 
-    const sceneData = ref<Record<string, any>>({});
+    const sceneData = ref<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
       return (
         sceneData.value?.panelCount < 2 &&
@@ -948,6 +975,10 @@ export default defineComponent({
     const isTabPanelLoading = ref(false);
     const handleActiveTabChange = async () => {
       isTabPanelLoading.value = true;
+      if (hostAndContainerCancelToken) {
+        hostAndContainerCancelToken?.();
+        hostAndContainerCancelToken = null;
+      }
       if (activeTab.value === 'Log') {
         const result = await getSceneView({
           scene_id: 'apm_trace',
@@ -974,16 +1005,40 @@ export default defineComponent({
         sceneData.value = new BookMarkModel(result);
       }
       if (activeTab.value === 'Host') {
-        const result = await getSceneView({
-          scene_id: 'apm_trace',
-          id: activeTab.value.toLowerCase(),
-          bk_biz_id: window.bk_biz_id,
-          apm_app_name: props.spanDetails.app_name,
-          apm_span_id: props.spanDetails.span_id,
-        })
-          .catch(console.log)
-          .finally(() => (isTabPanelLoading.value = false));
+        const result = await getSceneView(
+          {
+            scene_id: 'apm_trace',
+            id: 'host',
+            bk_biz_id: window.bk_biz_id,
+            apm_app_name: props.spanDetails.app_name,
+            apm_service_name: props.spanDetails.service_name,
+            apm_span_id: props.spanDetails.span_id,
+          },
+          { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
+        ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
+      }
+      if (activeTab.value === 'Container') {
+        const startTime = dayjs(spanTime.value).unix() - 60 * 60;
+        let endTime = dayjs(spanTime.value).unix() + 30 * 60;
+        const curUnix = dayjs().unix();
+        endTime = endTime > curUnix ? curUnix : endTime;
+        const result = await getSceneView(
+          {
+            scene_id: 'apm_trace',
+            id: 'container',
+            bk_biz_id: window.bk_biz_id,
+            apm_app_name: props.spanDetails.app_name,
+            apm_service_name: props.spanDetails.service_name,
+            apm_span_id: props.spanDetails.span_id,
+            start_time: startTime,
+            end_time: endTime,
+          },
+          { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
+        ).catch(() => null);
+        sceneData.value = new BookMarkModel(result);
+        isTabPanelLoading.value = false;
       }
     };
 
@@ -1170,6 +1225,7 @@ export default defineComponent({
                       // 以下 is-xxx-tab 用于 Span ID 精确查询下的 日志、主机 tap 的样式进行动态调整。以免影响 span id 列表下打开弹窗的 span detail 样式。
                       'is-log-tab': activeTab.value === 'Log',
                       'is-host-tab': activeTab.value === 'Host',
+                      'is-container-tab': activeTab.value === 'Container',
                     }}
                   >
                     {info.list.map((item, index) => {
@@ -1301,14 +1357,34 @@ export default defineComponent({
                         >
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
-                            <div>
-                              <FlexDashboardPanel
-                                id={random(10)}
-                                column={3}
-                                dashboardId={random(10)}
+                            <div class='host-tab-container'>
+                              <DashboardPanel
+                                groupTitle={t('主机列表')}
                                 isSingleChart={isSingleChart.value}
-                                needOverviewBtn={!!sceneData.value?.list?.length}
-                                panels={sceneData.value.overview_panels}
+                                sceneData={sceneData.value}
+                                sceneId={'host'}
+                              />
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // 容器 部分
+                      activeTab.value === 'Container' && (
+                        <Loading
+                          style='height: 100%;'
+                          loading={isTabPanelLoading.value}
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div class='host-tab-container'>
+                              <DashboardPanel
+                                groupTitle={'Groups'}
+                                isSingleChart={isSingleChart.value}
+                                podName={originalData.value?.resource?.['k8s.pod.name']}
+                                sceneData={sceneData.value}
+                                sceneId={'container'}
                               />
                             </div>
                           )}
@@ -1358,7 +1434,7 @@ export default defineComponent({
 
     const renderDom = () => (
       <Sideslider
-        width={960}
+        width={1280}
         ext-cls={`span-details-sideslider ${props.isFullscreen ? 'full-screen' : ''}`}
         v-model={[localShow.value, 'isShow']}
         v-slots={{
@@ -1431,6 +1507,8 @@ export default defineComponent({
       info,
       detailsMain,
       renderDom,
+      sceneData,
+      isTabPanelLoading,
       // countOfInfo,
     };
   },
