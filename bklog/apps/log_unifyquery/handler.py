@@ -31,7 +31,7 @@ from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, UserIndexSetSearchHistory
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, UserIndexSetSearchHistory, UserIndexSetFieldsConfig
 from apps.log_unifyquery.constants import (
     BASE_OP_MAP,
     FLOATING_NUMERIC_FIELD_TYPES,
@@ -574,7 +574,6 @@ class UnifyQueryHandler(object):
         # 用户已设置排序规则  （联合检索时不使用用户在单个索引集上设置的排序规则）
         scope = self.search_params.get("search_type", "default")
         if not is_union_search:
-            from apps.log_search.models import UserIndexSetFieldsConfig
             config_obj = UserIndexSetFieldsConfig.get_config(
                 index_set_id=index_set_id, username=self.request_username, scope=scope
             )
@@ -627,7 +626,7 @@ class UnifyQueryHandler(object):
 
         # 参数补充
         search_dict["from"] = self.search_params["begin"]
-        search_dict["limit"] = self.search_params["size"]
+        search_dict["limit"] = once_size
 
         result = UnifyQueryApi.query_ts_raw(search_dict)
         result = self._deal_query_result(result)
