@@ -213,6 +213,10 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
     Case1. Kafka集群不存在 + VM集群不存在
     Case2. Kafka集群变更 + Topic变更 + VM集群变更
     """
+
+    mocker.patch('django.conf.settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE', True)
+    mocker.patch('django.conf.settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB', True)
+
     # Case1. Kafka集群不存在 + VM集群不存在
     with patch(
         "redis.StrictRedis.hgetall", return_value=redis_value_for_metric_when_cluster_not_exists
@@ -266,6 +270,9 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
         key = "databus_v4_dataid:60010"
         table_id = '1001_bkmonitor_log_60010.__default__'
 
+        mocker.patch('django.conf.settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE', True)
+        mocker.patch('django.conf.settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB', True)
+
         # 调用测试函数
         sync_bkbase_v4_metadata(key)
 
@@ -281,9 +288,6 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
         assert es_storage.storage_cluster_id == es_cluster2.cluster_id
         assert mq_config.partition == 6
         assert mq_config.topic == "bkm_test_log_topic"
-
-        # 开启历史集群变更能力开关
-        mocker.patch('django.conf.settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE', True)
 
         # 验证StorageClusterRecord记录是否被正确同步
         cluster_records = models.StorageClusterRecord.objects.filter(table_id=table_id, is_deleted=False)

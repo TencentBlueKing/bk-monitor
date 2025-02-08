@@ -41,22 +41,39 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
     @param ds: 数据源信息
     @param bk_data_id: 数据源 ID
     """
+    kafka_cluster = None
     try:
         kafka_cluster = models.ClusterInfo.objects.get(domain_name=kafka_info['host'])
     except models.ClusterInfo.DoesNotExist:
-        logger.info("sync_kafka_metadata: kafka_cluster does not exist,try to create,data->[%s]", kafka_info)
+        logger.info(
+            "sync_kafka_metadata: kafka_cluster does not exist,try to create,data->[%s],bk_data_id->[%s]",
+            kafka_info,
+            bk_data_id,
+        )
         if kafka_info['auth']:  # TODO：当Kafka带鉴权时，需要后续介入补充
             logger.warning(
-                "sync_kafka_metadata: kafka auth is not empty,please add auth info later,data->[%s]", kafka_info
+                "sync_kafka_metadata: kafka auth is not empty,please add auth info later,data->[%s],bk_data_id->[%s]",
+                kafka_info,
+                bk_data_id,
             )
         # 如果 Kafka 集群信息不存在，创建新集群
-        kafka_cluster = models.ClusterInfo.objects.create(
-            cluster_name=kafka_info['host'],
-            domain_name=kafka_info['host'],
-            cluster_type=models.ClusterInfo.TYPE_KAFKA,
-            port=kafka_info['port'],
-            is_default_cluster=False,
+        if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+            logger.info(
+                "sync_kafka_metadata: try to write to db,switch on,data->[%s],bk_data_id->[%s]", kafka_info, bk_data_id
+            )
+            kafka_cluster = models.ClusterInfo.objects.create(
+                cluster_name=kafka_info['host'],
+                domain_name=kafka_info['host'],
+                cluster_type=models.ClusterInfo.TYPE_KAFKA,
+                port=kafka_info['port'],
+                is_default_cluster=False,
+            )
+
+    if not kafka_cluster:
+        logger.error(
+            "sync_kafka_metadata: kafka_cluster does not exist,data->[%s],bk_data_id->[%s]", kafka_info, bk_data_id
         )
+        return
 
     # 更新 KafkaTopicInfo 信息，按需更新
     try:
@@ -65,9 +82,15 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
             logger.info(
                 "sync_kafka_metadata: kafka_topic_info is different from old,try to update,bk_data_id->[%s]", bk_data_id
             )
-            kafka_topic_ins.topic = kafka_info['topic']
-            kafka_topic_ins.partition = kafka_info['partitions']
-            kafka_topic_ins.save()
+            if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+                logger.info(
+                    "sync_kafka_metadata: try to write to db,switch on,data->[%s],bk_data_id->[%s]",
+                    kafka_info,
+                    bk_data_id,
+                )
+                kafka_topic_ins.topic = kafka_info['topic']
+                kafka_topic_ins.partition = kafka_info['partitions']
+                kafka_topic_ins.save()
     except models.KafkaTopicInfo.DoesNotExist:
         # 如果 KafkaTopicInfo 不存在，创建新 KafkaTopicInfo
         kafka_topic_ins = models.KafkaTopicInfo.objects.create(
@@ -79,9 +102,11 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
         logger.info(
             "sync_kafka_metadata: mq_cluster_info is different from old,try to update,bk_data_id->[%s]", bk_data_id
         )
-        ds.mq_cluster_id = kafka_cluster.cluster_id
-        ds.mq_config_id = kafka_topic_ins.id
-        ds.save()
+        if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+            logger.info("sync_kafka_metadata: try to write to db,switch on,data->[%s]", kafka_info)
+            ds.mq_cluster_id = kafka_cluster.cluster_id
+            ds.mq_config_id = kafka_topic_ins.id
+            ds.save()
 
 
 def sync_es_metadata(es_info, table_id):
@@ -91,6 +116,7 @@ def sync_es_metadata(es_info, table_id):
     @param es_info: ES 元数据信息
     @param table_id: 结果表ID
     """
+    es_cluster = None
     logger.info("sync_es_metadata: start,table_id->[%s],es_info->[%s]", table_id, es_info)
     try:
         es_storage = models.ESStorage.objects.get(table_id=table_id)
@@ -110,20 +136,27 @@ def sync_es_metadata(es_info, table_id):
         logger.error(
             "sync_es_metadata: es cluster does not exist,please check,table_id->[%s],es_info->[%s]", table_id, es_info
         )
-        models.ClusterInfo.objects.create(
-            domain_name=current_es_info['host'],
-            port=current_es_info['port'],
-            cluster_type=models.ClusterInfo.TYPE_ES,
-            is_default_cluster=False,
-            cluster_name=current_es_info['host'],
-        )
+        if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+            logger.info("sync_es_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", es_info, table_id)
+            models.ClusterInfo.objects.create(
+                domain_name=current_es_info['host'],
+                port=current_es_info['port'],
+                cluster_type=models.ClusterInfo.TYPE_ES,
+                is_default_cluster=False,
+                cluster_name=current_es_info['host'],
+            )
+
+    if not es_cluster:
+        logger.error("sync_es_metadata: es_cluster does not exist,table_id->[%s]", table_id)
         return
 
     # 更新 ESStorage 信息，按需更新
     if es_storage.storage_cluster_id != es_cluster.cluster_id:
         logger.info("sync_es_metadata: es_storage info is different from old ,try to update,table_id->[%s]", table_id)
-        es_storage.storage_cluster_id = es_cluster.cluster_id
-        es_storage.save()
+        if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+            logger.info("sync_es_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", es_info, table_id)
+            es_storage.storage_cluster_id = es_cluster.cluster_id
+            es_storage.save()
 
     if not settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE:
         logger.info("sync_es_metadata: not enable sync history es cluster record from bkbase,skip,table_id->[%s]")
@@ -230,21 +263,29 @@ def sync_vm_metadata(vm_info, table_id):
         logger.error("sync_vm_metadata: access_vm_record does not exist,table_id->[%s]", table_id)
         return
 
+    vm_cluster = None
     try:
         vm_cluster = models.ClusterInfo.objects.get(domain_name=vm_info['select_host'])
     except models.ClusterInfo.DoesNotExist:
         # 如果 VM 集群信息不存在，创建新集群
         logger.info("sync_vm_metadata: vm cluster does not exist,try to create it,vm_info->[%s]", vm_info)
-        vm_cluster = models.ClusterInfo.objects.create(
-            cluster_name=vm_info['name'],
-            domain_name=vm_info['select_host'],
-            port=vm_info['select_port'],
-            cluster_type=models.ClusterInfo.TYPE_VM,
-            is_default_cluster=False,
-        )
+        if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+            logger.info("sync_vm_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", vm_info, table_id)
+            vm_cluster = models.ClusterInfo.objects.create(
+                cluster_name=vm_info['name'],
+                domain_name=vm_info['select_host'],
+                port=vm_info['select_port'],
+                cluster_type=models.ClusterInfo.TYPE_VM,
+                is_default_cluster=False,
+            )
 
+    if not vm_cluster:
+        logger.error("sync_vm_metadata: vm_cluster does not exist,table_id->[%s],data->[%s]", table_id, vm_info)
+        return
     # 更新 AccessVMRecord 信息，按需更新
     if access_vm_record.vm_cluster_id != vm_cluster.cluster_id:
         logger.info("sync_vm_metadata: vm storage info is different from old,try to update,table_id->[%s]", table_id)
-        access_vm_record.vm_cluster_id = vm_cluster.cluster_id
-        access_vm_record.save()
+        if settings.ENABLE_SYNC_BKBASE_METADATA_TO_DB:
+            logger.info("sync_vm_metadata: try to write to db,switch on,data->[%s],table_id->[%s]", vm_info, table_id)
+            access_vm_record.vm_cluster_id = vm_cluster.cluster_id
+            access_vm_record.save()
