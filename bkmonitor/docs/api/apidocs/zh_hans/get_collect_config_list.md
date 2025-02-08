@@ -32,7 +32,7 @@
 | target_object_type   | str  | 采集对象类型      |
 | deployment_config_id | int  | 当前的部署配置 ID  |
 | cache_data           | str  | 缓存数据        |
-| last_operation       | str  | 最近一次操作      |
+| last_operation       | str  | 最近一次操作类型      |
 | operation_result     | str  | 最近一次任务结果    |
 | label                | str  | 二级标签        |
 | create_time          | str  | 创建时间        |

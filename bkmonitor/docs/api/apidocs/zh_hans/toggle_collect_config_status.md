@@ -30,7 +30,7 @@
 | ------- | ------ | ------ |
 | result  | bool   | 请求是否成功 |
 | code    | int    | 返回的状态码 |
-| message | string | 描述信息   |
+| message | str | 描述信息   |
 | data    | str    | 启停结果   |
 
 #### 结果示例

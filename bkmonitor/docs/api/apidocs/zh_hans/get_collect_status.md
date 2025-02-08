@@ -46,31 +46,13 @@
 | id                 | int | 配置信息 ID |
 | name               | str | 配置名称   |
 | bk_biz_id          | int | 业务 ID   |
-| target_object_type | str | 采集对象类型 |
-| target_node_type   | str | 采集目标类型 |
+| target_object_type | str | 采集对象类型: SERVICE / HOST / CLUSTER (SERVICE: 服务, HOST: 主机, CLUSTER: 集群) |
+| target_node_type   | str | 采集目标类型: TOPO / INSTANCE / SERVICE_TEMPLATE / SET_TEMPLATE / CLUSTER (TOPO: 拓扑, INSTANCE: 实例, SERVICE_TEMPLATE: 服务模板, SET_TEMPLATE: 集群模板, CLUSTER: 集群) |
 | plugin_id          | str | 插件 ID   |
 | label              | str | 二级标签   |
 | config_version     | int | 插件版本   |
 | info_version       | int | 插件信息版本 |
 | last_operation     | str | 最后一次操作 |
-
-##### data.config_info.target_object_type
-
-| 值       | 描述  |
-| ------- | --- |
-| SERVICE | 服务  |
-| HOST    | 主机  |
-| CLUSTER | 集群  |
-
-##### data.config_info.target_node_type
-
-| 值                | 描述   |
-| ---------------- | ---- |
-| TOPO             | 拓扑   |
-| INSTANCE         | 实例   |
-| SERVICE_TEMPLATE | 服务模板 |
-| SET_TEMPLATE     | 集群模板 |
-| CLUSTER          | 集群   |
 
 ##### data.contents
 
@@ -98,7 +80,7 @@
 | bk_host_name   | str      | 主机名称               |
 | bk_supplier_id | str      | 开发商 ID              |
 | task_id        | int      | 任务 ID               |
-| bk_module_ids  | List\[\] | 模块 ID 列表             |
+| bk_module_ids  | List     | 模块 ID 列表             |
 
 #### 结果示例
 

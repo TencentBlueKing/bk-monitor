@@ -29,7 +29,7 @@
 | result  | bool   | 请求是否成功 |
 | code    | int    | 返回的状态码 |
 | message | string | 描述信息   |
-| data    | dict   | 数据     |
+| data    | null   | 数据始终为null     |
 
 #### data 字段说明
 

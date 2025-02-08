@@ -80,10 +80,10 @@
 | bk_biz_id            | int  | 业务 ID    |
 | space_name           | str  | 空间名称     |
 | collect_type         | str  | 采集类型     |
-| status               | str  | 配置状态     |
-| task_status          | str  | 任务状态     |
-| target_object_type   | str  | 采集对象类型   |
-| target_node_type     | str  | 采集目标类型   |
+| status               | str  | 配置状态: STARTED / STOPPED / DEPLOYING / STARTING / STOPPING / PREPARING (STARTED: 已启用, STOPPED: 已停用, DEPLOYING: 执行中, STARTING: 启用中, STOPPING: 停用中, PREPARING: 准备中)     |
+| task_status          | str  | 任务状态: PREPARING / DEPLOYING / STOPPING / STARTING / STOPPED / SUCCESS / WARNING / FAILED / AUTO_DEPLOYING (PREPARING: 准备中, DEPLOYING: 执行中, STOPPING: 停用中, STARTING: 启用中, STOPPED: 已停用, SUCCESS: 上次任务执行下发全部成功, WARNING: 任务执行下发部分失败, FAILED: 上次任务调用失败/任务执行下发全部失败, AUTO_DEPLOYING: 自动执行中)     |
+| target_object_type   | str  | 采集对象类型: SERVICE / HOST / CLUSTER (SERVICE: 服务, HOST: 主机, CLUSTER: 集群)   |
+| target_node_type     | str  | 采集目标类型: TOPO / INSTANCE / SERVICE_TEMPLATE / SET_TEMPLATE / CLUSTER (TOPO: 拓扑, INSTANCE: 实例, SERVICE_TEMPLATE: 服务模板, SET_TEMPLATE: 集群模板, CLUSTER: 集群)  |
 | plugin_id            | str  | 插件 ID     |
 | target_nodes_count   | int  | 采集目标节点数量 |
 | need_upgrade         | bool | 是否需要升级   |
@@ -96,49 +96,6 @@
 | label                | str  | 二级标签     |
 | update_time          | str  | 修改时间     |
 | update_user          | str  | 修改人      |
-
-##### data.config_list.status
-
-| 值         | 描述  |
-| --------- | --- |
-| STARTED   | 已启用 |
-| STOPPED   | 已停用 |
-| DEPLOYING | 执行中 |
-| STARTING  | 启用中 |
-| STOPPING  | 停用中 |
-| PREPARING | 准备中 |
-
-##### data.config_list.target_object_type
-
-| 值       | 描述  |
-| ------- | --- |
-| SERVICE | 服务  |
-| HOST    | 主机  |
-| CLUSTER | 集群  |
-
-##### data.config_list.target_node_type
-
-| 值                | 描述   |
-| ---------------- | ---- |
-| TOPO             | 拓扑   |
-| INSTANCE         | 实例   |
-| SERVICE_TEMPLATE | 服务模板 |
-| SET_TEMPLATE     | 集群模板 |
-| CLUSTER          | 集群   |
-
-##### data.config_list.task_status
-
-| 值              | 描述                  |
-| -------------- | ------------------- |
-| PREPARING      | 准备中                 |
-| DEPLOYING      | 执行中                 |
-| STOPPING       | 停用中                 |
-| STARTING       | 启用中                 |
-| STOPPED        | 已停用                 |
-| SUCCESS        | 上次任务执行下发全部成功        |
-| WARNING        | 任务执行下发部分失败          |
-| FAILED         | 上次任务调用失败/任务执行下发全部失败 |
-| AUTO_DEPLOYING | 自动执行中               |
 
 #### 结果示例
 

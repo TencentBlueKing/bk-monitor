@@ -13,7 +13,7 @@
 | bk_biz_id | int  | 是   | 业务 ID              |
 | id        | int  | 是   | 采集配置 ID            |
 | action    | str  | 否   | 执行操作, 默认 "install" |
-| scope     | dict | 否   | 时间订阅监听的范围          |
+| scope     | dict | 否   | 事件订阅监听的范围          |
 
 ##### scope
 
