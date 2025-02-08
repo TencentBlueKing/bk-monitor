@@ -38,7 +38,7 @@ class UserGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
     queryset = UserGroup.objects.all()
     serializer_class = serializers.UserGroupDetailSlz
 
-    filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
+    filterset_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
     pagination_class = None
 
     def get_queryset(self):
@@ -68,7 +68,7 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
     queryset = DutyRule.objects.all()
     serializer_class = serializers.DutyRuleDetailSlz
 
-    filter_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
+    filterset_fields = {"bk_biz_id": ["exact", "in"], "name": ["exact", "icontains"]}
     pagination_class = None
 
     def get_serializer_class(self):

@@ -116,7 +116,7 @@ def get_capacity(targets_count):
 
 class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelMixin):
     queryset = UptimeCheckNode.objects.all()
-    _, filter_class = get_filterset(UptimeCheckNode)
+    _, filterset_class = get_filterset(UptimeCheckNode)
     serializer_class = UptimeCheckNodeSerializer
 
     def retrieve(self, request, *args, **kwargs):
@@ -293,7 +293,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
 
 
 class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelMixin):
-    _, filter_class = get_filterset(UptimeCheckTask)
+    _, filterset_class = get_filterset(UptimeCheckTask)
     serializer_class = UptimeCheckTaskSerializer
 
     def retrieve(self, request, *args, **kwargs):
@@ -470,7 +470,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
 
 class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
     queryset = UptimeCheckGroup.objects.all()
-    _, filter_class = get_filterset(UptimeCheckGroup)
+    _, filterset_class = get_filterset(UptimeCheckGroup)
     serializer_class = UptimeCheckGroupSerializer
 
     def retrieve(self, request, *args, **kwargs):

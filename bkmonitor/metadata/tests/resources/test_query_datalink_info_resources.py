@@ -15,6 +15,7 @@ import pytest
 
 from metadata import models
 from metadata.resources import GetBCSClusterRelatedDataLinkResource
+from metadata.resources.bkdata_link import QueryDataIdsByBizIdResource
 from metadata.tests.common_utils import consul_client
 
 
@@ -41,7 +42,10 @@ def create_or_delete_records(mocker):
         is_custom_source=False,
     )
     models.ResultTable.objects.create(
-        table_id="1001_bkmonitor_time_series_50010.__default__", bk_biz_id=1001, is_custom_table=False
+        table_id="1001_bkmonitor_time_series_50010.__default__",
+        bk_biz_id=1001,
+        is_custom_table=False,
+        default_storage="influxdb",
     )
     models.DataSourceResultTable.objects.create(
         table_id='1001_bkmonitor_time_series_50010.__default__', bk_data_id=50010
@@ -66,7 +70,10 @@ def create_or_delete_records(mocker):
         bk_data_id=50011,
     )
     models.ResultTable.objects.create(
-        table_id="1001_bkmonitor_time_series_50011.__default__", bk_biz_id=1001, is_custom_table=False
+        table_id="1001_bkmonitor_time_series_50011.__default__",
+        bk_biz_id=1001,
+        is_custom_table=False,
+        default_storage="influxdb",
     )
     models.AccessVMRecord.objects.create(
         result_table_id="1001_bkmonitor_time_series_50011.__default__",
@@ -83,16 +90,11 @@ def create_or_delete_records(mocker):
         is_custom_source=False,
     )
     models.ResultTable.objects.create(
-        table_id="1001_bkmonitor_time_series_50012.__default__", bk_biz_id=1001, is_custom_table=False
+        table_id="1001_bkmonitor_event_50012", bk_biz_id=1001, is_custom_table=False, default_storage="elasticsearch"
     )
     models.DataSourceResultTable.objects.create(
-        table_id="1001_bkmonitor_time_series_50012.__default__",
+        table_id="1001_bkmonitor_event_50012",
         bk_data_id=50012,
-    )
-    models.AccessVMRecord.objects.create(
-        result_table_id="1001_bkmonitor_time_series_50012.__default__",
-        bk_base_data_id=60012,
-        vm_result_table_id="1001_vm_bkmonitor_time_series_50012.__default__",
     )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
@@ -124,8 +126,35 @@ def test_get_bcs_cluster_related_data_link_resource(create_or_delete_records):
         "K8SEvent": {
             "bk_data_id": 50012,
             "data_name": "BCS-K8S-10001-k8s_event",
-            "result_table_id": "1001_bkmonitor_time_series_50012.__default__",
-            "vm_result_table_id": "1001_vm_bkmonitor_time_series_50012.__default__",
+            "result_table_id": "1001_bkmonitor_event_50012",
+            "vm_result_table_id": None,
         },
     }
+    assert json.dumps(actual_data) == json.dumps(expected_data)
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_query_data_ids_by_biz_id(create_or_delete_records):
+    """
+    测试查询业务关联的数据源信息
+    """
+    actual_data = QueryDataIdsByBizIdResource().request(bk_biz_id=1001)
+    expected_data = [
+        {
+            "bk_data_id": 50010,
+            "monitor_table_id": "1001_bkmonitor_time_series_50010.__default__",
+            "storage_type": "influxdb",
+        },
+        {
+            "bk_data_id": 50011,
+            "monitor_table_id": "1001_bkmonitor_time_series_50011.__default__",
+            "storage_type": "influxdb",
+        },
+        {
+            "bk_data_id": 50012,
+            "monitor_table_id": "1001_bkmonitor_event_50012",
+            "storage_type": "elasticsearch",
+        },
+    ]
+
     assert json.dumps(actual_data) == json.dumps(expected_data)
