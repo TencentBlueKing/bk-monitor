@@ -442,6 +442,10 @@ export default ({ onSegmentClick }) => {
 
             let width = 0;
 
+            if (item.text === 'submitted') {
+              console.log('submitted');
+            }
+
             if (!isWrap) {
               const box = getTempText();
               width = box.width(item.text);
@@ -469,8 +473,13 @@ export default ({ onSegmentClick }) => {
 
             const nextLine = Math.floor(left / boxWidth);
 
+            // 用于判定边界极限情况
+            // 如果增加当前分词宽后，总宽度计算出来结果行数改变 & 有多余宽度才能判定分词被换行
+            // 如果正好换行没有多余宽度，说明当前分词正好在换行位置
+            const nextLineOffset = left % boxWidth;
+
             // 分词在换行被截断
-            if (nextLine > line && item.width > 0) {
+            if (nextLine > line && nextLineOffset > 0 && item.width > 0) {
               if (item.text?.length) {
                 const diffWidth = left % boxWidth;
                 const [leftText, rightText] = getWrapText(item.text, width - diffWidth);
