@@ -42,6 +42,7 @@ def watch_bkbase_meta_redis_task():
         logger.info("watch_bkbase_meta_redis_task: Lock is held by another instance. Exiting.")
         return
 
+    logger.info("watch_bkbase_meta_redis_task: Lock acquired. Starting watch loop.")
     # 创建停止事件
     stop_event = threading.Event()
 
