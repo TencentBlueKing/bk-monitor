@@ -1026,7 +1026,7 @@
         }
       },
       addObject(){
-        const fieldsObjectData = this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.'))
+        const fieldsObjectData = cloneDeep(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
         fieldsObjectData.forEach(item => {
           let name = item.field_name.split('.')[0]
           item.is_objectKey = true

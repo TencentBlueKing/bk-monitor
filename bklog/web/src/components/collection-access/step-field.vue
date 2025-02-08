@@ -1805,9 +1805,9 @@
             }
             // const promises = [this.checkStore()];
             const promises = [];
-            if (this.formData.etl_config !== 'bk_log_text') {
-              promises.splice(1, 0, ...this.checkFieldsTable());
-            }
+            // if (this.formData.etl_config !== 'bk_log_text') {
+            promises.splice(1, 0, ...this.checkFieldsTable());
+            // }
             Promise.all(promises).then(
               () => {
                 this.checkEtlConfChnage(isCollect, callback);
@@ -1822,7 +1822,8 @@
       },
       // 字段表格校验
       checkFieldsTable() {
-        return this.formData.etl_config !== 'bk_log_text' ? this.$refs.fieldTable.validateFieldTable() : [];
+        return this.$refs.fieldTable.validateFieldTable() 
+        // return this.formData.etl_config !== 'bk_log_text' ? this.$refs.fieldTable.validateFieldTable() : [];
       },
       handleCancel() {
         if (this.isSetEdit) {

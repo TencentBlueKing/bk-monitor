@@ -478,7 +478,7 @@
       });
     sliderLoading.value = false;
   };
-        // 拼接query_alias
+  // 拼接query_alias
   const concatenationQueryAlias = (fields) => {
     fields.forEach(item => {
       alias_settings.value.forEach(item2 => {
