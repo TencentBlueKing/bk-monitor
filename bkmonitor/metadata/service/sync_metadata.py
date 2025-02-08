@@ -11,9 +11,27 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from dateutil import parser
+from django.conf import settings
+from django.utils import timezone
+
 from metadata import models
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 logger = logging.getLogger("metadata")
+
+
+def parse_time(time_str):
+    """
+    解析时间字符串，兼容微秒等格式
+    @param time_str: 时间字符串
+    @return: DateTIme 对象
+    """
+    try:
+        return parser.parse(time_str)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("parse_time:parse->[%s],error->[%s]", time_str, e)
+        return None
 
 
 def sync_kafka_metadata(kafka_info, ds, bk_data_id):
@@ -69,21 +87,35 @@ def sync_kafka_metadata(kafka_info, ds, bk_data_id):
 def sync_es_metadata(es_info, table_id):
     """
     同步 ES 元数据信息
+    ES信息为一个列表,包含所有历史ES集群信息记录，会按照时间进行倒排序
     @param es_info: ES 元数据信息
     @param table_id: 结果表ID
     """
+    logger.info("sync_es_metadata: start,table_id->[%s],es_info->[%s]", table_id, es_info)
     try:
         es_storage = models.ESStorage.objects.get(table_id=table_id)
     except models.ESStorage.DoesNotExist:
         logger.error("sync_es_metadata: es_storage_ins does not exist,table_id->[%s]", table_id)
         return
 
+    # 对es_info进行排序，按照时间进行倒排序
+    es_info_sorted = sorted(es_info, key=lambda x: parse_time(x['update_time']), reverse=True)
+
+    # 先同步当前ES信息
+    current_es_info = es_info_sorted[0]
     try:
-        es_cluster = models.ClusterInfo.objects.get(domain_name=es_info['host'])
+        es_cluster = models.ClusterInfo.objects.get(domain_name=current_es_info['host'])
     except models.ClusterInfo.DoesNotExist:
         # 如果 ES 集群信息不存在，创建新集群（理论上不应出现这种情况）
         logger.error(
             "sync_es_metadata: es cluster does not exist,please check,table_id->[%s],es_info->[%s]", table_id, es_info
+        )
+        models.ClusterInfo.objects.create(
+            domain_name=current_es_info['host'],
+            port=current_es_info['port'],
+            cluster_type=models.ClusterInfo.TYPE_ES,
+            is_default_cluster=False,
+            cluster_name=current_es_info['host'],
         )
         return
 
@@ -92,6 +124,98 @@ def sync_es_metadata(es_info, table_id):
         logger.info("sync_es_metadata: es_storage info is different from old ,try to update,table_id->[%s]", table_id)
         es_storage.storage_cluster_id = es_cluster.cluster_id
         es_storage.save()
+
+    if not settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE:
+        logger.info("sync_es_metadata: not enable sync history es cluster record from bkbase,skip,table_id->[%s]")
+        return
+
+    logger.info("sync_es_metadata: start to sync history es cluster record,table_id->[%s]", table_id)
+
+    # 解析所有集群信息，收集cluster_id和启用/停用时间
+    clusters = []
+    valid_cluster_ids = []
+    for idx, info in enumerate(es_info_sorted):
+        host = info['host']
+        try:
+            cluster = models.ClusterInfo.objects.get(domain_name=host)
+            enable_time = info['update_time']
+            # 停用时间：上一条更晚记录的启用时间（若存在）
+            disable_time = parse_time(es_info_sorted[idx - 1]['update_time']) if idx > 0 else None
+            clusters.append(
+                {
+                    'cluster': cluster,
+                    'enable_time': enable_time,
+                    'disable_time': disable_time,
+                    'is_current': idx == 0,  # 仅第一个为当前集群
+                }
+            )
+            valid_cluster_ids.append(cluster.cluster_id)
+        except models.ClusterInfo.DoesNotExist:
+            logger.error(f"sync_es_metadata: cluster not exists, host={host}")
+            continue
+
+    # 标记不在当前有效列表中的记录为已删除
+    models.StorageClusterRecord.objects.filter(table_id=table_id).exclude(cluster_id__in=valid_cluster_ids).update(
+        is_deleted=True, disable_time=timezone.now(), delete_time=timezone.now()
+    )
+
+    # 先重置所有记录的is_current状态
+    models.StorageClusterRecord.objects.filter(table_id=table_id).update(is_current=False)
+
+    # 遍历处理每个集群记录
+    for cluster_data in clusters:
+        try:
+            cluster = cluster_data['cluster']
+            enable_time = parse_time(cluster_data['enable_time'])
+            disable_time = parse_time(cluster_data['disable_time'])
+            is_current = cluster_data['is_current']
+
+            # 查找或创建记录
+            record, created = models.StorageClusterRecord.objects.get_or_create(
+                table_id=table_id,
+                cluster_id=cluster.cluster_id,
+                defaults={
+                    'creator': 'system',  # 根据实际需求调整创建者
+                    'disable_time': disable_time,
+                    'enable_time': enable_time,
+                    'is_current': is_current,
+                    'is_deleted': False,
+                },
+            )
+
+            # 更新现有记录（若存在且需要修改）
+            if not created:
+                update_fields = []
+                if record.disable_time != disable_time:
+                    record.disable_time = disable_time
+                    update_fields.append('disable_time')
+                if record.is_current != is_current:
+                    record.is_current = is_current
+                    update_fields.append('is_current')
+                if record.is_deleted:
+                    record.is_deleted = False
+                    update_fields.append('is_deleted')
+                if update_fields:
+                    record.save(update_fields=update_fields)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("sync_es_metadata: failed to sync es metadata,table_id->[%s],error->[%s]", table_id, e)
+            continue
+
+    # 确保最新的记录is_current=True（防止并发问题）
+    if clusters:
+        latest_cluster = clusters[0]
+        models.StorageClusterRecord.objects.filter(
+            table_id=table_id,
+            cluster_id=latest_cluster['cluster'].cluster_id,
+            enable_time=parse_time(latest_cluster['enable_time']),
+        ).update(is_current=True)
+
+    # 推送路由
+    logger.info("sync_es_metadata: push router to redis,table_id->[%s]", table_id)
+    space_client = SpaceTableIDRedis()
+    space_client.push_es_table_id_detail(table_id_list=[table_id], is_publish=True)
+
+    logger.info("sync_es_metadata: sync es metadata successfully, table_id->[%s]", table_id)
 
 
 def sync_vm_metadata(vm_info, table_id):

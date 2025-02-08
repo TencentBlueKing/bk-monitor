@@ -61,6 +61,25 @@ redis_value_for_metric_when_cluster_exists = {
     ).encode('utf-8')
 }
 
+# 测试数据
+es_info = [
+    {
+        "host": "test.es.db",
+        "port": 9200,
+        "user": "admin",
+        "password": "password",
+        "update_time": '2025-02-07 11:14:21.784665876 UTC',
+    },
+    {
+        "host": "test2.es.db",
+        "port": 9200,
+        "user": "admin",
+        "password": "password",
+        "update_time": '2025-02-09 11:14:21.784665876 UTC',
+    },
+]
+
+# Mock redis value
 redis_value_for_log = {
     b'bkmonitor_test_result_log_table': json.dumps(
         {
@@ -71,12 +90,7 @@ redis_value_for_log = {
                 "topic": "bkm_test_log_topic",
                 "partitions": 6,
             },
-            "es": {
-                "host": "test.es.db",
-                "port": 9200,
-                "user": "admin",
-                "password": "password",
-            },
+            "es": es_info,
         }
     ).encode('utf-8')
 }
@@ -171,6 +185,18 @@ def create_or_delete_records(mocker):
         port=9200,
         is_default_cluster=False,
     )
+    models.ClusterInfo.objects.create(
+        domain_name='test2.es.db',
+        cluster_name='testes2',
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        port=9200,
+        is_default_cluster=False,
+    )
+    models.StorageClusterRecord.objects.create(
+        table_id="1001_bkmonitor_log_60010.__default__",
+        cluster_id=1000,
+        is_deleted=False,
+    )
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.DataSource.objects.all().delete()
@@ -181,7 +207,7 @@ def create_or_delete_records(mocker):
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
-def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records):
+def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
     """
     测试计算平台元数据同步更新能力 -- 指标链路
     Case1. Kafka集群不存在 + VM集群不存在
@@ -229,7 +255,7 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records):
 
 
 @pytest.mark.django_db(databases=["default", "monitor_api"])
-def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records):
+def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
     """
     测试计算平台元数据同步更新能力 -- 日志链路
     Case. Kafka集群变更+ES集群变更
@@ -238,6 +264,7 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records):
     with patch("redis.StrictRedis.hgetall", return_value=redis_value_for_log) as mock_hgetall:  # noqa
         # 定义测试输入
         key = "databus_v4_dataid:60010"
+        table_id = '1001_bkmonitor_log_60010.__default__'
 
         # 调用测试函数
         sync_bkbase_v4_metadata(key)
@@ -245,11 +272,28 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records):
         ds = models.DataSource.objects.get(bk_data_id=60010)
         kafka_cluster = models.ClusterInfo.objects.get(domain_name='test2.kafka.db')
         es_cluster = models.ClusterInfo.objects.get(domain_name='test.es.db')
+        es_cluster2 = models.ClusterInfo.objects.get(domain_name='test2.es.db')
         mq_config = models.KafkaTopicInfo.objects.get(bk_data_id=60010)
-        es_storage = models.ESStorage.objects.get(table_id="1001_bkmonitor_log_60010.__default__")
+        es_storage = models.ESStorage.objects.get(table_id=table_id)
 
         assert ds.mq_cluster_id == kafka_cluster.cluster_id
         assert ds.mq_config_id == mq_config.id
-        assert es_storage.storage_cluster_id == es_cluster.cluster_id
+        assert es_storage.storage_cluster_id == es_cluster2.cluster_id
         assert mq_config.partition == 6
         assert mq_config.topic == "bkm_test_log_topic"
+
+        # 开启历史集群变更能力开关
+        mocker.patch('django.conf.settings.ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE', True)
+
+        # 验证StorageClusterRecord记录是否被正确同步
+        cluster_records = models.StorageClusterRecord.objects.filter(table_id=table_id, is_deleted=False)
+        assert cluster_records.count() == 2  # 确保有2个集群记录
+
+        current_record = models.StorageClusterRecord.objects.get(is_current=True, table_id=table_id)
+        assert current_record.cluster_id == es_cluster2.cluster_id
+
+        old_record = models.StorageClusterRecord.objects.get(table_id=table_id, cluster_id=es_cluster.cluster_id)
+        assert not old_record.is_current
+
+        deleted_record = models.StorageClusterRecord.objects.get(cluster_id=1000)
+        assert deleted_record.is_deleted
