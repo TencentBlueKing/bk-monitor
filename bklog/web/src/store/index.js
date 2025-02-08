@@ -628,6 +628,9 @@ const store = new Vuex.Store({
     updateIndexFieldInfo(state, payload) {
       Object.assign(state.indexFieldInfo, payload ?? {});
     },
+    updateIndexFieldInfoField(state, payload) {
+      state.indexFieldInfo.fields.push(...payload)
+    },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time, end_time } = state.indexItem;
       const lastQueryTimerange = `${start_time}_${end_time}`;
@@ -1018,7 +1021,6 @@ const store = new Vuex.Store({
       if (!ids.length) {
         return;
       }
-
       commit('resetIndexFieldInfo', { is_loading: true });
       const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
       !isUnionIndex && commit('deleteApiError', urlStr);

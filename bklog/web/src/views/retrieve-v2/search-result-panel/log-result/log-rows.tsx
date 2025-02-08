@@ -64,7 +64,7 @@ import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-
+import useFieldNameHook from '@/hooks/use-field-name';
 import './log-rows.scss';
 
 type RowConfig = {
@@ -491,9 +491,10 @@ export default defineComponent({
         copyMessage(value);
         return;
       }
-
+      // 根据当前显示字段决定传参
       if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth, isNestedField);
+        const { getQueryAlias } = useFieldNameHook({ store });
+        handleAddCondition( getQueryAlias(field), type, value === '--' ? [] : [value], isLink, depth, isNestedField);
         return;
       }
     };
