@@ -14,9 +14,7 @@ RUN python -m venv venv \
 # Stage 2: Runtime stage
 FROM python:3.11.10-slim as runtime
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y --no-install-recommends curl vim
 
 # Copy the virtual environment and code to the runtime stage
 COPY --from=builder /app/venv /app/venv
