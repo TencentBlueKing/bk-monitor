@@ -1448,7 +1448,7 @@ class Item(AbstractConfig):
         self.strategy_id = strategy_id
         self.id = id
         self.instance = instance
-        self.time_delay = time_delay
+        self.time_delay = time_delay or 0
 
         if metric_type:
             self.metric_type = metric_type
