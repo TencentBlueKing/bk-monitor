@@ -357,13 +357,11 @@ class GetFunctionShortcutResource(Resource):
                         break
 
                 # 获取并补充文件夹信息
-                folder_ids = {
-                    access_record["folder_id"] for access_record in access_records if access_record["folder_id"]
-                }
+                folder_ids = {item["folder_id"] for item in items if item["folder_id"]}
                 folders = Dashboard.objects.filter(id__in=folder_ids, is_folder=True)
                 folder_id_to_name = {folder.id: folder.title for folder in folders}
-                for access_record in access_records:
-                    access_record["folder_title"] = folder_id_to_name.get(access_record["folder_id"], "General")
+                for item in items:
+                    item["folder_title"] = folder_id_to_name.get(item["folder_id"], "General")
             elif function == "apm_service":
                 app_ids = {access_record["application_id"] for access_record in access_records}
                 apps = {app.application_id: app for app in Application.objects.filter(application_id__in=app_ids)}
