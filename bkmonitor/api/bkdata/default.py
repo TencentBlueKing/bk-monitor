@@ -1382,6 +1382,6 @@ class TailKafkaData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     method = "GET"
 
     class RequestSerializer(CommonRequestSerializer):
-        namespace = serializers.CharField(required=True, label="命名空间")
+        namespace = serializers.CharField(required=False, label="命名空间", default='bkmonitor')
         name = serializers.CharField(required=True, label="数据源名称（计算平台）")
         limit = serializers.IntegerField(required=False, default=10, label="条数")
