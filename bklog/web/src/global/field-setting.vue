@@ -625,6 +625,7 @@
 
   .field-slider-content {
     min-height: 394px;
+    max-height: calc(-119px + 100vh);
     overflow-y: auto;
 
     .add-collection-title {
@@ -708,7 +709,9 @@
     }
 
     .submit-container {
-      padding: 16px 36px 36px;
+      position: fixed;
+      bottom: 0;
+      padding: 16px 36px 16px;
     }
   }
 </style>

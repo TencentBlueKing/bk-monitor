@@ -509,7 +509,7 @@
         if (this.keyword) {
           const query = this.keyword.toLowerCase();
           return currentTableList.filter(
-            item => item.field_name.toLowerCase().includes(query) || item.query_alias.toLowerCase().includes(query),
+            item => item.field_name.toLowerCase().includes(query) || (item.query_alias?.toLowerCase().includes(query) ?? false) ,
           );
         } else {
           return currentTableList;
