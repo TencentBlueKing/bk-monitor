@@ -43,7 +43,6 @@
           class="field-table add-field-table"
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
-          :max-height="isPreviewMode ? 300 : 320"
           row-key="field_index"
           size="small"
           col-border
