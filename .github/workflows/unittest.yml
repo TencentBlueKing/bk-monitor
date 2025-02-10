@@ -30,7 +30,7 @@ jobs:
       image: python:3.6.8
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
     - name: Run Test
       run: |
         source scripts/test_env.sh
