@@ -49,7 +49,10 @@ from metadata.models.bcs import (
     ServiceMonitorInfo,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
-from metadata.models.data_link.utils import get_data_source_related_info
+from metadata.models.data_link.utils import (
+    get_bkbase_raw_data_name_for_v3_datalink,
+    get_data_source_related_info,
+)
 from metadata.models.data_source import DataSourceResultTable
 from metadata.models.space.constants import SPACE_UID_HYPHEN, SpaceTypes
 from metadata.service.data_source import (
@@ -1910,6 +1913,7 @@ class KafkaTailResource(Resource):
     class RequestSerializer(serializers.Serializer):
         table_id = serializers.CharField(required=True, label="结果表ID")
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
+        namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
 
     def perform_request(self, validated_request_data):
         try:
@@ -1926,7 +1930,24 @@ class KafkaTailResource(Resource):
             result = self._consume_with_confluent_kafka(mq_ins, datasource, size)
         # 查询 ds 判断是否是v4协议接入
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
-            result = self._consume_with_gse_config(datasource, size)
+            if settings.ENABLE_BKDATA_KAFKA_TAIL_API:  # 若开启特性开关，则V4数据源使用BkBase侧的Kafka采样接口拉取数据
+                logger.info("KafkaTailResource: using bkdata kafka tail api,table_id->[%s]", result_table.table_id)
+
+                vm_record = models.AccessVMRecord.objects.get(result_table_id=result_table.table_id)
+                data_id_name = vm_record.bk_base_data_name
+                namespace = validated_request_data["namespace"]
+                if not data_id_name:
+                    data_id_name = get_bkbase_raw_data_name_for_v3_datalink(vm_record.bk_base_data_id)
+                logger.info(
+                    "KafkaTailResource: using bkdata kafka tail api,table_id->[%s],namespace->[%s],name->[%s]",
+                    result_table.table_id,
+                    namespace,
+                    data_id_name,
+                )
+                res = api.bkdata.tail_kafka_data(namespace=namespace, name=data_id_name, limit=size)
+                result = [json.loads(data) for data in res]
+            else:
+                result = self._consume_with_gse_config(datasource, size)
         else:
             result = self._consume_with_kafka_python(datasource, size)
 
