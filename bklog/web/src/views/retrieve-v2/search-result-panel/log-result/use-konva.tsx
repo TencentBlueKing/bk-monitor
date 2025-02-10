@@ -473,9 +473,6 @@ export default ({ onSegmentClick }) => {
 
             let width = 0;
 
-            if (item.text === 'INFO') {
-              console.log('INFO');
-            }
             if (!isWrap) {
               const box = getTempText();
               width = box.width(item.text);
