@@ -113,11 +113,17 @@ export default class FilterByCondition extends tsc<IProps> {
       return;
     }
     this.loading = true;
+    const filterDict = {};
+    for (const key in this.filterBy) {
+      if (this.filterBy[key]?.length) {
+        filterDict[key] = JSON.parse(JSON.stringify(this.filterBy[key]));
+      }
+    }
     this.filterByOptions = new FilterByOptions({
       ...this.commonParams,
       page_size: 10,
       page_type: 'scrolling',
-      filter_dict: {},
+      filter_dict: filterDict,
       with_history: false,
       query_string: this.searchValue,
     });
@@ -195,6 +201,9 @@ export default class FilterByCondition extends tsc<IProps> {
         filterDict[item.key] = item.value;
       }
       this.$emit('change', filterDict);
+      this.filterByOptions.setCommonParams({
+        filter_dict: filterDict,
+      });
     }
     this.oldLocalFilterBy = JSON.parse(JSON.stringify(filterBy));
   }
@@ -296,6 +305,7 @@ export default class FilterByCondition extends tsc<IProps> {
       onHidden: () => {
         this.destroyPopoverInstance();
         this.setTagList();
+        this.filterByOptions.setIsUpdate(false);
         this.updateActive = '';
         this.addValueSelected = new Map();
         this.workloadValueSelected = '';
@@ -490,12 +500,14 @@ export default class FilterByCondition extends tsc<IProps> {
                 // name: item.name,
                 name: item.id,
               }));
-              values.unshift(
-                ...otherIds.map(id => ({
-                  id: id,
-                  name: id,
-                }))
-              );
+              if (this.groupSelected !== EDimensionKey.workload) {
+                values.unshift(
+                  ...otherIds.map(id => ({
+                    id: id,
+                    name: id,
+                  }))
+                );
+              }
               tag.values = values;
               break;
             }
@@ -544,6 +556,7 @@ export default class FilterByCondition extends tsc<IProps> {
     } else {
       this.addValueSelected.set(item.id, new Set(item.values.map(v => v.id)));
     }
+    this.filterByOptions.setIsUpdate(true);
     this.setGroupOptions();
     this.handleAdd({ target } as any);
     this.handleSearchChange('');
