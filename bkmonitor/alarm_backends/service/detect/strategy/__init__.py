@@ -478,7 +478,10 @@ class SDKPreDetectMixin(object):
         :return: 维度字典
         """
         if "agg_dimension" not in data_point.item.query_configs[0]:
-            dimensions = copy.deepcopy(data_point.dimensions)
+            if getattr(data_point, "dimension_fields", None):
+                dimensions = {key: data_point.dimensions[key] for key in data_point.dimension_fields}
+            else:
+                dimensions = copy.deepcopy(data_point.dimensions)
         else:
             dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
         dimensions["strategy_id"] = int(data_point.item.strategy.id)
@@ -516,7 +519,7 @@ class SDKPreDetectMixin(object):
                         "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
                         "backfill_conditions": [
                             {
-                                "field_name": "is_anomaly",
+                                "field_name": "anomaly_alert",
                                 "value": 1,
                             }
                         ],

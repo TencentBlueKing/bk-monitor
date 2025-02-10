@@ -29,13 +29,14 @@ from functools import partial
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
-from apps.api import CCApi
+from apps.api import CCApi, TransferApi
 from apps.grafana.constants import (
     CMDB_EXTEND_FIELDS,
     LOG_SEARCH_DIMENSION_LIST,
     TIME_SERIES_FIELD_TYPE,
 )
 from apps.iam import ActionEnum, Permission, ResourceEnum
+from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeFieldConfig
 from apps.log_search.constants import GlobalCategoriesEnum
@@ -448,10 +449,21 @@ class GrafanaQueryHandler:
                 "dimension_fields": [],
             }
 
+            alias_dict = dict()
+            collector_config = CollectorConfig.objects.filter(index_set_id=index_set.index_set_id).first()
+            if collector_config:
+                data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+                alias_dict = data.get("query_alias_settings", dict())
+
             for field_info in fields.get("fields", []):
                 field_id = field_description = field_info["field_name"]
                 if field_info.get("description"):
                     field_description = field_info["description"]
+
+                for alias_name, info in alias_dict.items():
+                    # 有配置别名，修改name
+                    if field_id == info.get("path"):
+                        field_description = alias_name
 
                 if field_info["es_doc_values"] and field_info.get("field_type") != "date":
                     metric_conf["dimension_fields"].append({"id": field_id, "name": field_description})

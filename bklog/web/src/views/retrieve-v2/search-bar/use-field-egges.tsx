@@ -77,7 +77,7 @@ export default () => {
         .dispatch('requestIndexSetValueList', taskArgs)
         .then(resp => {
           if (taskArgs.pending) {
-            store.commit('updateIndexFieldEggsItems', resp.data.aggs_items ?? {});
+            store.commit('updateIndexFieldEggsItems', resp.data?.aggs_items ?? {});
             callback?.(resp);
           }
         })

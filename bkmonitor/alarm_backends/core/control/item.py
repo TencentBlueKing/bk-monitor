@@ -58,6 +58,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
 
         self.expression = item_config.get("expression")
         self.functions = item_config.get("functions")
+        self.time_delay = item_config.get("time_delay")
         self.metric_ids = set()
         self.data_source_types = set()
         self.data_source_labels = set()

@@ -27,7 +27,7 @@ import { h, computed } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-
+import useFieldNameHook from '@/hooks/use-field-name';
 import TimeFormatterSwitcher from '../original-log/time-formatter-switcher';
 
 export default () => {
@@ -55,7 +55,8 @@ export default () => {
     const isAsc = currentSort === 'asc';
     const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
     if (field) {
-      const fieldName = showFieldAlias.value ? fieldAliasMap.value[field.field_name] : field.field_name;
+      const { getQueryAlias } = useFieldNameHook({ store });
+      const fieldName = getQueryAlias(field);
       const fieldType = field.field_type;
       const isUnionSource = field?.tag === 'union-source';
       const fieldIcon = fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';
