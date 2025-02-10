@@ -1390,6 +1390,9 @@ ENABLE_V2_BKDATA_GSE_RESOURCE = False
 ENABLE_V2_VM_DATA_LINK = False
 ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
+# 是否启用计算平台Kafka采样接口
+ENABLE_BKDATA_KAFKA_TAIL_API = False
+
 # 计算平台&监控平台数据一致性Redis相关配置
 # 计算平台Redis监听模式
 BKBASE_REDIS_PATTERN = "databus_v4_dataid"
