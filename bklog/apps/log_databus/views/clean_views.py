@@ -355,7 +355,19 @@ class CleanTemplateViewSet(ModelViewSet):
                 ],
                 "bk_biz_id": 0,
                 "visible_bk_biz_id": [],
-                "visible_type": "current_biz"
+                "visible_type": "current_biz",
+                "alias_settings":[
+                    {
+                        "field_name":"__ext.io_kubernetes_pod",
+                        "query_alias":"k8s_pod",
+                        "path_type":"keyword"
+                    },
+                    {
+                        "field_name":"__ext.io_kubernetes_ip",
+                        "query_alias":"k8s_ip",
+                        "path_type":"keyword"
+                    }
+                ],
             },
             "result":true
         }
@@ -407,7 +419,19 @@ class CleanTemplateViewSet(ModelViewSet):
             ],
             "bk_biz_id": 0,
             "visible_bk_biz_id": [1, 2, 3],
-            "visible_type": "multi_biz"
+            "visible_type": "multi_biz",
+            "alias_settings":[
+                {
+                    "field_name":"__ext.io_kubernetes_pod",
+                    "query_alias":"k8s_pod",
+                    "path_type":"keyword"
+                },
+                {
+                    "field_name":"__ext.io_kubernetes_ip",
+                    "query_alias":"k8s_ip",
+                    "path_type":"keyword"
+                }
+            ],
         }
         @apiSuccessExample {json} 成功返回
         {
@@ -467,7 +491,19 @@ class CleanTemplateViewSet(ModelViewSet):
             ],
             "bk_biz_id": 0,
             "visible_bk_biz_id": [1, 2, 3],
-            "visible_type": "multi_biz"
+            "visible_type": "multi_biz",
+            "alias_settings":[
+                {
+                    "field_name":"__ext.io_kubernetes_pod",
+                    "query_alias":"k8s_pod",
+                    "path_type":"keyword"
+                },
+                {
+                    "field_name":"__ext.io_kubernetes_ip",
+                    "query_alias":"k8s_ip",
+                    "path_type":"keyword"
+                }
+            ],
         }
         @apiSuccessExample {json} 成功返回
         {

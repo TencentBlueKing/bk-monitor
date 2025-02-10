@@ -427,6 +427,7 @@ class EtlStorage(object):
         index_settings: dict = None,
         sort_fields: list = None,
         target_fields: list = None,
+        alias_settings: list = None,
     ):
         """
         创建或更新结果表
@@ -444,6 +445,7 @@ class EtlStorage(object):
         :param index_settings: 索引配置
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
+        :param alias_settings: 别名配置
         """
         from apps.log_databus.handlers.collector import build_result_table_id
 
@@ -569,6 +571,18 @@ class EtlStorage(object):
             # 移除计分
             if "es_type" in field.get("option", {}) and field["option"]["es_type"] in ["text"]:
                 field["option"]["es_norms"] = False
+
+        # 别名配置
+        if alias_settings:
+            query_alias_settings = []
+            for item in alias_settings:
+                field_alias = {
+                    "field_name": item["field_name"],
+                    "query_alias": item["query_alias"],
+                    "path_type": item["path_type"],
+                }
+                query_alias_settings.append(field_alias)
+            params.update({"query_alias_settings": query_alias_settings})
 
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:

@@ -197,7 +197,7 @@ class PluginParamSerializer(serializers.Serializer):
     multiline_max_lines = serializers.IntegerField(label=_("最多匹配行数"), required=False, max_value=5000)
     multiline_timeout = serializers.IntegerField(label=_("最大耗时"), required=False, max_value=10)
     tail_files = serializers.BooleanField(label=_("是否增量采集"), required=False, default=True)
-    ignore_older = serializers.IntegerField(label=_("文件扫描忽略时间"), required=False, default=2678400)
+    ignore_older = serializers.IntegerField(label=_("文件扫描忽略时间"), required=False, default=86400)
     max_bytes = serializers.IntegerField(label=_("单行日志最大长度"), required=False, default=204800)
 
     scan_frequency = serializers.IntegerField(label=_("文件扫描间隔"), required=False, min_value=1)
@@ -877,6 +877,12 @@ class AssessmentConfig(serializers.Serializer):
     approvals = serializers.ListField(label=_("审批人"), child=serializers.CharField(), required=True)
 
 
+class AliasSettingSerializer(serializers.Serializer):
+    field_name = serializers.CharField(label=_("原字段名"), required=True)
+    query_alias = serializers.CharField(label=_("别名"), required=True)
+    path_type = serializers.CharField(label=_("字段类型"), required=True)
+
+
 class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     table_id = serializers.CharField(label=_("结果表ID"), required=True)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
@@ -890,6 +896,7 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer):
     view_roles = serializers.ListField(label=_("查看权限"), required=False, default=[])
     need_assessment = serializers.BooleanField(label=_("是否需要评估配置"), required=False, default=False)
     assessment_config = AssessmentConfig(label=_("评估配置"), required=False)
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1003,6 +1010,7 @@ class CleanTemplateSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     visible_type = serializers.CharField(label=_("可见类型"), required=False)
     visible_bk_biz_id = serializers.ListField(label=_("可见业务ID"), required=False)
+    alias_settings = serializers.ListField(child=serializers.DictField(), label=_("别名配置"), required=False, default=list)
 
 
 class CleanTemplateDestroySerializer(serializers.Serializer):
@@ -1580,6 +1588,7 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
     allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

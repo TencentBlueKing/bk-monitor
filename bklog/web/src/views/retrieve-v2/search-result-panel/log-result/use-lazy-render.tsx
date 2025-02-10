@@ -54,9 +54,6 @@ export default ({ loadMoreFn, container, rootElement }) => {
   const calculateOffsetTop = () => {
     if (!isComputingCalcOffset) {
       isComputingCalcOffset = true;
-      // const currentElement = getCurrentElement();
-      // const relativeTo = getScrollElement();
-      // scrollElementOffset = relativeTo.scrollHeight - (currentElement?.scrollHeight ?? 0);
       debounceStopComputing();
     }
   };

@@ -363,7 +363,7 @@ class PatternHandler:
             records = (
                 BkData(self._clustering_config.signature_pattern_rt)
                 .select("signature", "pattern")
-                .time_range(start_time=int(start_time.shift(days=-1).timestamp()))  # 只查截止开始时间前一天的数据，避免历史数据膨胀
+                .time_range(start_time=int(start_time.shift(hours=-6).timestamp()))  # 只查截止开始时间前一天的数据，避免历史数据膨胀
                 .query()
             )
         except Exception as e:  # pylint:disable=broad-except

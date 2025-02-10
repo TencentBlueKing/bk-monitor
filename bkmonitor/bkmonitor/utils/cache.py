@@ -15,6 +15,8 @@ import json
 import logging
 import time
 import zlib
+from time import monotonic
+from typing import Any, Callable
 
 from django.conf import settings
 from django.core.cache import cache, caches
@@ -342,3 +344,43 @@ class InstanceCache(object):
             del self.__cache[key]
         except KeyError:
             pass
+
+
+def lru_cache_with_ttl(
+    maxsize: int = 128, ttl: int = 60, decision_to_drop_func: Callable[[Any], bool] = lambda _: False
+):
+    """带有过期时间的 LRU Cache
+    原理：lru_cache 维护缓存对象的引用，通过包装 Result 注入期望过期时间，达到淘汰过期 Key 的效果。
+    :param maxsize: 最大容量
+    :param ttl: 过期时间，单位为秒
+    :param decision_to_drop_func: 缓存丢弃决策函数
+    :return:
+    """
+
+    class _Result:
+        __slots__ = ("value", "expired")
+
+        def __init__(self, value: Any, expired: int):
+            self.value: Any = value
+            self.expired: int = expired
+
+    def decorator(func):
+        @functools.lru_cache(maxsize=maxsize)
+        def cached_func(*args, **kwargs):
+            value: Any = func(*args, **kwargs)
+            # monotonic 提供了不受系统时间影响的稳定秒数增长基准。
+            expired: int = int(monotonic()) + ttl
+            return _Result(value, expired)
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            result: _Result = cached_func(*args, **kwargs)
+            if result.expired < monotonic() or decision_to_drop_func(result.value):
+                result.value = func(*args, **kwargs)
+                result.expired = int(monotonic()) + ttl
+            return result.value
+
+        wrapper.cache_clear = cached_func.cache_clear
+        return wrapper
+
+    return decorator

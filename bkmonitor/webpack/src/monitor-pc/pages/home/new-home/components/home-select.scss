@@ -1,8 +1,8 @@
 .new-home-select {
-  position: relative;
+  position: fixed;
   width: 100%;
   min-height: 52px;
-
+  z-index: 2000;
   .loading-view {
     width: 170px;
     height: 24px;
@@ -102,7 +102,7 @@
 
   .home-select-input {
     box-sizing: border-box;
-    width: 98%;
+    width: 97%;
     padding: 16px 0 12px;
     overflow: hidden;
     font-size: 16px;
@@ -163,7 +163,7 @@
   z-index: 500;
   width: 100%;
   max-height: 405px;
-  margin-top: 4px;
+  margin-top: 8px;
   background: #fff;
   border-radius: 8px;
 }
@@ -282,7 +282,7 @@
 
     .history-item-name {
       display: inline-block;
-      width: 97%;
+      width: 96%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -339,5 +339,53 @@
         }
       }
     }
+  }
+}
+/** 展示在顶部导航栏的时候的样式处理 */
+.home-select-bar-tool {
+  top: 10px;
+  right: 262px;
+  width: 720px !important;
+  min-height: 32px;
+  .icon-search {
+    font-size: 14px;
+    position: absolute;
+    right: 10px;
+    top: 9px;
+    color: #979ba5;
+  }
+  .new-home-select-input {
+    background: #252f43;
+    border: 1px solid #394561 !important;
+    min-height: 33px;
+    border-radius: 2px;
+    padding: 0;
+    .clear-btn {
+      top: 8px;
+      font-size: 14px;
+      right: 30px;
+    }
+  }
+  .home-select-input {
+    padding: 5px 10px 6px 16px;
+    font-size: 12px;
+    height: 28px;
+    width: 93%;
+    line-height: 22px;
+    &::placeholder {
+      font-size: 12px;
+      line-height: 22px;
+      color: #7a8199;
+    }
+  }
+  .new-home-select-popover {
+    margin-top: 2px;
+    border-radius: 2px;
+    .new-home-select-popover-content {
+      border-radius: 2px;
+    }
+  }
+  .select-empty {
+    border-radius: 2px;
   }
 }
