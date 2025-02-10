@@ -779,7 +779,8 @@ class GetAlarmGraphConfigResource(Resource):
                 }
                 for tag in query.order_by("index")
             ],
-            "limit": settings.HOME_PAGE_ALARM_GRAPH_CONFIG_LIMIT,
+            "biz_limit": settings.HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT,
+            "graph_limit": settings.HOME_PAGE_ALARM_GRAPH_LIMIT,
         }
 
 
@@ -813,6 +814,10 @@ class SaveAlarmGraphConfigResource(Resource):
                     strategy_names.append(strategy_id_to_name.get(strategy_id, "Unknown Strategy"))
                 item["strategy_names"] = strategy_names
 
+            # 检查图表数量限制
+            if len(attrs["config"]) > settings.HOME_PAGE_ALARM_GRAPH_LIMIT:
+                raise serializers.ValidationError(_("超过图表数量限制，请删除多余的配置"))
+
             return attrs
 
     def perform_request(self, params: Dict[str, Any]) -> None:
@@ -829,8 +834,8 @@ class SaveAlarmGraphConfigResource(Resource):
             count = HomeAlarmGraphConfig.objects.filter(
                 username=request.user.username,
             ).count()
-            if count >= settings.HOME_PAGE_ALARM_GRAPH_CONFIG_LIMIT:
-                raise serializers.ValidationError(_("超过配置数量限制，请删除多余的配置"))
+            if count >= settings.HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT:
+                raise serializers.ValidationError(_("超过业务数量限制，请删除多余的配置"))
 
             # 获取最大index
             max_index = (
