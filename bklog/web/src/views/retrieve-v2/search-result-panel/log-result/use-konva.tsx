@@ -243,12 +243,12 @@ export default ({ onSegmentClick }) => {
   const setRect = (width?: number, height?: number) => {
     if (width) {
       konvaInstance.backgroundStage.width(width);
-      // konvaInstance.frontStage.width(width);
+      konvaInstance.frontStage?.width?.(width);
     }
 
     if (height) {
       konvaInstance.backgroundStage.height(height);
-      // konvaInstance.frontStage.height(height);
+      konvaInstance.frontStage?.height?.(height);
     }
 
     updateContainerBounds();
@@ -473,10 +473,6 @@ export default ({ onSegmentClick }) => {
 
             let width = 0;
 
-            if (item.text === '实际模型提交数可能存在变化，请以启动评比时的数量为准。') {
-              console.log('catch uuuu');
-            }
-
             if (!isWrap) {
               const box = getTempText();
               width = box.width(item.text);
@@ -517,6 +513,10 @@ export default ({ onSegmentClick }) => {
                 rightText.width = item.width - leftText.width;
                 left = boxWidth * nextLine + width - leftText.width;
 
+                if (rightText.text === '' && rightText.width > 0) {
+                  left = left - rightText.width;
+                }
+
                 item.split = [
                   {
                     text: leftText.text,
@@ -537,7 +537,7 @@ export default ({ onSegmentClick }) => {
                     width: width - leftText.width,
                     line: nextLine,
                   },
-                ].filter(item => item.width > 0);
+                ].filter(item => item.width > 0 && item.text !== '');
 
                 if (item.split.length === 1) {
                   item.left = item.split[0].left;
@@ -558,6 +558,12 @@ export default ({ onSegmentClick }) => {
         resolve(wordList);
       });
     });
+  };
+
+  const validateWordPosition = () => {
+    const lastWord = wordList[wordList.length - 1];
+    const { top, left } = getRangePosition(lastWord.startIndex, lastWord.endIndex);
+    return top === lastWord.top && left === lastWord.left;
   };
 
   const setMarkWordRect = (item: WordListItem) => {
@@ -754,5 +760,6 @@ export default ({ onSegmentClick }) => {
     updateContainerBounds,
     resetWordList,
     initLayer,
+    validateWordPosition,
   };
 };
