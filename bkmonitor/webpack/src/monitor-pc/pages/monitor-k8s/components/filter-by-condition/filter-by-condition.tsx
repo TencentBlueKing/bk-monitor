@@ -448,7 +448,6 @@ export default class FilterByCondition extends tsc<IProps> {
           tempSet.add(l.id);
         }
       }
-      console.log(tempSet, curSelected);
     } else {
       for (const value of this.valueOptions) {
         if (value.checked) {
