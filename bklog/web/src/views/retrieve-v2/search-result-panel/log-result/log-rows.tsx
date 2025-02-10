@@ -34,6 +34,7 @@ import {
   TABLE_LOG_FIELDS_SORT_REGULAR,
 } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
+import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
@@ -113,12 +114,14 @@ export default defineComponent({
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
-    const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
+    const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+
+    const exceptionMsg = computed(() => indexSetQueryResult.value?.exception_msg || $t('检索结果为空'));
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
 
@@ -304,7 +307,9 @@ export default defineComponent({
               content={getTableColumnContent(row, field)}
               field={field}
               row={row}
-              onIcon-click={(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)}
+              onIcon-click={(type, content, isLink, depth, isNestedField) =>
+                handleIconClick(type, content, field, row, isLink, depth, isNestedField)
+              }
             ></TableColumn>
           );
         },
@@ -441,9 +446,9 @@ export default defineComponent({
       });
     };
 
-    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined) => {
+    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined, isNestedField = 'false') => {
       store
-        .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
+        .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           setRouteParams();
           if (isLink) {
@@ -467,7 +472,7 @@ export default defineComponent({
       }
     };
 
-    const handleIconClick = (type, content, field, row, isLink, depth) => {
+    const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
       let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
@@ -480,7 +485,7 @@ export default defineComponent({
 
       if (type === 'search') {
         // 将表格单元添加到过滤条件
-        handleAddCondition(field.field_name, 'eq', [value], isLink);
+        handleAddCondition(field.field_name, 'eq', [value], isLink, depth, isNestedField);
         return;
       }
 
@@ -489,9 +494,10 @@ export default defineComponent({
         copyMessage(value);
         return;
       }
-
+      // 根据当前显示字段决定传参
       if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth);
+        const { getQueryAlias } = useFieldNameHook({ store });
+        handleAddCondition(getQueryAlias(field), type, value === '--' ? [] : [value], isLink, depth, isNestedField);
         return;
       }
     };
@@ -588,8 +594,8 @@ export default defineComponent({
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
-            onValue-click={(type, content, isLink, field, depth) =>
-              handleIconClick(type, content, field, row, isLink, depth)
+            onValue-click={(type, content, isLink, field, depth, isNestedField) =>
+              handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }
           ></ExpandView>
         );
@@ -989,6 +995,7 @@ export default defineComponent({
       showHeader,
       isRequesting,
       isLoading,
+      exceptionMsg,
     };
   },
   render() {
@@ -1012,7 +1019,7 @@ export default defineComponent({
             scene='part'
             type='search-empty'
           >
-            {this.isRequesting || this.isLoading ? 'loading...' : this.$t('检索结果为空')}
+            {this.isRequesting || this.isLoading ? 'loading...' : this.exceptionMsg}
           </bk-exception>
         ) : null}
         {this.renderFixRightShadow()}

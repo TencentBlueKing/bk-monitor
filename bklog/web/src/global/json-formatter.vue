@@ -12,7 +12,7 @@
           ><span
             class="black-mark"
             :data-field-name="item.name"
-            >{{ item.name }}</span
+            >{{ getFieldName(item.name) }}</span
           ></span
         >
         <span
@@ -31,7 +31,7 @@
   import useStore from '../hooks/use-store';
   //@ts-ignore
   import { parseTableRowData } from '@/common/util';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   const emit = defineEmits(['menu-click']);
   const store = useStore();
 
@@ -106,7 +106,10 @@
       value: objValue,
     };
   };
-
+  const getFieldName = field => {
+    const { getFieldName } = useFieldNameHook({ store });
+    return getFieldName(field);
+  }
   const rootList = computed(() => {
     formatCounter.value++;
     return fieldList.value.map((f: any) => ({

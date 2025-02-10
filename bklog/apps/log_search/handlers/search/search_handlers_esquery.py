@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi, TransferApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -85,6 +85,7 @@ from apps.log_search.exceptions import (
     BaseSearchSortListException,
     IntegerErrorException,
     IntegerMaxErrorException,
+    LogSearchException,
     MultiSearchErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
@@ -610,6 +611,28 @@ class SearchHandler(object):
         if _scroll_id:
             result.update({"scroll_id": _scroll_id})
 
+        # 补充别名信息
+        log_list = result.get("list")
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
+            alias_dict = data.get("query_alias_settings")
+            if alias_dict:
+                for log in log_list:
+                    for query_alias, info in alias_dict.items():
+                        sub_field = info.get("path")
+                        if "." not in sub_field:
+                            if sub_field in log:
+                                log[query_alias] = log[sub_field]
+                        else:
+                            context = log
+                            # 处理嵌套字段
+                            while "." in sub_field:
+                                prefix, sub_field = sub_field.split(".", 1)
+                                context = context.get(prefix, {})
+                                if sub_field in context:
+                                    log[query_alias] = context[sub_field]
+                                    break
         return result
 
     def get_sort_group(self):
@@ -750,9 +773,14 @@ class SearchHandler(object):
         if not storage_cluster_record_objs:
             try:
                 data = search_func(params)
+                # 把shards中的failures信息解析后raise异常出来
+                if data.get("_shards", {}).get("failed"):
+                    errors = data["_shards"]["failures"][0]["reason"]["reason"]
+                    raise LogSearchException(errors)
+
                 return data
-            except ApiResultError as e:
-                raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
+            except Exception as e:
+                raise LogSearchException(LogSearchException.MESSAGE.format(e=e))
 
         storage_cluster_ids = {self.storage_cluster_id}
 
