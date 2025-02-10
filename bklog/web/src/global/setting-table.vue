@@ -29,6 +29,7 @@
           v-model="keyword"
           :placeholder="$t('请输入字段名/别名')"
           right-icon="bk-icon icon-search"
+          clearable
         >
         </bk-input>
       </div>
@@ -53,7 +54,7 @@
             <!-- 字段名 -->
             <bk-table-column
               :render-header="renderHeaderFieldName"
-              :resizable="false"
+              :resizable="true"
               width="220"
             >
               <template #default="props">
@@ -121,7 +122,7 @@
             <!-- 别名 -->
             <bk-table-column
               :render-header="renderHeaderAliasName"
-              :resizable="false"
+              :resizable="true"
               width="140"
             >
               <template #default="props">
@@ -155,7 +156,7 @@
             <!-- 类型 -->
             <bk-table-column
               :render-header="renderHeaderDataType"
-              :resizable="false"
+              :resizable="true"
               align="center"
               width="100"
             >
@@ -203,7 +204,7 @@
             <!-- 分词符 -->
             <bk-table-column
               :render-header="renderHeaderParticipleName"
-              :resizable="false"
+              :resizable="true"
               align="left"
               width="200"
             >
