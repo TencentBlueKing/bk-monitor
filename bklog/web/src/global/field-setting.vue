@@ -519,7 +519,8 @@
   const confirmLoading = ref(false);
   // 字段表格校验
   const checkFieldsTable = () => {
-    return formData.value.etl_config === 'bk_log_json' ? indexfieldTable.value.validateFieldTable() : [];
+    return indexfieldTable.value.validateFieldTable()
+    // return formData.value.etl_config === 'bk_log_json' ? indexfieldTable.value.validateFieldTable() : [];
   };
 
   const originfieldTable = ref(null);
@@ -528,13 +529,12 @@
     validateForm.value.validate().then(res => {
       if (res) {
         const promises = [];
-        if (formData.value.etl_config === 'bk_log_json') {
+        // if (formData.value.etl_config === 'bk_log_json') {
           promises.splice(1, 0, ...checkFieldsTable());
-        }
+        // }
         Promise.all(promises).then(
           async () => {
             confirmLoading.value = true;
-
             const originfieldTableData = originfieldTable.value.getData();
             const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
             const data = {

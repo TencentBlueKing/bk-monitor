@@ -2378,7 +2378,6 @@
               this.getDetail();
               await this.getCleanStash(id);
               this.getDataLog('init');
-              this.requestFields(res.data.index_set_id)
             }
           })
           .finally(() => {
