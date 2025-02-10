@@ -34,6 +34,7 @@ import {
   TABLE_LOG_FIELDS_SORT_REGULAR,
 } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
+import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
@@ -64,7 +65,7 @@ import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import useFieldNameHook from '@/hooks/use-field-name';
+
 import './log-rows.scss';
 
 type RowConfig = {
@@ -119,6 +120,8 @@ export default defineComponent({
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+
+    const exceptionMsg = computed(() => indexSetQueryResult.value?.exception_msg || $t('检索结果为空'));
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
 
@@ -494,7 +497,7 @@ export default defineComponent({
       // 根据当前显示字段决定传参
       if (['is', 'is not', 'new-search-page-is'].includes(type)) {
         const { getQueryAlias } = useFieldNameHook({ store });
-        handleAddCondition( getQueryAlias(field), type, value === '--' ? [] : [value], isLink, depth, isNestedField);
+        handleAddCondition(getQueryAlias(field), type, value === '--' ? [] : [value], isLink, depth, isNestedField);
         return;
       }
     };
@@ -992,6 +995,7 @@ export default defineComponent({
       showHeader,
       isRequesting,
       isLoading,
+      exceptionMsg,
     };
   },
   render() {
@@ -1015,7 +1019,7 @@ export default defineComponent({
             scene='part'
             type='search-empty'
           >
-            {this.isRequesting || this.isLoading ? 'loading...' : this.$t('检索结果为空')}
+            {this.isRequesting || this.isLoading ? 'loading...' : this.exceptionMsg}
           </bk-exception>
         ) : null}
         {this.renderFixRightShadow()}
