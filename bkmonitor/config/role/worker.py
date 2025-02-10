@@ -257,6 +257,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
     # 关联协议数据同步--cmdb_relation
     ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
+    # 计算平台元数据一致性 Redis Watch
+    ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [
@@ -520,6 +522,11 @@ CACHES = {
         },
     },
 }
+
+# BkBase Redis
+BKBASE_REDIS_HOST = os.environ.get("BKBASE_REDIS_HOST")
+BKBASE_REDIS_PORT = os.environ.get("BKBASE_REDIS_PORT")
+BKBASE_REDIS_PASSWORD = os.environ.get("BKBASE_REDIS_PASSWORD")
 
 # django cache backend using redis
 DJANGO_REDIS_PASSWORD = os.environ.get("DJANGO_REDIS_PASSWORD")

@@ -14,6 +14,9 @@ import logging
 import os
 from typing import Dict, List, Set
 
+import redis
+from django.conf import settings
+
 from utils.redis_client import RedisClient
 
 logger = logging.getLogger("metadata")
@@ -131,6 +134,25 @@ def setup_client():
     RedisTools.metadata_redis_client = RedisClient.from_envs(
         prefix=os.environ.get("METADATA_REDIS_CONFIG_PREFIX", "BK_MONITOR_TRANSFER")
     )
+
+
+def bkbase_redis_client():
+    """
+    获取bkbase_redis链接
+    """
+
+    # 初始化Redis链接信息
+    bkbase_redis_host = settings.BKBASE_REDIS_HOST
+    bkbase_redis_port = settings.BKBASE_REDIS_PORT
+    bkbase_redis_pwd = settings.BKBASE_REDIS_PASSWORD
+
+    configs = {
+        "host": bkbase_redis_host,
+        "port": bkbase_redis_port,
+        "password": bkbase_redis_pwd,
+    }
+    bkbase_redis = redis.StrictRedis(**configs)
+    return bkbase_redis
 
 
 # 兼容redis 初始化异常问题，避免引用时报错
