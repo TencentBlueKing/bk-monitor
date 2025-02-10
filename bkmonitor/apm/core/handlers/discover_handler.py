@@ -40,7 +40,7 @@ class DiscoverHandler:
             bk_biz_id=bk_biz_id, app_name=app_name
         ).first()
         if not trace_datasource:
-            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
+            raise CustomException(_("业务下的应用: {} 未开启 Trace").format(app_name))
         return trace_datasource.retention
 
     @classmethod

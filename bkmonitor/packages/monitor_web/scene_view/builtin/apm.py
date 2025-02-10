@@ -216,12 +216,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def load_builtin_views(cls):
-        if cls.builtin_views is not None:
+        if cls.builtin_views:
             return
 
         with cls._lock:
             # 双重检查，等待锁期间可能已经有其他线程「完成」初始化，返回以减少重复读取文件。
-            if cls.builtin_views is not None:
+            if cls.builtin_views:
                 return
 
             builtin_views: Dict[str, Dict[str, Any]] = {
