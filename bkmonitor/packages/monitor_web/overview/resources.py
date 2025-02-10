@@ -14,9 +14,11 @@ import itertools
 import logging
 from typing import Any, Dict, Iterable, List, Set, Tuple, Union
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 from elasticsearch_dsl import Q
 
@@ -346,12 +348,22 @@ class GetFunctionShortcutResource(Resource):
                             "bk_biz_id": access_record["bk_biz_id"],
                             "dashboard_uid": access_record["dashboard_uid"],
                             "dashboard_title": dashboard.title,
+                            "folder_id": dashboard.folder_id,
                         }
                     )
 
                     # limit 限制
                     if len(items) == limit:
                         break
+
+                # 获取并补充文件夹信息
+                folder_ids = {
+                    access_record["folder_id"] for access_record in access_records if access_record["folder_id"]
+                }
+                folders = Dashboard.objects.filter(id__in=folder_ids, is_folder=True)
+                folder_id_to_name = {folder.id: folder.title for folder in folders}
+                for access_record in access_records:
+                    access_record["folder_title"] = folder_id_to_name.get(access_record["folder_id"], "General")
             elif function == "apm_service":
                 app_ids = {access_record["application_id"] for access_record in access_records}
                 apps = {app.application_id: app for app in Application.objects.filter(application_id__in=app_ids)}
@@ -769,6 +781,7 @@ class GetAlarmGraphConfigResource(Resource):
                 }
                 for tag in query.order_by("index")
             ],
+            "limit": settings.HOME_PAGE_ALARM_GRAPH_CONFIG_LIMIT,
         }
 
 
@@ -814,6 +827,13 @@ class SaveAlarmGraphConfigResource(Resource):
             bk_biz_id=params["bk_biz_id"],
         ).first()
         if not config:
+            # 检查数量限制
+            count = HomeAlarmGraphConfig.objects.filter(
+                username=request.user.username,
+            ).count()
+            if count >= settings.HOME_PAGE_ALARM_GRAPH_CONFIG_LIMIT:
+                raise serializers.ValidationError(_("超过配置数量限制，请删除多余的配置"))
+
             # 获取最大index
             max_index = (
                 HomeAlarmGraphConfig.objects.filter(
