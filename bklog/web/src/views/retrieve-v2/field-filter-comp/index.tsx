@@ -395,7 +395,7 @@ export default class FieldFilterComp extends tsc<object> {
             right-icon='icon-search'
             clearable
             onChange={() => this.filterListByCondition()}
-            onClear={() => this.handleSearchException('clear-filter')}
+            // onClear={() => this.handleSearchException('clear-filter')}
           />
         </div>
         <div
