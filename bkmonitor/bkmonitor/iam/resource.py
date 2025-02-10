@@ -135,7 +135,7 @@ class ApmApplication(ResourceMeta):
     @lru_cache_with_ttl(maxsize=128, ttl=60 * 60, decision_to_drop_func=lambda v: v is None)
     def _get_app_simple_info_by_id_or_none(cls, application_id: str) -> Optional[Dict[str, Any]]:
         """获取应用概要信息，不存在则返回 None。
-        应用概要信息不会修改，此处给 30 min 的内存缓存，以提高整体鉴权性能。
+        应用概要信息不会修改，此处给 60 min 的内存缓存，以提高整体鉴权性能。
         :param application_id: 应用 ID
         :return:
         """
