@@ -37,6 +37,20 @@ export type FormatterConfig = {
   };
 };
 
+export type WordListItem = {
+  text: string;
+  isMark: boolean;
+  isCursorText: boolean;
+  startIndex?: number;
+  endIndex?: number;
+  left?: number;
+  top?: number;
+  width?: number;
+  renderWidth?: number;
+  split?: WordListItem[];
+  line?: number;
+};
+
 export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
 export default class UseTextSegmentation {
   getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
@@ -56,7 +70,7 @@ export default class UseTextSegmentation {
     Object.assign(this.options, cfg.options ?? {});
   }
 
-  getCellClickHandler(e: MouseEvent, value) {
+  getCellClickHandler(e: MouseEvent, value, { offsetY = 0, offsetX = 0 }) {
     const x = e.clientX;
     const y = e.clientY;
     let virtualTarget = document.body.querySelector('.bklog-virtual-target') as HTMLElement;
@@ -69,8 +83,8 @@ export default class UseTextSegmentation {
       document.body.appendChild(virtualTarget);
     }
 
-    virtualTarget.style.setProperty('left', `${x}px`);
-    virtualTarget.style.setProperty('top', `${y}px`);
+    virtualTarget.style.setProperty('left', `${x + offsetX}px`);
+    virtualTarget.style.setProperty('top', `${y + offsetY}px`);
 
     this.handleSegmentClick(virtualTarget, value);
   }
@@ -212,10 +226,11 @@ export default class UseTextSegmentation {
       '&gt;': '>',
       '&quot;': '"',
       '&#x27;': "'",
+      ' ': '\u2002',
     };
 
     return typeof val !== 'string'
-      ? val
+      ? `${val}`
       : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
