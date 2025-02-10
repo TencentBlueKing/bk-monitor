@@ -202,7 +202,7 @@
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
-      (regExp.test(field.field_alias) || regExp.test(field.field_name));
+      (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias)) ;
     return fieldList.value.filter(filterFn);
   });
 
