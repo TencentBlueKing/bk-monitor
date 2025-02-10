@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _lazy
@@ -20,7 +20,7 @@ from bk_dataview.api import get_org_by_id
 from bk_dataview.models import Dashboard
 from bkm_space.utils import api as space_api
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
-from core.drf_resource import api
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from core.errors.iam import ResourceNotExistError
 
 
@@ -132,17 +132,33 @@ class ApmApplication(ResourceMeta):
         return resource
 
     @classmethod
+    @lru_cache_with_ttl(maxsize=128, ttl=60 * 60, decision_to_drop_func=lambda v: v is None)
+    def _get_app_simple_info_by_id_or_none(cls, application_id: str) -> Optional[Dict[str, Any]]:
+        """获取应用概要信息，不存在则返回 None。
+        应用概要信息不会修改，此处给 30 min 的内存缓存，以提高整体鉴权性能。
+        :param application_id: 应用 ID
+        :return:
+        """
+        from apm_web.models import Application
+
+        return (
+            Application.objects.filter(application_id=application_id)
+            .values("application_id", "app_name", "bk_biz_id")
+            .first()
+        )
+
+    @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
         resource = super().create_simple_instance(instance_id, attribute)
-        try:
-            application = api.apm_api.detail_application({"application_id": instance_id})
-        except Exception:
+        app_simple_info: Optional[Dict[str, Any]] = cls._get_app_simple_info_by_id_or_none(instance_id)
+        if app_simple_info is None:
             return resource
+
         resource.attribute = {
             "id": str(instance_id),
-            "name": application["app_name"],
-            "bk_biz_id": str(application["bk_biz_id"]),
-            "_bk_iam_path_": "/{},{}/".format(Business.id, application["bk_biz_id"]),
+            "name": app_simple_info["app_name"],
+            "bk_biz_id": str(app_simple_info["bk_biz_id"]),
+            "_bk_iam_path_": "/{},{}/".format(Business.id, app_simple_info["bk_biz_id"]),
         }
         return resource
 

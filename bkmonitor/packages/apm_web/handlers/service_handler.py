@@ -35,7 +35,7 @@ from apm_web.metric_handler import RequestCountInstance, ServiceFlowCount
 from apm_web.metrics import APPLICATION_LIST
 from apm_web.models import ApdexServiceRelation, Application, ApplicationCustomService
 from bkmonitor.utils import group_by
-from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.cache import CacheType, lru_cache_with_ttl, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
 from constants.apm import OtlpKey, TelemetryDataType
@@ -336,7 +336,7 @@ class ServiceHandler:
                 }
 
         # Step2: 从 topo_node 指标补充
-        node_response = api.apm_api.query_topo_node(bk_biz_id=bk_biz_id, app_name=app_name)
+        node_response = cls.list_nodes(bk_biz_id, app_name)
         for i in node_response:
             topo_key = i.get("topo_key")
             if not topo_key:
@@ -366,6 +366,7 @@ class ServiceHandler:
         return None
 
     @classmethod
+    @lru_cache_with_ttl(maxsize=128, ttl=60)
     def list_nodes(cls, bk_biz_id, app_name, service_name=None):
         """获取 topoNode 节点信息列表"""
         params = {

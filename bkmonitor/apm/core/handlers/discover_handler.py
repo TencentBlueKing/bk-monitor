@@ -9,11 +9,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import datetime
+from typing import Optional
 
 import pytz
 from django.utils.translation import gettext_lazy as _
 
-from apm.models import ApmApplication, HostInstance
+from apm.models import HostInstance, TraceDataSource
 from core.drf_resource.exceptions import CustomException
 
 
@@ -35,10 +36,12 @@ class DiscoverHandler:
 
     @classmethod
     def get_app_retention(cls, bk_biz_id, app_name):
-        app = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not app:
+        trace_datasource: Optional[TraceDataSource] = TraceDataSource.objects.filter(
+            bk_biz_id=bk_biz_id, app_name=app_name
+        ).first()
+        if not trace_datasource:
             raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
-        return app.trace_datasource.retention
+        return trace_datasource.retention
 
     @classmethod
     def get_retention_utc_filter_params(cls, bk_biz_id, app_name):
