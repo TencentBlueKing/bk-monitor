@@ -917,7 +917,6 @@ export default defineComponent({
       hoverAllTooltips,
       tooltipsContentLastItem,
       setOptions,
-      customTimeProvider,
     };
   },
   render() {
