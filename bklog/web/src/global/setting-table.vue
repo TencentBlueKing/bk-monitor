@@ -690,7 +690,6 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
         const data = cloneDeep(this.formData.tableList);
 
         data.forEach(item => {
@@ -891,10 +890,33 @@
         row.aliasErr = '';
         return true;
       },
+      checkQueryAlias() {
+        return new Promise((resolve, reject) => {
+          try {
+            let result = true;
+            const data = this.getData();
+            data.forEach(row => {
+              if (!this.checkQueryAliasItem(row)) {
+                result = false;
+              }
+            });
+
+            if (result) {
+              resolve();
+            } else {
+              console.warn('QueryAlias校验错误');
+              reject(result);
+            }
+          } catch (err) {
+            console.warn('QueryAlias校验错误');
+            reject(err);
+          }
+        });
+      },
       validateFieldTable() {
         const promises = [];
         promises.push(this.checkFieldName());
-        promises.push(this.checkAliasName());
+        promises.push(this.checkQueryAlias());
         promises.push(this.checkType());
         return promises;
       },
@@ -1080,7 +1102,7 @@
           padding: 0 !important;
 
           .tooltips-icon {
-            top: 16px;
+            top: 24px;
           }
 
           .overflow-tips {

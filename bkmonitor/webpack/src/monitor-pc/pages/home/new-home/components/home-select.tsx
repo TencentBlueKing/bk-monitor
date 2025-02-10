@@ -23,28 +23,36 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
-import { highLightContent, ESearchType, ESearchPopoverType } from '../utils';
+import { highLightContent, ESearchType, ESearchPopoverType, flattenRoute } from '../utils';
 
 import type { ISearchListItem, ISearchItem, IRouteItem, IDataItem } from '../type';
 
 import './home-select.scss';
 
 interface IHomeSelectProps {
-  searchList?: ISearchListItem[];
-  historyList?: ISearchListItem[];
+  isBarToolShow?: boolean;
+  show?: boolean;
+}
+
+interface IHomeSelectEvent {
+  onChange: (v: boolean, searchKey: string) => void;
 }
 const storageKey = 'bk_monitor_new_home_history';
 
 @Component({
   name: 'HomeSelect',
 })
-export default class HomeSelect extends tsc<IHomeSelectProps> {
+export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> {
+  /** 是否为展示在顶部导航栏的状态 */
+  @Prop({ default: false, type: Boolean }) isBarToolShow: boolean;
+  /** 是否需要展示，配合着外部组件的交互 */
+  @Prop({ default: false, type: Boolean }) show: boolean;
   @Ref('select') selectRef: HTMLDivElement;
   @Ref('textareaInput') textareaInputRef: HTMLDivElement;
   searchValue = '';
@@ -74,19 +82,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   /** 窗口宽度 */
   windowWidth = 0;
 
-  /** 处理数据 */
-  flattenRoute(tree: IRouteItem[]) {
-    const result = [];
-    const traverse = node => {
-      if (!node) return;
-      result.push(node);
-      if (node.children && node.children.length > 0) {
-        node.children.map(child => traverse(child));
-      }
-    };
-    tree.map(rootNode => traverse(rootNode));
-    return result;
-  }
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
     return (this.routeList || []).filter(item => item.name.indexOf(this.searchValue) !== -1);
@@ -100,19 +95,23 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     return this.isSearchResult ? ESearchPopoverType.searchList : ESearchPopoverType.localHistoryList;
   }
   get computedWidth() {
-    return this.windowWidth < 2560 ? 920 : 1080;
+    return this.isBarToolShow ? 720 : this.windowWidth < 2560 ? 920 : 1080;
   }
 
   mounted() {
     this.autoResize();
     this.updateWidth();
-    this.routeList = this.flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
+    this.routeList = flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.updateWidth);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
+  }
+  /** 隐藏/展示发生变化的时候的changeHandle */
+  handleShowChange(v) {
+    this.$emit('change', v, this.searchValue);
   }
   /** 窗口变化时更新宽度值 */
   updateWidth() {
@@ -122,7 +121,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   handleClickOutside(event: Event) {
     if (this.showPopover && this.selectRef && !this.selectRef.contains(event.target)) {
       this.showPopover = false;
+      this.handleShowChange(false);
     }
+  }
+  handleHiddenPopover() {
+    this.handleShowChange(false);
   }
   /** 后台eventStream数据处理 Start */
   /** 解析后台返回的eventStream */
@@ -303,6 +306,10 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.isInput = true;
     this.searchValue = item.name;
     this.handleGetSearchData();
+    this.handleInputFocus();
+  }
+  /** 初始化输入框是否要自动聚焦 */
+  handleInputFocus() {
     this.textareaInputRef.focus();
   }
   /** 获取搜索结果 */
@@ -314,6 +321,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     this.showPopover = false;
     this.searchValue && this.setLocalHistory(this.searchValue);
     window.open(location.href.replace(location.hash, item.href));
+    this.handleShowChange(false);
   }
   /** 相关功能Render */
   renderRouterList() {
@@ -401,7 +409,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     e.stopPropagation();
     this.searchList = [];
     this.handleResetData();
-    this.textareaInputRef.style.height = '52px';
+    const height = this.isBarToolShow ? '32px' : '50px';
+    this.textareaInputRef.style.height = height;
+    /** 展示在顶部导航栏的时候的特殊处理 */
+    if (this.isBarToolShow) {
+      this.selectRef.style.height = height;
+    }
+    this.handleInputFocus();
   }
   /** 重置相关的数据 */
   handleResetData() {
@@ -415,7 +429,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
     !this.isComposing && this.handleGetSearchData();
     this.isInput = !!event?.target?.value;
     this.textareaInputRef.style.height = 'auto';
-    this.textareaInputRef.style.height = `${this.textareaInputRef.scrollHeight}px`;
+    const height = `${this.textareaInputRef.scrollHeight}px`;
+    this.textareaInputRef.style.height = height;
+    /** 展示在顶部导航栏的时候的特殊处理 */
+    if (this.isBarToolShow) {
+      this.selectRef.style.height = height;
+    }
   }
   /** 清空历史 */
   clearHistory() {
@@ -600,7 +619,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
 
     const option = routeOptions[type];
     if (!option) return;
-
+    this.handleShowChange(false);
     const routeData = this.$router.resolve(option);
     const extraParams = option.extraParams ? `&${new URLSearchParams(option.extraParams).toString()}` : '';
     const baseUrl = `${location.origin}/?${new URLSearchParams(baseParams).toString()}${extraParams}`;
@@ -655,12 +674,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
         >
           <span>
             {this.$t('当前输入条件无匹配结果，请清空后重新输入')}
-            <label
+            <span
               class='empty-clear-btn'
               onClick={this.clearInput}
             >
               {this.$t('清空搜索')}
-            </label>
+            </span>
           </span>
         </bk-exception>
       );
@@ -683,13 +702,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
 
   render() {
     return (
-      <div class='new-home-select'>
+      <div class={['new-home-select', { 'home-select-bar-tool': this.isBarToolShow }]}>
         <div
           ref='select'
           style={{ width: `${this.computedWidth}px` }}
           class='new-home-select-input'
         >
-          <span class='new-home-select-icon'></span>
+          {!this.isBarToolShow && <span class='new-home-select-icon'></span>}
           <textarea
             ref='textareaInput'
             class='home-select-input'
@@ -703,13 +722,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
             onInput={this.autoResize}
             onKeydown={this.handleKeydown}
           ></textarea>
+          {this.isBarToolShow && <span class='bk-icon icon-search'></span>}
           {this.searchValue && (
             <span
               class='icon-monitor clear-btn icon-mc-close-fill'
               onClick={this.clearInput}
             />
           )}
-          {this.showPopover && (
+          {(this.isBarToolShow || this.showPopover) && (
             <div class='new-home-select-popover'>
               {this.isSearchResult ? this.renderSearchView() : this.renderHistoryView()}
             </div>
