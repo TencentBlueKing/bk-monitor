@@ -679,7 +679,7 @@ export default defineComponent({
                         const obj = getValueFormat(item.unit)(v, item.precision);
                         return obj.text + (obj.suffix || '');
                       }
-                      return (v: number) => handleYxisLabelFormatter(v - minBase.value);
+                      return handleYxisLabelFormatter(v - minBase.value);
                     },
                     /* formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                       ? (v: any) => {
@@ -706,7 +706,7 @@ export default defineComponent({
                         const obj = getValueFormat(item.unit)(v, item.precision);
                         return obj.text + (obj.suffix || '');
                       }
-                      return (v: number) => handleYxisLabelFormatter(v - minBase.value);
+                      return handleYxisLabelFormatter(v - minBase.value);
                     },
                   },
                   splitNumber: height.value < 120 ? 2 : 4,
