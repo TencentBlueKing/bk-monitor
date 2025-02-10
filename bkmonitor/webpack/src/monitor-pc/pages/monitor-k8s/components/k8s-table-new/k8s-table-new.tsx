@@ -731,22 +731,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       namespace: row[K8sTableColumnKeysEnum.NAMESPACE],
       cluster: this.filterCommonParams.bcs_cluster_id,
     };
-    const dimensionIndex = [
-      K8sTableColumnKeysEnum.WORKLOAD,
-      K8sTableColumnKeysEnum.POD,
-      K8sTableColumnKeysEnum.CONTAINER,
-    ];
-    for (const key of dimensionIndex) {
-      if (row[key]) {
-        detail[key] = row[key] as string;
-      }
-      if (key === column.id) {
-        break;
-      }
+    if (column.id === K8sTableColumnKeysEnum.CONTAINER) {
+      detail[K8sTableColumnKeysEnum.POD] = row[K8sTableColumnKeysEnum.POD];
     }
-    // if (column.id === K8sTableColumnKeysEnum.CONTAINER) {
-    //   detail[K8sTableColumnKeysEnum.POD] = row[K8sTableColumnKeysEnum.POD];
-    // }
     if (column.id !== K8sTableColumnKeysEnum.CLUSTER) {
       detail[column.id] = row[column.id];
     } else {

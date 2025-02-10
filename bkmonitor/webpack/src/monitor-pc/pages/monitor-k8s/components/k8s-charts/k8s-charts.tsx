@@ -248,30 +248,7 @@ export default class K8SCharts extends tsc<
       content += `,namespace=~"^(${namespace})$"`;
       return content;
     }
-    for (const key in this.filterCommonParams?.filter_dict as any) {
-      const values = this.filterCommonParams.filter_dict[key];
-      if (key === K8sTableColumnKeysEnum.NAMESPACE) {
-        content += `,namespace=~"^(${values.join('|')})$"`;
-      }
-      if (key === K8sTableColumnKeysEnum.WORKLOAD) {
-        const workloads = values.map(item => {
-          const [kind, name] = item.split(':');
-          return {
-            kind,
-            name,
-          };
-        });
-        content += `,workload_kind=~"^(${workloads.map(item => item.kind).join('|')})$",workload_name=~"^(${workloads.map(item => item.name).join('|')})$"`;
-      }
-      if (key === K8sTableColumnKeysEnum.POD) {
-        content += `,pod_name=~"^(${values.join('|')})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
-      }
-      if (key === K8sTableColumnKeysEnum.CONTAINER) {
-        content += `,container_name=~"^(${values.join('|')})$"`;
-      }
-    }
-    return content;
-    /* if (namespace.length > 2) {
+    if (namespace.length > 2) {
       content += `,namespace=~"^(${namespace})$"`;
     }
     switch (this.groupByField) {
@@ -287,7 +264,7 @@ export default class K8SCharts extends tsc<
       default:
         content += '';
     }
-    return content; */
+    return content;
   }
   createWorkLoadRequestOrLimit(isLimit: boolean, isCPU = true) {
     if (isCPU) {
