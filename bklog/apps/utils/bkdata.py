@@ -86,6 +86,10 @@ class BkData(Sql):
         self._order_by.append(OrderBy(field, asc))
         return self
 
+    def limit(self, limit: int) -> "BkData":
+        self._limit = limit
+        return self
+
     def to_sql(self) -> str:
         fields = ",".join(self._fields)
         order_by = ""
