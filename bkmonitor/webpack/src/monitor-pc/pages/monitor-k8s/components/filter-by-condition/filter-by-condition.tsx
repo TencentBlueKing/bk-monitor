@@ -305,6 +305,7 @@ export default class FilterByCondition extends tsc<IProps> {
       onHidden: () => {
         this.destroyPopoverInstance();
         this.setTagList();
+        this.filterByOptions.setIsUpdate(false);
         this.updateActive = '';
         this.addValueSelected = new Map();
         this.workloadValueSelected = '';
@@ -447,6 +448,7 @@ export default class FilterByCondition extends tsc<IProps> {
           tempSet.add(l.id);
         }
       }
+      console.log(tempSet, curSelected);
     } else {
       for (const value of this.valueOptions) {
         if (value.checked) {
@@ -499,12 +501,14 @@ export default class FilterByCondition extends tsc<IProps> {
                 // name: item.name,
                 name: item.id,
               }));
-              values.unshift(
-                ...otherIds.map(id => ({
-                  id: id,
-                  name: id,
-                }))
-              );
+              if (this.groupSelected !== EDimensionKey.workload) {
+                values.unshift(
+                  ...otherIds.map(id => ({
+                    id: id,
+                    name: id,
+                  }))
+                );
+              }
               tag.values = values;
               break;
             }
@@ -553,6 +557,7 @@ export default class FilterByCondition extends tsc<IProps> {
     } else {
       this.addValueSelected.set(item.id, new Set(item.values.map(v => v.id)));
     }
+    this.filterByOptions.setIsUpdate(true);
     this.setGroupOptions();
     this.handleAdd({ target } as any);
     this.handleSearchChange('');

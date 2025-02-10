@@ -73,6 +73,7 @@ const sceneDimensionMap = {
 export class FilterByOptions {
   commonParams: Record<string, any> = {}; // 通用参数
   dimensionData = []; // 维度数据
+  isUpdate = false;
   pageMap: Record<string, number> = {}; // 分页数据
   pageSize = 10;
   scenario = 'performance';
@@ -174,12 +175,14 @@ export class FilterByOptions {
       EDimensionKey.container,
     ];
     const filterDict = {};
-    for (const key of dimensionIndex) {
-      if (key === dimension) {
-        break;
-      }
-      if (this.commonParams.filter_dict?.[key]?.length) {
-        filterDict[key] = this.commonParams.filter_dict[key];
+    if (!this.isUpdate) {
+      for (const key of dimensionIndex) {
+        if (key === dimension) {
+          break;
+        }
+        if (this.commonParams.filter_dict?.[key]?.length) {
+          filterDict[key] = this.commonParams.filter_dict[key];
+        }
       }
     }
     if (this.commonParams.query_string) {
@@ -267,16 +270,20 @@ export class FilterByOptions {
     return this.dimensionData;
   }
 
+  setIsUpdate(v: boolean) {
+    this.isUpdate = v;
+  }
   setPage(page: number, dimension: EDimensionKey, categoryDim?: string) {
     if (dimension === EDimensionKey.workload && categoryDim) {
       this.pageMap[`${dimension}_____${categoryDim}`] = page;
     }
     this.pageMap[dimension] = page;
   }
+
   async setWorkloadOverview(params: any) {
     const data = await workloadOverview({
       ...params,
-      namespace: this.commonParams?.filter_dict?.namespace?.join?.(',') || undefined,
+      namespace: this.isUpdate ? undefined : this.commonParams?.filter_dict?.namespace?.join?.(',') || undefined,
     }).catch(() => []);
     for (const dim of this.dimensionData) {
       if (dim.id === EDimensionKey.workload) {
