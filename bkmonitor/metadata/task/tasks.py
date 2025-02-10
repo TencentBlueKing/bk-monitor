@@ -35,10 +35,15 @@ from metadata.models.vm.utils import (
     get_vm_cluster_id_name,
     report_metadata_data_link_status_info,
 )
+from metadata.service.sync_metadata import (
+    sync_es_metadata,
+    sync_kafka_metadata,
+    sync_vm_metadata,
+)
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
-from metadata.utils.redis_tools import RedisTools
+from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 
 logger = logging.getLogger("metadata")
 
@@ -869,3 +874,66 @@ def bulk_create_fed_data_link(sub_clusters):
         except Exception as e:  # pylint: disable=broad-except
             logger.error("update_fed_bkbase data_link failed, error->[%s]", e)
             continue
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def sync_bkbase_v4_metadata(key):
+    """
+    同步计算平台元数据信息至Metadata
+    @param key: 计算平台对应的DataBusKey
+    """
+    logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
+    bkbase_redis = bkbase_redis_client()
+    bk_data_id = key.split(":")[-1]  # 提取 bk_data_id
+    bkbase_redis_data = bkbase_redis.hgetall(key)
+    bkbase_metadata_dict = {
+        key.decode('utf-8'): json.loads(value.decode('utf-8')) for key, value in bkbase_redis_data.items()
+    }
+    bkbase_metadata = list(bkbase_metadata_dict.values())[0]  # 元数据信息 {'kafka':xxx, 'vm'/'es':xxxx}
+    logger.info("sync_bkbase_v4_metadata: got bk_data_id->[%s],bkbase_metadata->[%s]", bk_data_id, bkbase_metadata)
+
+    try:
+        ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+        table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+    except models.DataSource.DoesNotExist:
+        logger.error("sync_bkbase_v4_metadata: DataSource->[%s] does not exist", bk_data_id)
+        return
+    except models.DataSourceResultTable.DoesNotExist:
+        logger.error("sync_bkbase_v4_metadata: DataSourceResultTable for bk_data_id->[%s] does not exist", bk_data_id)
+        return
+
+    if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
+        logger.error("sync_bkbase_v4_metadata: bk_data_id->[%s] does not belong to bkbase v4", bk_data_id)
+        return
+
+    # 处理 Kafka 信息
+    kafka_info = bkbase_metadata.get('kafka')
+    if kafka_info:
+        with transaction.atomic():  # 单独事务
+            logger.info(
+                "sync_bkbase_v4_metadata: got kafka_info->[%s],bk_data_id->[%s],try to sync kafka info",
+                kafka_info,
+                bk_data_id,
+            )
+            sync_kafka_metadata(kafka_info=kafka_info, ds=ds, bk_data_id=bk_data_id)
+            logger.info("sync_bkbase_v4_metadata: sync kafka info for bk_data_id->[%s] successfully", bk_data_id)
+
+    # 处理 ES 信息
+    es_info = bkbase_metadata.get('es')
+    if es_info:
+        with transaction.atomic():  # 单独事务
+            logger.info(
+                "sync_bkbase_v4_metadata: got es_info->[%s],bk_data_id->[%s],try to sync es info", es_info, bk_data_id
+            )
+            sync_es_metadata(es_info, table_id)
+            logger.info("sync_bkbase_v4_metadata: sync es info for bk_data_id->[%s] successfully", bk_data_id)
+
+    # 处理 VM 信息
+    vm_info = bkbase_metadata.get('vm')
+    if vm_info:
+        with transaction.atomic():  # 单独事务
+            logger.info(
+                "sync_bkbase_v4_metadata: got vm_info->[%s],bk_data_id->[%s],try to sync vm info", vm_info, bk_data_id
+            )
+            sync_vm_metadata(vm_info, table_id)
+            logger.info("sync_bkbase_v4_metadata: sync vm info for bk_data_id->[%s] successfully", bk_data_id)
