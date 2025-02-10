@@ -121,6 +121,8 @@ class GetDirectoryTree(Resource):
                     role >= GrafanaRole.Editor
                     or dashboard_permissions.get(record["uid"], GrafanaPermission.View) >= GrafanaPermission.Edit
                 )
+                # 是否有权限
+                record["has_permission"] = role > GrafanaRole.Anonymous or record["uid"] in dashboard_permissions
                 folder_id = record.pop("folderId", 0)
                 record.pop("folderUid", None)
                 record.pop("folderTitle", None)
