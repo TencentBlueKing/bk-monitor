@@ -41,7 +41,8 @@ import zhIcon from '../static/images/svg/zh.svg';
 import type { IMenuItem } from '../types';
 
 // #if APP !== 'external'
-import GlobalSearchModal from './global-search-modal-new';
+// import GlobalSearchModal from './global-search-modal-new';
+import HomeSelect from 'monitor-pc/pages/home/new-home/components/home-select';
 import SettingModal from './setting-modal';
 // #endif
 
@@ -178,6 +179,8 @@ class NavTools extends DocumentLinkMixin {
    */
   handleGlobalSearch() {
     this.globalSearchShow = !this.globalSearchShow;
+    /** 展示在顶部导航栏的时候的自动聚焦 */
+    setTimeout(() => (this.$refs.homeSelectModal as any)?.handleInputFocus(), 10);
   }
   /**
    * @description: 帮助列表
@@ -508,11 +511,17 @@ class NavTools extends DocumentLinkMixin {
             </SettingModal>,
             <keep-alive key='keep-alive'>
               {this.globalSearchShow && (
-                <GlobalSearchModal
-                  ref='globalSearchModal'
+                <HomeSelect
+                  ref='homeSelectModal'
+                  isBarToolShow={true}
                   show={this.globalSearchShow}
                   onChange={this.handleGlobalSearchShowChange}
                 />
+                // <GlobalSearchModal
+                //   ref='globalSearchModal'
+                //   show={this.globalSearchShow}
+                //   onChange={this.handleGlobalSearchShowChange}
+                // />
               )}
             </keep-alive>,
           ]

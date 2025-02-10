@@ -24,6 +24,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { IRouteItem } from './type';
 export interface IDataItem {
   [key: string]: any;
 }
@@ -117,4 +119,22 @@ export function handleYAxisLabelFormatter(num: number): string {
     }
   }
   return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+}
+
+/**
+ * @description: 处理树形结构的数据，将数据统一为平级的数据
+ * @param {IRouteItem[]} tree
+ * @return {*}
+ */
+export function flattenRoute(tree: IRouteItem[]) {
+  const result = [];
+  const traverse = node => {
+    if (!node) return;
+    result.push(node);
+    if (node.children && node.children.length > 0) {
+      node.children.map(child => traverse(child));
+    }
+  };
+  tree.map(rootNode => traverse(rootNode));
+  return result;
 }
