@@ -13,7 +13,7 @@ import time
 
 from django.conf import settings
 from django.db import connections, models
-from django.db.models import signals
+from django.db.models import Value, signals
 from django.db.models.sql import InsertQuery
 from django.db.utils import OperationalError
 from six.moves import range
@@ -94,7 +94,7 @@ class Model(models.Model):
 
 class RecordModelManager(ModelManager):
     def get_queryset(self):
-        return super(RecordModelManager, self).get_queryset().filter(is_deleted=False)
+        return super(RecordModelManager, self).get_queryset().filter(is_deleted=Value(0))
 
     def create(self, *args, **kwargs):
         kwargs.update({"create_user": get_global_user() or "unknown"})
@@ -102,7 +102,6 @@ class RecordModelManager(ModelManager):
 
 
 class AbstractRecordModel(models.Model):
-
     is_enabled = models.BooleanField(
         "是否启用",
         default=True,
@@ -154,7 +153,7 @@ class AbstractRecordModel(models.Model):
 
         signals.pre_delete.send(sender=self.__class__, instance=self)
         username = get_global_user() or "unknown"
-        self.__class__.objects.filter(pk=self.pk, is_deleted=False).update(
+        self.__class__.objects.filter(pk=self.pk, is_deleted=Value(0)).update(
             is_deleted=True, is_enabled=False, update_user=username, update_time=datetime.datetime.now()
         )
 

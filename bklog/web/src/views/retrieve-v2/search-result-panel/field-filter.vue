@@ -1,6 +1,5 @@
 <script setup>
-  import { computed, nextTick, ref } from 'vue';
-
+  import { computed, nextTick, ref, onMounted } from 'vue';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
 
@@ -37,11 +36,11 @@
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
       // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
-      fieldAliasMap[item.field_name] =
-        fieldShowName.value === 'field_name'
-          ? item.field_alias || item.field_name
-          : item.alias_name || item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] = fieldShowName.value === 'field_name'
+        ?  item.field_name || item.field_alias
+        : item.query_alias || item.field_alias  || item.field_name;
     });
+    
     return fieldAliasMap;
   });
 
@@ -74,6 +73,13 @@
     emit('field-status-change', !props.value);
     emit('input', !props.value);
   };
+  const handlerChange = (value) => {
+    localStorage.setItem('showFieldAlias', value);
+    store.commit('updateShowFieldAlias', value);
+  }
+  onMounted(()=>{
+    fieldShowName.value = localStorage.getItem('showFieldAlias') === 'true'
+  })
 </script>
 
 <template>
@@ -86,6 +92,24 @@
         @click="handleCloseFilterTitle(true)"
       >
         {{ $t('字段统计') }}
+        <bk-popconfirm
+          trigger="click"
+          width="260"
+          class="left-title-setting"
+          ext-popover-cls="field-filter-content"
+        >
+          <div slot="content">
+            <bk-radio-group v-model="fieldShowName" style="margin-bottom: 10px;" @change="handlerChange">
+              <bk-radio-button :value="false">
+                {{ $t('展示字段名') }}
+              </bk-radio-button>
+              <bk-radio-button :value="true">
+                {{ $t('展示别名') }}
+              </bk-radio-button>
+            </bk-radio-group>
+          </div>
+        <span class="bklog-icon bklog-log-setting"></span>
+      </bk-popconfirm>
       </div>
       <div
         class="close-total"
@@ -107,7 +131,7 @@
       :field-alias-map="fieldAliasMap"
       :index-set-item="indexSetItem"
       :retrieve-params="retrieveParams"
-      :show-field-alias="fieldShowName"
+      :show-field-alias="!fieldShowName"
       :sort-list="sortList"
       :total-fields="totalFields"
       :visible-fields="visibleFields"

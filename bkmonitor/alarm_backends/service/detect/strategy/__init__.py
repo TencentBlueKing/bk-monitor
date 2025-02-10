@@ -519,7 +519,7 @@ class SDKPreDetectMixin(object):
                         "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
                         "backfill_conditions": [
                             {
-                                "field_name": "is_anomaly",
+                                "field_name": "anomaly_alert",
                                 "value": 1,
                             }
                         ],

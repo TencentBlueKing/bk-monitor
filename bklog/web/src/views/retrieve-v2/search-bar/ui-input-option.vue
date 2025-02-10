@@ -113,6 +113,7 @@
     is_full_text: true,
     field_alias: t('全文检索'),
     field_type: '',
+    query_alias:'',
     field_operator: [
       {
         operator: FulltextOperator,
@@ -153,6 +154,7 @@
       list.push({
         field_name: '_ip-select_',
         field_type: '',
+        query_alias: '',
         is_full_text: true,
         field_alias: t('IP目标'),
         field_operator: [],
@@ -200,7 +202,7 @@
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
-      (regExp.test(field.field_alias) || regExp.test(field.field_name));
+      (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias)) ;
     return fieldList.value.filter(filterFn);
   });
 
@@ -923,7 +925,7 @@
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <span class="field-alias">{{ item.field_alias || item.field_name }}</span>
+            <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
             <span
               v-if="!item.is_full_text"
               class="field-name"
