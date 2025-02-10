@@ -81,6 +81,8 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   asyncable?: boolean;
   /** 是否固定列 */
   fixed?: boolean;
+  /** 表头对齐方式 */
+  header_align?: 'center' | 'left' | 'right';
   /** 是否开启 添加/移除 筛选项 icon */
   k8s_filter?: boolean;
   /** 是否开启 下钻 icon */
@@ -254,6 +256,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
               type: K8sTableColumnTypeEnum.DATA_CHART,
               min_width: 190,
               asyncable: true,
+              header_align: 'right',
               renderHeader: this.metricsColumnHeaderRender,
             });
           }
@@ -272,11 +275,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     // 处理表格维度展示列
     const resourceMap = this.getKeyToTableResourceColumnsMap();
     let iterationTarget = this.groupInstance.dimensions;
+    let resourceColumnFixed = false;
     if (this.isListTab) {
       iterationTarget = [...this.groupInstance.groupFilters].reverse();
+      resourceColumnFixed = true;
     }
     for (const key of iterationTarget) {
       const column = resourceMap[key];
+      column.fixed = resourceColumnFixed;
       if (column) {
         columns.push(column);
       }
@@ -401,7 +407,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 120,
-        fixed: true,
         canClick: true,
         getValue: () => this.filterCommonParams.bcs_cluster_id,
       },
@@ -411,7 +416,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
-        fixed: true,
         canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
@@ -422,7 +426,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 140,
-        fixed: true,
         getValue: K8sTableNew.getWorkloadValue(WORKLOAD, 0),
       },
       [WORKLOAD]: {
@@ -431,7 +434,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 240,
-        fixed: true,
         canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
@@ -443,7 +445,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 160,
-        fixed: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -453,7 +454,6 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
-        fixed: true,
         canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
@@ -712,7 +712,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param chartData
    * @param columnKey
    */
-  chartDataFormatterByUnit(chartData, columnKey: K8sTableColumnChartKey) {
+  chartDataFormatterByUnit(chartData, columnKey: K8sTableColumnChartKey, unitDecimal = 2) {
     if (this.metricsForConvergeMap?.[columnKey] === K8sConvergeTypeEnum.COUNT) {
       chartData.unit = '';
       return;
@@ -722,10 +722,19 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!chartData?.datapoints) {
       chartData.datapoints = [];
     } else if (![undefined, null].includes(chartVal)) {
-      const unitFormatter = !['', 'none', undefined, null].includes(chartData.unit)
-        ? getValueFormat(chartData.unit || '')
-        : (v: any) => ({ text: v });
-      const set = unitFormatter(chartVal, chartData.unitDecimal || 1);
+      const unitFormatter = (value, decimal) => {
+        let set = { text: value };
+        if (!['', 'none', undefined, null].includes(chartData.unit)) {
+          const valueFormatter = getValueFormat(chartData.unit || '');
+          set = valueFormatter(value, decimal);
+          if (value !== 0) {
+            set.text = Number.parseFloat(set.text).toFixed(decimal);
+          }
+        }
+        return set;
+      };
+
+      const set = unitFormatter(chartVal, chartData.unitDecimal || unitDecimal);
       chartData.datapoints[0][0] = set.text;
       // @ts-ignore
       chartData.unit = set.suffix;
@@ -944,7 +953,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         );
       }
       if ([undefined, null].includes(chartData?.datapoints?.[0]?.[0])) {
-        return '--';
+        return (
+          <div class='k8s-metric-column'>
+            <span class='value'>--</span>
+          </div>
+        );
       }
       const { datapoints, unit = '', valueTitle = this.$t('用量') } = chartData;
       const value = `${datapoints?.[0]?.[0]} ${unit}`;
@@ -977,6 +990,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         column-key={column.id}
         fixed={column.fixed}
         formatter={this.handleSetFormatter(column)}
+        header-align={column.header_align}
         label={column.name}
         min-width={column.min_width}
         prop={column.id}
