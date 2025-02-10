@@ -576,6 +576,8 @@
                     isEdit.value = false;
                   });
                 }
+                //请求成功后更新field
+                store.dispatch('requestIndexSetFieldInfo',)
               })
               .finally(() => {
                 confirmLoading.value = false;
