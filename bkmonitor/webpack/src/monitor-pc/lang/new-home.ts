@@ -63,4 +63,5 @@ export default {
     'The current business has not configured a view. Click the button below to add a new chart.',
   搜索历史: 'Search history',
   集群管理: 'Cluster management',
+  主机管理: 'Host management',
 };

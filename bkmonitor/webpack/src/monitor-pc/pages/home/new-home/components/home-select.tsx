@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import { random } from 'monitor-common/utils/utils';
+import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
 import { highLightContent, ESearchType, ESearchPopoverType } from '../utils';
@@ -58,7 +59,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
       { name: this.$t('关联的告警'), key: 'strategy-alarm' },
       { name: this.$t('关联的屏蔽配置'), key: 'alarm-shield' },
     ],
-    bcs_cluster: [{ name: this.$t('集群管理'), key: 'bsc-detail' }],
+    // bcs_cluster: [{ name: this.$t('集群管理'), key: 'bsc-detail' }],
+    // host: [{ name: this.$t('主机管理'), key: 'host-detail' }],
   };
   isLoading = false;
   /** 高亮选中的index, 第一个表示组的下标，第二个表示items的下标 */
@@ -105,6 +107,22 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
   }
   get computedWidth() {
     return this.windowWidth < 2560 ? 920 : 1080;
+  }
+  /** 获取业务类型列表 */
+  get spaceTypeIdList() {
+    const spaceTypeMap: Record<string, any> = {};
+    for (const item of this.$store.getters.bizList) {
+      spaceTypeMap[item.space_type_id] = 1;
+      if (item.space_type_id === 'bkci' && item.space_code) {
+        spaceTypeMap.bcs = 1;
+      }
+    }
+    return Object.keys(spaceTypeMap).map(key => ({
+      id: key,
+      name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
+      styles: SPACE_TYPE_MAP[key]?.light || {},
+      list: this.$store.getters.bizList.filter(item => item.space_type_id === key).map(item => item.bk_biz_id),
+    }));
   }
 
   mounted() {
@@ -256,8 +274,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
    * @param ind - 当前渲染的查询结果Item的下标。
    */
   renderGroupItem(item: ISearchItem, type: string, parentInd: number, ind: number) {
+    const hasOperatorKeys = [ESearchType.strategy, ESearchType.bcs_cluster, ESearchType.host];
     const isHost = type === ESearchType.host;
-    const isStrategy = type === ESearchType.strategy;
     const isBcsCluster = type === ESearchType.bcs_cluster;
     return (
       <div
@@ -275,7 +293,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
           {isBcsCluster && <span class='ip-sub'>（{item.bcs_cluster_id}）</span>}
         </span>
-        {(isStrategy || isBcsCluster) && (
+        {hasOperatorKeys.includes(type) && (
           <span class='item-operator'>
             {this.operatorList[type].map(operator => (
               <span
@@ -289,6 +307,19 @@ export default class HomeSelect extends tsc<IHomeSelectProps> {
           </span>
         )}
         <span class='item-business'>{item.bk_biz_name}</span>
+        {this.spaceTypeIdList.length > 0 &&
+          this.spaceTypeIdList?.map?.(
+            tag =>
+              tag.list.includes(item.bk_biz_id) && (
+                <span
+                  key={tag.id}
+                  style={tag.styles}
+                  class='list-item-tag'
+                >
+                  {tag.name}
+                </span>
+              )
+          )}
       </div>
     );
   }

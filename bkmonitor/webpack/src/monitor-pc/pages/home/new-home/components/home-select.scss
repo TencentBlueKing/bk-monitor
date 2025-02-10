@@ -235,12 +235,11 @@
     .new-home-select-router-item {
       display: inline-block;
       width: 140px;
-      height: 32px;
-      line-height: 32px;
       margin-right: 16px;
       color: #4d4f56;
       background: #ebeef5;
       border-radius: 2px;
+      padding: 4px 0;
 
       &:hover {
         cursor: pointer;
@@ -262,12 +261,13 @@
         border-radius: 1px;
         font-size: 14px;
         color: #a3b1cc;
+        vertical-align: inherit;
       }
 
       .item-txt {
         display: inline-block;
-        // width: 100%;
-        font-size: 10px;
+        font-size: 12px;
+        margin-left: 3px;
       }
     }
   }
@@ -290,7 +290,7 @@
 
     &.active,
     &:hover {
-      background: #f0f1f5;
+      background: #f5f7fa;
 
       .ip-tag {
         background: #dcdee5;
@@ -327,6 +327,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 0 8px 0 24px;
 
     .item-label {
       flex: 1;
@@ -347,7 +348,14 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-
+    .list-item-tag {
+      display: inline-block;
+      height: 23px;
+      padding: 0 10px;
+      line-height: 23px;
+      border-radius: 2px;
+      margin-left: 8px;
+    }
     .item-operator {
       margin-right: 20px;
       color: #3a84ff;
