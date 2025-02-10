@@ -306,7 +306,7 @@ class HttpCallBackConfigSlz(PollModeConfig):
     failed_retry = FailedRetryConfigSlz(required=False)
 
     def is_valid(self, raise_exception=False):
-        return super(HttpCallBackConfigSlz, self).is_valid(raise_exception)
+        return super(HttpCallBackConfigSlz, self).is_valid(raise_exception=True)
 
 
 class ExecuteConfigSlz(serializers.Serializer):
