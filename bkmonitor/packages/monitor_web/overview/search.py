@@ -1,7 +1,7 @@
 import abc
+import ipaddress
 import logging
 import re
-import socket
 import time
 from multiprocessing.pool import IMapIterator
 from typing import Any, Dict, Generator, List, Optional, Union
@@ -341,47 +341,71 @@ class HostSearchItem(SearchItem):
     Search item for host.
     """
 
-    RE_IP = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    RE_IP = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
 
     @classmethod
     def match(cls, query: str) -> bool:
         """
         ipv4或ipv6，不要用正则匹配
         """
-        if cls.RE_IP.match(query):
-            try:
-                socket.inet_aton(query)
-                return True
-            except socket.error:
-                pass
-        elif ":" in query:
-            try:
-                socket.inet_pton(socket.AF_INET6, query)
-                return True
-            except socket.error:
-                pass
-        return False
+        return cls.RE_IP.match(query) or ":" in query
 
     @classmethod
     def search(cls, username: str, query: str, limit: int = 5) -> Generator:
         """
         Search the host by host name
         """
-        result = api.cmdb.get_host_without_biz_v2(ips=[query], limit=limit)
+        query = query.strip()
+
+        ips = []
+        try:
+            ipaddress.ip_address(query)
+            ips = [query]
+        except ValueError:
+            # 提取所有的ipv4
+            for ip in cls.RE_IP.findall(query):
+                try:
+                    ipaddress.ip_address(ip)
+                    ips.append(ip)
+                except ValueError:
+                    pass
+
+        # 如果没有任何ip，则不进行查询
+        if not ips:
+            return
+
+        result = api.cmdb.get_host_without_biz_v2(ips=ips, limit=limit)
         hosts: List[Dict] = result["hosts"]
 
         items = []
+        biz_hosts = {}
         for host in hosts:
+            compare_hosts = []
+            # 批量对比模式，同业务的主机放在一起
+            if len(ips) > 1:
+                if host["bk_biz_id"] not in biz_hosts:
+                    biz_hosts[host["bk_biz_id"]] = []
+                    compare_hosts = biz_hosts[host["bk_biz_id"]]
+                else:
+                    biz_hosts[host["bk_biz_id"]].append(
+                        {
+                            "bk_target_ip": host["bk_host_innerip"],
+                            "bk_target_cloud_id": host["bk_cloud_id"],
+                        }
+                    )
+                    continue
+
             items.append(
                 {
                     "bk_biz_id": host["bk_biz_id"],
                     "bk_biz_name": cls._get_biz_name(host["bk_biz_id"]),
-                    "name": query,
+                    "name": host["bk_host_innerip"],
                     "bk_host_innerip": host["bk_host_innerip"],
                     "bk_cloud_id": host["bk_cloud_id"],
                     "bk_cloud_name": host["bk_cloud_name"],
                     "bk_host_name": host["bk_host_name"],
                     "bk_host_id": host["bk_host_id"],
+                    "compare_hosts": compare_hosts,
                 }
             )
 
@@ -478,7 +502,7 @@ class Searcher:
             )
 
             start_time = time.time()
-            while True:
+            for __ in range(len(search_items)):
                 try:
                     result: Generator = results.next(timeout=5)
                 except StopIteration:

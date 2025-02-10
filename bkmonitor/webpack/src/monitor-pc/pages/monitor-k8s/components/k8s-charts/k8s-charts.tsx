@@ -253,8 +253,8 @@ export default class K8SCharts extends tsc<
     }
     switch (this.groupByField) {
       case K8sTableColumnKeysEnum.CONTAINER:
-      // content += `,container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
-      // break;
+        content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
+        break;
       case K8sTableColumnKeysEnum.POD:
         content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
         break;

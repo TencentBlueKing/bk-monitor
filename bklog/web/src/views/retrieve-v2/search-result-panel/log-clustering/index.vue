@@ -183,6 +183,7 @@
   import Strategy from './components/strategy';
   import { deepClone } from '../../../../common/util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import useFieldNameHook from '@/hooks/use-field-name';
   export default {
     components: {
       DataFingerprint,
@@ -281,6 +282,9 @@
       bkBizId() {
         return this.$store.state.bkBizId;
       },
+      showFieldAlias() {
+        return this.$store.state.showFieldAlias
+      },
       isHaveAnalyzed() {
         return this.totalFields.some(item => item.is_analyzed);
       },
@@ -370,6 +374,9 @@
       isShowClusterStep(v) {
         this.$store.commit('updateStoreIsShowClusterStep', v);
       },
+      showFieldAlias(){
+        this.filterGroupList()
+      }
     },
     methods: {
       setRouteParams() {
@@ -587,11 +594,11 @@
        * @desc: 初始化分组select数组
        */
       filterGroupList() {
+        const { getConcatenatedFieldName } = useFieldNameHook({ store: this.$store });
         const filterList = this.totalFields
           .filter(el => el.es_doc_values && !/^__dist_/.test(el.field_name)) // 过滤__dist字段
           .map(item => {
-            const { field_name: id, field_alias: alias } = item;
-            return { id, name: alias ? `${id}(${alias})` : id };
+            return getConcatenatedFieldName(item)
           });
         this.fingerOperateData.groupList = filterList;
       },
