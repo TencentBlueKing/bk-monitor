@@ -469,10 +469,13 @@ export default ({ onSegmentClick }) => {
 
           if (item.left === undefined && item.top === undefined) {
             const isWrap = /^(\n|\r)$/.test(item.text);
-            const isEmpty = /^\t$/.test(item.text);
+            const isEmpty = /^\t$/.test(item.text) && /^(\n|\r)$/.test(wordList[index - 1]?.text ?? '');
 
             let width = 0;
 
+            if (item.text === 'INFO') {
+              console.log('INFO');
+            }
             if (!isWrap) {
               const box = getTempText();
               width = box.width(item.text);
