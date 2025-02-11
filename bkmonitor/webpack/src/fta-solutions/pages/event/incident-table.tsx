@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 
 import { random } from '../../../monitor-common/utils/utils';
 import { transformLogUrlQuery } from '../../../monitor-pc/utils';
-import { TableClickCurrentExpend } from '../../common/table-click-current';
+import { TableClickCurrentExpand } from '../../common/table-expand-plugins';
 import { handleToAlertList } from './event-detail/action-detail';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
@@ -152,7 +152,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   opetateRow = null;
   enableCreateChatGroup = false;
   /** table 行定位色功能类实例 */
-  tableClickCurrentInstance = new TableClickCurrentExpend();
+  tableClickCurrentInstance = new TableClickCurrentExpand();
 
   /**
    * @description: 处理记录列表字段

@@ -27,7 +27,7 @@
 /**
  * @description vue2版本 bk-table 功能拓展--表格定位色功能类（点击table行存储当前行索引变色）
  */
-export class TableClickCurrentExpend {
+export class TableClickCurrentExpand {
   private rowCurrentIndex = -1;
 
   /**
@@ -65,7 +65,7 @@ export class TableClickCurrentExpend {
 
   /**
    * @description 表格点击行事件（点击后设置当前表格行索引）
-   * @description 参数可看vue2 bk-table 文档
+   * @description 参数可看vue2 bk-table 文档 -- row-click 事件
    */
   tableRowClick() {
     return (row, event, column, rowIndex) => {

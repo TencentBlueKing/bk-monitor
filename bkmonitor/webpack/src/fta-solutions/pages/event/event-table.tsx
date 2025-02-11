@@ -33,7 +33,7 @@ import { random } from 'monitor-common/utils/utils';
 import authorityStore from 'monitor-pc/store/modules/authority';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
-import { TableClickCurrentExpend } from '../../common/table-click-current';
+import { TableClickCurrentExpand } from '../../common/table-expand-plugins';
 import { handleToAlertList } from './event-detail/action-detail';
 import { getStatusInfo } from './event-detail/type';
 
@@ -135,7 +135,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   /* 关注人禁用操作 */
   followerDisabled = false;
   /** table 行定位色功能类实例 */
-  tableClickCurrentInstance = new TableClickCurrentExpend();
+  tableClickCurrentInstance = new TableClickCurrentExpand();
 
   get tableColumnMap() {
     return this.alertColumns.reduce((pre, cur) => {
