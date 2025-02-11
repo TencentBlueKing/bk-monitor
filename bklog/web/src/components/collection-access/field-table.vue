@@ -79,15 +79,17 @@
           v-model="deletedVisible"
           @change="visibleHandle">
         </bk-switcher> -->
-        <span
+        <div @click="visibleHandle">
+          <span
           :class="`bk-icon toggle-icon icon-${deletedVisible ? 'eye-slash' : 'eye'}`"
           data-test-id="fieldExtractionBox_span_hideItem"
-          @click="visibleHandle"
+          
         >
         </span>
         <span class="visible-deleted-text">
           {{ $t('已隐藏 {n} 项', { n: deletedNum }) }}
         </span>
+        </div>
       </div>
     </div>
 

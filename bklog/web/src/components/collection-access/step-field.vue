@@ -1211,7 +1211,10 @@
         return this.$store.state.isEnLanguage ? this.enLabelWidth : 125;
       },
       renderFieldNameList() {
-        return this.fieldNameList.filter(item => item.field_name);
+        return this.fieldNameList.filter((item,index) => {
+          item.field_index = index
+          return item.field_name && !item.is_built_in
+        });
       },
     },
     watch: {
