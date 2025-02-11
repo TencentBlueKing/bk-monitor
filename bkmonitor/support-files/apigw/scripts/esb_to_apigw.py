@@ -134,10 +134,10 @@ def write_apigw_configs(configs: Dict[str, Dict], output_dir: Path):
 
 
 if __name__ == "__main__":
-    script_dir = Path(__file__).parent
+    support_files_dir = Path(__file__).parent.parent
 
-    esb_yaml_path = script_dir.parent.parent / "docs" / "api" / "monitor_v3.yaml"
+    esb_yaml_path = support_files_dir.parent.parent / "docs" / "api" / "monitor_v3.yaml"
     esb_apis = read_esb_yaml(esb_yaml_path)
     configs = convert_esb_to_apigw(esb_apis)
 
-    write_apigw_configs(configs, script_dir / "resources")
+    write_apigw_configs(configs, support_files_dir / "resources")

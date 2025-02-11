@@ -166,7 +166,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
     def get_apigw_public_keys() -> Dict[str, str]:
         cache = caches["login_db"]
 
-        api_names = settings.BK_APIGW_NAME.split(",")
+        api_names = settings.FROM_APIGW_NAME.split(",")
         if not api_names:
             return {}
 

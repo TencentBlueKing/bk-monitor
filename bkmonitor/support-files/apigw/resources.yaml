@@ -7,14 +7,16 @@ info:
 schemes:
 - http
 paths:
-  /v2/monitor_v3/as_code/import_config/:
+  /app/as_code/import_config/:
     post:
       operationId: as_code_import_config
-      description: 【AS_CODE】导入配置
+      description: 导入 AsCode 配置
       tags:
       - as_code
+      - external_api
+      - app_verify
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
@@ -26,15 +28,17 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: import as code config
-  /v2/monitor_v3/as_code/export_config/:
+        descriptionEn: import AsCode config
+  /app/as_code/export_config/:
     post:
       operationId: as_code_export_config
-      description: 导出yaml配置
+      description: 导出 AsCode 配置
       tags:
       - as_code
+      - external_api
+      - app_verify
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
@@ -46,4 +50,4 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: export as code config
+        descriptionEn: export AsCode config

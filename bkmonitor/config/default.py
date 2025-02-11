@@ -1467,8 +1467,8 @@ CHECK_RESULT_TTL_HOURS = 1
 # LLM 接口地址
 BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
-# 监控平台apigw代码
-BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
+# 支持来源 APIGW 列表
+FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor,bkmonitorv3")
 
 # 集群内 bkmonitor-operator 特殊部署命名空间信息，针对一个集群部署多套 operator 时需要配置这个
 # 格式: {

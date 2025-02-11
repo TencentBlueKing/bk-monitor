@@ -50,10 +50,10 @@ stage:
         - host: "{{ settings.BK_MONITOR_API_HOST }}"
           weight: 100
     # Header转换；如未使用，可去除此配置
-    # transform_headers:
-    #   # 设置Headers
-    #   set:
-    #     X-Token: "token"
+    transform_headers:
+      # 设置Headers
+      set:
+        x-bkapi-from: "apigw"
 
 # 主动授权，网关主动给应用，添加访问网关所有资源或者具体某个资源的权限；
 # 用于命令 `grant_apigw_permissions`
