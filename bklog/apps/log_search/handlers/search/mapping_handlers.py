@@ -105,6 +105,7 @@ class MappingHandlers(object):
         end_time="",
         bk_biz_id=None,
         only_search=False,
+        refresh=False,
     ):
         self.indices = indices
         self.index_set_id = index_set_id
@@ -120,6 +121,9 @@ class MappingHandlers(object):
 
         # 仅查询使用
         self.only_search = only_search
+
+        # 刷新mapping缓存
+        self.refresh = refresh
 
     def check_fields_not_conflict(self, raise_exception=True):
         """
@@ -470,6 +474,7 @@ class MappingHandlers(object):
             start_time=start_time_format,
             end_time=end_time_format,
             only_search=self.only_search,
+            refresh=self.refresh
         )
 
     def _direct_latest_mapping(self, params):
@@ -483,8 +488,8 @@ class MappingHandlers(object):
             latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
-    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+    @cache_one_minute(key="latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}", need_md5=True)
+    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False, refresh=False):  # noqa
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
 
         if self.start_time:

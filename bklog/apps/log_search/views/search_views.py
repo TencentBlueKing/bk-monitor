@@ -894,11 +894,12 @@ class SearchViewSet(APIViewSet):
         start_time = request.GET.get("start_time", "").replace("&nbsp;", " ")
         end_time = request.GET.get("end_time", "").replace("&nbsp;", " ")
         custom_indices = request.GET.get("custom_indices", "")
+        refresh = request.GET.get("refresh", "false").lower() in ("true", "1", "yes")
         if scope == SearchScopeEnum.DEFAULT.value and not is_realtime and not start_time and not end_time:
             # 使用缓存
             fields = self.get_object().get_fields(use_snapshot=True)
         else:
-            search_dict = {"start_time": start_time, "end_time": end_time}
+            search_dict = {"start_time": start_time, "end_time": end_time, "refresh": refresh}
             if custom_indices:
                 search_dict.update({"custom_indices": custom_indices})
             search_handler_esquery = SearchHandlerEsquery(index_set_id, search_dict)

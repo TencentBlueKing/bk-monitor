@@ -368,6 +368,7 @@ class SearchHandler(object):
             self.time_field,
             start_time=self.start_time,
             end_time=self.end_time,
+            refresh=self.search_dict.get("refresh", False)
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
