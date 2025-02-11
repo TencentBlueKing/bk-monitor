@@ -149,7 +149,7 @@ def test_create_and_modify_result_table_resource_for_es_storage(
             }
         ],
         query_alias_settings=[
-            {"field_name": "test_field1", "query_alias": "new_field1", "path_type": "text"},
+            {"field_name": "test_field1", "query_alias": "new_field1", "path_type": "keyword"},
             {"field_name": "_ext.io", "query_alias": "k8s_io", "path_type": "keyword"},
         ],
         default_storage_config={
