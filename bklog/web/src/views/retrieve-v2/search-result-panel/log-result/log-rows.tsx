@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide, set } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide } from 'vue';
 
 import {
   parseTableRowData,
@@ -34,13 +34,14 @@ import {
   TABLE_LOG_FIELDS_SORT_REGULAR,
 } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
+import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
-import { uniqueId } from 'lodash';
+import { uniqueId, debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import ExpandView from '../original-log/expand-view.vue';
@@ -50,12 +51,12 @@ import LogCell from './log-cell';
 import {
   LOG_SOURCE_F,
   ROW_EXPAND,
+  ROW_F_JSON,
   ROW_F_ORIGIN_CTX,
   ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
-  RowProxyData,
   SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
@@ -75,8 +76,8 @@ type RowConfig = {
   rowMinHeight?: number;
 };
 
-type RowData = Record<string, any>;
-type ColumnFiled = Record<string, any>;
+// type RowData = Record<string, any>;
+// type ColumnFiled = Record<string, any>;
 
 export default defineComponent({
   props: {
@@ -96,10 +97,11 @@ export default defineComponent({
     // 前端本地分页
     const pageSize = ref(50);
     const isRending = ref(false);
-    const visibleRowLength = ref(50);
 
     const tableRowConfig = new WeakMap();
-    const tableCellCache = new WeakMap<RowData, WeakMap<ColumnFiled, any>>();
+
+    const wheelTrigger = ref({ isWheeling: false, id: '' });
+    provide('wheelTrigger', wheelTrigger);
 
     const renderList = ref([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
@@ -113,12 +115,14 @@ export default defineComponent({
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
-    const kvShowFieldsList = computed(() => Object.keys(indexSetQueryResult.value?.fields ?? {}) || []);
+    const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const fieldRequestCounter = computed(() => indexFieldInfo.value.request_counter);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
+
+    const exceptionMsg = computed(() => indexSetQueryResult.value?.exception_msg || $t('检索结果为空'));
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
 
@@ -141,10 +145,7 @@ export default defineComponent({
       () => totalCount.value > tableList.value.length || pageIndex.value * pageSize.value < totalCount.value,
     );
 
-    const intersectionArgs: Ref<RowProxyData> = ref({});
-    const rowProxy: RowProxyData = {};
-
-    const setRenderList = (length?, next?) => {
+    const setRenderList = (length?) => {
       const targetLength = length ?? tableDataSize.value;
       const inteval = 50;
 
@@ -158,90 +159,41 @@ export default defineComponent({
             ...new Array(stepLength).fill('').map((_, i) => {
               const index = i + startIndex + 1;
               const row = tableList.value[index];
-              return { item: row, [ROW_KEY]: `${row.dtEventTimeStamp}_${index}` };
+              return {
+                item: row,
+                [ROW_KEY]: `${row.dtEventTimeStamp}_${index}`,
+              };
             }),
           );
           appendChildNodes();
-
           return;
         }
-
-        next?.();
       };
 
       appendChildNodes();
     };
 
-    const resetRowState = () => {
-      for (let i = 0; i < tableDataSize.value; i++) {
-        const target = intersectionArgs.value[`${i}`];
-        if (target && !target.visible) {
-          rowProxy[`${i}`].mounted = false;
-          set(target, 'mounted', false);
+    /**
+     * 分步更新行属性
+     * 主要是是否Json格式化
+     * @param startIndex
+     */
+    const stepUpdateRowProp = (startIndex = 0, formatJson = false) => {
+      const inteval = 50;
+      const endIndex = startIndex + inteval;
+
+      for (let i = startIndex; i < endIndex; i++) {
+        if (i < tableList.value.length) {
+          const row = tableList.value[i];
+          const config = tableRowConfig.get(row);
+          config.value[ROW_F_JSON] = formatJson;
         }
       }
-    };
 
-    /**
-     * 设置预加载区域
-     */
-    const setVisibleIndexSection = () => {
-      const idxs = Object.entries(rowProxy ?? {})
-        .filter(([, v]) => v.visible)
-        .map(([, { rowIndex }]) => rowIndex);
-
-      const length = idxs.length > 0 ? idxs.length : pageSize.value;
-      const buffer = Math.max(length, 1);
-      const max = Math.max(...idxs, 0) + buffer;
-      const min = idxs.length ? Math.min(...idxs) - buffer : 0;
-      const end = Math.min(max, tableDataSize.value);
-      const start = Math.max(min, 0);
-      visibleRowLength.value = buffer;
-      Object.assign(rowProxy, { start, end });
-    };
-
-    const delayUpdate = () => {
-      setVisibleIndexSection();
-      Object.keys(rowProxy).forEach(key => {
-        set(intersectionArgs.value, key, rowProxy[key]);
-      });
-    };
-
-    const updateIntersectionArgs = (index, visible?, height?) => {
-      if (height && rowProxy[index]?.mounted === false) {
-        rowProxy[index].mounted = true;
+      if (endIndex < tableList.value.length) {
+        requestAnimationFrame(() => stepUpdateRowProp(endIndex, formatJson));
       }
-
-      if (!rowProxy[index]) {
-        Object.assign(rowProxy, {
-          [index]: {
-            visible,
-            height,
-            rowIndex: Number(index),
-            mounted: false,
-          },
-        });
-      }
-      Object.assign(rowProxy[index], {
-        visible: visible ?? rowProxy[index].visible,
-        height: height ?? rowProxy[index].height,
-      });
     };
-
-    const intersectionObserver = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          const index = entry.target.getAttribute('data-row-index');
-          updateIntersectionArgs(index, entry.isIntersecting);
-        });
-        delayUpdate();
-      },
-      { threshold: 0.001 },
-    );
-
-    provide('intersectionObserver', intersectionObserver);
-    provide('rowProxy', intersectionArgs);
-    provide('tableCellCache', tableCellCache);
 
     const searchContainerHeight = ref(52);
 
@@ -298,13 +250,17 @@ export default defineComponent({
         align: 'top',
         resize: true,
         renderBodyCell: ({ row }) => {
+          const config: RowConfig = tableRowConfig.get(row).value;
           return (
             // @ts-ignore
             <TableColumn
               content={getTableColumnContent(row, field)}
               field={field}
+              formatJson={config[ROW_F_JSON]}
               row={row}
-              onIcon-click={(type, content, isLink, depth) => handleIconClick(type, content, field, row, isLink, depth)}
+              onIcon-click={(type, content, isLink, depth, isNestedField) =>
+                handleIconClick(type, content, field, row, isLink, depth, isNestedField)
+              }
             ></TableColumn>
           );
         },
@@ -377,27 +333,32 @@ export default defineComponent({
       },
     ]);
 
-    const rightColumns = computed(() => [
-      {
-        field: ROW_F_ORIGIN_OPT,
-        key: ROW_F_ORIGIN_OPT,
-        title: $t('操作'),
-        width: operatorToolsWidth.value,
-        fixed: 'right',
-        resize: false,
-        renderBodyCell: ({ row }) => {
-          return (
-            // @ts-ignore
-            <OperatorTools
-              handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
-              index={row[ROW_INDEX]}
-              operator-config={indexSetOperatorConfig.value}
-              row-data={row}
-            />
-          );
+    const rightColumns = computed(() => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return [];
+      }
+      return [
+        {
+          field: ROW_F_ORIGIN_OPT,
+          key: ROW_F_ORIGIN_OPT,
+          title: $t('操作'),
+          width: operatorToolsWidth.value,
+          fixed: 'right',
+          resize: false,
+          renderBodyCell: ({ row }) => {
+            return (
+              // @ts-ignore
+              <OperatorTools
+                handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
+                index={row[ROW_INDEX]}
+                operator-config={indexSetOperatorConfig.value}
+                row-data={row}
+              />
+            );
+          },
         },
-      },
-    ]);
+      ];
+    });
 
     const getTableColumnContent = (row, field) => {
       // 日志来源 展示来源的索引集名称
@@ -436,9 +397,9 @@ export default defineComponent({
       });
     };
 
-    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined) => {
+    const handleAddCondition = (field, operator, value, isLink = false, depth = undefined, isNestedField = 'false') => {
       store
-        .dispatch('setQueryCondition', { field, operator, value, isLink, depth })
+        .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           setRouteParams();
           if (isLink) {
@@ -462,7 +423,7 @@ export default defineComponent({
       }
     };
 
-    const handleIconClick = (type, content, field, row, isLink, depth) => {
+    const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
       let value = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
       value = String(value)
         .replace(/<mark>/g, '')
@@ -475,7 +436,7 @@ export default defineComponent({
 
       if (type === 'search') {
         // 将表格单元添加到过滤条件
-        handleAddCondition(field.field_name, 'eq', [value], isLink);
+        handleAddCondition(field.field_name, 'eq', [value], isLink, depth, isNestedField);
         return;
       }
 
@@ -484,9 +445,10 @@ export default defineComponent({
         copyMessage(value);
         return;
       }
-
+      // 根据当前显示字段决定传参
       if (['is', 'is not', 'new-search-page-is'].includes(type)) {
-        handleAddCondition(field.field_name, type, value === '--' ? [] : [value], isLink, depth);
+        const { getQueryAlias } = useFieldNameHook({ store });
+        handleAddCondition(getQueryAlias(field), type, value === '--' ? [] : [value], isLink, depth, isNestedField);
         return;
       }
     };
@@ -542,13 +504,10 @@ export default defineComponent({
     };
 
     const getRowConfigWithCache = () => {
-      return [
-        ['expand', false],
-        ['isIntersect', true],
-        ['minHeight', 40],
-        ['rowMinHeight', 40],
-        ['stickyTop', 0],
-      ].reduce((cfg, item: [keyof RowConfig, any]) => Object.assign(cfg, { [item[0]]: item[1] }), {});
+      return [['expand', false]].reduce(
+        (cfg, item: [keyof RowConfig, any]) => Object.assign(cfg, { [item[0]]: item[1] }),
+        {},
+      );
     };
 
     const updateTableRowConfig = (nextIdx = 0) => {
@@ -561,6 +520,7 @@ export default defineComponent({
             ref({
               [ROW_KEY]: rowKey,
               [ROW_INDEX]: index,
+              [ROW_F_JSON]: formatJson.value,
               ...getRowConfigWithCache(),
             }),
           );
@@ -570,10 +530,10 @@ export default defineComponent({
 
     const isRequesting = ref(false);
 
-    const debounceSetLoading = () => {
+    const debounceSetLoading = (delay = 120) => {
       setTimeout(() => {
         isRequesting.value = false;
-      }, 120);
+      }, delay);
     };
 
     const expandOption = {
@@ -583,8 +543,8 @@ export default defineComponent({
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
-            onValue-click={(type, content, isLink, field, depth) =>
-              handleIconClick(type, content, field, row, isLink, depth)
+            onValue-click={(type, content, isLink, field, depth, isNestedField) =>
+              handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }
           ></ExpandView>
         );
@@ -605,20 +565,10 @@ export default defineComponent({
       () => {
         scrollXOffsetLeft.value = 0;
         refScrollXBar.value?.scrollLeft(0);
-        isRending.value = true;
-        renderList.value = [];
-        pageIndex.value = 1;
 
-        setTimeout(() => {
-          showCtxType.value = props.contentType;
-          resetRowState();
-          const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-          setRenderList(maxLength, () => {
-            isRending.value = false;
-          });
-
-          computeRect();
-        });
+        showCtxType.value = props.contentType;
+        stepUpdateRowProp(0, formatJson.value);
+        computeRect();
       },
     );
 
@@ -648,6 +598,8 @@ export default defineComponent({
       () => {
         if (!isRequesting.value) {
           if (isLoading.value) {
+            scrollToTop(0);
+
             renderList.value.length = 0;
             renderList.value = [];
 
@@ -662,9 +614,8 @@ export default defineComponent({
     watch(
       () => [tableDataSize.value],
       (val, oldVal) => {
-        setRenderList(null, () => {
-          debounceSetLoading();
-        });
+        setRenderList(null);
+        debounceSetLoading();
         updateTableRowConfig(oldVal?.[0] ?? 0);
       },
       {
@@ -721,7 +672,8 @@ export default defineComponent({
         isRequesting.value = true;
         pageIndex.value++;
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-        setRenderList(maxLength, debounceSetLoading);
+        setRenderList(maxLength);
+        debounceSetLoading(0);
         return;
       }
 
@@ -730,7 +682,7 @@ export default defineComponent({
 
         return store.dispatch('requestIndexSetQuery', { isPagination: true }).finally(() => {
           pageIndex.value++;
-          debounceSetLoading();
+          debounceSetLoading(0);
         });
       }
 
@@ -744,9 +696,16 @@ export default defineComponent({
     const scrollXOffsetLeft = ref(0);
     const refScrollXBar = ref();
 
+    const afterScrollTop = () => {
+      pageIndex.value = 1;
+
+      const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
+      renderList.value = renderList.value.slice(0, maxLength);
+    };
+
     // 监听滚动条滚动位置
     // 判定是否需要拉取更多数据
-    const { offsetWidth, computeRect } = useLazyRender({
+    const { offsetWidth, computeRect, scrollToTop } = useLazyRender({
       loadMoreFn: loadMoreTableData,
       container: resultContainerIdSelector,
       rootElement: refRootElement,
@@ -773,10 +732,18 @@ export default defineComponent({
       return offsetWidth.value < scrollWidth.value;
     });
 
+    const debounceSetWheel = debounce(() => {
+      wheelTrigger.value.isWheeling = false;
+    }, 300);
+
     useWheel({
       target: refRootElement,
       callback: (event: WheelEvent) => {
         const maxOffset = scrollWidth.value - offsetWidth.value;
+        wheelTrigger.value.isWheeling = true;
+        wheelTrigger.value.id = uniqueId();
+
+        debounceSetWheel();
 
         if (event.deltaX !== 0 && hasScrollX.value) {
           event.stopPropagation();
@@ -864,7 +831,7 @@ export default defineComponent({
     };
 
     const renderScrollTop = () => {
-      return <ScrollTop></ScrollTop>;
+      return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
     const renderRowCells = (row, rowIndex) => {
@@ -949,12 +916,15 @@ export default defineComponent({
     const renderLoader = () => {
       return (
         <div class={['bklog-requsting-loading']}>
-          <div style={{ width: `${offsetWidth.value}px` }}>{loadingText.value}</div>
+          <div style={{ width: `${offsetWidth.value}px`, minWidth: '100%' }}>{loadingText.value}</div>
         </div>
       );
     };
 
     const renderFixRightShadow = () => {
+      if (window?.__IS_MONITOR_TRACE__) {
+        return null;
+      }
       if (tableDataSize.value > 0) {
         return <div class='fixed-right-shadown'></div>;
       }
@@ -981,6 +951,7 @@ export default defineComponent({
       showHeader,
       isRequesting,
       isLoading,
+      exceptionMsg,
     };
   },
   render() {
@@ -1004,7 +975,7 @@ export default defineComponent({
             scene='part'
             type='search-empty'
           >
-            {this.isRequesting || this.isLoading ? 'loading...' : this.$t('检索结果为空')}
+            {this.isRequesting || this.isLoading ? 'loading...' : this.exceptionMsg}
           </bk-exception>
         ) : null}
         {this.renderFixRightShadow()}

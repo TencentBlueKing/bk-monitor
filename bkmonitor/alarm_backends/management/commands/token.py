@@ -36,7 +36,7 @@ class Command(BaseCommand):
         for chunked_s_ids in chunks(s_ids, 1000):
             chunked_strategy = StrategyCacheManager.get_strategy_by_ids(chunked_s_ids)
             strategies.extend(chunked_strategy)
-        target_bk_biz_id = options.get("bk_biz_id", 0)
+        target_bk_biz_id = int(options.get("bk_biz_id", 0))
         list_all = options.get("all")
         group_key_dict = {}
         print("id\ttoken\tttl\ttable_id")

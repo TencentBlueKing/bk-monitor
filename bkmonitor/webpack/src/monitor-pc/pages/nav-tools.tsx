@@ -41,7 +41,8 @@ import zhIcon from '../static/images/svg/zh.svg';
 import type { IMenuItem } from '../types';
 
 // #if APP !== 'external'
-import GlobalSearchModal from './global-search-modal-new';
+// import GlobalSearchModal from './global-search-modal-new';
+import HomeSelect from 'monitor-pc/pages/home/new-home/components/home-select';
 import SettingModal from './setting-modal';
 // #endif
 
@@ -49,6 +50,7 @@ import './nav-tools.scss';
 
 export const HANDLE_SHOW_SETTING = 'HANDLE_SHOW_SETTING';
 export const HANDLE_HIDDEN_SETTING = 'HANDLE_HIDDEN_SETTING';
+export const HANDLE_MENU_CHANGE = 'HANDLE_MENU_CHANGE';
 interface INavToolsProps {
   show: boolean;
 }
@@ -143,11 +145,13 @@ class NavTools extends DocumentLinkMixin {
     document.addEventListener('keydown', this.handleKeyupSearch);
     bus.$on(HANDLE_SHOW_SETTING, this.handleShowSetting);
     bus.$on('handle-keyup-search', this.handleKeyupSearch);
+    bus.$on(HANDLE_MENU_CHANGE, this.handleSet);
     window.addEventListener('blur', this.hidePopoverSetOrHelp);
   }
   beforeDestroy() {
     document.removeEventListener('keydown', this.handleKeyupSearch);
     bus.$off('handle-keyup-search', this.handleKeyupSearch);
+    bus.$off(HANDLE_MENU_CHANGE, this.handleSet);
     window.removeEventListener('blur', this.hidePopoverSetOrHelp);
   }
 
@@ -175,6 +179,8 @@ class NavTools extends DocumentLinkMixin {
    */
   handleGlobalSearch() {
     this.globalSearchShow = !this.globalSearchShow;
+    /** 展示在顶部导航栏的时候的自动聚焦 */
+    setTimeout(() => (this.$refs.homeSelectModal as any)?.handleInputFocus(), 10);
   }
   /**
    * @description: 帮助列表
@@ -304,14 +310,17 @@ class NavTools extends DocumentLinkMixin {
       <div class='nav-tools'>
         {
           // #if APP !== 'external'
-          <div
-            id='nav-search-bar'
-            class='search-bar'
-            onClick={this.handleGlobalSearch}
-          >
-            <span class='search-text'>{this.globalSearchPlaceholder}</span>
-            <span class='bk-icon icon-search' />
-          </div>
+          /** 新版首页无需展示右侧的全站搜索框 */
+          this.$route.name && this.$route.name !== 'home' && (
+            <div
+              id='nav-search-bar'
+              class='search-bar'
+              onClick={this.handleGlobalSearch}
+            >
+              <span class='search-text'>{this.globalSearchPlaceholder}</span>
+              <span class='bk-icon icon-search' />
+            </div>
+          )
           // #endif
         }
         {
@@ -502,11 +511,17 @@ class NavTools extends DocumentLinkMixin {
             </SettingModal>,
             <keep-alive key='keep-alive'>
               {this.globalSearchShow && (
-                <GlobalSearchModal
-                  ref='globalSearchModal'
+                <HomeSelect
+                  ref='homeSelectModal'
+                  isBarToolShow={true}
                   show={this.globalSearchShow}
                   onChange={this.handleGlobalSearchShowChange}
                 />
+                // <GlobalSearchModal
+                //   ref='globalSearchModal'
+                //   show={this.globalSearchShow}
+                //   onChange={this.handleGlobalSearchShowChange}
+                // />
               )}
             </keep-alive>,
           ]

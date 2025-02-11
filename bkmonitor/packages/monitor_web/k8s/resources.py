@@ -51,7 +51,9 @@ class WorkloadOverview(Resource):
 
         # 如果前端传值则添加过滤
         if validated_request_data.get("namespace"):
-            queryset = queryset.filter(namespace=validated_request_data["namespace"])
+            # 支持多个ns传递， 默认半角逗号连接
+            ns_list = validated_request_data["namespace"].split(",")
+            queryset = queryset.filter(namespace__in=ns_list)
         if validated_request_data.get("query_string"):
             queryset = queryset.filter(name__icontains=validated_request_data["query_string"])
 
@@ -434,17 +436,11 @@ class ResourceTrendResource(Resource):
                 [resource_meta.filter.add(filter_obj) for filter_obj in tmp_filter_chain]
                 promql_list.append(getattr(resource_meta, f"meta_prom_with_{column}"))
                 [resource_meta.filter.remove(filter_obj) for filter_obj in tmp_filter_chain]
-                workload_name = wl.split(":")[-1]
-                # 初始化series_map
-                series_map[workload_name] = {"datapoints": [], "unit": unit}
             promql = " or ".join(promql_list)
         else:
             resource_meta.filter.add(load_resource_filter(resource_type, resource_list))
             # 不用topk 因为有resource_list
             promql = getattr(resource_meta, f"meta_prom_with_{column}")
-            # 初始化series_map
-            # for resource_id in resource_list:
-            #     series_map[resource_id] = {"datapoints": [], "unit": unit}
         interval = get_interval_number(start_time, end_time, interval=60)
         query_params = {
             "bk_biz_id": bk_biz_id,

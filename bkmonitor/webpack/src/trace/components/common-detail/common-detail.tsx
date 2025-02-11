@@ -50,6 +50,7 @@ export default defineComponent({
     minWidth: { type: Number, default: 180 },
     defaultWidth: { type: Number, default: DEFAULT_WIDTH },
     defaultShow: { type: Boolean, default: false },
+    lineText: { type: String, default: '' },
   },
   setup(props) {
     const { t } = useI18n();
@@ -181,7 +182,7 @@ export default defineComponent({
 
         <MonitorDrag
           isShow={this.isShow}
-          lineText={this.t('展开')}
+          lineText={this.lineText || this.t('详情')}
           maxWidth={this.maxWidth}
           minWidth={this.minWidth}
           startPlacement='left'

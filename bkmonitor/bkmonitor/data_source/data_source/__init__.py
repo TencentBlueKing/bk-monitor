@@ -1932,6 +1932,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
             time_field=time_fields,
             custom_event_name=custom_event_name,
             data_label=query_config.get("data_label", ""),
+            bk_biz_id=kwargs.get("bk_biz_id", 0),
         )
 
     def __init__(self, *args, **kwargs):
@@ -1952,8 +1953,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
                 metric["method"] = "COUNT"
 
         # 平台级且业务不等于绑定的平台业务
-        if judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table):
-            self.filter_dict["bk_biz_id"] = kwargs["bk_biz_id"]
+        self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
 
     def add_recovery_filter(self, datasource):
         """
@@ -2233,14 +2233,14 @@ class BkMonitorAlertDataSource(BkFtaEventDataSource):
             self.filter_dict["strategy_id"] = self.strategy_id
 
 
-def judge_auto_filter(bk_biz_id: int, table_id: str) -> bool:
+def judge_auto_filter(bk_biz_id: int, table_id: str) -> Dict[str, Any]:
     """
-    是否注入bk_biz_id过滤条件逻辑：
+    是否注入 bk_biz_id / projectId 过滤条件逻辑：
     - 平台级自定义指标：
-      - 查询参数业务id 等于 自定义指标的所属业务 不过滤(平台级查看)
-      - 查询参数业务id 不等于 自定义指标的所属业务 过滤(单业务视角)
+      - 查询参数业务 id（projectId） 等于 自定义指标的所属业务（项目）不过滤（平台级查看）
+      - 查询参数业务 id（projectId） 不等于 自定义指标的所属业务（项目） 过滤（单业务 / 项目视角）
     - 内置进程采集 需要过滤(单业务视角)
-    - 非平台级自定义指标 不需要过滤(自定义指标不一定有bk_biz_id字段，无需过滤)
+    - 非平台级自定义指标 不需要过滤(自定义指标不一定有 bk_biz_i d字段，无需过滤)
 
     方案：
     api.metadata.get_result_table(table_id) -> 拿到所属业务信息，业务id为0 则表示为全局
@@ -2257,53 +2257,66 @@ def judge_auto_filter(bk_biz_id: int, table_id: str) -> bool:
         ResultTable,
     )
 
+    biz_filter: Dict[str, int] = {"bk_biz_id": bk_biz_id}
+
     if not bk_biz_id:
-        return False
+        return {}
 
     if not table_id:
-        return True
+        return biz_filter
 
     need_add_filter = is_build_in_process_data_source(table_id=table_id)
     if need_add_filter:
-        return need_add_filter
+        return biz_filter
 
     if settings.ENVIRONMENT == "development":
         table_info = api.metadata.get_result_table(table_id=table_id)
+        if table_info["bk_biz_id"] != 0:
+            return {}
+
         data_id = table_info["bk_data_id"]
-        if table_info["bk_biz_id"] == 0:
-            data_source_data = api.metadata.get_data_id(bk_data_id=data_id, with_rt_info=False)
-            space_uid = data_source_data.get("space_uid", "")
-            if space_uid:
-                platform_biz_id = space_uid.split("__", -1)[-1]
+        data_source_data = api.metadata.get_data_id(bk_data_id=data_id, with_rt_info=False)
+        space_uid = data_source_data.get("space_uid", "")
+        space_type_id = data_source_data.get("space_type_id", "")
+        if space_uid:
+            platform_biz_id = space_uid.split("__", -1)[-1]
+        else:
+            data_name = data_source_data.get("data_name", "0")
+            event_groups = [
+                group for group in api.metadata.query_event_group(bk_biz_id=bk_biz_id) if group["bk_data_id"] == data_id
+            ]
+            if event_groups:
+                # 自定义事件 data_name 的业务ID在最后面
+                platform_biz_id = data_name.split("_")[-1]
             else:
-                data_name = data_source_data.get("data_name", "0")
-                event_groups = [
-                    group
-                    for group in api.metadata.query_event_group(bk_biz_id=bk_biz_id)
-                    if group["bk_data_id"] == data_id
-                ]
-                if event_groups:
-                    # 自定义事件 data_name 的业务ID在最后面
-                    platform_biz_id = data_name.split("_")[-1]
-                else:
-                    platform_biz_id = data_name.split("_")[0]
-            need_add_filter = platform_biz_id != str(bk_biz_id)
+                platform_biz_id = data_name.split("_")[0]
     else:
         result_table = ResultTable.objects.filter(table_id=table_id).first()
-        if result_table and result_table.bk_biz_id == 0:
-            data_id = DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
-            data_source_data = DataSource.objects.get(bk_data_id=data_id)
-            space_uid = data_source_data.space_uid
-            if space_uid:
-                platform_biz_id = space_uid.split("__", -1)[-1]
+        if not result_table or result_table.bk_biz_id != 0:
+            return {}
+
+        data_id = DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
+        data_source_data = DataSource.objects.get(bk_data_id=data_id)
+        space_uid = data_source_data.space_uid
+        space_type_id = data_source_data.space_type_id
+        if space_uid:
+            platform_biz_id = space_uid.split("__", -1)[-1]
+        else:
+            data_name = data_source_data.data_name
+            if EventGroup.objects.filter(bk_data_id=data_id).exists():
+                platform_biz_id = data_name.split("_")[-1]
             else:
-                data_name = data_source_data.data_name
-                if EventGroup.objects.filter(bk_data_id=data_id).exists():
-                    platform_biz_id = data_name.split("_")[-1]
-                else:
-                    platform_biz_id = data_name.split("_")[0]
-            need_add_filter = platform_biz_id != str(bk_biz_id)
-    return need_add_filter
+                platform_biz_id = data_name.split("_")[0]
+
+    if space_type_id == SpaceTypeEnum.BKCI.value:
+        space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
+        if space.space_id == platform_biz_id:
+            return {}
+        return {"projectId": space.space_id}
+    else:
+        if str(bk_biz_id) == platform_biz_id:
+            return {}
+        return biz_filter
 
 
 def load_data_source(data_source_label: str, data_type_label: str) -> Type[DataSource]:

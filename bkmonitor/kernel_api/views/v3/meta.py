@@ -399,6 +399,10 @@ class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
 
 
+class QueryDataIdsByBizIdViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryDataIdsByBizIdResource)]
+
+
 class GetBCSClusterRelatedDataLinkViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.GetBCSClusterRelatedDataLinkResource)]
 

@@ -36,6 +36,12 @@ def create_or_delete_records(mocker):
         is_default_cluster=True,
         version="5.x",
     )
+    models.ResultTable.objects.create(
+        table_id='1001_bklog.stdout',
+        table_name_zh="stdout",
+        data_label='bklog_index_set_1001',
+        is_custom_table=False,
+    )
     models.ClusterInfo.objects.create(
         cluster_id=12,
         cluster_name="test_es_2",
@@ -101,6 +107,7 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
             {"storage_id": 12, "enable_time": enable_timestamp_12},
             {"storage_id": 11, "enable_time": enable_timestamp},
         ],
+        'data_label': 'bklog_index_set_1001',
     }
     expected = {'1001_bklog.stdout': json.dumps(expected_json)}
     assert data == expected
@@ -114,6 +121,7 @@ def test_compose_es_table_id_detail_v2(create_or_delete_records):
         "options": {},
         "storage_type": "elasticsearch",
         "storage_cluster_records": [],
+        'data_label': '',
     }
     expected = {'test_system_event': json.dumps(expected_json)}
     assert event_detail == expected
