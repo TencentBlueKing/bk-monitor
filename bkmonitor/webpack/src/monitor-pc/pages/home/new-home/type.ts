@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+export interface IDataItem {
+  [key: string]: any;
+}
 export interface ISearchItem {
   bk_biz_id?: string;
   bk_biz_name?: string;
@@ -41,9 +44,9 @@ export interface ISearchItem {
   app_name?: string;
   trace_id?: string;
   bcs_cluster_id?: string;
-}
-export interface IDataItem {
-  [key: string]: any;
+  project_name?: string;
+  compare_hosts?: IDataItem[];
+  height?: string;
 }
 
 export interface ISearchListItem {

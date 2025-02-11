@@ -39,7 +39,9 @@ export default class NewHome extends tsc<object> {
   render() {
     return (
       <div class='monitor-new-home'>
-        <div class='new-home-bg' />
+        <div class='new-home-bg'>
+          <div class='new-home-bg-img'></div>
+        </div>
         <div class='new-home-content'>
           <HomeSelect />
           <div class='new-home-tool'>

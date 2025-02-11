@@ -30,7 +30,7 @@ export default {
   容器服务: 'Container service',
   日志检索: 'Logs',
   关联的告警: 'Related Alarms',
-  关联的屏蔽策略: 'Associated blocking policy',
+  关联的屏蔽配置: 'Associated blocking configuration',
   '有问题就问 AI 小鲸': 'If you have any questions, ask Xiaojing',
   最近使用: 'Recently Used',
   展示模块: 'Display module',
@@ -54,12 +54,16 @@ export default {
   删除该业务: 'Delete this space',
   添加业务: 'Add a service',
   '请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索':
-    'Please enter IP / Trace ID / Container cluster / Alarm ID / Policy name to search',
-  清空搜索: 'Clear search',
+    'Please enter IP / Trace ID / container cluster / alarm ID / policy name to search',
+  清空检索: 'Clear search',
   '当前正在加载 采集任务': 'Currently loading the collection task',
   相关功能: 'Related functions',
-  '当前输入条件无匹配结果，请清空后重新输入':
-    'There is no matching result for the current input conditions, please clear and re-enter',
+  '检索结果为空，请重新输入关键词': 'The search results are empty, please re-enter the keywords',
   '当前业务还未配置视图，快点击下方按钮新增图表':
     'The current business has not configured a view. Click the button below to add a new chart.',
+  搜索历史: 'Search history',
+  集群管理: 'Cluster management',
+  主机管理: 'Host management',
+  主机对比: 'Host comparison',
+  台: 'tower',
 };
