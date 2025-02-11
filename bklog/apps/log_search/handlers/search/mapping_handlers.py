@@ -483,7 +483,7 @@ class MappingHandlers(object):
             latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
 
-    @cache_one_minute("latest_mapping_key_{indices}_{start_time}_{end_time}_{only_search}")
+    @cache_one_minute("latest_mapping_key_{indices}_{start_time}_{end_time}_{only_search}", need_md5=True)
     def _get_latest_mapping(self, indices, start_time, end_time, only_search=False):  # noqa
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
 
