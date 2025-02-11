@@ -24,6 +24,7 @@ def merge_resources(resources_dir: Path):
                 for _, path_data in data.items():
                     for _, method_data in path_data.items():
                         # 覆盖 authConfig
+                        method_data["x-bk-apigateway-resource"].setdefault("authConfig", {})
                         method_data["x-bk-apigateway-resource"]["authConfig"].update(
                             {
                                 "appVerifiedRequired": True,

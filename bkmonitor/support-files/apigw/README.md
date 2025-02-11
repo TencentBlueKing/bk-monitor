@@ -13,11 +13,6 @@
 4. 内部接口的定义在 `/resources/internal` 目录下，外部接口的定义在 `/resources/external` 目录下。
 5. 内部接口增加 internal_api 标签，外部接口增加 external_api 标签。
 
-### 文档管理
-
-1. 网关的文档在 `/docs` 目录下，en 为英文文档，zh 为中文文档。
-2. 文档的文件名与资源名(operationId)一致，例如 `as_code_import_config.md`。
-
 ### 应用态与用户态
 
 应用态: 应用态接口是指可以不进行用户认证的接口，我们称这些接口为应用态接口。
@@ -26,6 +21,7 @@
 1. 应用态接口的 userVerifiedRequired 属性为 false，用户态接口的 userVerifiedRequired 属性为 true。
 2. 应用态接口增加 app_verify 标签，用户态接口增加 user_verify 标签。
 3. 应用态接口的定义在 `/resources/{public_dir}/app` 目录下，用户态接口的定义在 `/resources/{public_dir}/user` 目录下。
+4. 为了区分应用态和用户态，一般情况下，应用态接口路径以 `app` 开头，用户态接口路径以 `user` 开头。
 
 ## 接口定义
 
@@ -35,7 +31,7 @@
 2. 每一个 yaml 文件都包含多个接口定义，yaml 的文件名将会作为接口的分类，比如说 apm 的接口，文件名就为 apm.yaml。
 3. old 目录下为从 esb 自动转换过来的旧接口，仅作参考。
 
-### resources目录结构
+### 目录结构
 
 ```
 resources/
@@ -54,3 +50,24 @@ resources/
 1. 根据接口是内部还是外部，设置 `isPublic` 和 `allowApplyPermission` 字段，补充 `tags` 字段。
 2. 根据接口是应用态还是用户态，设置 `userVerifiedRequired` 和 `appVerifiedRequired` 字段， 补充 `tags` 字段。
 3. 将 yaml 文件名补充到 `tags` 字段。
+
+## 文档管理
+
+1. 网关的文档在 `/docs` 目录下，en 为英文文档，zh 为中文文档。
+2. 文档的文件名与资源名(operationId)一致，例如 `as_code_import_config.md`。
+
+
+## 网关同步
+
+### 同步命令
+
+使用 django manage.py 命令进行网关同步，可以加到 migrate 流程中。
+
+```bash
+python manage.py sync_apigw
+```
+
+### 注意事项
+
+1. 网关进行全量同步，会删除不存在于 `resources.yaml` 的接口。尽量不要在网关页面上手动添加接口，否则会被删除。
+2. grant_permissions进行授权是增量的，如果不是需要在蓝鲸部署时就进行授权，不需要加到这里，直接在网页上授权即可。
