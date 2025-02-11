@@ -1015,6 +1015,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       promiseList.push(this.handleTransformUrlParam());
     } else if (this.$route.params.baseInfo || this.$route.query.baseInfo) {
       promiseList.push(this.handleDisplayBaseInfo());
+    } else if (localStorage.getItem('add_grafana_strategy_key')) {
+      console.log('xxx');
+      promiseList.push(this.getGrafanaRelatedStrategy());
     }
     // const { noticeTemplate } = this.analyzingConditions;
     // if (!noticeTemplate?.variateList.length) {
@@ -1101,6 +1104,33 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   getNoticeVariableList() {
     return noticeVariableList().catch(() => []);
   }
+
+  async getGrafanaRelatedStrategy() {
+    const panelInfoStr = localStorage.getItem('add_grafana_strategy_key');
+    try {
+      if (panelInfoStr) {
+        console.log(panelInfoStr);
+        const panelInfo = JSON.parse(panelInfoStr);
+        const data = await dashboardPanelToQueryConfig({
+          dashboard_uid: panelInfo.dashboard_uid,
+          panel_id: panelInfo.panel_id,
+          ref_id: panelInfo.ref_id,
+          variables: panelInfo.variables,
+        }).catch(() => null);
+        if (data) {
+          this.metricData = data.queryConfigs.map(queryConfig => new MetricDetail(queryConfig));
+          this.expression = (data.expression || '').toLocaleLowerCase();
+          this.localExpFunctions = data.functions || [];
+          this.target = data.target?.[0]?.[0]?.value || [];
+          this.defaultCheckedTarget.target_detail = data.target?.[0]?.[0]?.value || [];
+          this.hasPanelVal = true;
+          localStorage.removeItem('add_grafana_strategy_key');
+        }
+      }
+    } catch (e) {
+      console.info(e);
+    }
+  }
   // 策略详情数据获取
   async getStrategyConfigDetail(id) {
     // 策略快照start
@@ -1129,34 +1159,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     const filed = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.field || '';
     const targetType = strategyTarget?.node_type || '';
     this.targetType = targetType;
-    let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
     this.hasPanelVal = !!strategyDetail.panel; // panel字段有值，则不允许编辑监控数据版块
-    /* 检查是否是grafana关联策略跳转过来 */
-    if (this.$route.query?.grafana_related_strategy) {
-      try {
-        let relatedStrategy = localStorage.getItem('grafana-related-strategy');
-        if (relatedStrategy) {
-          relatedStrategy = JSON.parse(relatedStrategy);
-          const data = await dashboardPanelToQueryConfig({
-            dashboard_uid: relatedStrategy.dashboard_uid,
-            panel_id: relatedStrategy.panel_id,
-            ref_id: relatedStrategy.ref_id,
-            variables: relatedStrategy.variables,
-          }).catch(() => null);
-          if (data) {
-            strategyDetail.items[0].expression = data.expression;
-            strategyDetail.items[0].functions = data.functions;
-            strategyDetail.items[0].queryConfigs = data.queryConfigs;
-            targetList = data.target?.[0]?.[0]?.value || [];
-            localStorage.removeItem('grafana-related-strategy');
-            this.$router.resolve({ query: { ...this.$route.query, grafana_related_strategy: undefined } });
-          }
-        }
-      } catch (err) {
-        console.log(err);
-      }
-    }
-
+    let targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
     // 对旧版的策略target进行特殊处理
     if (targetType === 'INSTANCE' && filed === 'bk_target_ip') {
       targetList = targetList.map(item => ({ ...item, ip: item.bk_target_ip, bk_cloud_id: item.bk_target_cloud_id }));
