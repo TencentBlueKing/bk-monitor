@@ -1917,7 +1917,7 @@ class KafkaTailResource(Resource):
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
 
     def perform_request(self, validated_request_data):
-        bk_data_id = validated_request_data["bk_data_id"]
+        bk_data_id = validated_request_data.get("bk_data_id")
         if bk_data_id:
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
             try:
