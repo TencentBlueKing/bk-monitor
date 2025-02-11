@@ -2076,13 +2076,16 @@ class ESStorage(models.Model, StorageResultTable):
 
         try:
             logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
+            # 别名-原字段配置
             alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
             logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
-            alias_path_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(self.table_id)
-            logger.info("index_body: table_id->[%s] got alias_path_config->[%s]", self.table_id, alias_path_config)
-            if alias_config:
-                properties.update(alias_config)
-                properties.update(alias_path_config)
+            # 别名原字段-字段类型配置
+            alias_path_type_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(self.table_id)
+            logger.info(
+                "index_body: table_id->[%s] got alias_path_type_config->[%s]", self.table_id, alias_path_type_config
+            )
+            properties.update(alias_config)
+            properties.update(alias_path_type_config)
         except Exception as e:
             logger.warning("index_body: add alias_config failed,table_id->[%s],error->[%s]", self.table_id, e)
 
