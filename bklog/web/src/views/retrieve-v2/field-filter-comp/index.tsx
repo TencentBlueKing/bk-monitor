@@ -302,7 +302,9 @@ export default class FieldFilterComp extends tsc<object> {
           fieldItem.field_name.includes(searchKeyword) || fieldItem.field_alias.includes(searchKeyword) || fieldItem.query_alias?.includes(searchKeyword);
       });
     });
-    this.$refs.bigTreeRef.filter(searchKeyword)
+    this.$nextTick(()=>{
+      this.$refs.bigTreeRef.filter(searchKeyword)
+    })
   }
   filterMethod(keyword, node){
     const fieldItem = node.data
