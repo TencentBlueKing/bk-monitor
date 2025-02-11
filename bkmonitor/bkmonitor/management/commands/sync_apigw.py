@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import subprocess
+
 from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
@@ -16,6 +18,21 @@ from django.core.management.base import BaseCommand
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         if not getattr(settings, "SYNC_APIGATEWAY_ENABLED", True):
+            return
+
+        # 合并 resources 目录下的所有 yaml 文件，执行脚本 `scripts/merge_resources.py`
+        merge_resources_path = f"{settings.BASE_DIR}/support-files/apigw/scripts/merge_resources.py"
+        try:
+            result = subprocess.run(
+                ["python", merge_resources_path],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            self.stdout.write(result.stdout)
+        except subprocess.CalledProcessError as e:
+            self.stdout.write(self.style.ERROR(f"合并 resources 目录下的所有 yaml 文件失败: {e}"))
+            self.stdout.write(e.stderr)
             return
 
         # 待同步网关名，需修改为实际网关名；直接指定网关名，则不需要配置 Django settings BK_APIGW_NAME
