@@ -33,6 +33,7 @@ import { random } from 'monitor-common/utils/utils';
 import authorityStore from 'monitor-pc/store/modules/authority';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
+import { TableClickCurrentExpend } from '../../common/table-click-current';
 import { handleToAlertList } from './event-detail/action-detail';
 import { getStatusInfo } from './event-detail/type';
 
@@ -133,6 +134,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   enableCreateChatGroup = false;
   /* 关注人禁用操作 */
   followerDisabled = false;
+  /** table 行定位色功能类实例 */
+  tableClickCurrentInstance = new TableClickCurrentExpend();
+
   get tableColumnMap() {
     return this.alertColumns.reduce((pre, cur) => {
       if (cur.disabled || cur.checked) {
@@ -702,6 +706,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   }
   beforeDestroy() {
     this.handlePopoverHide();
+  }
+
+  @Watch('tableData')
+  handleTableDataChange() {
+    this.tableClickCurrentInstance.resetRowCurrentIndex();
   }
 
   /* 自动批量弹窗是需要自动选中指定数据 */
@@ -1483,9 +1492,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           header-border={false}
           outer-border={false}
           pagination={this.pagination}
+          row-class-name={this.tableClickCurrentInstance.getClassNameByCurrentIndex()}
           size={this.tableSize}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
+          on-row-click={this.tableClickCurrentInstance.tableRowClick()}
           on-row-mouse-enter={index => (this.hoverRowIndex = index)}
           on-row-mouse-leave={() => (this.hoverRowIndex = -1)}
           on-selection-change={this.handleSelectChange}
