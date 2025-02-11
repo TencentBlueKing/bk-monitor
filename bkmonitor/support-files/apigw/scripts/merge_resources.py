@@ -20,7 +20,6 @@ def merge_resources(resources_dir: Path):
         for verify_dir in verify_dirs:
             for file in resources_dir.glob(f"{public_dir}/{verify_dir}/*.yaml"):
                 data: List[Dict] = yaml.safe_load(file.read_text())["paths"]
-
                 for _, path_data in data.items():
                     for _, method_data in path_data.items():
                         # 覆盖 authConfig
@@ -34,7 +33,11 @@ def merge_resources(resources_dir: Path):
                         )
 
                         # 补充标签
-                        method_data.setdefault("tags", []).extend([f"{public_dir}_api", f"{verify_dir}_verify"])
+                        tags = [file.name.split(".")[0]]
+                        if "tags" in method_data:
+                            tags.extend(method_data["tags"])
+                        tags.extend([f"{public_dir}_api", f"{verify_dir}_verify"])
+                        method_data["tags"] = tags
 
                         # 设置public
                         method_data["x-bk-apigateway-resource"]["isPublic"] = public_dir == "external"
