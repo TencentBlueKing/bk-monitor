@@ -49,6 +49,7 @@ import {
   queryConfigToPromql,
   saveStrategyV2,
 } from 'monitor-api/modules/strategies';
+import { dashboardPanelToQueryConfig } from 'monitor-api/modules/strategies';
 import debouceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 // import StrategyMetricSelector from './components/strategy-metric-selector';
@@ -1014,6 +1015,9 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       promiseList.push(this.handleTransformUrlParam());
     } else if (this.$route.params.baseInfo || this.$route.query.baseInfo) {
       promiseList.push(this.handleDisplayBaseInfo());
+    } else if (localStorage.getItem('add_grafana_strategy_key')) {
+      console.log('xxx');
+      promiseList.push(this.getGrafanaRelatedStrategy());
     }
     // const { noticeTemplate } = this.analyzingConditions;
     // if (!noticeTemplate?.variateList.length) {
@@ -1099,6 +1103,33 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   // 获取告警变量
   getNoticeVariableList() {
     return noticeVariableList().catch(() => []);
+  }
+
+  async getGrafanaRelatedStrategy() {
+    const panelInfoStr = localStorage.getItem('add_grafana_strategy_key');
+    try {
+      if (panelInfoStr) {
+        console.log(panelInfoStr);
+        const panelInfo = JSON.parse(panelInfoStr);
+        const data = await dashboardPanelToQueryConfig({
+          dashboard_uid: panelInfo.dashboard_uid,
+          panel_id: panelInfo.panel_id,
+          ref_id: panelInfo.ref_id,
+          variables: panelInfo.variables,
+        }).catch(() => null);
+        if (data) {
+          this.metricData = data.queryConfigs.map(queryConfig => new MetricDetail(queryConfig));
+          this.expression = (data.expression || '').toLocaleLowerCase();
+          this.localExpFunctions = data.functions || [];
+          this.target = data.target?.[0]?.[0]?.value || [];
+          this.defaultCheckedTarget.target_detail = data.target?.[0]?.[0]?.value || [];
+          this.hasPanelVal = true;
+          localStorage.removeItem('add_grafana_strategy_key');
+        }
+      }
+    } catch (e) {
+      console.info(e);
+    }
   }
   // 策略详情数据获取
   async getStrategyConfigDetail(id) {
@@ -1212,6 +1243,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       metric_type,
       // actions: [{ notice_template: template = noticeTemplate }]
     } = data;
+
     this.expression = (expression || '').toLocaleLowerCase();
     this.localExpress = this.expression;
     this.localExpFunctions = functions || [];
@@ -2589,8 +2621,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           defaultCheckedTarget={this.defaultCheckedTarget}
           defaultScenario={this.baseConfig.scenario}
           isEdit={this.isEdit}
-          readonly={this.hasPanelVal}
           metricData={this.metricData as any}
+          readonly={this.hasPanelVal}
           scenarioList={this.scenarioAllList}
           onChange={this.handleSceneConfigChange}
           onMetricChange={this.handleSceneConfigMetricChange}
@@ -2604,13 +2636,13 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       const { sourceCode, step } = this.sourceData;
       return (
         <QueryConfigsMain
-          strategyId={Number(this.strategyId)}
-          metricData={this.metricData}
-          editMode={this.monitorDataEditMode}
-          expression={this.expression}
-          expFunctions={this.localExpFunctions}
-          sourceData={{ sourceCode, step }}
           detailData={this.detailData}
+          editMode={this.monitorDataEditMode}
+          expFunctions={this.localExpFunctions}
+          expression={this.expression}
+          metricData={this.metricData}
+          sourceData={{ sourceCode, step }}
+          strategyId={Number(this.strategyId)}
         />
       );
     }
