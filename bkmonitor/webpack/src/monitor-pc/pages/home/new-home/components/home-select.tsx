@@ -46,6 +46,10 @@ interface IHomeSelectEvent {
   onChange: (v: boolean, searchKey: string) => void;
 }
 const storageKey = 'bk_monitor_new_home_history';
+/** 输入框展示的最小列数 */
+const MIN_ROW = 1;
+/** 输入框展示的最大列数 */
+const MAX_ROW = 8;
 
 @Component({
   name: 'HomeSelect',
@@ -67,8 +71,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       { name: this.$t('关联的告警'), key: 'strategy-alarm' },
       { name: this.$t('关联的屏蔽配置'), key: 'alarm-shield' },
     ],
-    // bcs_cluster: [{ name: this.$t('集群管理'), key: 'bsc-detail' }],
-    // host: [{ name: this.$t('主机管理'), key: 'host-detail' }],
+    bcs_cluster: [{ name: this.$t('集群管理'), key: 'bsc-detail' }],
+    host: [{ name: this.$t('主机管理'), key: 'host-detail' }],
   };
   isLoading = false;
   /** 高亮选中的index, 第一个表示组的下标，第二个表示items的下标 */
@@ -87,6 +91,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   currentAbortController: IDataItem = null;
   /** 窗口宽度 */
   windowWidth = 0;
+  textareaRow = MIN_ROW;
 
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
@@ -143,6 +148,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   handleClickOutside(event: Event) {
     if (this.showPopover && this.selectRef && !this.selectRef.contains(event.target)) {
       this.showPopover = false;
+      this.textareaRow = MIN_ROW;
       this.handleShowChange(false);
     }
   }
@@ -261,6 +267,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /* 显示弹出层 */
   handleMousedown() {
     this.showPopover = true;
+    this.textareaRow = this.limitRows();
     this.localHistoryList = JSON.parse(localStorage.getItem(storageKey)).slice(0, 10) || [];
   }
   /** 关联的屏蔽策略/关联的告警  */
@@ -295,8 +302,16 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
           <span domPropsInnerHTML={item.nameSearch}></span>
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
           {isBcsCluster && <span class='ip-sub'>（{item.bcs_cluster_id}）</span>}
+          {isHost && item.compare_hosts.length > 0 && (
+            <span class='host-compare'>
+              <span class='host-compare-num'>
+                +<b>{item.compare_hosts.length}</b> {this.$t('台')}
+              </span>
+              {this.$t('主机对比')}
+            </span>
+          )}
         </span>
-        {hasOperatorKeys.includes(type) && (
+        {!item.compare_hosts && hasOperatorKeys.includes(type) && (
           <span class='item-operator'>
             {this.operatorList[type].map(operator => (
               <span
@@ -348,6 +363,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     e.stopPropagation();
     this.isInput = true;
     this.searchValue = item.name;
+    this.textareaRow = this.limitRows();
     this.handleGetSearchData();
     this.handleInputFocus();
   }
@@ -453,12 +469,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     e.stopPropagation();
     this.searchList = [];
     this.handleResetData();
-    const height = this.isBarToolShow ? '32px' : '48px';
-    this.textareaInputRef.style.height = height;
-    /** 展示在顶部导航栏的时候的特殊处理 */
-    if (this.isBarToolShow) {
-      this.selectRef.style.height = height;
-    }
+    this.textareaRow = this.limitRows();
     this.handleInputFocus();
   }
   /** 重置相关的数据 */
@@ -468,18 +479,42 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.highlightedIndex = [-1, -1];
     this.highlightedItem = null;
   }
+  /** 弹性布局适应输入长度变化的实现 --- start */
+
   /** 溢出动态展示输入框高度 */
+  calculateRows() {
+    const styles = window.getComputedStyle(this.textareaInputRef);
+    const width = parseInt(styles.width, 10);
+    const fontSize = parseInt(styles.fontSize, 10);
+    // 计算每行能容纳的字符数
+    const charsPerLine = Math.floor(width / fontSize);
+    // 获取文本内容
+    const text = this.searchValue || '';
+    if (text.includes('\n')) {
+      // 有换行符的情况
+      const lines = text.split('\n');
+      let totalLines = 0;
+      lines.map(line => {
+        totalLines += Math.ceil(line.length / charsPerLine);
+      });
+      return totalLines;
+    } else {
+      // 无换行符的情况
+      return Math.ceil(text.length / charsPerLine);
+    }
+  }
+  /** 根据设置的最大最小值，计算出最终要展示的row值 */
+  limitRows() {
+    const calculatedRows = this.calculateRows();
+    return Math.min(Math.max(calculatedRows, MIN_ROW), MAX_ROW);
+  }
   autoResize(event?: Event) {
     !this.isComposing && setTimeout(this.handleGetSearchData, 500);
     this.isInput = !!event?.target?.value;
-    this.textareaInputRef.style.height = 'auto';
-    const height = `${this.textareaInputRef.scrollHeight}px`;
-    this.textareaInputRef.style.height = height;
-    /** 展示在顶部导航栏的时候的特殊处理 */
-    if (this.isBarToolShow) {
-      this.selectRef.style.height = height;
-    }
+    this.searchValue = event?.target?.value;
+    this.textareaRow = this.limitRows();
   }
+  /** 弹性布局适应输入长度变化的实现 --- end */
   /** 清空历史 */
   clearHistory() {
     localStorage.setItem(storageKey, JSON.stringify([]));
@@ -631,6 +666,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       host: {
         name: 'performance-detail',
         params: { id: item.bk_host_id },
+        query: item.compare_hosts?.length > 0 ? { compares: JSON.stringify({ targets: item.compare_hosts }) } : {},
       },
       /** 关联的告警 */
       'strategy-alarm': {
@@ -659,11 +695,27 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               dashboardId: 'cluster',
             },
       },
+      /** 跳转到其他系统的话，则配置isOtherWeb为true */
+      /** 集群管理跳转到bcs */
+      'bsc-detail': {
+        isOtherWeb: true,
+        url: `${window.bk_bcs_url}bcs/projects/${item.project_name}/clusters?clusterId=${item.bcs_cluster_id}&active=info`,
+      },
+      /** 主机管理跳转到cmdb */
+      'host-detail': {
+        isOtherWeb: true,
+        url: `${window.bk_cc_url}#/business/${item.bk_biz_id}/index/host/${item.bk_host_id}`,
+      },
     };
 
     const option = routeOptions[type];
     if (!option) return;
     this.handleShowChange(false);
+    /** 是否调整到其他系统 */
+    if (option.isOtherWeb) {
+      window.open(option.url, '_blank');
+      return;
+    }
     const routeData = this.$router.resolve(option);
     const extraParams = option.extraParams ? `&${new URLSearchParams(option.extraParams).toString()}` : '';
     const baseUrl = `${location.origin}/?${new URLSearchParams(baseParams).toString()}${extraParams}`;
@@ -764,10 +816,10 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
           {!this.isBarToolShow && <span class='icon-monitor new-home-select-icon icon-mc-search'></span>}
           <textarea
             ref='textareaInput'
-            class='home-select-input'
+            class={['home-select-input', { 'is-hidden': this.textareaRow === 1 }]}
             v-model={this.searchValue}
             placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
-            rows={1}
+            rows={this.textareaRow}
             spellcheck={false}
             onCompositionend={this.handleCompositionend}
             onCompositionstart={this.handleCompositionstart}

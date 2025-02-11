@@ -10,7 +10,6 @@
     margin: 0 auto;
     line-height: 24px;
     text-align: center;
-    // background: #eaebf0;
     border-radius: 12px;
 
     .icon-loading1 {
@@ -61,6 +60,14 @@
   .ip-sub {
     color: #979ba5;
   }
+  .host-compare {
+    color: #4d4f56;
+    font-size: 14px;
+    .host-compare-num {
+      color: #f59500;
+      margin-right: 8px;
+    }
+  }
 
   .host-show-view {
     position: absolute;
@@ -89,7 +96,7 @@
 
   .new-home-select-icon {
     position: absolute;
-    top: 10px;
+    top: 8px;
     left: 15px;
     color: #dcdee5;
     font-size: 28px;
@@ -98,9 +105,7 @@
   .home-select-input {
     box-sizing: border-box;
     width: 98%;
-    height: 100%;
-    padding: 14px 0 12px;
-    overflow: hidden;
+    margin: 12px 0 4px;
     font-size: 14px;
     line-height: 22px;
     color: #f0f1f5;
@@ -108,10 +113,13 @@
     resize: none;
     background: transparent;
     border: none;
+    &.is-hidden {
+      overflow: hidden;
+    }
 
     &::placeholder {
       font-size: 15px;
-      line-height: 24px;
+      line-height: 21px;
       color: #7a8199;
     }
 
@@ -387,7 +395,7 @@
   .new-home-select-input {
     background: #252f43;
     border: 1px solid #394561 !important;
-    min-height: 33px;
+    min-height: 32px;
     border-radius: 2px;
     padding: 0;
     .clear-btn {
@@ -397,19 +405,19 @@
     }
   }
   .home-select-input {
-    padding: 5px 10px 6px 16px;
+    margin: 3px 0 1px;
+    padding-left: 16px;
     font-size: 12px;
-    height: 28px;
     width: 93%;
     line-height: 22px;
     &::placeholder {
       font-size: 12px;
-      line-height: 22px;
+      line-height: 23px;
       color: #7a8199;
     }
   }
   .new-home-select-popover {
-    margin-top: 2px;
+    margin-top: 6px;
     border-radius: 2px;
     .new-home-select-popover-content {
       border-radius: 2px;

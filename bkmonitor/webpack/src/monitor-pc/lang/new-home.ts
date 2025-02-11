@@ -64,4 +64,6 @@ export default {
   搜索历史: 'Search history',
   集群管理: 'Cluster management',
   主机管理: 'Host management',
+  主机对比: 'Host comparison',
+  台: 'tower',
 };
