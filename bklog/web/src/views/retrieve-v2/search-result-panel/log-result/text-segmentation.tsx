@@ -140,11 +140,12 @@ export default defineComponent({
 
     let textSegmentIndex = 0;
     const textSegmentPageSize = 50;
+    const maxWordLength = 500;
     const setTextSegmentChildNodes = (maxLength = 4) => {
       const fragment = new DocumentFragment();
 
       const stepRun = (size?) => {
-        if (textSegmentIndex >= 10) {
+        if (textSegmentIndex >= maxWordLength) {
           const text = wordList
             .slice(textSegmentIndex)
             .map(item => item.text)
@@ -200,6 +201,8 @@ export default defineComponent({
     };
 
     const getSegmentRenderType = () => {
+      return 'text';
+
       if (wordList.length < 10) {
         return 'text';
       }
