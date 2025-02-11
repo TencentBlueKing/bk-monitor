@@ -7,7 +7,7 @@
   label_en: import uptime check node
   name: import_uptime_check_node
   path: /v2/monitor_v3/import_uptime_check_node/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
@@ -17,7 +17,7 @@
   label_en: export uptime check task
   name: export_uptime_check_task
   path: /v2/monitor_v3/export_uptime_check_task/
-  suggest_method: GET
+  method: GET
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -27,7 +27,7 @@
   label_en: import uptime check task
   name: import_uptime_check_task
   path: /v2/monitor_v3/import_uptime_check_task/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -37,7 +37,7 @@
   label_en: get ts data
   name: get_ts_data
   path: /v2/monitor_v3/get_ts_data/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -47,7 +47,7 @@
   label_en: get es data
   name: get_es_data
   path: /v2/monitor_v3/get_es_data/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -354,7 +354,7 @@
   label_en: get uptime check task list
   name: get_uptime_check_task_list
   path: /v2/monitor_v3/get_uptime_check_task_list/
-  suggest_method: GET
+  method: GET
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
@@ -364,7 +364,7 @@
   label_en: get uptime check node list
   name: get_uptime_check_node_list
   path: /v2/monitor_v3/get_uptime_check_node_list/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -375,7 +375,7 @@
   label_en: uptime check node info
   name: uptime_check_node_info
   path: /v2/monitor_v3/uptime_check_node_info/
-  suggest_method: GET
+  method: GET
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -385,7 +385,7 @@
   label_en: edit uptime check node info
   name: edit_uptime_check_node
   path: /v2/monitor_v3/edit_uptime_check_node/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -395,7 +395,7 @@
   label_en: delete uptime check node
   name: delete_uptime_check_node
   path: /v2/monitor_v3/delete_uptime_check_node/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -406,7 +406,7 @@
   label_en: create uptime check node
   name: create_uptime_check_node
   path: /v2/monitor_v3/create_uptime_check_node/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -417,7 +417,7 @@
   label_en: uptime check task info
   name: uptime_check_task_info
   path: /v2/monitor_v3/uptime_check_task_info/
-  suggest_method: GET
+  method: GET
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -428,7 +428,7 @@
   label_en: create uptime check task
   name: create_uptime_check_task
   path: /v2/monitor_v3/create_uptime_check_task/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -439,7 +439,7 @@
   label_en: edit uptime check task info
   name: edit_uptime_check_task
   path: /v2/monitor_v3/edit_uptime_check_task/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -449,7 +449,7 @@
   label_en: delete uptime check task
   name: delete_uptime_check_task
   path: /v2/monitor_v3/delete_uptime_check_task/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -459,7 +459,7 @@
   label_en: test uptime check task
   name: test_uptime_check_task
   path: /v2/monitor_v3/test_uptime_check_task/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -469,7 +469,7 @@
   label_en: deploy uptime check task
   name: deploy_uptime_check_task
   path: /v2/monitor_v3/deploy_uptime_check_task/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -480,7 +480,7 @@
   label_en: change uptime check task status
   name: change_uptime_check_task_status
   path: /v2/monitor_v3/change_uptime_check_task_status/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -491,7 +491,7 @@
   label_en: create uptime check group
   name: create_uptime_check_group
   path: /v2/monitor_v3/create_uptime_check_group/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -501,7 +501,7 @@
   label_en: delete uptime check group
   name: delete_uptime_check_group
   path: /v2/monitor_v3/delete_uptime_check_group/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -511,7 +511,7 @@
   label_en: edit uptime check group info
   name: edit_uptime_check_group
   path: /v2/monitor_v3/edit_uptime_check_group/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
@@ -521,7 +521,7 @@
   label_en: uptime check group info
   name: uptime_check_group_info
   path: /v2/monitor_v3/uptime_check_group_info/
-  suggest_method: GET
+  method: GET
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
@@ -531,7 +531,7 @@
   label_en: get uptime check group list
   name: get_uptime_check_group_list
   path: /v2/monitor_v3/get_uptime_check_group_list/
-  suggest_method: GET
+  method: GET
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -541,7 +541,7 @@
   label_en: uptime check group add task
   name: uptime_check_group_add_task
   path: /v2/monitor_v3/uptime_check_group_add_task/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -551,7 +551,7 @@
   label_en: uptime check group remove task
   name: uptime_check_group_remove_task
   path: /v2/monitor_v3/uptime_check_group_remove_task/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -562,7 +562,7 @@
   label_en: get collect config list
   name: get_collect_config_list
   path: /v2/monitor_v3/get_collect_config_list/
-  suggest_method: GET
+  method: GET
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -572,7 +572,7 @@
   label_en: search alarm strategy
   name: search_alarm_strategy
   path: /v2/monitor_v3/search_alarm_strategy/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -582,7 +582,7 @@
   label_en: save alarm strategy
   name: save_alarm_strategy
   path: /v2/monitor_v3/save_alarm_strategy/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -592,7 +592,7 @@
   label_en: delete alarm strategy
   name: delete_alarm_strategy
   path: /v2/monitor_v3/delete_alarm_strategy/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -602,7 +602,7 @@
   label_en: switch alarm strategy
   name: switch_alarm_strategy
   path: /v2/monitor_v3/switch_alarm_strategy/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -612,7 +612,7 @@
   label_en: add shield
   name: add_shield
   path: /v2/monitor_v3/add_shield/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -622,7 +622,7 @@
   label_en: disable shield
   name: disable_shield
   path: /v2/monitor_v3/disable_shield/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -632,7 +632,7 @@
   label_en: edit shield
   name: edit_shield
   path: /v2/monitor_v3/edit_shield/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
@@ -642,7 +642,7 @@
   label_en: get shield
   name: get_shield
   path: /v2/monitor_v3/get_shield/
-  suggest_method: GET
+  method: GET
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -652,7 +652,7 @@
   label_en: get shield list
   name: list_shield
   path: /v2/monitor_v3/list_shield/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
@@ -662,7 +662,7 @@
   label_en: get event log
   name: get_event_log
   path: /v2/monitor_v3/get_event_log/
-  suggest_method: GET
+  method: GET
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -672,7 +672,7 @@
   label_en: search event
   name: search_event
   path: /v2/monitor_v3/search_event/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -682,7 +682,7 @@
   label_en: ack_event
   name: ack_event
   path: /v2/monitor_v3/ack_event/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -692,7 +692,7 @@
   label_en: search notice group
   name: search_notice_group
   path: /v2/monitor_v3/search_notice_group/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -702,7 +702,7 @@
   label_en: delete notice group
   name: delete_notice_group
   path: /v2/monitor_v3/delete_notice_group/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -712,7 +712,7 @@
   label_en: save notice group
   name: save_notice_group
   path: /v2/monitor_v3/save_notice_group/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -722,7 +722,7 @@
   label_en: search user group latest
   name: search_user_groups
   path: /v2/monitor_v3/search_user_groups/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -732,7 +732,7 @@
   label_en: search user group detail
   name: search_user_group_detail
   path: /v2/monitor_v3/search_user_group_detail/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -742,7 +742,7 @@
   label_en: delete user groups
   name: delete_user_groups
   path: /v2/monitor_v3/delete_user_groups/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -753,7 +753,7 @@
   label_en: save user group
   name: save_user_group
   path: /v2/monitor_v3/save_user_group/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -764,7 +764,7 @@
   label_en: preview duty user group
   name: preview_user_group
   path: /v2/monitor_v3/preview_user_group/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -775,7 +775,7 @@
   label_en: search user group latest
   name: search_duty_rules
   path: /v2/monitor_v3/search_duty_rules/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -786,7 +786,7 @@
   label_en: search duty rule detail
   name: search_duty_rule_detail
   path: /v2/monitor_v3/search_duty_rule_detail/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -797,7 +797,7 @@
   label_en: delete duty rules
   name: delete_duty_rules
   path: /v2/monitor_v3/delete_duty_rules/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -808,7 +808,7 @@
   label_en: save duty rule
   name: save_duty_rule
   path: /v2/monitor_v3/save_duty_rule/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -819,7 +819,7 @@
   label_en: preview duty rule
   name: preview_duty_rule
   path: /v2/monitor_v3/preview_duty_rule/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -830,7 +830,7 @@
   label_en: create time series group
   name: metadata_create_time_series_group
   path: /v2/monitor_v3/metadata_create_time_series_group/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -863,7 +863,7 @@
   label_en: get metrics info for time series event result table
   name: metadata_get_time_series_metrics
   path: /v2/monitor_v3/metadata_get_time_series_metrics/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -896,7 +896,7 @@
   label_en: save collect config
   name: save_collect_config
   path: /v2/monitor_v3/save_collect_config/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -907,7 +907,7 @@
   label_en: query collect config detail
   name: query_collect_config_detail
   path: /v2/monitor_v3/query_collect_config_detail/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -918,7 +918,7 @@
   label_en: query collect config
   name: query_collect_config
   path: /v2/monitor_v3/query_collect_config/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -929,7 +929,7 @@
   label_en: get collect status
   name: get_collect_status
   path: /v2/monitor_v3/get_collect_status/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -951,7 +951,7 @@
   label_en: toggle collect config status
   name: toggle_collect_config_status
   path: /v2/monitor_v3/toggle_collect_config_status/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -962,7 +962,7 @@
   label_en: delete collect config
   name: delete_collect_config
   path: /v2/monitor_v3/delete_collect_config/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -973,7 +973,7 @@
   label_en: retry target nodes
   name: retry_target_nodes
   path: /v2/monitor_v3/retry_target_nodes/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -984,7 +984,7 @@
   label_en: run collect config
   name: run_collect_config
   path: /v2/monitor_v3/run_collect_config/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -995,7 +995,7 @@
   label_en: batch retry config
   name: batch_retry_config
   path: /v2/monitor_v3/batch_retry_config/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1006,7 +1006,7 @@
   label_en: upgrade collect plugin
   name: upgrade_collect_plugin
   path: /v2/monitor_v3/upgrade_collect_plugin/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1017,7 +1017,7 @@
   label_en: rollback deployment config
   name: rollback_deployment_config
   path: /v2/monitor_v3/rollback_deployment_config/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1028,7 +1028,7 @@
   label_en: collect running status
   name: collect_running_status
   path: /v2/monitor_v3/collect_running_status/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1039,7 +1039,7 @@
   label_en: get collect log detail
   name: get_collect_log_detail
   path: /v2/monitor_v3/get_collect_log_detail/
-  suggest_method: GET
+  method: GET
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1050,7 +1050,7 @@
   label_en: batch retry instance step
   name: batch_retry_instance_step
   path: /v2/monitor_v3/batch_retry_instance_step/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1061,7 +1061,7 @@
   label_en: proxy host info
   name: proxy_host_info
   path: /v2/monitor_v3/proxy_host_info/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1072,7 +1072,7 @@
   label_en: query_custom_event_group
   name: query_custom_event_group
   path: /v2/monitor_v3/query_custom_event_group/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1083,7 +1083,7 @@
   label_en: get_custom_event_group
   name: get_custom_event_group
   path: /v2/monitor_v3/get_custom_event_group/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1094,7 +1094,7 @@
   label_en: validate_custom_event_group_name
   name: validate_custom_event_group_name
   path: /v2/monitor_v3/validate_custom_event_group_name/
-  suggest_method: GET
+  method: GET
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1105,7 +1105,7 @@
   label_en: create_custom_event_group
   name: create_custom_event_group
   path: /v2/monitor_v3/create_custom_event_group/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1116,7 +1116,7 @@
   label_en: modify_custom_event_group
   name: modify_custom_event_group
   path: /v2/monitor_v3/modify_custom_event_group/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1127,7 +1127,7 @@
   label_en: delete_custom_event_group
   name: delete_custom_event_group
   path: /v2/monitor_v3/delete_custom_event_group/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1138,7 +1138,7 @@
   label_en: custom_time_series
   name: custom_time_series
   path: /v2/monitor_v3/custom_time_series/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1149,7 +1149,7 @@
   label_en: custom_time_series_detail
   name: custom_time_series_detail
   path: /v2/monitor_v3/custom_time_series_detail/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1160,7 +1160,7 @@
   label_en: validate_custom_ts_group_name
   name: validate_custom_ts_group_name
   path: /v2/monitor_v3/validate_custom_ts_group_name/
-  suggest_method: GET
+  method: GET
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1171,7 +1171,7 @@
   label_en: create_custom_time_series
   name: create_custom_time_series
   path: /v2/monitor_v3/create_custom_time_series/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1182,7 +1182,7 @@
   label_en: modify_custom_time_series
   name: modify_custom_time_series
   path: /v2/monitor_v3/modify_custom_time_series/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1193,7 +1193,7 @@
   label_en: delete_custom_time_series
   name: delete_custom_time_series
   path: /v2/monitor_v3/delete_custom_time_series/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1215,7 +1215,7 @@
   label_en: collector_plugin_list
   name: collector_plugin_list
   path: /v2/monitor_v3/collector_plugin_list/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1226,7 +1226,7 @@
   label_en: collector_plugin_detail
   name: collector_plugin_detail
   path: /v2/monitor_v3/collector_plugin_detail/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1336,7 +1336,7 @@
   label_en: business_list_by_actions
   name: business_list_by_actions
   path: /v2/monitor_v3/business_list_by_actions/
-  suggest_method: POST
+  method: POST
 
 
 - api_type: operate
@@ -1348,7 +1348,7 @@
   label_en: collector_plugin_delete
   name: collector_plugin_delete
   path: /v2/monitor_v3/collector_plugin_delete/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1359,7 +1359,7 @@
   label_en: plugin_upgrade_info
   name: plugin_upgrade_info
   path: /v2/monitor_v3/collector_plugin_upgrade_info/
-  suggest_method: GET
+  method: GET
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1370,7 +1370,7 @@
   label_en: remote_call
   name: remote_call
   path: /v2/monitor_v3/remote_call/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1381,7 +1381,7 @@
   label_en: search alarm strategy
   name: search_alarm_strategy_v2
   path: /v2/monitor_v3/search_alarm_strategy_v2/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1392,7 +1392,7 @@
   label_en: save alarm strategy
   name: save_alarm_strategy_v2
   path: /v2/monitor_v3/save_alarm_strategy_v2/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1403,7 +1403,7 @@
   label_en: delete alarm strategy
   name: delete_alarm_strategy_v2
   path: /v2/monitor_v3/delete_alarm_strategy_v2/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1414,7 +1414,7 @@
   label_en: update partial strategy
   name: update_partial_strategy_v2
   path: /v2/monitor_v3/update_partial_strategy_v2/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1425,7 +1425,7 @@
   label_en: search alarm strategy
   name: search_alarm_strategy_v3
   path: /v2/monitor_v3/search_alarm_strategy_v3/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1436,7 +1436,7 @@
   label_en: switch alarm strategy by labels
   name: switch_alarm_strategy_by_labels
   path: /v2/monitor_v3/switch_alarm_strategy_by_labels/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1447,7 +1447,7 @@
   label_en: save alarm strategy
   name: save_alarm_strategy_v3
   path: /v2/monitor_v3/save_alarm_strategy_v3/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1458,7 +1458,7 @@
   label_en: delete alarm strategy
   name: delete_alarm_strategy_v3
   path: /v2/monitor_v3/delete_alarm_strategy_v3/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1469,7 +1469,7 @@
   label_en: update partial strategy
   name: update_partial_strategy_v3
   path: /v2/monitor_v3/update_partial_strategy_v3/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -1480,7 +1480,7 @@
   label_en: search alarm strategy without biz
   name: search_alarm_strategy_without_biz
   path: /v2/monitor_v3/search_alarm_strategy_without_biz/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2632,7 +2632,7 @@
   label_en: plugin_import_without_frontend
   name: plugin_import_without_frontend
   path: /v2/monitor_v3/plugin_import_without_frontend/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2643,7 +2643,7 @@
   label_en: export_plugin
   name: export_plugin
   path: /v2/monitor_v3/export_plugin/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2797,7 +2797,7 @@
   label_en: create apm application
   name: apm_create_web_application
   path: /v2/monitor_v3/apm/create_web_application/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2808,7 +2808,7 @@
   label_en: delete apm application
   name: apm_delete_web_application
   path: /v2/monitor_v3/apm/delete_web_application/
-  suggest_method: POST
+  method: POST
 
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2819,7 +2819,7 @@
   label_en: update apm application
   name: apm_update_web_application
   path: /v2/monitor_v3/apm/update_web_application/
-  suggest_method: POST
+  method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2830,7 +2830,7 @@
   label_en: check apm duplicate app name
   name: apm_check_duplicate_app_name
   path: /v2/monitor_v3/apm/check_duplicate_app_name/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2841,7 +2841,7 @@
   label_en: apm application info
   name: apm_application_info
   path: /v2/monitor_v3/apm/application_info/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2852,7 +2852,7 @@
   label_en: query apm data token
   name: apm_query_bk_data_token
   path: /v2/monitor_v3/apm/query_bk_data_token/
-  suggest_method: GET
+  method: GET
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
@@ -2863,7 +2863,7 @@
   label_en: query apm application info by app name
   name: apm_application_info_by_app_name
   path: /v2/monitor_v3/apm/application_info_by_app_name/
-  suggest_method: GET
+  method: GET
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -2873,7 +2873,7 @@
   label_en: import as code config
   name: as_code_import_config
   path: /v2/monitor_v3/as_code/import_config/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -2883,7 +2883,7 @@
   label_en: export as code config
   name: as_code_export_config
   path: /v2/monitor_v3/as_code/export_config/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -2893,7 +2893,7 @@
   label_en: search assign group
   name: search_rule_groups
   path: /v2/monitor_v3/assign/search_rule_groups/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -2903,7 +2903,7 @@
   label_en: save assign group
   name: save_rule_group
   path: /v2/monitor_v3/assign/save_rule_group/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -2913,7 +2913,7 @@
   label_en: delete assign group
   name: delete_rule_group
   path: /v2/monitor_v3/assign/delete_rule_group/
-  suggest_method: POST
+  method: POST
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
@@ -2923,7 +2923,7 @@
   label_en: grafana log query
   name: grafana_log_query
   path: /v2/monitor_v3/log_query/
-  suggest_method: POST
+  method: POST
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
