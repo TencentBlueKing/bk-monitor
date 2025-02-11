@@ -257,7 +257,7 @@ class SearchHandler(object):
         self.query_string: str = search_dict.get("keyword")
         self.origin_query_string: str = search_dict.get("keyword")
         self._enhance()
-        self._all_fields_search()
+        self._add_all_fields_search()
 
         # 透传start
         self.start: int = search_dict.get("begin", 0)
@@ -353,7 +353,7 @@ class SearchHandler(object):
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
             self.query_string = enhance_lucene_adapter.enhance()
 
-    def _all_fields_search(self):
+    def _add_all_fields_search(self):
         """
         补充全文检索条件
         """
@@ -375,7 +375,6 @@ class SearchHandler(object):
                         self.query_string = self.query_string + " AND (" + new_query_string + ")"
                     else:
                         self.query_string = new_query_string
-                continue
 
     @property
     def index_set(self):
