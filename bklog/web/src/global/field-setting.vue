@@ -535,6 +535,7 @@
         Promise.all(promises).then(
           async () => {
             confirmLoading.value = true;
+            sliderLoading.value = true;
             const originfieldTableData = originfieldTable.value.getData();
             const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
             const data = {
@@ -581,6 +582,7 @@
               })
               .finally(() => {
                 confirmLoading.value = false;
+                sliderLoading.value = false;
               });
           },
           validator => {

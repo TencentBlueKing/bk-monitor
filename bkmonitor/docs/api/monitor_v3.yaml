@@ -2069,6 +2069,26 @@
   method: GET
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/profiling/ebpf_service_list/
+  is_hidden: true
+  label: 获取 ebpf 相关应用服务列表
+  label_en: query ebpf service list
+  name: query_apm_ebpf_service_list
+  path: /v2/monitor_v3/apm/profiling/ebpf_service_list/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /apm_api/v1/profiling/ebpf_profile/
+  is_hidden: true
+  label: 获取单个 ebpf 服务下的 profiling 性能数据
+  label_en: query ebpf service profile data
+  name: query_apm_ebpf_profile
+  path: /v2/monitor_v3/apm/profiling/ebpf_profile/
+  method: POST
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
   dest_path: /apm_api/v1/profiling/builtin_profile_datasource/
   is_hidden: true
