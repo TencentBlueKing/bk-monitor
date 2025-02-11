@@ -295,6 +295,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     view_config = cls._replace_variable(view_config, "${app_name}", app_name)
                     view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                     view_config = cls._replace_variable(view_config, "${span_id}", span_id)
+                    # trace检索处将图表的维度全部改为显示在下方 而不是右边
+                    for i in view_config.get("overview_panels", []):
+                        for j in i.get("panels", []):
+                            j.update({"options": {"legend": {"placement": "bottom", "displayMode": "list"}}})
+
                     return view_config
 
                 return cls._get_non_host_view_config(builtin_view, params)
