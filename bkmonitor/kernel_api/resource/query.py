@@ -62,6 +62,7 @@ class QueryEsResource(Resource):
 
     @staticmethod
     def get_result_table(table_id: str) -> models.ResultTable:
+        print("Test")
         try:
             result_table = models.ResultTable.get_result_table(table_id=table_id)
         except models.ResultTable.DoesNotExist:
