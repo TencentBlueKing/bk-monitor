@@ -1557,10 +1557,10 @@
               }
             })
             data.etl_fields.push(...this.copyBuiltField)
+          }else{
+            delete data.etl_params['separator_regexp'];
+            delete data.etl_params['separator'];
           }
-         
-          delete data.etl_params['separator_regexp'];
-          delete data.etl_params['separator'];
         }
         data.alias_settings = fieldTableData.filter(item => item.query_alias).map(item => {
           return {
@@ -1599,7 +1599,6 @@
           requestUrl = this.isEditTemp ? 'clean/updateTemplate' : 'clean/createTemplate';
         }
         const updateData = { params: urlParams, data };
-
         this.$http
           .request(requestUrl, updateData)
           .then(res => {
