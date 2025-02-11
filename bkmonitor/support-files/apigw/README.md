@@ -30,7 +30,7 @@
 1. 应用态接口的 userVerifiedRequired 属性为 false，用户态接口的 userVerifiedRequired 属性为 true。
 2. 应用态接口增加 app_verify 标签，用户态接口增加 user_verify 标签。
 3. 应用态接口的定义在 `/resources/{public_dir}/app` 目录下，用户态接口的定义在 `/resources/{public_dir}/user` 目录下。
-4. 为了区分应用态和用户态，一般情况下，应用态接口路径以 `app` 开头，用户态接口路径以 `user` 开头。
+4. 为了区分应用态和用户态，一般情况下，应用态接口路径以 `/app/` 开头，用户态接口路径以 `/user/` 开头。
 
 ## 接口定义
 
