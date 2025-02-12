@@ -65,8 +65,10 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   type: K8sTableColumnTypeEnum;
   /** 字段id */
   id: T;
-  /** 字段名称 */
+  /** 字段名称（渲染指标列时为指标名称） */
   name: TranslateResult;
+  /** 小类目名称（选择指标列时使用） */
+  category_name?: string;
   /** 是否伸缩大小 */
   resizable?: boolean;
   /** 是否可以排序 */
@@ -76,7 +78,7 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   /** 最小列宽 */
   min_width?: number;
   /** label 是否可以点击 */
-  canClick?: boolean;
+  can_click?: boolean;
   /** 是否需要异步加载 */
   asyncable?: boolean;
   /** 是否固定列 */
@@ -150,6 +152,12 @@ export enum K8sTableColumnTypeEnum {
 
 /** 是否开启前端分页功能 */
 const enabledFrontendLimit = false;
+/** 指标数据分类name - table小类目指标名映射表（table渲染指标列使用） */
+const tableMetricCategoryForNameMap = {
+  CPU: 'CPU',
+  内存: '内存',
+  流量: '网络',
+};
 
 @Component
 export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent> {
@@ -248,13 +256,22 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       if (item?.children?.length) {
         for (const child of item.children) {
           if (!hodeMetricsSet.has(child.id)) {
+            const regex = new RegExp(`(${tableMetricCategoryForNameMap[item.name]}\\s*)(.*)`);
+            const founds = child.name.match(regex);
+            let name = child.name;
+            let categoryName = item.name;
+            if (founds?.length && founds?.length === 3) {
+              name = founds[2];
+              categoryName = founds[1]?.trim?.();
+            }
             ids.push(child.id as K8sTableColumnChartKey);
             columns.push({
               id: child.id as K8sTableColumnKeysEnum,
-              name: child.name,
+              name: name,
+              category_name: categoryName,
               sortable: 'custom',
               type: K8sTableColumnTypeEnum.DATA_CHART,
-              min_width: 190,
+              min_width: 140,
               asyncable: true,
               header_align: 'right',
               renderHeader: this.metricsColumnHeaderRender,
@@ -407,7 +424,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 120,
-        canClick: true,
+        can_click: true,
         getValue: () => this.filterCommonParams.bcs_cluster_id,
       },
       [POD]: {
@@ -416,7 +433,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
-        canClick: true,
+        can_click: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -434,7 +451,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 240,
-        canClick: true,
+        can_click: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
         getValue: !this.isListTab ? K8sTableNew.getWorkloadValue(WORKLOAD, 1) : null,
@@ -454,7 +471,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 150,
-        canClick: true,
+        can_click: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -727,7 +744,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         if (!['', 'none', undefined, null].includes(chartData.unit)) {
           const valueFormatter = getValueFormat(chartData.unit || '');
           set = valueFormatter(value, decimal);
-          if (value !== 0) {
+          if (Number(set.text) !== 0) {
             set.text = Number.parseFloat(set.text).toFixed(decimal);
           }
         }
@@ -839,7 +856,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @description 表格列 header 渲染配置方法
    */
   metricsColumnHeaderRender(column: K8sTableColumn<K8sTableColumnChartKey>) {
-    const { id, name } = column;
+    const { id, name, category_name } = column;
     return (
       <div
         class='k8s-metrics-header'
@@ -847,16 +864,21 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           e.stopPropagation();
         }}
       >
-        <K8sConvergeSelect
-          method={this.metricsForConvergeMap[id]}
-          onMethodChange={v => this.handleConvergeChange(id, v)}
-        />
-        <span
-          class='header-label'
-          v-bk-overflow-tips
-        >
-          {name}
-        </span>
+        <div class='header-category'>
+          <K8sConvergeSelect
+            method={this.metricsForConvergeMap[id]}
+            onMethodChange={v => this.handleConvergeChange(id, v)}
+          />
+          <span
+            class='label'
+            v-bk-overflow-tips
+          >
+            {category_name}
+          </span>
+        </div>
+        <div class='header-metrics'>
+          <span>{name}</span>
+        </div>
       </div>
     );
   }
@@ -916,7 +938,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const text = K8sTableNew.getResourcesTextRowValue(row, column);
       return (
         <div class='k8s-table-col-item'>
-          {column.canClick ? (
+          {column.can_click ? (
             <span
               class='col-item-label can-click'
               onClick={() => this.handleLabelClick({ column, row, index })}
@@ -945,11 +967,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const chartData = row[columnKey];
       if (!chartData?.datapoints) {
         return (
-          <img
-            class='loading-svg'
-            alt=''
-            src={loadingIcon}
-          />
+          <div class='k8s-metric-column'>
+            <img
+              class='loading-svg'
+              alt=''
+              src={loadingIcon}
+            />
+          </div>
         );
       }
       if ([undefined, null].includes(chartData?.datapoints?.[0]?.[0])) {
