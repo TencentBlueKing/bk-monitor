@@ -1009,7 +1009,7 @@ paths:
         descriptionEn: query apm event
   /v2/monitor_v3/apm/profiling/ebpf_service_list/:
     post:
-      operationId: query_apm_event
+      operationId: query_apm_ebpf_service_list
       description: 获取 ebpf 相关应用服务列表
       tags:
         - apm
@@ -1029,7 +1029,7 @@ paths:
         descriptionEn: query ebpf service list
   /v2/monitor_v3/apm/profiling/ebpf_profile/:
     post:
-      operationId: query_apm_event
+      operationId: query_apm_ebpf_service_list
       description: 获取单个 ebpf 服务下的 profiling 性能数据
       tags:
         - apm
