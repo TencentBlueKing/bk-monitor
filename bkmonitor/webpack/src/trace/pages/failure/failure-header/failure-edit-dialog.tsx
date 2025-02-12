@@ -75,9 +75,19 @@ export default defineComponent({
     const editIncidentHandle = () => {
       editDialogRef.value?.validate().then(() => {
         btnLoading.value = true;
-        const { incident_name, level, assignees, labels, incident_reason, id, incident_id } = incidentDetailData.value;
+        const { incident_name, level, assignees, labels, incident_reason, id, incident_id, bk_biz_id } =
+          incidentDetailData.value;
         const newLabels = labels.map(item => `/${item}/`);
-        editIncident({ incident_name, level, assignees, labels: newLabels, incident_reason, incident_id, id })
+        editIncident({
+          bk_biz_id,
+          incident_name,
+          level,
+          assignees,
+          labels: newLabels,
+          incident_reason,
+          incident_id,
+          id,
+        })
           .then(() => {
             Message({
               theme: 'success',
@@ -102,12 +112,12 @@ export default defineComponent({
     });
     watch(
       () => props.visible,
-      (val) => {
+      val => {
         if (val) {
           const labels = incidentDetailData.value.labels.map(item => item.replace(/\//g, ''));
           incidentDetailData.value.labels = labels;
         }
-      },
+      }
     );
     return {
       t,
@@ -172,7 +182,10 @@ export default defineComponent({
           >
             <Radio.Group v-model={this.incidentDetailData.level}>
               {Object.values(this.$props.levelList || {}).map((item: any) => (
-                <Radio label={item.name} key={item.key}>
+                <Radio
+                  key={item.key}
+                  label={item.name}
+                >
                   <i class={`icon-monitor icon-${item.key} radio-icon ${item.key}`} />
                   {this.t(item.label)}
                 </Radio>
@@ -182,7 +195,6 @@ export default defineComponent({
           <Form.FormItem
             label={this.t('故障负责人')}
             property='assignees'
-            required
           >
             <MemberSelector
               class='width-940'
