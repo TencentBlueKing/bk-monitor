@@ -253,8 +253,8 @@ export default class K8SCharts extends tsc<
     }
     switch (this.groupByField) {
       case K8sTableColumnKeysEnum.CONTAINER:
-      // content += `,container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
-      // break;
+        content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
+        break;
       case K8sTableColumnKeysEnum.POD:
         content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
         break;
@@ -412,23 +412,20 @@ export default class K8SCharts extends tsc<
         },
       ];
     } else {
-      data =
-        this.isDetailMode && this.resourceListData.length
-          ? this.resourceListData
-          : await listK8sResources({
-              ...this.filterCommonParams,
-              with_history: true,
-              page_size: Math.abs(this.limit),
-              page: 1,
-              page_type: 'scrolling',
-              column: 'container_cpu_usage_seconds_total',
-              order_by: this.limit > 0 ? 'desc' : 'asc',
+      data = this.isDetailMode
+        ? this.resourceListData
+        : await listK8sResources({
+            ...this.filterCommonParams,
+            with_history: true,
+            page_size: Math.abs(this.limit),
+            page: 1,
+            page_type: 'scrolling',
+          })
+            .then(data => {
+              if (!data?.items?.length) return [];
+              return data.items;
             })
-              .then(data => {
-                if (!data?.items?.length) return [];
-                return data.items;
-              })
-              .catch(() => []);
+            .catch(() => []);
       if (data.length) {
         const container = new Set<string>();
         const pod = new Set<string>();

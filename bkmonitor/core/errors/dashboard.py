@@ -26,31 +26,6 @@ class GrafanaApiError(DashboardError):
     message_tpl = "status_code: {code}, message: {message}"
 
 
-class CreateUserError(GrafanaApiError):
-    code = 3315001
-    name = _("创建Grafana用户失败")
-
-
-class GetUserError(GrafanaApiError):
-    code = 3315002
-    name = _("获取Grafana用户失败")
-
-
-class CreateOrganizationError(GrafanaApiError):
-    code = 3315003
-    name = _("创建Grafana组织失败")
-
-
-class GetOrganizationError(GrafanaApiError):
-    code = 3315004
-    name = _("获取Grafana组织失败")
-
-
-class GetOrganizationUserError(GrafanaApiError):
-    code = 3315005
-    name = _("获取组织中的用户失败")
-
-
 class GetFolderOrDashboardError(GrafanaApiError):
     code = 3315005
     name = _("获取文件夹或仪表盘失败")

@@ -40,7 +40,7 @@ import ExpandView from '../search-result-panel/original-log/expand-view.vue';
 import OperatorTools from '../search-result-panel/original-log/operator-tools';
 import TimeFormatterSwitcher from '../search-result-panel/original-log/time-formatter-switcher';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
-
+import useFieldNameHook from '@/hooks/use-field-name';
 export default {
   components: {
     TextHighlight,
@@ -212,7 +212,9 @@ export default {
       return this.$store.state.retrieve.catchFieldCustomConfig;
     },
     indexSetId() {
-      return window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId;
+      return window.__IS_MONITOR_COMPONENT__
+        ? this.$route?.query?.indexId || this.$store.state.indexId
+        : this.$route.params.indexId;
     },
   },
   watch: {
@@ -297,7 +299,8 @@ export default {
       const field = this.getShowTableVisibleFields[fieldIndex];
       const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
       if (field) {
-        const fieldName = this.showFieldAlias ? this.fieldAliasMap[field.field_name] : field.field_name;
+        const { getQueryAlias } = useFieldNameHook({ store: this.$store });
+        const fieldName = getQueryAlias(field);
         const fieldType = field.field_type;
         const isUnionSource = field?.tag === 'union-source';
         const fieldIcon = this.getFieldIcon(field.field_type);
@@ -448,7 +451,7 @@ export default {
       if (this.apmRelation.is_active) {
         const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
         const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
-        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
         window.open(url, '_blank');
       } else {
         this.$bkMessage({

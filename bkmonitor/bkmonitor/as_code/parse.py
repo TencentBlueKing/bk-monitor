@@ -18,6 +18,7 @@ import yaml
 from rest_framework.exceptions import ValidationError
 from schema import SchemaError
 
+from bk_dataview.api import get_or_create_org
 from bkmonitor.action.serializers import (
     ActionConfigDetailSlz,
     BatchSaveAssignRulesSlz,
@@ -50,7 +51,6 @@ from bkmonitor.strategy.new_strategy import Strategy
 from bkmonitor.utils.dict import nested_update
 from constants.action import ActionPluginType
 from core.drf_resource import api
-from monitor_web.grafana.auth import GrafanaAuthSync
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +313,7 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: Dict[str, Dict]):
     """
     同步Grafana仪表盘配置
     """
-    org_id = GrafanaAuthSync.get_or_create_org_id(bk_biz_id)
+    org_id = get_or_create_org(bk_biz_id)["id"]
     folders = api.grafana.search_folder_or_dashboard(type="dash-folder", org_id=org_id)["data"]
     folder_names_to_ids = {folder["title"].replace("/", "-"): folder["id"] for folder in folders}
 

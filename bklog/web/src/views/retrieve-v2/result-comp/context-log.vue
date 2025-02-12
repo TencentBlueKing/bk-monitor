@@ -132,7 +132,7 @@
   import logView from '@/components/log-view';
   import logViewControl from '@/components/log-view/log-view-control';
   import { getFlatObjValues } from '@/common/util';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   import DataFilter from '../condition-comp/data-filter.vue';
 
   export default {
@@ -272,7 +272,7 @@
           this.isConfigLoading = true;
           const res = await this.$http.request('retrieve/getLogTableHead', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             query: {
               scope: 'search_context',
@@ -283,8 +283,9 @@
           });
           this.currentConfigID = res.data.config_id;
           this.totalFields = res.data.fields;
-          this.displayFieldNames = res.data.display_fields;
-          this.totalFieldNames = res.data.fields.map(fieldInfo => fieldInfo.field_name);
+          const { getFieldNames, getFieldName } = useFieldNameHook({ store: this.$store });
+          this.displayFieldNames = res.data.display_fields.map(item => getFieldName(item))
+          this.totalFieldNames = getFieldNames(res.data.fields);
           this.displayFields = res.data.display_fields.map(fieldName => {
             return res.data.fields.find(fieldInfo => fieldInfo.field_name === fieldName);
           });
@@ -315,7 +316,7 @@
           this.logLoading = true;
           const res = await this.$http.request('retrieve/getContentLog', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
             },
             data,
           });
@@ -373,8 +374,9 @@
         list.forEach(listItem => {
           const displayObj = {};
           const { newObject } = getFlatObjValues(listItem);
+          const { changeFieldName } = useFieldNameHook({ store: this.$store });
           displayFieldNames.forEach(field => {
-            Object.assign(displayObj, { [field]: newObject[field] });
+            Object.assign(displayObj, { [field]: newObject[changeFieldName(field)] });
           });
           filterDisplayList.push(displayObj);
         });
@@ -383,11 +385,13 @@
       // 确定设置显示字段
       async confirmConfig(list) {
         this.isConfigLoading = true;
-        const data = { display_fields: list };
+        const { changeFieldName } = useFieldNameHook({ store: this.$store });
+        const copyList = list.map(item => changeFieldName(item))
+        const data = { display_fields: copyList };
         try {
           const configRes = await this.$http.request('retrieve/getFieldsConfigByContextLog', {
             params: {
-              index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
               config_id: this.currentConfigID,
             },
           });
@@ -395,7 +399,7 @@
             sort_list: configRes.data.sort_list,
             name: configRes.data.name,
             config_id: this.currentConfigID,
-            index_set_id: window.__IS_MONITOR_APM__ ? this.$route.query.indexId : this.$route.params.indexId,
+            index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           });
           await this.$http.request('retrieve/updateFieldsConfig', {
             data,

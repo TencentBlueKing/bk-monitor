@@ -249,6 +249,11 @@ export default defineComponent({
           value: [],
           id: 'id',
         },
+        strategy_id: {
+          name: `${t('策略ID')}`,
+          value: [],
+          id: 'strategy_id',
+        },
       };
       const res = [];
       const map = backDisplayMap.value;
@@ -746,7 +751,7 @@ export default defineComponent({
                 class='shield-search'
                 data={this.searchData}
                 modelValue={this.searchValues}
-                placeholder={this.t('输入屏蔽内容、ID')}
+                placeholder={this.t('输入屏蔽内容、ID、策略ID')}
                 onUpdate:modelValue={v => this.handleSearchCondition(v)}
               />
             </div>

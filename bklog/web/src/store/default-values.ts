@@ -53,6 +53,8 @@ export const DEFAULT_DATETIME_PARAMS = getDefaultDatePickerValue();
 
 export const IndexSetQueryResult = {
   is_loading: false,
+  exception_msg: '',
+  is_error: false,
   request_counter: 0,
   search_count: 0,
   aggregations: {},

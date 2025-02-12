@@ -1950,7 +1950,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         index_set_id: item.index_set_id,
         query_string: item.keywords_query_string,
         custom_event_name: item.custom_event_name,
-        functions: hasIntelligentDetect ? [] : item.functions,
+        functions: this.isKpiAnomalySdkEnabled || !hasIntelligentDetect ? item.functions : [],
         intelligent_detect: this.id && hasIntelligentDetect ? item.intelligent_detect : undefined,
         time_field: (hasIntelligentDetect ? 'dtEventTimeStamp' : item.time_field) || 'time',
         bkmonitor_strategy_id: item.metric_field || item.bkmonitor_strategy_id,

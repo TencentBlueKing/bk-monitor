@@ -23,7 +23,9 @@
 * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 * IN THE SOFTWARE.
 */
-window.__IS_MONITOR_APM__ = true
+window.__IS_MONITOR_COMPONENT__ = true;
+window.__IS_MONITOR_TRACE__ = process.env.MONITOR_APP === 'trace';
+window.__IS_MONITOR_APM__ = process.env.MONITOR_APP === 'apm';
 import Vue from 'vue';
 
 import LogButton from '@/components/log-button';
@@ -32,6 +34,8 @@ import useStore from '@/hooks/use-store';
 import i18n from '@/language/i18n';
 
 import MonitorRetrieve from './monitor.vue';
+
+import '../../../static/style.css';
 const logStore = useStore();
 const initMonitorState = (payload) => {
   logStore.commit('initMonitorState', payload);

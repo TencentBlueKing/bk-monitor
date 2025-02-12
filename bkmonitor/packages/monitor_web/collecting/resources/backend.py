@@ -892,6 +892,10 @@ class SaveCollectConfigResource(Resource):
             # 校验主机实例
             elif target_type == (TargetObjectType.HOST, TargetNodeType.INSTANCE):
                 for node in attrs["target_nodes"]:
+                    if "bk_target_ip" in node and "bk_target_cloud_id" in node:
+                        node["ip"] = node.pop("bk_target_ip")
+                        node["bk_cloud_id"] = node.pop("bk_target_cloud_id")
+
                     if not ("ip" in node and "bk_cloud_id" in node) and "bk_host_id" not in node:
                         raise serializers.ValidationError("target_nodes needs ip, bk_cloud_id or bk_host_id")
             # 校验服务模板、集群模板
@@ -908,6 +912,10 @@ class SaveCollectConfigResource(Resource):
                 for node in attrs["target_nodes"]:
                     if "bcs_cluster_id" not in node:
                         raise serializers.ValidationError("target_nodes needs bcs_cluster_id")
+            elif attrs["target_node_type"] == TargetNodeType.DYNAMIC_GROUP:
+                for node in attrs["target_nodes"]:
+                    if not ("bk_inst_id" in node and "bk_obj_id" in node):
+                        raise serializers.ValidationError("target_nodes needs bk_inst_id, bk_obj_id")
             else:
                 raise serializers.ValidationError(
                     "{} {} is not supported".format(attrs["target_object_type"], attrs["target_node_type"])

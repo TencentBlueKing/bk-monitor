@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
+import threading
 from typing import Any, Dict, List, Optional, Set, Union
 
 from django.conf import settings
@@ -23,12 +24,13 @@ from apm_web.handlers import metric_group
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.metric.constants import SeriesAliasType
 from apm_web.models import Application, CodeRedefinedConfigRelation
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.apm import MetricTemporality, TelemetryDataType
+from constants.apm import MetricTemporality, TelemetryDataType, Vendor
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
@@ -37,53 +39,125 @@ from monitor_web.scene_view.builtin.utils import gen_string_md5
 logger = logging.getLogger(__name__)
 
 
-@using_cache(CacheType.APM(60 * 1))
-def discover_caller_callee(
-    bk_biz_id: int, app_name: str, service_name: str
-) -> Dict[str, Union[Dict[str, Any], List[str]]]:
-    # 页面请求时，get_scene_view_list -> get_scene_view 依次调用这段逻辑，缓存 1min 以复用上一次的服务发现结果，加速页面加载。
-    # 后续这段逻辑可以下沉到统一的框架/语言发现任务，而不是每次请求都要执行一遍。
-    def _fetch_server_list(_group: metric_group.TrpcMetricGroup):
+def discover_config_from_node_or_none(node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    predicate_systems: List[str] = [
+        meta["name"] for meta in node.get("system") or [] if meta.get("name") == metric_group.GroupEnum.TRPC
+    ]
+    if not predicate_systems:
+        logger.info("[apm][discover_config_from_node_or_none] system not fount: node -> %s", node)
+        return None
+
+    temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
+        Vendor.has_sdk(node.get("sdk"), Vendor.G)
+    ]
+    logger.info("[apm][discover_config_from_node_or_none] temporality -> %s, node -> %s", temporality, node)
+    return MetricTemporality.get_metric_config(temporality)
+
+
+def discover_config_from_metric_or_none(
+    bk_biz_id: int, app_name: str, table_id: str, service_name: str
+) -> Optional[Dict[str, Any]]:
+    metric_fields: List[str] = [
+        metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLER.value]["rpc_handled_total"],
+        metric_group.TrpcMetricGroup.METRIC_FIELDS[SeriesAliasType.CALLEE.value]["rpc_handled_total"],
+    ]
+    metric_exists: bool = MetricListCache.objects.filter(
+        result_table_id=table_id,
+        data_source_label=DataSourceLabel.CUSTOM,
+        data_type_label=DataTypeLabel.TIME_SERIES,
+        metric_field__in=metric_fields,
+    ).exists()
+    if not metric_exists:
+        logger.info("[apm][discover_config_from_metric_or_none] rpc metric not found: table_id -> %s", table_id)
+        return None
+
+    def _fetch_server_list():
         discover_result["server_list"] = group.fetch_server_list()
 
-    def _get_server_config(_group: metric_group.TrpcMetricGroup):
-        server_config: Dict[str, Any] = group.get_server_config(server=service_name)
-        try:
-            code_redefined_config = CodeRedefinedConfigRelation.objects.get(
-                bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-            )
-            server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
-        except CodeRedefinedConfigRelation.DoesNotExist:
-            server_config["ret_code_as_exception"] = False
-
-        # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case
-        server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
-        discover_result["server_config"] = server_config
+    def _get_server_config():
+        discover_result["server_config"] = group.get_server_config(server=service_name)
 
     discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = {}
     group: metric_group.TrpcMetricGroup = metric_group.MetricGroupRegistry.get(
         metric_group.GroupEnum.TRPC, bk_biz_id, app_name
     )
-    run_threads(
-        [
-            InheritParentThread(target=_fetch_server_list, args=(group,)),
-            InheritParentThread(target=_get_server_config, args=(group,)),
-        ]
-    )
+    run_threads([InheritParentThread(target=_fetch_server_list), InheritParentThread(target=_get_server_config)])
 
     # run_threads 会吃掉异常，这里需要二次检查补偿，有异常也要在外层抛出
     if "server_list" not in discover_result:
-        _fetch_server_list(group)
+        _fetch_server_list()
 
     if "server_config" not in discover_result:
-        _get_server_config(group)
+        _get_server_config()
 
+    logger.info("[apm][discover_config_from_metric_or_none] discover_result -> %s", discover_result)
+    if service_name not in discover_result["server_list"]:
+        return None
+
+    return discover_result["server_config"]
+
+
+@using_cache(CacheType.APM(60 * 2))
+def discover_caller_callee(
+    bk_biz_id: int, app_name: str, table_id: str, service_name: str
+) -> Dict[str, Union[Dict[str, Any], List[str]]]:
+    """RPC 服务发现
+    页面请求顺序：get_scene_view_list -> get_scene_view 依次调用这段逻辑，缓存 1min 以复用上一次的服务发现结果，加速页面加载。
+    :param bk_biz_id: 业务 ID
+    :param app_name: 应用名称
+    :param table_id: 指标 Table ID
+    :param service_name: 服务名称
+    :return:
+    """
+    discover_result: Dict[str, Union[Dict[str, Any], bool]] = {"exists": False}
+    node: Optional[Dict[str, Any]] = None
+    try:
+        # Q：为什么不直接传具体的 service_name?
+        # A：方便串行复用 LRU Cache。
+        for _node in ServiceHandler.list_nodes(bk_biz_id, app_name):
+            if _node["topo_key"] == service_name:
+                node = _node
+                break
+    except ValueError:
+        pass
+
+    if not node:
+        # 服务还没被发现（页面没有），直接跳过
+        logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
+        return discover_result
+
+    server_config: Optional[Dict[str, Any]] = discover_config_from_node_or_none(
+        node
+    ) or discover_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
+    if not server_config:
+        return discover_result
+
+    try:
+        code_redefined_config = CodeRedefinedConfigRelation.objects.get(
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
+        )
+        server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
+    except CodeRedefinedConfigRelation.DoesNotExist:
+        server_config["ret_code_as_exception"] = False
+
+    # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case。
+    server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
+    discover_result["server_config"] = server_config
+    discover_result["exists"] = True
+    logger.info(
+        "[apm][discover_caller_callee] %s / %s / %s, discover_result -> %s",
+        bk_biz_id,
+        app_name,
+        service_name,
+        discover_result,
+    )
     return discover_result
 
 
 class ApmBuiltinProcessor(BuiltinProcessor):
     SCENE_ID = "apm"
     builtin_views: Dict = None
+    _lock: threading.Lock = threading.Lock()
 
     filenames = [
         # ⬇️ APM观测场景视图
@@ -142,11 +216,19 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def load_builtin_views(cls):
-        # if cls.builtin_views is None:
-        cls.builtin_views = {}
+        if cls.builtin_views:
+            return
 
-        for filename in cls.filenames:
-            cls.builtin_views[filename] = cls._read_builtin_view_config(filename)
+        with cls._lock:
+            # 双重检查，等待锁期间可能已经有其他线程「完成」初始化，返回以减少重复读取文件。
+            if cls.builtin_views:
+                return
+
+            builtin_views: Dict[str, Dict[str, Any]] = {
+                filename: cls._read_builtin_view_config(filename) for filename in cls.filenames
+            }
+            # 一次性赋值以确保原子性。
+            cls.builtin_views = builtin_views
 
     @classmethod
     def exists_views(cls, name):
@@ -176,32 +258,48 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         builtin_view = f"{view.scene_id}-{view.id}"
         view_config = cls.builtin_views[builtin_view]
-        view_config = cls._replace_variable(view_config, "${bk_biz_id}", bk_biz_id)
-        # 替换table_id
+        if params.get("only_simple_info") and builtin_view not in cls.NEED_RENDER_IF_ONLY_SIMPLE_INFO:
+            # ViewList 不需要渲染数据，直接返回。
+            return view_config
+
+        # 替换 table_id
         table_id = Application.get_metric_table_id(bk_biz_id, app_name)
         view_config = cls._replace_variable(view_config, "${table_id}", table_id)
-
-        if params.get("only_simple_info") and builtin_view not in cls.NEED_RENDER_IF_ONLY_SIMPLE_INFO:
-            return view_config
+        view_config = cls._replace_variable(view_config, "${bk_biz_id}", bk_biz_id)
 
         if builtin_view.startswith(cls.APM_TRACE_PREFIX):
             # APM Trace检索处
 
             if builtin_view == f"{cls.APM_TRACE_PREFIX}-host":
                 span_id = params.get("span_id")
-                if not span_id:
-                    raise ValueError(_("缺少SpanId参数"))
+                if not span_id or not service_name:
+                    raise ValueError(_("缺少 SpanId / ServiceName 参数"))
 
-                span_hosts = HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)
-
-                if span_hosts:
-                    # TODO 关联主机页面后续需要改为多主机 现在先直接取第一个
-                    span_host = span_hosts[0]
+                host_predicate = any(
+                    [
+                        bool(HostHandler.find_host_in_span(bk_biz_id, app_name, span_id)),
+                        bool(
+                            HostHandler.list_application_hosts(
+                                view.bk_biz_id,
+                                app_name,
+                                service_name,
+                                start_time=params.get("start_time"),
+                                end_time=params.get("end_time"),
+                            )
+                        ),
+                    ]
+                )
+                if host_predicate:
                     cls._add_config_from_host(view, view_config)
-                    # 替换模版中变量
+                    # Trace 检索主机特殊配置：直接固定图表配置中的变量
                     view_config = cls._replace_variable(view_config, "${app_name}", app_name)
+                    view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                     view_config = cls._replace_variable(view_config, "${span_id}", span_id)
-                    cls._handle_current_target(span_host, view_config)
+                    # trace检索处将图表的维度全部改为显示在下方 而不是右边
+                    for i in view_config.get("overview_panels", []):
+                        for j in i.get("panels", []):
+                            j.update({"options": {"legend": {"placement": "bottom", "displayMode": "list"}}})
+
                     return view_config
 
                 return cls._get_non_host_view_config(builtin_view, params)
@@ -223,6 +321,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     view,
                     view_config,
                     builtin_view,
+                    display_with_sidebar=False,
                 )
             return view_config
 
@@ -257,25 +356,15 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 主被调场景
         if builtin_view == "apm_service-service-default-caller_callee":
             discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
-                bk_biz_id, app_name, params["service_name"]
+                bk_biz_id, app_name, table_id, params["service_name"]
             )
-            server_list: List[str] = discover_result["server_list"]
-            server_config: Dict[str, Any] = discover_result["server_config"]
-
             # 探测服务，存在再展示页面
-            view_config["hidden"] = True
-            for server in server_list:
-                if not server:
-                    continue
-
-                if server.endswith(params["service_name"]):
-                    view_config["hidden"] = False
-                    break
-
-            # 如果页面隐藏或者只需要列表信息，提前返回减少渲染耗时
+            view_config["hidden"] = not discover_result["exists"]
             if view_config["hidden"] or params.get("only_simple_info"):
+                # 如果页面隐藏或者只需要列表信息，提前返回减少渲染耗时
                 return view_config
 
+            server_config: Dict[str, Any] = discover_result["server_config"]
             if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                 # 指标为累加类型，需要添加 increase 函数
                 cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
@@ -345,14 +434,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             if target_key in settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG:
                 metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG[target_key]
             else:
-                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
+                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get("default") or {}
 
             view_variables = {}
             if not view_switches.get("only_dimension", False):
+                server_config: Dict[str, Any] = MetricTemporality.get_metric_config(MetricTemporality.DELTA)
                 discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
-                    bk_biz_id, app_name, params["service_name"]
+                    bk_biz_id, app_name, result_table_id, params["service_name"]
                 )
-                server_config: Dict[str, Any] = discover_result["server_config"]
+                if discover_result["exists"]:
+                    server_config = discover_result["server_config"]
 
                 if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                     # 指标为累加类型，需要添加 increase 函数
@@ -442,7 +533,18 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def get_container_view(cls, params, bk_biz_id, app_name, service_name, view, view_config, builtin_view):
+    def get_container_view(
+        cls,
+        params,
+        bk_biz_id,
+        app_name,
+        service_name,
+        view,
+        view_config,
+        builtin_view,
+        display_with_sidebar=True,
+    ):
+        # display_with_sidebar: 是否页面配置展示为侧边栏(在观测场景处显示为侧边栏，在主机场景处显示为顶部栏下拉框)
         # 获取观测场景或 span 检索处关联容器的图表配置
         # 时间范围必传
         start_time = params.get("start_time")
@@ -463,7 +565,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             if response:
                 # 实际有 Pod 数据才返回
-                return cls._add_config_from_container(app_name, service_name, view, view_config)
+                return cls._add_config_from_container(app_name, service_name, view, view_config, display_with_sidebar)
 
         return cls._get_non_container_view_config(builtin_view, params)
 
@@ -528,7 +630,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 query_config.setdefault("functions", []).extend(functions)
 
     @classmethod
-    def _add_config_from_container(cls, app_name, service_name, view, view_config):
+    def _add_config_from_container(cls, app_name, service_name, view, view_config, display_with_sidebar):
         """获取容器 Pod 图表配置"""
         from monitor_web.scene_view.builtin.kubernetes import KubernetesBuiltinProcessor
 
@@ -554,19 +656,39 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         # 调整配置
         pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]
         pod_view["options"] = view_config["options"]
+        pod_view["variables"] = view_config["variables"]
         if "panels" in pod_view:
             pod_view["overview_panels"] = pod_view["panels"]
             del pod_view["panels"]
 
-        pod_view["options"]["selector_panel"]["targets"][0]["data"] = {
-            "app_name": app_name,
-            "service_name": service_name,
-        }
+        if display_with_sidebar:
+            pod_view["options"]["selector_panel"]["targets"][0]["data"].update(
+                {
+                    "app_name": app_name,
+                    "service_name": service_name,
+                }
+            )
+        else:
+            pod_view["variables"][0]["targets"][0]["data"].update(
+                {
+                    "app_name": app_name,
+                    "service_name": service_name,
+                }
+            )
+            # 将图表的维度全部改为显示在下方 而不是右边
+            for i in pod_view.get("overview_panels", []):
+                for j in i.get("panels", []):
+                    j.update({"options": {"legend": {"placement": "bottom", "displayMode": "list"}}})
 
-        # 不展示事件页面 时间页面单独页面进行展示
-        pod_view["overview_panels"] = [
-            i for i in pod_view["overview_panels"] if i["id"] != 'bk_monitor.time_series.k8s.events'
-        ]
+        # 不展示事件页面 和 图表为空列表的分类
+        o_views = []
+        for i in pod_view["overview_panels"]:
+            if i["id"] == "bk_monitor.time_series.k8s.events":
+                continue
+            if not i["panels"]:
+                continue
+            o_views.append(i)
+        pod_view["overview_panels"] = o_views
         return pod_view
 
     @classmethod

@@ -43,7 +43,7 @@ import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range'
 import './monitor-retrieve.scss';
 import '@blueking/monitor-apm-log/css/main.css';
 
-export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword'];
+export const APM_LOG_ROUTER_QUERY_KEYS = ['search_mode', 'addition', 'keyword', 'indexId'];
 @Component
 export default class MonitorRetrieve extends tsc<void> {
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;

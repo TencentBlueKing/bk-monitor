@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi, TransferApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -85,6 +85,7 @@ from apps.log_search.exceptions import (
     BaseSearchSortListException,
     IntegerErrorException,
     IntegerMaxErrorException,
+    LogSearchException,
     MultiSearchErrorException,
     SearchExceedMaxSizeException,
     SearchIndexNoTimeFieldException,
@@ -256,6 +257,7 @@ class SearchHandler(object):
         self.query_string: str = search_dict.get("keyword")
         self.origin_query_string: str = search_dict.get("keyword")
         self._enhance()
+        self._add_all_fields_search()
 
         # 透传start
         self.start: int = search_dict.get("begin", 0)
@@ -350,6 +352,29 @@ class SearchHandler(object):
         if self.query_string is not None:
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
             self.query_string = enhance_lucene_adapter.enhance()
+
+    def _add_all_fields_search(self):
+        """
+        补充全文检索条件
+        """
+        for item in self.addition:
+            field: str = item.get("key") if item.get("key") else item.get("field")
+            # 全文检索key & 存量query_string转换
+            if field in ["*", "__query_string__"]:
+                value = item.get("value", [])
+                value_list = value if isinstance(value, list) else value.split(",")
+                new_value_list = []
+                for value in value_list:
+                    if field == "*":
+                        value = "\"" + value.replace('"', '\\"') + "\""
+                    if value:
+                        new_value_list.append(value)
+                if new_value_list:
+                    new_query_string = " OR ".join(new_value_list)
+                    if field == "*" and self.query_string != "*":
+                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
+                    else:
+                        self.query_string = new_query_string
 
     @property
     def index_set(self):
@@ -610,6 +635,29 @@ class SearchHandler(object):
         if _scroll_id:
             result.update({"scroll_id": _scroll_id})
 
+        # 补充别名信息
+        log_list = result.get("list")
+        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
+        if collector_config:
+            for field in self.fields()["fields"]:
+                field_name = field.get("field_name")
+                query_alias = field.get("query_alias")
+                # 存在别名
+                if query_alias:
+                    for log in log_list:
+                        sub_field = field_name
+                        if "." not in sub_field:
+                            if sub_field in log:
+                                log[query_alias] = log[sub_field]
+                        else:
+                            context = log
+                            # 处理嵌套字段
+                            while "." in sub_field:
+                                prefix, sub_field = sub_field.split(".", 1)
+                                context = context.get(prefix, {})
+                                if sub_field in context:
+                                    log[query_alias] = context[sub_field]
+                                    break
         return result
 
     def get_sort_group(self):
@@ -750,9 +798,14 @@ class SearchHandler(object):
         if not storage_cluster_record_objs:
             try:
                 data = search_func(params)
+                # 把shards中的failures信息解析后raise异常出来
+                if data.get("_shards", {}).get("failed"):
+                    errors = data["_shards"]["failures"][0]["reason"]["reason"]
+                    raise LogSearchException(errors)
+
                 return data
-            except ApiResultError as e:
-                raise ApiResultError(_("搜索出错，请检查查询语句是否正确") + f" => {e}", code=e.code, errors=e.errors)
+            except Exception as e:
+                raise LogSearchException(LogSearchException.MESSAGE.format(e=e))
 
         storage_cluster_ids = {self.storage_cluster_id}
 
@@ -1800,6 +1853,11 @@ class SearchHandler(object):
                     )
                 )
             self.origin_indices = ",".join(index_list)
+            self.custom_indices = self.search_dict.get("custom_indices")
+            if self.custom_indices and index_list:
+                self.origin_indices = ",".join(
+                    _index for _index in self.custom_indices.split(",") if _index in index_list
+                )
             self.origin_scenario_id = tmp_index_obj.scenario_id
             for addition in self.search_dict.get("addition", []):
                 # 查询条件中包含__dist_xx  则查询聚类结果表：xxx_bklog_xxx_clustered
@@ -1909,22 +1967,7 @@ class SearchHandler(object):
             field: str = item.get("key") if item.get("key") else item.get("field")
             # 全文检索key & 存量query_string转换
             if field in ["*", "__query_string__"]:
-                value = item.get("value", [])
-                value_list = value if isinstance(value, list) else value.split(",")
-                new_value_list = []
-                for value in value_list:
-                    if field == "*":
-                        value = "\"" + value.replace('"', '\\"') + "\""
-                    if value:
-                        new_value_list.append(value)
-                if new_value_list:
-                    new_query_string = " OR ".join(new_value_list)
-                    if field == "*" and self.query_string != "*":
-                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
-                    else:
-                        self.query_string = new_query_string
                 continue
-
             _type = "field"
             if self.mapping_handlers.is_nested_field(field):
                 _type = FieldDataTypeEnum.NESTED.value
@@ -2321,13 +2364,14 @@ class SearchHandler(object):
         if sort_fields:
             for index, item in enumerate(log_list):
                 for field in sort_fields + target_fields:
+                    tmp_item = item.copy()
                     sub_field = field
                     while "." in sub_field:
                         prefix, sub_field = sub_field.split(".", 1)
-                        item = item.get(prefix, {})
-                        if sub_field in item:
+                        tmp_item = tmp_item.get(prefix, {})
+                        if sub_field in tmp_item:
                             break
-                    item_field = item.get(sub_field)
+                    item_field = tmp_item.get(sub_field)
                     if str(item_field) != str(self.search_dict.get(field)):
                         break
                 else:

@@ -105,7 +105,6 @@ class BarQuery(BaseQuery):
         )
         res = []
         for item in origin_series[0]["datapoints"]:
-
             if item[0] is None:
                 res.append([[3, 0], item[-1]])
             else:
@@ -161,7 +160,7 @@ class LinkHelper:
     @classmethod
     def get_service_alert_link(cls, bk_biz_id, app_name, service_name, start_time, end_time):
         """获取服务的告警中心链接"""
-        table_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().metric_result_table_id
+        table_id: str = Application.get_metric_table_id(bk_biz_id, app_name)
         return (
             f"/?bizId={bk_biz_id}#/event-center?"
             f"queryString={CompatibleQuery.get_alert_query_string(table_id, bk_biz_id, app_name, service_name)}&"
@@ -171,7 +170,7 @@ class LinkHelper:
     @classmethod
     def get_endpoint_alert_link(cls, bk_biz_id, app_name, service_name, endpoint_name, start_time, end_time):
         """获取接口的告警中心链接"""
-        table_id = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).get().metric_result_table_id
+        table_id: str = Application.get_metric_table_id(bk_biz_id, app_name)
         query_string = CompatibleQuery.get_alert_query_string(
             table_id, bk_biz_id, app_name, service_name, endpoint_name
         )

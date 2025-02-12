@@ -24,7 +24,6 @@ from bkmonitor.utils.request import get_request
 from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from core.errors.dashboard import GetFolderOrDashboardError
-from monitor_web.grafana.auth import GrafanaAuthSync
 from monitor_web.grafana.permissions import DashboardPermission
 
 
@@ -39,7 +38,7 @@ class GetDashboardList(Resource):
         is_starred = serializers.BooleanField(label="是否收藏", required=False)
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
 
         try:
             username = get_request().user.username
@@ -122,6 +121,8 @@ class GetDirectoryTree(Resource):
                     role >= GrafanaRole.Editor
                     or dashboard_permissions.get(record["uid"], GrafanaPermission.View) >= GrafanaPermission.Edit
                 )
+                # 是否有权限
+                record["has_permission"] = role > GrafanaRole.Anonymous or record["uid"] in dashboard_permissions
                 folder_id = record.pop("folderId", 0)
                 record.pop("folderUid", None)
                 record.pop("folderTitle", None)
@@ -143,7 +144,7 @@ class CreateDashboardOrFolder(Resource):
         folderId = serializers.IntegerField(label="文件夹ID", default=0)
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
 
         if params["type"] == "folder":
             result = api.grafana.create_folder(org_id=org_id, title=params["title"])
@@ -193,7 +194,7 @@ class DeleteDashboard(Resource):
         uid = serializers.CharField(label="仪表盘ID")
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         result = api.grafana.delete_dashboard_by_uid(org_id=org_id, uid=params["uid"])
         return result
 
@@ -208,7 +209,7 @@ class StarDashboard(Resource):
         dashboard_id = serializers.CharField(label="仪表盘ID")
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         username = get_request().user.username
         result = api.grafana.star_dashboard(org_id=org_id, id=params["dashboard_id"], username=username)
         return result
@@ -224,7 +225,7 @@ class UnstarDashboard(Resource):
         dashboard_id = serializers.CharField(label="仪表盘ID")
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         username = get_request().user.username
         result = api.grafana.unstar_dashboard(org_id=org_id, id=params["dashboard_id"], username=username)
         return result
@@ -239,7 +240,7 @@ class GetDefaultDashboard(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         result = api.grafana.get_organization_preference(org_id=org_id)
 
         if not result["result"]:
@@ -267,7 +268,7 @@ class SetDefaultDashboard(Resource):
         dashboard_uid = serializers.CharField(label="仪表盘ID")
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         result = api.grafana.search_folder_or_dashboard(type="dash-db", org_id=org_id)
 
         if result["result"]:
@@ -295,7 +296,7 @@ class DeleteFolder(Resource):
         uid = serializers.CharField(label="目录ID")
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         result = api.grafana.delete_folder(org_id=org_id, uid=params["uid"])
         return result
 
@@ -311,7 +312,7 @@ class RenameFolder(Resource):
         title = serializers.CharField(label="目录名称")
 
     def perform_request(self, params):
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         folder_data = api.grafana.get_folder_by_uid(org_id=org_id, uid=params["uid"])
         current_version = folder_data["data"].get("version", 1)
         result = api.grafana.update_folder(
@@ -337,7 +338,7 @@ class QuickImportDashboard(Resource):
             dash_name += ".json"
         folder_name = params["folder_name"]
         folder_id = 0
-        org_id = GrafanaAuthSync.get_or_create_org_id(bk_biz_id)
+        org_id = get_or_create_org(bk_biz_id)["id"]
         # 确定存放目录
         if folder_name and folder_name != "General":
             folder_list = api.grafana.search_folder_or_dashboard(type="dash-folder", org_id=org_id, query=folder_name)[
@@ -370,7 +371,7 @@ class CopyDashboardToFolder(Resource):
 
     def perform_request(self, params):
         # 1. 获取源仪表盘信息
-        org_id = GrafanaAuthSync.get_or_create_org_id(params["bk_biz_id"])
+        org_id = get_or_create_org(params["bk_biz_id"])["id"]
         dashboard_info = api.grafana.get_dashboard_by_uid(org_id=org_id, uid=params["dashboard_uid"])
         dashboard = dashboard_info.get("data", {}).get("dashboard")
 

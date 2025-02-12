@@ -211,4 +211,5 @@ export default {
   展示字段名: 'Show Field Name',
   展示别名: 'Show Alias Name',
   定位到当前行: 'Locate the current row',
+  内置: 'built-in',
 };

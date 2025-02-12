@@ -1581,7 +1581,7 @@ export default defineComponent({
         {/* 这里插入 condition 组件 */}
         {conditionList.map((item, index) => (
           <Condition
-            key={index}
+            key={item.labelValue}
             style='margin-bottom: 16px;'
             conditionList={item.conditionList}
             conditionType={item.conditionType}

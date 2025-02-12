@@ -74,7 +74,6 @@ class ApmApplication(AbstractRecordModel):
             try:
                 # Profile
                 ProfileDataSource.apply_datasource(bk_biz_id=self.bk_biz_id, app_name=self.app_name, option=True)
-                return
             except Exception as e:  # noqa
                 self.send_datasource_apply_alert(TelemetryDataType.PROFILING.value)
                 raise e
@@ -100,7 +99,6 @@ class ApmApplication(AbstractRecordModel):
                     option=True,
                     **datasource_options,
                 )
-                return
             except Exception as e:  # noqa
                 self.send_datasource_apply_alert(TelemetryDataType.LOG.value)
                 raise e
@@ -297,6 +295,9 @@ class RootEndpoint(models.Model):
     created_at = models.DateTimeField("创建时间", auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField("更新时间", blank=True, null=True, auto_now=True, db_index=True)
 
+    class Meta:
+        index_together = [["bk_biz_id", "app_name"]]
+
 
 class Endpoint(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -311,6 +312,9 @@ class Endpoint(models.Model):
     extra_data = models.TextField(null=True, verbose_name="额外数据")
     created_at = models.DateTimeField("创建时间", auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField("更新时间", blank=True, null=True, auto_now=True, db_index=True)
+
+    class Meta:
+        index_together = [["bk_biz_id", "app_name"]]
 
 
 class EbpfApplicationConfig(models.Model):
