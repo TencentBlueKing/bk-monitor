@@ -262,7 +262,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
   /** 获取搜索结果 */
   getSearchList() {
-    this.fetchEventStream(`${location.origin}/rest/v2/overview/search/?query=${this.searchValue}`);
+    this.fetchEventStream(`${location.origin}/rest/v2/overview/search/?query=${encodeURIComponent(this.searchValue)}`);
   }
   /* 显示弹出层 */
   handleMousedown() {
@@ -331,7 +331,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               tag.list.includes(item.bk_biz_id) && (
                 <span
                   key={tag.id}
-                  style={tag.styles}
                   class='list-item-tag'
                 >
                   {tag.name}
@@ -511,7 +510,6 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   autoResize(event?: Event) {
     !this.isComposing && setTimeout(this.handleGetSearchData, 500);
     this.isInput = !!event?.target?.value;
-    this.searchValue = event?.target?.value;
     this.textareaRow = this.limitRows();
   }
   /** 弹性布局适应输入长度变化的实现 --- end */
