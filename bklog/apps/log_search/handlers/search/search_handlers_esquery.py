@@ -639,7 +639,9 @@ class SearchHandler(object):
         log_list = result.get("list")
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
         if collector_config:
-            for field in self.fields()["fields"]:
+            log_index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
+            fields = log_index_set.get_fields()["fields"]
+            for field in fields:
                 field_name = field.get("field_name")
                 query_alias = field.get("query_alias")
                 # 存在别名
