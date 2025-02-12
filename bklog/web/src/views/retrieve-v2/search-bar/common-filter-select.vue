@@ -3,6 +3,7 @@
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
+  import CommonFilterSetting from './common-filter-setting.vue';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -15,7 +16,7 @@
   const activeIndex = ref(-1);
 
   watch(filterFieldsList, val => {
-    if (val && val.length) {
+    if (val?.length) {
       condition.value =
         filterFieldsList.value.map(item => {
           return {
@@ -85,168 +86,166 @@
     store.commit('updateCommonFilter', condition.value);
     store.dispatch('requestIndexSetQuery');
   };
-
-  const isShowCommonFilter = ref(true);
-  const handleCollapseChange = val => {
-    isShowCommonFilter.value = !val;
-  };
 </script>
 
 <template>
-  <bk-resize-layout
-    class="resize-layout-wrap"
-    v-if="filterFieldsList.length"
-    placement="top"
-    :collapsible="true"
-    :border="false"
-    @collapse-change="handleCollapseChange"
-  >
-    <div slot="aside">
+  <div class="filter-container-wrap">
+    <div class="filter-setting-btn">
+      <CommonFilterSetting></CommonFilterSetting>
+    </div>
+    <div
+      v-if="condition.length"
+      class="filter-container"
+    >
       <div
-        class="filter-container"
-        v-if="isShowCommonFilter && condition.length"
+        v-for="(item, index) in filterFieldsList"
+        class="filter-select-wrap"
       >
-        <div
-          class="filter-select-wrap"
-          v-for="(item, index) in filterFieldsList"
-        >
-          <div
-            class="title"
-            v-bk-tooltips.top="{
-              content: item?.field_alias || item?.field_name,
-            }"
-          >
-            {{ item?.field_alias || item?.field_name || '' }}
-          </div>
-          <bk-select
-            class="operator-select"
-            v-model="condition[index].operator"
-            :input-search="false"
-            filterable
-            :popoverMinWidth="100"
-            @change="handleChange"
-          >
-            <template #trigger>
-              <span class="operator-label">{{ $t(condition[index].operator) }}</span>
-            </template>
-            <bk-option
-              v-for="(item, index) in item?.field_operator"
-              :id="item.label"
-              :key="index"
-              :name="item.label"
-            />
-          </bk-select>
-          <bk-select
-            class="value-select"
-            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
-            v-model="condition[index].value"
-            multiple
-            searchable
-            allow-create
-            @change="handleChange"
-            @toggle="visible => handleToggle(visible, item, index)"
-          >
-            <template #search>
-              <bk-input
-                behavior="simplicity"
-                :clearable="true"
-                :left-icon="'bk-icon icon-search'"
-                @input="e => handleInputVlaueChange(e, item, index)"
-              ></bk-input>
-            </template>
-            <bk-option
-              v-for="option in condition[index].list"
-              :key="option"
-              :id="option"
-              :name="option"
-            />
-          </bk-select>
+        <div class="title">
+          {{ item?.field_alias || item?.field_name || '' }}
         </div>
+        <bk-select
+          class="operator-select"
+          v-model="condition[index].operator"
+          :input-search="false"
+          :popover-min-width="100"
+          filterable
+          @change="handleChange"
+        >
+          <template #trigger>
+            <span class="operator-label">{{ $t(condition[index].operator) }}</span>
+          </template>
+          <bk-option
+            v-for="(item, index) in item?.field_operator"
+            :id="item.label"
+            :key="index"
+            :name="item.label"
+          />
+        </bk-select>
+        <bk-select
+          class="value-select"
+          v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
+          v-model="condition[index].value"
+          allow-create
+          display-tag
+          multiple
+          searchable
+          :fix-height="true"
+          @change="handleChange"
+          @toggle="visible => handleToggle(visible, item, index)"
+        >
+          <template #search>
+            <bk-input
+              behavior="simplicity"
+              :clearable="true"
+              :left-icon="'bk-icon icon-search'"
+              @input="e => handleInputVlaueChange(e, item, index)"
+            ></bk-input>
+          </template>
+          <bk-option
+            v-for="option in condition[index].list"
+            :id="option"
+            :key="option"
+            :name="option"
+          />
+        </bk-select>
       </div>
     </div>
-  </bk-resize-layout>
+    <div
+      v-else
+      class="empty-tips"
+    >
+      （暂未设置常驻筛选，请点击左侧设置按钮）
+    </div>
+  </div>
 </template>
 <style lang="scss">
-  .resize-layout-wrap {
-    box-shadow:
-      0 2px 8px 0 #00000026,
-      0 1px 0 0 #eaebf0;
+  .filter-container-wrap {
+    display: flex;
+    max-height: 95px;
+    padding: 0 10px 4px 10px;
+    overflow: scroll;
+    background: #ffffff;
 
-    .bk-resize-trigger {
-      display: none;
+    .filter-setting-btn {
+      width: 83px;
+      height: 42px;
+      font-size: 13px;
+      line-height: 42px;
+      color: #3880f8;
+      cursor: pointer;
     }
 
-    .bk-resize-layout-aside {
-      border-bottom: none;
+    .empty-tips {
+      font-size: 12px;
+      line-height: 42px;
+      color: #a1a5ae;
+    }
+  }
+
+  .filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    width: calc(100% - 80px);
+  }
+
+  .filter-select-wrap {
+    display: flex;
+    align-items: center;
+    min-width: 250px;
+    max-width: 600px;
+    margin-top: 8px;
+    margin-right: 8px;
+    border: 1px solid #dbdde1;
+    border-radius: 3px;
+
+    .title {
+      max-width: 125px;
+      margin-left: 8px;
+      overflow: hidden;
+      font-size: 12px;
+      color: #313238;
+      text-overflow: ellipsis;
     }
 
-    .filter-container {
-      display: flex;
-      flex-wrap: wrap;
-      max-height: 95px;
-      padding: 0 10px 4px 10px;
-      overflow: scroll;
-      background: #ffffff;
-    }
+    .operator-select {
+      border: none;
 
-    .filter-select-wrap {
-      display: flex;
-      align-items: center;
-      min-width: 250px;
-      max-width: 600px;
-      margin-top: 8px;
-      margin-right: 8px;
-      border: 1px solid #dbdde1;
-      border-radius: 3px;
-
-      .title {
-        max-width: 125px;
-        margin-left: 8px;
-        overflow: hidden;
-        font-size: 12px;
-        color: #313238;
-        text-overflow: ellipsis;
+      .operator-label {
+        padding: 4px;
+        color: #ff9c01;
       }
 
-      .operator-select {
+      &.bk-select.is-focus {
+        box-shadow: none;
+      }
+    }
+
+    .value-select {
+      min-width: 200px;
+      max-width: 460px;
+
+      &.bk-select {
         border: none;
 
-        .operator-label {
-          padding: 4px;
-          color: #ff9c01;
-        }
-
-        &.bk-select.is-focus {
+        &.is-focus {
           box-shadow: none;
         }
-      }
 
-      .value-select {
-        min-width: 200px;
-        max-width: 460px;
-
-        &.bk-select {
-          border: none;
-
-          &.is-focus {
-            box-shadow: none;
-          }
-
-          .bk-select-name {
-            padding: 0 25px 0 0px;
-          }
-        }
-
-        .bk-loading .bk-loading1 {
-          margin-top: 10px;
-          margin-left: -20px;
+        .bk-select-name {
+          padding: 0 25px 0 0px;
         }
       }
 
-      .bk-select-angle {
-        font-size: 22px;
-        color: #979ba5;
+      .bk-loading .bk-loading1 {
+        margin-top: 10px;
+        margin-left: -20px;
       }
+    }
+
+    .bk-select-angle {
+      font-size: 22px;
+      color: #979ba5;
     }
   }
 </style>
