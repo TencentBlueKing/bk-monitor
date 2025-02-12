@@ -1,8 +1,12 @@
+/*stylelint-disable comment-empty-line-before *
+O
+/* stylelint-disable declaration-no-important */
+/* stylelint-disable indentation */
 @font-face {
   font-family: "icon-monitor"; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1738915379990') format('woff2'),
-       url('monitor-icons.woff?t=1738915379990') format('woff'),
-       url('monitor-icons.ttf?t=1738915379990') format('truetype');
+  src: url('monitor-icons.woff2?t=1719478024705') format('woff2'),
+       url('monitor-icons.woff?t=1719478024705') format('woff'),
+       url('monitor-icons.ttf?t=1719478024705') format('truetype');
 }
 
 .icon-monitor {
@@ -11,6 +15,18 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-APM:before {
+  content: "\e7ee";
+}
+
+.icon-rilifuwu:before {
+  content: "\e7ec";
+}
+
+.icon-kongjianguanli:before {
+  content: "\e7ed";
 }
 
 .icon-a-Clearqingkong:before {

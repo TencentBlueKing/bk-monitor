@@ -14,27 +14,25 @@
   display: flex;
   align-items: center;
   justify-content: space-around;
-  width: 70px;
+  width: 60px;
   height: 23px;
   cursor: pointer;
-  background: #0F1216;
-  border: 1px solid #33415B;
   border-radius: 2px;
 
   &:hover {
     background: #293241;
-    border: 1px solid #405680;
   }
 
-  .icon-menu-setting {
+  .icon-customize {
+    font-size: 12px;
     color: #699DF4;
   }
 
   span {
     font-size: 12px;
-    line-height: 20px;
     color: #699DF4;
     letter-spacing: 0;
+    line-height: 20px;
   }
 }
 
@@ -62,7 +60,7 @@
 
 .quick-access {
   position: relative;
-  width: 19%;
+  width: 20%;
 
   .quick-head {
     display: flex;
@@ -74,9 +72,9 @@
 
     .quick-title {
       margin-bottom: 12px;
-      font-family: MicrosoftYaHei-Bold;
+      font-family: PingFangSC-SNaNpxibold;
       font-size: 18px;
-      font-weight: 700;
+      font-weight: 600;
       color: #FFFFFF;
     }
   }
@@ -87,20 +85,20 @@
     justify-content: space-between;
     height: calc(100% - 36px);
     padding: 0;
-    padding-top: 16px;
+    padding-top: 5px;
     margin: 0;
     color: #fff;
     background-color: #fff;
-    border-radius: 8px;
+    border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
     .quick-items {
       flex: 1;
-      max-height: 160px;
+      max-height: 220px;
       overflow: auto;
 
       &.no-ai-whale {
-        max-height: 230px;
+        max-height: 260px;
       }
 
       &-empty {
@@ -110,8 +108,8 @@
         justify-content: center;
         width: 100%;
         height: 100%;
-        font-size: 14px;
-        color: #4D4F56;
+        font-size: 12px;
+        color: #979BA5;
         text-align: center;
 
         .empty-img {
@@ -130,16 +128,14 @@
         font-family: MicrosoftYaHei;
         font-size: 12px;
         line-height: 19px;
-        color: #4D4F56;
+        color: #313238;
         cursor: pointer;
         transition: color 0.3s;
-        display: flex;
-        align-items: center;
 
         .icon-monitor {
-          margin-right: 5px;
+          margin-right: 6px;
           font-size: 14px;
-          color: #979BA5;
+          color: #A3B1CC;
         }
 
         &:hover {

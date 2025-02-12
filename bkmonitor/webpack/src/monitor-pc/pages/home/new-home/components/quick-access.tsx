@@ -116,7 +116,7 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
             class='customize'
             onClick={() => (this.showModal = true)}
           >
-            <i class='icon-monitor icon-menu-setting' />
+            <i class='icon-monitor icon-customize' />
             <span>{this.$t('自定义')}</span>
           </div>
         </div>
@@ -145,7 +145,7 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
                       src={emptyImageSrc}
                     />
                   </div>
-                  {this.$t('暂无快捷入口')}
+                  {this.$t('尚未配置，自定义')}
                 </div>
               )}
             </ul>
