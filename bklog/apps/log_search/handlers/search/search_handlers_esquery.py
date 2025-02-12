@@ -615,12 +615,13 @@ class SearchHandler(object):
         log_list = result.get("list")
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
         if collector_config:
-            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
-            alias_dict = data.get("query_alias_settings")
-            if alias_dict:
-                for log in log_list:
-                    for query_alias, info in alias_dict.items():
-                        sub_field = info.get("path")
+            for field in self.fields()["fields"]:
+                field_name = field.get("field_name")
+                query_alias = field.get("query_alias")
+                # 存在别名
+                if query_alias:
+                    for log in log_list:
+                        sub_field = field_name
                         if "." not in sub_field:
                             if sub_field in log:
                                 log[query_alias] = log[sub_field]
