@@ -31,7 +31,7 @@ import { debounce, throttle } from 'throttle-debounce';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EDimensionKey, type ICommonParams } from '../../typings/k8s-new';
-import KvTag from './kv-tag';
+import KvTag from './big-kv-tag';
 import {
   type IGroupOptionsItem,
   type ITagListItem,
@@ -781,6 +781,18 @@ export default class FilterByCondition extends tsc<IProps> {
     }
   }
 
+  /**
+   * @description 清空当前选中项
+   */
+  handleClear() {
+    this.destroyPopoverInstance();
+    this.tagList = [];
+    this.updateActive = '';
+    this.groupSelected = '';
+    this.handleChange();
+    this.overflowCountRender();
+  }
+
   valuesWrap() {
     return (
       <div
@@ -899,7 +911,7 @@ export default class FilterByCondition extends tsc<IProps> {
       ) : this.hasAdd ? (
         <span
           key='__add__'
-          class='filter-by-condition-tag type-add'
+          class={['filter-by-condition-tag type-add', { 'mt-9': !this.tagList.length }]}
           onClick={this.handleAddTag}
         >
           <span class='icon-monitor icon-plus-line' />
@@ -914,6 +926,14 @@ export default class FilterByCondition extends tsc<IProps> {
           <span class='count-text'>{this.$t('收起')}</span>
           <span class='icon-monitor icon-arrow-up' />
         </span>
+      ),
+      !!this.tagList.length && (
+        <div
+          class='filter-by-condition-tag clear-btn'
+          onClick={() => this.handleClear()}
+        >
+          <span class='icon-monitor icon-a-Clearqingkong' />
+        </div>
       ),
     ];
   }

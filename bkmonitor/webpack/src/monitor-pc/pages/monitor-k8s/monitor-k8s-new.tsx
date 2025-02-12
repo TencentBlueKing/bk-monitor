@@ -629,7 +629,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
           <div class='filter-header-wrap'>
             <div class='filter-by-wrap __filter-by__'>
-              <div class='filter-by-title'>Filter by</div>
+              <div class='filter-by-title'>{this.$t('过滤条件')}</div>
               <div class='filter-by-content'>
                 <FilterByCondition
                   commonParams={this.commonParams}
