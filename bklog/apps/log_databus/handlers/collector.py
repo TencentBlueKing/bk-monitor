@@ -21,9 +21,7 @@ import base64
 import copy
 import datetime
 import json
-import os
 import re
-import tempfile
 from collections import defaultdict
 from typing import Any, Dict, List, Union
 
@@ -120,7 +118,6 @@ from apps.log_databus.handlers.collector_scenario.utils import (
     deal_collector_scenario_param,
 )
 from apps.log_databus.handlers.etl_storage import EtlStorage
-from apps.log_databus.handlers.kafka import KafkaConsumerHandle
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import (
     ArchiveConfig,
@@ -453,10 +450,9 @@ class CollectorHandler(object):
         # 添加索引集相关信息
         log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
         if log_index_set_obj:
-            collector_config.update({
-                "sort_fields": log_index_set_obj.sort_fields,
-                "target_fields": log_index_set_obj.target_fields
-            })
+            collector_config.update(
+                {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
+            )
 
         return collector_config
 
@@ -1221,47 +1217,9 @@ class CollectorHandler(object):
     def tail(self):
         if not self.data.bk_data_id:
             raise CollectorConfigDataIdNotExistException()
-        data_result = TransferApi.get_data_id({"bk_data_id": self.data.bk_data_id})
-
-        cluster_config = data_result["mq_config"]["cluster_config"]
-
-        ssl_cafile = cluster_config.get("raw_ssl_certificate_authorities")
-        ssl_certfile = cluster_config.get("raw_ssl_certificate")
-        ssl_keyfile = cluster_config.get("raw_ssl_certificate_key")
-
-        if ssl_cafile:
-            with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
-                fd.write(ssl_cafile)
-                ssl_cafile = fd.name
-
-        if ssl_certfile:
-            with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
-                fd.write(ssl_certfile)
-                ssl_certfile = fd.name
-
-        if ssl_keyfile:
-            with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
-                fd.write(ssl_keyfile)
-                ssl_keyfile = fd.name
-
-        params = {
-            "server": cluster_config.get("extranet_domain_name")
-            or self._get_kafka_broker(cluster_config["domain_name"]),
-            "port": cluster_config.get("extranet_port") or cluster_config["port"],
-            "topic": data_result["mq_config"]["storage_config"]["topic"],
-            "username": data_result["mq_config"]["auth_info"]["username"],
-            "password": data_result["mq_config"]["auth_info"]["password"],
-            "sasl_mechanism": data_result["mq_config"]["auth_info"].get("sasl_mechanisms"),
-            "is_ssl_verify": cluster_config.get("is_ssl_verify", False),
-            "ssl_insecure_skip_verify": cluster_config.get("ssl_insecure_skip_verify", True),
-            "ssl_cafile": ssl_cafile,
-            "ssl_certfile": ssl_certfile,
-            "ssl_keyfile": ssl_keyfile,
-        }
-
-        message_data = KafkaConsumerHandle(**params).get_latest_log()
+        data_result = TransferApi.list_kafka_tail(params={"bk_data_id": self.data.bk_data_id, "namespace": "bklog"})
         return_data = []
-        for _message in message_data:
+        for _message in data_result:
             # 数据预览
             etl_message = copy.deepcopy(_message)
             data_items = etl_message.get("items")
@@ -1278,13 +1236,6 @@ class CollectorHandler(object):
                 etl_message.update({"data": "", "iterationindex": "", "bathc": []})
 
             return_data.append({"etl": etl_message, "origin": _message})
-
-        # 删除临时证书文件
-        for filename in [ssl_cafile, ssl_certfile, ssl_keyfile]:
-            try:
-                os.remove(filename)
-            except Exception:
-                pass
 
         return return_data
 
