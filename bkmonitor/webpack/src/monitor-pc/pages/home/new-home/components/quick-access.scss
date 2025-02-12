@@ -7,7 +7,7 @@
   margin: 0 12px;
   overflow: hidden;
   font-size: 12px;
-  color: #DCDEE5;
+  color: #dcdee5;
 }
 
 @mixin customize {
@@ -25,12 +25,12 @@
 
   .icon-customize {
     font-size: 12px;
-    color: #699DF4;
+    color: #56a7f9;
   }
 
   span {
     font-size: 12px;
-    color: #699DF4;
+    color: #56a7f9;
     letter-spacing: 0;
     line-height: 20px;
   }
@@ -75,7 +75,7 @@
       font-family: PingFangSC-SNaNpxibold;
       font-size: 18px;
       font-weight: 600;
-      color: #FFFFFF;
+      color: #ffffff;
     }
   }
 
@@ -109,7 +109,7 @@
         width: 100%;
         height: 100%;
         font-size: 12px;
-        color: #979BA5;
+        color: #979ba5;
         text-align: center;
 
         .empty-img {
@@ -135,12 +135,12 @@
         .icon-monitor {
           margin-right: 6px;
           font-size: 14px;
-          color: #A3B1CC;
+          color: #a3b1cc;
         }
 
         &:hover {
           color: #007bff;
-          background: #E1ECFF;
+          background: #e1ecff;
 
           .icon-monitor {
             color: #007bff;
@@ -180,7 +180,7 @@
       .route-count {
         margin-left: 12px;
         font-size: 12px;
-        color: #979BA5;
+        color: #979ba5;
       }
     }
 

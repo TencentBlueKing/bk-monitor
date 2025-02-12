@@ -465,6 +465,7 @@ class GrafanaQueryHandler:
                     # 有配置别名，修改name
                     if field_id == info.get("path"):
                         query_alias = alias_name
+                        break
 
                 if field_info["es_doc_values"] and field_info.get("field_type") != "date":
                     metric_conf["dimension_fields"].append({"id": field_id, "name": field_description, "query_alias": query_alias})
