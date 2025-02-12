@@ -17,10 +17,12 @@ from core.drf_resource.contrib.nested_api import KernelAPIResource
 class ApmAPIGWResource(KernelAPIResource):
     TIMEOUT = 300
     base_url_statement = None
-    base_url = settings.MONITOR_API_BASE_URL or "%s/api/c/compapi/v2/monitor_v3/" % settings.BK_COMPONENT_API_URL
-
     # 模块名
     module_name = "apm_api"
+
+    base_url = settings.MONITOR_API_BASE_URL or "{}/app/{}/v2/monitor_v3/".format(
+        settings.BK_COMPONENT_API_URL, module_name
+    )
 
     @property
     def label(self):
