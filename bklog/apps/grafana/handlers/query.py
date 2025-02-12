@@ -460,13 +460,14 @@ class GrafanaQueryHandler:
                 if field_info.get("description"):
                     field_description = field_info["description"]
 
+                query_alias = ""
                 for alias_name, info in alias_dict.items():
                     # 有配置别名，修改name
                     if field_id == info.get("path"):
-                        field_description = alias_name
+                        query_alias = alias_name
 
                 if field_info["es_doc_values"] and field_info.get("field_type") != "date":
-                    metric_conf["dimension_fields"].append({"id": field_id, "name": field_description})
+                    metric_conf["dimension_fields"].append({"id": field_id, "name": field_description, "query_alias": query_alias})
 
                 if all(
                     [
@@ -475,7 +476,7 @@ class GrafanaQueryHandler:
                         field_info.get("field_name") not in LOG_SEARCH_DIMENSION_LIST,
                     ]
                 ):
-                    metric_conf["metric_fields"].append({"id": field_id, "name": field_description})
+                    metric_conf["metric_fields"].append({"id": field_id, "name": field_description, "query_alias": query_alias})
 
             metrics_by_category[index_set.category_id].append(metric_conf)
 
