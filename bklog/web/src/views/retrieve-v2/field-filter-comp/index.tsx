@@ -299,11 +299,17 @@ export default class FieldFilterComp extends tsc<object> {
     [this.visibleFields, this.hiddenFields].forEach(fieldList => {
       fieldList.forEach(fieldItem => {
         fieldItem.filterVisible =
-          fieldItem.field_name.includes(searchKeyword) || fieldItem.field_alias.includes(searchKeyword);
+          fieldItem.field_name.includes(searchKeyword) || fieldItem.field_alias.includes(searchKeyword) || fieldItem.query_alias?.includes(searchKeyword);
       });
     });
+    this.$nextTick(()=>{
+      this.$refs.bigTreeRef.filter(searchKeyword)
+    })
   }
-
+  filterMethod(keyword, node){
+    const fieldItem = node.data
+    return fieldItem.field_name.includes(keyword) || fieldItem.query_alias?.includes(keyword)
+  }
   handleVisibleMoveEnd() {
     this.$emit('fields-updated', this.dragVisibleFields);
   }
@@ -373,6 +379,7 @@ export default class FieldFilterComp extends tsc<object> {
         scopedSlots={scopedSlots}
         class='big-tree'
         expand-on-click={true}
+        filter-method={(keyword, node) => this.filterMethod(keyword, node)}
         options={{ nameKey: 'field_name', idKey: 'field_name', childrenKey: 'children' }}
       >
       </bk-big-tree>
@@ -390,7 +397,7 @@ export default class FieldFilterComp extends tsc<object> {
             right-icon='icon-search'
             clearable
             onChange={() => this.filterListByCondition()}
-            onClear={() => this.handleSearchException('clear-filter')}
+            // onClear={() => this.handleSearchException('clear-filter')}
           />
         </div>
         <div

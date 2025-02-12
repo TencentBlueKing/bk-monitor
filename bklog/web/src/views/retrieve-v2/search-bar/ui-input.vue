@@ -16,6 +16,7 @@
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
   import useFieldNameHook from '@/hooks/use-field-name';
+  import { cloneDeep } from 'lodash';
   const props = defineProps({
     value: {
       type: Array,
@@ -203,12 +204,14 @@
       showIpSelector.value = true;
       return;
     }
-
+    const { changeFieldName } = useFieldNameHook({ store });
+    const itemCopy = cloneDeep(item)
+    itemCopy.field = changeFieldName(itemCopy.field)
     queryItem.value = {};
     isInputFocus.value = false;
     if (!Array.isArray(item.value)) item.value = item.value.split(',');
     if (!item.relation) item.relation = 'OR';
-    Object.assign(queryItem.value, item);
+    Object.assign(queryItem.value, itemCopy);
     const target = e.target.closest('.search-item');
     activeIndex.value = isInputFocus.value ? null : index;
     showTagListItems(target);

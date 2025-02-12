@@ -226,7 +226,8 @@
     &.is-inline {
       .bklog-root-field {
         word-break: break-all;
-
+        display: inline-flex;
+        
         .segment-content {
           word-break: break-all;
         }
@@ -234,7 +235,7 @@
     }
 
     &.is-json {
-      display: inline-block;
+      display: inline-flex;
       width: 100%;
     }
 

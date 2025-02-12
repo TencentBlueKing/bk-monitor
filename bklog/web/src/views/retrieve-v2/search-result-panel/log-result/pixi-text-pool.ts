@@ -28,7 +28,7 @@ export default class PixiAppPool {
   maxConcurrentApps: number;
   activeApps: Application[];
   queue: (() => void)[];
-  constructor(maxConcurrentApps = 10) {
+  constructor(maxConcurrentApps = 5) {
     this.maxConcurrentApps = maxConcurrentApps;
     this.activeApps = [];
     this.queue = [];

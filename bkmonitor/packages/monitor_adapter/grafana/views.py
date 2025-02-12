@@ -15,7 +15,12 @@ import re
 from blueapps.middleware.xss.decorators import escape_exempt
 from django.conf import settings
 from django.contrib import auth
-from django.http import Http404, HttpResponse, HttpResponseForbidden
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponseForbidden,
+    HttpResponseRedirect,
+)
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -24,12 +29,15 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.exceptions import ValidationError
 
 from bk_dataview.api import get_or_create_org
+from bk_dataview.permissions import GrafanaRole
 from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
 from bkm_space.api import SpaceApi
+from bkmonitor.iam.action import ActionEnum
 from bkmonitor.models.external_iam import ExternalPermission
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
+from monitor_web.grafana.permissions import DashboardPermission
 from monitor_web.grafana.utils import patch_home_panels
 
 __all__ = ["ProxyView", "StaticView", "SwitchOrgView", "RedirectDashboardView"]
@@ -97,6 +105,8 @@ class RedirectDashboardView(ProxyView):
 
 
 class GrafanaSwitchOrgView(SwitchOrgView):
+    RE_DASHBORD_UID = re.compile(r"/d/([a-zA-Z0-9_-]+)")
+
     @staticmethod
     def is_allowed_external_request(request):
         if not request.org_name:
@@ -136,6 +146,18 @@ class GrafanaSwitchOrgView(SwitchOrgView):
             # 过滤外部用户仪表盘
             if not self.is_allowed_external_request(request):
                 return HttpResponseForbidden(f"外部用户{request.external_user}无该仪表盘访问或操作权限")
+
+        # 提前进行单仪表盘权限校验，跳转至403页面
+        match_result = self.RE_DASHBORD_UID.findall(request.path)
+        if match_result:
+            uid = match_result[0]
+            _, role, dashboard_permissions = DashboardPermission.get_user_permission(
+                username=request.user.username, org_name=org_name
+            )
+            if role < GrafanaRole.Viewer and uid not in dashboard_permissions:
+                return HttpResponseRedirect(
+                    f"/?bizId={org_name}&needMenu=false#/exception/403?actionId={ActionEnum.VIEW_SINGLE_DASHBOARD.id}"
+                )
 
         return super(GrafanaSwitchOrgView, self).dispatch(request, *args, **kwargs)
 

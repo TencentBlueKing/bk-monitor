@@ -29,6 +29,7 @@
           v-model="keyword"
           :placeholder="$t('请输入字段名/别名')"
           right-icon="bk-icon icon-search"
+          clearable
         >
         </bk-input>
       </div>
@@ -43,7 +44,6 @@
           class="field-table add-field-table"
           :data="changeTableList"
           :empty-text="$t('暂无内容')"
-          :max-height="isPreviewMode ? 300 : 320"
           row-key="field_index"
           size="small"
           col-border
@@ -54,7 +54,7 @@
             <!-- 字段名 -->
             <bk-table-column
               :render-header="renderHeaderFieldName"
-              :resizable="false"
+              :resizable="true"
               width="220"
             >
               <template #default="props">
@@ -122,7 +122,7 @@
             <!-- 别名 -->
             <bk-table-column
               :render-header="renderHeaderAliasName"
-              :resizable="false"
+              :resizable="true"
               width="140"
             >
               <template #default="props">
@@ -156,7 +156,7 @@
             <!-- 类型 -->
             <bk-table-column
               :render-header="renderHeaderDataType"
-              :resizable="false"
+              :resizable="true"
               align="center"
               width="100"
             >
@@ -204,7 +204,7 @@
             <!-- 分词符 -->
             <bk-table-column
               :render-header="renderHeaderParticipleName"
-              :resizable="false"
+              :resizable="true"
               align="left"
               width="200"
             >
@@ -510,7 +510,7 @@
         if (this.keyword) {
           const query = this.keyword.toLowerCase();
           return currentTableList.filter(
-            item => item.field_name.toLowerCase().includes(query) || item.query_alias.toLowerCase().includes(query),
+            item => item.field_name.toLowerCase().includes(query) || (item.query_alias?.toLowerCase().includes(query) ?? false) ,
           );
         } else {
           return currentTableList;
@@ -690,7 +690,6 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        // const data = JSON.parse(JSON.stringify(this.formData.tableList.filter(row => !row.is_delete)))
         const data = cloneDeep(this.formData.tableList);
 
         data.forEach(item => {
@@ -891,10 +890,33 @@
         row.aliasErr = '';
         return true;
       },
+      checkQueryAlias() {
+        return new Promise((resolve, reject) => {
+          try {
+            let result = true;
+            const data = this.getAllData();
+            data.forEach(row => {
+              if (!this.checkQueryAliasItem(row)) {
+                result = false;
+              }
+            });
+
+            if (result) {
+              resolve();
+            } else {
+              console.warn('QueryAlias校验错误');
+              reject(result);
+            }
+          } catch (err) {
+            console.warn('QueryAlias校验错误');
+            reject(err);
+          }
+        });
+      },
       validateFieldTable() {
         const promises = [];
         promises.push(this.checkFieldName());
-        promises.push(this.checkAliasName());
+        promises.push(this.checkQueryAlias());
         promises.push(this.checkType());
         return promises;
       },
@@ -1080,7 +1102,7 @@
           padding: 0 !important;
 
           .tooltips-icon {
-            top: 16px;
+            top: 24px;
           }
 
           .overflow-tips {

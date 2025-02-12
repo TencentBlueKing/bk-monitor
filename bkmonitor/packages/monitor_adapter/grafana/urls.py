@@ -15,7 +15,7 @@ from . import views
 urlpatterns = [
     re_path(r"^$", views.GrafanaSwitchOrgView.as_view()),
     re_path(r"^home$", views.GrafanaSwitchOrgView.as_view()),
-    re_path(r"^d/[a-zA-Z_0-9]+$", views.GrafanaSwitchOrgView.as_view()),
+    re_path(r"^d/[-_a-zA-Z0-9]+$", views.GrafanaSwitchOrgView.as_view()),
     re_path(r"^public/", views.StaticView.as_view()),
     re_path(r"^avatar/", views.StaticView.as_view()),
     re_path(r"^api/", views.ApiProxyView.as_view()),

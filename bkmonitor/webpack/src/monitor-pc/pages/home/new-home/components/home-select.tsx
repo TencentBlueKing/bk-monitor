@@ -706,9 +706,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       },
     };
 
-    const option = routeOptions[type];
-    if (!option) return;
     this.handleShowChange(false);
+    const option = routeOptions[type];
+    /** 如果不在指定的url跳转对象里，item中存在url字段的话，则默认使用该字段的url链接打开新页面 */
+    if (!option) {
+      item.url && window.open(item.url, '_blank');
+      return;
+    }
     /** 是否调整到其他系统 */
     if (option.isOtherWeb) {
       window.open(option.url, '_blank');

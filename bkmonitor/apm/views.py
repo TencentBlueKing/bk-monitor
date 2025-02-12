@@ -26,6 +26,8 @@ from apm.resources import (
     QueryAppByTraceResource,
     QueryBuiltinProfileDatasourceResource,
     QueryDiscoverRulesResource,
+    QueryEbpfProfileResource,
+    QueryEbpfServiceListResource,
     QueryEndpointResource,
     QueryEsMappingResource,
     QueryEsResource,
@@ -126,4 +128,6 @@ class ProfilingViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", QueryBuiltinProfileDatasourceResource, endpoint="builtin_profile_datasource"),
         ResourceRoute("GET", QueryProfileServiceDetailResource, endpoint="services_detail"),
+        ResourceRoute("POST", QueryEbpfServiceListResource, endpoint="ebpf_service_list"),
+        ResourceRoute("POST", QueryEbpfProfileResource, endpoint="ebpf_profile"),
     ]

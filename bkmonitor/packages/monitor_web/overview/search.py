@@ -389,6 +389,7 @@ class HostSearchItem(SearchItem):
                 else:
                     biz_hosts[host["bk_biz_id"]].append(
                         {
+                            "bk_host_id": host["bk_host_id"],
                             "bk_target_ip": host["bk_host_innerip"],
                             "bk_target_cloud_id": host["bk_cloud_id"],
                         }
