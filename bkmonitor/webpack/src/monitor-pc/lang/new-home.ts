@@ -60,6 +60,8 @@ export default {
   '当前正在加载 采集任务': 'Currently loading the collection task',
   相关功能: 'Related functions',
   '检索结果为空，请重新输入关键词': 'The search results are empty, please re-enter the keywords',
+  '当前业务还未配置视图，快点击下方按钮新增图表':
+    'The current business has not configured a view. Click the button below to add a new chart.',
   搜索历史: 'Search history',
   集群管理: 'Cluster management',
   主机管理: 'Host management',
