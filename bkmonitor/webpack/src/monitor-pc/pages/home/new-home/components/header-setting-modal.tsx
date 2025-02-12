@@ -167,11 +167,9 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
                   class={`route-item ${this.isStoredRoute(child.id) ? 'is-stored' : ''}`}
                   onClick={() => this.handleStoreRoute(child)}
                 >
+                  <i class={`${child.icon} item-icon`} />
                   {this.$t(child.name.startsWith('route-') ? child.name : `route-${child.name}`)}
-                  <i
-                    class={`icon-monitor route-check ${this.isStoredRoute(child.id) ? 'icon-mc-check-fill' : 'icon-check'
-                      }`}
-                  />
+                  <i class={'icon-monitor route-check icon-mc-check-small'} />
                 </li>
               ))}
             </ul>
