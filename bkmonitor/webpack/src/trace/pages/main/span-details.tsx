@@ -127,24 +127,33 @@ export default defineComponent({
     const enableProfiling = useIsEnabledProfilingInject();
     /** 主机和容器的自定义时间，不走右上角的时间选择器 */
     const customTimeProvider = computed(() => {
-      if (activeTab.value === 'Container' || activeTab.value === 'Host') {
-        // 当前时间减去一小时
-        const oneHourAgo = dayjs().subtract(1, 'hour');
-        const isBefore = dayjs(spanTime.value).isBefore(oneHourAgo);
+      if (activeTab.value === 'Container' || activeTab.value === 'Host' || activeTab.value === 'Log') {
+        const diff = dayjs(spanEndTime.value).diff(dayjs(spanStartTime.value), 'millisecond');
         /**
-         * 2025/1/22 容器，主机起止时间取值
-         * 如果span时间在当前时间的一小时内，取值为span的前一小时
-         * 如果span时间在当前时间的一小时前，取值为span的前后半小时
+         * 2025/2/12 容器，主机，日志 时间规则调整
+           【如果 end_time - start_time 没超过 2 小时，即 span 跨度在 2 小时内】
+           1.  如果 span 的 end_time 比当前一小时外，那么时间范围就是 span 的 start_time - 1h 到 span 的 end_time + 1h
+           2.  如果 span 的 end_time 在当前一小时内，那么时间范围就是 span 的 start_time - 1h 到当前时间
+           【如果 end_time - start_time 超过 2 小时】
+           时间范围固定为：end_time - 2h ，  end_time
          */
-        if (isBefore) {
+        /** end_time - start_time 没超过 2 小时 */
+        if (Math.abs(diff) <= 2 * 60 * 60 * 1000) {
+          const diff2 = dayjs().diff(dayjs(spanEndTime.value), 'millisecond');
+          // span 的 end_time 在当前一小时内
+          if (Math.abs(diff2) <= 60 * 60 * 1000)
+            return [
+              dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+              dayjs().format('YYYY-MM-DD HH:mm:ss'),
+            ];
           return [
-            dayjs(spanTime.value).subtract(30, 'minute').format('YYYY-MM-DD HH:mm:ss'),
-            dayjs(spanTime.value).add(30, 'minute').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs(spanEndTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
           ];
         }
         return [
-          dayjs(spanTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
-          dayjs(spanTime.value).format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(spanEndTime.value).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(spanEndTime.value).format('YYYY-MM-DD HH:mm:ss'),
         ];
       }
       return [];
@@ -160,6 +169,8 @@ export default defineComponent({
     const traceId = ref('');
     provide('traceId', traceId);
     const spanTime = ref(0);
+    const spanStartTime = ref(0);
+    const spanEndTime = ref(0);
     const originSpanStartTime = ref(0);
     provide('originSpanStartTime', originSpanStartTime);
     const originSpanEndTime = ref(0);
@@ -260,6 +271,8 @@ export default defineComponent({
       // 根据span_id获取原始数据
       const curSpan = originalDataList.find((data: any) => data.span_id === originalSpanId);
       if (!curSpan) return;
+      spanStartTime.value = Math.floor(curSpan.start_time / 1000) || 0;
+      spanEndTime.value = Math.floor(curSpan.end_time / 1000) || 0;
       spanTime.value = Number(curSpan.time || 0);
       originSpanStartTime.value = Math.floor(startTime / 1000);
       originSpanEndTime.value = Math.floor((startTime + duration) / 1000);
