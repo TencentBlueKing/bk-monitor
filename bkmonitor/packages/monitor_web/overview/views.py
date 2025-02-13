@@ -83,7 +83,7 @@ class SearchViewSet(viewsets.GenericViewSet):
         return query
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> StreamingHttpResponse:
-        serializer = SearchSerializer(request.query_params)
+        serializer = SearchSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
         query: str = serializer.validated_data['query'].strip()
