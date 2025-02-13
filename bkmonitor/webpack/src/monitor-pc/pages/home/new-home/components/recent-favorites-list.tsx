@@ -74,7 +74,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
   recentItems: IRecentList[] = []; // 最近使用列表
   favoriteItems: IRecentList[] = []; // 收藏列表
 
-  loadingRecentList = false;
+  loadingRecentList = true;
 
   // 计算布局策略
   get rowClass() {
@@ -115,6 +115,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
       const data = await getFunctionShortcut({
         type: this.isRecentView ? 'recent' : 'favorite',
         functions: this.selectedCategories,
+        limit: 7, // 最多展示七条
       });
       if (this.isRecentView) {
         this.recentItems = data;
@@ -178,7 +179,19 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
           )}
           <span>{title}</span>
         </div>
-        <span class='desc'>{item.bk_biz_name}</span>
+        <span
+          class='desc'
+          v-bk-tooltips={{
+            content: item.bk_biz_name,
+            trigger: 'mouseenter',
+            zIndex: 9999,
+            boundary: document.body,
+            allowHTML: false,
+            delay: [500, 0],
+          }}
+        >
+          {item.bk_biz_name}
+        </span>
       </li>
     );
   }
@@ -191,7 +204,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
         type,
         item,
         id: item.dashboard_uid,
-        title: item.dashboard_title,
+        title: `${item.folder_title ? `${item.folder_title}/ ` : ''}${item.dashboard_title}`,
       },
       /** APM */
       apm_service: {
@@ -215,7 +228,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
     const shortcut: IRecentList = this.getItemByName(param);
 
     return shortcut?.items.length ? (
-      shortcut.items.map(item => this.listItem(this.getListItemParams(shortcut.function, item)))
+      shortcut.items.slice(0, 7).map(item => this.listItem(this.getListItemParams(shortcut.function, item)))
     ) : (
       <div class='recent-list-empty'>
         <div class='empty-img'>
@@ -224,7 +237,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
             src={emptyImageSrc}
           />
         </div>
-        {this.$t('暂无相关记录')}
+        {this.$t('暂无数据')}
       </div>
     );
   }

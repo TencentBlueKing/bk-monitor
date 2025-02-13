@@ -7,6 +7,7 @@
   justify-content: center;
   width: 16px;
   height: 16px;
+  margin-top: 1px;
   margin-right: 4px;
   overflow: hidden;
   font-size: 12px;
@@ -36,12 +37,12 @@
       flex: 0 0 246px;
       flex: 0 0 200px;
       width: 400px;
-      background: #FAFBFD;
+      background: #F5F7FA;
 
       .right-route {
         position: absolute;
         top: 24px;
-        right: 16px;
+        right: 28px;
         bottom: 15px;
         display: flex;
         flex-direction: column;
@@ -54,10 +55,9 @@
           margin-bottom: 16px;
           margin-left: 18px;
           font-size: 16px;
-          font-weight: bold;
           line-height: 24px;
           color: #313238;
-
+          font-family: MicrosoftYaHei;
           .route-count {
             display: flex;
             align-items: center;
@@ -68,8 +68,8 @@
             margin-left: 8px;
             font-size: 12px;
             font-weight: normal;
-            color: #979ba5;
-            background-color: #eaebf0;
+            color: #979BA5;
+            background: #FFFFFF;
             border-radius: 2px;
           }
         }
@@ -124,14 +124,11 @@
                 }
               }
 
-              &:hover {
-                background-color: #eaebf0;
-                border-color: transparent;
-              }
-
             }
 
             &:hover {
+              background-color: #eaebf0;
+              border-color: transparent;
               .item-drag {
                 cursor: move;
                 visibility: inherit;
@@ -145,7 +142,7 @@
             .item-drag {
               @include common-route-icon;
               position: absolute;
-              top: 8px;
+              top: 6px;
               left: 0;
               visibility: hidden;
             }
@@ -200,15 +197,18 @@
           flex: 0 0 160px;
           flex-direction: column;
           margin-right: 40px;
-          margin-bottom: 40px;
+          margin-bottom: 24px;
           font-size: 12px;
 
           .route-title {
-            padding-bottom: 8px;
+            padding: 6px 0;
             padding-left: 12px;
+            font-family: MicrosoftYaHei;
             font-weight: bold;
             line-height: 20px;
-            border-bottom: 1px solid #dcdee5;
+            background: #EBEEF5;
+            border-radius: 2px;
+            color: #000000;
           }
 
           .route-list {
@@ -224,6 +224,12 @@
               height: 32px;
               padding-left: 12px;
               color: #313238;
+
+              .item-icon {
+                color: #A3B1CC;
+                margin-right: 7px;
+                font-size: 14px;
+              }
 
               &:hover {
                 cursor: pointer;
@@ -246,6 +252,9 @@
                   color: #3a84ff;
                   visibility: visible !important;
                 }
+                .item-icon {
+                  color: #3a84ff;
+                }
               }
 
               .route-check {
@@ -257,7 +266,7 @@
                 margin-right: 12px;
                 margin-left: auto;
                 overflow: hidden;
-                font-size: 14px;
+                font-size: 24px;
                 color: #979ba5;
                 visibility: hidden;
               }
