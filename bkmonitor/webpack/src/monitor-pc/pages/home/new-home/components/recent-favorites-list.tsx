@@ -177,7 +177,18 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
               <span>{tag}</span>
             </span>
           )}
-          <span>{title}</span>
+          <span
+            v-bk-tooltips={{
+              content: title,
+              trigger: 'mouseenter',
+              zIndex: 9999,
+              boundary: document.body,
+              allowHTML: false,
+              delay: [500, 0],
+            }}
+          >
+            {title}
+          </span>
         </div>
         <span
           class='desc'
@@ -275,7 +286,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
                 this.renderList(functionName)
               ) : (
                 <div class='skeleton-list'>
-                  {Array(5)
+                  {Array(7)
                     .fill(null)
                     .map((_, index) => (
                       <div

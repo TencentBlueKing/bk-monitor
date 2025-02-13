@@ -398,11 +398,12 @@ class HomeAlarmChart extends Mixins<
                     height={this.height}
                     needZrClick={true}
                     options={this.options}
-                    onZrClick={() =>
+                    onZrClick={item =>
                       this.handleMenuClick({
                         name: window.i18n.tc('查看详情'),
                         checked: false,
                         id: 'detail',
+                        xAxis: item.xAxis,
                       })
                     }
                   />

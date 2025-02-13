@@ -5,13 +5,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   margin-top: 1px;
   margin-right: 4px;
   overflow: hidden;
   font-size: 12px;
-  color: #979BA5;
+  color: #A3B1CC;
 }
 
 .quick-access-modal {
@@ -42,11 +42,11 @@
       .right-route {
         position: absolute;
         top: 24px;
-        right: 28px;
+        right: 0;
         bottom: 15px;
         display: flex;
         flex-direction: column;
-        width: 170px;
+        width: 100%;
 
         &-title {
           display: flex;
@@ -67,7 +67,8 @@
             padding: 4px 8px;
             margin-left: 8px;
             font-size: 12px;
-            font-weight: normal;
+            font-family: Arial-BoldMT;
+            font-weight: 600;
             color: #979BA5;
             background: #FFFFFF;
             border-radius: 2px;
@@ -94,7 +95,7 @@
               align-items: center;
               padding: 6px 0;
               font-size: 12px;
-              color: #4D4F56;
+              color: #313238;
               border-radius: 2px;
 
               &.is-dragover {
@@ -142,7 +143,8 @@
             .item-drag {
               @include common-route-icon;
               position: absolute;
-              top: 6px;
+              color: #979BA5;
+              top: 7px;
               left: 0;
               visibility: hidden;
             }
@@ -246,7 +248,7 @@
 
               &.is-stored {
                 color: #3a84ff;
-                background-color: #e1ecff;
+                background-color: #F0F5FF;
 
                 .route-check {
                   color: #3a84ff;

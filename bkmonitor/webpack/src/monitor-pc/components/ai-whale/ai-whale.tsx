@@ -27,9 +27,9 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AiBlueking, { RoleType, type ChatHelper } from '@blueking/ai-blueking/vue2';
+import AiBlueking, { RoleType } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
-import { copyText, random } from 'monitor-common/utils/utils';
+import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
@@ -159,10 +159,8 @@ export default class AiWhale extends tsc<{
     bottom: 20,
     top: window.innerHeight - 600 - 20,
   };
-  chatHelper: ChatHelper = null;
-  chartId = random(10);
   mousemoveFn: (event: MouseEvent) => void;
-  resizeFn = () => {};
+  resizeFn = () => { };
 
   get showAIBlueking() {
     return aiWhaleStore.showAIBlueking;
@@ -403,7 +401,7 @@ export default class AiWhale extends tsc<{
     }
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-    }#/event-center?${query}`;
+      }#/event-center?${query}`;
     window.open(url);
   }
 
@@ -427,7 +425,7 @@ export default class AiWhale extends tsc<{
     const fetchRange = this.data?.fetch_range || '24h';
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-    }#/performance/detail/${ip}-${bkCloudId || 0}?from=now-${fetchRange}&to=now`;
+      }#/performance/detail/${ip}-${bkCloudId || 0}?from=now-${fetchRange}&to=now`;
     window.open(url);
   }
 
@@ -435,21 +433,21 @@ export default class AiWhale extends tsc<{
   handleToAiSettings() {
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-    }#/ai-settings`;
+      }#/ai-settings`;
     window.open(url);
   }
   /* 跳转到策略 */
   handleToStrategyConfig() {
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-    }#/strategy-config/add`;
+      }#/strategy-config/add`;
     window.open(url);
   }
   handleAiBluekingClear() {
     aiWhaleStore.setDefaultMessage();
   }
   handleAiBluekingStop() {
-    this.chatHelper.stop(this.chartId);
+    aiWhaleStore.stopChatHelper();
   }
   handleAiBluekingClose() {
     aiWhaleStore.setShowAIBlueking(false);
