@@ -797,9 +797,7 @@ class FetchK8sIngressListByClusterResource(CacheResource):
         bcs_cluster_id = params["bcs_cluster_id"]
         data = []
         ingress_field = self.get_ingress_field()
-        ingress_list = api.bcs_storage.fetch(
-            {"cluster_id": bcs_cluster_id, "type": "Endpoints", "field": ingress_field}
-        )
+        ingress_list = api.bcs_storage.fetch({"cluster_id": bcs_cluster_id, "type": "Ingress", "field": ingress_field})
         for ingress in ingress_list:
             ingress_parser = KubernetesIngressJsonParser(ingress)
             ingress_name = ingress_parser.name
