@@ -443,7 +443,6 @@ class EtlStorage(object):
         :param hot_warm_config: 冷热数据配置
         :param es_shards: es分片数
         :param index_settings: 索引配置
-        :param alias_settings: 别名配置
         :param sort_fields: 排序字段
         :param target_fields: 定位字段
         :param alias_settings: 别名配置
