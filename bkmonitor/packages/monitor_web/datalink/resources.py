@@ -513,7 +513,7 @@ class TransferLatestMsgResource(BaseStatusResource):
                 return messages[:10]
         return messages
 
-    def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[str]:
+    def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[Dict]:
         """查询一个指标的最新数据"""
 
         series = api.metadata.kafka_tail({"table_id": table_id, "size": size})
