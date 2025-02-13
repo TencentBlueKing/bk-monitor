@@ -60,6 +60,10 @@
       JsonFormatter,
     },
     props: {
+      formatJson: {
+        type: Boolean,
+        default: false,
+      },
       content: {
         type: [String, Number, Boolean],
         required: true,
@@ -83,7 +87,7 @@
     },
     computed: {
       ...mapState({
-        formatJson: state => state.tableJsonFormat,
+        // formatJson: state => state.tableJsonFormat,
         tableLineIsWrap: state => state.tableLineIsWrap,
         isFormatDateField: state => state.isFormatDate,
       }),

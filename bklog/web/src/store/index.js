@@ -1018,7 +1018,6 @@ const store = new Vuex.Store({
       if (!ids.length) {
         return;
       }
-
       commit('resetIndexFieldInfo', { is_loading: true });
       const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
       !isUnionIndex && commit('deleteApiError', urlStr);
@@ -1118,7 +1117,7 @@ const store = new Vuex.Store({
       ) {
         state.searchTotal = 0;
         commit('updateSqlQueryFieldList', []);
-        commit('updateIndexSetQueryResult', []);
+        commit('updateIndexSetQueryResult', { is_error: false, exception_msg: '' });
         return Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
@@ -1206,46 +1205,57 @@ const store = new Vuex.Store({
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
               const rsolvedData = data;
-              rsolvedData.is_error = false;
-              const indexSetQueryResult = state.indexSetQueryResult;
-              const logList = parseBigNumberList(rsolvedData.list);
-              const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+              if (result) {
+                const indexSetQueryResult = state.indexSetQueryResult;
+                const logList = parseBigNumberList(rsolvedData.list);
+                const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
 
-              rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
-              rsolvedData.origin_log_list = payload.isPagination
-                ? indexSetQueryResult.origin_log_list.concat(originLogList)
-                : originLogList;
+                rsolvedData.list = payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList;
+                rsolvedData.origin_log_list = payload.isPagination
+                  ? indexSetQueryResult.origin_log_list.concat(originLogList)
+                  : originLogList;
 
-              const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
-              state.tookTime = payload.isPagination
-                ? state.tookTime + Number(data?.took || 0)
-                : Number(data?.took || 0);
+                const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
+                state.tookTime = payload.isPagination
+                  ? state.tookTime + Number(data?.took || 0)
+                  : Number(data?.took || 0);
 
-              if (!payload?.isPagination) {
-                commit('updateIsSetDefaultTableColumn', { list: logList });
-                dispatch('requestSearchTotal');
+                if (!payload?.isPagination) {
+                  commit('updateIsSetDefaultTableColumn', { list: logList });
+                  dispatch('requestSearchTotal');
+                }
+                // 更新页数
+                commit('updateSqlQueryFieldList', logList);
+                commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
+                commit('updateIndexSetQueryResult', rsolvedData);
+
+                return {
+                  data,
+                  message,
+                  code,
+                  result,
+                  length: logList.length,
+                };
               }
-              // 更新页数
-              commit('updateSqlQueryFieldList', logList);
-              commit('updateIndexItem', { catchUnionBeginList, begin: payload.isPagination ? begin : 0 });
-              commit('updateIndexSetQueryResult', rsolvedData);
+
+              commit('updateIndexSetQueryResult', { exception_msg: message, is_error: !result });
 
               return {
                 data,
                 message,
                 code,
                 result,
-                length: logList.length,
+                length: 0,
               };
             });
           }
 
           return { data, message, result: false };
         })
-        .catch(() => {
+        .catch(e => {
           state.searchTotal = 0;
           commit('updateSqlQueryFieldList', []);
-          commit('updateIndexSetQueryResult', { is_error: true });
+          commit('updateIndexSetQueryResult', { is_error: true, exception_msg: e?.message ?? e?.toString() });
         })
         .finally(() => {
           commit('updateIndexSetQueryResult', { is_loading: false });

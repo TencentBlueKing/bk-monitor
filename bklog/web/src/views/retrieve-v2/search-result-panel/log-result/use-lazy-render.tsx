@@ -54,9 +54,6 @@ export default ({ loadMoreFn, container, rootElement }) => {
   const calculateOffsetTop = () => {
     if (!isComputingCalcOffset) {
       isComputingCalcOffset = true;
-      // const currentElement = getCurrentElement();
-      // const relativeTo = getScrollElement();
-      // scrollElementOffset = relativeTo.scrollHeight - (currentElement?.scrollHeight ?? 0);
       debounceStopComputing();
     }
   };
@@ -77,7 +74,7 @@ export default ({ loadMoreFn, container, rootElement }) => {
   };
 
   const scrollToTop = (top = 0, smooth = true) => {
-    getScrollElement().scrollTo({ left: 0, top: top, behavior: smooth ? 'smooth' : 'instant' });
+    getScrollElement()?.scrollTo({ left: 0, top: top, behavior: smooth ? 'smooth' : 'instant' });
   };
 
   const hasScrollX = computed(() => scrollWidth.value > offsetWidth.value);

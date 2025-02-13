@@ -19,7 +19,7 @@
       .tab-title {
         padding: 8px 8px 9px 8px;
         font-family: MicrosoftYaHei;
-        font-size: 14px;
+        font-size: 16px;
         line-height: 22px;
         color: #4d4f56;
         vertical-align: middle;
@@ -27,8 +27,6 @@
 
         &.active {
           font-family: MicrosoftYaHei-Bold;
-          font-size: 16px;
-          font-weight: 700;
           color: #4d4f56;
           border-bottom: 2px solid #3a84ff;
         }
@@ -96,11 +94,24 @@
   }
 
   .alarm-time-filter {
-    color: #4d4f56;
-    background: #ffffff;
-    width: 116px;
-    .icon-angle-down {
-      color: #979ba5;
+    .alarm-time {
+      border: none;
+      color: #3A84FF;
+
+      .bk-select-name {
+        padding: 0 18px 0 10px;
+      }
     }
+    .icon-angle-down {
+      color: #3A84FF;
+      font-size: 12px;
+      top: 9px;
+      right: 0px;
+    }
+  }
+}
+.alarm-time-popover {
+  .bk-option-content {
+    padding: 0 8px;
   }
 }

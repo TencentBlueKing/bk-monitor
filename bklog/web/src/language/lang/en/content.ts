@@ -498,8 +498,8 @@ export default {
     'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
   '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源':
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
-  '非必填字段，填写后将会替代字段名；字段名与内置字段重复时，必须重新命名。':
-    'Non-required fields, after filling in, will replace the field name; when the field name conflicts with the built-in field, it must be renamed.',
+  '填写后原字段名和别名均可查询':
+  'The original field name and the alias can both be used for querying after being populated.',
   '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
     "Clustering can only be based on one field, and the field must be of text tokenization type, defaulting to 'log' field",
   ' - 日志内容：[2006-01-02 15:04:05] content': ' - Log content: [2006-01-02 15:04:05] content',
@@ -1009,4 +1009,6 @@ export default {
   复制当前查询: 'Copy the current query',
   清理当前查询: 'Clean up the current query',
   收藏当前查询: 'Add current query to favorites',
+  "检测到字段名称包含异常值，只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾。请重命名，命名后原字段将被覆盖；": 'The field name contains invalid characters. It can only include a-z, A-Z, 0-9, and _, and it cannot start or end with _. Please rename it; the original field will be overwritten after renaming',
+  "检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖": 'The field name conflicts with a system built-in name. Please rename it; the original field will be overwritten after renaming',
 };

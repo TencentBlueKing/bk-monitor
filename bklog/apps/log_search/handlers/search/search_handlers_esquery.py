@@ -34,7 +34,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 
-from apps.api import BcsApi, BkLogApi, MonitorApi
+from apps.api import BcsApi, BkLogApi, MonitorApi, TransferApi
 from apps.api.base import DataApiRetryClass
 from apps.exceptions import ApiRequestError, ApiResultError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -257,6 +257,7 @@ class SearchHandler(object):
         self.query_string: str = search_dict.get("keyword")
         self.origin_query_string: str = search_dict.get("keyword")
         self._enhance()
+        self._add_all_fields_search()
 
         # 透传start
         self.start: int = search_dict.get("begin", 0)
@@ -351,6 +352,29 @@ class SearchHandler(object):
         if self.query_string is not None:
             enhance_lucene_adapter = EnhanceLuceneAdapter(query_string=self.query_string)
             self.query_string = enhance_lucene_adapter.enhance()
+
+    def _add_all_fields_search(self):
+        """
+        补充全文检索条件
+        """
+        for item in self.addition:
+            field: str = item.get("key") if item.get("key") else item.get("field")
+            # 全文检索key & 存量query_string转换
+            if field in ["*", "__query_string__"]:
+                value = item.get("value", [])
+                value_list = value if isinstance(value, list) else value.split(",")
+                new_value_list = []
+                for value in value_list:
+                    if field == "*":
+                        value = "\"" + value.replace('"', '\\"') + "\""
+                    if value:
+                        new_value_list.append(value)
+                if new_value_list:
+                    new_query_string = " OR ".join(new_value_list)
+                    if field == "*" and self.query_string != "*":
+                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
+                    else:
+                        self.query_string = new_query_string
 
     @property
     def index_set(self):
@@ -611,6 +635,28 @@ class SearchHandler(object):
         if _scroll_id:
             result.update({"scroll_id": _scroll_id})
 
+        # 补充别名信息
+        log_list = result.get("list")
+        for field in self.final_fields_list:
+            field_name = field.get("field_name")
+            field_type = field.get("field_type")
+            # 存在别名
+            origin_field = field.get("origin_field", "")
+            if field_type == "alias" and origin_field:
+                for log in log_list:
+                    sub_field = origin_field
+                    if "." not in sub_field:
+                        if sub_field in log:
+                            log[field_name] = log[sub_field]
+                    else:
+                        context = log
+                        # 处理嵌套字段
+                        while "." in sub_field:
+                            prefix, sub_field = sub_field.split(".", 1)
+                            context = context.get(prefix, {})
+                            if sub_field in context:
+                                log[field_name] = context[sub_field]
+                                break
         return result
 
     def get_sort_group(self):
@@ -1920,22 +1966,7 @@ class SearchHandler(object):
             field: str = item.get("key") if item.get("key") else item.get("field")
             # 全文检索key & 存量query_string转换
             if field in ["*", "__query_string__"]:
-                value = item.get("value", [])
-                value_list = value if isinstance(value, list) else value.split(",")
-                new_value_list = []
-                for value in value_list:
-                    if field == "*":
-                        value = "\"" + value.replace('"', '\\"') + "\""
-                    if value:
-                        new_value_list.append(value)
-                if new_value_list:
-                    new_query_string = " OR ".join(new_value_list)
-                    if field == "*" and self.query_string != "*":
-                        self.query_string = self.query_string + " AND (" + new_query_string + ")"
-                    else:
-                        self.query_string = new_query_string
                 continue
-
             _type = "field"
             if self.mapping_handlers.is_nested_field(field):
                 _type = FieldDataTypeEnum.NESTED.value

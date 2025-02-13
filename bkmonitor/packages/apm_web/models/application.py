@@ -48,6 +48,7 @@ from bkm_space.api import SpaceApi
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils import group_by
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.request import get_request
@@ -174,7 +175,7 @@ class Application(AbstractRecordModel):
         no_data_period = "no_data_period"
 
     application_id = models.IntegerField("应用Id", primary_key=True)
-    bk_biz_id = models.IntegerField("业务id")
+    bk_biz_id = models.IntegerField("业务id", db_index=True)
     app_name = models.CharField("应用名称", max_length=50)
     app_alias = models.CharField("应用别名", max_length=128)
     description = models.CharField("应用描述", max_length=255)
@@ -198,6 +199,7 @@ class Application(AbstractRecordModel):
 
     class Meta:
         ordering = ["-update_time", "-application_id"]
+        index_together = [["bk_biz_id", "app_name"], ["update_time", "application_id"]]
 
     def __str__(self):
         return self.__repr__()
@@ -386,18 +388,24 @@ class Application(AbstractRecordModel):
         return ApmMetaConfig.get_application_config_value(self.application_id, key)
 
     @classmethod
+    @lru_cache_with_ttl(maxsize=128, ttl=60 * 10, decision_to_drop_func=lambda v: v is None)
     def get_metric_table_id(cls, bk_biz_id, app_name):
-        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not instance:
+        try:
+            return cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).values_list(
+                "metric_result_table_id", flat=True
+            )[0]
+        except IndexError:
             return None
-        return instance.metric_result_table_id
 
     @classmethod
+    @lru_cache_with_ttl(maxsize=128, ttl=60 * 10, decision_to_drop_func=lambda v: v is None)
     def get_trace_table_id(cls, bk_biz_id, app_name):
-        instance = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not instance:
+        try:
+            return cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).values_list(
+                "trace_result_table_id", flat=True
+            )[0]
+        except IndexError:
             return None
-        return instance.trace_result_table_id
 
     @classmethod
     def get_application_id_by_app_name(cls, app_name: str):
@@ -415,8 +423,8 @@ class Application(AbstractRecordModel):
                 biz_id = SpaceApi.get_space_detail(space_uid=data["space_uid"]).bk_biz_id
 
         try:
-            return cls.objects.get(app_name=app_name, bk_biz_id=biz_id).application_id
-        except cls.DoesNotExist:
+            return cls.objects.filter(bk_biz_id=biz_id, app_name=app_name).values_list("application_id", flat=True)[0]
+        except IndexError:
             raise ValueError("application({}) not found".format(app_name))
 
     @classmethod
@@ -898,9 +906,12 @@ class Application(AbstractRecordModel):
 
 
 class ApplicationRelationInfo(models.Model):
-    application_id = models.IntegerField("应用Id")
-    relation_key = models.CharField("关联Key", max_length=255)
+    application_id = models.IntegerField("应用Id", db_index=True)
+    relation_key = models.CharField("关联Key", max_length=255, db_index=True)
     relation_value = models.CharField("关联值", max_length=255)
+
+    class Meta:
+        index_together = [["application_id", "relation_key"]]
 
     @classmethod
     def add_relation(cls, application_id: int, relation_key: str, relation_value: str):
@@ -1002,3 +1013,6 @@ class ApplicationCustomService(AbstractRecordModel):
     type = models.CharField(max_length=32, choices=CustomServiceType.choices(), verbose_name="服务类型")
     match_type = models.CharField(max_length=32, choices=CustomServiceMatchType.choices(), verbose_name="匹配类型")
     rule = JsonField(verbose_name="匹配规则")
+
+    class Meta:
+        index_together = [["bk_biz_id", "app_name"]]
