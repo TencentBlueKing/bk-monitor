@@ -864,8 +864,10 @@ class CollectorHandler(object):
             for item in extra_labels:
                 if item["value"] == CmdbFieldType.HOST.value and item["key"] in CC_HOST_FIELDS:
                     item["value"] = "{{cmdb_instance." + item["value"] + "." + item["key"] + "}}"
+                    item["key"] = "host.{}".format(item["key"])
                 if item["value"] == CmdbFieldType.SCOPE.value and item["key"] in CC_SCOPE_FIELDS:
                     item["value"] = "{{cmdb_instance." + item["value"] + "[0]." + item["key"] + "}}"
+                    item["key"] = "host.{}".format(item["key"])
 
         # 1. 创建CollectorConfig记录
         model_fields = {
