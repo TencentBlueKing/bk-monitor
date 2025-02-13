@@ -241,11 +241,6 @@ def sync_bcs_ingress(bcs_cluster_id):
         "namespace",
         "class_name",
         "service_list",
-        # "resource_requests_cpu",
-        # "resource_requests_memory",
-        # "resource_limits_cpu",
-        # "resource_limits_memory",
-        # "status",
         "created_at",
         "unique_hash",
     ]
