@@ -373,7 +373,7 @@ class HostSearchItem(SearchItem):
         if not ips:
             return
 
-        result = api.cmdb.get_host_without_biz_v2(ips=ips, limit=limit)
+        result = api.cmdb.get_host_without_biz_v2(ips=ips)
         hosts: List[Dict] = result["hosts"]
 
         items = []
@@ -412,7 +412,7 @@ class HostSearchItem(SearchItem):
         if not items:
             return
 
-        return [{"type": "host", "name": _("主机监控"), "items": items}]
+        return [{"type": "host", "name": _("主机监控"), "items": items[:limit]}]
 
 
 class BCSClusterSearchItem(SearchItem):
