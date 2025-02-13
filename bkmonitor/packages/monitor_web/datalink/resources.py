@@ -513,47 +513,22 @@ class TransferLatestMsgResource(BaseStatusResource):
                 return messages[:10]
         return messages
 
-    def convert_dimensions_to_target(self, dimensions: Dict):
-        # 使用字符串拼接构造目标字符串
-        target_parts = []
-        for key, value in dimensions.items():
-            # 确保键值对格式为 key=value
-            target_parts.append(f"{key}={value}")
-
-        # 将所有部分连接成目标字符串
-        target = "{" + ", ".join(target_parts) + "}"
-        return target
-
     def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[str]:
         """查询一个指标的最新数据"""
 
         series = api.metadata.kafka_tail({"table_id": table_id, "size": size})
         msgs = []
         for s in series:
+            # 取最后一个数据点
             latest_datapoint = s["data"][-1]
 
-            # 组装 target
-            target = self.convert_dimensions_to_target(latest_datapoint["dimension"])
-
-            # 里面可能会存在多个指标的情况
-            metrics: Dict[str, any] = latest_datapoint["metrics"]
-            for metric, val in metrics.items():
-                # 组装 raw
-                raw = latest_datapoint["dimension"]
-                raw[metric] = val
-                raw["time"] = latest_datapoint["timestamp"]
-
-                # 组装消息
-                msg = f"{metric}{target} {val}"
-                msgs.append(
-                    {
-                        "message": msg,
-                        "time": datetime.fromtimestamp(latest_datapoint["timestamp"] / 1000).strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        ),
-                        "raw": raw,
-                    }
-                )
+            msgs.append(
+                {
+                    "message": json.dumps(s),
+                    "time": datetime.fromtimestamp(latest_datapoint["timestamp"] / 1000).strftime("%Y-%m-%d %H:%M:%S"),
+                    "raw": s,
+                }
+            )
         return msgs
 
 
