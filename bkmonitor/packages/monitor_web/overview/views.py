@@ -86,10 +86,10 @@ class SearchViewSet(viewsets.GenericViewSet):
         serializer = SearchSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
-        query: str = serializer.validated_data['query'].strip()
+        query: str = serializer.validated_data['query']
 
         # 反转义
-        query = self.unescape(query)
+        query = self.unescape(query).strip()
 
         # 搜索
         searcher: Searcher = Searcher(username=request.user.username)
