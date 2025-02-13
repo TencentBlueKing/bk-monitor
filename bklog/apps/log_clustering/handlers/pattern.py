@@ -103,7 +103,7 @@ class PatternHandler:
         new_class = result.get("new_class", set())
         # 同步的pattern保存信息
         if self._clustering_config.signature_pattern_rt:
-            pattern_map = self._get_pattern_data()
+            pattern_map = self._get_pattern_data(patterns=list({p["key"] for p in pattern_aggs}))
         elif self._clustering_config.model_output_rt:
             # 在线训练逻辑适配
             pattern_map = AiopsSignatureAndPattern.objects.filter(
@@ -355,7 +355,9 @@ class PatternHandler:
             )
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
 
-    def _get_pattern_data(self):
+    def _get_pattern_data(self, patterns):
+        if not patterns:
+            return []
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
@@ -363,7 +365,8 @@ class PatternHandler:
             records = (
                 BkData(self._clustering_config.signature_pattern_rt)
                 .select("signature", "pattern")
-                .time_range(start_time=start_time.shift(hours=-6).timestamp)  # 只查开始时间前6小时的数据，避免历史数据膨胀
+                .where("signature", "IN", patterns)
+                .time_range(start_time=start_time.shift(days=-1).timestamp)  # 只查开始时间前1天的数据，避免历史数据膨胀
                 .limit(50000)  # 最多只拉取 5w 条
                 .query()
             )
