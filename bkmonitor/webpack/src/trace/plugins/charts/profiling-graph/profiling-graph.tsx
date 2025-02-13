@@ -37,7 +37,7 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import { SearchType, type ToolsFormData } from '../../../pages/profiling/typings';
 import { assignUniqueIds } from '../../../utils/utils';
 import ChartTitle from './chart-title/chart-title';
-import FrameGraph from './flame-graph/flame-graph';
+import FrameGraph from './flame-graph-v2/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 
@@ -82,7 +82,7 @@ export default defineComponent({
       id: '',
     });
     const unit = ref<ProfileDataUnit>('nanoseconds');
-    const highlightId = ref(-1);
+    const highlightId = ref('');
     const highlightName = ref('');
     const filterKeyword = ref('');
     const topoSrc = ref('');
@@ -151,7 +151,7 @@ export default defineComponent({
     /** 获取表格和火焰图 */
     const getTableFlameData = async () => {
       isLoading.value = true;
-      highlightId.value = -1;
+      highlightId.value = '';
       cancelTableFlameFn();
       const params = getParams({
         diagram_types:
@@ -222,7 +222,7 @@ export default defineComponent({
     const handleModeChange = async (val: ViewModeType) => {
       if (val === activeMode.value) return;
 
-      highlightId.value = -1;
+      highlightId.value = '';
       activeMode.value = val;
     };
     const handleTextDirectionChange = (val: DirectionType) => {
@@ -239,7 +239,7 @@ export default defineComponent({
       //   highlightId.value = -1;
       //   tableData.value = data.table_data?.items ?? [];
       // }
-      highlightId.value = -1;
+      highlightId.value = '';
     };
     /** 下载 */
     const handleDownload = async (type: string) => {
@@ -338,11 +338,12 @@ export default defineComponent({
         <ChartTitle
           activeMode={this.activeMode}
           isCompared={this.isCompared}
+          keyword={this.filterKeyword}
           textDirection={this.textDirection}
           onDownload={this.handleDownload}
-          onKeywordChange={this.handleKeywordChange}
           onModeChange={this.handleModeChange}
           onTextDirectionChange={this.handleTextDirectionChange}
+          onUpdate:keyword={this.handleKeywordChange}
         />
         {this.empty ? (
           <Exception
@@ -369,6 +370,7 @@ export default defineComponent({
                 onSortChange={this.handleSortChange}
                 onUpdateHighlightName={name => {
                   this.highlightName = name;
+                  this.handleKeywordChange(name);
                 }}
               />
             )}
@@ -380,18 +382,13 @@ export default defineComponent({
                 }}
                 appName={this.queryParams.app_name}
                 data={this.flameData}
-                filterKeywords={this.flameFilterKeywords}
-                highlightId={this.highlightId}
-                highlightName={this.highlightName}
+                filterKeyword={this.filterKeyword}
                 isCompared={this.isCompared}
-                showGraphTools={false}
                 textDirection={this.textDirection}
                 unit={this.unit}
-                onUpdateHighlightId={id => {
-                  this.highlightId = id;
-                }}
-                onUpdateHighlightName={name => {
+                onUpdate:filterKeyword={name => {
                   this.highlightName = name;
+                  this.handleKeywordChange(name);
                 }}
               />
             )}
