@@ -470,7 +470,6 @@ class RangeRatioAlgorithmsCollection(BasicAlgorithmsCollection, HistoryPointFetc
 class SDKPreDetectMixin(object):
     GROUP_PREDICT_FUNC = None
     PREDICT_FUNC = None
-    WITH_HISTORY_ANOMALY = False
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
@@ -567,20 +566,7 @@ class SDKPreDetectMixin(object):
                 predict_inputs[dimension_md5] = {
                     "dimensions": dimensions,
                     "data": [],
-                    "extra_data": {},
                 }
-                if self.WITH_HISTORY_ANOMALY:
-                    predict_inputs[dimension_md5]["extra_data"]["history_anomaly"] = {
-                        "source": "backfill",
-                        "retention_period": "8d",
-                        "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
-                        "backfill_conditions": [
-                            {
-                                "field_name": "anomaly_alert",
-                                "value": 1,
-                            }
-                        ],
-                    }
 
             predict_inputs[dimension_md5]["data"].append(
                 {

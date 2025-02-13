@@ -38,7 +38,6 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.acd_group_predict
     PREDICT_FUNC = api.aiops_sdk.acd_predict
-    WITH_HISTORY_ANOMALY = False
 
     def pre_detect(self, data_points: List[DataPoint]) -> None:
         """生成按照dimension划分的预测输入数据，调用SDK API进行批量分组预测.
