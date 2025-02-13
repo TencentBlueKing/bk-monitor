@@ -579,8 +579,9 @@
                     isEdit.value = false;
                   });
                 }
-                //请求成功后更新field
-                store.dispatch('requestIndexSetFieldInfo',)
+                //请求成功后刷新页面
+                location.reload();
+                // store.dispatch('requestIndexSetFieldInfo',)
               })
               .finally(() => {
                 confirmLoading.value = false;
