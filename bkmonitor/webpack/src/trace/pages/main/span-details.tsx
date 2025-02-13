@@ -113,6 +113,7 @@ export default defineComponent({
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
+    console.log(appName);
 
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
