@@ -513,52 +513,47 @@ class TransferLatestMsgResource(BaseStatusResource):
                 return messages[:10]
         return messages
 
-    def query_latest_metric_msg(self, table_id: str, time_range: int = 600) -> List[str]:
-        """查询一个指标最近10分钟的最新数据"""
-        start_time, end_time = int(time.time() - time_range), int(time.time())
-        query_params = {
-            "bk_biz_id": self.collect_config.bk_biz_id,
-            "query_configs": [
-                {
-                    "data_source_label": "prometheus",
-                    "data_type_label": "time_series",
-                    "promql": """
-                    topk(10, {{__name__=~"bkmonitor:{table_id}:.*",
-                     bk_collect_config_id="{bk_collect_config_id}"}})""".format(
-                        table_id=table_id.replace('.', ':'), bk_collect_config_id=self.collect_config_id
-                    ),
-                    "interval": 60,
-                    "alias": "a",
-                }
-            ],
-            "expression": "",
-            "alias": "a",
-            "start_time": start_time,
-            "end_time": end_time,
-            "slimit": 500,
-            "down_sample_range": "",
-        }
-        series = resource.grafana.graph_unify_query(query_params)["series"]
+    def convert_dimensions_to_target(self, dimensions: Dict):
+        # 使用字符串拼接构造目标字符串
+        target_parts = []
+        for key, value in dimensions.items():
+            # 确保键值对格式为 key=value
+            target_parts.append(f"{key}={value}")
+
+        # 将所有部分连接成目标字符串
+        target = "{" + ", ".join(target_parts) + "}"
+        return target
+
+    def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[str]:
+        """查询一个指标的最新数据"""
+
+        series = api.metadata.kafka_tail({"table_id": table_id, "size": size})
         msgs = []
         for s in series:
-            metric_name = s["dimensions"]["__name__"]
-            val = s["datapoints"][-1][0]
-            ts = s["datapoints"][-1][1]
-            target = s["target"]
-            # 组装消息
-            msg = "{metric}{target} {val}".format(metric=metric_name, target=target, val=val)
-            # 原始数据拼接
-            raw = s["dimensions"]
-            raw[metric_name] = val
-            raw["time"] = ts
+            latest_datapoint = s["data"][-1]
 
-            msgs.append(
-                {
-                    "message": msg,
-                    "time": datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M:%S"),
-                    "raw": raw,
-                }
-            )
+            # 组装 target
+            target = self.convert_dimensions_to_target(latest_datapoint["dimension"])
+
+            # 里面可能会存在多个指标的情况
+            metrics: Dict[str, any] = latest_datapoint["metrics"]
+            for metric, val in metrics.items():
+                # 组装 raw
+                raw = latest_datapoint["dimension"]
+                raw[metric] = val
+                raw["time"] = latest_datapoint["timestamp"]
+
+                # 组装消息
+                msg = f"{metric}{target} {val}"
+                msgs.append(
+                    {
+                        "message": msg,
+                        "time": datetime.fromtimestamp(latest_datapoint["timestamp"] / 1000).strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+                        "raw": raw,
+                    }
+                )
         return msgs
 
 
