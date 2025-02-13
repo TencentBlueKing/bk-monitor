@@ -772,7 +772,7 @@ class FetchK8sClusterListResource(CacheResource):
         return self.get_clusters_from_bcs_cluster_manager(params)
 
 
-class FetchIngressListByClusterResource(CacheResource):
+class FetchK8sIngressListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 
     class RequestSerializer(serializers.Serializer):
