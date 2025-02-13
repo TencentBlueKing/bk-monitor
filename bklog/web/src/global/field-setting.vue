@@ -466,14 +466,16 @@
         },
       })
       .then(res => {
-        res.data.etl_fields.forEach(item => {
-          alias_settings.value.forEach(item2 => {
-            if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
-              item.query_alias = item2.query_alias
-            }
-          })
-        })
-        tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
+        const etlFields = res?.data?.etl_fields || [];
+        etlFields.forEach(field => {
+          const matchingAlias = alias_settings.value.find(alias =>
+            field.field_name === alias.field_name || field.alias_name === alias.field_name
+          );
+          if (matchingAlias) {
+            field.query_alias = matchingAlias.query_alias;
+          }
+        });
+        tableField.value = etlFields.filter(item => !item.is_built_in && !item.is_delete);
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
       });
     sliderLoading.value = false;

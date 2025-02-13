@@ -637,26 +637,26 @@ class SearchHandler(object):
 
         # 补充别名信息
         log_list = result.get("list")
-        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
-        if collector_config:
-            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
-            alias_dict = data.get("query_alias_settings")
-            if alias_dict:
+        for field in self.final_fields_list:
+            field_name = field.get("field_name")
+            field_type = field.get("field_type")
+            # 存在别名
+            origin_field = field.get("origin_field", "")
+            if field_type == "alias" and origin_field:
                 for log in log_list:
-                    for query_alias, info in alias_dict.items():
-                        sub_field = info.get("path")
-                        if "." not in sub_field:
-                            if sub_field in log:
-                                log[query_alias] = log[sub_field]
-                        else:
-                            context = log
-                            # 处理嵌套字段
-                            while "." in sub_field:
-                                prefix, sub_field = sub_field.split(".", 1)
-                                context = context.get(prefix, {})
-                                if sub_field in context:
-                                    log[query_alias] = context[sub_field]
-                                    break
+                    sub_field = origin_field
+                    if "." not in sub_field:
+                        if sub_field in log:
+                            log[field_name] = log[sub_field]
+                    else:
+                        context = log
+                        # 处理嵌套字段
+                        while "." in sub_field:
+                            prefix, sub_field = sub_field.split(".", 1)
+                            context = context.get(prefix, {})
+                            if sub_field in context:
+                                log[field_name] = context[sub_field]
+                                break
         return result
 
     def get_sort_group(self):

@@ -8,10 +8,11 @@
 
   .title {
     margin-bottom: 12px;
-    font-family: MicrosoftYaHei;
-    font-size: 16px;
+    font-family: PingFangSC-SNaNpxibold;
+    font-size: 18px;
     line-height: 24px;
     color: #313238;
+    font-weight: 600;
   }
 
 
@@ -44,19 +45,26 @@
         justify-content: center;
         font-family: MicrosoftYaHei;
         font-size: 14px;
-        line-height: 22px;
-        color: #3a84ff;
+        color: #A3B1CC;
         text-align: center;
-        background: #f0f5ff;
-        border: 1px dashed #a3c5fd;
+        background: #EBEEF5;
         border-radius: 2px;
 
         .icon-mc-add {
-          font-size: 22px;
+          font-size: 48px;
         }
 
         &:hover {
-          background: #e1ecff;
+          background: #F0F5FF;
+          color: #3A84FF;
+        }
+
+        &.unable-add-graph {
+          &:hover {
+            background: #EBEEF5;
+            color: #A3B1CC;
+            cursor: not-allowed;
+          }
         }
       }
     }
@@ -77,15 +85,17 @@
     .empty-info {
       margin-bottom: 24px;
       font-family: MicrosoftYaHei;
-      font-size: 14px;
+      font-size: 12px;
       line-height: 22px;
-      color: #4d4f56;
+      color: #979BA5;
       text-align: center;
     }
 
     .empty-btn {
-      margin-bottom: 100px;
-      text-align: center;
+      color: #3A84FF;
+      &:hover {
+        cursor: pointer;
+      }
     }
   }
 }
