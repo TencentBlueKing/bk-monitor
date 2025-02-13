@@ -262,7 +262,7 @@ class TraceSearchItem(SearchItem):
             items.append(
                 {
                     "bk_biz_id": bk_biz_id,
-                    "bk_biz_name": trace["_source"]["biz_name"],
+                    "bk_biz_name": cls._get_biz_name(bk_biz_id),
                     "name": trace_id,
                     "trace_id": trace_id,
                     "app_name": app_name,
