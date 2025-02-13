@@ -36,6 +36,12 @@
   font-size: $font-size-base;
   color: $font-color-base;
 
+  .bk-monitor-navigation {
+    .title-desc {
+      color: #eaebf0;
+    }
+  }
+
   .bk-navigation {
     height: calc(100vh - var(--notice-alert-height)) !important;
 
