@@ -2091,8 +2091,8 @@ class KafkaTailResource(Resource):
                 sasl_mechanism=sasl_mechanism,
                 sasl_plain_username=mq_ins.username,
                 sasl_plain_password=mq_ins.password,
-                request_timeout_ms=5000,
-                consumer_timeout_ms=5000,
+                request_timeout_ms=settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                consumer_timeout_ms=settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
                 ssl_cafile=ssl_cafile,
                 ssl_certfile=ssl_certfile,
                 ssl_keyfile=ssl_keyfile,
@@ -2101,8 +2101,8 @@ class KafkaTailResource(Resource):
         else:
             param = {
                 "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
-                "request_timeout_ms": 1000,
-                "consumer_timeout_ms": 1000,
+                "request_timeout_ms": settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
+                "consumer_timeout_ms": settings.KAFKA_TAIL_API_TIMEOUT_SECONDS,
             }
             if datasource.mq_cluster.username:
                 param["sasl_plain_username"] = datasource.mq_cluster.username
