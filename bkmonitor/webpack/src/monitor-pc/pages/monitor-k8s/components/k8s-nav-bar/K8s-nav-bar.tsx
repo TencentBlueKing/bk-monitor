@@ -69,6 +69,8 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
 
   curTimeRange: TimeRangeType = DEFAULT_TIME_RANGE;
 
+  sceneToggle = false;
+
   k8sList = [
     { label: window.i18n.tc('性能'), value: 'performance', icon: 'icon-xingneng1', disabled: false },
     { label: window.i18n.tc('网络'), value: 'network', icon: 'icon-wangluo', disabled: true },
@@ -78,13 +80,28 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
     { label: window.i18n.tc('成本'), value: 'cost', icon: 'icon-chengben', disabled: true },
   ];
 
+  get sceneName() {
+    return this.k8sList.find(item => item.value === this.value)?.label;
+  }
+
   get selectItem() {
     return this.k8sList.find(item => item.value === this.value);
+  }
+
+  handleGotoOld() {
+    this.$router.push({
+      name: 'k8s',
+      query: {},
+    });
   }
 
   @Watch('timeRange', { immediate: true })
   onTimeRangeChange(v: TimeRangeType) {
     this.curTimeRange = v;
+  }
+
+  handleSceneToggle(toggle: boolean) {
+    this.sceneToggle = toggle;
   }
 
   @Emit('selected')
@@ -120,11 +137,21 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
             class='nav-select'
             clearable={false}
             ext-popover-cls='new-k8s-nav-select-popover'
-            prefix-icon={`icon-monitor ${this.selectItem.icon}`}
             searchable={false}
             value={this.value}
             onSelected={this.handleSelected}
+            onToggle={this.handleSceneToggle}
           >
+            <div
+              class='scene-select-trigger'
+              slot='trigger'
+            >
+              <div class='scene-name'>
+                <i class={`icon-monitor scene-icon ${this.selectItem.icon}`} />
+                <span class='name'>{this.sceneName}</span>
+              </div>
+              <span class={`icon-monitor icon-mc-arrow-down ${this.sceneToggle ? 'expand' : ''}`} />
+            </div>
             {this.k8sList.map(item => (
               <bk-option
                 id={item.value}
@@ -138,7 +165,7 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
             ))}
           </bk-select>
           <TemporaryShareNew
-            icon='icon-copy-link'
+            icon='icon-mc-share'
             navList={this.routeList}
             navMode='share'
           />
@@ -162,6 +189,27 @@ export default class K8sNavBar extends tsc<K8sNavBarProps, K8sNavBarEvent> {
           >
             {this.$slots.dashboardTools}
           </DashboardTools>
+          <div class='goto-old'>
+            <div
+              class='goto-old-wrap'
+              v-bk-tooltips={{
+                content: this.$t('新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看'),
+                placements: ['bottom-end'],
+                zIndex: 9999,
+              }}
+              onClick={this.handleGotoOld}
+            >
+              <div class='icon'>
+                <i class='icon-monitor icon-zhuanhuan' />
+              </div>
+              <bk-badge
+                theme='warning'
+                val='!'
+              >
+                <span>{this.$t('回到旧版')}</span>
+              </bk-badge>
+            </div>
+          </div>
         </div>
       </div>
     );

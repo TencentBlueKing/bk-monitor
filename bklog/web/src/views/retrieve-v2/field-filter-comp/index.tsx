@@ -27,7 +27,7 @@
 import { Component, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
+import { TABLE_LOG_FIELDS_SORT_REGULAR, getRegExp } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
@@ -296,17 +296,21 @@ export default class FieldFilterComp extends tsc<object> {
   // 按过滤条件对字段进行过滤
   filterListByCondition() {
     const { searchKeyword } = this;
+    const regExp = getRegExp(searchKeyword.trim());
     [this.visibleFields, this.hiddenFields].forEach(fieldList => {
       fieldList.forEach(fieldItem => {
         fieldItem.filterVisible =
-          fieldItem.field_name.includes(searchKeyword) || fieldItem.field_alias.includes(searchKeyword) || fieldItem.query_alias?.includes(searchKeyword);
+          regExp.test(fieldItem.field_name) || regExp.test(fieldItem.field_alias) || regExp.test(fieldItem.query_alias || '');
       });
     });
-    this.$refs.bigTreeRef.filter(searchKeyword)
+    this.$nextTick(()=>{
+      this.$refs.bigTreeRef.filter(searchKeyword)
+    })
   }
   filterMethod(keyword, node){
     const fieldItem = node.data
-    return fieldItem.field_name.includes(keyword) || fieldItem.query_alias?.includes(keyword)
+    const regExp = getRegExp(keyword.trim());
+    return regExp.test(fieldItem.field_name) || regExp.test(fieldItem.query_alias || '');
   }
   handleVisibleMoveEnd() {
     this.$emit('fields-updated', this.dragVisibleFields);

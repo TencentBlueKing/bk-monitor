@@ -369,6 +369,24 @@ class QueryBuiltinProfileDatasourceResource(ApmAPIGWResource):
     method = "GET"
 
 
+class QueryEbpfServiceListResource(ApmAPIGWResource):
+    """
+    获取 ebpf 相关应用服务列表
+    """
+
+    action = "/apm/profiling/ebpf_service_list"
+    method = "POST"
+
+
+class QueryEbpfProfileResource(ApmAPIGWResource):
+    """
+    获取单个 ebpf 服务下的 profiling 性能数据
+    """
+
+    action = "/apm/profiling/ebpf_profile"
+    method = "POST"
+
+
 class GetBkdataFlowDetail(ApmAPIGWResource):
     """
     获取Bkdata flow详情

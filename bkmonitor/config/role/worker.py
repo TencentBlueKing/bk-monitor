@@ -188,6 +188,7 @@ if BCS_API_GATEWAY_HOST:
         ("api.bcs.tasks.sync_bcs_node_to_db", "*/10 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "*/10 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/10 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/10 * * * *", "global"),
         # bcs资源数据状态同步
         # TODO: 调整好后再开启
         ("api.bcs.tasks.sync_bcs_cluster_resource", "*/15 * * * *", "global"),

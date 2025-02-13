@@ -258,6 +258,7 @@ class MappingHandlers(object):
                 "is_display": False,
                 "is_editable": True,
                 "tag": field.get("tag", "metric"),
+                "origin_field": field.get("path", ""),
                 "es_doc_values": field.get("es_doc_values", False),
                 "is_analyzed": field.get("is_analyzed", False),
                 "field_operator": OPERATORS.get(field["field_type"], []),
@@ -466,7 +467,7 @@ class MappingHandlers(object):
         end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
 
         return self._get_latest_mapping(
-            index_set_id=self.index_set_id,
+            indices=self.indices,
             start_time=start_time_format,
             end_time=end_time_format,
             only_search=self.only_search,
@@ -483,8 +484,8 @@ class MappingHandlers(object):
             latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
-    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+    @cache_one_minute("latest_mapping_key_{indices}_{start_time}_{end_time}_{only_search}", need_md5=True)
+    def _get_latest_mapping(self, indices, start_time, end_time, only_search=False):  # noqa
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
 
         if self.start_time:
@@ -625,6 +626,8 @@ class MappingHandlers(object):
                         "tokenize_on_chars": tokenize_on_chars,
                     }
                 )
+                if field_type == "alias":
+                    data["path"] = properties_dict[key]["path"]
                 fields_result.append(data)
                 continue
         return fields_result
@@ -809,12 +812,9 @@ class MappingHandlers(object):
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
-        alias_dict = dict()
+        alias_dict = {_field["origin_field"]: _field["field_name"] for _field in fields_list
+                      if _field.get("origin_field")}
         remove_field_list = list()
-        collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
-        if collector_config:
-            data = TransferApi.get_result_table({"table_id": collector_config.table_id})
-            alias_dict = data.get("query_alias_settings", dict())
         # 增加description别名字段
         for _field in fields_list:
             a_field_name = _field.get("field_name", "")
@@ -849,9 +849,8 @@ class MappingHandlers(object):
                     )
 
                 # 添加别名信息
-                for alias_name, info in alias_dict.items():
-                    if a_field_name == info.get("path"):
-                        _field["query_alias"] = alias_name
+                if a_field_name in alias_dict:
+                    _field["query_alias"] = alias_dict[a_field_name]
 
                 # 别名字段
                 if _field.get("field_type") == "alias":
