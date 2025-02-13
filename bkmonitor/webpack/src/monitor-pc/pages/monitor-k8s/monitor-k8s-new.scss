@@ -197,7 +197,7 @@
 
           .bk-tab-label-item {
             min-width: 120px;
-            color: #63656e;
+            color: #4d4f56;
             background-color: #eaebf0;
             border-radius: 4px 4px 0 0;
 
@@ -235,8 +235,14 @@
           }
 
           .k8s-tab-panel {
+            line-height: 22px;
+
             .icon-monitor {
               margin-right: 6px;
+
+              &.icon-mc-list {
+                font-size: 12px;
+              }
             }
           }
         }

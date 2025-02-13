@@ -68,12 +68,12 @@ const tabList = [
   {
     label: window.i18n.t('指标视图'),
     id: K8sNewTabEnum.CHART,
-    icon: 'icon-mc-two-column',
+    icon: 'icon-zhibiao',
   },
   {
     label: window.i18n.t('K8S集群数据详情'),
     id: K8sNewTabEnum.DETAIL,
-    icon: 'icon-mingxi',
+    icon: 'icon-Component',
   },
 ];
 
@@ -640,7 +640,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               <GroupByCondition
                 dimensionTotal={this.dimensionTotal}
                 groupInstance={this.groupInstance}
-                title='Group by'
+                title={this.$tc('聚合维度')}
                 onChange={this.handleGroupChecked}
               />
             </div>
