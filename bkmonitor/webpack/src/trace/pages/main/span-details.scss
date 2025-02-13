@@ -305,15 +305,16 @@
       overflow: initial;
 
       .flex-dashboard-item {
+        min-height: 700px;
         margin-right: 0;
         margin-bottom: 0;
 
         .monitor-trace-log {
           padding-right: 16px;
 
-          .retrieve-v2-index {
-            overflow: hidden;
-          }
+          // .retrieve-v2-index {
+          //   overflow: hidden;
+          // }
         }
       }
 
