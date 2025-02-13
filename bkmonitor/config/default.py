@@ -1477,6 +1477,13 @@ FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
 # }
 K8S_OPERATOR_DEPLOY_NAMESPACE = {}
 
+# 集群内 collector 接收端特殊配置，针对一个集群部署多套 operator 时需要配置这个
+# 格式: {
+#     "BCS-K8S-00000": {"cache": {"interval": "10s"}},
+#     "BCS-K8S-00001": {"cache": {"interval": "1s"}},
+# }
+K8S_COLLECTOR_CONFIG = {}
+
 # 默认K8S插件采集集群ID
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""
 
