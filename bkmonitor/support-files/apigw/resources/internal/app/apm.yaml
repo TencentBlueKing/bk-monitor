@@ -7,7 +7,7 @@ info:
 schemes:
 - http
 paths:
-  /v2/monitor_v3/create_apm_application/:
+  /app/create_apm_application/:
     post:
       operationId: create_apm_application
       description: 创建APM应用
@@ -27,7 +27,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: null
-  /v2/monitor_v3/delete_apm_application/:
+  /app/delete_apm_application/:
     post:
       operationId: delete_apm_application
       description: 删除APM应用
@@ -47,7 +47,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: null
-  /v2/monitor_v3/apply_apm_datasource/:
+  /app/apply_apm_datasource/:
     post:
       operationId: apply_apm_datasource
       description: 申请APM数据源
@@ -67,7 +67,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: null
-  /v2/monitor_v3/list_apm_application/:
+  /app/list_apm_application/:
     get:
       operationId: list_apm_application
       description: 获取应用列表
@@ -87,7 +87,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: list apm application
-  /v2/monitor_v3/list_apm_es_cluster_info/:
+  /app/list_apm_es_cluster_info/:
     get:
       operationId: list_apm_es_cluster_info
       description: 获取es集群信息
@@ -107,7 +107,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: list apm es cluster info
-  /v2/monitor_v3/query_apm_topo_instance/:
+  /app/query_apm_topo_instance/:
     post:
       operationId: query_apm_topo_instance
       description: 查询topo实例
@@ -127,7 +127,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm topo instance
-  /v2/monitor_v3/query_remote_service_relation/:
+  /app/query_remote_service_relation/:
     post:
       operationId: query_apm_remote_service_relation
       description: 查询远程服务接口调用关系
@@ -147,7 +147,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm remote service relation
-  /v2/monitor_v3/query_metric_dimensions/:
+  /app/query_metric_dimensions/:
     get:
       operationId: query_metric_dimensions
       description: 查询指标维度
@@ -167,7 +167,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query metric dimensions
-  /v2/monitor_v3/query_discover_rules/:
+  /app/query_discover_rules/:
     post:
       operationId: query_apm_discover_rules
       description: 查询拓扑发现规则
@@ -187,7 +187,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm discover rules
-  /v2/monitor_v3/apm/get_bkdata_flow/:
+  /app/apm/get_bkdata_flow/:
     get:
       operationId: query_apm_bk_data_flow_detail
       description: 获取bkdata flow详情
@@ -207,7 +207,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm bkdata flow
-  /v2/monitor_v3/apm/create_or_update_bkdata_flow/:
+  /app/apm/create_or_update_bkdata_flow/:
     post:
       operationId: create_or_update_bkdata_flow
       description: 创建/更新计算平台Flow
@@ -227,7 +227,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: create or update bkdata flow
-  /v2/monitor_v3/apm/operate_apm_dataid/:
+  /app/apm/operate_apm_dataid/:
     post:
       operationId: operate_apm_dataid
       description: 恢复/暂停APM中某个DataId的链路
@@ -247,7 +247,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: operate apm dataid
-  /v2/monitor_v3/query_apm_topo_node/:
+  /app/query_apm_topo_node/:
     get:
       operationId: query_apm_topo_node
       description: 查询topo节点
@@ -267,7 +267,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm topo node
-  /v2/monitor_v3/apm/profiling/services_detail/:
+  /app/apm/profiling/services_detail/:
     get:
       operationId: query_apm_profile_service_detail
       description: 查询profile服务详情
@@ -287,7 +287,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query profile service detail
-  /v2/monitor_v3/apm/profiling/builtin_profile_datasource/:
+  /app/apm/profiling/builtin_profile_datasource/:
     get:
       operationId: query_builtin_profile_datasource
       description: 查询内建 Profiling 存储
@@ -307,7 +307,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query builtin profile datasource
-  /v2/monitor_v3/query_apm_topo_relation/:
+  /app/query_apm_topo_relation/:
     post:
       operationId: query_apm_topo_relation
       description: 查询topo关系
@@ -327,7 +327,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm topo relation
-  /v2/monitor_v3/query_apm_root_endpoint/:
+  /app/query_apm_root_endpoint/:
     get:
       operationId: query_apm_root_endpoint
       description: 查询root入口
@@ -347,7 +347,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm root endpoint
-  /v2/monitor_v3/start_apm_application/:
+  /app/start_apm_application/:
     get:
       operationId: start_apm_application
       description: 启动应用
@@ -367,7 +367,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: start apm application
-  /v2/monitor_v3/stop_apm_application/:
+  /app/stop_apm_application/:
     get:
       operationId: stop_apm_application
       description: 停止应用
@@ -387,7 +387,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: stop apm application
-  /v2/monitor_v3/query_apm_span/:
+  /app/query_apm_span/:
     post:
       operationId: query_apm_span
       description: 查询span信息
@@ -407,7 +407,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm span
-  /v2/monitor_v3/query_apm_endpoint/:
+  /app/query_apm_endpoint/:
     post:
       operationId: query_apm_endpoint
       description: 查询APM入口
@@ -427,7 +427,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm endpoint
-  /v2/monitor_v3/query_apm_fields/:
+  /app/query_apm_fields/:
     get:
       operationId: query_apm_fields
       description: 查询字段信息
@@ -447,7 +447,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm fields
-  /v2/monitor_v3/update_apm_metric_fields/:
+  /app/update_apm_metric_fields/:
     post:
       operationId: update_apm_metric_fields
       description: 更新apm指标字段
@@ -467,7 +467,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: update apm metric fields
-  /v2/monitor_v3/query_apm_es/:
+  /app/query_apm_es/:
     post:
       operationId: query_apm_es
       description: 查询apm相关es数据
@@ -487,7 +487,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm es
-  /v2/monitor_v3/query_host_instance/:
+  /app/query_host_instance/:
     post:
       operationId: query_apm_host_instance
       description: 查询apm主机实例
@@ -507,7 +507,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm host instance
-  /v2/monitor_v3/query_apm_es_mapping/:
+  /app/query_apm_es_mapping/:
     post:
       operationId: query_apm_es_mapping
       description: 查询apm应用es映射
@@ -527,7 +527,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm es mapping
-  /v2/monitor_v3/query_apm_trace_list/:
+  /app/query_apm_trace_list/:
     post:
       operationId: query_apm_trace_list
       description: 查询trace列表
@@ -547,7 +547,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm trace list
-  /v2/monitor_v3/query_apm_span_list/:
+  /app/query_apm_span_list/:
     post:
       operationId: query_apm_span_list
       description: 查询span列表
@@ -567,7 +567,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm span list
-  /v2/monitor_v3/query_apm_span_statistics/:
+  /app/query_apm_span_statistics/:
     post:
       operationId: query_apm_span_statistics
       description: 查询接口统计列表
@@ -587,7 +587,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm span statistics
-  /v2/monitor_v3/query_apm_service_statistics/:
+  /app/query_apm_service_statistics/:
     post:
       operationId: query_apm_service_statistics
       description: 查询服务统计列表
@@ -607,7 +607,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm service statistics
-  /v2/monitor_v3/query_apm_trace_option_values/:
+  /app/query_apm_trace_option_values/:
     post:
       operationId: query_apm_trace_option_values
       description: 查询trace列表候选值
@@ -627,7 +627,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm trace option values
-  /v2/monitor_v3/query_apm_span_option_values/:
+  /app/query_apm_span_option_values/:
     post:
       operationId: query_apm_span_option_values
       description: 查询span列表候选值
@@ -647,7 +647,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm span option values
-  /v2/monitor_v3/query_apm_trace_detail/:
+  /app/query_apm_trace_detail/:
     post:
       operationId: query_apm_trace_detail
       description: 查询trace详情
@@ -667,7 +667,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query trace detail
-  /v2/monitor_v3/query_apm_span_detail/:
+  /app/query_apm_span_detail/:
     post:
       operationId: query_apm_span_detail
       description: 查询span详情
@@ -687,7 +687,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query span detail
-  /v2/monitor_v3/query_apm_application_config/:
+  /app/query_apm_application_config/:
     get:
       operationId: query_apm_application_config
       description: 查询APM应用配置
@@ -707,7 +707,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm application config
-  /v2/monitor_v3/release_apm_app_config/:
+  /app/release_apm_app_config/:
     post:
       operationId: release_apm_app_config
       description: 下发APM应用配置
@@ -727,7 +727,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: release apm app config
-  /v2/monitor_v3/delete_apm_delete_app_config/:
+  /app/delete_apm_delete_app_config/:
     post:
       operationId: delete_apm_app_config
       description: 删除APM应用配置
@@ -747,7 +747,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: delete apm app config
-  /v2/monitor_v3/query_trace_by_ids/:
+  /app/query_trace_by_ids/:
     post:
       operationId: query_trace_by_ids
       description: 根据traceId列表获取trace信息
@@ -767,7 +767,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query trace by ids
-  /v2/monitor_v3/query_app_by_trace/:
+  /app/query_app_by_trace/:
     post:
       operationId: query_app_by_trace
       description: 根据traceId列表获取App关联
@@ -787,7 +787,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query app by trace
-  /v2/monitor_v3/query_app_by_host_instance/:
+  /app/query_app_by_host_instance/:
     post:
       operationId: query_app_by_host_instance
       description: 根据ip列表获取App关联
@@ -807,7 +807,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query app by host instance
-  /v2/monitor_v3/query_log_relation/:
+  /app/query_log_relation/:
     post:
       operationId: query_log_relation_by_index_set_id
       description: 根据索引集id获取服务关联
@@ -827,7 +827,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query log relation by index set id
-  /v2/monitor_v3/query_trace_by_host_instance/:
+  /app/query_trace_by_host_instance/:
     post:
       operationId: query_trace_by_host_instance
       description: 根据ip获取trace信息
@@ -847,7 +847,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query trace by host instance
-  /v2/monitor_v3/apm/create_web_application/:
+  /app/apm/create_web_application/:
     post:
       operationId: apm_create_web_application
       description: 【APM】应用创建
@@ -867,7 +867,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: create apm application
-  /v2/monitor_v3/apm/delete_web_application/:
+  /app/apm/delete_web_application/:
     post:
       operationId: apm_delete_web_application
       description: 【APM】应用删除
@@ -887,7 +887,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: delete apm application
-  /v2/monitor_v3/apm/update_web_application/:
+  /app/apm/update_web_application/:
     post:
       operationId: apm_update_web_application
       description: 【APM】应用更新
@@ -907,7 +907,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: update apm application
-  /v2/monitor_v3/apm/check_duplicate_app_name/:
+  /app/apm/check_duplicate_app_name/:
     get:
       operationId: apm_check_duplicate_app_name
       description: 【APM】应用名校验
@@ -927,7 +927,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: check apm duplicate app name
-  /v2/monitor_v3/apm/application_info/:
+  /app/apm/application_info/:
     get:
       operationId: apm_application_info
       description: 【APM】应用详情查询
@@ -947,7 +947,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: apm application info
-  /v2/monitor_v3/apm/query_bk_data_token/:
+  /app/apm/query_bk_data_token/:
     get:
       operationId: apm_query_bk_data_token
       description: 【APM】应用token查询
@@ -967,7 +967,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm data token
-  /v2/monitor_v3/apm/application_info_by_app_name/:
+  /app/apm/application_info_by_app_name/:
     get:
       operationId: apm_application_info_by_app_name
       description: 【APM】根据应用名查询应用详情
@@ -987,7 +987,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm application info by app name
-  /v2/monitor_v3/query_apm_event/:
+  /app/query_apm_event/:
     post:
       operationId: query_apm_event
       description: 查询APM相关事件信息
@@ -1007,7 +1007,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm event
-  /v2/monitor_v3/apm/profiling/ebpf_service_list/:
+  /app/apm/profiling/ebpf_service_list/:
     post:
       operationId: query_apm_ebpf_service_list
       description: 获取 ebpf 相关应用服务列表
@@ -1027,9 +1027,9 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query ebpf service list
-  /v2/monitor_v3/apm/profiling/ebpf_profile/:
+  /app/apm/profiling/ebpf_profile/:
     post:
-      operationId: query_apm_ebpf_service_list
+      operationId: query_apm_ebpf_profile
       description: 获取单个 ebpf 服务下的 profiling 性能数据
       tags:
         - apm

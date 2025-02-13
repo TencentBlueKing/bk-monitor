@@ -20,9 +20,7 @@ class ApmAPIGWResource(KernelAPIResource):
     # 模块名
     module_name = "apm_api"
 
-    base_url = settings.MONITOR_API_BASE_URL or "{}/app/{}/v2/monitor_v3/".format(
-        settings.BK_COMPONENT_API_URL, module_name
-    )
+    base_url = settings.MONITOR_API_BASE_URL
 
     @property
     def label(self):
