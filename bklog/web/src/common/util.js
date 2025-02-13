@@ -824,21 +824,21 @@ export const setDefaultSettingSelectFiled = (key, filed) => {
  */
 export const Debounce =
   (delay = 200) =>
-  (target, key, descriptor) => {
-    const originFunction = descriptor.value;
-    const getNewFunction = () => {
-      let timer;
-      const newFunction = function (...args) {
-        if (timer) window.clearTimeout(timer);
-        timer = setTimeout(() => {
-          originFunction.call(this, ...args);
-        }, delay);
+    (target, key, descriptor) => {
+      const originFunction = descriptor.value;
+      const getNewFunction = () => {
+        let timer;
+        const newFunction = function (...args) {
+          if (timer) window.clearTimeout(timer);
+          timer = setTimeout(() => {
+            originFunction.call(this, ...args);
+          }, delay);
+        };
+        return newFunction;
       };
-      return newFunction;
+      descriptor.value = getNewFunction();
+      return descriptor;
     };
-    descriptor.value = getNewFunction();
-    return descriptor;
-  };
 
 export const formatDateTimeField = (data, fieldType) => {
   if (fieldType === 'date') {
@@ -889,6 +889,16 @@ export const parseTableRowData = (
           break;
         }
 
+        // 这里用于处理nested field
+        if (Array.isArray(data)) {
+          data = data
+            .map(item =>
+              parseTableRowData(item, keyArr.slice(index).join('.'), fieldType, isFormatDate, emptyCharacter),
+            )
+            .filter(item => item !== emptyCharacter);
+          break;
+        }
+
         if (data[item]) {
           data = data[item];
         } else {
@@ -913,8 +923,8 @@ export const parseTableRowData = (
     return formatDateNanos(data) || emptyCharacter;
   }
 
-  if (Array.isArray(data)) {
-    return data.toString();
+  if (Array.isArray(data) && !data.length) {
+    return emptyCharacter;
   }
 
   if (typeof data === 'object' && data !== null) {
@@ -1219,4 +1229,30 @@ export const getHaveValueIndexItem = indexList => {
   return (
     indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
   );
+};
+
+export const isNestedField = (fieldKeys, obj) => {
+  if (!obj) {
+    return false;
+  }
+
+  if (fieldKeys.length > 1) {
+    if (obj[fieldKeys[0]] !== undefined && obj[fieldKeys[0]] !== null) {
+      if (typeof obj[fieldKeys[0]] === 'object') {
+        if (Array.isArray(obj[fieldKeys[0]])) {
+          return true;
+        }
+
+        return isNestedField(fieldKeys.slice(1), obj[fieldKeys[0]]);
+      }
+
+      return false;
+    }
+
+    if (obj[fieldKeys[0]] === undefined) {
+      return isNestedField([`${fieldKeys[0]}.${fieldKeys[1]}`, ...fieldKeys.slice(2)], obj);
+    }
+  }
+
+  return false;
 };

@@ -27,17 +27,12 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AiBlueking, {
-  RoleType,
-  type IMessage,
-  ChatHelper,
-  MessageStatus,
-  type ISendData,
-} from '@blueking/ai-blueking/vue2';
+import AiBlueking, { RoleType, type ChatHelper } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
-import { copyText, getCookie, random } from 'monitor-common/utils/utils';
+import { copyText, random } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
+import aiWhaleStore from '../../store/modules/ai-whale';
 import { getEventPaths } from '../../utils';
 
 import './ai-whale.scss';
@@ -149,9 +144,7 @@ export default class AiWhale extends tsc<{
   lastRecordTime = 0;
 
   /* AI Blueking */
-  messages: IMessage[] = [];
   prompts = questions.map((v, index) => ({ id: index + 1, content: window.i18n.tc(v) }));
-  loading = false;
   background = '#f5f7fa';
   headBackground = 'linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)';
   positionLimit = {
@@ -166,24 +159,34 @@ export default class AiWhale extends tsc<{
     bottom: 20,
     top: window.innerHeight - 600 - 20,
   };
-  showAIBlueking = false;
   chatHelper: ChatHelper = null;
   chartId = random(10);
   mousemoveFn: (event: MouseEvent) => void;
   resizeFn = () => {};
 
+  get showAIBlueking() {
+    return aiWhaleStore.showAIBlueking;
+  }
+
+  get messages() {
+    return aiWhaleStore.messages;
+  }
+
+  get loading() {
+    return aiWhaleStore.loading;
+  }
   get space() {
     const { bizId } = this.$store.getters;
     return this.$store.getters.bizList.find(item => item.id === bizId) || { name: '', type_name: '' };
   }
   @Watch('enableAiAssistant', { immediate: true })
   enableAiAssistantChange() {
-    this.enableAiAssistant && this.initStreamChatHelper();
+    this.enableAiAssistant && aiWhaleStore.initStreamChatHelper();
   }
   created() {
     this.mousemoveFn = throttle(50, this.handleMousemove);
     this.resizeFn = throttle(50, this.handleWindowResize);
-    this.messages = this.getDefaultMessage();
+    aiWhaleStore.setDefaultMessage();
     window.addEventListener('resize', this.resizeFn);
   }
 
@@ -442,114 +445,26 @@ export default class AiWhale extends tsc<{
     }#/strategy-config/add`;
     window.open(url);
   }
-  initStreamChatHelper() {
-    // 聊天开始
-    const handleStart = () => {
-      this.loading = true;
-      this.messages.push({
-        role: RoleType.Assistant,
-        content: this.$tc('内容正在生成中...'),
-        status: MessageStatus.Loading,
-      });
-    };
-    // 接收消息
-    const handleReceiveMessage = (message: string) => {
-      const currentMessage = this.messages.at(-1);
-      if (currentMessage.content === this.$tc('内容正在生成中...')) {
-        // 如果是loading状态，直接覆盖
-        currentMessage.content = message;
-      } else if (currentMessage.status === 'loading') {
-        // 如果是后续消息，就追加消息
-        currentMessage.content += message;
-      }
-    };
-    // 聊天结束
-    const handleEnd = () => {
-      this.loading = false;
-      const currentMessage = this.messages.at(-1);
-      // loading 情况下终止
-      if (currentMessage.content === this.$tc('内容正在生成中...')) {
-        currentMessage.content = '聊天内容已中断';
-        currentMessage.status = MessageStatus.Error;
-        return;
-      }
-      currentMessage.status = MessageStatus.Success;
-    };
-    // 错误处理
-    const handleError = (message: string) => {
-      if (message.includes('user authentication failed')) {
-        // 未登录，跳转登录
-        const loginUrl = new URL(process.env.BK_LOGIN_URL);
-        loginUrl.searchParams.append('c_url', location.origin);
-        window.location.href = loginUrl.href;
-      } else {
-        // 处理错误消息
-        const currentMessage = this.messages.at(-1);
-        currentMessage.status = MessageStatus.Error;
-        currentMessage.content = message;
-        this.loading = false;
-      }
-    };
-    this.chatHelper = new ChatHelper(
-      `${window.site_url}rest/v2/ai_assistant/chat/chat_v2/`,
-      handleStart,
-      handleReceiveMessage,
-      handleEnd,
-      handleError
-    );
-  }
   handleAiBluekingClear() {
-    this.messages = this.getDefaultMessage();
-  }
-  handleAiBluekingSend(message: ISendData) {
-    // 记录当前消息记录
-    // const chatHistory = [...this.messages];
-    // 添加一条消息
-    this.messages.push({
-      role: RoleType.User,
-      content: message.content,
-      cite: message.cite,
-    });
-    // 根据参数构造输入内容
-    const input = message.prompt
-      ? message.prompt // 如果有 prompt，直接使用
-      : message.cite
-        ? `${message.content}: ${message.cite}` // 如果有 cite，拼接 content 和 cite
-        : message.content;
-    // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
-    this.chatHelper.stream(
-      {
-        query: input,
-        type: 'nature',
-        polish: true,
-        stream: true,
-        bk_biz_id: window.bk_biz_id,
-      },
-      this.chartId,
-      {
-        'X-CSRFToken': window.csrf_token || getCookie(window.csrf_cookie_name),
-        'X-Requested-With': 'XMLHttpRequest',
-        'Source-App': window.source_app,
-      }
-    );
+    aiWhaleStore.setDefaultMessage();
   }
   handleAiBluekingStop() {
     this.chatHelper.stop(this.chartId);
   }
   handleAiBluekingClose() {
-    this.showAIBlueking = false;
+    aiWhaleStore.setShowAIBlueking(false);
   }
   handleAiBluekingChoosePrompt(prompt) {
     console.log('choose prompt', prompt);
   }
   handleToggleAiBlueking() {
-    this.showAIBlueking = !this.showAIBlueking;
+    aiWhaleStore.setShowAIBlueking(!this.showAIBlueking);
     // this.startPosition.left = this.whalePosition.left +;
   }
   handleAiBluekingClick(v: string) {
     const data = JSON.parse(v);
     if (data?.type !== 'send') return;
-    this.handleAiBluekingSend(data);
+    aiWhaleStore.handleAiBluekingSend(data);
   }
   createAIContent() {
     const countSpan = count => {
@@ -802,9 +717,9 @@ export default class AiWhale extends tsc<{
         onChoose-prompt={this.handleAiBluekingChoosePrompt}
         onClear={this.handleAiBluekingClear}
         onClose={this.handleAiBluekingClose}
-        onSend={this.handleAiBluekingSend}
+        onSend={aiWhaleStore.handleAiBluekingSend}
         onShowDialog={(v: boolean) => {
-          this.showAIBlueking = v;
+          aiWhaleStore.setShowAIBlueking(v);
         }}
         onStop={this.handleAiBluekingStop}
       />

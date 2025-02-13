@@ -58,6 +58,7 @@ INSTALLED_APPS = (
     "django.contrib.staticfiles",
     # account app
     "blueapps.account",
+    "apigw_manager.apigw",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -1383,12 +1384,39 @@ AIDEV_KNOWLEDGE_BASE_IDS = []
 # 邮件订阅审批服务ID
 REPORT_APPROVAL_SERVICE_ID = int(os.getenv("BKAPP_REPORT_APPROVAL_SERVICE_ID", 0))
 
+# API地址
+BK_MONITOR_API_HOST = os.getenv("BKAPP_BK_MONITOR_API_HOST", "http://monitor.bkmonitorv3.service.consul:10204")
+
+# 网关管理员
+APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
+
 # 是否启用新版的数据链路
 # 是否启用通过计算平台获取GSE data_id 资源，默认不启用
 ENABLE_V2_BKDATA_GSE_RESOURCE = False
 # 是否启用新版的 vm 链路，默认不启用
 ENABLE_V2_VM_DATA_LINK = False
 ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
+
+# 是否启用计算平台Kafka采样接口
+ENABLE_BKDATA_KAFKA_TAIL_API = False
+
+# 计算平台&监控平台数据一致性Redis相关配置
+# 计算平台Redis监听模式
+BKBASE_REDIS_PATTERN = "databus_v4_dataid"
+# Redis Watch锁续约间隔(秒)
+BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS = 15
+# 计算平台Redis Watch锁过期时间(秒)
+BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS = 60
+# 单个任务最长执行时间(秒),默认一天
+BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS = 86400
+# 重连等待间隔时间(秒)
+BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
+# Redis默认锁名称
+BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
+# 是否启用同步历史ES集群记录能力
+ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE = False
+# 是否同步数据至DB
+ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
 
 # 是否启用新版方式接入计算平台
 ENABLE_V2_ACCESS_BKBASE_METHOD = False
@@ -1439,8 +1467,8 @@ CHECK_RESULT_TTL_HOURS = 1
 # LLM 接口地址
 BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
-# 监控平台apigw代码
-BK_APIGW_NAME = os.getenv("BK_APIGW_NAME", "bk-monitor")
+# 支持来源 APIGW 列表
+FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
 
 # 集群内 bkmonitor-operator 特殊部署命名空间信息，针对一个集群部署多套 operator 时需要配置这个
 # 格式: {
@@ -1495,3 +1523,11 @@ if os.getenv("USE_BKREPO", os.getenv("BKAPP_USE_BKREPO", "")).lower() == "true":
     BKREPO_BUCKET = os.getenv("BKAPP_BKREPO_BUCKET") or os.environ["BKREPO_BUCKET"]
 
     DEFAULT_FILE_STORAGE = "bkstorages.backends.bkrepo.BKRepoStorage"
+
+# 告警图表渲染模式
+ALARM_GRAPH_RENDER_MODE = os.getenv("BKAPP_ALARM_GRAPH_RENDER_MODE", "image_exporter")
+
+# 首页告警图业务数量限制
+HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT = 5
+# 首页告警图图表数量限制
+HOME_PAGE_ALARM_GRAPH_LIMIT = 10

@@ -26,6 +26,7 @@ from apm.core.handlers.bk_data.helper import FlowHelper
 from apm.core.handlers.discover_handler import DiscoverHandler
 from apm.core.handlers.instance_handlers import InstanceHandler
 from apm.core.handlers.query.define import QueryMode, QueryStatisticsMode
+from apm.core.handlers.query.ebpf_query import DeepFlowQuery
 from apm.core.handlers.query.proxy import QueryProxy
 from apm.models import (
     ApdexConfig,
@@ -72,6 +73,7 @@ from constants.apm import (
     TraceWaterFallDisplayKey,
 )
 from core.drf_resource import Resource, api
+from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
 
@@ -383,7 +385,9 @@ class ReleaseAppConfigResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
 
-        ApmApplication.get_application(bk_biz_id, app_name)
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
@@ -505,7 +509,9 @@ class DeleteAppConfigResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
 
-        ApmApplication.get_application(bk_biz_id, app_name)
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
@@ -824,9 +830,12 @@ class QuerySpanResource(Resource):
         group_keys = serializers.ListField(required=False, label="聚和字段", default=[])
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.get_application(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
+
         param = {
             "start_time": validated_request_data["start_time"],
             "end_time": validated_request_data["end_time"],
@@ -897,9 +906,11 @@ class QueryEventResource(Resource):
         category = serializers.CharField(required=False, label="类别")
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.get_application(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
 
         return application.trace_datasource.query_event(
             start_time=validated_request_data["start_time"],
@@ -1069,9 +1080,11 @@ class QueryFieldsResource(Resource):
         app_name = serializers.CharField(label="应用名称", max_length=50)
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.get_application(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.trace_datasource.fields()
 
 
@@ -1082,9 +1095,11 @@ class UpdateMetricFieldsResource(Resource):
         field_list = serializers.ListField(label="字段列表")
 
     def perform_request(self, validated_request_data):
-        application = ApmApplication.get_application(
-            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
-        )
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not application:
+            raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
         return application.metric_datasource.update_fields(validated_request_data["field_list"])
 
 
@@ -1682,6 +1697,32 @@ class QueryProfileServiceDetailResource(Resource):
             params["last_check_time__gt"] = datetime.datetime.fromtimestamp(validated_data["last_check_time__gt"])
 
         return ProfileService.objects.filter(**params).order_by(validated_data.get("order", "created_at"))
+
+
+class QueryEbpfServiceListResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+
+    def perform_request(self, validated_request_data):
+        return DeepFlowQuery.list_app_service(validated_request_data["bk_biz_id"])
+
+
+class QueryEbpfProfileResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        app_name = serializers.CharField(label="应用名称", max_length=50)
+        service_name = serializers.CharField(label="服务名称")
+        sample_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    def perform_request(self, validated_request_data):
+        return DeepFlowQuery.get_profile(
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            validated_request_data["service_name"],
+            validated_request_data.get("sample_type", ""),
+            validated_request_data["start"],
+            validated_request_data["end"],
+        )
 
 
 """"后端直接调用的类"""

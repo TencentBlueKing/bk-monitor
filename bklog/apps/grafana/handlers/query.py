@@ -453,6 +453,9 @@ class GrafanaQueryHandler:
                 if field_info.get("description"):
                     field_description = field_info["description"]
 
+                if field_info.get("query_alias"):
+                    field_description = field_info["query_alias"]
+
                 if field_info["es_doc_values"] and field_info.get("field_type") != "date":
                     metric_conf["dimension_fields"].append({"id": field_id, "name": field_description})
 

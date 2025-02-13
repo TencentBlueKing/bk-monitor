@@ -316,7 +316,9 @@ class GetSceneViewResource(ApiAuthResource):
         view_id = params["id"]
         scene_type = params.get("type")
 
-        exists_views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type)
+        exists_views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type).only(
+            "id", "bk_biz_id", "scene_id", "type"
+        )
 
         create_default_views(
             bk_biz_id=bk_biz_id,
@@ -325,9 +327,11 @@ class GetSceneViewResource(ApiAuthResource):
             existed_views=exists_views,
         )
 
-        view = SceneViewModel.objects.filter(
-            bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type, id=view_id
-        ).first()
+        view = (
+            SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type, id=view_id)
+            .only("id", "bk_biz_id", "scene_id", "type")
+            .first()
+        )
 
         if not view:
             raise Http404

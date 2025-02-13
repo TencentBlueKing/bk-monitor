@@ -444,6 +444,11 @@ class CollectorHandler(object):
         for process in self.RETRIEVE_CHAIN:
             collector_config = getattr(self, process, lambda x, y: x)(collector_config, context)
             logger.info(f"[databus retrieve] process => [{process}] collector_config => [{collector_config}]")
+        if self.data.table_id:
+            result_table = TransferApi.get_result_table({"table_id": self.data.table_id})
+            alias_dict = result_table.get("query_alias_settings", dict())
+            if alias_dict:
+                collector_config.update({"alias_settings": alias_dict})
 
         # 添加索引集相关信息
         log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
@@ -2381,6 +2386,8 @@ class CollectorHandler(object):
         collector.log_group_id = resp["log_group_id"]
         collector.save(update_fields=["log_group_id"])
 
+        return resp
+
     def custom_create(
         self,
         bk_biz_id=None,
@@ -2502,15 +2509,19 @@ class CollectorHandler(object):
 
         custom_config.after_hook(self.data)
 
-        # create custom Log Group
-        if custom_type == CustomTypeEnum.OTLP_LOG.value:
-            self.create_custom_log_group(self.data)
-        self.send_create_notify(self.data)
-        return {
+        ret = {
             "collector_config_id": self.data.collector_config_id,
             "index_set_id": self.data.index_set_id,
             "bk_data_id": self.data.bk_data_id,
         }
+
+        # create custom Log Group
+        if custom_type == CustomTypeEnum.OTLP_LOG.value:
+            log_group_info = self.create_custom_log_group(self.data)
+            ret.update({"bk_data_token": log_group_info.get("bk_data_token")})
+        self.send_create_notify(self.data)
+
+        return ret
 
     def custom_update(
         self,

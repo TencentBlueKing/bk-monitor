@@ -42,7 +42,7 @@
             :class="getFieldIcon(field)"
             :style="{ backgroundColor: getFieldIconColor(field) }"
           ></span>
-          <span class="field-text">{{ field }}</span>
+          <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
           <template v-if="isJsonFormat(formatterStr(data, field))">
@@ -83,7 +83,7 @@
   import { mapGetters, mapState } from 'vuex';
   import JsonFormatter from '@/global/json-formatter.vue';
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   export default {
     components: {
       TextSegmentation,
@@ -161,6 +161,7 @@
       }),
       ...mapState({
         formatJson: state => state.tableJsonFormat,
+        showFieldAlias: state => state.showFieldAlias ?? false
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -233,10 +234,10 @@
       handleJsonSegmentClick({ isLink, option }, fieldName) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
-        const { operation, value, depth } = option;
+        const { operation, value, depth, isNestedField } = option;
         const operator = operation === 'not' ? 'is not' : operation;
         const field = this.totalFields.find(f => f.field_name === fieldName);
-        this.$emit('value-click', operator, value, isLink, field, depth);
+        this.$emit('value-click', operator, value, isLink, field, depth, isNestedField);
       },
 
       /**
@@ -279,7 +280,7 @@
         }
 
         if (path) {
-          const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+          const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
           window.open(url, '_blank');
         }
       },
@@ -332,6 +333,10 @@
       getFieldItem(fieldName) {
         return this.fieldList.find(item => item.field_name === fieldName);
       },
+      getFieldName(name){
+        const { getFieldName } = useFieldNameHook({ store: this.$store });
+        return getFieldName(name);
+      }
     },
   };
 </script>
@@ -344,7 +349,7 @@
 
     .log-item {
       display: flex;
-      align-items: baseline;
+      align-items: start;
       min-height: 24px;
 
       .field-label {

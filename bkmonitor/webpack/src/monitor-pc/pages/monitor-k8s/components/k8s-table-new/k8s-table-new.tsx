@@ -79,6 +79,8 @@ export interface K8sTableColumn<T extends K8sTableColumnKeysEnum> {
   canClick?: boolean;
   /** 是否需要异步加载 */
   asyncable?: boolean;
+  /** 是否固定列 */
+  fixed?: boolean;
   /** 是否开启 添加/移除 筛选项 icon */
   k8s_filter?: boolean;
   /** 是否开启 下钻 icon */
@@ -227,6 +229,14 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return this.activeTab === K8sNewTabEnum.LIST;
   }
 
+  /** 资源类型 */
+  get resourceType() {
+    const { groupByDimensions: dimensions } = this.groupInstance;
+    return this.isListTab
+      ? this.groupInstance?.getResourceType()
+      : (dimensions[dimensions.length - 1] as K8sTableColumnResourceKey);
+  }
+
   get tableChartColumns() {
     const ids: K8sTableColumnChartKey[] = [];
     const columns: K8sTableColumn<K8sTableColumnKeysEnum>[] = [];
@@ -242,7 +252,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
               name: child.name,
               sortable: 'custom',
               type: K8sTableColumnTypeEnum.DATA_CHART,
-              min_width: 130,
+              min_width: 190,
               asyncable: true,
               renderHeader: this.metricsColumnHeaderRender,
             });
@@ -269,6 +279,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const column = resourceMap[key];
       if (column) {
         columns.push(column);
+      }
+      if (!this.isListTab && key === K8sTableColumnKeysEnum.WORKLOAD) {
+        columns.push(resourceMap[K8sTableColumnKeysEnum.WORKLOAD_TYPE]);
       }
     }
 
@@ -387,7 +400,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         name: this.$t('cluster'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
-        min_width: 90,
+        min_width: 120,
+        fixed: true,
         canClick: true,
         getValue: () => this.filterCommonParams.bcs_cluster_id,
       },
@@ -397,6 +411,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
         min_width: 260,
+        fixed: true,
         canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
@@ -406,7 +421,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         name: this.$t('workload_type'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
-        min_width: 160,
+        min_width: 140,
+        fixed: true,
         getValue: K8sTableNew.getWorkloadValue(WORKLOAD, 0),
       },
       [WORKLOAD]: {
@@ -414,7 +430,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         name: this.$t('workload'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
-        min_width: 160,
+        min_width: 240,
+        fixed: true,
         canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
@@ -425,7 +442,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         name: this.$t('namespace'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
-        min_width: 100,
+        min_width: 160,
+        fixed: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
       },
@@ -434,7 +452,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         name: this.$t('container'),
         sortable: false,
         type: K8sTableColumnTypeEnum.RESOURCES_TEXT,
-        min_width: 120,
+        min_width: 150,
+        fixed: true,
         canClick: true,
         k8s_filter: this.isListTab,
         k8s_group: this.isListTab,
@@ -498,13 +517,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (config.needRefresh) {
       this.asyncDataCache.clear();
     }
-    const { groupByDimensions: dimensions } = this.groupInstance;
     // 汇聚类型
     const method = this.metricsForConvergeMap[this.sortContainer.prop] || K8sConvergeTypeEnum.SUM;
     // 资源类型
-    const resourceType = this.isListTab
-      ? this.groupInstance?.getResourceType()
-      : (dimensions[dimensions.length - 1] as K8sTableColumnResourceKey);
+    const resourceType = this.resourceType;
 
     /** 获取资源列表请求接口参数 */
     const requestParam = {
@@ -532,6 +548,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   getResourceId(key: K8sTableColumnKeysEnum, data: Record<K8sTableColumnKeysEnum, string>) {
     if (key === K8sTableColumnKeysEnum.CONTAINER) {
       return `${data[K8sTableColumnKeysEnum.POD]}:${data[K8sTableColumnKeysEnum.CONTAINER]}`;
+    }
+    if (key === K8sTableColumnKeysEnum.WORKLOAD) {
+      return `${data[K8sTableColumnKeysEnum.NAMESPACE]}|${data[key]}`;
     }
     return data[key];
   }
@@ -706,7 +725,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const unitFormatter = !['', 'none', undefined, null].includes(chartData.unit)
         ? getValueFormat(chartData.unit || '')
         : (v: any) => ({ text: v });
-      const set = unitFormatter(chartVal, chartData.unitDecimal || 4);
+      const set = unitFormatter(chartVal, chartData.unitDecimal || 1);
       chartData.datapoints[0][0] = set.text;
       // @ts-ignore
       chartData.unit = set.suffix;
@@ -801,7 +820,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         needRefresh: true,
       });
     } else {
-      const resourceType = this.groupInstance.getResourceType();
+      const resourceType = this.resourceType;
       const resourceParam = this.formatTableData(this.tableData, resourceType, [columnKey]);
       this.loadAsyncData(resourceType, resourceParam, [columnKey]);
     }
@@ -891,18 +910,12 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           {column.canClick ? (
             <span
               class='col-item-label can-click'
-              v-bk-overflow-tips={{ interactive: false }}
               onClick={() => this.handleLabelClick({ column, row, index })}
             >
               {text}
             </span>
           ) : (
-            <span
-              class='col-item-label'
-              v-bk-overflow-tips={{ interactive: false }}
-            >
-              {text}
-            </span>
+            <span class='col-item-label'>{text}</span>
           )}
           <div class='col-item-operate'>
             {this.filterIconFormatter(column, row)}
@@ -962,6 +975,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         width={column.width}
         asyncable={!!column.asyncable}
         column-key={column.id}
+        fixed={column.fixed}
         formatter={this.handleSetFormatter(column)}
         label={column.name}
         min-width={column.min_width}

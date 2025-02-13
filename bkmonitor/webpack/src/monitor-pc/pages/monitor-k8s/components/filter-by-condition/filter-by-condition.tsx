@@ -113,11 +113,17 @@ export default class FilterByCondition extends tsc<IProps> {
       return;
     }
     this.loading = true;
+    const filterDict = {};
+    for (const key in this.filterBy) {
+      if (this.filterBy[key]?.length) {
+        filterDict[key] = JSON.parse(JSON.stringify(this.filterBy[key]));
+      }
+    }
     this.filterByOptions = new FilterByOptions({
       ...this.commonParams,
       page_size: 10,
       page_type: 'scrolling',
-      filter_dict: {},
+      filter_dict: filterDict,
       with_history: false,
       query_string: this.searchValue,
     });
@@ -195,6 +201,9 @@ export default class FilterByCondition extends tsc<IProps> {
         filterDict[item.key] = item.value;
       }
       this.$emit('change', filterDict);
+      this.filterByOptions.setCommonParams({
+        filter_dict: filterDict,
+      });
     }
     this.oldLocalFilterBy = JSON.parse(JSON.stringify(filterBy));
   }
@@ -272,6 +281,7 @@ export default class FilterByCondition extends tsc<IProps> {
       }
       result.push(obj);
     }
+
     return result;
   }
 
@@ -295,6 +305,7 @@ export default class FilterByCondition extends tsc<IProps> {
       onHidden: () => {
         this.destroyPopoverInstance();
         this.setTagList();
+        this.filterByOptions.setIsUpdate(false);
         this.updateActive = '';
         this.addValueSelected = new Map();
         this.workloadValueSelected = '';
@@ -318,20 +329,9 @@ export default class FilterByCondition extends tsc<IProps> {
     if (this.groupSelected !== id || search) {
       this.groupSelected = id;
       let checkedSet = new Set();
-      if (this.updateActive) {
-        for (const tag of this.tagList) {
-          if (tag.id === id) {
-            for (const v of tag.values) {
-              checkedSet.add(v.id);
-            }
-            break;
-          }
-        }
-      } else {
-        for (const [id, valueSets] of this.addValueSelected) {
-          if (id === this.groupSelected) {
-            checkedSet = new Set(valueSets);
-          }
+      for (const [id, valueSets] of this.addValueSelected) {
+        if (id === this.groupSelected) {
+          checkedSet = new Set(valueSets);
         }
       }
       if (this.groupSelected === EDimensionKey.workload) {
@@ -357,7 +357,7 @@ export default class FilterByCondition extends tsc<IProps> {
         const groupValues = this.allOptions.find(item => item.id === this.groupSelected)?.children || [];
         this.valueOptions = groupValues.map(item => ({ ...item, checked: checkedSet.has(item.id) }));
       }
-      // this.handleSearchChange('');
+      this.valueOptionsSticky();
     }
   }
 
@@ -380,6 +380,13 @@ export default class FilterByCondition extends tsc<IProps> {
     };
     await this.filterByOptions.search(value, params[0], params[1]);
     this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+    for (const item of this.groupOptions) {
+      if (item.id === this.groupSelected) {
+        const count = this.allOptions.find(o => o.id === item.id)?.count || 0;
+        item.count = count;
+        break;
+      }
+    }
     await this.initNextPage(params[0], params[1]);
     this.handleSelectGroup(this.groupSelected, true);
     this.valueLoading = false;
@@ -393,22 +400,9 @@ export default class FilterByCondition extends tsc<IProps> {
     item.checked = !item.checked;
     this.addValueSelectedSet(item);
     if (this.groupSelected === EDimensionKey.workload) {
-      // let isBreak = false;
-      // for (const option of this.valueCategoryOptions) {
-      //   for (const l of option.children) {
-      //     if (l.id === item.id) {
-      //       l.checked = item.checked;
-      //       isBreak = true;
-      //       break;
-      //     }
-      //   }
-      //   if (isBreak) {
-      //     break;
-      //   }
-      // }
       // workload 当前只能单选
-      if (this.updateActive && item.checked) {
-        this.workloadValueSelected = item.id;
+      if (this.updateActive) {
+        this.workloadValueSelected = item.checked ? item.id : '';
       }
       for (const option of this.valueCategoryOptions) {
         for (const l of option.children) {
@@ -419,6 +413,8 @@ export default class FilterByCondition extends tsc<IProps> {
           }
         }
       }
+      this.valueOptions =
+        this.valueCategoryOptions.find(item => item.id === this.valueCategorySelected)?.children || [];
     } else {
       for (const v of this.valueOptions) {
         if (v.id === item.id) {
@@ -504,12 +500,14 @@ export default class FilterByCondition extends tsc<IProps> {
                 // name: item.name,
                 name: item.id,
               }));
-              values.unshift(
-                ...otherIds.map(id => ({
-                  id: id,
-                  name: id,
-                }))
-              );
+              if (this.groupSelected !== EDimensionKey.workload) {
+                values.unshift(
+                  ...otherIds.map(id => ({
+                    id: id,
+                    name: id,
+                  }))
+                );
+              }
               tag.values = values;
               break;
             }
@@ -541,8 +539,10 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param event
    */
   async handleAddTag(event: MouseEvent) {
+    this.searchValue = '';
     this.setGroupOptions();
     this.handleAdd(event);
+    this.handleSearchChange('');
   }
   /**
    * @description 点击了某条tag准备进行更新操作
@@ -551,8 +551,15 @@ export default class FilterByCondition extends tsc<IProps> {
    */
   async handleUpdateTag(target: any, item: ITagListItem) {
     this.updateActive = item.key;
+    if (item.id === EDimensionKey.workload) {
+      this.workloadValueSelected = item.values?.[0]?.id || '';
+    } else {
+      this.addValueSelected.set(item.id, new Set(item.values.map(v => v.id)));
+    }
+    this.filterByOptions.setIsUpdate(true);
     this.setGroupOptions();
     this.handleAdd({ target } as any);
+    this.handleSearchChange('');
   }
 
   // 切换workload 分类
@@ -700,9 +707,8 @@ export default class FilterByCondition extends tsc<IProps> {
 
   async handleSelectGroupProxy(id: string) {
     this.handleSelectGroup(id);
-    if (this.searchValue) {
-      await this.handleSearchChange(this.searchValue);
-    }
+    this.searchValue = '';
+    await this.handleSearchChange(this.searchValue);
   }
 
   /**
@@ -710,19 +716,68 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param item
    */
   addValueSelectedSet(item: IValueItem) {
-    if (!this.updateActive) {
-      const groupSet = this.addValueSelected.get(this.groupSelected);
-      if (item.checked) {
-        if (groupSet && this.groupSelected !== EDimensionKey.workload) {
-          groupSet.add(item.id);
-        } else {
-          this.addValueSelected.set(this.groupSelected, new Set([item.id]));
-        }
+    // if (!this.updateActive) {
+    // }
+    const groupSet = this.addValueSelected.get(this.groupSelected);
+    if (item.checked) {
+      if (groupSet && this.groupSelected !== EDimensionKey.workload) {
+        groupSet.add(item.id);
       } else {
-        if (groupSet) {
-          groupSet.delete(item.id);
+        this.addValueSelected.set(this.groupSelected, new Set([item.id]));
+      }
+    } else {
+      if (groupSet) {
+        groupSet.delete(item.id);
+      }
+    }
+  }
+
+  /**
+   * @description 已选项置顶
+   */
+  valueOptionsSticky() {
+    if (this.groupSelected === EDimensionKey.workload) {
+      const category = this.workloadValueSelected.match(/^[^:]+/)?.[0];
+      if (category === this.valueCategorySelected) {
+        const isSearch = this.workloadValueSelected.toLocaleLowerCase().includes(this.searchValue.toLocaleLowerCase());
+        const regex = new RegExp(`^${category}:`);
+        const name = this.workloadValueSelected.replace(regex, '');
+        const sticky = {
+          id: this.workloadValueSelected,
+          name,
+          checked: true,
+        };
+        const other = [];
+        for (const item of this.valueOptions) {
+          if (this.workloadValueSelected !== item.id) {
+            other.push({
+              ...item,
+              checked: false,
+            });
+          }
+        }
+        if (isSearch) {
+          other.unshift(sticky);
+        }
+        this.valueOptions = other;
+      }
+    } else {
+      const other = [];
+      const checkedSet = this.addValueSelected.get(this.groupSelected);
+      const checkedList = checkedSet ? Array.from(checkedSet) : [];
+      const sticky = checkedList
+        .map(id => ({
+          id,
+          name: id,
+          checked: true,
+        }))
+        .filter(item => item.id.toLocaleLowerCase().includes(this.searchValue.toLocaleLowerCase()));
+      for (const item of this.valueOptions) {
+        if (!item.checked && !checkedSet?.has?.(item.id)) {
+          other.push(item);
         }
       }
+      this.valueOptions = [...sticky, ...other];
     }
   }
 
@@ -921,6 +976,7 @@ export default class FilterByCondition extends tsc<IProps> {
                   <div class='values-search'>
                     <bk-input
                       behavior='simplicity'
+                      clearable={true}
                       left-icon='bk-icon icon-search'
                       placeholder={this.$t('请输入关键字')}
                       value={this.searchValue}

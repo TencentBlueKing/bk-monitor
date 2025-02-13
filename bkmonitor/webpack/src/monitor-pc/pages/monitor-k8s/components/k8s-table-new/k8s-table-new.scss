@@ -59,8 +59,8 @@
 
     .bk-table-row.hover-row {
       .col-item-operate {
-        display: flex;
         align-items: center;
+        visibility: visible;
       }
     }
   }
@@ -79,8 +79,6 @@
       min-width: 0;
       overflow: hidden;
       color: #63656e;
-      text-overflow: ellipsis;
-      white-space: nowrap;
 
       &.can-click {
         text-decoration: underline;
@@ -93,8 +91,9 @@
     }
 
     .col-item-operate {
-      display: none;
+      display: flex;
       flex-shrink: 0;
+      visibility: hidden;
 
       .k8s-dimension-drillDown {
         .drill-down-icon {

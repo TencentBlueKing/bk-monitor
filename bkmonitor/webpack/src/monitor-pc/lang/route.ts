@@ -33,6 +33,7 @@ export default {
   'route-告警事件': 'Alarms',
   'route-指标检索': 'Metrics',
   'route-日志检索': 'Logs',
+  'route-服务': 'Apm service',
   'route-事件检索': 'Events',
   'route-Tracing 检索': 'Traces',
   'route-综合拨测': 'Synthetics',

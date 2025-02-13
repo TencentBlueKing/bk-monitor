@@ -31,6 +31,7 @@ from core.errors.alarm_backends.detect import (
     InvalidAlgorithmsConfig,
     InvalidDataPoint,
 )
+from core.prometheus import metrics
 from core.unit import load_unit
 
 logger = logging.getLogger("detect")
@@ -478,7 +479,10 @@ class SDKPreDetectMixin(object):
         :return: 维度字典
         """
         if "agg_dimension" not in data_point.item.query_configs[0]:
-            dimensions = copy.deepcopy(data_point.dimensions)
+            if getattr(data_point, "dimension_fields", None):
+                dimensions = {key: data_point.dimensions[key] for key in data_point.dimension_fields}
+            else:
+                dimensions = copy.deepcopy(data_point.dimensions)
         else:
             dimensions = {key: data_point.dimensions[key] for key in data_point.item.query_configs[0]["agg_dimension"]}
         dimensions["strategy_id"] = int(data_point.item.strategy.id)
@@ -492,6 +496,7 @@ class SDKPreDetectMixin(object):
         self._local_pre_detect_results = {}
 
         item = data_points[0].item
+        base_labels = {"strategy_id": item.strategy.id, "strategy_name": item.strategy.name}
         if item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
             if item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                 logger.info(f"Strategy ({item.strategy.id}) history dependency data not ready")
@@ -516,7 +521,7 @@ class SDKPreDetectMixin(object):
                         "backfill_fields": ["anomaly_alert", "extra_info"],  # 默认会回填时间戳
                         "backfill_conditions": [
                             {
-                                "field_name": "is_anomaly",
+                                "field_name": "anomaly_alert",
                                 "value": 1,
                             }
                         ],
@@ -529,6 +534,9 @@ class SDKPreDetectMixin(object):
                     "timestamp": data_point.timestamp * 1000,
                 }
             )
+
+        # 统计每个策略处理的维度数量
+        metrics.AIOPS_DETECT_DIMENSION_COUNT.labels(**base_labels).set(len(predict_inputs))
 
         tasks = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_PREDICT_CONCURRENCY) as executor:
@@ -551,6 +559,8 @@ class SDKPreDetectMixin(object):
                 for output_data in predict_result:
                     self._local_pre_detect_results[output_data["__index__"]] = output_data
             except Exception as e:
+                # 统计检测异常的策略
+                metrics.AIOPS_DETECT_FAILED_COUNT.labels(**base_labels, error_code=e.data["code"]).inc()
                 logger.warning(f"Predict error: {e}")
 
     def fetch_pre_detect_result_point(self, data_point, **kwargs) -> DataPoint:
@@ -561,6 +571,7 @@ class SDKPreDetectMixin(object):
         """
         local_pre_detect_results = getattr(self, "_local_pre_detect_results", {})
         predict_result = local_pre_detect_results.get(data_point.record_id, {})
+        dimension_fields = getattr(data_point, "dimension_fields", None) or list(data_point.dimensions.keys())
 
         if predict_result:
             return DataPoint(
@@ -570,7 +581,7 @@ class SDKPreDetectMixin(object):
                     "values": predict_result,
                     "time": int(predict_result["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
-                    "dimension_fields": list(data_point.dimensions.keys()),
+                    "dimension_fields": dimension_fields,
                 },
                 item=data_point.item,
             )

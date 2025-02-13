@@ -73,6 +73,7 @@ const sceneDimensionMap = {
 export class FilterByOptions {
   commonParams: Record<string, any> = {}; // 通用参数
   dimensionData = []; // 维度数据
+  isUpdate = false;
   pageMap: Record<string, number> = {}; // 分页数据
   pageSize = 10;
   scenario = 'performance';
@@ -167,25 +168,50 @@ export class FilterByOptions {
   }
 
   queryStringParams(dimension: EDimensionKey, categoryDim?: string) {
+    const dimensionIndex = [
+      EDimensionKey.namespace,
+      EDimensionKey.workload,
+      EDimensionKey.pod,
+      EDimensionKey.container,
+    ];
+    const filterDict = {};
+    if (!this.isUpdate) {
+      for (const key of dimensionIndex) {
+        if (key === dimension) {
+          break;
+        }
+        if (this.commonParams.filter_dict?.[key]?.length) {
+          filterDict[key] = this.commonParams.filter_dict[key];
+        }
+      }
+    }
     if (this.commonParams.query_string) {
       return {
         query_string: this.commonParams.query_string,
-        filter_dict:
-          dimension === EDimensionKey.workload && categoryDim
+        filter_dict: {
+          ...filterDict,
+          ...(dimension === EDimensionKey.workload && categoryDim
             ? {
                 [EDimensionKey.workload]: `${categoryDim}:`,
               }
-            : {},
+            : {}),
+        },
       };
     }
     return {
       query_string: dimension === EDimensionKey.workload && categoryDim ? `${categoryDim}:` : '',
-      filter_dict: {},
+      filter_dict: filterDict,
     };
   }
 
   // 搜索
   async search(search: string, dimension: EDimensionKey, categoryDim?: string) {
+    if (dimension === EDimensionKey.workload) {
+      await this.setWorkloadOverview({
+        bcs_cluster_id: this.commonParams.bcs_cluster_id,
+        query_string: search,
+      });
+    }
     this.commonParams.query_string = search;
     this.setPage(1, dimension, categoryDim);
     const page = this.getPage(dimension, categoryDim);
@@ -244,14 +270,21 @@ export class FilterByOptions {
     return this.dimensionData;
   }
 
+  setIsUpdate(v: boolean) {
+    this.isUpdate = v;
+  }
   setPage(page: number, dimension: EDimensionKey, categoryDim?: string) {
     if (dimension === EDimensionKey.workload && categoryDim) {
       this.pageMap[`${dimension}_____${categoryDim}`] = page;
     }
     this.pageMap[dimension] = page;
   }
+
   async setWorkloadOverview(params: any) {
-    const data = await workloadOverview(params).catch(() => []);
+    const data = await workloadOverview({
+      ...params,
+      namespace: this.isUpdate ? undefined : this.commonParams?.filter_dict?.namespace?.join?.(',') || undefined,
+    }).catch(() => []);
     for (const dim of this.dimensionData) {
       if (dim.id === EDimensionKey.workload) {
         let total = 0;

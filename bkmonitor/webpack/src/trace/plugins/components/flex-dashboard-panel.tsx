@@ -120,22 +120,23 @@ export default defineComponent({
     function handleInitPanelsGridpos(panels: IPanelModel[]) {
       if (!panels) return;
       const updatePanelsGridpos = (list: IPanelModel[]) => {
-        // debugger
-        list.forEach(item => {
+        for (const item of list) {
           if (item.type === 'row') {
             if (item.panels?.length) {
               updatePanelsGridpos(item.panels);
             }
           } else {
+            const displayMode = props.column === 1 ? item.options?.legend?.displayMode || 'table' : 'list';
+            const placement = props.column === 1 ? item.options?.legend?.placement || 'right' : 'bottom';
             item.options = {
               ...item.options,
               legend: {
-                displayMode: props.column === 1 ? 'table' : 'list',
-                placement: props.column === 1 ? 'right' : 'bottom',
+                displayMode,
+                placement,
               },
             } as any;
           }
-        });
+        }
       };
       updatePanelsGridpos(panels);
     }
@@ -286,7 +287,10 @@ export default defineComponent({
             </div>
           ) : (
             [
-              <div class='flex-dashboard'>
+              <div
+                key='flex-dashboard'
+                class='flex-dashboard'
+              >
                 {localPanels.value.map(panel => (
                   <div
                     id={`${panel.id}__key__`}

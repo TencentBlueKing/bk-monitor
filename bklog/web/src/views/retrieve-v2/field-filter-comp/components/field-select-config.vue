@@ -59,7 +59,7 @@
         data: {
           ...(isUnionSearch.value
             ? { index_set_ids: unionIndexList.value }
-            : { index_set_id: window.__IS_MONITOR_APM__ ? route.query.indexId : route.params.indexId }),
+            : { index_set_id: window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId }),
           scope: 'default',
           index_set_type: isUnionSearch.value ? 'union' : 'single',
         },

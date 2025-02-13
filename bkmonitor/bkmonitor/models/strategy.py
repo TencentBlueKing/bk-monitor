@@ -89,6 +89,7 @@ class ItemModel(Model):
     target = models.JSONField("监控目标", default=default_target)
     meta = models.JSONField("查询配置元数据", default=list)
     metric_type = models.CharField("指标类型", max_length=32, default="", blank=True)
+    time_delay = models.IntegerField("策略等待时间", default=0)
 
     class Meta:
         verbose_name = "监控项配置V2"

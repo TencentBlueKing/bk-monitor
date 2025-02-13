@@ -286,6 +286,19 @@ export class DataQuery implements IDataQuery {
     }, {});
     return isExist ? result : null;
   }
+  handleCreateComparesSingle(data: object) {
+    const localFieldsSort = this.fieldsSort;
+    let isExist = true;
+    const result = localFieldsSort.reduce((total, cur) => {
+      const [itemKey, filterDictKey] = cur;
+      let value = data?.[itemKey];
+      value === undefined && isExist && (isExist = false);
+      value = isObject(value) ? value.value : value; // 兼容对象结构的value
+      total[filterDictKey] = value;
+      return total;
+    }, {});
+    return isExist ? result : null;
+  }
   /** 生成一个唯一的key */
   handleCreateFieldsKey(fieldsSort) {
     return fieldsSort.reduce((total, cur, index) => {

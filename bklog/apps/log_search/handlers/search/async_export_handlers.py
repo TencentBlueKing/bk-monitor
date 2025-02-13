@@ -37,11 +37,12 @@ from apps.log_search.constants import (
     IndexSetType,
 )
 from apps.log_search.exceptions import (
+    BKBaseExportException,
     MissAsyncExportException,
     PreCheckAsyncExportException,
 )
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import AsyncTask, LogIndexSet
+from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
 from apps.log_search.tasks.async_export import async_export
 from apps.models import model_to_dict
 from apps.utils.db import array_chunk
@@ -84,6 +85,9 @@ class AsyncExportHandlers(object):
         self.export_file_type = export_file_type
 
     def async_export(self, is_quick_export: bool = False):
+        # 计算平台暂不支持快速下载
+        if is_quick_export and self.search_handler.scenario_id == Scenario.BKDATA:
+            raise BKBaseExportException()
         # 判断fields是否支持
         fields = self._pre_check_fields()
         # 获取排序字段

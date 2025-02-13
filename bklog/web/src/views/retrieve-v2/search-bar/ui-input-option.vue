@@ -9,9 +9,9 @@
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
   import { translateKeys } from './const-values';
   import { excludesFields } from './const.common';
-  import { ConditionOperator } from '@/store/condition-operator';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
+  import useFieldEgges from './use-field-egges';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -113,6 +113,7 @@
     is_full_text: true,
     field_alias: t('全文检索'),
     field_type: '',
+    query_alias:'',
     field_operator: [
       {
         operator: FulltextOperator,
@@ -128,45 +129,7 @@
     return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
   });
 
-  let requestTimer = null;
-  const isRequesting = ref(false);
-  const rquestFieldEgges = (() => {
-    return (field, operator?, value?, callback?) => {
-      const getConditionValue = () => {
-        if (['keyword'].includes(field.field_type)) {
-          return [`*${value}*`];
-        }
-
-        return [];
-      };
-
-      if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
-        return;
-      }
-
-      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 50 : 100;
-      isRequesting.value = true;
-
-      requestTimer && clearTimeout(requestTimer);
-      requestTimer = setTimeout(() => {
-        const addition = value
-          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.getRequestParam();
-            })
-          : [];
-
-        store
-          .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
-          .then(() => {
-            callback?.();
-          })
-          .finally(() => {
-            isRequesting.value = false;
-          });
-      }, 300);
-    };
-  })();
+  const { requestFieldEgges, isRequesting } = useFieldEgges();
 
   const getFieldWeight = field => {
     if (field.field_name === '*') {
@@ -191,6 +154,7 @@
       list.push({
         field_name: '_ip-select_',
         field_type: '',
+        query_alias: '',
         is_full_text: true,
         field_alias: t('IP目标'),
         field_operator: [],
@@ -234,11 +198,11 @@
   });
 
   const filterFieldList = computed(() => {
-    const regExp = getRegExp(searchValue.value);
+    const regExp = getRegExp(searchValue.value.trim());
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
-      (regExp.test(field.field_alias) || regExp.test(field.field_name));
+      (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias)) ;
     return fieldList.value.filter(filterFn);
   });
 
@@ -387,7 +351,7 @@
     }
 
     if (isShowConditonValueSetting.value && hasConditionValueTip.value) {
-      rquestFieldEgges(item, null, null, () => {
+      requestFieldEgges(item, null, () => {
         if (!conditionValueInstance.repositionTippyInstance()) {
           if (!isOperatorInstanceActive()) {
             const target = refConditionInput.value?.parentNode;
@@ -544,7 +508,7 @@
     const charLen = getCharLength(value);
     input.style.setProperty('width', `${charLen * INPUT_MIN_WIDTH}px`);
     conditionValueInputVal.value = input.value;
-    rquestFieldEgges(activeFieldItem.value, activeOperator.value.operator, conditionValueInputVal.value, () => {
+    requestFieldEgges(activeFieldItem.value, conditionValueInputVal.value, () => {
       if (!operatorInstance.isShown()) {
         conditionValueInstance.repositionTippyInstance();
 
@@ -961,7 +925,7 @@
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <span class="field-alias">{{ item.field_alias || item.field_name }}</span>
+            <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
             <span
               v-if="!item.is_full_text"
               class="field-name"

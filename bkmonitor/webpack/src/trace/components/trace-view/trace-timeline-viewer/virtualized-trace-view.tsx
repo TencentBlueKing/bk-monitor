@@ -183,6 +183,7 @@ export default defineComponent({
     const haveReadSpanIds = ref<string[]>([]);
     const showSpanDetails = ref(false);
     const spanDetails = ref<null | Span>(null);
+    const activeTab = ref('BasicInfo');
 
     const childrenHiddenStore = useChildrenHiddenInject();
     const isFullscreen = inject('isFullscreen', false);
@@ -210,14 +211,16 @@ export default defineComponent({
     }
 
     /** 点击span事件 */
-    const handleSpanClick = (span: Span) => {
+    const handleSpanClick = (span: Span, isEventTab = false) => {
       curShowDetailSpanId.value = span.spanID;
       if (!haveReadSpanIds.value.includes(span.spanID)) {
         haveReadSpanIds.value.push(span.spanID);
       }
       showSpanDetails.value = true;
       spanDetails.value = span;
+      activeTab.value = isEventTab ? 'Event' : 'BasicInfo';
     };
+
     /** 获取跨应用span */
     const getAcrossAppInfo = async (span: Span) => {
       const {
@@ -295,6 +298,7 @@ export default defineComponent({
       spans,
       handlePrevNextClicked,
       handleToggleCollapse,
+      activeTab,
     };
   },
 
@@ -327,6 +331,7 @@ export default defineComponent({
           isShowPrevNextButtons={true}
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
+          activeTab={this.activeTab}
           onPrevNextClicked={flag => {
             this.handlePrevNextClicked(flag);
           }}
