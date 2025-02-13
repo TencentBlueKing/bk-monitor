@@ -12,6 +12,8 @@ specific language governing permissions and limitations under the License.
 import base64
 import json
 import logging
+import tempfile
+import time
 import uuid
 from itertools import chain
 from typing import Dict, List
@@ -1960,8 +1962,8 @@ class KafkaTailResource(Resource):
                 result = [json.loads(data) for data in res]
             else:
                 result = self._consume_with_gse_config(datasource, size)
-        else:
-            result = self._consume_with_kafka_python(datasource, size)
+        else:  # 其他情况使用kafka-python库,适配边缘存查链路等带证书鉴权的Kafka集群
+            result = self._consume_with_kafka_python(datasource=datasource, mq_ins=mq_ins, size=size)
 
         result.reverse()
         return result
@@ -2038,25 +2040,90 @@ class KafkaTailResource(Resource):
 
         return result
 
-    def _consume_with_kafka_python(self, datasource, size):
+    def _consume_with_kafka_python(self, datasource, mq_ins, size):
         """
-        使用kafka-python库消费kafka数据，针对PLAIN认证的集群
+        使用kafka-python库消费kafka数据，针对PLAIN认证的集群，适用于边缘存查联路等证书鉴权Kafka
+        @param datasource: 数据源实例
+        @param mq_ins: 集群实例
+        @param size: 拉取条数
         """
-        param = {
-            "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
-            "request_timeout_ms": 1000,
-            "consumer_timeout_ms": 1000,
-        }
-        if datasource.mq_cluster.username:
-            param["sasl_plain_username"] = datasource.mq_cluster.username
-            param["sasl_plain_password"] = datasource.mq_cluster.password
-            param["security_protocol"] = "SASL_PLAINTEXT"
-            param["sasl_mechanism"] = "PLAIN"
-        consumer = KafkaConsumer(datasource.mq_config.topic, **param)
-        consumer.poll(size)
-        topic_partitions = consumer.partitions_for_topic(datasource.mq_config.topic)
-        if not topic_partitions:
-            raise ValueError(_("partition获取失败"))
+        logger.info("KafkaTailResource: using kafka-python to tail,bk_data_id->[%s]", datasource.bk_data_id)
+
+        mq_config = models.KafkaTopicInfo.objects.get(id=datasource.mq_config_id)
+        topic = mq_config.topic
+        logger.info(
+            "KafkaTailResource: using kafka-python to tail,bk_data_id->[%s],topic->[%s]", datasource.bk_data_id, topic
+        )
+
+        if mq_ins.is_ssl_verify:  # SSL验证是否强验证
+            server = mq_ins.extranet_domain_name if mq_ins.extranet_domain_name else mq_ins.domain_name
+            port = mq_ins.port
+            kafka_server = server + ":" + str(port)
+
+            security_protocol = "SASL_SSL" if mq_ins.username else "SSL"
+            sasl_mechanism = mq_ins.consul_config.get("sasl_mechanisms") or ("PLAIN" if mq_ins.username else None)
+
+            # SSL认证证书相关，需要保存到临时文件以获取Consumer
+            ssl_cafile = mq_ins.ssl_certificate_authorities
+            ssl_certfile = mq_ins.ssl_certificate
+            ssl_keyfile = mq_ins.ssl_certificate_key
+
+            if ssl_cafile:
+                with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
+                    fd.write(ssl_cafile)
+                    ssl_cafile = fd.name
+
+            if ssl_certfile:
+                with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
+                    fd.write(ssl_certfile)
+                    ssl_certfile = fd.name
+
+            if ssl_keyfile:
+                with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
+                    fd.write(ssl_keyfile)
+                    ssl_keyfile = fd.name
+
+            # 创建Consumer消费实例
+            consumer = KafkaConsumer(
+                topic,
+                bootstrap_servers=kafka_server,
+                security_protocol=security_protocol,
+                sasl_mechanism=sasl_mechanism,
+                sasl_plain_username=mq_ins.username,
+                sasl_plain_password=mq_ins.password,
+                request_timeout_ms=5000,
+                consumer_timeout_ms=5000,
+                ssl_cafile=ssl_cafile,
+                ssl_certfile=ssl_certfile,
+                ssl_keyfile=ssl_keyfile,
+                ssl_check_hostname=not mq_ins.ssl_insecure_skip_verify,
+            )
+        else:
+            param = {
+                "bootstrap_servers": f"{datasource.mq_cluster.domain_name}:{datasource.mq_cluster.port}",
+                "request_timeout_ms": 1000,
+                "consumer_timeout_ms": 1000,
+            }
+            if datasource.mq_cluster.username:
+                param["sasl_plain_username"] = datasource.mq_cluster.username
+                param["sasl_plain_password"] = datasource.mq_cluster.password
+                param["security_protocol"] = "SASL_PLAINTEXT"
+                param["sasl_mechanism"] = "PLAIN"
+            consumer = KafkaConsumer(topic, **param)
+
+        max_retries = settings.KAFKA_TAIL_API_RETRY_TIMES
+        retry_delay = settings.KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS
+        for attempt in range(max_retries):  # 边缘存查集群存在首次连接拉取时异常问题，添加重试机制
+            consumer.poll(size)
+            topic_partitions = consumer.partitions_for_topic(topic)
+            if topic_partitions:
+                break
+            logger.warning(
+                "KafkaTailResource: Failed to get partitions for topic->[%s],attempt->[%s],retrying.", topic, attempt
+            )
+            time.sleep(retry_delay)
+        else:
+            raise ValueError("failed to get partitions")
         result = []
         for partition in topic_partitions:
             # 获取该分区最大偏移量
