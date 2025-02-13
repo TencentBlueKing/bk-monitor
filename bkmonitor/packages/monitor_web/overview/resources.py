@@ -732,7 +732,9 @@ class GetAlarmGraphConfigResource(Resource):
             config = config.config
 
             # 查询已屏蔽策略
-            shield_configs = Shield.objects.filter(category="strategy", failure_time__gte=timezone.now())
+            shield_configs = Shield.objects.filter(
+                category="strategy", failure_time__gte=timezone.now(), bk_biz_id=bk_biz_id
+            )
             shielded_strategy_ids = set(
                 itertools.chain.from_iterable(
                     [shield_config.dimension_config.get("strategy_id", []) for shield_config in shield_configs]
