@@ -316,6 +316,10 @@
           }
         }
       }
+
+      .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .expand-view-wrapper::after {
+        display: none;
+      }
     }
 
     &.is-host-tab,
