@@ -79,7 +79,7 @@ class IntelligentDetect(RangeRatioAlgorithmsCollection, SDKPreDetectMixin):
                     "backfill_fields": ["anomaly_alert", "extra_info"],
                     "backfill_conditions": [
                         {
-                            "field_name": "is_anomaly",
+                            "field_name": "anomaly_alert",
                             "value": 1,
                         }
                     ],
