@@ -23,7 +23,7 @@
     .list-content {
       display: flex;
       flex-wrap: wrap;
-      gap: 24px 2%;
+      gap: 12px;
       align-items: center;
 
       .list-item {
@@ -32,7 +32,6 @@
         background: #ffffff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919290d;
-
         &:hover {
           cursor: pointer;
         }
@@ -70,10 +69,14 @@
     }
 
     .empty-content {
+      width: 100%;
+      height: 180px;
+      background: #FAFBFD;
+      padding-top: 30px;
       .empty-img {
         width: 220px;
         height: 100px;
-        margin: 70px auto 0;
+        margin: 0 auto;
 
         img {
           width: 100%;

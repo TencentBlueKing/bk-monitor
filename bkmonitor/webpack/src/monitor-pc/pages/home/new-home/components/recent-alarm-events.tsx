@@ -94,6 +94,10 @@ export default class RecentAlarmEvents extends tsc<object> {
     return this.alarmGraphContent.length < this.graphLimit;
   }
 
+  get computedWidth() {
+    return window.innerWidth < 2560 ? 392 : 452;
+  }
+
   async created() {
     await this.getTabAndAlarmConfig(true, false);
     this.activeTabId = this.businessTab[0]?.bk_biz_id; // 默认选中第一个标签
@@ -106,7 +110,8 @@ export default class RecentAlarmEvents extends tsc<object> {
       const data = await getAlarmGraphConfig({
         bk_biz_id: this.activeTabId || this.$store.getters.bizId,
       });
-      this.bizLimit = data.biz_limit || this.bizLimit;
+      const currentBizLength = data.tags.length;
+      this.bizLimit = currentBizLength > data.biz_limit ? currentBizLength : data.biz_limit || this.bizLimit;
       this.graphLimit = data.graph_limit || this.graphLimit;
       if (updateTab) {
         if (this.businessTab.length === 0) {
@@ -134,6 +139,7 @@ export default class RecentAlarmEvents extends tsc<object> {
     // 列表最后一个为新增图表
     const add = () => (
       <div
+        style={{ 'min-width': `${this.computedWidth}px` }}
         class={{ 'add-content list-item': true, 'unable-add-graph': !this.canAddGraph }}
         v-bk-tooltips={{
           content: this.$t('仅支持添加 {0} 个图表', {
@@ -156,6 +162,7 @@ export default class RecentAlarmEvents extends tsc<object> {
         {list.map((item, index) => (
           <div
             key={item.name + index}
+            style={{ 'min-width': `${this.computedWidth}px` }}
             class='list-item'
           >
             <HomeAlarmChart
@@ -164,7 +171,7 @@ export default class RecentAlarmEvents extends tsc<object> {
               currentActiveId={this.activeTabId}
               severityProp={this.severityList[index]}
               timeRange={this.timeRange}
-              onMenuClick={({ id }) => this.handleMenuClick(id, item, index)}
+              onMenuClick={data => this.handleMenuClick(data, item, index)}
               onSeverityChange={severity => this.saveSeverityList(index, severity)}
             />
           </div>
@@ -177,7 +184,7 @@ export default class RecentAlarmEvents extends tsc<object> {
   get severityList() {
     return JSON.parse(
       localStorage.getItem(`${RECENT_ALARM_SEVERITY_KEY}_${this.activeTabId}`) ||
-        JSON.stringify(Array(this.alarmGraphContent.length).fill(DEFAULT_SEVERITY_LIST))
+      JSON.stringify(Array(this.alarmGraphContent.length).fill(DEFAULT_SEVERITY_LIST))
     );
   }
 
@@ -189,7 +196,8 @@ export default class RecentAlarmEvents extends tsc<object> {
   }
 
   /** MenuList操作 */
-  handleMenuClick(mode, item, index) {
+  handleMenuClick(data, item, index) {
+    const { id: mode } = data;
     this.handleMenuMode = mode;
     switch (mode) {
       case 'edit':
@@ -212,7 +220,8 @@ export default class RecentAlarmEvents extends tsc<object> {
         }
         queryString = queryString.slice(0, queryString.length - 3);
         const [from, to] = this.timeRange;
-        const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${from}&to=${to}&bizIds=${this.activeTabId}`;
+        const xAxis = data.xAxis;
+        const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${xAxis ? xAxis : from}&to=${xAxis ? xAxis : to}&bizIds=${this.activeTabId}`;
         window.open(url, '_blank');
         break;
       }
@@ -559,7 +568,6 @@ export default class RecentAlarmEvents extends tsc<object> {
             currentBizId={this.alarmGraphBizId}
             editStrategyConfig={this.strategyConfig}
             handleMenuMode={this.handleMenuMode}
-            isFirstAddTaskDialog={!this.isAppendMode}
             showAddTaskDialog={this.showAddTaskDialog}
             spaceName={this.businessTab.filter(item => item.bk_biz_id === this.alarmGraphBizId)[0]?.bk_biz_name}
             onAfterDialogLeave={() => {
