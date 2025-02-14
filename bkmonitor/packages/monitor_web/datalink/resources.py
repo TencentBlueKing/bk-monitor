@@ -516,9 +516,10 @@ class TransferLatestMsgResource(BaseStatusResource):
     def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[Dict]:
         """查询一个指标的最新数据"""
 
-        series = api.metadata.kafka_tail({"table_id": table_id, "size": size})
+        series: List[Dict] = api.metadata.kafka_tail({"table_id": table_id, "size": size})
         msgs = []
         for s in series:
+            logger.info(f"series keys: {', '.join(list(s.keys()))}")
             # 获取时间戳
             timestamp = s["timestamp"]
             if len(str(timestamp)) == 13:
