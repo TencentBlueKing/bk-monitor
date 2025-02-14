@@ -70,11 +70,26 @@ class SearchViewSet(viewsets.GenericViewSet):
     搜索, 使用多线程搜索，使用 event-stream 返回搜索结果
     """
 
+    def unescape(self, query: str) -> str:
+        """
+        反转义
+        """
+        query = query.replace("&lt;", "<")
+        query = query.replace("&gt;", ">")
+        query = query.replace("&amp;", "&")
+        query = query.replace("&quot;", '"')
+        query = query.replace("&#39;", "'")
+        query = query.replace("&nbsp;", " ")
+        return query
+
     def list(self, request: Request, *args: Any, **kwargs: Any) -> StreamingHttpResponse:
         serializer = SearchSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
-        query: str = serializer.validated_data['query'].strip()
+        query: str = serializer.validated_data['query']
+
+        # 反转义
+        query = self.unescape(query).strip()
 
         # 搜索
         searcher: Searcher = Searcher(username=request.user.username)

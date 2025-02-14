@@ -51,7 +51,9 @@ class WorkloadOverview(Resource):
 
         # 如果前端传值则添加过滤
         if validated_request_data.get("namespace"):
-            queryset = queryset.filter(namespace=validated_request_data["namespace"])
+            # 支持多个ns传递， 默认半角逗号连接
+            ns_list = validated_request_data["namespace"].split(",")
+            queryset = queryset.filter(namespace__in=ns_list)
         if validated_request_data.get("query_string"):
             queryset = queryset.filter(name__icontains=validated_request_data["query_string"])
 

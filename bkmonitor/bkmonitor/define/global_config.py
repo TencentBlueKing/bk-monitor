@@ -52,6 +52,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_DEFAULT_STRATEGY", slz.BooleanField(label="是否开启默认策略", default=True)),
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
         ("K8S_OPERATOR_DEPLOY_NAMESPACE", slz.JSONField(label="bkmonitor-operator 特殊集群部署命名空间信息", default={})),
+        ("K8S_COLLECTOR_CONFIG", slz.JSONField(label="集群内 collector 数据接收端特殊配置", default={})),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
@@ -304,7 +305,19 @@ ADVANCED_OPTIONS = OrderedDict(
         ("DISABLE_ALARM_CMDB_CACHE_REFRESH", slz.ListField(label="禁用告警CMDB缓存刷新", default=[])),
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
         ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
+        ("ENABLE_BKDATA_KAFKA_TAIL_API", slz.BooleanField(label="是否启用计算平台Kafka采样接口", default=False)),
         ("DEFAULT_VM_DATA_LINK_NAMESPACE", slz.CharField(label="创建计算平台链路资源所属的命名空间", default="bkmonitor")),
+        ("BKBASE_REDIS_PATTERN", slz.CharField(label="计算平台Redis监听模式", default="databus_v4_dataid")),
+        ("BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS", slz.IntegerField(label="Redis Watch锁续约间隔(秒)", default=15)),
+        ("BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS", slz.IntegerField(label="Redis Watch锁过期时间(秒)", default=60)),
+        ("BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS", slz.IntegerField(label="计算平台Redis任务最大执行时间(秒)", default=86400)),
+        ("BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS", slz.IntegerField(label="计算平台Redis重连间隔(秒)", default=2)),
+        ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
+        ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
+        (
+            "ENABLE_SYNC_HISTORY_ES_CLUSTER_RECORD_FROM_BKBASE",
+            slz.BooleanField(label="是否启用同步历史ES集群记录能力", default=False),
+        ),
         ("ACCESS_DATA_BATCH_PROCESS_THRESHOLD", slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0)),
         ("ACCESS_DATA_BATCH_PROCESS_SIZE", slz.IntegerField(label="access数据批量处理单次处理量", default=50000)),
         ("BASE64_ENCODE_TRIGGER_CHARS", slz.ListField(label="需要base64编码的特殊字符", default=[])),
@@ -325,6 +338,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
         ("ENABLE_V2_ACCESS_BKBASE_METHOD", slz.BooleanField(label="是否启用新版方式接入计算平台", default=False)),
         ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
+        ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
+        ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
     ]
 )
 

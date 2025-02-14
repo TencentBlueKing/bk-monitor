@@ -77,6 +77,7 @@ class ApmDataSourceConfigBase(models.Model):
 
     class Meta:
         abstract = True
+        index_together = [["bk_biz_id", "app_name"]]
 
     @property
     def data_name(self) -> str:
@@ -885,7 +886,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     @cached_property
     def retention(self):
-        return metadata_models.ESStorage.objects.filter(table_id=self.result_table_id).first().retention
+        return metadata_models.ESStorage.objects.filter(table_id=self.result_table_id).values_list(
+            "retention", flat=True
+        )[0]
 
     @cached_property
     def es_client(self):

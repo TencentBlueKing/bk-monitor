@@ -824,21 +824,21 @@ export const setDefaultSettingSelectFiled = (key, filed) => {
  */
 export const Debounce =
   (delay = 200) =>
-  (target, key, descriptor) => {
-    const originFunction = descriptor.value;
-    const getNewFunction = () => {
-      let timer;
-      const newFunction = function (...args) {
-        if (timer) window.clearTimeout(timer);
-        timer = setTimeout(() => {
-          originFunction.call(this, ...args);
-        }, delay);
+    (target, key, descriptor) => {
+      const originFunction = descriptor.value;
+      const getNewFunction = () => {
+        let timer;
+        const newFunction = function (...args) {
+          if (timer) window.clearTimeout(timer);
+          timer = setTimeout(() => {
+            originFunction.call(this, ...args);
+          }, delay);
+        };
+        return newFunction;
       };
-      return newFunction;
+      descriptor.value = getNewFunction();
+      return descriptor;
     };
-    descriptor.value = getNewFunction();
-    return descriptor;
-  };
 
 export const formatDateTimeField = (data, fieldType) => {
   if (fieldType === 'date') {
@@ -923,8 +923,8 @@ export const parseTableRowData = (
     return formatDateNanos(data) || emptyCharacter;
   }
 
-  if (Array.isArray(data)) {
-    return data.toString() || emptyCharacter;
+  if (Array.isArray(data) && !data.length) {
+    return emptyCharacter;
   }
 
   if (typeof data === 'object' && data !== null) {

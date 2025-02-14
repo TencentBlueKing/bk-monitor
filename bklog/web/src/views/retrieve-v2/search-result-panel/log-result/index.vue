@@ -89,7 +89,7 @@
           @change="handleJsonFormatDeepChange"
         ></bk-input>
       </div>
-      <div class="tools-more">
+      <div class="tools-more" v-if="!isMonitorTrace">
         <div class="operation-icons">
           <export-log
             :async-export-usable="asyncExportUsable"
@@ -175,6 +175,7 @@
         exportLoading: false,
         expandTextView: false,
         isInitActiveTab: false,
+        isMonitorTrace: window.__IS_MONITOR_TRACE__
       };
     },
     computed: {

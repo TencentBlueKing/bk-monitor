@@ -188,6 +188,7 @@ if BCS_API_GATEWAY_HOST:
         ("api.bcs.tasks.sync_bcs_node_to_db", "*/10 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_service_monitor_to_db", "*/10 * * * *", "global"),
         ("api.bcs.tasks.sync_bcs_pod_monitor_to_db", "*/10 * * * *", "global"),
+        ("api.bcs.tasks.sync_bcs_ingress_to_db", "*/10 * * * *", "global"),
         # bcs资源数据状态同步
         # TODO: 调整好后再开启
         ("api.bcs.tasks.sync_bcs_cluster_resource", "*/15 * * * *", "global"),
@@ -257,6 +258,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.sync_space.refresh_bcs_project_biz", "*/10 * * * *", "global"),
     # 关联协议数据同步--cmdb_relation
     ("metadata.task.sync_cmdb_relation.sync_relation_redis_data", "0 * * * *", "global"),
+    # 计算平台元数据一致性 Redis Watch
+    ("metadata.task.bkbase.watch_bkbase_meta_redis_task", "* * * * *", "global"),
 ]
 # 耗时任务单独队列处理
 LONG_TASK_CRONTAB = [
@@ -285,8 +288,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.config_refresh.clean_datasource_from_consul", "30 4 * * *", "global"),
     # 每天同步一次蓝鲸应用的使用的集群
     ("metadata.task.sync_space.refresh_bksaas_space_resouce", "0 1 * * *", "global"),
-    # 检查并执行接入vm命令, 每1个小时执行一次
-    ("metadata.task.vm.check_access_vm_task", "0 */1 * * *", "global"),
+    # 检查并执行接入vm命令, 每5分钟执行一次
+    ("metadata.task.vm.check_access_vm_task", "*/5 * * * *", "global"),
     # 自定义事件休眠检查，对长期没有数据的自定义事件进行休眠
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
     # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
@@ -520,6 +523,11 @@ CACHES = {
         },
     },
 }
+
+# BkBase Redis
+BKBASE_REDIS_HOST = os.environ.get("BKBASE_REDIS_HOST")
+BKBASE_REDIS_PORT = os.environ.get("BKBASE_REDIS_PORT")
+BKBASE_REDIS_PASSWORD = os.environ.get("BKBASE_REDIS_PASSWORD")
 
 # django cache backend using redis
 DJANGO_REDIS_PASSWORD = os.environ.get("DJANGO_REDIS_PASSWORD")

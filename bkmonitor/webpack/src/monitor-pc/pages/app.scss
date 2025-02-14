@@ -36,6 +36,12 @@
   font-size: $font-size-base;
   color: $font-color-base;
 
+  .bk-monitor-navigation {
+    .title-desc {
+      color: #eaebf0;
+    }
+  }
+
   .bk-navigation {
     height: calc(100vh - var(--notice-alert-height)) !important;
 
@@ -60,6 +66,10 @@
       height: 100%;
       font-size: 14px;
       color: #acb5c6;
+      .header-list-item-block {
+        width: 40px;
+        height: 100%;
+      }
 
       @include flex-align(center);
 
@@ -508,10 +518,10 @@
   }
 
   .monitor-footer {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
+    // position: fixed;
+    // right: 0;
+    // bottom: 0;
+    // left: 0;
     z-index: 999;
     background-color: #f5f7fa;
   }

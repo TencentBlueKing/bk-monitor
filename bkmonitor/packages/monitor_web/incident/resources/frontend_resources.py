@@ -230,6 +230,8 @@ class IncidentListResource(IncidentBaseResource):
         ):
             result = handler.search(show_overview=False, show_aggs=True)
 
+        result["greyed_spaces"] = settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
+
         return result
 
 

@@ -28,6 +28,8 @@ LARGE_SERVICE_MAX_QUERY_SIZE = 5000
 NORMAL_SERVICE_MAX_QUERY_SIZE = 10000
 # grafana 查询的 label 最大数量
 GRAFANA_LABEL_MAX_SIZE = 1000
+# ebpf profiling app 前缀
+EBPF_PROFILING_APP_PREFIX = "ebpf-"
 
 
 class InputType(Enum):
