@@ -234,6 +234,9 @@ export default {
   搜索模块名: 'Search module name',
   搜索空间: 'Search space',
   搜索集群名: 'Search cluster name',
+  '搜索 内置': 'Search built-in',
+  '搜索 仪表盘': 'Search dashboard',
+  '搜索 图表': 'Search chart',
   '全站搜索，可以跨业务直接搜索任意资源': 'Site-wide search, can directly search for any resources across spaces',
   '搜索IP / 主机名': 'Search IP / Hostname',
   '搜索事件源名称、ID、分类、方式、作者、创建人、更新人':
