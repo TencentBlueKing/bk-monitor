@@ -208,6 +208,7 @@ RECOVERY = "recovery"
 UnifyQueryDataSources = [
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+    (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
 ]
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [
