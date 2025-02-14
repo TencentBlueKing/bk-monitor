@@ -519,13 +519,15 @@ class TransferLatestMsgResource(BaseStatusResource):
         series = api.metadata.kafka_tail({"table_id": table_id, "size": size})
         msgs = []
         for s in series:
-            # 取最后一个数据点
-            latest_datapoint = s["data"][-1]
+            # 获取时间戳
+            timestamp = s["timestamp"]
+            if len(str(timestamp)) == 13:
+                timestamp = timestamp / 1000
 
             msgs.append(
                 {
                     "message": json.dumps(s),
-                    "time": datetime.fromtimestamp(latest_datapoint["timestamp"] / 1000).strftime("%Y-%m-%d %H:%M:%S"),
+                    "time": datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S"),
                     "raw": s,
                 }
             )
