@@ -311,7 +311,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             </span>
           )}
         </span>
-        {!item.compare_hosts && hasOperatorKeys.includes(type) && (
+        {(item.compare_hosts || []).length === 0 && hasOperatorKeys.includes(type) && (
           <span class='item-operator'>
             {this.operatorList[type].map(operator => (
               <span
@@ -494,7 +494,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       const lines = text.split('\n');
       let totalLines = 0;
       lines.map(line => {
-        totalLines += Math.ceil(line.length / charsPerLine);
+        /** 连续有多个换行符的话，则默认每一个为一行 */
+        totalLines += Math.ceil((line.length === 0 ? charsPerLine : line.length) / charsPerLine);
       });
       return totalLines;
     } else {

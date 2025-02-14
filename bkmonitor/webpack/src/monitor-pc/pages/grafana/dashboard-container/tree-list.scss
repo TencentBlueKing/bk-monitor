@@ -3,7 +3,6 @@
   font-size: 14px;
 
   .tree-list-item {
-    
   }
 
   .list-item-row {
@@ -14,14 +13,13 @@
 
     &:hover {
       color: #fff;
-      background-color: #394561;
+      background-color: #31394f;
 
       .list-item-icon {
         &::after {
           background-color: #fff;
         }
       }
-
     }
 
     .list-item-icon {
@@ -59,8 +57,8 @@
 
     .rename-input {
       .bk-form-input {
-        border: 0!important;
-        background-color: #252f43!important;
+        border: 0 !important;
+        background-color: #252f43 !important;
       }
     }
   }
