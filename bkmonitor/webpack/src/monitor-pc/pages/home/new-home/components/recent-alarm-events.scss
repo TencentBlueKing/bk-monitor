@@ -17,22 +17,22 @@
 
 
   .content {
+    overflow: auto;
     .loading-element {
       transition: height 0.5s ease; /* 0.3 秒的过渡时间，可以根据需要调整 */
     }
     .list-content {
       display: flex;
       flex-wrap: wrap;
-      gap: 24px 2%;
+      gap: 12px 1%;
       align-items: center;
 
       .list-item {
-        width: 32%;
+        width: calc(98%/3);
         height: 210px;
         background: #ffffff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919290d;
-
         &:hover {
           cursor: pointer;
         }
@@ -70,10 +70,14 @@
     }
 
     .empty-content {
+      width: 100%;
+      height: 180px;
+      background: #FAFBFD;
+      padding-top: 30px;
       .empty-img {
         width: 220px;
         height: 100px;
-        margin: 70px auto 0;
+        margin: 0 auto;
 
         img {
           width: 100%;
