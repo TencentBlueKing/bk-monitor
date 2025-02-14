@@ -382,7 +382,7 @@ class GetStrategyListV2Resource(Resource):
             )
             for qc in query_configs:
                 for plugin in plugins:
-                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id"):
+                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id", ""):
                         plugin_strategy_ids.append(qc.strategy_id)
                         break
 
