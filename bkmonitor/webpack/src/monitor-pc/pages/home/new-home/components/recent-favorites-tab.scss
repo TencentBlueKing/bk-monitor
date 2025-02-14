@@ -13,7 +13,7 @@
 @mixin customize {
   display: flex;
   align-items: center;
-  justify-content: space-around;
+  justify-content: space-evenly;
   width: 60px;
   height: 25px;
   cursor: pointer;
