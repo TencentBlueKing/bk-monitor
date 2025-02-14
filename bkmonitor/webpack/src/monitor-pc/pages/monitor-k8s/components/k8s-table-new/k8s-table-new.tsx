@@ -318,9 +318,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (enabledFrontendLimit) {
       /** 接口返回全量数据时执行方案 */
       const { page, pageSize } = this.pagination;
-      return this.tableData.slice(0, page * pageSize);
+      return this.tableData.slice(0, page * pageSize) || [];
     }
-    return this.tableData;
+    return this.tableData || [];
+  }
+
+  get tableHasScrollLoading() {
+    return this.tableViewData?.length !== this.tableDataTotal;
   }
 
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
@@ -1051,15 +1055,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             class='k8s-table-loading'
             slot='append'
           >
-            <bk-spin
-              style={{
-                display: this.tableLoading.scrollLoading ? 'flex' : 'none',
-              }}
-              placement='right'
-              size='mini'
-            >
-              {this.$t('加载中')}
-            </bk-spin>
+            {this.tableHasScrollLoading ? (
+              <bk-spin
+                style={{
+                  display: 'flex',
+                }}
+                placement='right'
+                size='mini'
+              >
+                {this.$t('加载中')}
+              </bk-spin>
+            ) : null}
           </div>
           <EmptyStatus
             slot='empty'
