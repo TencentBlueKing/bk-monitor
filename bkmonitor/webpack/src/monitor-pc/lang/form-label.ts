@@ -1910,4 +1910,5 @@ export default {
   // K8s 容器场景
   图表: 'Chart',
   数据明细: 'Data details',
+  聚合维度: 'Group by',
 };

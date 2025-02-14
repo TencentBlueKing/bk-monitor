@@ -60,7 +60,7 @@ interface Category {
 })
 export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
   isRecentView = true; // 状态，用于切换视图
-  selectedCategories = ['dashboard']; // 用户选择的类别
+  selectedCategories = ['dashboard', 'log_retrieve']; // 用户选择的类别
   categoriesConfig: Category[] = [
     { name: '仪表盘' },
     { name: '服务' },
@@ -97,7 +97,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
         (await this.handleGetUserConfig<[string[], []]>(RECENT_FAVORITE_LIST_KEY, {
           reject403: true,
         })) || [];
-      this.selectedCategories = selected.slice() || this.selectedCategories;
+      this.selectedCategories = selected?.slice?.() || this.selectedCategories.slice();
       this.categoriesConfig = this.categoriesConfig
         .reduce((accumulator: Category[], category: Category) => {
           if (!accumulator.some(item => item.name === category.name)) {
@@ -161,7 +161,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
         theme='light common-monitor'
       >
         <div class='customize'>
-          <i class='icon-monitor icon-menu-setting' />
+          <i class='icon-monitor icon-customize' />
           <span>{this.$t('自定义')}</span>
         </div>
         <div

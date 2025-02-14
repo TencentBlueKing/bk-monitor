@@ -274,7 +274,7 @@ export default class App extends tsc<object> {
   handleNavHeaderResize() {
     if (!(this.$refs.NavTools as any)?.$el) return;
     /** 新版首页无需展示右侧的全站搜索框 */
-    const BASE_MIM_WIDTH = this.$route.name && this.$route.name === 'home' ? 672 : 772;
+    const BASE_MIM_WIDTH = 772;
     const minWidth = BASE_MIM_WIDTH + (this.$refs.NavTools as any).$el.clientWidth + 2;
     if (this.navHeaderRef?.clientWidth >= minWidth + SPACE_WIDTH) {
       this.hideNavCount = 0;
@@ -649,6 +649,8 @@ export default class App extends tsc<object> {
     this.headerSettingShow = false;
   }
   commonHeader() {
+    /** 新版首页后，为了减少页面的跳动：隐藏（但是占位还在） */
+    return <div class='header-list-item-block'></div>;
     return (
       <bk-dropdown-menu
         ref='commonHeaderDrop'
@@ -757,6 +759,7 @@ export default class App extends tsc<object> {
         )}
         <bk-navigation
           class={{
+            'bk-monitor-navigation': true,
             'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
           }}
           default-open={this.menuToggle}
@@ -764,7 +767,7 @@ export default class App extends tsc<object> {
           navigation-type='top-bottom'
           need-menu={!!this.menuList?.length && this.needMenu && !this.isFullScreen && this.$route.name !== 'share'}
           side-title={this.platformData.name}
-          themeColor='#2c354d'
+          themeColor='#242b3b'
           on-toggle={this.handleToggle}
           on-toggle-click={this.handleToggleClick}
         >
@@ -775,7 +778,7 @@ export default class App extends tsc<object> {
               slot='header'
             >
               <div class='header-list'>
-                {process.env.APP !== 'external' && this.$route.name !== 'home' && this.commonHeader()}
+                {process.env.APP !== 'external' && this.commonHeader()}
                 {this.routeList.map(
                   ({ id, route, name }, index) =>
                     this.routeList.length - index > this.hideNavCount && (

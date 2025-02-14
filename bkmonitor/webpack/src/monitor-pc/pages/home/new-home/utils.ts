@@ -24,6 +24,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { IRouteItem } from './type';
 export interface IDataItem {
   [key: string]: any;
 }
@@ -33,6 +35,8 @@ export enum ESearchType {
   alert = 'alert',
   // apm_application: APM应用
   apm_application = 'apm_application',
+  // bcs集群
+  bcs_cluster = 'bcs_cluster',
   // host: 主机
   host = 'host',
   // strategy: 策略
@@ -53,6 +57,8 @@ export const EStatusType = {
   disabled: '已停用',
   shielded: '已屏蔽',
 };
+/* 严重程度 */
+export const DEFAULT_SEVERITY_LIST = ['FATAL', 'WARNING', 'INFO'];
 
 /* 告警级别 */
 export enum EAlertLevel {
@@ -72,7 +78,7 @@ export const EFunctionNameType = {
 };
 export const RECENT_FAVORITE_LIST_KEY = 'recent_favorite_list_key'.toLocaleUpperCase();
 export const RECENT_ALARM_TIME_RANGE_KEY = 'recent_alarm_time_range_key'.toLocaleUpperCase();
-
+export const RECENT_ALARM_SEVERITY_KEY = 'recent_alarm_severity_key'.toLocaleUpperCase();
 /**
  * @description 输入字段匹配字段高亮
  * @param searchValue 输入的字段
@@ -115,4 +121,22 @@ export function handleYAxisLabelFormatter(num: number): string {
     }
   }
   return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+}
+
+/**
+ * @description: 处理树形结构的数据，将数据统一为平级的数据
+ * @param {IRouteItem[]} tree
+ * @return {*}
+ */
+export function flattenRoute(tree: IRouteItem[]) {
+  const result = [];
+  const traverse = node => {
+    if (!node) return;
+    result.push(node);
+    if (node.children && node.children.length > 0) {
+      node.children.map(child => traverse(child));
+    }
+  };
+  tree.map(rootNode => traverse(rootNode));
+  return result;
 }

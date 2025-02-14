@@ -2755,11 +2755,18 @@ class ESFieldQueryAliasOption(BaseModel):
         """
         try:
             alias_records = cls.objects.filter(table_id=table_id, is_deleted=False)
+
+            # 获取ResultTableField中的所有field_name
+            existing_field_names = set(
+                ResultTableField.objects.filter(table_id=table_id).values_list('field_name', flat=True)
+            )
+
             path_type_map = {
                 record.field_path: {
                     "type": record.path_type,
                 }
                 for record in alias_records
+                if record.field_path not in existing_field_names  # 只包括那些field_path不在ResultTableField中作为field_name的记录
             }
             return path_type_map
         except Exception as e:  # pylint: disable=broad-except

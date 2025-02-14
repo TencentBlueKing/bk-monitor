@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
+import threading
 from typing import Any, Dict, List, Optional, Set, Union
 
 from django.conf import settings
@@ -109,7 +110,17 @@ def discover_caller_callee(
     :return:
     """
     discover_result: Dict[str, Union[Dict[str, Any], bool]] = {"exists": False}
-    node: Optional[Dict[str, Any]] = ServiceHandler.get_node(bk_biz_id, app_name, service_name, raise_exception=False)
+    node: Optional[Dict[str, Any]] = None
+    try:
+        # Q：为什么不直接传具体的 service_name?
+        # A：方便串行复用 LRU Cache。
+        for _node in ServiceHandler.list_nodes(bk_biz_id, app_name):
+            if _node["topo_key"] == service_name:
+                node = _node
+                break
+    except ValueError:
+        pass
+
     if not node:
         # 服务还没被发现（页面没有），直接跳过
         logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
@@ -146,6 +157,7 @@ def discover_caller_callee(
 class ApmBuiltinProcessor(BuiltinProcessor):
     SCENE_ID = "apm"
     builtin_views: Dict = None
+    _lock: threading.Lock = threading.Lock()
 
     filenames = [
         # ⬇️ APM观测场景视图
@@ -204,11 +216,19 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     @classmethod
     def load_builtin_views(cls):
-        # if cls.builtin_views is None:
-        cls.builtin_views = {}
+        if cls.builtin_views:
+            return
 
-        for filename in cls.filenames:
-            cls.builtin_views[filename] = cls._read_builtin_view_config(filename)
+        with cls._lock:
+            # 双重检查，等待锁期间可能已经有其他线程「完成」初始化，返回以减少重复读取文件。
+            if cls.builtin_views:
+                return
+
+            builtin_views: Dict[str, Dict[str, Any]] = {
+                filename: cls._read_builtin_view_config(filename) for filename in cls.filenames
+            }
+            # 一次性赋值以确保原子性。
+            cls.builtin_views = builtin_views
 
     @classmethod
     def exists_views(cls, name):
@@ -238,13 +258,14 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
         builtin_view = f"{view.scene_id}-{view.id}"
         view_config = cls.builtin_views[builtin_view]
-        view_config = cls._replace_variable(view_config, "${bk_biz_id}", bk_biz_id)
-        # 替换table_id
+        if params.get("only_simple_info") and builtin_view not in cls.NEED_RENDER_IF_ONLY_SIMPLE_INFO:
+            # ViewList 不需要渲染数据，直接返回。
+            return view_config
+
+        # 替换 table_id
         table_id = Application.get_metric_table_id(bk_biz_id, app_name)
         view_config = cls._replace_variable(view_config, "${table_id}", table_id)
-
-        if params.get("only_simple_info") and builtin_view not in cls.NEED_RENDER_IF_ONLY_SIMPLE_INFO:
-            return view_config
+        view_config = cls._replace_variable(view_config, "${bk_biz_id}", bk_biz_id)
 
         if builtin_view.startswith(cls.APM_TRACE_PREFIX):
             # APM Trace检索处
@@ -274,6 +295,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     view_config = cls._replace_variable(view_config, "${app_name}", app_name)
                     view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                     view_config = cls._replace_variable(view_config, "${span_id}", span_id)
+                    # trace检索处将图表的维度全部改为显示在下方 而不是右边
+                    for i in view_config.get("overview_panels", []):
+                        for j in i.get("panels", []):
+                            j.update({"options": {"legend": {"placement": "bottom", "displayMode": "list"}}})
+
                     return view_config
 
                 return cls._get_non_host_view_config(builtin_view, params)
@@ -408,14 +434,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             if target_key in settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG:
                 metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG[target_key]
             else:
-                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG["default"]
+                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get("default") or {}
 
             view_variables = {}
             if not view_switches.get("only_dimension", False):
+                server_config: Dict[str, Any] = MetricTemporality.get_metric_config(MetricTemporality.DELTA)
                 discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
                     bk_biz_id, app_name, result_table_id, params["service_name"]
                 )
-                server_config: Dict[str, Any] = discover_result["server_config"]
+                if discover_result["exists"]:
+                    server_config = discover_result["server_config"]
 
                 if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                     # 指标为累加类型，需要添加 increase 函数
