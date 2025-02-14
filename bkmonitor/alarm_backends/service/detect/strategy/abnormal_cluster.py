@@ -94,13 +94,19 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
                         )
                     )
 
+        anomaly_results = []
         for future in concurrent.futures.as_completed(tasks):
             try:
                 predict_result = future.result()
                 for output_data in predict_result:
-                    self._local_pre_detect_results[output_data["__index__"]] = output_data
+                    if output_data["is_anomaly"]:
+                        anomaly_results.append(output_data)
             except Exception as e:
                 logger.warning(f"Predict error: {e}")
+
+        if len(anomaly_results) > 0:
+            anomaly_results[0]["value"] = len(anomaly_results)
+            self._local_pre_detect_results[anomaly_results[0]["__index__"]] = anomaly_results[0]
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
@@ -109,12 +115,9 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
                 predict_result_point = self.fetch_pre_detect_result_point(data_point)
 
                 if predict_result_point:
-                    if predict_result_point.values["is_anomaly"]:
-                        return self.detect_by_bkdata(predict_result_point)
-                    else:
-                        raise Exception("Not anomaly")
+                    return self.detect_by_bkdata(predict_result_point)
 
-            raise Exception("Pre detect error.")
+            return None
         else:
             return self.detect_by_bkdata(data_point)
 

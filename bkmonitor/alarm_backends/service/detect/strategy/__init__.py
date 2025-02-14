@@ -615,7 +615,7 @@ class SDKPreDetectMixin(object):
             return DataPoint(
                 accessed_data={
                     "record_id": data_point.record_id,
-                    "value": data_point.value,
+                    "value": predict_result["value"],
                     "values": predict_result,
                     "time": int(predict_result["timestamp"] / 1000),
                     "dimensions": data_point.dimensions,
