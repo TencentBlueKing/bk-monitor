@@ -87,7 +87,7 @@ class EventHandler:
             {
                 "table": "system_event",
                 "domain": constants.EventDomain.SYSTEM.value,
-                "source": constants.EventSource.SYSTEM.value,
+                "source": constants.EventSource.HOST.value,
                 "relations": [
                     {"bk_biz_id": self.bk_biz_id},
                 ],

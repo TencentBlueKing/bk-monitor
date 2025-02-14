@@ -43,16 +43,16 @@ class EventSource(CachedEnum):
     BKCI: str = "BKCI"
     # K8S
     BCS: str = "BCS"
-    # SYSTEM
-    SYSTEM: str = "SYSTEM"
+    # HOST
+    HOST: str = "HOST"
 
     @classmethod
     def choices(cls):
-        return [(cls.BCS.value, cls.BCS.value), (cls.BKCI.value, cls.BKCI.value), (cls.SYSTEM.value, cls.SYSTEM.value)]
+        return [(cls.BCS.value, cls.BCS.value), (cls.BKCI.value, cls.BKCI.value), (cls.HOST.value, cls.HOST.value)]
 
     @cached_property
     def label(self):
-        return str({self.BKCI: _("蓝盾"), self.BCS: _("蓝鲸容器平台（BCS）"), self.SYSTEM: _("主机")}.get(self, self.value))
+        return str({self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机")}.get(self, self.value))
 
     @classmethod
     def get_default(cls, value):

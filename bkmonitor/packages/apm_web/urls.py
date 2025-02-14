@@ -22,9 +22,9 @@ urlpatterns = [
     re_path(r"^profile_api/", include("apm_web.profile.urls")),
     re_path(r"^metric/", include("apm_web.metric.urls")),
     re_path(r"^topo/", include("apm_web.topo.urls")),
-    re_path(r"^event/", include("apm_web.event.urls")),
     re_path(r"^service/", include("apm_web.service.urls")),
     re_path(r"^service_log/", include("apm_web.log.urls")),
     re_path(r"^service_db/", include("apm_web.db.urls")),
     re_path(r"^container/", include("apm_web.container.urls")),
+    re_path(r"^event/", include("apm_web.event.urls")),
 ]

@@ -2206,6 +2206,29 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         return records[:limit]
 
 
+class NewCustomEventDataSource(BkMonitorLogDataSource):
+    data_source_label = DataSourceLabel.BK_APM
+    data_type_label = DataTypeLabel.EVENT
+    INNER_DIMENSIONS = ["target", "event_name"]
+
+    @classmethod
+    def init_by_query_config(cls, query_config: Dict, name: str = "", *args, **kwargs):
+        agg_dimension: List[str] = [dimension for dimension in query_config.get("agg_dimension", []) if dimension]
+        return cls(
+            name=name,
+            metrics=[{"field": "_index", "method": "COUNT"}],
+            table=query_config.get("result_table_id", ""),
+            interval=query_config.get("agg_interval", 60),
+            group_by=agg_dimension,
+            query_string=query_config.get("query_string", ""),
+            where=query_config.get("agg_condition", []),
+            time_field=query_config.get("time_field"),
+            custom_event_name=query_config.get("custom_event_name", ""),
+            data_label=query_config.get("data_label", ""),
+            bk_biz_id=kwargs.get("bk_biz_id", 0),
+        )
+
+
 class BkMonitorEventDataSource(DataSource):
     """
     系统事件数据源

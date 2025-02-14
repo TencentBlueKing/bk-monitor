@@ -9,12 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from apm_web.event import resources
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-
-from .resources import EventTimeSeriesResource
 
 
 class EventViewSet(ResourceViewSet):
@@ -31,5 +30,9 @@ class EventViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("POST", EventTimeSeriesResource, endpoint="time_series"),
+        ResourceRoute("POST", resources.EventLogsResource, endpoint="logs"),
+        ResourceRoute("POST", resources.EventTopKResource, endpoint="topk"),
+        ResourceRoute("POST", resources.EventTotalResource, endpoint="total"),
+        ResourceRoute("POST", resources.EventViewConfigResource, endpoint="view_config"),
+        ResourceRoute("POST", resources.EventTimeSeriesResource, endpoint="time_series"),
     ]

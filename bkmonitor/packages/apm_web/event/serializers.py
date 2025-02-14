@@ -12,8 +12,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from apm_web.models import Application
-
-from .constants import EventSource
+from monitor_web.data_explorer.event import serializers as event_serializers
 
 
 class BaseEventRequestSerializer(serializers.Serializer):
@@ -28,17 +27,36 @@ class BaseEventRequestSerializer(serializers.Serializer):
         return attrs
 
 
-class BaseEventFilterRequestSerializer(BaseEventRequestSerializer):
-    start_time = serializers.IntegerField(label="开始时间", required=False)
-    end_time = serializers.IntegerField(label="结束时间", required=False)
-    query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False)
-    where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
-    sources = serializers.ChoiceField(label="事件来源", required=False, default=[], choices=EventSource.choices())
+class EventTimeSeriesRequestSerializer(event_serializers.EventLogsRequestSerializer, BaseEventRequestSerializer):
+    def validate(self, attrs):
+        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
+        attrs = super(event_serializers.EventLogsRequestSerializer, self).validate(attrs)
+        return attrs
 
 
-class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
-    pass
+class EventLogsRequestSerializer(event_serializers.EventLogsRequestSerializer, BaseEventRequestSerializer):
+    def validate(self, attrs):
+        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
+        attrs = super(event_serializers.EventLogsRequestSerializer, self).validate(attrs)
+        return attrs
 
 
-class EventListRequestSerializer(BaseEventRequestSerializer):
-    pass
+class EventViewConfigRequestSerializer(event_serializers.EventViewConfigRequestSerializer, BaseEventRequestSerializer):
+    def validate(self, attrs):
+        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
+        attrs = super(event_serializers.EventViewConfigRequestSerializer, self).validate(attrs)
+        return attrs
+
+
+class EventTopKRequestSerializer(event_serializers.EventTopKRequestSerializer, BaseEventRequestSerializer):
+    def validate(self, attrs):
+        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
+        attrs = super(event_serializers.EventTopKRequestSerializer, self).validate(attrs)
+        return attrs
+
+
+class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer, BaseEventRequestSerializer):
+    def validate(self, attrs):
+        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
+        attrs = super(event_serializers.EventTotalRequestSerializer, self).validate(attrs)
+        return attrs
