@@ -24,7 +24,7 @@ class Command(BaseCommand):
         merge_resources_path = f"{settings.BASE_DIR}/support-files/apigw/scripts/merge_resources.py"
         try:
             result = subprocess.run(
-                ["python", merge_resources_path],
+                ["python3", merge_resources_path],
                 capture_output=True,
                 text=True,
                 check=True,
