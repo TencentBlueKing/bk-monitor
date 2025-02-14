@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue';
+  import { ref, computed } from 'vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
@@ -9,25 +9,32 @@
   const store = useStore();
 
   const filterFieldsList = computed(() => {
-    return store.state.retrieve.catchFieldCustomConfig?.filterSetting?.filterFields || [];
+    return store.state.retrieve.catchFieldCustomConfig?.filterSetting || [];
   });
 
-  const condition = ref([]);
+  const commonFilterAddition = computed({
+    get() {
+      if (store.getters.retrieveParams.common_filter_addition?.length) {
+        return store.getters.retrieveParams.common_filter_addition;
+      }
+
+      return filterFieldsList.value.map(item => ({
+        field: item?.field_name || '',
+        operator: '=',
+        value: [],
+        list: [],
+      }));
+    },
+    set(val) {
+      store.commit('retrieve/updateCatchFieldCustomConfig', {
+        filterAddition: val,
+      });
+    },
+  });
+
+
+
   const activeIndex = ref(-1);
-
-  watch(filterFieldsList, val => {
-    if (val?.length) {
-      condition.value =
-        filterFieldsList.value.map(item => {
-          return {
-            field: item?.field_name || '',
-            operator: '=',
-            value: [],
-            list: [],
-          };
-        }) || [];
-    }
-  });
 
   let requestTimer = null;
   const isRequesting = ref(false);
@@ -41,7 +48,7 @@
 
         return [];
       };
-      condition.value[index].list.splice(0, condition.value[index].list.length);
+      commonFilterAddition.value[index].list.splice(0, commonFilterAddition.value[index].list.length);
 
       if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
         return;
@@ -52,17 +59,17 @@
 
       requestTimer && clearTimeout(requestTimer);
       requestTimer = setTimeout(() => {
-        const addition = value
+        const targetAddition = value
           ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.getRequestParam();
-            })
+            const instance = new ConditionOperator(val);
+            return instance.getRequestParam();
+          })
           : [];
         store
-          .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
+          .dispatch('requestIndexSetValueList', { fields: [field], targetAddition, force: true, size })
           .then(res => {
             const arr = res.data?.aggs_items?.[field.field_name] || [];
-            condition.value[index].list = arr.filter(item => item);
+            commonFilterAddition.value[index].list = arr.filter(item => item);
           })
           .finally(() => {
             isRequesting.value = false;
@@ -74,18 +81,29 @@
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      rquestFieldEgges(item, index, null, null, () => {});
+      rquestFieldEgges(item, index, null, null, () => { });
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    rquestFieldEgges(item, index, condition.value[index].operator, value);
+    rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+  };
+
+  // 新建提交逻辑
+  const updateCommonFilterAddition = () => {
+    const param = {
+      filterAddition: commonFilterAddition.value,
+    };
+    // store.commit('updateCommonFilter', commonFilterAddition.value);
+    store.dispatch('userFieldConfigChange', param);
   };
 
   const handleChange = () => {
-    store.commit('updateCommonFilter', condition.value);
+    updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
+
+
 </script>
 
 <template>
@@ -93,68 +111,32 @@
     <div class="filter-setting-btn">
       <CommonFilterSetting></CommonFilterSetting>
     </div>
-    <div
-      v-if="condition.length"
-      class="filter-container"
-    >
-      <div
-        v-for="(item, index) in filterFieldsList"
-        class="filter-select-wrap"
-      >
+    <div v-if="commonFilterAddition.length" class="filter-container">
+      <div v-for="(item, index) in filterFieldsList" class="filter-select-wrap">
         <div class="title">
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
-        <bk-select
-          class="operator-select"
-          v-model="condition[index].operator"
-          :input-search="false"
-          :popover-min-width="100"
-          filterable
-          @change="handleChange"
-        >
+        <bk-select class="operator-select" v-model="commonFilterAddition[index].operator" :input-search="false"
+          :popover-min-width="100" filterable @change="handleChange">
           <template #trigger>
-            <span class="operator-label">{{ $t(condition[index].operator) }}</span>
+            <span class="operator-label">{{ $t(commonFilterAddition[index].operator) }}</span>
           </template>
-          <bk-option
-            v-for="(item, index) in item?.field_operator"
-            :id="item.label"
-            :key="index"
-            :name="item.label"
-          />
+          <bk-option v-for="(child, childIndex) in item?.field_operator" :id="child.label" :key="childIndex"
+            :name="child.label" />
         </bk-select>
-        <bk-select
-          class="value-select"
+        <bk-select class="value-select"
           v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
-          v-model="condition[index].value"
-          allow-create
-          display-tag
-          multiple
-          searchable
-          :fix-height="true"
-          @change="handleChange"
-          @toggle="visible => handleToggle(visible, item, index)"
-        >
+          v-model="commonFilterAddition[index].value" allow-create display-tag multiple searchable :fix-height="true"
+          @change="handleChange" @toggle="visible => handleToggle(visible, item, index)">
           <template #search>
-            <bk-input
-              behavior="simplicity"
-              :clearable="true"
-              :left-icon="'bk-icon icon-search'"
-              @input="e => handleInputVlaueChange(e, item, index)"
-            ></bk-input>
+            <bk-input behavior="simplicity" :clearable="true" :left-icon="'bk-icon icon-search'"
+              @input="e => handleInputVlaueChange(e, item, index)"></bk-input>
           </template>
-          <bk-option
-            v-for="option in condition[index].list"
-            :id="option"
-            :key="option"
-            :name="option"
-          />
+          <bk-option v-for="option in commonFilterAddition[index].list" :id="option" :key="option" :name="option" />
         </bk-select>
       </div>
     </div>
-    <div
-      v-else
-      class="empty-tips"
-    >
+    <div v-else class="empty-tips">
       （暂未设置常驻筛选，请点击左侧设置按钮）
     </div>
   </div>

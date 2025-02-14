@@ -1,10 +1,11 @@
 <script setup>
-  import { ref, computed, watch, nextTick, onMounted } from 'vue';
+  import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import PopInstanceUtil from './pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -20,7 +21,6 @@
   import UiInput from './ui-input';
   import { bkMessage } from 'bk-magic-vue';
   import CommonFilterSelect from './common-filter-select.vue';
-  import CommonFilterSettingPop from './common-filter-setting-pop.vue';
   import useResizeObserve from '../../../hooks/use-resize-observe';
 
   const props = defineProps({
@@ -56,6 +56,23 @@
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
+
+  const refPopContent = ref(null);
+  const refPopTraget = ref(null);
+
+  const popToolInstance = new PopInstanceUtil({
+    refContent: refPopContent,
+    tippyOptions: {
+      placement: 'top-end',
+      zIndex: 200,
+      appendTo: document.body,
+      interactive: true,
+      theme: 'log-light transparent',
+      arrow: false,
+    }
+  });
+
+  const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 
   const indexItem = computed(() => store.state.indexItem);
 
@@ -260,9 +277,9 @@
       searchMode === 'sql'
         ? { keyword: sqlQueryValue.value, addition: [] }
         : {
-            addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
-            keyword: '*',
-          };
+          addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
+          keyword: '*',
+        };
 
     const data = {
       name,
@@ -289,7 +306,7 @@
         initSourceSQLStr(res.data.params, res.data.search_mode);
         handleRefresh(true);
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const handleCopyQueryValue = async () => {
@@ -319,94 +336,99 @@
     }
   };
 
+  const handleMouseenterInputSection = () => {
+    popToolInstance.show(refPopTraget.value);
+  };
+
+  const handleMouseleaveInputSection = () => {
+    // popToolInstance.hide();
+  }
+
   useResizeObserve(refRootElement, () => {
-    handleHeightChange(refRootElement.value.offsetHeight);
+    if (refRootElement.value) {
+      handleHeightChange(refRootElement.value.offsetHeight);
+    }
   });
+
+  const handleFilterSecClick = () => {
+    if (isFilterSecFocused.value) {
+      window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
+
+      if (activeIndex.value === 0) {
+        const { common_filter_addition } = store.getters.retrieveParams;
+        if (common_filter_addition.length) {
+          uiQueryValue.value.push(...(formatAddition(common_filter_addition).map(item => ({ ...item, isCommonFixed: true }))));
+
+          store.commit('updateIndexItemParams', {
+            addition: uiQueryValue.value.filter(val => !val.is_focus_input),
+            keyword: sqlQueryValue.value ?? '',
+            ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
+          });
+
+          setRouteParams();
+        }
+      }
+    }
+
+    store.dispatch('userFieldConfigChange', {
+      fixedFilterAddition: !isFilterSecFocused.value,
+      filterAddition: []
+    });
+  }
+
+  onBeforeUnmount(() => {
+    popToolInstance.onBeforeUnmount();
+    popToolInstance.uninstallInstance();
+  })
 </script>
 <template>
-  <div
-    ref="refRootElement"
-    :class="['search-bar-wrapper', { readonly: isChartMode }]"
-  >
+  <div ref="refRootElement" :class="['search-bar-wrapper', { readonly: isChartMode }]">
     <div :class="['search-bar-container', { readonly: isChartMode }]">
-      <div
-        class="search-options"
-        @click="handleQueryTypeChange"
-      >
+      <div class="search-options" @click="handleQueryTypeChange">
         <span class="mode-text">{{ queryText }}</span>
         <span class="bklog-icon bklog-double-arrow"></span>
       </div>
-      <div
-        class="search-input"
-        :class="{ disabled: isInputLoading }"
-      >
-        <UiInput
-          v-if="activeIndex === 0"
-          v-model="uiQueryValue"
-          @change="handleQueryChange"
-        ></UiInput>
-        <SqlQuery
-          v-if="activeIndex === 1"
-          v-model="sqlQueryValue"
-          @retrieve="handleSqlRetrieve"
-        ></SqlQuery>
+      <div class="search-input" :class="{ disabled: isInputLoading }" @mouseenter="handleMouseenterInputSection"
+        @mouseleave="handleMouseleaveInputSection">
+        <UiInput v-if="activeIndex === 0" v-model="uiQueryValue" @change="handleQueryChange"></UiInput>
+        <SqlQuery v-if="activeIndex === 1" v-model="sqlQueryValue" @retrieve="handleSqlRetrieve"></SqlQuery>
+        <div class="hidden-focus-pointer" ref="refPopTraget"></div>
         <div class="search-tool items">
-          <div
-            v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
-            @click.stop="handleCopyQueryValue"
-          ></div>
-          <div
-            v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
-            @click.stop="handleClearBtnClick"
-          ></div>
-          <BookmarkPop
-            v-if="!props.activeFavorite"
-            v-bk-tooltips="$t('收藏当前查询')"
-            :addition="uiQueryValue"
-            :class="{ disabled: isInputLoading }"
-            :search-mode="queryParams[activeIndex]"
-            :sql="sqlQueryValue"
-            @refresh="handleRefresh"
-          ></BookmarkPop>
+          <div v-bk-tooltips="$t('常用查询设置')"
+            :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
+            @click="handleFilterSecClick"></div>
+          <BookmarkPop v-if="!props.activeFavorite" v-bk-tooltips="$t('收藏当前查询')" :addition="uiQueryValue"
+            :class="{ disabled: isInputLoading }" :search-mode="queryParams[activeIndex]" :sql="sqlQueryValue"
+            @refresh="handleRefresh"></BookmarkPop>
           <template v-else>
-            <div
-              v-if="matchSQLStr"
-              class="bklog-icon bklog-star-line disabled"
-              v-bk-tooltips="$t('已收藏')"
-              :data-boolean="matchSQLStr"
-            ></div>
-            <div
-              v-else
-              style="color: #63656e"
-              v-bk-tooltips="$t('收藏')"
-              class="icon bk-icon icon-save"
-              @click="saveCurrentActiveFavorite"
-            ></div>
+            <div v-if="matchSQLStr" class="bklog-icon bklog-star-line disabled" v-bk-tooltips="$t('已收藏')"
+              :data-boolean="matchSQLStr"></div>
+            <div v-else style="color: #63656e" v-bk-tooltips="$t('收藏')" class="icon bk-icon icon-save"
+              @click="saveCurrentActiveFavorite"></div>
           </template>
-          <CommonFilterSettingPop
-            v-bk-tooltips="$t('常用查询设置')"
-            :class="{ disabled: isInputLoading }"
-            :filter-list="uiQueryValue"
-          >
-          </CommonFilterSettingPop>
+          <!-- <CommonFilterSettingPop v-bk-tooltips="$t('常用查询设置')" :class="{ disabled: isInputLoading }"
+            :filter-list="uiQueryValue">
+          </CommonFilterSettingPop> -->
         </div>
-        <div
-          class="search-tool search-btn"
-          @click.stop="handleBtnQueryClick"
-        >
-          <bk-button
-            style="width: 100%; height: 100%"
-            :loading="isInputLoading"
-            size="large"
-            theme="primary"
-            >{{ btnQuery }}</bk-button
-          >
+        <div class="search-tool search-btn" @click.stop="handleBtnQueryClick">
+          <bk-button style="width: 100%; height: 100%" :loading="isInputLoading" size="large" theme="primary">{{
+            btnQuery
+          }}</bk-button>
         </div>
       </div>
+      <div style="display: none;">
+        <div ref="refPopContent" class="bklog-search-input-poptool">
+          <div v-bk-tooltips="$t('复制当前查询')" :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            @click.stop="handleCopyQueryValue"></div>
+          <div v-bk-tooltips="$t('清理当前查询')" :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            @click.stop="handleClearBtnClick"></div>
+        </div>
+
+      </div>
     </div>
-    <CommonFilterSelect></CommonFilterSelect>
+    <template v-if="isFilterSecFocused">
+      <CommonFilterSelect></CommonFilterSelect>
+    </template>
   </div>
 </template>
 <style scoped lang="scss">
@@ -416,6 +438,39 @@
   .bklog-sql-input-loading {
     .bk-loading-wrapper {
       left: 30px;
+    }
+  }
+
+  [data-tippy-root] .tippy-box {
+    &[data-theme*='transparent'] {
+      background-color: transparent;
+      border: none;
+    }
+  }
+
+  .bklog-search-input-poptool {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+
+    .bklog-icon {
+      width: 28px;
+      height: 28px;
+      background: #FAFBFD;
+      border: 1px solid #DCDEE5;
+      box-shadow: 0 1px 3px 1px #0000001f;
+      border-radius: 2px;
+      color: #4D4F56;
+      margin-right: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+
+      &:hover {
+        color: #3A84FF;
+      }
     }
   }
 </style>

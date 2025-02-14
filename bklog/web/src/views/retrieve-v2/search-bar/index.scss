@@ -87,7 +87,7 @@
           display: flex;
           align-items: center;
           justify-content: space-around;
-          width: 120px;
+          width: 80px;
           padding-right: 4px;
 
           > div {
@@ -101,8 +101,9 @@
             cursor: pointer;
             border-radius: 2px;
 
-            &:hover {
-              background: #e1ecff;
+            &:hover,
+            &.is-focused {
+              background: #eaebf0;
             }
 
             .bklog-star-line {

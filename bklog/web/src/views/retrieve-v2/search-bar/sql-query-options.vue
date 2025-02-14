@@ -67,8 +67,8 @@
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
     const { getFieldNames } = useFieldNameHook({ store });
-    return  getFieldNames(totalFields.value.filter(filterFn));
-   
+    return getFieldNames(totalFields.value.filter(filterFn));
+
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -485,27 +485,15 @@
   <div class="sql-query-container">
     <div class="sql-field-list">
       <!-- 搜索提示 -->
-      <ul
-        ref="refDropdownEl"
-        class="sql-query-options"
-        v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
-      >
+      <ul ref="refDropdownEl" class="sql-query-options" v-bkloading="{ isLoading: isRequesting, size: 'mini' }">
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
           <div class="control-list">
-            <li
-              v-for="item in fieldList"
-              class="list-item field-list-item"
-              :key="item"
-              @click="handleClickField(item)"
-            >
+            <li v-for="item in fieldList" class="list-item field-list-item" :key="item" @click="handleClickField(item)">
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-field"></span>
               </div>
-              <div
-                class="item-text text-overflow-hidden"
-                v-bk-overflow-tips="{ placement: 'right' }"
-              >
+              <div class="item-text text-overflow-hidden" v-bk-overflow-tips="{ placement: 'right' }">
                 {{ item }}
               </div>
             </li>
@@ -515,19 +503,11 @@
         <!-- 字段对应值 -->
         <template v-if="showOption.showValue">
           <div class="control-list">
-            <li
-              v-for="item in valueList"
-              class="list-item value-list-item"
-              :key="item"
-              @click="handleClickValue(item)"
-            >
+            <li v-for="item in valueList" class="list-item value-list-item" :key="item" @click="handleClickValue(item)">
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-value"></span>
               </div>
-              <div
-                class="item-text text-overflow-hidden"
-                v-bk-overflow-tips="{ placement: 'right' }"
-              >
+              <div class="item-text text-overflow-hidden" v-bk-overflow-tips="{ placement: 'right' }">
                 {{ item }}
               </div>
             </li>
@@ -536,59 +516,37 @@
         <!-- : :* -->
         <template v-if="showOption.showColon">
           <div class="control-list">
-            <li
-              class="list-item colon-list-item"
-              @click="handleClickColon(':')"
-            >
+            <li class="list-item colon-list-item" @click="handleClickColon(':')">
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-equal"></span>
               </div>
               <div class="item-text">:</div>
-              <div
-                class="item-description text-overflow-hidden"
-                v-bk-overflow-tips="{ placement: 'right' }"
-              >
+              <div class="item-description text-overflow-hidden" v-bk-overflow-tips="{ placement: 'right' }">
                 <i18n path="{0}某一值">
                   <span class="item-callout">{{ $t('等于') }}</span>
                 </i18n>
               </div>
             </li>
-            <li
-              class="list-item colon-list-item"
-              @click="handleClickColon(': *')"
-            >
+            <li class="list-item colon-list-item" @click="handleClickColon(': *')">
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-equal"></span>
               </div>
               <div class="item-text">:*</div>
-              <div
-                class="item-description text-overflow-hidden"
-                v-bk-overflow-tips="{ placement: 'right' }"
-              >
+              <div class="item-description text-overflow-hidden" v-bk-overflow-tips="{ placement: 'right' }">
                 <i18n path="{0}任意形式">
                   <span class="item-callout">{{ $t('存在') }}</span>
                 </i18n>
               </div>
             </li>
           </div>
-          <template
-            v-if="showOption.showOperator"
-            class="control-list"
-          >
-            <li
-              v-for="(item, key) in operatorSelectList"
-              class="list-item continue-list-item"
-              :key="key"
-              @click="handleClickColon(item.operator)"
-            >
+          <template v-if="showOption.showOperator" class="control-list">
+            <li v-for="(item, key) in operatorSelectList" class="list-item continue-list-item" :key="key"
+              @click="handleClickColon(item.operator)">
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-equal"></span>
               </div>
               <div class="item-text">{{ item.operator }}</div>
-              <div
-                class="item-description text-overflow-hidden"
-                v-bk-overflow-tips="{ placement: 'right' }"
-              >
+              <div class="item-description text-overflow-hidden" v-bk-overflow-tips="{ placement: 'right' }">
                 <i18n path="{0}某一值">
                   <span class="item-callout">{{ item.label }}</span>
                 </i18n>
@@ -599,35 +557,23 @@
         <!-- AND OR -->
         <template v-if="showOption.showContinue">
           <div class="control-list">
-            <li
-              class="list-item continue-list-item"
-              @click="handleClickContinue('AND')"
-            >
+            <li class="list-item continue-list-item" @click="handleClickContinue('AND')">
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-and"></span>
               </div>
               <div class="item-text">AND</div>
-              <div
-                class="item-description text-overflow-hidden"
-                v-bk-overflow-tips="{ placement: 'right' }"
-              >
+              <div class="item-description text-overflow-hidden" v-bk-overflow-tips="{ placement: 'right' }">
                 <i18n path="需要{0}为真">
                   <span class="item-callout">{{ $t('两个参数都') }}</span>
                 </i18n>
               </div>
             </li>
-            <li
-              class="list-item continue-list-item"
-              @click="handleClickContinue('OR')"
-            >
+            <li class="list-item continue-list-item" @click="handleClickContinue('OR')">
               <div class="item-type-icon">
                 <span class="bklog-icon bklog-and"></span>
               </div>
               <div class="item-text">OR</div>
-              <div
-                class="item-description text-overflow-hidden"
-                v-bk-overflow-tips="{ placement: 'right' }"
-              >
+              <div class="item-description text-overflow-hidden" v-bk-overflow-tips="{ placement: 'right' }">
                 <i18n path="需要{0}为真">
                   <span class="item-callout">{{ $t('一个或多个参数') }}</span>
                 </i18n>
@@ -636,48 +582,30 @@
           </div>
         </template>
         <template
-          v-if="!showOption.showFields && !showOption.showValue && !showOption.showColon && !showOption.showContinue"
-        >
-          <bk-exception
-            style="height: 40px"
-            type="search-empty"
-            scene="part"
-          >
+          v-if="!showOption.showFields && !showOption.showValue && !showOption.showColon && !showOption.showContinue">
+          <bk-exception style="height: 40px" type="search-empty" scene="part">
             当前页面未获取到该字段信息，无法获取联想内容，请手动输入查询内容
           </bk-exception>
         </template>
       </ul>
-      <FavoriteList
-        @change="handleFavoriteClick"
-        :searchValue="value"
-      ></FavoriteList>
+      <FavoriteList @change="handleFavoriteClick" :searchValue="value"></FavoriteList>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
-      <span
-        class="sql-query-retract"
-        @click="handleRetract"
-      >
+      <span class="sql-query-retract" @click="handleRetract">
         <span>{{ isRetractShow ? $t('收起') : $t('查询语法') }}</span>
         <span
-          :class="['angle-icon bk-icon', { 'icon-angle-left': !isRetractShow, 'icon-angle-right': isRetractShow }]"
-        ></span>
+          :class="['angle-icon bk-icon', { 'icon-angle-left': !isRetractShow, 'icon-angle-right': isRetractShow }]"></span>
       </span>
       <div class="sql-query-fold">
         <div>
           <div class="sql-query-fold-title">
             <div>{{ $t('如何查询') }}?</div>
-            <div
-              class="fold-title-right"
-              @click="handleSQLReadmeClick"
-            >
+            <div class="fold-title-right" @click="handleSQLReadmeClick">
               <span>{{ $t('查询语法') }}</span>
               <span class="fold-title-icon bklog-icon bklog-jump"></span>
             </div>
           </div>
-          <div
-            v-for="item in matchList"
-            class="sql-query-list"
-          >
+          <div v-for="item in matchList" class="sql-query-list">
             <div style="font-weight: 700; line-height: 19px">{{ item.name }}</div>
             <div>{{ item.value }}</div>
           </div>
