@@ -27,9 +27,28 @@ ul.search-items {
       }
 
       &.is-common-fixed {
+        animation: changeBackgroundColor 1.5s forwards;
+        transition: background-color 1s ease-in-out;
       }
     }
 
+    @keyframes changeBackgroundColor {
+      0% {
+        background-color: #e1ecff;
+      }
+      10% {
+        background-color: #fdf4e8;
+      }
+      50% {
+        background-color: #e1ecff;
+      }
+      90% {
+        background-color: #fdf4e8;
+      }
+      100% {
+        background-color: #e1ecff;
+      }
+    }
     .tag-option-focus-input {
       width: 8px;
       height: 38px;

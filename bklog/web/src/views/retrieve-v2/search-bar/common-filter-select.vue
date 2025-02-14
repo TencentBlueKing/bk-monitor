@@ -145,22 +145,22 @@
   .filter-container-wrap {
     display: flex;
     max-height: 95px;
-    padding: 0 10px 4px 10px;
-    overflow: scroll;
+    padding: 0 10px 0px 10px;
+    overflow: auto;
     background: #ffffff;
 
     .filter-setting-btn {
       width: 83px;
-      height: 42px;
+      height: 40px;
       font-size: 13px;
-      line-height: 42px;
+      line-height: 40px;
       color: #3880f8;
       cursor: pointer;
     }
 
     .empty-tips {
       font-size: 12px;
-      line-height: 42px;
+      line-height: 40px;
       color: #a1a5ae;
     }
   }

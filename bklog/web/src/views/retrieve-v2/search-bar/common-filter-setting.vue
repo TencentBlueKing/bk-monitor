@@ -115,8 +115,10 @@
 
   // 新建提交逻辑
   const handleCreateRequest = async () => {
+    const { common_filter_addition } = store.getters.retrieveParams;
     const param = {
       filterSetting: shadowVisible.value,
+      filterAddition: common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
     };
     isLoading.value = true;
 
@@ -130,11 +132,6 @@
   };
 
   const confirmModifyFields = async () => {
-    if (shadowVisible.value.length === 0) {
-      messageWarn($t('显示字段不能为空'));
-      return;
-    }
-
     handleCreateRequest();
   };
 
@@ -200,8 +197,7 @@
 
   .fields-list-container {
     display: flex;
-    width: 723px;
-    padding: 0 10px 14px 10px;
+    padding: 0;
 
     .total-fields-list,
     .visible-fields-list,
@@ -225,6 +221,8 @@
         line-height: 40px;
         color: #313238;
         border-bottom: 1px solid #dcdee5;
+        background: #FAFBFD;
+        border: 1px solid #DCDEE5;
 
         .bklog-info-fill {
           margin-left: 8px;
@@ -258,8 +256,12 @@
           white-space: nowrap;
           cursor: pointer;
 
+          span {
+            display: inline-flex;
+          }
+
           .bklog-drag-dots {
-            width: 16px;
+            width: 18px;
             font-size: 14px;
             color: #979ba5;
             text-align: left;
@@ -329,10 +331,18 @@
       }
     }
 
+    .total-fields-list {
+      border-right: none;
+    }
+
+    .visible-fields-list {
+      border-left: none;
+    }
+
     /* stylelint-disable-next-line no-descending-specificity */
     .total-fields-list .select-list .select-item {
       .field-name {
-        width: calc(100% - 24px);
+        // width: calc(100% - 24px);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -358,9 +368,9 @@
 
     /* stylelint-disable-next-line no-descending-specificity */
     .visible-fields-list .select-list .select-item {
+      position: relative;
+
       .field-name {
-        // 16 38
-        width: calc(100% - 30px);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -371,6 +381,15 @@
         color: #c4c6cc;
         text-align: right;
         cursor: pointer;
+        display: none;
+
+        position: absolute;
+        right: 12px;
+        top: 8px;
+      }
+
+      &:hover .delete {
+        display: block;
       }
     }
 
@@ -429,11 +448,25 @@
       flex-shrink: 0;
       align-items: center;
       justify-content: center;
-      width: 35px;
+      width: 1px;
+      background-color: #dcdee5;
 
       .bklog-double-arrow {
         font-size: 12px;
         color: #989ca5;
+
+        width: 33px;
+        height: 33px;
+        background: #FAFBFD;
+
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        position: absolute;
+        border-radius: 50%;
+
+        pointer-events: none;
       }
     }
   }
