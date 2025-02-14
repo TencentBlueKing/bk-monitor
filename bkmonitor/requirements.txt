@@ -38,8 +38,8 @@ elasticsearch-dsl==7.4.1
 elasticsearch==7.17.12
 elasticsearch5==5.5.6
 elasticsearch6==6.8.2
-elasticsearch-curator==5.8.4 # 锁定了pyyaml==5.4.1，可以升级到 7.0.1
-django-elasticsearch-dsl==7.2.2 # 需要更新到 7.4
+elasticsearch-curator==7.0.1
+django-elasticsearch-dsl==7.4
 luqum==0.13.0
 
 # opentelemetry
@@ -85,7 +85,7 @@ requests_toolbelt==1.0.0
 sqlparse==0.4.4
 ujson==5.7.0
 Pillow==9.5.0
-PyYAML==5.4.1 # 如果 elasticsearch-curator 升级到 7.0.1，可以更新到 6.0.1
+PyYAML==6.0.1 # 被 elasticsearch-curator 锁定版本
 kafka-python==1.4.6 # 已经停止维护，需要更换
 babel==2.14.0
 python-consul==1.1.0 # 已经停止维护，需要更换
