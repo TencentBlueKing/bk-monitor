@@ -55,6 +55,7 @@ export default class FieldItem extends tsc<object> {
   ifShowMore = false;
   fieldData = null;
   distinctCount = 0;
+  btnLoading = false
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -189,7 +190,7 @@ export default class FieldItem extends tsc<object> {
   };
 
   downloadFieldStatistics() {
-    console.log(this.retrieveParams);
+    this.btnLoading = true
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
@@ -216,7 +217,9 @@ export default class FieldItem extends tsc<object> {
         const downloadName = `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.txt`;
         blobDownload(res, downloadName);
       })
-      .finally(() => {});
+      .finally(() => {
+        this.btnLoading = false
+      });
   }
   getdistinctCount(val){
     this.distinctCount = val
@@ -261,12 +264,12 @@ export default class FieldItem extends tsc<object> {
                <span class='field-name'>
                 {this.retuanFieldName()}
               </span>
-              <span
+              {/* <span
                 class='field-count'
                 v-show={this.isShowFieldsCount}
               >
                 ({this.gatherFieldsCount})
-              </span>
+              </span> */}
               {this.isUnionConflictFields(this.fieldItem.field_type) && (
                 <bk-popover
                   ext-cls='conflict-popover'
@@ -360,6 +363,7 @@ export default class FieldItem extends tsc<object> {
                 <bk-button
                   style='margin-right:8px'
                   size='small'
+                  loading={this.btnLoading}
                   onClick={e => {
                     e.stopPropagation();
                     this.downloadFieldStatistics();

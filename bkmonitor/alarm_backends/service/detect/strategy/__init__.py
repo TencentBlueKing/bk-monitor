@@ -31,6 +31,7 @@ from core.errors.alarm_backends.detect import (
     InvalidAlgorithmsConfig,
     InvalidDataPoint,
 )
+from core.prometheus import metrics
 from core.unit import load_unit
 
 logger = logging.getLogger("detect")
@@ -471,6 +472,61 @@ class SDKPreDetectMixin(object):
     PREDICT_FUNC = None
     WITH_HISTORY_ANOMALY = False
 
+    def detect(self, data_point):
+        if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
+            # 历史依赖准备就绪才开始检测
+            if data_point.item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
+                raise Exception("Strategy history dependency data not ready")
+
+            # 优先从预检测结果中获取检测结果
+            if hasattr(self, "_local_pre_detect_results"):
+                predict_result_point = self.fetch_pre_detect_result_point(data_point)
+                if predict_result_point:
+                    return self.detect_by_bkdata(predict_result_point)
+                else:
+                    raise Exception("Pre detect error.")
+            else:
+                return self.detect_by_sdk(data_point)
+        else:
+            return self.detect_by_bkdata(data_point)
+
+    def detect_by_sdk(self, data_point):
+        predict_result = self.PREDICT_FUNC(
+            data=[{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
+            dimensions=self.generate_dimensions(data_point),
+            predict_args=self.generate_sdk_predict_params(),
+        )
+        dimension_fields = getattr(data_point, "dimension_fields", None) or list(data_point.dimensions.keys())
+
+        return self.detect_by_bkdata(
+            DataPoint(
+                accessed_data={
+                    "record_id": data_point.record_id,
+                    "value": data_point.value,
+                    "values": predict_result[0],
+                    "time": int(predict_result[0]["timestamp"] / 1000),
+                    "dimensions": data_point.dimensions,
+                    "dimension_fields": dimension_fields,
+                },
+                item=data_point.item,
+            )
+        )
+
+    def generate_sdk_predict_params(self) -> Dict:
+        """准备SDK的预测参数
+
+        :return: 预测参数
+        """
+        return {
+            "predict_args": {
+                arg_key.lstrip("$"): arg_value for arg_key, arg_value in self.validated_config["args"].items()
+            }
+        }
+
+    def detect_by_bkdata(self, data_point: DataPoint) -> AnomalyDataPoint:
+        """基于bkbase的结果表数据来进行检测."""
+        return super().detect(data_point)
+
     def generate_dimensions(self, data_point: DataPoint) -> Dict:
         """生成维度字典.
 
@@ -495,6 +551,7 @@ class SDKPreDetectMixin(object):
         self._local_pre_detect_results = {}
 
         item = data_points[0].item
+        base_labels = {"strategy_id": item.strategy.id, "strategy_name": item.strategy.name}
         if item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
             if item.query_configs[0]["intelligent_detect"]["status"] == SDKDetectStatus.PREPARING:
                 logger.info(f"Strategy ({item.strategy.id}) history dependency data not ready")
@@ -533,6 +590,9 @@ class SDKPreDetectMixin(object):
                 }
             )
 
+        # 统计每个策略处理的维度数量
+        metrics.AIOPS_DETECT_DIMENSION_COUNT.labels(**base_labels).set(len(predict_inputs))
+
         tasks = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_PREDICT_CONCURRENCY) as executor:
             for predict_input in predict_inputs.values():
@@ -541,10 +601,7 @@ class SDKPreDetectMixin(object):
                         self.PREDICT_FUNC,
                         **predict_input,
                         interval=int(data_points[0].item.query_configs[0]["agg_interval"]),
-                        predict_args={
-                            arg_key.lstrip("$"): arg_value
-                            for arg_key, arg_value in self.validated_config["args"].items()
-                        },
+                        **self.generate_sdk_predict_params(),
                     )
                 )
 
@@ -554,6 +611,8 @@ class SDKPreDetectMixin(object):
                 for output_data in predict_result:
                     self._local_pre_detect_results[output_data["__index__"]] = output_data
             except Exception as e:
+                # 统计检测异常的策略
+                metrics.AIOPS_DETECT_FAILED_COUNT.labels(**base_labels, error_code=e.data["code"]).inc()
                 logger.warning(f"Predict error: {e}")
 
     def fetch_pre_detect_result_point(self, data_point, **kwargs) -> DataPoint:

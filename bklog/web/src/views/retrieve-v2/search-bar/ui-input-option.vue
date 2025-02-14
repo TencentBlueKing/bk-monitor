@@ -198,7 +198,7 @@
   });
 
   const filterFieldList = computed(() => {
-    const regExp = getRegExp(searchValue.value);
+    const regExp = getRegExp(searchValue.value.trim());
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&

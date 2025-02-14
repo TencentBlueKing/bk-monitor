@@ -498,6 +498,7 @@ export default {
   回到旧版: 'Back to Legacy',
   切换新版: 'Switch to New Version',
   CPU使用率: 'CPU Usage',
-  '新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看':
-    'The new version of container monitoring does not fully cover the legacy features yet. You can switch to the legacy version to view them if necessary',
+  撤回下钻: 'Recall Drill-down',
+  取消聚合: 'Cancel Aggregation',
+  聚合: 'Aggregate',
 };

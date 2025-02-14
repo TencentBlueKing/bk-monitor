@@ -2472,11 +2472,11 @@ class Strategy(AbstractConfig):
         # 4. 遍历每个监控项的查询配置，以判断数据来源并执行相应处理逻辑
         need_access = False
         for query_config in chain(*(item.query_configs for item in self.items)):
-            need_access = need_access or self.check_aiops_query_config(query_config)
+            need_access = need_access or self.check_aiops_query_config(query_config, intelligent_algorithm)
 
         return need_access, intelligent_algorithm
 
-    def check_aiops_query_config(self, query_config: QueryConfig):
+    def check_aiops_query_config(self, query_config: QueryConfig, algorithm_name: str = None):
         # 4.1 如果数据类型不是时序数据，则跳过不处理
         if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
             return False
@@ -2497,7 +2497,11 @@ class Strategy(AbstractConfig):
         # 如果已经配置了使用SDK，则不再走bkbase接入的方式
         if not need_access or intelligent_detect.get("use_sdk", False):
             intelligent_detect["use_sdk"] = True
-            intelligent_detect["status"] = SDKDetectStatus.PREPARING
+            if algorithm_name == AlgorithmModel.AlgorithmChoices.AbnormalCluster:
+                # 离群检测不需要历史依赖，因此如果使用SDK，默认可以直接进行检测
+                intelligent_detect["status"] = SDKDetectStatus.READY
+            else:
+                intelligent_detect["status"] = SDKDetectStatus.PREPARING
 
         query_config.intelligent_detect = intelligent_detect
 

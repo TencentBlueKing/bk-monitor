@@ -787,6 +787,34 @@ class KubernetesContainerJsonParser:
         return translate_timestamp_since(self.created_at)
 
 
+class KubernetesIngressJsonParser(KubernetesV1ObjectJsonParser):
+    @cached_property
+    def class_name(self) -> str:
+        return self.spec.get("ingressClassName")
+
+    @cached_property
+    def service_list(self) -> List:
+        services = set()
+        # 提取默认后端（如果存在）
+        default_backend: dict = self.spec.get("defaultBackend", {})
+        if default_backend:
+            service_name = default_backend.get("service", {}).get("name")
+            if service_name:
+                services.add(service_name)
+
+        # 遍历所有规则和路径
+        for rule in self.spec.get("rules", []):
+            http_paths = rule.get("http", {}).get("paths", [])
+            for path in http_paths:
+                service_name = path.get("backend", {}).get("service", {}).get("name") or path.get("backend", {}).get(
+                    "serviceName"
+                )
+                if service_name:
+                    services.add(service_name)
+
+        return list(services)
+
+
 class KubernetesServiceJsonParser(KubernetesV1ObjectJsonParser):
     @cached_property
     def status(self) -> Dict:
