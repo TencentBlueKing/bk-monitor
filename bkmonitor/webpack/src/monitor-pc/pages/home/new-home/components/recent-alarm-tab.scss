@@ -7,15 +7,14 @@
   .tabs {
     display: flex;
     align-items: flex-end;
-
+    margin-left: -4px;
     .tab {
       position: relative;
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      margin-right: 7px;
       border: 1px solid transparent;
-
+      padding-left: 4px;
       &:hover span {
         visibility: visible;
       }
@@ -42,7 +41,7 @@
       .item-drag {
         position: absolute;
         top: 4px;
-        left: -17px;
+        left: -13px;
         height: 16px;
         color: #979ba5;
         visibility: hidden;
