@@ -138,6 +138,47 @@ class QueryDataResource(UnifyQueryAPIResource):
         instant = serializers.BooleanField(required=False)
 
 
+class QueryRawResource(UnifyQueryAPIResource):
+    """
+    查询原始数据
+    """
+
+    method = "POST"
+    path = "/query/ts/raw"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        step = serializers.CharField()
+        space_uid = serializers.CharField(allow_null=True)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+        order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+
+
+class QueryReferenceResource(UnifyQueryAPIResource):
+    """
+    查询原始数据
+    """
+
+    method = "POST"
+    path = "/query/ts/reference"
+
+    class RequestSerializer(serializers.Serializer):
+        query_list = serializers.ListField()
+        metric_merge = serializers.CharField()
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        step = serializers.CharField()
+        space_uid = serializers.CharField(allow_null=True)
+        down_sample_range = serializers.CharField(allow_blank=True)
+        timezone = serializers.CharField(required=False)
+        instant = serializers.BooleanField(required=False)
+        order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
+
+
 class QueryClusterMetricsDataResource(UnifyQueryAPIResource):
     """
     查询数据
