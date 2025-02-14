@@ -1011,4 +1011,5 @@ export default {
   收藏当前查询: 'Add current query to favorites',
   "检测到字段名称包含异常值，只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾。请重命名，命名后原字段将被覆盖；": 'The field name contains invalid characters. It can only include a-z, A-Z, 0-9, and _, and it cannot start or end with _. Please rename it; the original field will be overwritten after renaming',
   "检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖": 'The field name conflicts with a system built-in name. Please rename it; the original field will be overwritten after renaming',
+  "该设置可以将采集设备的元数据信息补充至日志中":'The setting can augment the metadata information of the collection device into the log',
 };
