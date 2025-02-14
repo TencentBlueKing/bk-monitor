@@ -325,7 +325,7 @@ class SearchViewSet(APIViewSet):
         if data.get("is_scroll_search"):
             return Response(search_handler.scroll_search())
 
-        if FeatureToggleObject.switch("UNIFY_QUERY_SEARCH", data.get("bk_biz_id")):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
             data["start_time"] = request.data.get("start_time")
             data["end_time"] = request.data.get("end_time")
