@@ -17,20 +17,20 @@
 
 
   .content {
+    overflow: auto;
     .loading-element {
       transition: height 0.5s ease; /* 0.3 秒的过渡时间，可以根据需要调整 */
     }
     .list-content {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 12px 1%;
       align-items: center;
 
       .list-item {
-        width: 32%;
+        width: calc(98%/3);
         height: 210px;
         background: #ffffff;
-        flex: 1;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919290d;
         &:hover {
