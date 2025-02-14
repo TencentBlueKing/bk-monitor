@@ -551,6 +551,7 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param item
    */
   async handleUpdateTag(target: any, item: ITagListItem) {
+    this.searchValue = '';
     this.updateActive = item.key;
     if (item.id === EDimensionKey.workload) {
       this.workloadValueSelected = item.values?.[0]?.id || '';
