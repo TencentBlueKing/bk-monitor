@@ -4,6 +4,7 @@
 
   .bk-table {
     height: 100%;
+    border-bottom: 1px solid #dfe0e5;
 
     .bk-table-header-wrapper {
       .bk-table-header {
@@ -31,6 +32,7 @@
           align-items: flex-end;
           height: 100%;
           padding: 4px 0;
+          cursor: initial;
 
           .header-category {
             display: flex;
@@ -75,16 +77,14 @@
       }
     }
 
-    .bk-table-row.hover-row {
-      .col-item-label {
-        &.can-click {
-          color: #3a84ff;
-        }
-      }
+    .bk-table-fixed {
+      border-bottom: 0;
+    }
 
+    .bk-table-row.hover-row {
       .col-item-operate {
-        align-items: center;
         visibility: visible;
+        animation: debouncedIconShow 0.6s steps(2);
       }
     }
   }
@@ -101,13 +101,19 @@
       color: #4d4f56;
 
       &.can-click {
+        text-decoration: underline;
         cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+        }
       }
     }
 
     .col-item-operate {
       display: flex;
       flex-shrink: 0;
+      align-items: center;
       visibility: hidden;
 
       .k8s-dimension-drillDown {
@@ -161,5 +167,15 @@
   .loading-svg {
     width: 16px;
     height: 16px;
+  }
+}
+
+@keyframes debouncedIconShow {
+  0% {
+    visibility: hidden;
+  }
+
+  100% {
+    visibility: visible;
   }
 }

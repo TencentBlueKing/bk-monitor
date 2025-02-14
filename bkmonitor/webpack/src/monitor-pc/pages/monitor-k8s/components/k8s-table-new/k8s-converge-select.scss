@@ -1,5 +1,7 @@
 .k8s-converge-select {
   .popover-trigger {
+    cursor: pointer;
+
     &.active {
       .icon-monitor {
         color: #3a84ff;
