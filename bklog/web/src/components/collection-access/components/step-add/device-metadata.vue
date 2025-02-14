@@ -131,7 +131,13 @@ const getDeviceMetaData = async () => {
         return item;
       })
     );
-    selectValue.value = props.metadata.map((item) => item.key);
+    selectValue.value = props.metadata.map( item => {
+      if (item.key.startsWith('host.')) {
+        return item.key.slice(5);
+      } else {
+        return item.key;
+      }
+    });
   } catch (e) {
     console.warn(e);
   }
