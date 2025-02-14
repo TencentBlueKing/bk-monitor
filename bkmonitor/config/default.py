@@ -1468,7 +1468,7 @@ CHECK_RESULT_TTL_HOURS = 1
 BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 支持来源 APIGW 列表
-FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor,bkmonitorv3")
+FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
 
 # 集群内 bkmonitor-operator 特殊部署命名空间信息，针对一个集群部署多套 operator 时需要配置这个
 # 格式: {
@@ -1476,6 +1476,13 @@ FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor,bkmonitorv3")
 #     "BCS-K8S-00001": "bkmonitor-operator",
 # }
 K8S_OPERATOR_DEPLOY_NAMESPACE = {}
+
+# 集群内 collector 接收端特殊配置，针对一个集群部署多套 operator 时需要配置这个
+# 格式: {
+#     "BCS-K8S-00000": {"cache": {"interval": "10s"}},
+#     "BCS-K8S-00001": {"cache": {"interval": "1s"}},
+# }
+K8S_COLLECTOR_CONFIG = {}
 
 # 默认K8S插件采集集群ID
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""

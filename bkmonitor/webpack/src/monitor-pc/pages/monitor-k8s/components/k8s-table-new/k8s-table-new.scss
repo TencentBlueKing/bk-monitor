@@ -10,21 +10,39 @@
         min-width: 100%;
 
         .cell:has(.k8s-metrics-header) {
+          align-items: flex-end;
           padding-left: 0;
+          line-height: normal;
+
+          .bk-table-header-label {
+            flex: 1;
+            flex-shrink: 0;
+            height: 100%;
+          }
+
+          .bk-table-caret-wrapper {
+            margin-bottom: 2px;
+          }
         }
 
         .k8s-metrics-header {
           display: flex;
-          align-items: center;
-          padding-left: 15px;
-          cursor: initial;
+          flex-direction: column;
+          align-items: flex-end;
+          height: 100%;
+          padding: 4px 0;
 
-          .header-label {
-            flex-basis: auto;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+          .header-category {
+            display: flex;
+            flex: 1;
+            align-items: center;
+          }
+
+          .header-metrics {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            justify-content: center;
           }
         }
       }
@@ -58,15 +76,17 @@
     }
 
     .bk-table-row.hover-row {
+      .col-item-label {
+        &.can-click {
+          color: #3a84ff;
+        }
+      }
+
       .col-item-operate {
         align-items: center;
         visibility: visible;
       }
     }
-  }
-
-  .mini-time-series-chart-wrap {
-    height: 42px;
   }
 
   .k8s-table-col-item {
@@ -78,15 +98,10 @@
       flex-basis: auto;
       min-width: 0;
       overflow: hidden;
-      color: #63656e;
+      color: #4d4f56;
 
       &.can-click {
-        text-decoration: underline;
         cursor: pointer;
-
-        &:hover {
-          color: #3a84ff;
-        }
       }
     }
 
@@ -111,7 +126,6 @@
         margin-left: 6px;
         font-size: 14px;
         line-height: 24px;
-
         cursor: pointer;
 
         &.icon-a-sousuo,
@@ -136,6 +150,12 @@
         }
       }
     }
+  }
+
+  .k8s-metric-column {
+    padding-right: 20px;
+    color: #4d4f56;
+    text-align: right;
   }
 
   .loading-svg {
