@@ -147,6 +147,7 @@ class QueryHelper:
             start_time=query_body["start_time"],
             end_time=query_body["end_time"],
             limit=query_body["limit"],
+            order_by=query_body["order_by"],
             offset=query_body["offset"],
             search_after_key=query_body["search_after_key"],
         )
@@ -206,7 +207,6 @@ class QueryHelper:
 
     @classmethod
     def query(cls, table_id: str, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
-
         logger.info("[QueryHelper] table_id -> %s query_body -> %s", table_id, query_body)
 
         data_sources: List[DataSource] = []
@@ -253,8 +253,16 @@ class UnifyQueryCompiler(SQLCompiler):
                 query_config["interval"] = query_config_obj.interval
             query_configs.append(query_config)
 
+        order_by: List[str] = []
+        for ordering in query_configs[0]["order_by"]:
+            if len(ordering.split()) == 1:
+                field, order = ordering, "asc"
+            else:
+                field, order = ordering.split(maxsplit=1)
+            order_by.append({"asc": "", "desc": "-"}[order.lower()] + field)
+
         return "unifyquery", {
-            "bk_biz_id": None,
+            "bk_biz_id": self.query.bk_biz_id,
             "query_configs": query_configs,
             "dimension_fields": query_configs[0]["dimension_fields"],
             "functions": self.query.functions,
@@ -262,6 +270,7 @@ class UnifyQueryCompiler(SQLCompiler):
             "expression": self.query.expression or query_configs[0]["reference_name"],
             "limit": self.query.get_limit(),
             "offset": self.query.offset,
+            "order_by": order_by,
             "start_time": self.query.start_time,
             "end_time": self.query.end_time,
             "search_after_key": self.query.search_after_key,
@@ -285,11 +294,11 @@ class DatabaseConnection(BaseDatabaseConnection):
 
 
 class UnifyQueryConfig:
-
     compiler = "UnifyQueryCompiler"
 
     def __init__(self):
         # 是否返回瞬时量
+        self.bk_biz_id: Optional[int] = None
         self.instant: bool = False
         self.expression: str = ""
         self.functions: List[Dict[str, Any]] = []
@@ -305,6 +314,7 @@ class UnifyQueryConfig:
 
     def clone(self) -> "UnifyQueryConfig":
         obj: "UnifyQueryConfig" = self.__class__()
+        obj.bk_biz_id = self.bk_biz_id
         obj.instant = self.instant
         obj.expression = self.expression
         obj.functions = self.functions[:]
@@ -323,6 +333,9 @@ class UnifyQueryConfig:
     def set_search_after_key(self, search_after_key: Optional[Dict[str, Any]]):
         # None 表示重置
         self.search_after_key = search_after_key
+
+    def set_scope(self, bk_biz_id: int):
+        self.bk_biz_id = bk_biz_id
 
     def set_instant(self, instant: bool):
         self.instant = instant
@@ -354,7 +367,9 @@ class UnifyQueryConfig:
         self.low_mark, self.high_mark = get_limit_range(low, high, self.low_mark, self.high_mark)
 
     def get_limit(self) -> int:
-        return (self.high_mark - self.low_mark, 0)[self.high_mark is None]
+        if self.high_mark is None:
+            return 0
+        return self.high_mark - self.low_mark
 
     def get_compiler(self, using: Optional[Tuple[str, str]] = None) -> SQLCompiler:
         connection: DatabaseConnection = DatabaseConnection(QueryHelper.query)
@@ -389,6 +404,19 @@ class CompilerMixin:
         conf = {"expression": params["expression"], "query_configs": query_configs, "functions": []}
         return conf
 
+    @property
+    def config(self) -> Dict[str, Any]:
+        """导出 UnifyQuery 查询配置"""
+        compiler = self.query.get_compiler(using=self.using)
+        __, params = compiler.as_sql()
+        return {
+            "bk_biz_id": params["bk_biz_id"],
+            "query_configs": params["query_configs"],
+            "expression": params["expression"],
+            "start_time": params["start_time"],
+            "end_time": params["end_time"],
+        }
+
 
 class UnifyQuerySet(IterMixin, CompilerMixin):
     def __init__(self, query: UnifyQueryConfig = None):
@@ -399,6 +427,11 @@ class UnifyQuerySet(IterMixin, CompilerMixin):
     def _clone(self) -> "UnifyQuerySet":
         query = self.query.clone()
         clone = self.__class__(query=query)
+        return clone
+
+    def scope(self, bk_biz_id: int) -> "UnifyQuerySet":
+        clone = self._clone()
+        clone.query.set_scope(bk_biz_id)
         return clone
 
     def after(self, after_key: Optional[Dict[str, Any]] = None) -> "UnifyQuerySet":
