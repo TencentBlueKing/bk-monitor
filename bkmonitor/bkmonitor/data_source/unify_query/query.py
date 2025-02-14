@@ -166,8 +166,16 @@ class UnifyQuery:
                 records.append(record)
         return records
 
-    def get_observe_labels(self) -> Dict[str, str]:
+    @classmethod
+    def process_unify_query_log(cls, params: Dict[str, Any], data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        records: List[Dict[str, Any]] = []
+        for record in data.get("list") or []:
+            record["time"] = int(record.pop("_time", 0))
+            record["_time_"] = record["time"]
+            records.append(record)
+        return records
 
+    def get_observe_labels(self) -> Dict[str, str]:
         result_tables: List[str] = []
         for data_source in self.data_sources:
             result_table = str(
@@ -241,7 +249,13 @@ class UnifyQuery:
                 return False
         return True
 
-    def get_unify_query_params(self, start_time: int = None, end_time: int = None, time_alignment: bool = True):
+    def get_unify_query_params(
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        time_alignment: bool = True,
+        order_by: Optional[List[str]] = None,
+    ):
         """
         生成查询参数
         """
@@ -271,7 +285,7 @@ class UnifyQuery:
         params = {
             "query_list": query_list,
             "metric_merge": add_expression_functions(expression, self.functions),
-            "order_by": ["-time"],
+            "order_by": order_by or ["-time"],
             "step": f"{step}s",
             "space_uid": self.space_uid,
         }
@@ -319,6 +333,30 @@ class UnifyQuery:
             data = api.unify_query.query_data(**params)
             data = self.process_unify_query_data(params, data, end_time=end_time)
         return data
+
+    def _query_log_using_unify_query(
+        self,
+        start_time: int,
+        end_time: int,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        order_by: Optional[str] = None,
+        time_alignment: bool = True,
+    ) -> List[Dict]:
+        params: Dict[str, Any] = self.get_unify_query_params(start_time, end_time, time_alignment, order_by)
+        if not params["query_list"]:
+            return []
+
+        for query in params["query_list"]:
+            query.update({"limit": limit or 1, "from": offset or 0})
+
+        params_json: str = json.dumps(params)
+        logger.info("UNIFY_QUERY: %s", params_json)
+        with tracer.start_as_current_span("unify_query") as span:
+            span.set_attribute("bk.system", "unify_query")
+            span.set_attribute("bk.unify_query.statement", json.dumps(params))
+            data = api.unify_query.query_raw(**params)
+        return self.process_unify_query_log(params, data)
 
     def _query_data_using_datasource(
         self,
@@ -429,7 +467,14 @@ class UnifyQuery:
         return data
 
     def query_log(
-        self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
+        self,
+        start_time: int = None,
+        end_time: int = None,
+        limit: int = None,
+        offset: int = None,
+        order_by: Optional[str] = None,
+        *args,
+        **kwargs,
     ) -> Tuple[List[Dict[str, Any]], int]:
         if not self.data_sources:
             return [], 0
@@ -442,15 +487,14 @@ class UnifyQuery:
             labels["api"] = "unify_query"
             try:
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    # TODO 预留 total，后续看怎么处理
                     total = 0
-                    data = self._query_unify_query(
+                    data = self._query_log_using_unify_query(
                         start_time=start_time,
                         end_time=end_time,
                         limit=limit,
                         offset=offset,
+                        order_by=order_by,
                         time_alignment=kwargs.get("time_alignment", True),
-                        instant=kwargs.get("instant"),
                     )
             except Exception as e:
                 exc = e
