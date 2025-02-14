@@ -10,7 +10,6 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 
 .bklog-icon {
   /* use !important to prevent issues with browser extensions that change fonts */
-  /* stylelint-disable-next-line declaration-no-important */
   font-family: 'bklog' !important;
   speak: none;
   font-style: normal;
@@ -68,6 +67,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-filled-right-arrow:before {
 	content: "\e106";
+}
+.bklog-audit:before {
+	content: "\e1a5";
 }
 .bklog-icon-help-document-fill:before {
 	content: "\e107";
@@ -336,6 +338,15 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-log-remark:before {
 	content: "\e187";
 }
+.bklog-help:before {
+	content: "\e1a4";
+}
+.bklog-refresh2:before {
+	content: "\e1a6";
+}
+.bklog-subnode:before {
+	content: "\e1a9";
+}
 .bklog-log-plus-circle-shape:before {
 	content: "\e18b";
 }
@@ -362,4 +373,13 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-qiehuanbanben:before {
 	content: "\e1a1";
+}
+.bklog-shaixuan:before {
+	content: "\e1a3";
+}
+.bklog-yingshe:before {
+	content: "\e1a7";
+}
+.bklog-arrow-down-filled:before {
+	content: "\e1a8";
 }

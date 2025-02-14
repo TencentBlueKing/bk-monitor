@@ -348,7 +348,7 @@ export default class FieldInfo extends tsc<IProps> {
 
   render() {
     const nickNameSlot = {
-      default: ({ row }) => <span>{row.field_alias || '--'}</span>,
+      default: ({ row }) => <span>{row.query_alias || row.field_alias || '--'}</span>
     };
 
     const fieldNameSlot = {

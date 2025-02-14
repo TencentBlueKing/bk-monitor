@@ -28,6 +28,7 @@ import { Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { Debounce } from 'monitor-common/utils/utils';
 
 import { EStatusType } from '../utils';
 
@@ -35,7 +36,9 @@ import './add-alarm-chart-dialog.scss';
 
 interface IAddAlarmChartDialogProps {
   showAddTaskDialog: boolean;
+  isFirstAddTaskDialog: boolean;
   handleMenuMode: string;
+  spaceName: string;
   currentBizId: number;
   editStrategyConfig?: IStrategyConfig;
 }
@@ -60,13 +63,16 @@ type IAddAlarmChartDialogEvent = {
 })
 export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, IAddAlarmChartDialogEvent> {
   @Prop({ default: false, type: Boolean }) showAddTaskDialog: boolean;
+  @Prop({ default: false, type: Boolean }) isFirstAddTaskDialog: boolean;
   @Prop({ default: '', type: String }) handleMenuMode: string;
+  @Prop({ default: '', type: String }) spaceName: string;
   @Prop({ default: null, type: Number }) currentBizId: number;
   @Prop({ default: {}, type: Object }) editStrategyConfig: IStrategyConfig;
 
   @Ref() taskFormRef; // 新增图表表单ref
 
   strategyList = []; // 策略列表
+  searchVal = ''; // 搜索值
 
   filterStrategyIdSet = new Set(); // 修改时回显的策略id列表
 
@@ -130,12 +136,20 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
       .catch(() => false);
   }
 
-  async getStrategyListByPage() {
+  async getStrategyListByPage(clearList = false) {
     if (!this.currentBizId) return;
     this.loadingStrategyList = true;
     try {
       const { currentPage: page, limit } = this.pagination;
       const data = await getStrategyListV2({
+        conditions: this.searchVal
+          ? [
+            {
+              key: 'strategy_name',
+              value: [this.searchVal],
+            },
+          ]
+          : [],
         page,
         limit,
         bk_biz_id: this.currentBizId,
@@ -153,6 +167,7 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
         );
         return;
       }
+      if (clearList) this.strategyList = [];
       this.strategyList.push(...(data.strategy_config_list || []));
       this.strategyList.sort((a, b) => {
         // 根据优先级字段排序，优先级 is_shielded < is_enabled
@@ -207,6 +222,30 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
     }
   }
 
+  handleSelectStrategy(isExpand) {
+    if (isExpand) return;
+    if (!this.isFirstAddTaskDialog) return;
+    if (!this.strategyConfig.name && this.strategyConfig.strategy_ids.length === 1) {
+      const [id] = this.strategyConfig.strategy_ids;
+      const { name } = this.strategyList.find(item => item.id === id);
+      this.strategyConfig.name = name;
+    }
+  }
+
+  /* 搜索策略 */
+  @Debounce(300)
+  async searchStrategy(v: string) {
+    this.loadingStrategyList = true;
+    this.pagination = {
+      currentPage: 1,
+      limit: 10,
+      isLastPage: false,
+    };
+    this.searchVal = v;
+    await this.getStrategyListByPage(true);
+    this.loadingStrategyList = false;
+  }
+
   async handleScrollToBottom() {
     try {
       // 判断是否为最后一页
@@ -254,6 +293,7 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
       limit: 10,
       isLastPage: false,
     };
+    this.searchVal = '';
     this.filterStrategyIdSet = new Set();
     this.delStrategyIdSet = new Set();
     this.strategyList = [];
@@ -263,10 +303,14 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
     return (
       <bk-dialog
         width={480}
+        title={
+          this.handleMenuMode === 'edit'
+            ? this.$t('修改业务【{name}】的图表', { name: this.spaceName })
+            : this.$t('添加图表')
+        }
         escClose={false}
         header-position='left'
         mask-close={false}
-        title={this.handleMenuMode === 'edit' ? this.$t('修改图表') : this.$t('新增图表')}
         value={this.showAddTaskDialog}
         show-footer
         on-after-leave={() => {
@@ -301,12 +345,14 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
                 // list={this.strategyList}
                 loading={this.loadingStrategyList}
                 placeholder={this.$t('请选择策略')}
+                remote-method={this.searchStrategy}
                 scrollLoading={this.bottomLoadingOptions}
                 // enable-virtual-scroll
                 enable-scroll-load
                 multiple
                 searchable
                 on-scroll-end={this.handleScrollToBottom}
+                onToggle={this.handleSelectStrategy}
               >
                 {this.strategyList.map(item => (
                   <bk-option

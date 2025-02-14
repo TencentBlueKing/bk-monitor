@@ -295,6 +295,9 @@ class RootEndpoint(models.Model):
     created_at = models.DateTimeField("创建时间", auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField("更新时间", blank=True, null=True, auto_now=True, db_index=True)
 
+    class Meta:
+        index_together = [["bk_biz_id", "app_name"]]
+
 
 class Endpoint(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -309,6 +312,9 @@ class Endpoint(models.Model):
     extra_data = models.TextField(null=True, verbose_name="额外数据")
     created_at = models.DateTimeField("创建时间", auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField("更新时间", blank=True, null=True, auto_now=True, db_index=True)
+
+    class Meta:
+        index_together = [["bk_biz_id", "app_name"]]
 
 
 class EbpfApplicationConfig(models.Model):
