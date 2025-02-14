@@ -541,6 +541,7 @@ export default class FilterByCondition extends tsc<IProps> {
   async handleAddTag(event: MouseEvent) {
     this.searchValue = '';
     this.setGroupOptions();
+    this.setCountData();
     this.handleAdd(event);
     this.handleSearchChange('');
   }
@@ -558,6 +559,7 @@ export default class FilterByCondition extends tsc<IProps> {
     }
     this.filterByOptions.setIsUpdate(true);
     this.setGroupOptions();
+    this.setCountData();
     this.handleAdd({ target } as any);
     this.handleSearchChange('');
   }
@@ -793,6 +795,20 @@ export default class FilterByCondition extends tsc<IProps> {
     this.overflowCountRender();
   }
 
+  /**
+   * @description 更新每个维度统计数据
+   */
+  setCountData() {
+    const dimensions = this.groupOptions.map(item => item.id).filter(id => id !== this.groupSelected);
+    this.filterByOptions.getCountData(dimensions as EDimensionKey[], this.searchValue, v => {
+      for (const item of this.groupOptions) {
+        const count = v.get(item.id as EDimensionKey);
+        if (typeof count === 'number') {
+          item.count = count;
+        }
+      }
+    });
+  }
   valuesWrap() {
     return (
       <div
@@ -930,6 +946,10 @@ export default class FilterByCondition extends tsc<IProps> {
       !!this.tagList.length && (
         <div
           class='filter-by-condition-tag clear-btn'
+          v-bk-tooltips={{
+            content: this.$t('清空过滤条件'),
+            delay: [300, 0],
+          }}
           onClick={() => this.handleClear()}
         >
           <span class='icon-monitor icon-a-Clearqingkong' />
