@@ -111,6 +111,7 @@ export class FilterByOptions {
           page: 1,
           page_size: 1,
           ...this.queryStringParams(dimension),
+          query_string: search,
         }).then(({ count }) => {
           countData.set(dimension, count);
           setData(countData);
