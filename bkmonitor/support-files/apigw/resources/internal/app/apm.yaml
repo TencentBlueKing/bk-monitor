@@ -940,7 +940,7 @@ paths:
         backend:
           type: HTTP
           method: get
-          path: /api/v4/application_web/{application_id}/application_info/
+          path: /api/v4/application_web/application_info_by_id/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
@@ -949,7 +949,7 @@ paths:
         descriptionEn: apm application info
   /app/apm/query_bk_data_token/:
     get:
-      operationId: apm_query_bk_data_token
+      operationId: query_bk_data_token
       description: 【APM】应用token查询
       tags:
         - apm
@@ -960,7 +960,7 @@ paths:
         backend:
           type: HTTP
           method: get
-          path: /api/v4/application_web/{application_id}/query_bk_data_token/
+          path: /apm_api/v1/application/query_bk_data_token_info/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
