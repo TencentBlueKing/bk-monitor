@@ -31,22 +31,17 @@ import { useI18n } from 'vue-i18n';
 import { removeListener, addListener } from '@blueking/fork-resize-detector';
 import { Exception, Message } from 'bkui-vue';
 import { query } from 'monitor-api/modules/apm_profile';
-import { updateColorOpacity } from 'monitor-common/utils';
 import { copyText } from 'monitor-common/utils/utils';
-import {
-  COMPARE_DIFF_COLOR_LIST,
-  getSingleDiffColor,
-} from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
-import {
-  parseProfileDataTypeValue,
-  type ProfileDataUnit,
-} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
-import { getSpanColorByName, type BaseDataType } from 'monitor-ui/chart-plugins/typings/flame-graph';
+import { COMPARE_DIFF_COLOR_LIST } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
 import { CommonMenuList, type ICommonMenuItem } from 'monitor-ui/chart-plugins/typings/flame-graph';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
 
+import { getGraphOptions, recursionData } from './use-profiling-flame-graph';
+
 import type { IFlameGraphDataItem, IProfilingGraphData } from './types';
+import type { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
+import type { BaseDataType } from 'monitor-ui/chart-plugins/typings/flame-graph';
 
 import './flame-graph.scss';
 
@@ -132,238 +127,14 @@ export default defineComponent({
     const diffPercentList = computed(() =>
       COMPARE_DIFF_COLOR_LIST.map(val => `${val.value > 0 ? '+' : ''}${val.value}%`)
     );
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    context.font = '12px sans-serif';
-    function getMaxWidthText(text: string, width: number) {
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      const charWidth = (text: string): number => context.measureText(text).width;
-      let truncatedText = text;
-      while (charWidth(truncatedText) > width && truncatedText.length > 0) {
-        truncatedText = truncatedText.slice(0, -1);
-      }
-      return truncatedText;
-    }
-    function renderItem(param, api) {
-      const level = api.value(0);
-      const start = api.coord([api.value(1), level]);
-      const end = api.coord([api.value(2), level]);
-      const nodeItem: IFlameGraphDataItem = currentGraphData.value[param.dataIndexInside]?.value?.[3];
-      const height: number = api.size([1, 1])[1];
-      const width = Math.max(end[0] - start[0], 2);
-      const isMinWidth = width < 4;
-      const y = defaultHeight >= height ? start[1] : defaultHeight * level + 2;
-      // const { value } = parseProfileDataTypeValue(nodeItem.value, props.unit);
-      const color = nodeItem.diff_info ? getSingleDiffColor(nodeItem.diff_info) : getSpanColorByName(nodeItem.name);
-      let rectColor = color;
-      if (isMinWidth) {
-        rectColor = '#ddd';
-      } else if (props.filterKeyword) {
-        rectColor = nodeItem.name.toLocaleLowerCase().includes(props.filterKeyword.toString().toLocaleLowerCase())
-          ? color
-          : '#aaa';
-      } else if (+highlightNode.value?.level > level) {
-        rectColor = '#aaa';
-      }
-      const name = props.textDirection === 'ltr' ? nodeItem.name : nodeItem.name.split('').reverse().join('');
-      let text = '';
-      if (!isMinWidth) {
-        text = getMaxWidthText(name, width - 4);
-        if (props.textDirection !== 'ltr') {
-          text = text.split('').reverse().join('');
-        }
-      }
-      return {
-        type: 'rect',
-        transition: [],
-        animation: false,
-        // z2: 10,
-        shape: {
-          x: start[0],
-          y,
-          width,
-          height: defaultHeight,
-          r: 0,
-        },
-        style: {
-          fill: rectColor,
-          stroke: '#fff',
-          lineWidth: isMinWidth ? 0 : 0.5,
-        },
-        emphasisDisabled: true,
-        emphasis: {
-          style: {
-            stroke: '#fff',
-            fill: updateColorOpacity('#edeef3', 0.3),
-          },
-        },
-        textConfig: {
-          position: 'insideLeft',
-          inside: true,
-          outsideFill: 'transparent',
-        },
-        textContent: {
-          type: 'text',
-          // z2: 100,
-          style: {
-            textAlign: props.textDirection === 'ltr' ? 'left' : 'right',
-            text,
-            fill: '#000',
-            width: width,
-            overflow: 'truncate',
-            ellipsis: '',
-            truncateMinChar: 1,
-          },
-        },
-      };
-    }
-    function getEchartsOptions(data: IProfilingGraphData[]) {
-      currentGraphData.value = data;
-      return {
-        grid: {
-          id: 'grid',
-          show: false,
-          left: 2,
-          top: 2,
-          bottom: 2,
-          right: 2,
-        },
-        animation: false,
-        tooltip: {
-          padding: 0,
-          backgroundColor: '#000',
-          borderColor: '#000',
-          appendToBody: false,
-          trigger: 'item',
-          axisPointer: {
-            snap: false,
-          },
-          formatter: (params: any) => {
-            const nodeItem: IFlameGraphDataItem = params.value?.[3];
-            const { value } = parseProfileDataTypeValue(nodeItem.value, props.unit);
-            const { name, diff_info, proportion } = nodeItem;
-            let reference = undefined;
-            let difference = undefined;
-            if (props.isCompared && diff_info) {
-              reference = parseProfileDataTypeValue(diff_info.comparison, props.unit)?.value;
-              difference = diff_info.comparison === 0 || diff_info.mark === 'unchanged' ? 0 : diff_info.diff;
-            }
-            return `<div class="flame-graph-tips" style="display: block; left: 1241px; top: 459px;">
-            <div class="funtion-name">${name}</div>
-            <table class="tips-table">
-              ${
-                diff_info
-                  ? `<thead>
-                <th></th>
-                <th>当前</th>
-                <th>参照</th>
-                <th>差异</th>
-              </thead>`
-                  : ''
-              }
-              <tbody>
-                ${
-                  !diff_info
-                    ? `<tr>
-                        <td>${t('占比')}</td>
-                        <td>${proportion.toFixed(4).replace(/[0]+$/g, '')}%</td>
-                      </tr>
-                      <tr>
-                        <td>${t('耗时')}</td>
-                        <td>${value}</td>
-                      </tr>`
-                    : `<tr>
-                      <td>${t('耗时')}</td>
-                      <td>${value}</td>
-                      <td>${reference ?? '--'}</td>
-                      <td>
-                        ${
-                          diff_info.mark === 'added'
-                            ? `<span class='tips-added'>${diff_info.mark}</span>`
-                            : `${(difference * 100).toFixed(2)}%`
-                        }
-                      </td>
-                    </tr>`
-                }
-              </tbody>
-            </table>
-            <div class="tips-info">
-              <span class="icon-monitor icon-mc-mouse tips-info-icon"></span>${window.i18n.t('鼠标右键有更多菜单')}
-            </div>`;
-          },
-        },
-        title: {
-          show: false,
-        },
-        toolbox: false,
-        hoverLayerThreshold: 1000 ** 5,
-        xAxis: {
-          show: false,
-          max: data[0].value[2],
-          position: 'top',
-        },
-        yAxis: {
-          inverse: true,
-          show: false,
-          max: data.at(-1)?.level,
-        },
-        series: [
-          {
-            type: 'custom',
-            renderItem: renderItem,
-            encode: {
-              x: [1, 2],
-              y: 0,
-            },
-            data,
-            animation: false,
-          },
-        ],
-      };
-    }
-    function recursionData(jsonData: IFlameGraphDataItem) {
-      const rootValue = jsonData.value;
-      function flattenTreeWithLevelBFS(data: IFlameGraphDataItem[]): any[] {
-        const result: IProfilingGraphData[] = [];
-        const queue: { node: IFlameGraphDataItem; level: number; start: number; end: number }[] = [];
-        queue.push({ node: data[0], level: 0, start: 0, end: 0 });
-        while (queue.length > 0) {
-          const { node, level, start, end } = queue.shift();
-          const { children, ...others } = node;
-          const item = {
-            ...others,
-            level,
-            start,
-            end: level === 0 ? node.value : end,
-          };
-          result.push({
-            ...item,
-            // name: node.id,
-            value: [
-              level,
-              start,
-              level === 0 ? node.value : end,
-              { ...item, proportion: (item.value / rootValue) * 100 },
-            ],
-          });
-          if (node.children && node.children.length > 0) {
-            let parentStart = start || 0; // 记录当前兄弟节点的 end 值
-            for (const child of node.children) {
-              queue.push({
-                node: child,
-                level: level + 1,
-                start: parentStart,
-                end: parentStart + child.value,
-              });
-              parentStart += child.value;
-            }
-          }
-        }
-        return result;
-      }
-      const list = flattenTreeWithLevelBFS(Array.isArray(jsonData) ? jsonData : [jsonData]);
-      console.info(list);
-      return list;
+    function getEchartsOptions() {
+      return getGraphOptions(currentGraphData.value, {
+        unit: props.unit,
+        filterKeyword: props.filterKeyword,
+        textDirection: props.textDirection,
+        highlightNode: highlightNode.value,
+        isCompared: localIsCompared.value,
+      });
     }
     watch(
       [() => props.data, props.appName],
@@ -403,7 +174,6 @@ export default defineComponent({
             profilingData.value = recursionData(data);
             maxLevel.value = profilingData.value.at(-1)?.level;
             height.value = Math.max(height.value, maxLevel.value * defaultHeight + 40);
-            const rect = chartRef.value?.getBoundingClientRect();
             setTimeout(() => {
               if (!chartInstance) {
                 chartInstance = echarts.init(chartRef.value!, undefined, {
@@ -413,12 +183,10 @@ export default defineComponent({
                   ssr: false,
                 });
               }
-              console.info(rect.width, rect.height, height.value, '++++++');
               chartInstance.off('click');
               chartInstance.off('contextmenu');
-              const options = getEchartsOptions(profilingData.value);
-              console.info(options);
-              chartInstance.setOption(options);
+              currentGraphData.value = profilingData.value;
+              chartInstance.setOption(getEchartsOptions());
               addListener(wrapperRef.value, handleResizeGraph);
               chartInstance.on('click', async (params: any) => {
                 chartInstance.dispatchAction({
@@ -429,8 +197,6 @@ export default defineComponent({
                   dataIndex: params.dataIndex,
                 });
                 await new Promise(r => setTimeout(r, 16));
-                // chartInstance.clear();
-                // debugger;
                 const id = params.data.value[3].id;
                 const clickNode = profilingData.value.find(item => item.id === id);
                 highlightNode.value = clickNode;
@@ -449,10 +215,9 @@ export default defineComponent({
                   });
                 }
                 currentGraphData.value = list;
-                chartInstance.setOption(getEchartsOptions(list), {
+                chartInstance.setOption(getEchartsOptions(), {
                   notMerge: true,
                 });
-                console.info(chartInstance.getOption());
               });
               chartInstance.on('contextmenu', (params: any) => {
                 console.info(params);
@@ -482,18 +247,12 @@ export default defineComponent({
         highlightNode.value = null;
         currentGraphData.value = profilingData.value;
       }
-      chartInstance.setOption({
-        xAxis: { max: currentGraphData.value[0].value[2] },
-        series: [{ data: currentGraphData.value }],
-      });
+      chartInstance.setOption(getEchartsOptions());
     });
     watch(
       () => props.textDirection,
       () => {
-        chartInstance.setOption({
-          xAxis: { max: currentGraphData.value[0].value[2] },
-          series: [{ data: currentGraphData.value }],
-        });
+        chartInstance.setOption(getEchartsOptions());
       }
     );
     function handleContextMenuClick(item: ICommonMenuItem) {
@@ -515,10 +274,7 @@ export default defineComponent({
       if (item.id === 'reset') {
         highlightNode.value = null;
         currentGraphData.value = profilingData.value;
-        chartInstance.setOption({
-          xAxis: { max: currentGraphData.value[0].value[2] },
-          series: [{ data: currentGraphData.value }],
-        });
+        chartInstance.setOption(getEchartsOptions());
       }
       if (item.id === 'highlight') {
         emit('update:filterKeyword', highlightNode.value.name);
@@ -588,7 +344,7 @@ export default defineComponent({
           key='chart'
           ref='chartRef'
           style={{ height: `${this.height}px` }}
-          class='flame-graph'
+          class='profiling-flame-graph'
           onContextmenu={e => e.preventDefault()}
         />
         <ul
@@ -597,7 +353,7 @@ export default defineComponent({
             top: `${this.contextMenuRect.top}px`,
             visibility: this.showContextMenu ? 'visible' : 'hidden',
           }}
-          class='flame-graph-menu'
+          class='profiling-flame-graph-menu'
         >
           {CommonMenuList.map(item => (
             <li

@@ -37,7 +37,7 @@ import { handleTransformToTimestamp } from '../../../components/time-range/utils
 import { SearchType, type ToolsFormData } from '../../../pages/profiling/typings';
 import { assignUniqueIds } from '../../../utils/utils';
 import ChartTitle from './chart-title/chart-title';
-import FrameGraph from './flame-graph-v2/flame-graph';
+import FrameGraph from './profiling-flame-graph/flame-graph';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 

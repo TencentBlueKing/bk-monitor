@@ -2,7 +2,7 @@
 
 $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a4a6 #e88c8d #e77474;
 
-.flame-graph {
+.profiling-flame-graph {
   position: relative;
   display: flex;
   flex: 1;
@@ -11,6 +11,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   padding-top: 6px;
   padding-right: 6px;
   padding-left: 6px;
+  overflow: hidden;
   background: #f5f6f9;
   border-radius: 2px;
 
@@ -22,7 +23,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   }
 }
 
-.flame-graph-menu {
+.profiling-flame-graph-menu {
   position: absolute;
   top: 0;
   left: 0;
@@ -67,7 +68,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   }
 }
 
-.flame-graph-tips {
+.profiling-flame-graph-tips {
   display: block;
   width: 320px;
   height: 100%;
