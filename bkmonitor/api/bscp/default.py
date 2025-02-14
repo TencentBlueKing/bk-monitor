@@ -21,9 +21,7 @@ class BSCPAPIGWResource(KernelAPIResource):
     TIMEOUT = 300
     base_url_statement = None
     IS_STANDARD_FORMAT = False
-    base_url = (
-        "%sapp" % settings.MONITOR_API_BASE_URL or "%s/api/c/compapi/v2/monitor_v3/" % settings.BK_COMPONENT_API_URL
-    )
+    base_url = settings.MONITOR_API_BASE_URL or "%s/api/c/compapi/v2/monitor_v3/" % settings.BK_COMPONENT_API_URL
 
     # 模块名
     module_name = "bscp"

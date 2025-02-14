@@ -87,7 +87,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: null
-  /app/detail_apm_application/:
+  /app/apm/detail_apm_application/:
     get:
       operationId: detail_apm_application
       description: 应用详情
@@ -107,7 +107,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: detail apm application
-  /app/apply_strategies_to_services/:
+  /app/apm/apply_strategies_to_services/:
     post:
       operationId: apply_strategies_to_services
       description: 导入策略到 APM 服务
