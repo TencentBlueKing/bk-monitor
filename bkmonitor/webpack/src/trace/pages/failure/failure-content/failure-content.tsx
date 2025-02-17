@@ -42,7 +42,7 @@ import { incidentValidateQueryString } from 'monitor-api/modules/incident';
 import AlarmDetail from '../alarm-detail/alarm-detail';
 import FilterSearchInput from '../failure-handle/filter-search-input';
 import FailureMenu from '../failure-menu/failure-menu';
-import FailureTiming from '../failure-timing/failure-timing';
+// import FailureTiming from '../failure-timing/failure-timing';
 import FailureTopo from '../failure-topo/failure-topo';
 import FailureView from '../failure-view/failure-view';
 
@@ -108,10 +108,10 @@ export default defineComponent({
         name: FailureContentTabView.FAILURE_TOPO,
         label: t('故障拓扑'),
       },
-      {
-        name: FailureContentTabView.FAILURE_TIMING,
-        label: t('故障时序'),
-      },
+      // {
+      //   name: FailureContentTabView.FAILURE_TIMING,
+      //   label: t('故障时序'),
+      // },
       {
         name: FailureContentTabView.FAILURE_VIEW,
         label: t('告警'),
@@ -240,7 +240,7 @@ export default defineComponent({
               onToDetailTab={this.goAlertDetail}
             />
           )}
-          {this.active === FailureContentTabView.FAILURE_TIMING && (
+          {/* {this.active === FailureContentTabView.FAILURE_TIMING && (
             <FailureTiming
               alertAggregateData={this.$props.alertAggregateData}
               chooseOperation={this.chooseOperation}
@@ -249,7 +249,7 @@ export default defineComponent({
               onGoAlertDetail={this.goAlertDetail}
               onRefresh={this.refresh}
             />
-          )}
+          )} */}
           {this.active === FailureContentTabView.FAILURE_VIEW && (
             <div class='failure-view-content'>
               <div class='content-head'>

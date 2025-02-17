@@ -313,8 +313,8 @@ export default defineComponent({
       getIncidentOperations();
       failureNavRef.value.handleRefNavRefresh();
     };
-    const chooseOperation = (id, data) => {
-      refContent.value.goFailureTiming(id, data);
+    const chooseOperation = () => {
+      // refContent.value.goFailureTiming(id, data);
     };
     const handleChangeSelectNode = (nodeId: string) => {
       topoNodeId.value = nodeId;
