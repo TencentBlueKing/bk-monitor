@@ -82,6 +82,10 @@ export default class FieldFilterComp extends tsc<object> {
   get hiddenFields() {
     return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
   }
+  /** 显示字段 */
+  get showFields() {
+    return this.objectHierarchy(this.visibleFields)
+  }
   get statisticalFieldsData() {
     // 这里避免初始化的时候数据已经更新，但视图却未更新，加入请求完毕的loading进行监听
     // this.$store.state.indexSetQueryResult.is_loading;
@@ -182,7 +186,27 @@ export default class FieldFilterComp extends tsc<object> {
       currentLevel = existingPart.children;
     });
   }
-
+  /** 递归将tree变回数组 */
+  convertNestedStructureToArray(nestedArray) {
+    const flatten = (nodes) => {
+      let result = [];
+      for (const node of nodes) {
+        const currentPath =  node.field_name;
+        const { children, ...restProps } = node;
+        if (node.field_type !== 'object') {
+          result.push({
+            ...restProps,
+            field_name: currentPath,
+          });
+        }
+        if (children && children.length > 0) {
+          result.push(...flatten(children));
+        }
+      }
+      return result;
+    };
+    return flatten(nestedArray);
+  }
   /** 内置字段展示对象 */
   builtInFieldsShowObj() {
     const builtInFieldsValue = this.builtInFields()
@@ -323,13 +347,32 @@ export default class FieldFilterComp extends tsc<object> {
   // 字段显示或隐藏
   async handleToggleItem(type: string, fieldItem) {
     const displayFieldNames = this.visibleFields.map(item => item.field_name);
-    if (type === 'visible') {
-      // 需要隐藏字段
-      const index = this.visibleFields.findIndex(item => fieldItem.field_name === item.field_name);
-      displayFieldNames.splice(index, 1);
-    } else {
-      // 需要显示字段
-      displayFieldNames.push(fieldItem.field_name);
+
+    if (fieldItem.field_type === 'object') {
+      const arr = this.convertNestedStructureToArray([fieldItem]).map(item => item.field_name);
+      if (type === 'visible') {
+        arr.forEach(fieldName => {
+          const index = displayFieldNames.findIndex(item => fieldName === item);
+          if (index !== -1) {
+            displayFieldNames.splice(index, 1);
+          }
+        });
+      } else {
+        arr.forEach(fieldName => {
+          if (!displayFieldNames.includes(fieldName)) {
+            displayFieldNames.push(fieldName);
+          }
+        });
+      }
+    }else{
+      if (type === 'visible') {
+        // 需要隐藏字段
+        const index = this.visibleFields.findIndex(item => fieldItem.field_name === item.field_name);
+        displayFieldNames.splice(index, 1);
+      } else {
+        // 需要显示字段
+        displayFieldNames.push(fieldItem.field_name);
+      }
     }
     this.$emit('fields-updated', displayFieldNames);
   }
@@ -399,7 +442,7 @@ export default class FieldFilterComp extends tsc<object> {
           retrieve-params={this.retrieveParams}
           show-field-alias={this.showFieldAlias}
           statistical-field-data={this.statisticalFieldsData[data.field_name]}
-          type='hidden'
+          type={index.includes('show')? 'visible':'hidden'}
           isFieldObject={true}
           onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
       />
@@ -482,8 +525,8 @@ export default class FieldFilterComp extends tsc<object> {
                   on-end={this.handleVisibleMoveEnd}
                 >
                   <transition-group>
-                    {this.visibleFields.map(item => (
-                      // item.children?.length ? this.bigTreeRender(item) :
+                    {this.showFields.map((item, index) => (
+                      item.children?.length ? this.bigTreeRender(item, index+'show') :
                       <FieldItem
                         key={item.field_name}
                         v-show={item.filterVisible}
@@ -495,7 +538,7 @@ export default class FieldFilterComp extends tsc<object> {
                         show-field-alias={this.showFieldAlias}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='visible'
-                        visible-fields={this.visibleFields}
+                        visible-fields={this.showFields}
                         onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                       />
                     ))}
