@@ -18,20 +18,20 @@ class EventMetricSerializer(serializers.Serializer):
     alias = serializers.CharField(label="别名", required=False)
 
 
-class EventFilterSerializer(serializers.Serializer):
-    query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False)
-    filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
-    where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
-    group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
-
-
 class EventDataSource(serializers.Serializer):
     table = serializers.CharField(label="结果表")
     data_type_label = serializers.CharField(label="数据类型标签")
     data_source_label = serializers.CharField(label="数据源标签")
 
 
-class EventQueryConfigSerializer(EventDataSource, EventFilterSerializer):
+class EventFilterSerializer(EventDataSource):
+    query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False)
+    filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
+    where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
+    group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
+
+
+class EventQueryConfigSerializer(EventFilterSerializer):
     interval = serializers.IntegerField(label="汇聚周期（秒）", required=False)
     metrics = serializers.ListField(label="查询指标", child=EventMetricSerializer(), allow_empty=True, default=[])
 
