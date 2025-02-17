@@ -167,8 +167,8 @@ class IncidentBaseResource(Resource):
         for incident_key, incident_value in incident_info.items():
             if (
                 hasattr(incident_document, incident_key)
-                and (getattr(incident_document, incident_key) or incident_key == "incident_reason")
-                and (incident_value or incident_key == "incident_reason")
+                and (getattr(incident_document, incident_key) or incident_key in ("incident_reason", "assignees"))
+                and (incident_value or incident_key in ("incident_reason", "assignees"))
                 and str(getattr(incident_document, incident_key)) != str(incident_value)
             ):
                 if incident_key == "status":
