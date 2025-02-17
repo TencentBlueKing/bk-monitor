@@ -88,3 +88,32 @@ def GetCustomMetricGraphConfigResource(Resource):
         TODO: 生成自定义指标图表配置
         """
         return []
+
+
+def GetCustomMetricInfoResource(Resource):
+    """
+    获取自定义指标信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务")
+        id = serializers.IntegerField(label="自定义指标分组ID")
+
+    class ResponseSerializer(serializers.Serializer):
+        class GroupSerializer(serializers.Serializer):
+            class MetricSerializer(serializers.Serializer):
+                metric_id = serializers.CharField(label="指标名称")
+                metric_name = serializers.CharField(label="指标别名")
+
+            group_id = serializers.IntegerField(label="指标分组ID")
+            group_name = serializers.CharField(label="指标分组名称")
+            metrics = MetricSerializer(label="指标列表", many=True)
+
+        metric_groups = GroupSerializer(label="指标分组", many=True)
+        common_dimensions = serializers.ListField(label="常用维度")
+
+    def perform_request(self, params):
+        """
+        TODO: 获取自定义指标分组信息
+        """
+        return {"metric_groups": [], "common_dimensions": []}
