@@ -244,15 +244,16 @@ class CustomTSItem(models.Model):
     )
     metric_name = models.CharField("指标名称", max_length=128)
     type = models.CharField("类型", max_length=16, default="")
-    label = JsonField("分组标签", default=[], blank=False)
+    label = JsonField("分组标签", default=list, blank=False)
 
     unit = models.CharField("字段单位", max_length=16, default="")
     metric_display_name = models.CharField("指标别名", max_length=128, default="")
-    dimension_list = JsonField("维度", default=[])
+    dimension_list = JsonField("维度", default=list)
     hidden = models.BooleanField("隐藏指标", default=False)
     disabled = models.BooleanField("禁用指标", default=False)
     interval = models.IntegerField("指标周期", default=0)
     aggregate_method = models.CharField("默认聚合方法", max_length=128, default="")
+    # {"function": "top", "params": {}}
     function = models.DictField("指标函数", default=dict)
 
 
