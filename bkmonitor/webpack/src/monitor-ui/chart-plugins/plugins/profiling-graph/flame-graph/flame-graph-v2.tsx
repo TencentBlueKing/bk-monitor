@@ -23,31 +23,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { computed, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { removeListener, addListener } from '@blueking/fork-resize-detector';
-import { Exception, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { query } from 'monitor-api/modules/apm_profile';
 import { copyText } from 'monitor-common/utils/utils';
+import { debounce } from 'throttle-debounce';
+
+import { echarts } from '../../../../monitor-echarts/types/monitor-echarts';
 import {
   downloadBase64AsPng,
   getGraphOptions,
   recursionData,
-} from 'monitor-ui/chart-plugins/hooks/profiling-graph/use-profiling-flame-graph';
-import { COMPARE_DIFF_COLOR_LIST } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
-import { CommonMenuList, type ICommonMenuItem } from 'monitor-ui/chart-plugins/typings/flame-graph';
-import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
-import { debounce } from 'throttle-debounce';
+} from '../../../hooks/profiling-graph/use-profiling-flame-graph';
+import { CommonMenuList, type ICommonMenuItem } from '../../../typings/flame-graph';
+import { COMPARE_DIFF_COLOR_LIST } from '../flame-graph/utils';
 
-import type { IFlameGraphDataItem, IProfilingGraphData } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
-import type { ProfileDataUnit } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
-import type { BaseDataType } from 'monitor-ui/chart-plugins/typings/flame-graph';
+import type { IFlameGraphDataItem, IProfilingGraphData } from '../../../hooks/profiling-graph/types';
+import type { BaseDataType } from '../../../typings/flame-graph';
+import type { ProfileDataUnit } from '../utils';
 
-import './flame-graph.scss';
+import './flame-graph-v2.scss';
 
 const defaultHeight = 20;
 export default defineComponent({
@@ -106,9 +104,8 @@ export default defineComponent({
       default: 0,
     },
   },
-  emits: ['update:loading', 'diffTraceSuccess', 'update:filterKeyword'],
+  emits: ['updateLoading', 'diffTraceSuccess', 'updateFilterKeyword'],
   setup(props, { emit }) {
-    const { t } = useI18n();
     let chartInstance = null; // echarts 实例
 
     const chartRef = ref<HTMLElement>(null);
@@ -147,7 +144,7 @@ export default defineComponent({
     watch(
       [() => props.data, () => props.appName],
       debounce(16, async () => {
-        emit('update:loading', true);
+        emit('updateLoading', true);
         showException.value = false;
         try {
           const { bizId, appName, serviceName, start, end, profileId } = props;
@@ -233,18 +230,18 @@ export default defineComponent({
                 contextMenuRect.value = { left: params.event.offsetX, top: params.event.offsetY };
                 showContextMenu.value = true;
               });
-              emit('update:loading', false);
+              emit('updateLoading', false);
             }, 16);
             nextTick(() => {
-              emit('update:loading', false);
+              emit('updateLoading', false);
             });
             return;
           }
           showException.value = true;
-          emit('update:loading', false);
+          emit('updateLoading', false);
         } catch (e) {
           console.error(e);
-          emit('update:loading', false);
+          emit('updateLoading', false);
           showException.value = true;
         }
       }),
@@ -263,19 +260,30 @@ export default defineComponent({
         chartInstance.setOption(getEchartsOptions());
       }
     );
+    watch(
+      () => props.downloadImgIndex,
+      () => {
+        const base64Url = chartInstance?.getDataURL({
+          type: 'png',
+          pixelRatio: window.devicePixelRatio,
+          backgroundColor: '#fff',
+        });
+        downloadBase64AsPng(base64Url, `${props.appName || ''}${dayjs().format('YYYY-MM-DD HH:mm:ss')}.png`);
+      }
+    );
     function handleContextMenuClick(item: ICommonMenuItem) {
       contextMenuRect.value.left = -1;
       showContextMenu.value = false;
       if (item.id === 'copy') {
         let hasErr = false;
         copyText(highlightNode.value.name, (errMsg: string) => {
-          Message({
+          this.$bkMessage({
             message: errMsg,
             theme: 'error',
           });
           hasErr = !!errMsg;
         });
-        if (!hasErr) Message({ theme: 'success', message: t('复制成功') });
+        if (!hasErr) this.$bkMessage({ theme: 'success', message: this.$t('复制成功') });
 
         return;
       }
@@ -285,7 +293,7 @@ export default defineComponent({
         chartInstance.setOption(getEchartsOptions());
       }
       if (item.id === 'highlight') {
-        emit('update:filterKeyword', highlightNode.value.name);
+        emit('updateFilterKeyword', highlightNode.value.name);
       }
     }
     function handleClickWrapper() {
@@ -295,17 +303,6 @@ export default defineComponent({
     function handleResizeGraph() {
       chartInstance?.resize();
     }
-    watch(
-      () => props.downloadImgIndex,
-      () => {
-        const base64Url = chartInstance?.getDataURL({
-          type: 'png',
-          pixelRatio: window.devicePixelRatio,
-          backgroundColor: '#fff',
-        });
-        downloadBase64AsPng(base64Url, `${props.appName} ${dayjs().format('YYYY-MM-DD HH:mm:ss')}.png`);
-      }
-    );
     onBeforeUnmount(() => {
       removeListener(wrapperRef.value, handleResizeGraph);
     });
@@ -329,7 +326,7 @@ export default defineComponent({
   render() {
     if (this.showException)
       return (
-        <Exception
+        <bk-exception
           style='flex: 1'
           description={this.$t('暂无数据')}
           type='empty'

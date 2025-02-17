@@ -25,12 +25,10 @@
  */
 
 import { random, updateColorOpacity } from 'monitor-common/utils';
-import { getSingleDiffColor } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
-import {
-  parseProfileDataTypeValue,
-  type ProfileDataUnit,
-} from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
-import { getSpanColorByName } from 'monitor-ui/chart-plugins/typings/flame-graph';
+
+import { getSingleDiffColor } from '../../plugins/profiling-graph/flame-graph/utils';
+import { parseProfileDataTypeValue, type ProfileDataUnit } from '../../plugins/profiling-graph/utils';
+import { getSpanColorByName } from '../../typings/flame-graph';
 
 import type { IFlameGraphDataItem, IProfilingGraphData } from './types';
 const defaultHeight = 20;
@@ -209,12 +207,15 @@ export function getGraphOptions(
       },
       formatter: (params: any) => {
         const nodeItem: IFlameGraphDataItem = params.value?.[3];
-        const { value } = parseProfileDataTypeValue(nodeItem.value, unit);
+        const { value, text } = parseProfileDataTypeValue(nodeItem.value, unit, true);
         const { name, diff_info, proportion } = nodeItem;
         let reference = undefined;
         let difference = undefined;
+        let columnName = text;
         if (isCompared && diff_info) {
-          reference = parseProfileDataTypeValue(diff_info.comparison, unit)?.value;
+          const parseData = parseProfileDataTypeValue(diff_info.comparison, unit, true);
+          reference = parseData.value;
+          columnName = parseData.text;
           difference = diff_info.comparison === 0 || diff_info.mark === 'unchanged' ? 0 : diff_info.diff;
         }
         return `<div class="profiling-flame-graph-tips">
@@ -238,11 +239,11 @@ export function getGraphOptions(
                         <td>${proportion}</td>
                       </tr>
                       <tr>
-                        <td>${window.i18n.t('耗时')}</td>
+                        <td>${columnName}</td>
                         <td>${value}</td>
                       </tr>`
                     : `<tr>
-                      <td>${window.i18n.t('耗时')}</td>
+                      <td>${columnName}</td>
                       <td>${value}</td>
                       <td>${reference ?? '--'}</td>
                       <td>
@@ -290,4 +291,41 @@ export function getGraphOptions(
       },
     ],
   };
+}
+
+/**
+ *
+ * @param base64Url
+ * @param filename
+ */
+export function downloadBase64AsPng(base64Url: string, filename: string) {
+  // 创建一个隐藏的<a>元素
+  const link = document.createElement('a');
+
+  // 将Base64 URL转换为Blob对象
+  const byteString = atob(base64Url.split(',')[1]);
+  const mimeString = base64Url.split(',')[0].split(':')[1].split(';')[0];
+
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+
+  const blob = new Blob([ab], { type: mimeString });
+
+  // 创建一个URL对象
+  const url = URL.createObjectURL(blob);
+
+  // 设置<a>的下载属性
+  link.href = url;
+  link.download = filename;
+
+  // 触发点击事件下载文件
+  document.body.appendChild(link); // 需要将元素添加到DOM中才能触发点击事件
+  link.click();
+  document.body.removeChild(link); // 下载完成后移除元素
+
+  // 释放URL对象
+  URL.revokeObjectURL(url);
 }

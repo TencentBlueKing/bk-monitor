@@ -23,8 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { IDiffInfo } from '../../../../typings';
-
+export interface IDiffInfo {
+  baseline: number;
+  comparison: number;
+  mark: 'added' | 'changed' | 'removed' | 'unchanged';
+  diff: number;
+}
 export interface IFlameGraphDataItem {
   id: string;
   name: string;
