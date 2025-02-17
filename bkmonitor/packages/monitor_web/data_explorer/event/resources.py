@@ -28,11 +28,7 @@ class EventTimeSeriesResource(Resource):
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
         # result: Dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
-        # return resource.grafana.graph_unify_query(validated_request_data)
-        if validated_request_data.get("is_mock"):
-            return API_TIMESERIES_RESPONSE
-        else:
-            return {}
+        return API_TIMESERIES_RESPONSE
 
 
 class EventLogsResource(Resource):
@@ -40,37 +36,25 @@ class EventLogsResource(Resource):
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
         # 系统事件可读性：alarm_backends/service/access/event/records/oom.py
-        if validated_request_data.get("is_mock"):
-            return API_LOGS_RESPONSE
-        else:
-            return {}
+        return API_LOGS_RESPONSE
 
 
 class EventViewConfigResource(Resource):
     RequestSerializer = serializers.EventViewConfigRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_VIEWCONFIG_RESPONSE
-        else:
-            return {}
+        return API_VIEWCONFIG_RESPONSE
 
 
 class EventTopKResource(Resource):
     RequestSerializer = serializers.EventTopKRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        if validated_request_data.get("is_mock"):
-            return API_TOPK_RESPONSE
-        else:
-            return []
+        return API_TOPK_RESPONSE
 
 
 class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        if validated_request_data.get("is_mock"):
-            return API_TOTAL_RESPONSE
-        else:
-            return {}
+        return API_TOTAL_RESPONSE
