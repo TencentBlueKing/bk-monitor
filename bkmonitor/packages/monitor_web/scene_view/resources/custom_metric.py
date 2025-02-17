@@ -8,6 +8,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Dict
+
 from django.db import models
 from rest_framework import serializers
 
@@ -68,26 +70,26 @@ def GetCustomMetricGraphConfigResource(Resource):
         """
         返回格式
         """
+        class PanelSerializer(serializers.Serializer):
+            class TargetSerializer(serializers.Serializer):
+                expression = serializers.CharField(label="指标表达式")
+                alias = serializers.CharField(label="指标别名", default="")
+                query_configs = serializers.ListField(label="查询配置")
 
-        class TargetSerializer(serializers.Serializer):
-            expression = serializers.CharField(label="指标表达式")
-            alias = serializers.CharField(label="指标别名", default="")
-            query_configs = serializers.ListField(label="查询配置")
+            type = serializers.ChoiceField(choices=["row", "time_series"], label="图表类型")
+            title = serializers.CharField(label="图表标题")
+            panels = serializers.ListField(label="图表配置", default=list)
 
-        type = serializers.ChoiceField(choices=["row", "time_series"], label="图表类型")
-        title = serializers.CharField(label="图表标题")
-        panels = serializers.ListField(label="图表配置", required=False)
+            subTitle = serializers.CharField(label="子标题", default="")
+            targets = TargetSerializer(label="目标", many=True)
 
-        subTitle = serializers.CharField(label="子标题", default="")
-        targets = TargetSerializer(label="目标", many=True)
+        panels = PanelSerializer(label="图表配置", many=True)
 
-    many_response_data = True
-
-    def perform_request(self, params):
+    def perform_request(self, params: Dict) -> Dict:
         """
         TODO: 生成自定义指标图表配置
         """
-        return []
+        return {"panels": []}
 
 
 def GetCustomMetricInfoResource(Resource):
@@ -112,7 +114,7 @@ def GetCustomMetricInfoResource(Resource):
         metric_groups = GroupSerializer(label="指标分组", many=True)
         common_dimensions = serializers.ListField(label="常用维度")
 
-    def perform_request(self, params):
+    def perform_request(self, params: Dict) -> Dict:
         """
         TODO: 获取自定义指标分组信息
         """
