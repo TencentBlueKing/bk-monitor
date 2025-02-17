@@ -4,6 +4,7 @@
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
+  import { withoutValueConditionList } from './const.common';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -15,6 +16,9 @@
 
     return [];
   });
+
+  // 判定当前选中条件是否需要设置Value
+  const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
 
   const commonFilterAddition = computed({
     get() {
@@ -30,8 +34,16 @@
       }));
     },
     set(val) {
+      const target = val.map(item => {
+        if (!isShowConditonValueSetting(item.operator)) {
+          item.value = [];
+        }
+
+        return item;
+      });
+
       store.commit('retrieve/updateCatchFieldCustomConfig', {
-        filterAddition: val,
+        filterAddition: target,
       });
     },
   });
@@ -93,10 +105,18 @@
 
   // 新建提交逻辑
   const updateCommonFilterAddition = () => {
+    const target = commonFilterAddition.value.map(item => {
+      if (!isShowConditonValueSetting(item.operator)) {
+        item.value = [];
+      }
+
+      return item;
+    });
+
     const param = {
-      filterAddition: commonFilterAddition.value,
+      filterAddition: target,
     };
-    // store.commit('updateCommonFilter', commonFilterAddition.value);
+
     store.dispatch('userFieldConfigChange', param);
   };
 
@@ -140,33 +160,35 @@
             :name="child.label"
           />
         </bk-select>
-        <bk-select
-          class="value-select"
-          v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
-          v-model="commonFilterAddition[index].value"
-          allow-create
-          display-tag
-          multiple
-          searchable
-          :fix-height="true"
-          @change="handleChange"
-          @toggle="visible => handleToggle(visible, item, index)"
-        >
-          <template #search>
-            <bk-input
-              behavior="simplicity"
-              :clearable="true"
-              :left-icon="'bk-icon icon-search'"
-              @input="e => handleInputVlaueChange(e, item, index)"
-            ></bk-input>
-          </template>
-          <bk-option
-            v-for="option in commonFilterAddition[index].list"
-            :id="option"
-            :key="option"
-            :name="option"
-          />
-        </bk-select>
+        <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
+          <bk-select
+            class="value-select"
+            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
+            v-model="commonFilterAddition[index].value"
+            allow-create
+            display-tag
+            multiple
+            searchable
+            :fix-height="true"
+            @change="handleChange"
+            @toggle="visible => handleToggle(visible, item, index)"
+          >
+            <template #search>
+              <bk-input
+                behavior="simplicity"
+                :clearable="true"
+                :left-icon="'bk-icon icon-search'"
+                @input="e => handleInputVlaueChange(e, item, index)"
+              ></bk-input>
+            </template>
+            <bk-option
+              v-for="option in commonFilterAddition[index].list"
+              :id="option"
+              :key="option"
+              :name="option"
+            />
+          </bk-select>
+        </template>
       </div>
     </div>
     <div

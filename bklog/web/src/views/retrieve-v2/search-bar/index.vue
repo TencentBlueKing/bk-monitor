@@ -22,6 +22,7 @@
   import { bkMessage } from 'bk-magic-vue';
   import CommonFilterSelect from './common-filter-select.vue';
   import useResizeObserve from '../../../hooks/use-resize-observe';
+  import { withoutValueConditionList } from './const.common';
 
   const props = defineProps({
     activeFavorite: {
@@ -69,7 +70,7 @@
       interactive: true,
       theme: 'log-light transparent',
       arrow: false,
-    }
+    },
   });
 
   const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
@@ -277,9 +278,9 @@
       searchMode === 'sql'
         ? { keyword: sqlQueryValue.value, addition: [] }
         : {
-          addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
-          keyword: '*',
-        };
+            addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
+            keyword: '*',
+          };
 
     const data = {
       name,
@@ -306,7 +307,7 @@
         initSourceSQLStr(res.data.params, res.data.search_mode);
         handleRefresh(true);
       }
-    } catch (error) { }
+    } catch (error) {}
   };
 
   const handleCopyQueryValue = async () => {
@@ -342,13 +343,17 @@
 
   const handleMouseleaveInputSection = () => {
     // popToolInstance.hide();
-  }
+  };
 
   useResizeObserve(refRootElement, () => {
     if (refRootElement.value) {
       handleHeightChange(refRootElement.value.offsetHeight);
     }
   });
+
+  const additionFilter = addition => {
+    return withoutValueConditionList.includes(addition.operator) || addition.value?.length > 0;
+  };
 
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
@@ -357,7 +362,12 @@
       if (activeIndex.value === 0) {
         const { common_filter_addition } = store.getters.retrieveParams;
         if (common_filter_addition.length) {
-          uiQueryValue.value.push(...(formatAddition(common_filter_addition).map(item => ({ ...item, isCommonFixed: true }))));
+          uiQueryValue.value.push(
+            ...formatAddition(common_filter_addition.filter(additionFilter)).map(item => ({
+              ...item,
+              isCommonFixed: true,
+            })),
+          );
 
           store.commit('updateIndexItemParams', {
             addition: uiQueryValue.value.filter(val => !val.is_focus_input),
@@ -372,58 +382,111 @@
 
     store.dispatch('userFieldConfigChange', {
       fixedFilterAddition: !isFilterSecFocused.value,
-      filterAddition: []
+      filterAddition: [],
     });
-  }
+  };
 
   onBeforeUnmount(() => {
     popToolInstance.onBeforeUnmount();
     popToolInstance.uninstallInstance();
-  })
+  });
 </script>
 <template>
-  <div ref="refRootElement" :class="['search-bar-wrapper', { readonly: isChartMode }]">
+  <div
+    ref="refRootElement"
+    :class="['search-bar-wrapper', { readonly: isChartMode }]"
+  >
     <div :class="['search-bar-container', { readonly: isChartMode }]">
-      <div class="search-options" @click="handleQueryTypeChange">
+      <div
+        class="search-options"
+        @click="handleQueryTypeChange"
+      >
         <span class="mode-text">{{ queryText }}</span>
         <span class="bklog-icon bklog-double-arrow"></span>
       </div>
-      <div class="search-input" :class="{ disabled: isInputLoading }" @mouseenter="handleMouseenterInputSection"
-        @mouseleave="handleMouseleaveInputSection">
-        <UiInput v-if="activeIndex === 0" v-model="uiQueryValue" @change="handleQueryChange"></UiInput>
-        <SqlQuery v-if="activeIndex === 1" v-model="sqlQueryValue" @retrieve="handleSqlRetrieve"></SqlQuery>
-        <div class="hidden-focus-pointer" ref="refPopTraget"></div>
+      <div
+        class="search-input"
+        :class="{ disabled: isInputLoading }"
+        @mouseenter="handleMouseenterInputSection"
+        @mouseleave="handleMouseleaveInputSection"
+      >
+        <UiInput
+          v-if="activeIndex === 0"
+          v-model="uiQueryValue"
+          @change="handleQueryChange"
+        ></UiInput>
+        <SqlQuery
+          v-if="activeIndex === 1"
+          v-model="sqlQueryValue"
+          @retrieve="handleSqlRetrieve"
+        ></SqlQuery>
+        <div
+          class="hidden-focus-pointer"
+          ref="refPopTraget"
+        ></div>
         <div class="search-tool items">
-          <div v-bk-tooltips="$t('常用查询设置')"
+          <div
+            v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
-            @click="handleFilterSecClick"></div>
-          <BookmarkPop v-if="!props.activeFavorite" v-bk-tooltips="$t('收藏当前查询')" :addition="uiQueryValue"
-            :class="{ disabled: isInputLoading }" :search-mode="queryParams[activeIndex]" :sql="sqlQueryValue"
-            @refresh="handleRefresh"></BookmarkPop>
+            @click="handleFilterSecClick"
+          ></div>
+          <BookmarkPop
+            v-if="!props.activeFavorite"
+            v-bk-tooltips="$t('收藏当前查询')"
+            :addition="uiQueryValue"
+            :class="{ disabled: isInputLoading }"
+            :search-mode="queryParams[activeIndex]"
+            :sql="sqlQueryValue"
+            @refresh="handleRefresh"
+          ></BookmarkPop>
           <template v-else>
-            <div v-if="matchSQLStr" class="bklog-icon bklog-star-line disabled" v-bk-tooltips="$t('已收藏')"
-              :data-boolean="matchSQLStr"></div>
-            <div v-else style="color: #63656e" v-bk-tooltips="$t('收藏')" class="icon bk-icon icon-save"
-              @click="saveCurrentActiveFavorite"></div>
+            <div
+              v-if="matchSQLStr"
+              class="bklog-icon bklog-star-line disabled"
+              v-bk-tooltips="$t('已收藏')"
+              :data-boolean="matchSQLStr"
+            ></div>
+            <div
+              v-else
+              style="color: #63656e"
+              v-bk-tooltips="$t('收藏')"
+              class="icon bk-icon icon-save"
+              @click="saveCurrentActiveFavorite"
+            ></div>
           </template>
           <!-- <CommonFilterSettingPop v-bk-tooltips="$t('常用查询设置')" :class="{ disabled: isInputLoading }"
             :filter-list="uiQueryValue">
           </CommonFilterSettingPop> -->
         </div>
-        <div class="search-tool search-btn" @click.stop="handleBtnQueryClick">
-          <bk-button style="width: 100%; height: 100%" :loading="isInputLoading" size="large" theme="primary">{{
-            btnQuery
-          }}</bk-button>
+        <div
+          class="search-tool search-btn"
+          @click.stop="handleBtnQueryClick"
+        >
+          <bk-button
+            style="width: 100%; height: 100%"
+            :loading="isInputLoading"
+            size="large"
+            theme="primary"
+            >{{ btnQuery }}</bk-button
+          >
         </div>
       </div>
-      <div style="display: none;">
-        <div ref="refPopContent" class="bklog-search-input-poptool">
-          <div v-bk-tooltips="$t('复制当前查询')" :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
-            @click.stop="handleCopyQueryValue"></div>
-          <div v-bk-tooltips="$t('清理当前查询')" :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
-            @click.stop="handleClearBtnClick"></div>
+      <div style="display: none">
+        <div
+          ref="refPopContent"
+          class="bklog-search-input-poptool"
+        >
+          <div
+            v-bk-tooltips="$t('复制当前查询')"
+            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            @click.stop="handleCopyQueryValue"
+          ></div>
+          <div
+            v-bk-tooltips="$t('清理当前查询')"
+            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            @click.stop="handleClearBtnClick"
+          ></div>
         </div>
-
       </div>
     </div>
     <template v-if="isFilterSecFocused">
@@ -457,11 +520,11 @@
     .bklog-icon {
       width: 28px;
       height: 28px;
-      background: #FAFBFD;
-      border: 1px solid #DCDEE5;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
       box-shadow: 0 1px 3px 1px #0000001f;
       border-radius: 2px;
-      color: #4D4F56;
+      color: #4d4f56;
       margin-right: 4px;
       display: flex;
       justify-content: center;
@@ -469,7 +532,7 @@
       cursor: pointer;
 
       &:hover {
-        color: #3A84FF;
+        color: #3a84ff;
       }
     }
   }

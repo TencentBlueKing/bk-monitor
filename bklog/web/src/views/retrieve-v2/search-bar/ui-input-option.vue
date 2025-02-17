@@ -8,7 +8,7 @@
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
   import { translateKeys } from './const-values';
-  import { excludesFields } from './const.common';
+  import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
   import useFieldEgges from './use-field-egges';
@@ -163,9 +163,6 @@
     }
     return list.map(field => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
   });
-
-  // 无需配置值（Value）的条件列表
-  const withoutValueConditionList = ['does not exists', 'exists', 'is false', 'is true'];
 
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
@@ -900,29 +897,56 @@
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">
-          <bk-input ref="refFilterInput" style="width: 100%" v-model="searchValue" :placeholder="$t('请输入关键字')"
-            behavior="simplicity" left-icon="bk-icon icon-search">
+          <bk-input
+            ref="refFilterInput"
+            style="width: 100%"
+            v-model="searchValue"
+            :placeholder="$t('请输入关键字')"
+            behavior="simplicity"
+            left-icon="bk-icon icon-search"
+          >
           </bk-input>
         </div>
-        <div ref="refSearchResultList" class="ui-search-result">
-          <div v-for="(item, index) in filterFieldList"
-            :class="['ui-search-result-row', { active: activeIndex === index }]" :data-tab-index="index"
-            :key="item.field_name" @click="() => handleFieldItemClick(item, index)">
-            <span :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
-              :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']">
+        <div
+          ref="refSearchResultList"
+          class="ui-search-result"
+        >
+          <div
+            v-for="(item, index) in filterFieldList"
+            :class="['ui-search-result-row', { active: activeIndex === index }]"
+            :data-tab-index="index"
+            :key="item.field_name"
+            @click="() => handleFieldItemClick(item, index)"
+          >
+            <span
+              :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+              :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
+            >
             </span>
             <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
-            <span v-if="!item.is_full_text" class="field-name">({{ item.field_name }})</span>
+            <span
+              v-if="!item.is_full_text"
+              class="field-name"
+              >({{ item.field_name }})</span
+            >
           </div>
           <template v-if="isFieldListEmpty || isSearchEmpty">
-            <bk-exception style="justify-content: center; height: 260px" :type="exceptionType" scene="part">
+            <bk-exception
+              style="justify-content: center; height: 260px"
+              :type="exceptionType"
+              scene="part"
+            >
             </bk-exception>
           </template>
         </div>
       </div>
       <div :class="['value-list', { 'is-full-text': showFulltextMsg }]">
         <template v-if="isSearchEmpty">
-          <bk-exception style="justify-content: center; height: 260px" scene="part" type="500">
+          <bk-exception
+            style="justify-content: center; height: 260px"
+            scene="part"
+            type="500"
+          >
             搜索为空，无需条件设置
           </bk-exception>
         </template>
@@ -950,22 +974,42 @@
           </template>
         </template>
         <template v-else>
-          <div v-if="activeFieldItem.field_name !== '*'" class="ui-value-row">
+          <div
+            v-if="activeFieldItem.field_name !== '*'"
+            class="ui-value-row"
+          >
             <div class="ui-value-label">{{ $t('条件') }}</div>
             <div class="ui-value-component">
-              <div ref="refUiValueOperator" class="ui-value-operator" @click.stop="handleOperatorBtnClick">
+              <div
+                ref="refUiValueOperator"
+                class="ui-value-operator"
+                @click.stop="handleOperatorBtnClick"
+              >
                 {{ getOperatorLable(activeOperator.label) }}
               </div>
               <div style="display: none">
-                <div ref="refUiValueOperatorList" class="ui-value-select">
-                  <div v-if="!activeFieldItem.field_operator.length" class="empty-section">
-                    <bk-exception style="height: 100px" :type="conditionValueEmptyType" scene="part">
+                <div
+                  ref="refUiValueOperatorList"
+                  class="ui-value-select"
+                >
+                  <div
+                    v-if="!activeFieldItem.field_operator.length"
+                    class="empty-section"
+                  >
+                    <bk-exception
+                      style="height: 100px"
+                      :type="conditionValueEmptyType"
+                      scene="part"
+                    >
                     </bk-exception>
                   </div>
                   <template v-else>
-                    <div v-for="option in activeFieldItem.field_operator"
+                    <div
+                      v-for="option in activeFieldItem.field_operator"
                       :class="['ui-value-option', { active: condition.operator === option.operator }]"
-                      :key="option.operator" @click="() => handleUiValueOptionClick(option)">
+                      :key="option.operator"
+                      @click="() => handleUiValueOptionClick(option)"
+                    >
                       {{ $t(option.label) }}
                     </div>
                   </template>
@@ -973,7 +1017,10 @@
               </div>
             </div>
           </div>
-          <div v-if="isShowConditonValueSetting" class="ui-value-row">
+          <div
+            v-if="isShowConditonValueSetting"
+            class="ui-value-row"
+          >
             <div class="ui-value-label">
               <span>{{ getValueLabelShow(activeFieldItem.field_name) }}</span>
               <span v-show="['text', 'string'].includes(activeFieldItem.field_type)">
@@ -981,40 +1028,85 @@
               </span>
             </div>
             <template v-if="activeFieldItem.field_name === '*'">
-              <bk-input v-model="condition.value[0]" :rows="12" type="textarea"></bk-input>
+              <bk-input
+                v-model="condition.value[0]"
+                :rows="12"
+                type="textarea"
+              ></bk-input>
             </template>
-            <div v-else :class="['condition-value-container', { 'is-focus': isConditionValueInputFocus }]">
-              <ul ref="refConditionInput" class="condition-value-input" @click.stop="handleConditionValueClick">
-                <li v-for="(item, index) in condition.value" class="tag-item"
-                  :class="!tagValidateFun(item) ? 'tag-validate-error' : ''" :key="`-${index}`">
+            <div
+              v-else
+              :class="['condition-value-container', { 'is-focus': isConditionValueInputFocus }]"
+            >
+              <ul
+                ref="refConditionInput"
+                class="condition-value-input"
+                @click.stop="handleConditionValueClick"
+              >
+                <li
+                  v-for="(item, index) in condition.value"
+                  class="tag-item"
+                  :class="!tagValidateFun(item) ? 'tag-validate-error' : ''"
+                  :key="`-${index}`"
+                >
                   <template v-if="currentEditTagIndex === index">
-                    <textarea class="tag-item-input" v-model="condition.value[index]" type="text"
-                      @input="handleInputVlaueChange" @blur.stop="handleTagInputBlur"
-                      @keyup.enter="handleTagInputEnter" />
+                    <textarea
+                      class="tag-item-input"
+                      v-model="condition.value[index]"
+                      type="text"
+                      @input="handleInputVlaueChange"
+                      @blur.stop="handleTagInputBlur"
+                      @keyup.enter="handleTagInputEnter"
+                    />
                   </template>
                   <template>
-                    <span class="tag-item-text" @dblclick.stop="e => handleEditTagDBClick(e, item, index)">{{
-                      formatDateTimeField(item, activeFieldItem.field_type) }}</span>
-                    <span class="tag-item-del bk-icon icon-close" @click.stop="e => hanleDeleteTagItem(index)"></span>
+                    <span
+                      class="tag-item-text"
+                      @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
+                      >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
+                    >
+                    <span
+                      class="tag-item-del bk-icon icon-close"
+                      @click.stop="e => hanleDeleteTagItem(index)"
+                    ></span>
                   </template>
                 </li>
                 <li>
-                  <input ref="refValueTagInput" class="tag-option-focus-input" type="text"
-                    @blur.stop="handleConditionValueInputBlur" @focus.stop="handleConditionValueInputFocus"
-                    @input.stop="handleInputVlaueChange" @keyup.delete="handleDeleteInputValue"
-                    @keyup.enter="handleValueInputEnter" />
+                  <input
+                    ref="refValueTagInput"
+                    class="tag-option-focus-input"
+                    type="text"
+                    @blur.stop="handleConditionValueInputBlur"
+                    @focus.stop="handleConditionValueInputFocus"
+                    @input.stop="handleInputVlaueChange"
+                    @keyup.delete="handleDeleteInputValue"
+                    @keyup.enter="handleValueInputEnter"
+                  />
                 </li>
                 <div style="display: none">
-                  <ul ref="refValueTagInputOptionList" class="condition-value-options"
-                    v-bkloading="{ isLoading: isRequesting }">
-                    <li v-if="!activeItemMatchList.length" class="empty-section">
-                      <bk-exception style="height: 100px" :type="conditionValueEmptyType" scene="part">
+                  <ul
+                    ref="refValueTagInputOptionList"
+                    class="condition-value-options"
+                    v-bkloading="{ isLoading: isRequesting }"
+                  >
+                    <li
+                      v-if="!activeItemMatchList.length"
+                      class="empty-section"
+                    >
+                      <bk-exception
+                        style="height: 100px"
+                        :type="conditionValueEmptyType"
+                        scene="part"
+                      >
                       </bk-exception>
                     </li>
-                    <li v-for="(item, index) in activeItemMatchList"
-                      :class="{ active: (condition.value ?? []).includes(item) }" :key="`${item}-${index}`"
+                    <li
+                      v-for="(item, index) in activeItemMatchList"
+                      :class="{ active: (condition.value ?? []).includes(item) }"
+                      :key="`${item}-${index}`"
                       :title="formatDateTimeField(item, activeFieldItem.field_type)"
-                      @click.stop="() => handleTagItemClick(item, index)">
+                      @click.stop="() => handleTagItemClick(item, index)"
+                    >
                       <div>{{ formatDateTimeField(item, activeFieldItem.field_type) }}</div>
                     </li>
                   </ul>
@@ -1022,14 +1114,23 @@
               </ul>
             </div>
           </div>
-          <div v-if="isExitErrorTag" class="tag-error-text">
+          <div
+            v-if="isExitErrorTag"
+            class="tag-error-text"
+          >
             {{ $t('仅支持输入数值类型') }}
           </div>
-          <div class="ui-value-row" v-show="condition.value.length > 1 && activeFieldItem.field_type === 'text'">
+          <div
+            class="ui-value-row"
+            v-show="condition.value.length > 1 && activeFieldItem.field_type === 'text'"
+          >
             <div class="ui-value-label">{{ $t('组间关系') }}</div>
             <div>
               <bk-radio-group v-model="condition.relation">
-                <bk-radio style="margin-right: 12px" value="AND">AND
+                <bk-radio
+                  style="margin-right: 12px"
+                  value="AND"
+                  >AND
                 </bk-radio>
                 <bk-radio value="OR">OR </bk-radio>
               </bk-radio-group>
@@ -1045,9 +1146,18 @@
         <span><span class="key-esc">Esc</span>{{ $t('收起查询/弹出选项') }}</span>
       </div>
       <div class="ui-btn-opts">
-        <bk-button :disabled="!isSaveBtnActive" style="width: 64px; margin-right: 8px" theme="primary"
-          @click.stop="handelSaveBtnClick">{{ $t('确定') }}</bk-button>
-        <bk-button style="width: 64px" @click.stop="handleCancelBtnClick">{{ $t('取消') }}</bk-button>
+        <bk-button
+          :disabled="!isSaveBtnActive"
+          style="width: 64px; margin-right: 8px"
+          theme="primary"
+          @click.stop="handelSaveBtnClick"
+          >{{ $t('确定') }}</bk-button
+        >
+        <bk-button
+          style="width: 64px"
+          @click.stop="handleCancelBtnClick"
+          >{{ $t('取消') }}</bk-button
+        >
       </div>
     </div>
   </div>
