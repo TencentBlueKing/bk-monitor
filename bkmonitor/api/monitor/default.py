@@ -13,7 +13,6 @@ from django.conf import settings
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from bkmonitor.utils.cache import CacheType
 from core.drf_resource.contrib.nested_api import KernelAPIResource
 
 
@@ -119,7 +118,6 @@ class CustomTimeSeriesDetailResource(MonitorAPIGWResource):
     获取自定义指标上报详情
     """
 
-    backend_cache_type = CacheType.CC_CACHE_ALWAYS
     action = "/custom_time_series_detail/"
     method = "POST"
 
