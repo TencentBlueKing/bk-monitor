@@ -239,7 +239,10 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         if not isinstance(result_json, dict):
             return result_json
 
-        ret_code = result_json.get("code")
+        # 上报API服务观测指标
+        ret_code = result_json.get("code", -1)
+        self.report_api_request_count_metric(code=ret_code)
+
         # 权限中心无权限结构特殊处理
         if ret_code and str(ret_code) in APIPermissionDeniedCodeList:
             self.report_api_failure_metric(error_code=ret_code, exception_type=APIPermissionDeniedError.__name__)
@@ -339,10 +342,6 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         """
         在提供数据给response_serializer之前，对数据作最后的处理，子类可进行重写
         """
-        # 上报API服务观测指标
-        code = response_data.get("code", 0)
-        self.report_api_request_count_metric(code=code)
-
         return response_data
 
     def handle_stream_response(self, response):

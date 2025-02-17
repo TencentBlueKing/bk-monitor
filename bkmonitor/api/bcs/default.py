@@ -97,7 +97,6 @@ class BcsApiBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
     def render_response_data(self, validated_request_data, response_data):
         code = response_data.get("code")
-        self.report_api_request_count_metric(code=code)
 
         # 如果 code 非 0 时，记录对应的 request id，不做异常处理
         if code != 0:
