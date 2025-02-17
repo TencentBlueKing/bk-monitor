@@ -101,6 +101,7 @@
           overflow: hidden;
           letter-spacing: 0;
           width: 80%;
+          @include ellipsis;
           .favorite {
             margin-right: 3px;
             font-size: 14px;
