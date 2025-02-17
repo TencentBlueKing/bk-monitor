@@ -47,11 +47,10 @@ def compose_es_hosts(host: str, port: int) -> List:
                 host += "]"
         # 如果是 IPv4 地址，不加方括号
         # 不需要做任何修改，直接使用原 host
-    except Exception as e:  # pylint: disable=broad-except
+    except ValueError as e:  # pylint: disable=broad-except
         logger.warning(
             "compose_es_hosts:host->[%s],port->[%s],may be not invalid,please check,error->[%s]", host, port, e
         )
-        pass
 
     return [f"{host}:{port}"]
 
