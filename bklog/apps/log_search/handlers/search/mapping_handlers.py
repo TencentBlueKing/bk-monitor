@@ -364,7 +364,7 @@ class MappingHandlers(object):
 
     @property
     def index_set(self):
-        if not hasattr(self, "_index_set"):
+        if not self._index_set:
             self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
         return self._index_set
 
