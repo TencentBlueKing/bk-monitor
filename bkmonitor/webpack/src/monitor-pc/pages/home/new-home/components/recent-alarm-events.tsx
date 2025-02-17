@@ -97,9 +97,6 @@ export default class RecentAlarmEvents extends tsc<object> {
   get computedWidth() {
     return window.innerWidth < 2560 ? 392 : 452;
   }
-  get computedContentWidth() {
-    return window.innerWidth < 2560 ? 1200 : 1360;
-  }
 
   async created() {
     await this.getTabAndAlarmConfig(true, false);
@@ -551,10 +548,7 @@ export default class RecentAlarmEvents extends tsc<object> {
           onHandleSelectBiz={this.handleSelectBiz}
         />
         {/* 主体内容 */}
-        <div
-          style={{ minWidth: `${this.computedContentWidth}px` }}
-          class='content'
-        >
+        <div class='content'>
           {this.loadingAlarmList ? (
             <div
               style={{ height: this.getLoadingHeight() }}
