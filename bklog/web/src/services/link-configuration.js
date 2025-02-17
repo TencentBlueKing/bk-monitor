@@ -59,5 +59,9 @@ const getClusterList = {
   url: '/databus/data_link/get_cluster_list/',
   method: 'get',
 };
-
-export { getLinkList, getLinkDetail, createLink, updateLink, deleteLink, getClusterList };
+// cmdb补充数据列表
+const getSearchObjectAttribute = {
+  url: '/databus/collectors/search_object_attribute/',
+  method: 'get',
+};
+export { getLinkList, getLinkDetail, createLink, updateLink, deleteLink, getClusterList, getSearchObjectAttribute };
