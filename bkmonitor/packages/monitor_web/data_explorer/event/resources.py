@@ -114,7 +114,7 @@ class EventLogsResource(Resource):
                         "alias": "127.0.0.1",
                         "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
                     },
-                    "origin": {
+                    "origin_data": {
                         "time": 1737281113,
                         "dimensions.ip": "127.0.0.1",
                         "dimensions.task_memcg": "/pods.slice/pods-burstable.slice/pods-burstable-pod1",
