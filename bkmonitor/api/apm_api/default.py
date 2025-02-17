@@ -59,8 +59,8 @@ class DetailApplicationResource(ApmAPIGWResource):
     method = "GET"
 
 
-class QueryBkDataTokenResource(ApmAPIGWResource):
-    action = "/app/apm/query_bk_data_token/"
+class QueryBkDataTokenInfoResource(ApmAPIGWResource):
+    action = "/app/apm/query_apm_bk_data_token/"
     method = "GET"
 
 
