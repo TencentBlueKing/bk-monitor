@@ -64,6 +64,8 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
   /** 删除业务ID */
   currentDelId = null;
 
+  /** 选择器text */
+  selectedText: string;
   /** 时间选择器 */
   timeRange = JSON.stringify(shortcuts[5].value as TimeRangeType);
 
@@ -85,6 +87,10 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
       reject403: true,
     });
     this.timeRange = JSON.stringify(timeRange || (shortcuts[5].value as TimeRangeType));
+    const selectedOption = shortcuts.find(option => JSON.stringify(option.value) === this.timeRange);
+    if (selectedOption) {
+      this.selectedText = selectedOption.text as string;
+    }
   }
 
   // 设置存储的首页时间选择器并同步到用户配置
@@ -151,7 +157,12 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
 
   // 改变时间选择器
   @Emit('changeTime')
-  handleChangeTime() {
+  handleChangeTime(value) {
+    // 基于选择的值更新显示文本
+    const selectedOption = shortcuts.find(option => JSON.stringify(option.value) === value);
+    if (selectedOption) {
+      this.selectedText = selectedOption.text;
+    }
     return JSON.parse(this.timeRange);
   }
 
@@ -236,6 +247,17 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
             onChange={this.handleChangeTime}
             onSelected={this.setStoreSelectedTimeRange}
           >
+            <div
+              class='select-trigger'
+              slot='trigger'
+            >
+              <span>
+                <span class='item-name-text'>{this.selectedText}</span>
+              </span>
+              <div class='arrow-wrap'>
+                <i class='icon-monitor icon-mc-arrow-down' />
+              </div>
+            </div>
             {shortcuts.map(option => (
               <bk-option
                 id={JSON.stringify(option.value)}

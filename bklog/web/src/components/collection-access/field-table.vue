@@ -942,6 +942,15 @@
           if (item.hasOwnProperty('typeErr')) {
             delete item.typeErr;
           }
+
+          if (item.hasOwnProperty('fieldAliasErr')) {
+            delete item.fieldAliasErr;
+          }
+
+          if (item.hasOwnProperty('alias_name_show')) {
+            delete item.alias_name_show;
+          }
+          
         });
         return data;
       },
@@ -959,6 +968,14 @@
 
           if (item.hasOwnProperty('typeErr')) {
             delete item.typeErr;
+          }
+          
+          if (item.hasOwnProperty('fieldAliasErr')) {
+            delete item.fieldAliasErr;
+          }
+
+          if (item.hasOwnProperty('alias_name_show')) {
+            delete item.alias_name_show;
           }
         });
         return data;
