@@ -182,7 +182,7 @@ class CustomReportSubscription(models.Model):
                 tables=[data_source_table_name],
                 where=["{}.bk_data_id={}.bk_data_id".format(group_table_name, data_source_table_name)],
             )
-            .values("bk_biz_id", "bk_data_id", "token", "max_rate", "name")
+            .values("bk_biz_id", "bk_data_id", "token", "max_rate")
             .distinct()
         )
         biz_id_to_data_id_config = {}
@@ -232,11 +232,18 @@ class CustomReportSubscription(models.Model):
                         },
                     }
                 else:
+                    from metadata.models.custom_report.time_series import (
+                        TimeSeriesGroup,
+                    )
+
+                    group = TimeSeriesGroup.objects.get(bk_data_id=r["bk_data_id"])
+                    group_info = api.monitor.custom_time_series_detail(
+                        bk_biz_id=group.bk_biz_id, time_series_group_id=group.custom_group_id
+                    )
+
                     # prometheus格式: bk-collector-application.conf
                     item = {
-                        "bk_data_token": transform_data_id_to_token(
-                            metric_data_id=r["bk_data_id"], bk_biz_id=r["bk_biz_id"], app_name=r["name"]
-                        ),
+                        "bk_data_token": group_info["access_token"],
                         "bk_biz_id": r["bk_biz_id"],
                         "bk_data_id": r["bk_data_id"],
                         "bk_app_name": "prometheus_report",
