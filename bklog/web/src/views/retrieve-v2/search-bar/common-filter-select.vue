@@ -176,7 +176,7 @@
     align-items: center;
     min-width: 250px;
     max-width: 600px;
-    margin-top: 8px;
+    margin: 4px 0;
     margin-right: 8px;
     border: 1px solid #dbdde1;
     border-radius: 3px;
