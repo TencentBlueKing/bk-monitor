@@ -882,7 +882,7 @@ export default defineComponent({
               <>{node.entity.rank.rank_category.category_alias}</>
             ))}
             {createCommonForm(`${this.$t('节点类型')}：`, () => (
-              <>{node.entity.entity_type}</>
+              <>{node.entity.rank_name}</>
             ))}
             {createCommonForm(`${this.$t('所属业务')}：`, () => (
               <>
