@@ -1934,8 +1934,8 @@ class SearchHandler(object):
                 storage_cluster_id=self.storage_cluster_id,
                 bk_biz_id=self.search_dict.get("bk_biz_id"),
                 only_search=True,
+                index_set=self.index_set,
             )
-            self._mapping_handlers._index_set = self.index_set
         return self._mapping_handlers
 
     @property

@@ -104,6 +104,7 @@ class MappingHandlers(object):
         end_time="",
         bk_biz_id=None,
         only_search=False,
+        index_set=None,
     ):
         self.indices = indices
         self.index_set_id = index_set_id
@@ -119,6 +120,8 @@ class MappingHandlers(object):
 
         # 仅查询使用
         self.only_search = only_search
+
+        self._index_set = index_set
 
     def check_fields_not_conflict(self, raise_exception=True):
         """
@@ -412,7 +415,7 @@ class MappingHandlers(object):
         return final_fields_list, display_fields_list
 
     @classmethod
-    def get_time_field(cls, index_set_id: int, index_set_obj: object = None):
+    def get_time_field(cls, index_set_id: int, index_set_obj: LogIndexSet = None):
         """获取索引时间字段"""
         index_set_obj: LogIndexSet = index_set_obj or LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj.scenario_id in [Scenario.BKDATA, Scenario.LOG]:

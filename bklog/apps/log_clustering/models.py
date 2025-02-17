@@ -171,9 +171,11 @@ class ClusteringConfig(SoftDeleteModel):
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":
-        obj = ClusteringConfig.objects.filter(Q(index_set_id=index_set_id) | Q(new_cls_index_set_id=index_set_id))
-        if obj.exists():
-            return obj.first()
+        obj = ClusteringConfig.objects.filter(
+            Q(index_set_id=index_set_id) | Q(new_cls_index_set_id=index_set_id)
+        ).first()
+        if obj:
+            return obj
         if raise_exception:
             raise ClusteringConfigNotExistException()
 
