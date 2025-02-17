@@ -90,7 +90,7 @@ export const fieldTypeMap = {
   object: {
     name: i18n.t('对象'),
     icon: 'bklog-icon bklog-object',
-    color: '#B0E0E6'
+    color: '#E8EAF0;'
   }
 };
 
