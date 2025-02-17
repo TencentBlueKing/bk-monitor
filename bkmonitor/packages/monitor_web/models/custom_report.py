@@ -88,6 +88,7 @@ class CustomTSTable(OperateRecordModelBase):
     data_label = models.CharField("数据标签", max_length=128, default="")
     protocol = models.CharField("上报协议", max_length=128, default="json", choices=PROTOCOL_CHOICES)
     desc = models.CharField("说明", max_length=1024, default="", blank=True)
+    auto_discover = models.BooleanField("自动发现", default=True)
 
     def __str__(self):
         return f"[{self.bk_biz_id}]{self.table_id}-{self.bk_data_id}"
@@ -243,11 +244,16 @@ class CustomTSItem(models.Model):
     )
     metric_name = models.CharField("指标名称", max_length=128)
     type = models.CharField("类型", max_length=16, default="")
+    label = JsonField("分组标签", default=[], blank=False)
+
     unit = models.CharField("字段单位", max_length=16, default="")
     metric_display_name = models.CharField("指标别名", max_length=128, default="")
     dimension_list = JsonField("维度", default=[])
-    label = JsonField("分组标签", default=[], blank=False)
-    hidden = models.BooleanField("隐藏图表", default=False)
+    hidden = models.BooleanField("隐藏指标", default=False)
+    disabled = models.BooleanField("禁用指标", default=False)
+    interval = models.IntegerField("指标周期", default=0)
+    aggregate_method = models.CharField("默认聚合方法", max_length=128, default="")
+    function = models.DictField("指标函数", default=dict)
 
 
 class CustomTSGroupingRule(models.Model):

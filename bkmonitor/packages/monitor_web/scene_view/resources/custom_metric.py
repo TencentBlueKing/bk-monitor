@@ -107,7 +107,6 @@ def GetCustomMetricInfoResource(Resource):
                 metric_id = serializers.CharField(label="指标名称")
                 metric_name = serializers.CharField(label="指标别名")
 
-            group_id = serializers.IntegerField(label="指标分组ID")
             group_name = serializers.CharField(label="指标分组名称")
             metrics = MetricSerializer(label="指标列表", many=True)
 
