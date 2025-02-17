@@ -297,7 +297,23 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             ).inc()
             metrics.report_all()
         except Exception as err:  # pylint: disable=broad-except
-            logger.exception(f"Failed to report api_failed_requests metrics,error:{err}")
+            logger.exception(f"APIResource: Failed to report api_failed_requests metrics,error:{err}")
+
+    def report_api_request_count_metric(self, code):
+        """
+        上报API调用指标，统计返回状态码，现阶段具体实现下沉在各个API Module的render_response_data方法中
+        @param code: 返回状态码
+        """
+        try:
+            metrics.API_REQUESTS_TOTAL.labels(
+                action=self.action,
+                module=self.module_name,
+                code=code,
+                role=settings.ROLE,
+            ).inc()
+            metrics.report_all()
+        except Exception as err:  # pylint: disable=broad-except
+            logger.exception(f"APIResource: Failed to report api_requests metrics,error:{err}")
 
     @property
     def label(self):
@@ -323,6 +339,10 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         """
         在提供数据给response_serializer之前，对数据作最后的处理，子类可进行重写
         """
+        # 上报API服务观测指标
+        code = response_data.get("code", 0)
+        self.report_api_request_count_metric(code=code)
+
         return response_data
 
     def handle_stream_response(self, response):
