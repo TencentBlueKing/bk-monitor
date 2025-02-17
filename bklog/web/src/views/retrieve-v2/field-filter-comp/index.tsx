@@ -58,7 +58,7 @@ export default class FieldFilterComp extends tsc<object> {
     'ghost-class': 'sortable-ghost-class',
   };
   dragVisibleFields = [];
-
+  expandedNodes = {}  // 用于存储展开节点的 key
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
   builtInInitHiddenList = [
     'gseIndex',
@@ -217,10 +217,9 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 展示的内置字段 */
   get showIndexSetFields() {
-    if (this.searchKeyword) return this.indexSetFields();
-    const result = this.objectHierarchy(this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9))
+    if (this.searchKeyword) return this.objectHierarchy(this.indexSetFields());
+    const result = this.objectHierarchy(this.isShowAllIndexSet ? this.indexSetFields() : this.sliceFields(this.indexSetFields()))
     return result
-    // return this.isShowAllIndexSet ? this.indexSetFields() : this.indexSetFields().slice(0, 9);
   }
   get filterTypeCount() {
     // 过滤的条件数量
@@ -299,12 +298,18 @@ export default class FieldFilterComp extends tsc<object> {
     const regExp = getRegExp(searchKeyword.trim());
     [this.visibleFields, this.hiddenFields].forEach(fieldList => {
       fieldList.forEach(fieldItem => {
+        regExp.lastIndex = 0; // 重置lastIndex,这个正则有全局标志 
         fieldItem.filterVisible =
           regExp.test(fieldItem.field_name) || regExp.test(fieldItem.field_alias) || regExp.test(fieldItem.query_alias || '');
       });
     });
     this.$nextTick(()=>{
-      this.$refs.bigTreeRef.filter(searchKeyword)
+      Object.keys(this.$refs).forEach(refName => {
+        if (refName.startsWith('bigTreeRef-')) {
+          const bigTreeRef = this.$refs[refName];
+          bigTreeRef.filter(searchKeyword)
+        }
+      });
     })
   }
   filterMethod(keyword, node){
@@ -345,7 +350,22 @@ export default class FieldFilterComp extends tsc<object> {
     });
     return sortList;
   }
-
+   /**
+   * @desc: 分割展示字段名（排除object字段名）
+   * @param {Array} list
+   * @returns {Array}
+   */
+  sliceFields (Fields){
+    const { withDot, withoutDot } = Fields.reduce((acc, str) => {
+      if (str.field_name.includes('.')) {
+          acc.withDot.push(str);
+      } else {
+          acc.withoutDot.push(str);
+      }
+      return acc;
+    }, { withDot: [], withoutDot: [] });
+    return [...withDot, ...withoutDot.slice(0, 9)];
+  }
   handleSearchException(type: string) {
     if (type === 'clear-filter') {
       this.searchKeyword = '';
@@ -354,7 +374,19 @@ export default class FieldFilterComp extends tsc<object> {
     this.isShowErrInfo = false;
     this.$store.dispatch('requestIndexSetFieldInfo');
   }
-  bigTreeRender(field){
+  // 记录bigTree展开节点
+  expandChange(TreeNode, ref){
+    this.expandedNodes[ref] = this.expandedNodes[ref] || [];
+    if (TreeNode.expanded) {
+      if (!this.expandedNodes[ref].includes(TreeNode.id)) {
+        this.expandedNodes[ref].push(TreeNode.id);
+      }
+    } else {
+      this.expandedNodes[ref] = this.expandedNodes[ref].filter(id => id !== TreeNode.id);
+    }
+  }
+  bigTreeRender(field, index){
+    const defaultExpandedNodes = this.expandedNodes[`bigTreeRef-${index}`]
     const scopedSlots = {
       default: ({ data }) => (
         <FieldItem
@@ -376,11 +408,13 @@ export default class FieldFilterComp extends tsc<object> {
     return(
       <bk-big-tree
         key={field.field_name}
-        ref='bigTreeRef'
+        ref={`bigTreeRef-${index}`}
         data={[field]}
         scopedSlots={scopedSlots}
         class='big-tree'
         expand-on-click={true}
+        default-expanded-nodes={defaultExpandedNodes}
+        on-expand-change={(node)=> this.expandChange(node,`bigTreeRef-${index}`)}
         filter-method={(keyword, node) => this.filterMethod(keyword, node)}
         options={{ nameKey: 'field_name', idKey: 'field_name', childrenKey: 'children' }}
       >
@@ -477,8 +511,8 @@ export default class FieldFilterComp extends tsc<object> {
               <div class='fields-container not-selected'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
-                  {this.showIndexSetFields.map(item => (
-                    item.children?.length ? this.bigTreeRender(item) :(
+                  {this.showIndexSetFields.map((item, index) => (
+                    item.children?.length ? this.bigTreeRender(item, index+'select') :(
                     <FieldItem
                       v-show={item.filterVisible}
                       date-picker-value={this.datePickerValue}
@@ -508,8 +542,8 @@ export default class FieldFilterComp extends tsc<object> {
               <div class='fields-container not-selected'>
                 <div class='title'>{(this.$t('label-内置字段') as string).replace('label-', '')}</div>
                 <ul class='filed-list'>
-                {this.builtInFieldsShowObj().builtInShowFields.map(item => (
-                  item.children?.length ? this.bigTreeRender(item) : (
+                {this.builtInFieldsShowObj().builtInShowFields.map((item, index) => (
+                  item.children?.length ? this.bigTreeRender(item, index+'built') : (
                     <FieldItem
                       v-show={item.filterVisible}
                       date-picker-value={this.datePickerValue}
