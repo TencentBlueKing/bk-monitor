@@ -9,10 +9,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 from django.db import models
-from monitor_web.models import CustomTSTable
 from rest_framework import serializers
 
 from core.drf_resource import Resource
+from monitor_web.models import CustomTSTable
 
 
 class GetCustomMetricTargetListResource(Resource):
@@ -30,3 +30,61 @@ class GetCustomMetricTargetListResource(Resource):
         )
         targets = set(config.query_target(bk_biz_id=params["bk_biz_id"]))
         return [{"id": target, "name": target} for target in targets]
+
+
+def GetCustomMetricGraphConfigResource(Resource):
+    """
+    获取自定义指标图表配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        class CompareSerializer(serializers.Serializer):
+            type = serializers.ChoiceField(choices=["time", "metric"], label="对比模式")
+            offset = serializers.CharField(label="时间对比偏移量", required=False)
+
+        class LimitSerializer(serializers.Serializer):
+            function = serializers.ChoiceField(choices=["top", "bottom"], label="限制函数")
+            limit = serializers.IntegerField(label="限制数量")
+
+        class GroupBySerializer(serializers.Serializer):
+            field = serializers.CharField(label="聚合维度")
+            split = serializers.BooleanField(label="是否拆分")
+
+        class ConditionSerializer(serializers.Serializer):
+            key = serializers.CharField(label="指标")
+            method = serializers.ChoiceField(choices=["eq", "neq", "gt", "gte", "lt", "lte"], label="方法")
+            value = serializers.ListField(label="值")
+            condition = serializers.ChoiceField(choices=["and", "or"], label="条件", default="and")
+
+        bk_biz_id = serializers.IntegerField(label="业务")
+        time_series_group_id = serializers.IntegerField(label="自定义时序分组ID")
+        show_metrics = serializers.ListField(label="展示的指标")
+        condition = ConditionSerializer(label="指标过滤条件", many=True)
+        group_by = GroupBySerializer(label="聚合维度", many=True)
+        limit = LimitSerializer(label="限制返回的series数量")
+        compare = CompareSerializer(label="对比配置")
+
+    class ResponseSerializer(serializers.Serializer):
+        """
+        返回格式
+        """
+
+        class TargetSerializer(serializers.Serializer):
+            expression = serializers.CharField(label="指标表达式")
+            alias = serializers.CharField(label="指标别名", default="")
+            query_configs = serializers.ListField(label="查询配置")
+
+        type = serializers.ChoiceField(choices=["row", "time_series"], label="图表类型")
+        title = serializers.CharField(label="图表标题")
+        panels = serializers.ListField(label="图表配置", required=False)
+
+        subTitle = serializers.CharField(label="子标题", default="")
+        targets = TargetSerializer(label="目标", many=True)
+
+    many_response_data = True
+
+    def perform_request(self, params):
+        """
+        TODO: 生成自定义指标图表配置
+        """
+        return []
