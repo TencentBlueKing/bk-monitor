@@ -49,6 +49,11 @@
       return 1;
     }
 
+    // addition 是一个json字符串，解析出来之后至少为 [{'field': ''}], 所以这里判定长度至少 包含 '[{}]'
+    if (route.query.addition?.length > 4) {
+      return 0;
+    }
+
     return Number(localStorage.getItem('bkLogQueryType') ?? 0);
   };
 
@@ -260,9 +265,9 @@
       searchMode === 'sql'
         ? { keyword: sqlQueryValue.value, addition: [] }
         : {
-            addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
-            keyword: '*',
-          };
+          addition: reqFormatAddition.filter(v => v.field !== '_ip-select_'),
+          keyword: '*',
+        };
 
     const data = {
       name,
@@ -289,7 +294,7 @@
         initSourceSQLStr(res.data.params, res.data.search_mode);
         handleRefresh(true);
       }
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const handleCopyQueryValue = async () => {
@@ -324,66 +329,28 @@
   });
 </script>
 <template>
-  <div
-    ref="refRootElement"
-    :class="['search-bar-wrapper', { readonly: isChartMode }]"
-  >
+  <div ref="refRootElement" :class="['search-bar-wrapper', { readonly: isChartMode }]">
     <div :class="['search-bar-container', { readonly: isChartMode }]">
-      <div
-        class="search-options"
-        @click="handleQueryTypeChange"
-      >
+      <div class="search-options" @click="handleQueryTypeChange">
         <span class="mode-text">{{ queryText }}</span>
         <span class="bklog-icon bklog-double-arrow"></span>
       </div>
-      <div
-        class="search-input"
-        :class="{ disabled: isInputLoading }"
-      >
-        <UiInput
-          v-if="activeIndex === 0"
-          v-model="uiQueryValue"
-          @change="handleQueryChange"
-        ></UiInput>
-        <SqlQuery
-          v-if="activeIndex === 1"
-          v-model="sqlQueryValue"
-          @retrieve="handleSqlRetrieve"
-        ></SqlQuery>
+      <div class="search-input" :class="{ disabled: isInputLoading }">
+        <UiInput v-if="activeIndex === 0" v-model="uiQueryValue" @change="handleQueryChange"></UiInput>
+        <SqlQuery v-if="activeIndex === 1" v-model="sqlQueryValue" @retrieve="handleSqlRetrieve"></SqlQuery>
         <div class="search-tool items">
-          <div
-            v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
-            @click.stop="handleCopyQueryValue"
-          ></div>
-          <div
-            v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
-            @click.stop="handleClearBtnClick"
-          ></div>
-          <BookmarkPop
-            v-if="!props.activeFavorite"
-            v-bk-tooltips="$t('收藏当前查询')"
-            :addition="uiQueryValue"
-            :class="{ disabled: isInputLoading }"
-            :search-mode="queryParams[activeIndex]"
-            :sql="sqlQueryValue"
-            @refresh="handleRefresh"
-          ></BookmarkPop>
+          <div v-bk-tooltips="$t('复制当前查询')" :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            @click.stop="handleCopyQueryValue"></div>
+          <div v-bk-tooltips="$t('清理当前查询')" :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            @click.stop="handleClearBtnClick"></div>
+          <BookmarkPop v-if="!props.activeFavorite" v-bk-tooltips="$t('收藏当前查询')" :addition="uiQueryValue"
+            :class="{ disabled: isInputLoading }" :search-mode="queryParams[activeIndex]" :sql="sqlQueryValue"
+            @refresh="handleRefresh"></BookmarkPop>
           <template v-else>
-            <div
-              v-if="matchSQLStr"
-              class="bklog-icon bklog-star-line disabled"
-              v-bk-tooltips="$t('已收藏')"
-              :data-boolean="matchSQLStr"
-            ></div>
-            <div
-              v-else
-              style="color: #63656e"
-              v-bk-tooltips="$t('收藏')"
-              class="icon bk-icon icon-save"
-              @click="saveCurrentActiveFavorite"
-            ></div>
+            <div v-if="matchSQLStr" class="bklog-icon bklog-star-line disabled" v-bk-tooltips="$t('已收藏')"
+              :data-boolean="matchSQLStr"></div>
+            <div v-else style="color: #63656e" v-bk-tooltips="$t('收藏')" class="icon bk-icon icon-save"
+              @click="saveCurrentActiveFavorite"></div>
           </template>
           <!-- <CommonFilterSettingPop
             v-bk-tooltips="$t('常用查询设置')"
@@ -392,17 +359,10 @@
           >
           </CommonFilterSettingPop> -->
         </div>
-        <div
-          class="search-tool search-btn"
-          @click.stop="handleBtnQueryClick"
-        >
-          <bk-button
-            style="width: 100%; height: 100%"
-            :loading="isInputLoading"
-            size="large"
-            theme="primary"
-            >{{ btnQuery }}</bk-button
-          >
+        <div class="search-tool search-btn" @click.stop="handleBtnQueryClick">
+          <bk-button style="width: 100%; height: 100%" :loading="isInputLoading" size="large" theme="primary">{{
+            btnQuery
+          }}</bk-button>
         </div>
       </div>
     </div>
