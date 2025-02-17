@@ -1,6 +1,12 @@
 <template>
-  <bk-popover ref="fieldsSettingPopperRef" animation="slide-toggle" placement="bottom" theme="light bk-select-dropdown"
-    trigger="click" class="common-filter-popper">
+  <bk-popover
+    ref="fieldsSettingPopperRef"
+    animation="slide-toggle"
+    placement="bottom"
+    theme="light bk-select-dropdown"
+    trigger="click"
+    class="common-filter-popper"
+  >
     <slot name="trigger">
       <div class="operation-icon">
         <span :class="['bklog-icon bklog-log-setting']"></span>
@@ -13,13 +19,25 @@
           <div class="total-fields-list">
             <div class="title">
               <span>{{ $t('待选列表') + '(' + toSelectLength + ')' }}</span>
-              <span class="text-action add-all" @click="addAllField">{{ $t('全部添加') }}</span>
+              <span
+                class="text-action add-all"
+                @click="addAllField"
+                >{{ $t('全部添加') }}</span
+              >
             </div>
             <ul class="select-list">
-              <li v-for="item in shadowTotal" style="cursor: pointer" class="select-item" v-show="!item.is_display"
-                :key="item.field_name" @click="addField(item)">
-                <span :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
-                  :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']">
+              <li
+                v-for="item in shadowTotal"
+                style="cursor: pointer"
+                class="select-item"
+                v-show="!item.is_display"
+                :key="item.field_name"
+                @click="addField(item)"
+              >
+                <span
+                  :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+                  :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
+                >
                 </span>
                 <span class="field-alias">{{ item.field_alias || item.field_name }}</span>
                 <span class="field-name">({{ item.field_name }})</span>
@@ -33,19 +51,39 @@
           <div class="visible-fields-list">
             <div class="title">
               <span>{{ $t('常驻筛选') + '(' + shadowVisible.length + ')' }}</span>
-              <span class="icon bklog-icon bklog-info-fill" v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"></span>
-              <span class="clear-all text-action" @click="deleteAllField">{{ $t('清空') }}</span>
+              <span
+                class="icon bklog-icon bklog-info-fill"
+                v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
+              ></span>
+              <span
+                class="clear-all text-action"
+                @click="deleteAllField"
+                >{{ $t('清空') }}</span
+              >
             </div>
-            <vue-draggable v-bind="dragOptions" class="select-list" v-model="shadowVisible">
+            <vue-draggable
+              v-bind="dragOptions"
+              class="select-list"
+              v-model="shadowVisible"
+            >
               <transition-group>
-                <li v-for="(item, index) in shadowVisible" class="select-item" :key="item.field_name">
+                <li
+                  v-for="(item, index) in shadowVisible"
+                  class="select-item"
+                  :key="item.field_name"
+                >
                   <span class="icon bklog-icon bklog-drag-dots"></span>
-                  <span :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
-                    :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']">
+                  <span
+                    :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+                    :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
+                  >
                   </span>
                   <span class="field-alias">{{ item.field_alias || item.field_name }}</span>
                   <span class="field-name">({{ item.field_name }})</span>
-                  <span class="bk-icon icon-close-circle-shape delete" @click="deleteField(item, index)"></span>
+                  <span
+                    class="bk-icon icon-close-circle-shape delete"
+                    @click="deleteField(item, index)"
+                  ></span>
                 </li>
               </transition-group>
             </vue-draggable>
@@ -53,10 +91,20 @@
         </div>
       </div>
       <div class="fields-button-container">
-        <bk-button class="mr10" :theme="'primary'" :loading="isLoading" type="submit" @click="confirmModifyFields">
+        <bk-button
+          class="mr10"
+          :theme="'primary'"
+          :loading="isLoading"
+          type="submit"
+          @click="confirmModifyFields"
+        >
           {{ $t('保存') }}
         </bk-button>
-        <bk-button :theme="'default'" type="submit" @click="cancelModifyFields">
+        <bk-button
+          :theme="'default'"
+          type="submit"
+          @click="cancelModifyFields"
+        >
           {{ $t('取消') }}
         </bk-button>
       </div>
@@ -70,7 +118,7 @@
 
   import VueDraggable from 'vuedraggable';
   import { excludesFields } from './const.common';
-  import { messageWarn } from '@/common/bkmagic.js'
+  import { messageWarn } from '@/common/bkmagic.js';
 
   // 获取 store
   const store = useStore();
@@ -83,7 +131,11 @@
   });
 
   const filterFieldsList = computed(() => {
-    return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
+    if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
+      return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
+    }
+
+    return [];
   });
 
   const shadowTotal = computed(() => {
@@ -122,13 +174,16 @@
     };
     isLoading.value = true;
 
-    store.dispatch('userFieldConfigChange', param).then(res => {
-      if (res.result) {
-        window.mainComponent.messageSuccess($t('提交成功'));
-      }
-    }).finally(() => {
-      isLoading.value = false;
-    });
+    store
+      .dispatch('userFieldConfigChange', param)
+      .then(res => {
+        if (res.result) {
+          window.mainComponent.messageSuccess($t('提交成功'));
+        }
+      })
+      .finally(() => {
+        isLoading.value = false;
+      });
   };
 
   const confirmModifyFields = async () => {
@@ -181,15 +236,18 @@
         target.is_display = true;
       }
     });
-  }
+  };
 
   let isFirstMounted = true;
-  watch(() => [filterFieldsList.value.length], () => {
-    if (isFirstMounted) {
-      setDefaultFilterList();
-    }
-  }, { immediate: true });
-
+  watch(
+    () => [filterFieldsList.value.length],
+    () => {
+      if (isFirstMounted) {
+        setDefaultFilterList();
+      }
+    },
+    { immediate: true },
+  );
 </script>
 
 <style lang="scss">
@@ -221,8 +279,8 @@
         line-height: 40px;
         color: #313238;
         border-bottom: 1px solid #dcdee5;
-        background: #FAFBFD;
-        border: 1px solid #DCDEE5;
+        background: #fafbfd;
+        border: 1px solid #dcdee5;
 
         .bklog-info-fill {
           margin-left: 8px;
@@ -457,7 +515,7 @@
 
         width: 33px;
         height: 33px;
-        background: #FAFBFD;
+        background: #fafbfd;
 
         display: flex;
         justify-content: center;

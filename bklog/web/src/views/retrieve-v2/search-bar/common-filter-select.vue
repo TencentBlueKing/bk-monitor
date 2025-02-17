@@ -9,7 +9,11 @@
   const store = useStore();
 
   const filterFieldsList = computed(() => {
-    return store.state.retrieve.catchFieldCustomConfig?.filterSetting || [];
+    if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
+      return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
+    }
+
+    return [];
   });
 
   const commonFilterAddition = computed({
@@ -31,8 +35,6 @@
       });
     },
   });
-
-
 
   const activeIndex = ref(-1);
 
@@ -61,9 +63,9 @@
       requestTimer = setTimeout(() => {
         const targetAddition = value
           ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
-            const instance = new ConditionOperator(val);
-            return instance.getRequestParam();
-          })
+              const instance = new ConditionOperator(val);
+              return instance.getRequestParam();
+            })
           : [];
         store
           .dispatch('requestIndexSetValueList', { fields: [field], targetAddition, force: true, size })
@@ -81,7 +83,7 @@
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      rquestFieldEgges(item, index, null, null, () => { });
+      rquestFieldEgges(item, index, null, null, () => {});
     }
   };
 
@@ -102,8 +104,6 @@
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
-
-
 </script>
 
 <template>
@@ -111,32 +111,68 @@
     <div class="filter-setting-btn">
       <CommonFilterSetting></CommonFilterSetting>
     </div>
-    <div v-if="commonFilterAddition.length" class="filter-container">
-      <div v-for="(item, index) in filterFieldsList" class="filter-select-wrap">
+    <div
+      v-if="commonFilterAddition.length"
+      class="filter-container"
+    >
+      <div
+        v-for="(item, index) in filterFieldsList"
+        class="filter-select-wrap"
+      >
         <div class="title">
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
-        <bk-select class="operator-select" v-model="commonFilterAddition[index].operator" :input-search="false"
-          :popover-min-width="100" filterable @change="handleChange">
+        <bk-select
+          class="operator-select"
+          v-model="commonFilterAddition[index].operator"
+          :input-search="false"
+          :popover-min-width="100"
+          filterable
+          @change="handleChange"
+        >
           <template #trigger>
             <span class="operator-label">{{ $t(commonFilterAddition[index].operator) }}</span>
           </template>
-          <bk-option v-for="(child, childIndex) in item?.field_operator" :id="child.label" :key="childIndex"
-            :name="child.label" />
+          <bk-option
+            v-for="(child, childIndex) in item?.field_operator"
+            :id="child.label"
+            :key="childIndex"
+            :name="child.label"
+          />
         </bk-select>
-        <bk-select class="value-select"
+        <bk-select
+          class="value-select"
           v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
-          v-model="commonFilterAddition[index].value" allow-create display-tag multiple searchable :fix-height="true"
-          @change="handleChange" @toggle="visible => handleToggle(visible, item, index)">
+          v-model="commonFilterAddition[index].value"
+          allow-create
+          display-tag
+          multiple
+          searchable
+          :fix-height="true"
+          @change="handleChange"
+          @toggle="visible => handleToggle(visible, item, index)"
+        >
           <template #search>
-            <bk-input behavior="simplicity" :clearable="true" :left-icon="'bk-icon icon-search'"
-              @input="e => handleInputVlaueChange(e, item, index)"></bk-input>
+            <bk-input
+              behavior="simplicity"
+              :clearable="true"
+              :left-icon="'bk-icon icon-search'"
+              @input="e => handleInputVlaueChange(e, item, index)"
+            ></bk-input>
           </template>
-          <bk-option v-for="option in commonFilterAddition[index].list" :id="option" :key="option" :name="option" />
+          <bk-option
+            v-for="option in commonFilterAddition[index].list"
+            :id="option"
+            :key="option"
+            :name="option"
+          />
         </bk-select>
       </div>
     </div>
-    <div v-else class="empty-tips">
+    <div
+      v-else
+      class="empty-tips"
+    >
       （暂未设置常驻筛选，请点击左侧设置按钮）
     </div>
   </div>
