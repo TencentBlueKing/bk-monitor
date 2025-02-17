@@ -517,11 +517,11 @@ class TransferLatestMsgResource(BaseStatusResource):
         """查询一个指标的最新数据"""
 
         series: List[Dict] = api.metadata.kafka_tail({"table_id": table_id, "size": size})
+        logger.info(f"kafka tail series: {series}")
         msgs = []
         for s in series:
-            logger.info(f"series keys: {', '.join(list(s.keys()))}")
             # 获取时间戳
-            timestamp = s["timestamp"]
+            timestamp = s.get("timestamp") or s.get("@timestamp") or s.get("time")
             if len(str(timestamp)) == 13:
                 timestamp = timestamp / 1000
 
