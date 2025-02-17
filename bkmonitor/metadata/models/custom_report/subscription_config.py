@@ -182,7 +182,7 @@ class CustomReportSubscription(models.Model):
                 tables=[data_source_table_name],
                 where=["{}.bk_data_id={}.bk_data_id".format(group_table_name, data_source_table_name)],
             )
-            .values("bk_biz_id", "bk_data_id", "token", "max_rate")
+            .values("bk_biz_id", "bk_data_id", "token", "max_rate", "name")
             .distinct()
         )
         biz_id_to_data_id_config = {}
@@ -234,7 +234,9 @@ class CustomReportSubscription(models.Model):
                 else:
                     # prometheus格式: bk-collector-application.conf
                     item = {
-                        "bk_data_token": transform_data_id_to_token(r["bk_data_id"]),
+                        "bk_data_token": transform_data_id_to_token(
+                            metric_data_id=r["bk_data_id"], bk_biz_id=r["bk_biz_id"], app_name=r["name"]
+                        ),
                         "bk_biz_id": r["bk_biz_id"],
                         "bk_data_id": r["bk_data_id"],
                         "bk_app_name": "prometheus_report",
