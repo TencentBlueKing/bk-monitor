@@ -37,7 +37,6 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH
 from apps.log_clustering.handlers.dataflow.constants import PATTERN_SEARCH_FIELDS
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     BKDATA_ASYNC_CONTAINER_FIELDS,
     BKDATA_ASYNC_FIELDS,
@@ -360,22 +359,26 @@ class MappingHandlers(object):
 
         return obj
 
-    @classmethod
+    @property
+    def index_set(self):
+        if not hasattr(self, "_index_set"):
+            self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
+        return self._index_set
+
     def get_default_sort_list(
-        cls,
+        self,
         index_set_id: int = None,
         scenario_id: str = None,
         scope: str = SearchScopeEnum.DEFAULT.value,
         default_sort_tag: bool = False,
     ):
         """默认字段排序规则"""
-        time_field = cls.get_time_field(index_set_id)
+        time_field = self.get_time_field(index_set_id, self.index_set)
         if not time_field:
             return []
 
         # 先看索引集有没有配排序字段
-        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        sort_fields = log_index_set_obj.sort_fields if log_index_set_obj else []
+        sort_fields = self.index_set.sort_fields if self.index_set else []
         if sort_fields:
             return [[field, "desc"] for field in sort_fields]
 
@@ -394,7 +397,7 @@ class MappingHandlers(object):
                     _field["is_display"] = True
                     return final_fields_list, ["log"]
             return final_fields_list, []
-        display_fields_list = [self.get_time_field(self.index_set_id)]
+        display_fields_list = [self.get_time_field(self.index_set_id, self.index_set)]
         if self._get_object_field(final_fields_list):
             display_fields_list.append(self._get_object_field(final_fields_list))
         display_fields_list.extend(self._get_text_fields(final_fields_list))
@@ -409,9 +412,9 @@ class MappingHandlers(object):
         return final_fields_list, display_fields_list
 
     @classmethod
-    def get_time_field(cls, index_set_id: int):
+    def get_time_field(cls, index_set_id: int, index_set_obj: object = None):
         """获取索引时间字段"""
-        index_set_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        index_set_obj: LogIndexSet = index_set_obj or LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj.scenario_id in [Scenario.BKDATA, Scenario.LOG]:
             return "dtEventTimeStamp"
 
@@ -812,8 +815,9 @@ class MappingHandlers(object):
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
-        alias_dict = {_field["origin_field"]: _field["field_name"] for _field in fields_list
-                      if _field.get("origin_field")}
+        alias_dict = {
+            _field["origin_field"]: _field["field_name"] for _field in fields_list if _field.get("origin_field")
+        }
         remove_field_list = list()
         # 增加description别名字段
         for _field in fields_list:
