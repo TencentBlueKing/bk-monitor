@@ -233,6 +233,18 @@
             :is-clone-or-update="isCloneOrUpdate"
           />
         </bk-form-item>
+        <bk-form-item
+          v-if="currentEnvironment == 'linux' || currentEnvironment == 'windows'"
+          class="mt"
+          :label="$t('设备元数据')"
+          required
+        >
+          <device-metadata
+            :metadata="configData.extra_labels"
+            @extra-labels-change="extraLabelsChange"
+          >
+          </device-metadata>
+        </bk-form-item>
       </div>
     </bk-form>
   </div>
@@ -346,10 +358,12 @@
   import { deepClone } from '../../../monitor-echarts/utils';
   import LogFilter from '../log-filter';
   import MultilineRegDialog from './multiline-reg-dialog';
+  import DeviceMetadata from './device-metadata.vue';
   export default {
     components: {
       MultilineRegDialog,
       LogFilter,
+      DeviceMetadata,
     },
     props: {
       showType: {
@@ -458,6 +472,7 @@
             winlog_name: [], // windows事件名称
             winlog_level: [], // windows事件等级
             winlog_event_id: [], // windows事件id
+            extra_labels: [], // 补充元数据
           },
         },
         type: 'and',
@@ -700,6 +715,9 @@
         this.$nextTick(() => {
           this.$refs.logFilterRef?.initContainerData();
         });
+      },
+      extraLabelsChange(val) {
+        this.$set(this.subFormData.params, 'extra_labels', val);
       },
     },
   };
