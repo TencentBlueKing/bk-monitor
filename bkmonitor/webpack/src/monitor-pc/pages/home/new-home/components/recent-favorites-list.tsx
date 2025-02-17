@@ -180,18 +180,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
               <span>{tag}</span>
             </span>
           )}
-          <span
-            v-bk-tooltips={{
-              content: title,
-              trigger: 'mouseenter',
-              zIndex: 9999,
-              boundary: document.body,
-              allowHTML: false,
-              delay: [500, 0],
-            }}
-          >
-            {title}
-          </span>
+          <span>{title}</span>
         </div>
         <span
           class='desc'
