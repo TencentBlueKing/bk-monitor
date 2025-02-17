@@ -149,7 +149,7 @@ class FrontendCollectConfigTargetInfoResource(Resource):
                 table_data.append(
                     {"bk_inst_name": item["bk_inst_name"], "count": item["count"], "labels": item["labels"]}
                 )
-        if config_detail["target_node_type"] == TargetNodeType.DYNAMIC_GROUP:
+        elif config_detail["target_node_type"] == TargetNodeType.DYNAMIC_GROUP:
             for item in config_detail["target"]:
                 table_data.append(
                     {
