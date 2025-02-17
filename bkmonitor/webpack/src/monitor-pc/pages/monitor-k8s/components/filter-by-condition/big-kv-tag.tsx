@@ -101,8 +101,9 @@ export default class BigKvTag extends tsc<IProps> {
         <div
           class='tag-content'
           v-bk-tooltips={{
-            content: `${this.value.id} = ${this.value.values.map(v => v.id).join(', ')}`,
+            content: `<div style="max-width: 600px;">${this.value.id} = ${this.value.values.map(v => v.id).join(', ')}<div>`,
             delay: [300, 0],
+            allowHTML: true,
           }}
         >
           <div class='tag-content-key'>

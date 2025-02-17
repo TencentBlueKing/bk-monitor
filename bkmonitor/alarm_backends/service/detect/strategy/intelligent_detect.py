@@ -42,7 +42,6 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.kpi_group_predict
     PREDICT_FUNC = api.aiops_sdk.kpi_predict
-    WITH_HISTORY_ANOMALY = True
 
     def generate_sdk_predict_params(self) -> Dict:
         return {

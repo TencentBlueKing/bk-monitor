@@ -40,7 +40,6 @@ class TimeSeriesForecasting(SDKPreDetectMixin, BasicAlgorithmsCollection):
 
     GROUP_PREDICT_FUNC = api.aiops_sdk.tf_group_predict
     PREDICT_FUNC = api.aiops_sdk.tf_predict
-    WITH_HISTORY_ANOMALY = False
 
     OPERATOR_MAPPINGS = {
         "gt": operator.gt,
