@@ -1,4 +1,4 @@
-API_TIMESERIES_RESPONSE = {
+API_TIME_SERIES_RESPONSE = {
     "series": [
         {
             "dimensions": {"type": "Normal"},
@@ -119,7 +119,7 @@ API_LOGS_RESPONSE = {
                         "alias": "[共享集群] 蓝鲸公共-广州(BCS-K8S-90001)",
                         "type": "link",
                         # 带集群 ID 跳转到新版容器监控页面
-                        "detail": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001",
+                        "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001",
                     },
                     "namespace": {
                         "label": "NameSpace",
@@ -171,7 +171,7 @@ API_LOGS_RESPONSE = {
     ]
 }
 
-API_VIEWCONFIG_RESPONSE = {
+API_VIEW_CONFIG_RESPONSE = {
     # 字段类型：
     # 缺省 - 字符串
     # icon - 带 icon

@@ -16,10 +16,10 @@ from core.drf_resource import Resource
 from . import serializers
 from .mock_data import (
     API_LOGS_RESPONSE,
-    API_TIMESERIES_RESPONSE,
+    API_TIME_SERIES_RESPONSE,
     API_TOPK_RESPONSE,
     API_TOTAL_RESPONSE,
-    API_VIEWCONFIG_RESPONSE,
+    API_VIEW_CONFIG_RESPONSE,
 )
 
 
@@ -28,7 +28,7 @@ class EventTimeSeriesResource(Resource):
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
         # result: Dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
-        return API_TIMESERIES_RESPONSE
+        return API_TIME_SERIES_RESPONSE
 
 
 class EventLogsResource(Resource):
@@ -43,7 +43,7 @@ class EventViewConfigResource(Resource):
     RequestSerializer = serializers.EventViewConfigRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        return API_VIEWCONFIG_RESPONSE
+        return API_VIEW_CONFIG_RESPONSE
 
 
 class EventTopKResource(Resource):
