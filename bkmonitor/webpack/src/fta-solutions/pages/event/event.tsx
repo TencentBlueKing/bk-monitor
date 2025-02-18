@@ -1411,8 +1411,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             if (diffBizIds?.length) {
               const spaces = this.$store.getters.bizList
                 .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
-                .map(({ display_name }) => display_name);
-              this.noDataString = this.$t('{0} 空间未开启故障分析功能，请联系管理员开启', [spaces.join('、')]);
+                .map(({ name, space_id }) => `${name} (#${space_id})`);
+              this.noDataString = this.$t('{0} 空间未开启故障分析功能，请联系管理员开启', [spaces.join(',')]);
             }
           }
         } else {
