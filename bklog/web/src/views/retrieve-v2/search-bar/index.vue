@@ -361,9 +361,9 @@
 
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
-      window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
-
       if (activeIndex.value === 0) {
+        window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
+
         const { common_filter_addition } = store.getters.retrieveParams;
         if (common_filter_addition.length) {
           uiQueryValue.value.push(
@@ -382,6 +382,14 @@
           setRouteParams();
         }
       }
+    }
+
+    if (activeIndex.value === 1) {
+      store.dispatch('userFieldConfigChange', {
+        fixedFilterAddition: !isFilterSecFocused.value,
+      });
+
+      return;
     }
 
     store.dispatch('userFieldConfigChange', {
