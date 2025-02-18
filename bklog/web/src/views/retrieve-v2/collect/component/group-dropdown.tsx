@@ -175,8 +175,6 @@ export default class CollectGroup extends tsc<IProps> {
   }
   /** 点击移动分组操作 */
   handleClickMoveGroup(e) {
-    console.log(233);
-    
     this.operatePopoverInstance?.set({ hideOnClick: false });
     // 判断当前是否有实例 如果有实例 则给操作列表常驻显示
     if (!this.groupListPopoverInstance) {
