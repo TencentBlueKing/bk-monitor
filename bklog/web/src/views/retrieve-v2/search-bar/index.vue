@@ -58,20 +58,20 @@
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
 
-  const refPopContent = ref(null);
-  const refPopTraget = ref(null);
+  // const refPopContent = ref(null);
+  // const refPopTraget = ref(null);
 
-  const popToolInstance = new PopInstanceUtil({
-    refContent: refPopContent,
-    tippyOptions: {
-      placement: 'top-end',
-      zIndex: 200,
-      appendTo: document.body,
-      interactive: true,
-      theme: 'log-light transparent',
-      arrow: false,
-    },
-  });
+  // const popToolInstance = new PopInstanceUtil({
+  //   refContent: refPopContent,
+  //   tippyOptions: {
+  //     placement: 'top-end',
+  //     zIndex: 200,
+  //     appendTo: document.body,
+  //     interactive: true,
+  //     theme: 'log-light transparent',
+  //     arrow: false,
+  //   },
+  // });
 
   const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 
@@ -337,13 +337,12 @@
     }
   };
 
-  const handleMouseenterInputSection = () => {
-    popToolInstance.show(refPopTraget.value);
-  };
+  // const handleMouseenterInputSection = () => {
+  //   popToolInstance.show(refPopTraget.value);
+  // };
 
-  const handleMouseleaveInputSection = () => {
-    // popToolInstance.hide();
-  };
+  // const handleMouseleaveInputSection = () => {
+  // };
 
   useResizeObserve(refRootElement, () => {
     if (refRootElement.value) {
@@ -407,8 +406,6 @@
       <div
         class="search-input"
         :class="{ disabled: isInputLoading }"
-        @mouseenter="handleMouseenterInputSection"
-        @mouseleave="handleMouseleaveInputSection"
       >
         <UiInput
           v-if="activeIndex === 0"
@@ -425,6 +422,16 @@
           ref="refPopTraget"
         ></div>
         <div class="search-tool items">
+          <div
+            v-bk-tooltips="$t('复制当前查询')"
+            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            @click.stop="handleCopyQueryValue"
+          ></div>
+          <div
+            v-bk-tooltips="$t('清理当前查询')"
+            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            @click.stop="handleClearBtnClick"
+          ></div>
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
@@ -471,7 +478,7 @@
           >
         </div>
       </div>
-      <div style="display: none">
+      <!-- <div style="display: none">
         <div
           ref="refPopContent"
           class="bklog-search-input-poptool"
@@ -487,7 +494,7 @@
             @click.stop="handleClearBtnClick"
           ></div>
         </div>
-      </div>
+      </div> -->
     </div>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect></CommonFilterSelect>
