@@ -26,8 +26,8 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import ConditionSelector from './condition-selector';
 import ResidentSetting from './resident-setting';
+import UiSelector from './ui-selector';
 import { EMode, MODE_LIST } from './utils';
 
 import './retrieval-filter.scss';
@@ -68,7 +68,7 @@ export default class RetrievalFilter extends tsc<object> {
               </div>,
             ])}
           </div>
-          <div class='filter-content'>{this.mode === EMode.ui ? <ConditionSelector /> : undefined}</div>
+          <div class='filter-content'>{this.mode === EMode.ui ? <UiSelector /> : undefined}</div>
           <div class='component-right'>
             {this.mode === EMode.ui && (
               <div

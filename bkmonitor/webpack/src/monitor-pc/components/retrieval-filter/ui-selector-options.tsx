@@ -23,21 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './condition-selector.scss';
-
+import './ui-selector-options.scss';
 @Component
-export default class ConditionSelector extends tsc<object> {
+export default class UiSelectorOptions extends tsc<object> {
   render() {
-    return (
-      <div class='retrieval-filter__condition-selector-component'>
-        <div class='add-btn'>
-          <span class='icon-monitor icon-mc-add' />
-          <span class='add-text'>{this.$t('添加条件')}</span>
-        </div>
-      </div>
-    );
+    return <div class='retrieval-filter__ui-selector-options-component'>xxx</div>;
   }
 }

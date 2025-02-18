@@ -27,7 +27,7 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { destroyTimezone } from '../../i18n/dayjs';
-import DataRetrieval from './data-retrieval';
+import DataRetrieval from './event-retrieval-new/event-retrieval-new';
 
 import type { Route } from 'vue-router';
 
@@ -47,7 +47,7 @@ export default class EventRetrieval extends tsc<object> {
   */
   created() {
     this.$nextTick(() => {
-      this.eventRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
+      // this.eventRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
     });
   }
   beforeRouteLeave(to: Route, from: Route, next: () => void) {

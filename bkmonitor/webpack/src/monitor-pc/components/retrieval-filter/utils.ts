@@ -28,6 +28,39 @@ export enum EMode {
   ql = 'ql',
   ui = 'ui',
 }
+export enum ECondition {
+  and = 'and',
+}
+export enum EMethod {
+  eq = 'eq',
+  exclude = 'exclude',
+  include = 'include',
+  ne = 'ne',
+}
+export enum EFieldType {
+  keyword = 'keyword',
+}
+export interface IFilterField {
+  name: string;
+  alias: string;
+  type: EFieldType;
+  is_option_enabled: boolean; // 是否可自定选项
+  supported_operations: {
+    alias: string;
+    value: EMethod;
+    options?: {
+      label: string;
+      name: string;
+    };
+  }[]; // 支持的操作
+}
+export interface IFilterItem {
+  key: { id: string; name: string };
+  condition: { id: ECondition; name: string };
+  method: { id: EMethod; name: string };
+  value: { id: string; name: string }[];
+  hide?: boolean;
+}
 export const MODE_LIST = [
   { id: EMode.ui, name: window.i18n.tc('UI 模式') },
   { id: EMode.ql, name: window.i18n.tc('语句模式') },
