@@ -26,10 +26,10 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
-import DashboardTools from '../../../monitor-k8s/components/dashboard-tools';
+import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
+import DashboardTools from '../../monitor-k8s/components/dashboard-tools';
 
-import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import './event-retrieval-header.scss';
 interface EventRetrievalNavBarProps {

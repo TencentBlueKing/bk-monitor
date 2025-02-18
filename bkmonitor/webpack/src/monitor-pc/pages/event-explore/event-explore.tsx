@@ -26,18 +26,18 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import RetrievalFilter from '../../../components/retrieval-filter/retrieval-filter';
+import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
-import './event-retrieval-new.scss';
+import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
 export default class EventRetrievalNew extends tsc<object> {
   render() {
     return (
-      <div class='event-retrieval-new-page'>
+      <div class='event-explore'>
         <div class='left-favorite-panel' />
         <div class='right-main-panel'>
           <EventRetrievalHeader />
