@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict
+from typing import Dict, List
 
 from django.db import models
 from rest_framework import serializers
@@ -118,3 +118,22 @@ def GetCustomMetricInfoResource(Resource):
         TODO: 获取自定义指标分组信息
         """
         return {"metric_groups": [], "common_dimensions": []}
+
+
+def GetCustomMetricDimensionValuesResource(Resource):
+    """
+    获取自定义指标维度值
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务")
+        id = serializers.IntegerField(label="自定义指标分组ID")
+        dimension = serializers.ListField(label="维度")
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+
+    def perform_request(self, params: Dict) -> List[Dict]:
+        """
+        TODO: 获取自定义指标维度值
+        """
+        return []
