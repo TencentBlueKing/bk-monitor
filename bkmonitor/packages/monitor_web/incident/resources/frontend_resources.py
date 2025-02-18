@@ -176,8 +176,6 @@ class IncidentBaseResource(Resource):
                         IncidentOperationManager.record_close_incident(
                             incident_info["incident_id"], update_time.timestamp
                         )
-                    elif incident_value == IncidentStatus.RECOVERING.value:
-                        incident_document.end_time = int(time.time())
 
                     incident_document.status_order = IncidentStatus(incident_value).order
                 elif incident_key == "feedback":
