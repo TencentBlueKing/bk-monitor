@@ -33,7 +33,7 @@ def merge_resources(resources_dir: Path):
                         )
 
                         # 补充标签
-                        tags = []
+                        tags = [file.name.split(".")[0]]
                         if "tags" in method_data:
                             tags.extend(method_data["tags"])
                         tags.extend([f"{public_dir}_api", f"{verify_dir}_verify"])

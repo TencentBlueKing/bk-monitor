@@ -11,8 +11,6 @@ paths:
     post:
       operationId: create_apm_application
       description: 创建APM应用
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -31,8 +29,6 @@ paths:
     post:
       operationId: delete_apm_application
       description: 删除APM应用
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -51,8 +47,6 @@ paths:
     post:
       operationId: apply_apm_datasource
       description: 申请APM数据源
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -71,8 +65,6 @@ paths:
     get:
       operationId: list_apm_application
       description: 获取应用列表
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -91,8 +83,6 @@ paths:
     get:
       operationId: list_apm_es_cluster_info
       description: 获取es集群信息
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -111,8 +101,6 @@ paths:
     post:
       operationId: query_apm_topo_instance
       description: 查询topo实例
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -131,8 +119,6 @@ paths:
     post:
       operationId: query_apm_remote_service_relation
       description: 查询远程服务接口调用关系
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -151,8 +137,6 @@ paths:
     get:
       operationId: query_metric_dimensions
       description: 查询指标维度
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -171,8 +155,6 @@ paths:
     post:
       operationId: query_apm_discover_rules
       description: 查询拓扑发现规则
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -191,8 +173,6 @@ paths:
     get:
       operationId: query_apm_bk_data_flow_detail
       description: 获取bkdata flow详情
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -211,8 +191,6 @@ paths:
     post:
       operationId: create_or_update_bkdata_flow
       description: 创建/更新计算平台Flow
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -231,8 +209,6 @@ paths:
     post:
       operationId: operate_apm_dataid
       description: 恢复/暂停APM中某个DataId的链路
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -251,8 +227,6 @@ paths:
     get:
       operationId: query_apm_topo_node
       description: 查询topo节点
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -271,8 +245,6 @@ paths:
     get:
       operationId: query_apm_profile_service_detail
       description: 查询profile服务详情
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -291,8 +263,6 @@ paths:
     get:
       operationId: query_builtin_profile_datasource
       description: 查询内建 Profiling 存储
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -311,8 +281,6 @@ paths:
     post:
       operationId: query_apm_topo_relation
       description: 查询topo关系
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -331,8 +299,6 @@ paths:
     get:
       operationId: query_apm_root_endpoint
       description: 查询root入口
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -351,8 +317,6 @@ paths:
     get:
       operationId: start_apm_application
       description: 启动应用
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -371,8 +335,6 @@ paths:
     get:
       operationId: stop_apm_application
       description: 停止应用
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -391,8 +353,6 @@ paths:
     post:
       operationId: query_apm_span
       description: 查询span信息
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -411,8 +371,6 @@ paths:
     post:
       operationId: query_apm_endpoint
       description: 查询APM入口
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -431,8 +389,6 @@ paths:
     get:
       operationId: query_apm_fields
       description: 查询字段信息
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -451,8 +407,6 @@ paths:
     post:
       operationId: update_apm_metric_fields
       description: 更新apm指标字段
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -471,8 +425,6 @@ paths:
     post:
       operationId: query_apm_es
       description: 查询apm相关es数据
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -491,8 +443,6 @@ paths:
     post:
       operationId: query_apm_host_instance
       description: 查询apm主机实例
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -511,8 +461,6 @@ paths:
     post:
       operationId: query_apm_es_mapping
       description: 查询apm应用es映射
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -531,8 +479,6 @@ paths:
     post:
       operationId: query_apm_trace_list
       description: 查询trace列表
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -551,8 +497,6 @@ paths:
     post:
       operationId: query_apm_span_list
       description: 查询span列表
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -571,8 +515,6 @@ paths:
     post:
       operationId: query_apm_span_statistics
       description: 查询接口统计列表
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -591,8 +533,6 @@ paths:
     post:
       operationId: query_apm_service_statistics
       description: 查询服务统计列表
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -611,8 +551,6 @@ paths:
     post:
       operationId: query_apm_trace_option_values
       description: 查询trace列表候选值
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -631,8 +569,6 @@ paths:
     post:
       operationId: query_apm_span_option_values
       description: 查询span列表候选值
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -651,8 +587,6 @@ paths:
     post:
       operationId: query_apm_trace_detail
       description: 查询trace详情
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -671,8 +605,6 @@ paths:
     post:
       operationId: query_apm_span_detail
       description: 查询span详情
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -691,8 +623,6 @@ paths:
     get:
       operationId: query_apm_application_config
       description: 查询APM应用配置
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -711,8 +641,6 @@ paths:
     post:
       operationId: release_apm_app_config
       description: 下发APM应用配置
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -731,8 +659,6 @@ paths:
     post:
       operationId: delete_apm_app_config
       description: 删除APM应用配置
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -751,8 +677,6 @@ paths:
     post:
       operationId: query_trace_by_ids
       description: 根据traceId列表获取trace信息
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -771,8 +695,6 @@ paths:
     post:
       operationId: query_app_by_trace
       description: 根据traceId列表获取App关联
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -791,8 +713,6 @@ paths:
     post:
       operationId: query_app_by_host_instance
       description: 根据ip列表获取App关联
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -811,8 +731,6 @@ paths:
     post:
       operationId: query_log_relation_by_index_set_id
       description: 根据索引集id获取服务关联
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -831,8 +749,6 @@ paths:
     post:
       operationId: query_trace_by_host_instance
       description: 根据ip获取trace信息
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -851,8 +767,6 @@ paths:
     post:
       operationId: apm_create_web_application
       description: 【APM】应用创建
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -871,8 +785,6 @@ paths:
     post:
       operationId: apm_delete_web_application
       description: 【APM】应用删除
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -891,8 +803,6 @@ paths:
     post:
       operationId: apm_update_web_application
       description: 【APM】应用更新
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -911,8 +821,6 @@ paths:
     get:
       operationId: apm_check_duplicate_app_name
       description: 【APM】应用名校验
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -931,8 +839,6 @@ paths:
     get:
       operationId: apm_application_info
       description: 【APM】应用详情查询
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -951,8 +857,6 @@ paths:
     get:
       operationId: query_bk_data_token
       description: 【APM】应用token查询
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -971,8 +875,6 @@ paths:
     get:
       operationId: apm_application_info_by_app_name
       description: 【APM】根据应用名查询应用详情
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -991,8 +893,6 @@ paths:
     post:
       operationId: query_apm_event
       description: 查询APM相关事件信息
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -1011,8 +911,6 @@ paths:
     post:
       operationId: query_apm_ebpf_service_list
       description: 获取 ebpf 相关应用服务列表
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -1031,8 +929,6 @@ paths:
     post:
       operationId: query_apm_ebpf_profile
       description: 获取单个 ebpf 服务下的 profiling 性能数据
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true

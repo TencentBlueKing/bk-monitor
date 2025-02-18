@@ -11,8 +11,6 @@ paths:
     post:
       operationId: apm_create_application
       description: 快速创建APM应用
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
@@ -31,8 +29,6 @@ paths:
     get:
       operationId: apm_start_application
       description: 开启APM应用数据上报
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
@@ -51,8 +47,6 @@ paths:
     get:
       operationId: apm_stop_application
       description: 关闭APM应用数据上报
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
@@ -71,8 +65,6 @@ paths:
     post:
       operationId: apm_delete_application
       description: 删除应用
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
@@ -91,8 +83,6 @@ paths:
     get:
       operationId: detail_apm_application
       description: 应用详情
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
@@ -111,8 +101,6 @@ paths:
     post:
       operationId: apply_strategies_to_services
       description: 导入策略到 APM 服务
-      tags:
-        - apm
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
