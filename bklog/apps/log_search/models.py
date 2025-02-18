@@ -837,7 +837,7 @@ class Favorite(OperateRecordModel):
         verbose_name = _("检索收藏")
         verbose_name_plural = _("34_搜索-检索收藏")
         ordering = ("-updated_at",)
-        unique_together = [("name", "group_id", "source_app_code")]
+        unique_together = [("name", "space_uid", "group_id", "source_app_code", "created_by")]
 
     @classmethod
     def get_user_favorite(cls, space_uid: str, username: str, order_type: str = FavoriteListOrderType.NAME_ASC.value):

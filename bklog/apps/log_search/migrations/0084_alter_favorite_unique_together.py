@@ -11,6 +11,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterUniqueTogether(
             name='favorite',
-            unique_together={('name', 'group_id', 'source_app_code')},
+            unique_together={('name', 'space_uid', 'group_id', 'source_app_code', 'created_by')},
         ),
     ]
