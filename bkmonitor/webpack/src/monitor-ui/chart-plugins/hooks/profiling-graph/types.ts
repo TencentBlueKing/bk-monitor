@@ -23,45 +23,36 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export interface IDiffInfo {
+  baseline: number;
+  comparison: number;
+  mark: 'added' | 'changed' | 'removed' | 'unchanged';
+  diff: number;
+}
+export interface IFlameGraphDataItem {
+  id: string;
+  name: string;
+  self: number;
+  value: number;
+  level: number;
+  children?: IFlameGraphDataItem[];
+  start?: number;
+  end?: number;
+  proportion?: number;
+  diff_info?: IDiffInfo;
+}
 
-/**
- * 链路配置相关接口
- */
+export type IFlameGraphData = IFlameGraphDataItem[];
 
-// 链路列表
-const getLinkList = {
-  url: '/databus/data_link/',
-  method: 'get',
-};
-// 链路详情
-const getLinkDetail = {
-  url: '/databus/data_link/:data_link_id/',
-  method: 'get',
-};
-// 创建链路
-const createLink = {
-  url: '/databus/data_link/',
-  method: 'post',
-};
-// 更新链路
-const updateLink = {
-  url: '/databus/data_link/:data_link_id/',
-  method: 'put',
-};
-// 删除链路
-const deleteLink = {
-  url: '/databus/data_link/:data_link_id/',
-  method: 'delete',
+export type IProfilingGraphData = Pick<
+  IFlameGraphDataItem,
+  'end' | 'id' | 'level' | 'name' | 'proportion' | 'self' | 'start'
+> & {
+  value: any[];
 };
 
-// 集群列表
-const getClusterList = {
-  url: '/databus/data_link/get_cluster_list/',
-  method: 'get',
-};
-// cmdb补充数据列表
-const getSearchObjectAttribute = {
-  url: '/databus/collectors/search_object_attribute/',
-  method: 'get',
-};
-export { getLinkList, getLinkDetail, createLink, updateLink, deleteLink, getClusterList, getSearchObjectAttribute };
+export interface ICommonMenuItem {
+  id: string;
+  name: string;
+  icon: string;
+}

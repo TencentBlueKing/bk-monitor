@@ -1914,6 +1914,10 @@ export default defineComponent({
       data.id = node.alert_ids[0];
       window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
     };
+    const handleRootToSpan = () => {
+      const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
+      rootNode && goToTracePage(rootNode.entity, 'traceDetail');
+    };
     const goToTracePage = (entity: IEntity, type) => {
       const { rca_trace_info, observe_time_rage } = entity;
       const query: Record<string, number | string> = {};
@@ -1977,6 +1981,7 @@ export default defineComponent({
       tooltipsType,
       handleToDetail,
       handleHideToolTips,
+      handleRootToSpan,
       handleFeedBackChange,
       handleFeedBack,
       handleShowLegend,

@@ -311,8 +311,7 @@ export default class FieldItem extends tsc<object> {
             )}
             {/* 设置字段显示或隐藏 */}
             {
-              this.fieldItem.field_type !== 'object' && (
-                <div
+              <div
                 class='operation-icon-box'
                 v-bk-tooltips={{
                   content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
@@ -324,7 +323,6 @@ export default class FieldItem extends tsc<object> {
               >
                 <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
               </div>
-              )
             }
           
             {/* 拖动字段位置按钮 */}

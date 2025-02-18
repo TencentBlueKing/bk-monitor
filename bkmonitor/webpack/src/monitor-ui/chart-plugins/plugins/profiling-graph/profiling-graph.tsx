@@ -52,7 +52,7 @@ import { CommonSimpleChart } from '../common-simple-chart';
 import ChartTitle from './chart-title/chart-title';
 import DiffChart from './diff-chart/diff-chart';
 import FilterSelect from './filter-select/filter-select';
-import FrameGraph from './flame-graph/flame-graph';
+import FrameGraph from './flame-graph/flame-graph-v2';
 import TableGraph from './table-graph/table-graph';
 import TopoGraph from './topo-graph/topo-graph';
 import TrendChart from './trend-chart/trend-chart';
@@ -68,7 +68,7 @@ interface IProfilingChartProps {
 @Component
 class ProfilingChart extends CommonSimpleChart {
   @Ref() frameGraphRef: InstanceType<typeof FrameGraph>;
-  @Ref() grahWrapperRef: HTMLDivElement;
+  @Ref() graphWrapperRef: HTMLDivElement;
 
   isGraphLoading = false;
   isFirstLoad = true;
@@ -109,7 +109,7 @@ class ProfilingChart extends CommonSimpleChart {
   /** 开启 profiling 请求 loading */
   enableProfilingLoading = false;
   applicationId = -1;
-
+  downloadImgIndex = 0;
   get detailPanel() {
     return new PanelModel({
       title: 'workload',
@@ -336,7 +336,7 @@ class ProfilingChart extends CommonSimpleChart {
   handleDownload(type: string) {
     switch (type) {
       case 'png':
-        this.frameGraphRef?.handleStoreImg();
+        this.downloadImgIndex += 1;
         break;
       case 'pprof': {
         const params = this.getParams({ export_format: 'pprof' });
@@ -459,7 +459,7 @@ class ProfilingChart extends CommonSimpleChart {
   }
   handleKeywordChange(v: string) {
     this.filterKeyword = v;
-    this.grahWrapperRef?.scrollTo({
+    this.graphWrapperRef?.scrollTo({
       top: 0,
       behavior: 'instant',
     });
@@ -553,6 +553,7 @@ class ProfilingChart extends CommonSimpleChart {
                 <ChartTitle
                   activeMode={this.activeMode}
                   isCompared={this.queryParams.is_compared}
+                  keyword={this.filterKeyword}
                   textDirection={this.textDirection}
                   onDownload={this.handleDownload}
                   onKeywordChange={this.handleKeywordChange}
@@ -563,7 +564,7 @@ class ProfilingChart extends CommonSimpleChart {
                   <div class='empty-chart'>{this.emptyText}</div>
                 ) : (
                   <div
-                    ref='grahWrapperRef'
+                    ref='graphWrapperRef'
                     class='profiling-graph-content'
                   >
                     {[ViewModeType.Combine, ViewModeType.Table].includes(this.activeMode) && (
@@ -579,26 +580,28 @@ class ProfilingChart extends CommonSimpleChart {
                         textDirection={this.textDirection}
                         unit={this.unit}
                         onSortChange={this.handleSortChange}
-                        onUpdateHighlightName={name => (this.highlightName = name)}
+                        onUpdateHighlightName={name => {
+                          this.highlightName = name;
+                          this.handleKeywordChange(name);
+                        }}
                       />
                     )}
                     {[ViewModeType.Combine, ViewModeType.Flame].includes(this.activeMode) && (
                       <FrameGraph
-                        ref='frameGraphRef'
                         style={{
                           width: this.activeMode === ViewModeType.Combine ? '50%' : '100%',
                         }}
                         appName={(this.viewOptions as any).app_name}
                         data={this.flameData}
-                        filterKeywords={this.flameFilterKeywords}
-                        highlightId={this.highlightId}
-                        highlightName={this.highlightName}
+                        downloadImgIndex={this.downloadImgIndex}
+                        filterKeyword={this.filterKeyword}
                         isCompared={this.queryParams.is_compared}
-                        showGraphTools={false}
                         textDirection={this.textDirection}
                         unit={this.unit}
-                        onUpdateHighlightId={id => (this.highlightId = id)}
-                        onUpdateHighlightName={name => (this.highlightName = name)}
+                        onUpdateFilterKeyword={name => {
+                          this.highlightName = name;
+                          this.handleKeywordChange(name);
+                        }}
                       />
                     )}
                     {ViewModeType.Topo === this.activeMode && <TopoGraph topoSrc={this.topoSrc} />}
