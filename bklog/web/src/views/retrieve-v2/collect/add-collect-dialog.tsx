@@ -273,6 +273,8 @@ export default class CollectDialog extends tsc<IProps> {
 
   /** 判断是否收藏名是否重复 */
   checkRepeatName() {
+    console.log(this.favStrList,this.favoriteData.name,this.favStrList.includes(this.favoriteData.name));
+    
     if (this.currentFavoriteName === this.favoriteData.name) return true;
     return !this.favStrList.includes(this.favoriteData.name);
   }
