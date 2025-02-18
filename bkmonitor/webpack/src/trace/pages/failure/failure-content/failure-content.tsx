@@ -23,16 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { KeepAlive, type PropType, type Ref, computed, defineComponent, inject, ref, watch, nextTick, provide } from 'vue';
+import {
+  KeepAlive,
+  type PropType,
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  ref,
+  watch,
+  nextTick,
+  provide,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
 
 import { incidentValidateQueryString } from 'monitor-api/modules/incident';
 
 import AlarmDetail from '../alarm-detail/alarm-detail';
 import FilterSearchInput from '../failure-handle/filter-search-input';
 import FailureMenu from '../failure-menu/failure-menu';
-import FailureTiming from '../failure-timing/failure-timing';
+// import FailureTiming from '../failure-timing/failure-timing';
 import FailureTopo from '../failure-topo/failure-topo';
 import FailureView from '../failure-view/failure-view';
 
@@ -86,6 +96,7 @@ export default defineComponent({
   emits: ['refresh', 'changeSelectNode'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const failureTopo = ref<InstanceType<typeof FailureTopo>>(null);
     const active = ref<string>(FailureContentTabView.FAILURE_TOPO);
     const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
@@ -97,10 +108,10 @@ export default defineComponent({
         name: FailureContentTabView.FAILURE_TOPO,
         label: t('故障拓扑'),
       },
-      {
-        name: FailureContentTabView.FAILURE_TIMING,
-        label: t('故障时序'),
-      },
+      // {
+      //   name: FailureContentTabView.FAILURE_TIMING,
+      //   label: t('故障时序'),
+      // },
       {
         name: FailureContentTabView.FAILURE_VIEW,
         label: t('告警'),
@@ -119,7 +130,7 @@ export default defineComponent({
         icon: 'icon-mc-list',
       },
     ];
-    const chooseOperation = ref<IIncidentOperation | any>();
+    const chooseOperation = ref<any | IIncidentOperation>();
     const currentNodeData = computed(() => {
       return props.currentNode;
     });
@@ -164,6 +175,10 @@ export default defineComponent({
       const regExp = new RegExp(`${t('通知人')}\\s*:\\s*(""|'')`, 'gi');
       return qs.replace(regExp, `NOT ${t('通知人')} : *`);
     };
+    // 触发拓扑中跳转到span的事件
+    const handleRootToSpan = () => {
+      failureTopo.value?.handleRootToSpan();
+    };
     const handleValidateQueryString = async () => {
       let validate = true;
       if (alertIdsObject.value?.ids?.length) {
@@ -187,7 +202,9 @@ export default defineComponent({
     return {
       tabList,
       active,
+      failureTopo,
       handleChangeActive,
+      handleRootToSpan,
       currentNodeData,
       playingHandle,
       goAlertDetail,
@@ -215,6 +232,7 @@ export default defineComponent({
         <KeepAlive>
           {this.active === FailureContentTabView.FAILURE_TOPO && (
             <FailureTopo
+              ref='failureTopo'
               selectNode={this.currentNodeData || []}
               onChangeSelectNode={this.handleChangeSelectNode}
               onPlaying={this.playingHandle}
@@ -222,16 +240,16 @@ export default defineComponent({
               onToDetailTab={this.goAlertDetail}
             />
           )}
-          {this.active === FailureContentTabView.FAILURE_TIMING && (
+          {/* {this.active === FailureContentTabView.FAILURE_TIMING && (
             <FailureTiming
               alertAggregateData={this.$props.alertAggregateData}
               chooseOperation={this.chooseOperation}
               scrollTop={this.$props.scrollTop}
+              onChangeTab={this.goAlertDetail}
               onGoAlertDetail={this.goAlertDetail}
               onRefresh={this.refresh}
-              onChangeTab={this.goAlertDetail}
             />
-          )}
+          )} */}
           {this.active === FailureContentTabView.FAILURE_VIEW && (
             <div class='failure-view-content'>
               <div class='content-head'>

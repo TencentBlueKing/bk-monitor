@@ -268,7 +268,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   handleMousedown() {
     this.showPopover = true;
     this.textareaRow = this.limitRows();
-    this.localHistoryList = JSON.parse(localStorage.getItem(storageKey)).slice(0, 10) || [];
+    this.localHistoryList = JSON.parse(localStorage.getItem(storageKey))?.slice(0, 10) || [];
   }
   /** 关联的屏蔽策略/关联的告警  */
   handleOperator(e: Event, item: ISearchItem, key: string) {
@@ -299,7 +299,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       >
         {isHost && <span class='ip-tag'>{item.bk_cloud_id}:</span>}
         <span class='item-label'>
-          <span domPropsInnerHTML={item.nameSearch}></span>
+          <span domPropsInnerHTML={item.nameSearch} />
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
           {isBcsCluster && <span class='ip-sub'>（{item.bcs_cluster_id}）</span>}
           {isHost && item.compare_hosts.length > 0 && (
@@ -352,7 +352,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         ]}
         onClick={e => this.handleClickHistoryItem(e, item)}
       >
-        <i class='icon-monitor icon-History item-icon'></i>
+        <i class='icon-monitor icon-History item-icon' />
         <span class='history-item-name'>{item.name}</span>
       </div>
     );
@@ -682,17 +682,17 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         name: isNewK8sV2List ? 'k8s-new' : 'k8s',
         query: isNewK8sV2List
           ? {
-              sceneId: 'kubernetes',
-              cluster: item.bcs_cluster_id,
-              scene: 'performance',
-              activeTab: 'list',
-            }
+            sceneId: 'kubernetes',
+            cluster: item.bcs_cluster_id,
+            scene: 'performance',
+            activeTab: 'list',
+          }
           : {
-              'filter-bcs_cluster_id': item.bcs_cluster_id,
-              sceneId: 'kubernetes',
-              sceneType: 'detail',
-              dashboardId: 'cluster',
-            },
+            'filter-bcs_cluster_id': item.bcs_cluster_id,
+            sceneId: 'kubernetes',
+            sceneType: 'detail',
+            dashboardId: 'cluster',
+          },
       },
       /** 跳转到其他系统的话，则配置isOtherWeb为true */
       /** 集群管理跳转到bcs */
@@ -746,7 +746,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               class='item-list-clear'
               onClick={this.clearHistory}
             >
-              <i class='icon-monitor icon-a-Clearqingkong history-clear-icon'></i>
+              <i class='icon-monitor icon-a-Clearqingkong history-clear-icon' />
               {this.$t('清空历史')}
             </span>
           </div>
@@ -816,7 +816,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
           style={{ width: `${this.computedWidth}px` }}
           class='new-home-select-input'
         >
-          {!this.isBarToolShow && <span class='icon-monitor new-home-select-icon icon-mc-search'></span>}
+          {!this.isBarToolShow && <span class='icon-monitor new-home-select-icon icon-mc-search' />}
           <textarea
             ref='textareaInput'
             class={['home-select-input', { 'is-hidden': this.textareaRow === 1 }]}
@@ -829,8 +829,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             onFocus={this.handleMousedown}
             onInput={this.autoResize}
             onKeydown={this.handleKeydown}
-          ></textarea>
-          {this.isBarToolShow && <span class='bk-icon icon-search'></span>}
+          />
+          {this.isBarToolShow && <span class='bk-icon icon-search' />}
           {this.searchValue && (
             <span
               class='icon-monitor clear-btn icon-mc-close-fill'

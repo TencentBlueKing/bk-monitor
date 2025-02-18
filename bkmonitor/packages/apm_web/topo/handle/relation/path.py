@@ -391,7 +391,7 @@ class K8sServiceSidebar(PathTemplateSidebar):
 @dataclass
 class SystemSidebar(PathTemplateSidebar):
     id: str = SourceSystem.name
-    name: str = "IDC"
+    name: str = "Host"
     bind_source_type: Source = SourceSystem
     group: SidebarGroup = DataCenterGroup
 
