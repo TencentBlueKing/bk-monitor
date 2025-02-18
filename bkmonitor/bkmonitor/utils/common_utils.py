@@ -742,7 +742,12 @@ def fetch_biz_id_from_request(request, view_kwargs):
             biz_id = fetch_biz_id_from_dict(body)
         except Exception:
             pass
-    return biz_id
+
+    # 如果biz_id以/结尾，则去掉/
+    if biz_id:
+        return str(biz_id).rstrip("/")
+
+    return None
 
 
 def to_dict(obj):
