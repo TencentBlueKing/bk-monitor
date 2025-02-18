@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, ProvideReactive } from 'vue-property-decorator';
+import { Component, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
@@ -31,6 +31,7 @@ import { random } from 'monitor-common/utils';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { getDefaultTimezone } from '../../../i18n/dayjs';
+import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
@@ -55,6 +56,8 @@ export default class EventRetrievalNew extends tsc<object> {
   get formatTimeRange() {
     return handleTransformToTimestamp(this.timeRange);
   }
+
+  @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
 
   timer = null;
 
@@ -111,6 +114,10 @@ export default class EventRetrievalNew extends tsc<object> {
     }
   }
 
+  handleCloseDimensionPanel() {
+    this.eventRetrievalLayoutRef.handleClickShrink(false);
+  }
+
   mounted() {
     this.getDataIdList(!this.formData.result_table_id);
   }
@@ -132,11 +139,16 @@ export default class EventRetrievalNew extends tsc<object> {
           />
           <div class='event-retrieval-content'>
             <div class='search-condition-panel' />
-            <EventRetrievalLayout class='content-container'>
+            <EventRetrievalLayout
+              ref='eventRetrievalLayout'
+              class='content-container'
+            >
               <div
                 class='dimension-filter-panel'
                 slot='aside'
-              />
+              >
+                <DimensionFilterPanel onClose={this.handleCloseDimensionPanel} />
+              </div>
               <div class='result-content-panel' />
             </EventRetrievalLayout>
           </div>
