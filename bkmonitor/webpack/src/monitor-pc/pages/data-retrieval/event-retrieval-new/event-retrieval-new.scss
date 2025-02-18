@@ -1,0 +1,41 @@
+.event-retrieval-new-page {
+  display: flex;
+  height: 100%;
+
+  .right-main-panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    height: 100%;
+
+    .event-retrieval-content {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      padding: 8px;
+
+      .search-condition-panel {
+        min-height: 48px;
+        margin-bottom: 8px;
+        background: #FFFFFF;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #19192914;
+      }
+
+      .content-container {
+        flex: 1;
+        background: #FFFFFF;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919291f;
+
+        .dimension-filter-panel {
+          height: 100%;
+          border-right: 1px solid #DCDEE5;
+        }
+
+      }
+
+    }
+
+  }
+}
