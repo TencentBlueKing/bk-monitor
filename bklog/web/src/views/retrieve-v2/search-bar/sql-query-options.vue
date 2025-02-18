@@ -27,6 +27,7 @@
 
   const store = useStore();
   const { $t } = useLocale();
+  const { getFieldNames } = useFieldNameHook({ store });
 
   enum OptionItemType {
     Colon = 'Colon',
@@ -66,7 +67,6 @@
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    const { getFieldNames } = useFieldNameHook({ store });
     return getFieldNames(totalFields.value.filter(filterFn));
   });
 

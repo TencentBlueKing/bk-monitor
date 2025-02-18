@@ -116,7 +116,7 @@
   // 是否为自动foucus到input
   // 自动focus不用弹出选择提示
   const isAutoFocus = ref(false);
-
+  const { getFieldName } = useFieldNameHook({ store });
   const {
     modelValue,
     isDocumentMousedown,
@@ -182,7 +182,7 @@
   const getMatchName = field => {
     if (field === '*') return $t('全文');
     if (field === '_ip-select_') return $t('IP目标');
-    const { getFieldName } = useFieldNameHook({ store });
+
     return getFieldName(field);
   };
 
@@ -205,8 +205,8 @@
       return;
     }
     const { changeFieldName } = useFieldNameHook({ store });
-    const itemCopy = cloneDeep(item)
-    itemCopy.field = changeFieldName(itemCopy.field)
+    const itemCopy = cloneDeep(item);
+    itemCopy.field = changeFieldName(itemCopy.field);
     queryItem.value = {};
     isInputFocus.value = false;
     if (!Array.isArray(item.value)) item.value = item.value.split(',');

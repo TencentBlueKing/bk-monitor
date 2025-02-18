@@ -17,12 +17,12 @@ from operator import methodcaller
 from django.conf import settings
 from django.db import models
 
-from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata.models.constants import LOG_REPORT_MAX_QPS
+from utils.redis_client import RedisClient
 
 logger = logging.getLogger("metadata")
 
@@ -183,13 +183,17 @@ class CustomReportSubscription(models.Model):
                 tables=[data_source_table_name],
                 where=["{}.bk_data_id={}.bk_data_id".format(group_table_name, data_source_table_name)],
             )
-            .values("bk_biz_id", "bk_data_id", "token", "max_rate", "name")
+            .values("bk_biz_id", "bk_data_id", "token", "max_rate")
             .distinct()
         )
         biz_id_to_data_id_config = {}
         if not result:
             logger.info("no custom report config in database")
             return biz_id_to_data_id_config
+
+        # 无效的prometheus上报分组id
+        redis_client = RedisClient.from_envs(prefix="BK_MONITOR_TRANSFER")
+        disabled_ts_group_ids = list(map(int, redis_client.hgetall("bkmonitor:disabled_ts_group").keys()))
 
         for r in result:
             max_rate = int(r.get("max_rate", MAX_DATA_ID_THROUGHPUT))
@@ -239,6 +243,8 @@ class CustomReportSubscription(models.Model):
 
                     group = TimeSeriesGroup.objects.get(bk_data_id=r["bk_data_id"])
                     try:
+                        if group.custom_group_id in disabled_ts_group_ids:
+                            continue
                         group_info = api.monitor.custom_time_series_detail(
                             bk_biz_id=group.bk_biz_id, time_series_group_id=group.custom_group_id
                         )
@@ -246,6 +252,7 @@ class CustomReportSubscription(models.Model):
                         logger.warning(
                             f"[{r['bk_data_id']}]get custom time series group[{group.custom_group_id}] detail error"
                         )
+                        redis_client.hset("bkmonitor:disabled_ts_group", str(group.custom_group_id), 1)
                         continue
 
                     # prometheus格式: bk-collector-application.conf

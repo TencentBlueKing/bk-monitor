@@ -33,11 +33,7 @@ def merge_resources(resources_dir: Path):
                         )
 
                         # 补充标签
-                        tags = [file.name.split(".")[0]]
-                        if "tags" in method_data:
-                            tags.extend(method_data["tags"])
-                        tags.extend([f"{public_dir}_api", f"{verify_dir}_verify"])
-                        method_data["tags"] = tags
+                        method_data["tags"] = method_data.get("tags") or [file.name.split(".")[0]]
 
                         # 设置public
                         method_data["x-bk-apigateway-resource"]["isPublic"] = public_dir == "external"

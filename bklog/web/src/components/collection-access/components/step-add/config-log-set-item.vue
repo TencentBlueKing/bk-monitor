@@ -158,7 +158,15 @@
               </div>
               <div class="black-title-tips">
                 <i class="bk-icon icon-info-circle"></i>
-                <span>{{ $t('若需要排除指定路径，请展开添加路径') }}</span>
+                <span>
+                  {{ $t('可通过正则语法排除符合条件的匹配项') }}   
+                  <!-- <a
+                    href="javascript:;"
+                    @click.stop="()=>{}"
+                  >
+                    {{ $t('正则语法说明') }}
+                  </a> -->
+                  {{ $t('。如：匹配任意字符：.*')}}</span>
               </div>
             </div>
             <template v-if="isShowBlackList">
