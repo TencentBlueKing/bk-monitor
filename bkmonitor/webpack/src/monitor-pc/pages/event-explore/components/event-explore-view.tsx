@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -26,35 +26,26 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import EventExploreView from './components/event-explore-view';
-import EventRetrievalHeader from './components/event-retrieval-header';
-import EventRetrievalLayout from './components/event-retrieval-layout';
+import EventExploreChart from './event-explore-chart';
 
-import './event-explore.scss';
-Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
+import './event-explore-view.scss';
+
+interface IEventExploreViewProps {
+  test?: string;
+}
+interface IEventExploreViewEvent {
+  onClick?: () => void;
+}
 
 @Component
-export default class EventRetrievalNew extends tsc<object> {
+export default class EventExploreView extends tsc<IEventExploreViewProps, IEventExploreViewEvent> {
   render() {
     return (
-      <div class='event-explore'>
-        <div class='left-favorite-panel' />
-        <div class='right-main-panel'>
-          <EventRetrievalHeader />
-          <div class='event-retrieval-content'>
-            <RetrievalFilter />
-            <EventRetrievalLayout class='content-container'>
-              <div
-                class='dimension-filter-panel'
-                slot='aside'
-              />
-              <div class='result-content-panel'>
-                <EventExploreView />
-              </div>
-            </EventRetrievalLayout>
-          </div>
+      <div class='event-explore-view-wrapper'>
+        <div class='event-explore-chart-wrapper'>
+          <EventExploreChart />
         </div>
+        <div class='event-explore-table'>table</div>
       </div>
     );
   }

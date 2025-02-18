@@ -35,15 +35,17 @@
       v-if="chartTitle || $slots.title"
       class="echart-header"
     >
-      <chart-title
-        class="chart-title-wrap"
-        :menu-list="chartOption.tool.list"
-        :show-more="!readonly && showTitleTool"
-        :subtitle="chartSubTitle"
-        :title="chartTitle"
-        @menuClick="handleMoreToolItemSet"
-        @selectChild="handleSelectChildMenu"
-      />
+      <slot name="title">
+        <chart-title
+          class="chart-title-wrap"
+          :menu-list="chartOption.tool.list"
+          :show-more="!readonly && showTitleTool"
+          :subtitle="chartSubTitle"
+          :title="chartTitle"
+          @menuClick="handleMoreToolItemSet"
+          @selectChild="handleSelectChildMenu"
+        />
+      </slot>
     </div>
     <div
       ref="charWrapRef"
