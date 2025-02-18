@@ -26,6 +26,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import RetrievalFilter from '../../../components/retrieval-filter/retrieval-filter';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
@@ -41,7 +42,7 @@ export default class EventRetrievalNew extends tsc<object> {
         <div class='right-main-panel'>
           <EventRetrievalHeader />
           <div class='event-retrieval-content'>
-            <div class='search-condition-panel' />
+            <RetrievalFilter />
             <EventRetrievalLayout class='content-container'>
               <div
                 class='dimension-filter-panel'
