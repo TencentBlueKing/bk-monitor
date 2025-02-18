@@ -40,6 +40,7 @@ class BaseEventRequestSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务 ID")
     start_time = serializers.IntegerField(label="开始时间", required=False)
     end_time = serializers.IntegerField(label="结束时间", required=False)
+    is_mock = serializers.BooleanField(label="是否使用mock数据", required=False, default=False)
 
 
 class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
