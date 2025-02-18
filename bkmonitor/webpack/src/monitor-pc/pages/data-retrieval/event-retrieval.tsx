@@ -27,8 +27,7 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { destroyTimezone } from '../../i18n/dayjs';
-// import DataRetrieval from './data-retrieval';
-import DataRetrieval from './event-retrieval-new/event-retrieval-new';
+import DataRetrieval from './data-retrieval';
 
 import type { Route } from 'vue-router';
 
