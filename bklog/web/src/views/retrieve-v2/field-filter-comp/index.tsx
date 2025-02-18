@@ -303,6 +303,12 @@ export default class FieldFilterComp extends tsc<object> {
     this.isShowAllIndexSet = false;
   }
 
+  @Watch('showFieldAlias')
+  watchShowFieldAlias() {
+    // 过滤关键字
+    this.filterListByCondition();
+  }
+
   @Watch('visibleFields', { immediate: true, deep: true })
   watchVisibleFields() {
     this.dragVisibleFields = this.visibleFields.map(item => item.field_name);
