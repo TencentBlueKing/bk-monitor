@@ -50,6 +50,11 @@
       return 1;
     }
 
+    // addition 是一个json字符串，解析出来之后至少为 [{'field': ''}], 所以这里判定长度至少 包含 '[{}]'
+    if (route.query.addition?.length > 4) {
+      return 0;
+    }
+
     return Number(localStorage.getItem('bkLogQueryType') ?? 0);
   };
 
@@ -432,11 +437,7 @@
             :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
             @click.stop="handleClearBtnClick"
           ></div>
-          <div
-            v-bk-tooltips="$t('常用查询设置')"
-            :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
-            @click="handleFilterSecClick"
-          ></div>
+
           <BookmarkPop
             v-if="!props.activeFavorite"
             v-bk-tooltips="$t('收藏当前查询')"
@@ -461,9 +462,11 @@
               @click="saveCurrentActiveFavorite"
             ></div>
           </template>
-          <!-- <CommonFilterSettingPop v-bk-tooltips="$t('常用查询设置')" :class="{ disabled: isInputLoading }"
-            :filter-list="uiQueryValue">
-          </CommonFilterSettingPop> -->
+          <div
+            v-bk-tooltips="$t('常用查询设置')"
+            :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
+            @click="handleFilterSecClick"
+          ></div>
         </div>
         <div
           class="search-tool search-btn"

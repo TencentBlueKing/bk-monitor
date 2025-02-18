@@ -37,13 +37,12 @@ import {
 } from 'vue';
 
 import { Exception } from 'bkui-vue';
-import { getHashVal } from 'monitor-ui/chart-plugins/plugins/profiling-graph/flame-graph/utils';
 import { sortTableGraph } from 'monitor-ui/chart-plugins/plugins/profiling-graph/table-graph/utils';
 import {
   type ProfileDataUnit,
   parseProfileDataTypeValue,
 } from 'monitor-ui/chart-plugins/plugins/profiling-graph/utils';
-import { ColorTypes } from 'monitor-ui/chart-plugins/typings';
+import { getSpanColorByName } from 'monitor-ui/chart-plugins/typings';
 
 import type { DirectionType } from '../../../../typings';
 import type {
@@ -151,9 +150,7 @@ export default defineComponent({
                 : true
             )
             .map(item => {
-              const palette = Object.values(ColorTypes);
-              const colorIndex = getHashVal(item.name) % palette.length;
-              const color = palette[colorIndex];
+              const color = getSpanColorByName(item.name);
               return {
                 ...item,
                 color,

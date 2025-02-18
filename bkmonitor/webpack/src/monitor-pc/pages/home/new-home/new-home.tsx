@@ -45,15 +45,15 @@ export default class NewHome extends tsc<object> {
         <div class='new-home-bg'>
           <div class='new-home-bg-img' />
         </div>
-        <div class='new-home-content'>
+        <div
+          style={{ minWidth: `${this.computedWidth}px` }}
+          class='new-home-content'
+        >
           <HomeSelect />
           <div class='new-home-tool'>
             <RecentFavoritesTab />
           </div>
-          <div
-            style={{ minWidth: `${this.computedWidth}px` }}
-            class='new-home-alarm-list'
-          >
+          <div class='new-home-alarm-list'>
             <RecentAlarmEvents />
           </div>
         </div>

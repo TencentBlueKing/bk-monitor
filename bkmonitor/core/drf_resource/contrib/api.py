@@ -239,7 +239,10 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         if not isinstance(result_json, dict):
             return result_json
 
-        ret_code = result_json.get("code")
+        # 上报API服务观测指标
+        ret_code = result_json.get("code", -1)
+        self.report_api_request_count_metric(code=ret_code)
+
         # 权限中心无权限结构特殊处理
         if ret_code and str(ret_code) in APIPermissionDeniedCodeList:
             self.report_api_failure_metric(error_code=ret_code, exception_type=APIPermissionDeniedError.__name__)
@@ -297,7 +300,23 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             ).inc()
             metrics.report_all()
         except Exception as err:  # pylint: disable=broad-except
-            logger.exception(f"Failed to report api_failed_requests metrics,error:{err}")
+            logger.exception(f"APIResource: Failed to report api_failed_requests metrics,error:{err}")
+
+    def report_api_request_count_metric(self, code):
+        """
+        上报API调用指标，统计返回状态码，现阶段具体实现下沉在各个API Module的render_response_data方法中
+        @param code: 返回状态码
+        """
+        try:
+            metrics.API_REQUESTS_TOTAL.labels(
+                action=self.action,
+                module=self.module_name,
+                code=code,
+                role=settings.ROLE,
+            ).inc()
+            metrics.report_all()
+        except Exception as err:  # pylint: disable=broad-except
+            logger.exception(f"APIResource: Failed to report api_requests metrics,error:{err}")
 
     @property
     def label(self):
