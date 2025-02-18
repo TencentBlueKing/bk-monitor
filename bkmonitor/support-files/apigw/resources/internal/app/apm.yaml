@@ -947,7 +947,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: apm application info
-  /app/apm/query_apm_bk_data_token/:
+  /app/apm/query_bk_data_token/:
     get:
       operationId: query_bk_data_token
       description: 【APM】应用token查询
