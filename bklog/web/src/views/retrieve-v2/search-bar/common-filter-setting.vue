@@ -30,7 +30,6 @@
                 v-for="item in shadowTotal"
                 style="cursor: pointer"
                 class="select-item"
-                v-show="!item.is_display"
                 :key="item.field_name"
                 @click="addField(item)"
               >
@@ -39,7 +38,7 @@
                   :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                 >
                 </span>
-                <span class="field-alias">{{ item.field_alias || item.field_name }}</span>
+                <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
                 <span class="field-name">({{ item.field_name }})</span>
                 <span class="icon bklog-icon bklog-filled-right-arrow"></span>
               </li>
@@ -78,7 +77,7 @@
                     :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                   >
                   </span>
-                  <span class="field-alias">{{ item.field_alias || item.field_name }}</span>
+                  <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
                   <span class="field-name">({{ item.field_name }})</span>
                   <span
                     class="bk-icon icon-close-circle-shape delete"
@@ -112,13 +111,12 @@
   </bk-popover>
 </template>
 <script setup>
-  import { ref, computed, watch } from 'vue';
+  import { ref, computed, watch, set } from 'vue';
   import useStore from '@/hooks/use-store';
   import useLocale from '@/hooks/use-locale';
 
   import VueDraggable from 'vuedraggable';
   import { excludesFields } from './const.common';
-  import { messageWarn } from '@/common/bkmagic.js';
 
   // 获取 store
   const store = useStore();
@@ -139,7 +137,7 @@
   });
 
   const shadowTotal = computed(() => {
-    const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
+    const filterFn = field => !shadowVisible.value.includes(field) && field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
     return fieldList.value.filter(filterFn);
   });
 
@@ -153,7 +151,7 @@
 
   // 计算属性
   const toSelectLength = computed(() => {
-    return shadowTotal.value.length - shadowVisible.value.length;
+    return shadowTotal.value.length;
   });
 
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
@@ -196,46 +194,27 @@
   };
 
   const addField = fieldInfo => {
-    fieldInfo.is_display = true;
     shadowVisible.value.push(fieldInfo);
   };
 
   const deleteField = (fieldName, index) => {
     shadowVisible.value.splice(index, 1);
-    const arr = shadowTotal.value;
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[i].field_name === fieldName) {
-        arr[i].is_display = false;
-        return;
-      }
-    }
   };
 
   const addAllField = () => {
     shadowTotal.value.forEach(fieldInfo => {
-      if (!fieldInfo.is_display) {
-        fieldInfo.is_display = true;
+      if(!shadowVisible.value.includes(fieldInfo)) {
         shadowVisible.value.push(fieldInfo);
       }
     });
   };
 
   const deleteAllField = () => {
-    shadowTotal.value.forEach(fieldInfo => {
-      fieldInfo.is_display = false;
-    });
     shadowVisible.value = [];
   };
 
   const setDefaultFilterList = () => {
     shadowVisible.value.push(...filterFieldsList.value);
-    isFirstMounted = false;
-    filterFieldsList.value.forEach(fieldInfo => {
-      const target = shadowTotal.value.find(item => item.field_name === fieldInfo.field_name);
-      if (target) {
-        target.is_display = true;
-      }
-    });
   };
 
   let isFirstMounted = true;

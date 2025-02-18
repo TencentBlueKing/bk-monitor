@@ -391,8 +391,8 @@
   };
 
   onBeforeUnmount(() => {
-    popToolInstance.onBeforeUnmount();
-    popToolInstance.uninstallInstance();
+    // popToolInstance.onBeforeUnmount();
+    // popToolInstance.uninstallInstance();
   });
 </script>
 <template>
