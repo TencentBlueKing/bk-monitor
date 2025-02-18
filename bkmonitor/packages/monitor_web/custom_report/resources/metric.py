@@ -4,7 +4,7 @@ import re
 import time
 from collections import defaultdict
 from functools import reduce
-from typing import Optional
+from typing import Dict, Optional
 
 import arrow
 from django.conf import settings
@@ -90,111 +90,6 @@ class ValidateCustomTsGroupName(Resource):
         if is_exist:
             raise CustomValidationNameError(msg=_("自定义指标名称已存在"))
         return True
-
-
-class ValidateCustomTsGroupLabel(Resource):
-    """
-    校验自定义指标数据名称是否合法
-    1. 创建场景：调用metadata接口校验是否与存量ResultTable的data_label重复
-    2. 编辑场景：除了time_series_group_id参数对应CustomTSTable的data_label外，是否与存量ResultTable的data_label重复
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        time_series_group_id = serializers.IntegerField(required=False)
-        data_label = serializers.CharField(required=True)
-
-    def perform_request(self, validated_request_data):
-        data_label = validated_request_data["data_label"].strip()
-        data_label_filter_params = {"data_label": data_label}
-        data_label_unique_qs = CustomTSTable.objects
-        # 获取插件类型前缀列表，自定义指标data_label前缀不可与插件类型data_label前缀重名
-        # process采集 复用自定义创建逻辑
-        plugin_type_list = [
-            f"{getattr(PluginType, attr).lower()}_"
-            for attr in dir(PluginType)
-            if not callable(getattr(PluginType, attr)) and not attr.startswith("__") and attr != "PROCESS"
-        ]
-        label_pattern = re.compile(r'^(?!' + '|'.join(plugin_type_list) + r')[a-zA-Z][a-zA-Z0-9_]*$')
-        if data_label == "":
-            raise CustomValidationLabelError(msg=_("自定义指标英文名不允许为空"))
-        if not label_pattern.match(data_label):
-            raise CustomValidationLabelError(msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名"))
-        queryset = data_label_unique_qs.filter(**data_label_filter_params)
-        if validated_request_data.get("time_series_group_id"):
-            queryset = queryset.exclude(time_series_group_id=validated_request_data["time_series_group_id"])
-        is_exist = queryset.exists()
-        if is_exist:
-            raise CustomValidationLabelError(msg=_("自定义指标英文名已存在"))
-        return True
-
-
-class GetCustomTimeSeriesLatestDataByFields(Resource):
-    """
-    查询自定义时序数据最新的一条数据
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        result_table_id = serializers.CharField(required=True, label="结果表ID")
-        fields_list = serializers.ListField(label="字段列表", allow_empty=True, default=[])
-
-    def perform_request(self, validated_request_data):
-        result_table_id = validated_request_data["result_table_id"]
-        fields_list = validated_request_data["fields_list"] or []
-        fields_list = [str(i) for i in fields_list]
-
-        result = {}
-        field_values, latest_time = self.get_latest_data(table_id=result_table_id, fields_list=fields_list)
-        result["fields_value"] = field_values
-        result["last_time"] = latest_time
-        result["table_id"] = result_table_id
-        return result
-
-    @classmethod
-    def get_latest_data(cls, table_id, fields_list):
-        if not fields_list:
-            return {}, None
-
-        now_timestamp = int(time.time())
-        data = api.unify_query.query_data_by_table(
-            table_id=table_id,
-            keys=fields_list,
-            start_time=now_timestamp - 300,
-            end_time=now_timestamp,
-            limit=1,
-            slimit=0,
-        )
-
-        result = {}
-        latest_time = ""
-
-        if data["series"]:
-            for row in data["series"]:
-                for point in row["values"]:
-                    for key, value in zip(row["columns"], point):
-                        if key == "time" or key in result or value is None:
-                            continue
-
-                        if key in ["value", "metric_value"] and row["metric_name"]:
-                            result[row["metric_name"]] = value
-                            continue
-
-                        result[key] = value
-
-                for key, value in zip(row["group_keys"], row["group_values"]):
-                    if key in result or value is None:
-                        continue
-                    result[key] = value
-
-                if row["values"]:
-                    time_value = row["values"][-1][0]
-                    if latest_time < time_value:
-                        latest_time = time_value
-
-        if latest_time:
-            latest_time = arrow.get(latest_time).timestamp
-        else:
-            latest_time = None
-        return result, latest_time
 
 
 class CreateCustomTimeSeries(Resource):
@@ -399,37 +294,6 @@ class ModifyCustomTimeSeries(Resource):
         )
 
 
-class ModifyCustomTimeSeriesDesc(Resource):
-    """
-    修改自定义时序描述信息
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        desc = serializers.CharField(max_length=1024, default="", label="描述信息")
-
-    class ResponseSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = CustomTSTable
-            fields = "__all__"
-
-    @atomic()
-    def perform_request(self, validated_request_data):
-        time_series_obj = CustomTSTable.objects.filter(
-            time_series_group_id=validated_request_data["time_series_group_id"]
-        ).first()
-        if not time_series_obj:
-            raise ValidationError(
-                "custom time series table not found, "
-                f"time_series_group_id: {validated_request_data['time_series_group_id']}"
-            )
-
-        time_series_obj.desc = validated_request_data["desc"]
-        time_series_obj.save()
-        return time_series_obj
-
-
 class DeleteCustomTimeSeries(Resource):
     """
     删除自定义时序
@@ -581,6 +445,111 @@ class CustomTimeSeriesDetail(Resource):
         return data
 
 
+class ValidateCustomTsGroupLabel(Resource):
+    """
+    校验自定义指标数据名称是否合法
+    1. 创建场景：调用metadata接口校验是否与存量ResultTable的data_label重复
+    2. 编辑场景：除了time_series_group_id参数对应CustomTSTable的data_label外，是否与存量ResultTable的data_label重复
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        time_series_group_id = serializers.IntegerField(required=False)
+        data_label = serializers.CharField(required=True)
+
+    def perform_request(self, validated_request_data):
+        data_label = validated_request_data["data_label"].strip()
+        data_label_filter_params = {"data_label": data_label}
+        data_label_unique_qs = CustomTSTable.objects
+        # 获取插件类型前缀列表，自定义指标data_label前缀不可与插件类型data_label前缀重名
+        # process采集 复用自定义创建逻辑
+        plugin_type_list = [
+            f"{getattr(PluginType, attr).lower()}_"
+            for attr in dir(PluginType)
+            if not callable(getattr(PluginType, attr)) and not attr.startswith("__") and attr != "PROCESS"
+        ]
+        label_pattern = re.compile(r'^(?!' + '|'.join(plugin_type_list) + r')[a-zA-Z][a-zA-Z0-9_]*$')
+        if data_label == "":
+            raise CustomValidationLabelError(msg=_("自定义指标英文名不允许为空"))
+        if not label_pattern.match(data_label):
+            raise CustomValidationLabelError(msg=_("自定义指标英文名仅允许包含字母、数字、下划线，且必须以字母开头，前缀不可与插件类型重名"))
+        queryset = data_label_unique_qs.filter(**data_label_filter_params)
+        if validated_request_data.get("time_series_group_id"):
+            queryset = queryset.exclude(time_series_group_id=validated_request_data["time_series_group_id"])
+        is_exist = queryset.exists()
+        if is_exist:
+            raise CustomValidationLabelError(msg=_("自定义指标英文名已存在"))
+        return True
+
+
+class GetCustomTimeSeriesLatestDataByFields(Resource):
+    """
+    查询自定义时序数据最新的一条数据
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        result_table_id = serializers.CharField(required=True, label="结果表ID")
+        fields_list = serializers.ListField(label="字段列表", allow_empty=True, default=[])
+
+    def perform_request(self, validated_request_data):
+        result_table_id = validated_request_data["result_table_id"]
+        fields_list = validated_request_data["fields_list"] or []
+        fields_list = [str(i) for i in fields_list]
+
+        result = {}
+        field_values, latest_time = self.get_latest_data(table_id=result_table_id, fields_list=fields_list)
+        result["fields_value"] = field_values
+        result["last_time"] = latest_time
+        result["table_id"] = result_table_id
+        return result
+
+    @classmethod
+    def get_latest_data(cls, table_id, fields_list):
+        if not fields_list:
+            return {}, None
+
+        now_timestamp = int(time.time())
+        data = api.unify_query.query_data_by_table(
+            table_id=table_id,
+            keys=fields_list,
+            start_time=now_timestamp - 300,
+            end_time=now_timestamp,
+            limit=1,
+            slimit=0,
+        )
+
+        result = {}
+        latest_time = ""
+
+        if data["series"]:
+            for row in data["series"]:
+                for point in row["values"]:
+                    for key, value in zip(row["columns"], point):
+                        if key == "time" or key in result or value is None:
+                            continue
+
+                        if key in ["value", "metric_value"] and row["metric_name"]:
+                            result[row["metric_name"]] = value
+                            continue
+
+                        result[key] = value
+
+                for key, value in zip(row["group_keys"], row["group_values"]):
+                    if key in result or value is None:
+                        continue
+                    result[key] = value
+
+                if row["values"]:
+                    time_value = row["values"][-1][0]
+                    if latest_time < time_value:
+                        latest_time = time_value
+
+        if latest_time:
+            latest_time = arrow.get(latest_time).timestamp
+        else:
+            latest_time = None
+        return result, latest_time
+
+
 class CustomTsGroupingRuleList(Resource):
     """
     获取自定义指标分组规则列表
@@ -691,3 +660,51 @@ class AddCustomMetricResource(Resource):
         return GetMetricListV2Resource.get_metric_list(
             validated_request_data["bk_biz_id"], MetricListCache.objects.filter(id=new_metric.id)
         )
+
+
+class ModifyCustomTimeSeriesDesc(Resource):
+    """
+    修改自定义时序描述信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        desc = serializers.CharField(max_length=1024, default="", label="描述信息")
+
+    class ResponseSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = CustomTSTable
+            fields = "__all__"
+
+    @atomic()
+    def perform_request(self, validated_request_data):
+        time_series_obj = CustomTSTable.objects.filter(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        ).first()
+        if not time_series_obj:
+            raise ValidationError(
+                "custom time series table not found, "
+                f"time_series_group_id: {validated_request_data['time_series_group_id']}"
+            )
+
+        time_series_obj.desc = validated_request_data["desc"]
+        time_series_obj.save()
+        return time_series_obj
+
+
+class PreviewCustomMetricGroup(Resource):
+    """
+    预览自定义指标分组
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
+        auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+    
+    def perform_request(self, params: Dict):
+        """
+        TODO: 预览自定义指标分组
+        """
+        return []
