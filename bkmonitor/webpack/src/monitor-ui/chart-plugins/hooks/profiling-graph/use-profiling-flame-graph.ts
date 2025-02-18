@@ -161,7 +161,7 @@ function renderItem(param, api, { data, unit, filterKeyword, textDirection = 'lt
       style: {
         textAlign: textDirection === 'ltr' ? 'left' : 'right',
         text,
-        fill: '#000',
+        fill: '#63656e',
         width: width,
         overflow: 'truncate',
         ellipsis: '',
