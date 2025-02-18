@@ -100,7 +100,7 @@ export default class UiSelector extends tsc<object> {
       trigger: 'click',
       placement: 'bottom-start',
       theme: 'light common-monitor',
-      arrow: false,
+      arrow: true,
       interactive: true,
       boundary: 'window',
       distance: 20,

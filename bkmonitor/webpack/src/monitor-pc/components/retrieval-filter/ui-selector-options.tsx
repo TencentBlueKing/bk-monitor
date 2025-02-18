@@ -30,7 +30,57 @@ import { Component as tsc } from 'vue-tsx-support';
 import './ui-selector-options.scss';
 @Component
 export default class UiSelectorOptions extends tsc<object> {
+  /* 搜索值 */
+  searchValue = '';
+
   render() {
-    return <div class='retrieval-filter__ui-selector-options-component'>xxx</div>;
+    return (
+      <div class='retrieval-filter__ui-selector-options-component'>
+        <div class='component-top'>
+          <div class='component-top-left'>
+            <div class='search-wrap'>
+              <bk-input
+                v-model={this.searchValue}
+                behavior='simplicity'
+                left-icon='bk-icon icon-search'
+                placeholder={this.$t('请输入关键字')}
+              />
+            </div>
+            <div class='options-wrap' />
+          </div>
+          <div class='component-top-right' />
+        </div>
+        <div class='component-bottom'>
+          <span class='desc-item'>
+            <span class='desc-item-icon mr-2'>
+              <span class='icon-monitor icon-mc-arrow-down up' />
+            </span>
+            <span class='desc-item-icon'>
+              <span class='icon-monitor icon-mc-arrow-down' />
+            </span>
+            <span class='desc-item-name'>{this.$t('移动光标')}</span>
+          </span>
+          <span class='desc-item'>
+            <span class='desc-item-box'>Enter</span>
+            <span class='desc-item-name'>{this.$t('选中')}</span>
+          </span>
+          <span class='desc-item'>
+            <span class='desc-item-box'>Esc</span>
+            <span class='desc-item-name'>{this.$t('收起查询')}</span>
+          </span>
+          <span class='desc-item'>
+            <span class='desc-item-box'>Ctrl+Enter</span>
+            <span class='desc-item-name'>{this.$t('提交查询')}</span>
+          </span>
+          <div class='operate-btns'>
+            <bk-button
+              class='mr-8'
+              theme='primary'
+            >{`${this.$t('确定')} Ctrl+ Enter`}</bk-button>
+            <bk-button>{`${this.$t('取消')}`}</bk-button>
+          </div>
+        </div>
+      </div>
+    );
   }
 }

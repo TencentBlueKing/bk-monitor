@@ -40,6 +40,39 @@ export enum EMethod {
 export enum EFieldType {
   keyword = 'keyword',
 }
+
+export const fieldTypeMap = {
+  number: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  boolean: {
+    name: window.i18n.tc('布尔值'),
+    icon: 'icon-monitor icon-number',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  keyword: {
+    name: window.i18n.tc('字符串'),
+    icon: 'icon-monitor icon-text',
+    color: '#508CC8',
+    bgColor: '#E1E7F2',
+  },
+  text: {
+    name: window.i18n.tc('文本'),
+    icon: 'icon-monitor icon-text',
+    color: '#508CC8',
+    bgColor: '#E1E7F2',
+  },
+  date: {
+    name: window.i18n.tc('时间'),
+    icon: 'icon-monitor icon-mc-time',
+    color: '#CDAE71',
+    bgColor: '#EDE7DB',
+  },
+};
 export interface IFilterField {
   name: string;
   alias: string;
