@@ -27,6 +27,7 @@
 
   const store = useStore();
   const { $t } = useLocale();
+  const { getFieldNames } = useFieldNameHook({ store });
 
   enum OptionItemType {
     Colon = 'Colon',
@@ -66,9 +67,7 @@
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    const { getFieldNames } = useFieldNameHook({ store });
-    return  getFieldNames(totalFields.value.filter(filterFn));
-   
+    return getFieldNames(totalFields.value.filter(filterFn));
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -635,7 +634,7 @@
             </li>
           </div>
         </template>
-        <template
+        <!-- <template
           v-if="!showOption.showFields && !showOption.showValue && !showOption.showColon && !showOption.showContinue"
         >
           <bk-exception
@@ -645,7 +644,7 @@
           >
             当前页面未获取到该字段信息，无法获取联想内容，请手动输入查询内容
           </bk-exception>
-        </template>
+        </template> -->
       </ul>
       <FavoriteList
         @change="handleFavoriteClick"

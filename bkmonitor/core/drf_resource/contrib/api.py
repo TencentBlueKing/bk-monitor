@@ -136,11 +136,8 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         if hasattr(self, "bk_username"):
             validated_request_data.update({BK_USERNAME_FIELD: self.bk_username})
         else:
-            request = get_request(peaceful=True)
             user_info = make_userinfo()
             self.bk_username = user_info.get('bk_username')
-            if request and not getattr(request, "external_user", None):
-                user_info.update(get_bk_login_ticket(request))
             validated_request_data.update(user_info)
         return validated_request_data
 

@@ -121,7 +121,7 @@
                 <span
                   class="field-name"
                   v-bk-overflow-tips
-                  >{{ getFiledDisplay(item.field_name) }}</span
+                  >{{ getFiledDisplay(item) }}</span
                 >
                 <span class="icon bklog-icon bklog-filled-right-arrow"></span>
               </li>
@@ -164,7 +164,7 @@
                   <span
                     class="field-name"
                     v-bk-overflow-tips
-                    >{{ getFiledDisplay(item) }}</span
+                    >{{ getFiledDisplayByFieldName(item) }}</span
                   >
                   <span
                     class="bk-icon icon-close-circle-shape delete"
@@ -208,7 +208,7 @@
                     :style="`width: calc(100% - ${fieldWidth}px);`"
                     class="field-name"
                     v-bk-overflow-tips
-                    >{{ getFiledDisplay(item[0]) }}</span
+                    >{{ getFiledDisplayByFieldName(item[0]) }}</span
                   >
                   <span :class="`bk-icon status ${filterStatusIcon(item[1])}`"></span>
                   <span
@@ -258,8 +258,9 @@
 <script>
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
-  import useFieldNameHook from '@/hooks/use-field-name';
+  // import useFieldNameHook from '@/hooks/use-field-name';
   import fieldsSettingOperate from './fields-setting-operate';
+  import { getFieldNameByField } from '@/hooks/use-field-name';
 
   export default {
     components: {
@@ -305,7 +306,7 @@
         return this.$store.state.indexFieldInfo.fields;
       },
       showFieldAlias() {
-        return this.$store.state.showFieldAlias
+        return this.$store.state.showFieldAlias;
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
@@ -353,17 +354,19 @@
       this.initRequestConfigListShow();
     },
     methods: {
-      getFiledDisplay(name) {
-        const { getFieldName } = useFieldNameHook({ store: this.$store });
-        const field = getFieldName(name);
-        if(this.showFieldAlias){
-          return field || name
+      getFiledDisplayByFieldName(name) {
+        const field = this.shadowTotal.find(item => item.field_name === name);
+        return this.getFiledDisplay(field);
+      },
+      getFiledDisplay(field) {
+        if (this.showFieldAlias) {
+          return getFieldNameByField(field, this.$store);
         }
-        const alias = this.fieldAliasMap[name];
-        if (alias && alias !== name) {
-          return `${name}(${alias})`;
+        const alias = this.fieldAliasMap[field.field_name];
+        if (alias && alias !== field.field_name) {
+          return `${field.field_name}(${alias})`;
         }
-        return name;
+        return field.field_name;
       },
       /** 带config列表请求的初始化 */
       async initRequestConfigListShow() {

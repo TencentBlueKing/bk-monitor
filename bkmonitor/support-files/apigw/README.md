@@ -19,7 +19,6 @@ bk_monitor
 2. 内部接口的 isPublic 属性为 false，外部接口的 isPublic 属性为 true。
 3. 内部接口的 allowApplyPermission 属性为 false，外部接口的 allowApplyPermission 属性为 true。
 4. 内部接口的定义在 `/resources/internal` 目录下，外部接口的定义在 `/resources/external` 目录下。
-5. 内部接口增加 internal_api 标签，外部接口增加 external_api 标签。
 
 ### 应用态与用户态
 
@@ -31,9 +30,8 @@ bk_monitor
 
 #### 注意事项
 1. 应用态接口的 userVerifiedRequired 属性为 false，用户态接口的 userVerifiedRequired 属性为 true。
-2. 应用态接口增加 app_verify 标签，用户态接口增加 user_verify 标签。
-3. 应用态接口的定义在 `/resources/{public_dir}/app` 目录下，用户态接口的定义在 `/resources/{public_dir}/user` 目录下。
-4. 为了区分应用态和用户态，一般情况下，应用态接口路径以 `/app/` 开头，用户态接口路径以 `/user/` 开头。
+2. 应用态接口的定义在 `/resources/{public_dir}/app` 目录下，用户态接口的定义在 `/resources/{public_dir}/user` 目录下。
+3. 为了区分应用态和用户态，一般情况下，应用态接口路径以 `/app/` 开头，用户态接口路径以 `/user/` 开头。
 
 ## 接口定义
 
@@ -85,9 +83,9 @@ resources/
 在注册网关接口前，脚本 `scripts/merge_resources.py` 会自动合并 `/resources` 目录下的所有 yaml 文件，生成一个 `resources.yaml` 文件，用于注册网关接口。
 在合并过程中，会自动设置以下字段
 
-1. 根据接口是内部还是外部，设置 `isPublic` 和 `allowApplyPermission` 字段，补充 `tags` 字段。
-2. 根据接口是应用态还是用户态，设置 `userVerifiedRequired` 和 `appVerifiedRequired` 字段， 补充 `tags` 字段。
-3. 将 yaml 文件名补充到 `tags` 字段。
+1. 根据接口是内部还是外部，设置 `isPublic` 和 `allowApplyPermission` 字段
+2. 根据接口是应用态还是用户态，设置 `userVerifiedRequired` 和 `appVerifiedRequired` 字段
+3. 如果 yaml 文件中没有 `tags` 字段，则将 yaml 文件名补充到 `tags` 字段。
 
 ## 文档管理
 
