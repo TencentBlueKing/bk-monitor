@@ -224,7 +224,12 @@ class FavoriteHandler(object):
                 else:
                     group_id = FavoriteGroup.get_or_create_private_group(space_uid=space_uid, username=self.username).id
             # 名称检查
-            if self.data.name != name and Favorite.objects.filter(name=name, space_uid=space_uid).exists():
+            if (
+                self.data.name != name
+                and Favorite.objects.filter(
+                    name=name, space_uid=space_uid, group_id=group_id, created_by=self.username
+                ).exists()
+            ):
                 raise FavoriteAlreadyExistException()
 
             update_model_fields = {
@@ -241,7 +246,9 @@ class FavoriteHandler(object):
             self.data.save()
 
         else:
-            if Favorite.objects.filter(name=name, space_uid=space_uid).exists():
+            if Favorite.objects.filter(
+                name=name, space_uid=space_uid, group_id=group_id, created_by=self.username
+            ).exists():
                 raise FavoriteAlreadyExistException()
             self.data = Favorite.objects.create(
                 space_uid=space_uid,
@@ -256,6 +263,7 @@ class FavoriteHandler(object):
                 index_set_ids=index_set_ids,
                 index_set_type=index_set_type,
                 favorite_type=favorite_type,
+                created_by=self.username,
             )
 
         return model_to_dict(self.data)
