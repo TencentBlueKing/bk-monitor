@@ -329,6 +329,10 @@ class Event:
         return self.data["time"]
 
     @property
+    def metric(self) -> list:
+        return self.data["metric"]
+
+    @property
     def anomaly_time(self) -> int:
         return self.data.get("anomaly_time", self.time)
 
