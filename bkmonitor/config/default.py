@@ -1400,7 +1400,12 @@ ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
 # 是否启用计算平台Kafka采样接口
 ENABLE_BKDATA_KAFKA_TAIL_API = False
-
+# Kafka采样接口重试次数
+KAFKA_TAIL_API_RETRY_TIMES = 3
+# Kafka Consumer超时时间(秒)
+KAFKA_TAIL_API_TIMEOUT_SECONDS = 1000
+# Kafka采样接口重试间隔(秒)
+KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS = 2
 # 计算平台&监控平台数据一致性Redis相关配置
 # 计算平台Redis监听模式
 BKBASE_REDIS_PATTERN = "databus_v4_dataid"

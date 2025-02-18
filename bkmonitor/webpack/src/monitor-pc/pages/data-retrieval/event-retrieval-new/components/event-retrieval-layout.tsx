@@ -26,37 +26,61 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import HomeSelect from './components/home-select';
-import RecentAlarmEvents from './components/recent-alarm-events';
-import RecentFavoritesTab from './components/recent-favorites-tab';
+import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
 
-import './new-home.scss';
+import './event-retrieval-layout.scss';
 
-@Component({
-  name: 'NewHome',
-})
-export default class NewHome extends tsc<object> {
-  get computedWidth() {
-    return window.innerWidth < 2560 ? 1200 : 1360;
+@Component
+export default class EventRetrievalLayout extends tsc<object> {
+  isShow = true;
+  maxWidth = 400;
+  minWidth = 120;
+  width = 200;
+
+  handleDragChange(width: number) {
+    if (width < this.minWidth) {
+      this.handleClickShrink(false);
+    } else {
+      this.width = width;
+    }
   }
+
+  handleClickShrink(val?: boolean) {
+    this.isShow = val ?? !this.isShow;
+    this.width = this.isShow ? 200 : 0;
+  }
+
   render() {
     return (
-      <div class='monitor-new-home'>
-        <div class='new-home-bg'>
-          <div class='new-home-bg-img' />
-        </div>
-        <div
-          style={{ minWidth: `${this.computedWidth}px` }}
-          class='new-home-content'
-        >
-          <HomeSelect />
-          <div class='new-home-tool'>
-            <RecentFavoritesTab />
+      <div class='event-retrieval-layout-comp'>
+        <div class='layout-aside'>
+          <div
+            style={{ width: `${this.width}px` }}
+            class='layout-aside-content'
+          >
+            {this.$slots.aside}
           </div>
-          <div class='new-home-alarm-list'>
-            <RecentAlarmEvents />
-          </div>
+
+          {this.isShow ? (
+            <MonitorDrag
+              isShow={this.isShow}
+              lineText=''
+              maxWidth={this.maxWidth}
+              minWidth={this.minWidth}
+              startPlacement='right'
+              theme='line-round'
+              onMove={this.handleDragChange}
+            />
+          ) : (
+            <div
+              class='expand-trigger'
+              onClick={() => this.handleClickShrink(true)}
+            >
+              <i class='icon-monitor icon-back-right' />
+            </div>
+          )}
         </div>
+        <div class='layout-main'>{this.$slots.default}</div>
       </div>
     );
   }

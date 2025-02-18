@@ -429,14 +429,7 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
                         ),
                         selected: this.isSelected(item.id),
                       }}
-                      v-bk-tooltips={{
-                        content: item.name,
-                        trigger: 'mouseenter',
-                        zIndex: 9999,
-                        boundary: document.body,
-                        allowHTML: false,
-                        delay: [1000, 0],
-                      }}
+                      v-bk-overflow-tips
                     >
                       {item.name}
                     </div>

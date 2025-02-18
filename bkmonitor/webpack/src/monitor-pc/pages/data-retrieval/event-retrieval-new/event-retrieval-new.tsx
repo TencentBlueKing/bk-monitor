@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -26,35 +26,29 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import HomeSelect from './components/home-select';
-import RecentAlarmEvents from './components/recent-alarm-events';
-import RecentFavoritesTab from './components/recent-favorites-tab';
+import EventRetrievalHeader from './components/event-retrieval-header';
+import EventRetrievalLayout from './components/event-retrieval-layout';
 
-import './new-home.scss';
+import './event-retrieval-new.scss';
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
-@Component({
-  name: 'NewHome',
-})
-export default class NewHome extends tsc<object> {
-  get computedWidth() {
-    return window.innerWidth < 2560 ? 1200 : 1360;
-  }
+@Component
+export default class EventRetrievalNew extends tsc<object> {
   render() {
     return (
-      <div class='monitor-new-home'>
-        <div class='new-home-bg'>
-          <div class='new-home-bg-img' />
-        </div>
-        <div
-          style={{ minWidth: `${this.computedWidth}px` }}
-          class='new-home-content'
-        >
-          <HomeSelect />
-          <div class='new-home-tool'>
-            <RecentFavoritesTab />
-          </div>
-          <div class='new-home-alarm-list'>
-            <RecentAlarmEvents />
+      <div class='event-retrieval-new-page'>
+        <div class='left-favorite-panel' />
+        <div class='right-main-panel'>
+          <EventRetrievalHeader />
+          <div class='event-retrieval-content'>
+            <div class='search-condition-panel' />
+            <EventRetrievalLayout class='content-container'>
+              <div
+                class='dimension-filter-panel'
+                slot='aside'
+              />
+              <div class='result-content-panel' />
+            </EventRetrievalLayout>
           </div>
         </div>
       </div>

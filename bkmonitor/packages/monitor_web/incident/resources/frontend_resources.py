@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import time
 from collections import Counter, defaultdict
 from typing import Any, Dict, List
@@ -309,13 +310,15 @@ class IncidentDetailResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         id = validated_request_data["id"]
 
-        incident = IncidentDocument.get(id).to_dict()
-        incident = IncidentQueryHandler.handle_hit(incident)
+        incident_doc = IncidentDocument.get(id)
+        snapshot = IncidentSnapshot(copy.deepcopy(incident_doc.snapshot.content.to_dict()))
+        incident = IncidentQueryHandler.handle_hit(incident_doc.to_dict())
         incident["snapshots"] = [item.to_dict() for item in self.get_incident_snapshots(incident)]
         incident["bk_biz_name"] = resource.cc.get_app_by_id(incident["bk_biz_id"]).name
         if len(incident["snapshots"]) > 0:
             incident["current_snapshot"] = incident["snapshots"][-1]
             incident["alert_count"] = len(incident["snapshot"]["alerts"])
+            incident["incident_root"] = self.get_incident_root_info(snapshot)
 
         return incident
 
@@ -335,6 +338,16 @@ class IncidentDetailResource(IncidentBaseResource):
                 for bk_biz_id in snapshot["bk_biz_ids"]
             ]
         return snapshots
+
+    def get_incident_root_info(self, snapshot: IncidentSnapshot) -> Dict:
+        """根据快照详情获取故障根因节点的信息
+
+        :param snapshot: 快照详情
+        :return: 故障根因信息
+        """
+        for entity_info in snapshot.incident_graph_entities.values():
+            if entity_info.is_root:
+                return entity_info.to_src_dict()
 
 
 class IncidentTopologyResource(IncidentBaseResource):
