@@ -1,0 +1,2 @@
+bkaidev_agent_framework[extend]==0.1.15b4
+bkapi-bkaidev==1.1.6
