@@ -30,14 +30,15 @@ import { DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import DashboardTools from '../../../monitor-k8s/components/dashboard-tools';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
+import type { IDataIdItem, IFormData } from '../typing';
 
 import './event-retrieval-header.scss';
 interface EventRetrievalNavBarProps {
   timeRange?: TimeRangeType;
   timezone?: string;
   refreshInterval?: number;
-  dataId?: string;
-  eventType?: { data_source_label: string; data_type_label: string };
+  dataIdList?: IDataIdItem[];
+  formData: IFormData;
 }
 
 interface EventRetrievalNavBarEvents {
@@ -46,15 +47,13 @@ interface EventRetrievalNavBarEvents {
   onImmediateRefresh(): void;
   onRefreshChange(val: number): void;
   onDataIdChange(val: string): void;
-  onEventTypeChange(eventType: EventRetrievalNavBarProps['eventType']): void;
+  onEventTypeChange(val: { data_source_label: string; data_type_label: string }): void;
 }
 
 @Component
 export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps, EventRetrievalNavBarEvents> {
-  @Prop({ default: () => ({ data_source_label: 'custom', data_type_label: 'event' }) })
-  eventType: EventRetrievalNavBarProps['eventType'];
-
-  @Prop({ default: () => '' }) dataId: string;
+  @Prop({ required: true }) formData: IFormData;
+  @Prop({ default: () => [] }) dataIdList: IDataIdItem[];
   // 数据间隔
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
   // 自动刷新数据间隔
@@ -62,18 +61,10 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
   // 时区
   @Prop({ type: String }) timezone: string;
 
-  dataIdList = [];
-
   dataIdToggle = false;
 
   get selectDataIdName() {
-    return this.dataIdList.find(item => item.id === this.dataId)?.name || '';
-  }
-
-  @Emit('dataIdChange')
-  // 处理dataId变化
-  handleDataIdChange(dataId: string) {
-    return dataId;
+    return this.dataIdList.find(item => item.id === this.formData.result_table_id)?.name || '';
   }
 
   handleDataIdToggle(toggle: boolean) {
@@ -98,10 +89,18 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
     return v;
   }
 
-  @Emit('eventTypeChange')
-  handleEventTypeChange(type: 'custom' | 'log') {
-    if (type === 'custom') return { data_source_label: 'custom', data_type_label: 'event' };
-    return { data_source_label: 'bk_monitor', data_type_label: 'log' };
+  @Emit('dataIdChange')
+  handleDataIdChange(dataId: string) {
+    return dataId;
+  }
+
+  handleEventTypeChange(type: 'bk_monitor' | 'custom') {
+    if (this.formData.data_source_label === type) return;
+    if (type === 'custom') {
+      this.$emit('eventTypeChange', { data_source_label: 'custom', data_type_label: 'event' });
+      return;
+    }
+    this.$emit('eventTypeChange', { data_source_label: 'bk_monitor', data_type_label: 'log' });
   }
 
   render() {
@@ -114,14 +113,14 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
           </div>
           <div class='event-type-select'>
             <div
-              class={{ item: true, active: this.eventType.data_source_label === 'custom' }}
+              class={{ item: true, active: this.formData.data_source_label === 'custom' }}
               onClick={() => this.handleEventTypeChange('custom')}
             >
               {this.$t('自定义上报事件')}
             </div>
             <div
-              class={{ item: true, active: this.eventType.data_source_label === 'bk_monitor' }}
-              onClick={() => this.handleEventTypeChange('log')}
+              class={{ item: true, active: this.formData.data_source_label === 'bk_monitor' }}
+              onClick={() => this.handleEventTypeChange('bk_monitor')}
             >
               {this.$t('日志关键字')}
             </div>
@@ -129,7 +128,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
           <bk-select
             class='data-id-select'
             clearable={false}
-            value={this.dataId}
+            value={this.formData.result_table_id}
             searchable
             onChange={this.handleDataIdChange}
             onToggle={this.handleDataIdToggle}
