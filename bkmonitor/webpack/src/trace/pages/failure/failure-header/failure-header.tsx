@@ -153,28 +153,17 @@ export default defineComponent({
       if (status === 'abnormal') {
         const data: IAggregationRoot = alertAggregateData.value.filter(item => item.id === 'ABNORMAL')[0];
         return (
-          <Popover
-            width='200'
-            v-slots={{
-              content: () => {
-                return statusTips();
-              },
-            }}
-            placement='bottom-start'
-            theme='light'
+          <Progress
+            width={38}
+            bg-color='#EBECF0'
+            color='#EB3333'
+            percent={Math.round((data?.count / alertAggregateTotal.value) * 100)}
+            stroke-width={12}
+            type='circle'
+            text-inside
           >
-            <Progress
-              width={38}
-              bg-color='#EBECF0'
-              color='#EB3333'
-              percent={Math.round((data?.count / alertAggregateTotal.value) * 100)}
-              stroke-width={12}
-              type='circle'
-              text-inside
-            >
-              <label class='status-num'>{data?.count || 0}</label>
-            </Progress>
-          </Popover>
+            <label class='status-num'>{data?.count || 0}</label>
+          </Progress>
         );
       }
       const info = statusList[status];
@@ -323,11 +312,14 @@ export default defineComponent({
       }
       if (!end_time) {
         this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
-        this.timer = setInterval(() => {
-          if (begin_time) {
-            this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
-          }
-        }, 1000);
+        /** 只有故障未恢复状态下才计时 */
+        if (status === 'abnormal') {
+          this.timer = setInterval(() => {
+            if (begin_time) {
+              this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
+            }
+          }, 1000);
+        }
         return this.showTime;
       }
       return this.convertTimestamp(begin_time * 1000, end_time * 1000);
@@ -367,16 +359,28 @@ export default defineComponent({
               </span>
             </div>
           </div>
-          <div class='header-status'>
-            <div class='header-status-icon'>{this.renderStatusIcon(status)}</div>
-            <span class='status-info'>
-              <span class='txt'>{this.t(`${status_alias}`)}</span>
-              <span class='txt'>
-                {this.t('故障持续时间：')}
-                <b>{handleShowTime()}</b>
+          <Popover
+            width='235'
+            v-slots={{
+              content: () => {
+                return this.statusTips();
+              },
+            }}
+            disabled={status !== 'abnormal'}
+            placement='bottom'
+            theme='light'
+          >
+            <div class='header-status'>
+              <div class='header-status-icon'>{this.renderStatusIcon(status)}</div>
+              <span class='status-info'>
+                <span class='txt'>{status_alias ? this.t(`${status_alias}`) : '--'}</span>
+                <span class='txt'>
+                  {this.t('故障持续时间：')}
+                  <b>{handleShowTime()}</b>
+                </span>
               </span>
-            </span>
-          </div>
+            </div>
+          </Popover>
           <div class='header-btn-group'>
             <div
               class={['header-btn', { disabled: isRecovered }]}
