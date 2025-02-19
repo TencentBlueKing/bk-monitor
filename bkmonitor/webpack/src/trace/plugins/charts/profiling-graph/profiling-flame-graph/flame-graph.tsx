@@ -183,17 +183,16 @@ export default defineComponent({
             maxLevel.value = profilingData.value.at(-1)?.level;
             height.value = Math.max(height.value, maxLevel.value * defaultHeight + 40);
             setTimeout(() => {
-              if (!chartInstance) {
-                chartInstance = echarts.init(chartRef.value!, undefined, {
-                  renderer: 'canvas',
-                  useDirtyRect: false,
-                  height: height.value,
-                  ssr: false,
-                });
-              }
+              chartInstance = echarts.init(chartRef.value!, undefined, {
+                renderer: 'canvas',
+                useDirtyRect: false,
+                height: height.value,
+                ssr: false,
+              });
               chartInstance.off('click');
               chartInstance.off('contextmenu');
               currentGraphData.value = profilingData.value;
+              chartInstance.clear();
               chartInstance.setOption(getEchartsOptions());
               addListener(wrapperRef.value, handleResizeGraph);
               chartInstance.on('click', async (params: any) => {
