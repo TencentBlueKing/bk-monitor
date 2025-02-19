@@ -87,7 +87,7 @@ export default class AuthorityDirective {
         const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
         init(el, options);
       },
-      update(el: IElement, binding: DirectiveBinding) {
+      updated(el: IElement, binding: DirectiveBinding) {
         const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
         destroy(el);
         init(el, options);
