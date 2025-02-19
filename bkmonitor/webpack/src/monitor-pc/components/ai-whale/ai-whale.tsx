@@ -190,6 +190,7 @@ export default class AiWhale extends tsc<{
 
   @Watch('$store.state.aiWhale.aiQuickActionData')
   handleIsTypeChange(newVal: AIQuickActionData, oldVal: AIQuickActionData) {
+    // 检查新值是否有 type 和 content
     if (newVal.type && newVal.content && (newVal.type !== oldVal.type || newVal.content !== oldVal.content)) {
       this.aiAssistantRef.quickActions(newVal.type, newVal.content);
     }

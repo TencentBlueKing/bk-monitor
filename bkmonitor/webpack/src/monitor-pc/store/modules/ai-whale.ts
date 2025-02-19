@@ -153,6 +153,7 @@ class AiWhaleStore extends VuexModule {
     this.context.commit('setChatHelper', chatHelper);
   }
 
+  // Mutation: 设置quickActions()所需数据
   @Mutation
   setAIQuickActionData(value: AIQuickActionData) {
     this.aiQuickActionData = value;

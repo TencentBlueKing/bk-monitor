@@ -37,17 +37,20 @@ interface AIWhaleIconProps {
 
 @Component
 export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
-  @Prop({ required: true }) type!: AIWhaleIconProps['type'];
-  @Prop({ required: true }) content!: string;
-  @Prop({ default: '' }) tip?: string;
+  @Prop({ required: true }) type!: AIWhaleIconProps['type']; // 功能
+  @Prop({ required: true }) content!: string; // 内容
+  @Prop({ default: '' }) tip?: string; // 提示信息
 
+  /* 图标点击事件 */
   handleClick() {
     aiWhaleStore.setShowAIBlueking(true);
     if (this.type === 'guideline') {
+      // 提问
       aiWhaleStore.handleAiBluekingSend({
         content: this.content,
       });
     } else {
+      // 解释、翻译
       aiWhaleStore.setAIQuickActionData({
         type: this.type,
         content: this.content,

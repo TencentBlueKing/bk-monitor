@@ -844,7 +844,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
 
                 <AIWhaleIcon
                   style={{ color: '#979ba5', marginTop: '-3px' }}
-                  content='通知间隔'
+                  content={this.$t('通知间隔').toString()}
                   tip={intervalModeTips[this.data.config.interval_notify_mode]}
                   type='translate'
                 />
