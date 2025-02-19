@@ -339,8 +339,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 0.3.17
-        version: 0.3.17(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
+        specifier: 0.3.25-beta.0
+        version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
         specifier: 0.0.29-beta.3
         version: 0.0.29-beta.3
@@ -1396,8 +1396,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@0.3.17':
-    resolution: {integrity: sha512-kepg+5L/3LwUlbem5sChmNybSFI3wV3HiKDwOghDIfUN09zSA15OxVHNLAsb7W8GLQfKVvOSVDjnU+Ogfg78iA==}
+  '@blueking/ai-blueking@0.3.25-beta.0':
+    resolution: {integrity: sha512-7Gd5Rb7ORyWrqR48I2sMNIsby4HIQRkOLsOVDRZrYpPFi1LfOAgxAgV3EvDe4Is3VoDhgG4CzeQyNwWqpPHCmw==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -9216,7 +9216,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@0.3.17(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)':
+  '@blueking/ai-blueking@0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)':
     dependencies:
       dayjs: 1.11.13
       highlight.js: 11.5.1

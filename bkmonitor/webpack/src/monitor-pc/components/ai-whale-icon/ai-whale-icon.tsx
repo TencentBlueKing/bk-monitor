@@ -40,9 +40,13 @@ export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
   @Prop({ required: true }) type!: AIWhaleIconProps['type']; // 功能
   @Prop({ required: true }) content!: string; // 内容
   @Prop({ default: '' }) tip?: string; // 提示信息
-
+  // 是否显示AI智能助手
+  get enableAiAssistant() {
+    return aiWhaleStore.enableAiAssistant;
+  }
   /* 图标点击事件 */
   handleClick() {
+    if (!this.enableAiAssistant) return;
     aiWhaleStore.setShowAIBlueking(true);
     if (this.type === 'guideline') {
       // 提问
@@ -61,7 +65,7 @@ export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
   render() {
     return (
       <i
-        class='icon-monitor icon-AI'
+        class={`icon-monitor ${this.enableAiAssistant ? 'icon-AI' : 'icon-tishi'}`}
         v-bk-tooltips={{
           content: this.tip,
           placement: 'top-start',
