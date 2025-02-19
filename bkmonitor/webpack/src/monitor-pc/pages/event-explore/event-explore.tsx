@@ -26,6 +26,8 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { eventViewConfig } from 'monitor-api/modules/data_explorer';
+
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
@@ -35,6 +37,26 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
 export default class EventRetrievalNew extends tsc<object> {
+  fields = [];
+  created() {
+    this.init();
+  }
+  init() {
+    eventViewConfig({
+      data_sources: [
+        {
+          data_source_label: 'bk_apm',
+          data_type_label: 'event',
+          table: 'k8s_event',
+        },
+      ],
+      start_time: 1739499301,
+      end_time: 1739502901,
+    }).then(res => {
+      console.log(res);
+      this.fields = res.fields;
+    });
+  }
   render() {
     return (
       <div class='event-explore'>
@@ -42,7 +64,7 @@ export default class EventRetrievalNew extends tsc<object> {
         <div class='right-main-panel'>
           <EventRetrievalHeader />
           <div class='event-retrieval-content'>
-            <RetrievalFilter />
+            <RetrievalFilter fields={this.fields} />
             <EventRetrievalLayout class='content-container'>
               <div
                 class='dimension-filter-panel'

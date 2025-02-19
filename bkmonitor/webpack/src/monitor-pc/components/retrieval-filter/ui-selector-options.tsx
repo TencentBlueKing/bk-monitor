@@ -24,15 +24,74 @@
  * IN THE SOFTWARE.
  */
 
-import { Component } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { fieldTypeMap, type IFilterField } from './utils';
+
 import './ui-selector-options.scss';
+
+function getTitleAndSubtitle(str) {
+  const regex = /^(.*?)（(.*?)）$/;
+  const match = str.match(regex);
+  return {
+    title: match?.[1] || str,
+    subtitle: match?.[2],
+  };
+}
+
+interface IProps {
+  fields: IFilterField[];
+}
 @Component
-export default class UiSelectorOptions extends tsc<object> {
+export default class UiSelectorOptions extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
   /* 搜索值 */
   searchValue = '';
+  /* 当前 */
+  localFields: IFilterField[] = [];
+  /* 当前光标选中项 */
+  cursorIndex = -1;
+  /* 当前选中项 */
+  checkedItem: IFilterField = null;
+  /* 全文检索检索内容 */
+  queryString = '';
 
+  @Watch('fields', { immediate: true })
+  handleWatchFields() {
+    this.localFields = this.fields;
+    if (this.localFields.length) {
+      this.handleCheck(this.localFields[0]);
+    }
+  }
+
+  /**
+   * @description 选中
+   * @param item
+   */
+  handleCheck(item: IFilterField) {
+    this.checkedItem = JSON.parse(JSON.stringify(item));
+  }
+
+  rightRender() {
+    if (this.checkedItem?.name === '*') {
+      return [
+        <div
+          key={'all'}
+          class='form-item'
+        >
+          <div class='form-item-label mt-16'>{this.$t('检索内容')}</div>
+          <div class='form-item-content'>
+            <bk-input
+              v-model={this.queryString}
+              placeholder={this.$t('请输入')}
+              type={'textarea'}
+            />
+          </div>
+        </div>,
+      ];
+    }
+  }
   render() {
     return (
       <div class='retrieval-filter__ui-selector-options-component'>
@@ -46,9 +105,36 @@ export default class UiSelectorOptions extends tsc<object> {
                 placeholder={this.$t('请输入关键字')}
               />
             </div>
-            <div class='options-wrap' />
+            <div class='options-wrap'>
+              {this.localFields.map(item => {
+                const { title, subtitle } = getTitleAndSubtitle(item.alias);
+                return (
+                  <div
+                    key={item.name}
+                    class={['option', { checked: this.checkedItem?.name === item.name }]}
+                    onClick={() => this.handleCheck(item)}
+                  >
+                    <span
+                      style={{
+                        background: fieldTypeMap[item.type].bgColor,
+                        color: fieldTypeMap[item.type].color,
+                      }}
+                      class='option-icon'
+                    >
+                      {item.name === '*' ? (
+                        <span class='option-icon-xing'>*</span>
+                      ) : (
+                        <span class={[fieldTypeMap[item.type].icon, 'option-icon-icon']} />
+                      )}
+                    </span>
+                    <span class='option-name-title'>{title}</span>
+                    {!!subtitle && <span class='option-name-subtitle'>（{subtitle}）</span>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div class='component-top-right' />
+          <div class='component-top-right'>{this.rightRender()}</div>
         </div>
         <div class='component-bottom'>
           <span class='desc-item'>
