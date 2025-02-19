@@ -6,7 +6,7 @@
 
 $green: #2dcb56;
 $red: #ff5656;
-$grey: #dcdee5;
+$grey: #c4c6cc;
 $blue: #3a84ff;
 $yellow: #fe9c00;
 $info-bg: #edf4ff;
@@ -14,6 +14,9 @@ $warning-bg: #fff1db;
 $fatal-bg: #feebea;
 $fatal-red: #ea3536;
 $text: #313238;
+$green-bg: #daf6e5;
+$red-bg: #ffdddd;
+$grey-bg: #eaebf0;
 
 .event-detail-basic {
   width: 100%;
@@ -21,39 +24,144 @@ $text: #313238;
   background: #fff;
   border-radius: 2px;
   box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+  .blue-txt {
+    color: #3a84ff;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .bar-recovered,
+  .bar-abnormal,
+  .bar-closed,
+  .bar-small {
+    height: 36px;
+    border-left: 4px solid transparent;
+    padding-left: 16px;
+  }
 
-  .bar {
-    &-recovered {
-      height: 6px;
-      background: $green;
+  .bar-recovered {
+    background: $green-bg;
+    border-color: $green;
+    color: $green;
+  }
+
+  .bar-abnormal {
+    background: $red-bg;
+    border-color: $red;
+    color: $red;
+  }
+
+  .bar-closed {
+    background: $grey-bg;
+    border-color: $grey;
+    color: $grey;
+  }
+
+  .bar-small {
+    background: $grey-bg;
+    border-color: $grey;
+    color: $text;
+  }
+  .right-status {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    position: relative;
+
+    .status-icon {
+      display: flex;
+      align-items: center;
+
+      .icon-monitor {
+        font-size: 16px;
+        margin-right: 5px;
+        display: inline-block;
+      }
+
+      .status-text {
+        display: inline-block;
+        font-size: 13px;
+        font-weight: 400;
+        .right-icon {
+          margin-left: 8px;
+          color: $red;
+          cursor: pointer;
+          &.icon-tishi {
+            font-size: 16px;
+          }
+        }
+      }
     }
-
-    &-abnormal {
-      height: 6px;
-      background: $red;
+  }
+  .status-operate-btn {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    right: 16px;
+    color: #3a84ff;
+    font-size: 12px;
+    cursor: pointer;
+    .icon-monitor {
+      font-size: 13px;
+      margin-right: 5px;
     }
+  }
 
-    &-closed {
-      height: 6px;
+  .status-operate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $text;
+    .status-operate-line {
+      display: inline-block;
+      width: 1px;
+      height: 12px;
       background: $grey;
+      margin: 0 8px;
     }
 
-    &-small {
-      height: 2px;
-      background: $red;
+    .operate-click {
+      font-weight: 400;
+      color: $blue;
+      cursor: pointer;
+    }
+
+    .operate-separate {
+      margin: 0 8px;
+    }
+
+    .shielded-text {
+      font-weight: 400;
+      color: $text;
+    }
+
+    .shielded-time {
+      margin-left: 2px;
+      font-weight: 400;
+      color: #ffa10d;
+    }
+  }
+
+  .shielded-link {
+    color: $blue;
+    cursor: pointer;
+
+    .icon-fenxiang {
+      margin-left: 5px;
+      font-size: 12px;
     }
   }
 
   .basic-detail {
     display: flex;
-    padding: 18px 0 24px 32px;
+    padding: 12px 0 24px 32px;
+    background: #fafbfd;
 
     .basic-left {
       display: flex;
       flex: 1;
       flex-direction: column;
       min-width: 943px;
-      padding: 0 16px 0 36px;
+      padding: 0 16px 0 0;
 
       .basic-title {
         display: flex;
@@ -102,8 +210,8 @@ $text: #313238;
       .detail-form {
         position: relative;
         width: 100%;
-        padding-left: 26px;
         margin-top: 16px;
+        padding-right: 34px;
 
         .item-col {
           display: flex;
@@ -141,7 +249,7 @@ $text: #313238;
             justify-content: flex-end;
 
             /* stylelint-disable-next-line declaration-no-important */
-            color: #63656e !important;
+            color: #757880 !important;
 
             &.fb-146 {
               flex-basis: 146px;
@@ -156,30 +264,51 @@ $text: #313238;
             line-height: 16px;
             color: $text;
             word-break: break-all;
+            .dimensions-item {
+              background: #eaebf0;
+              border-radius: 2px;
+              padding: 4px 5px;
+              margin-right: 4px;
+              margin-bottom: 6px;
+              .name,
+              .eq {
+                color: #757880;
+              }
+              .eq {
+                margin: 0 2px;
+              }
+              .content {
+                margin-left: 0;
+                display: block;
+                margin-top: 3px;
+                padding-bottom: 2px;
+              }
+            }
 
             .item-time-zone {
               height: 20px;
               padding: 0 4px;
               margin-left: 10px;
               line-height: 20px;
-              color: #63656e;
-              background: #f0f1f5;
+              color: #4d4f56;
+              background: #eaebf0;
               border-radius: 2px;
             }
 
             .icon-monitor {
-              margin-left: 8px;
+              margin-left: 10px;
               font-size: 12px;
               color: $blue;
               white-space: nowrap;
               cursor: pointer;
 
-              &.icon-tishi {
-                font-size: 16px;
+              &.icon-xiangqing1 {
+                font-size: 12px;
               }
 
               &.icon-chuli {
-                font-size: 14px;
+                font-size: 12px;
+                margin-right: 5px;
               }
             }
 
@@ -226,7 +355,8 @@ $text: #313238;
             cursor: pointer;
 
             .icon-fenpai {
-              font-size: 14px;
+              font-size: 12px;
+              margin-right: 5px;
             }
           }
         }
@@ -257,78 +387,6 @@ $text: #313238;
 
       &.en-lang {
         width: 260px;
-      }
-
-      .right-status {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        height: 91px;
-        margin-top: 65px;
-
-        .status-icon {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-
-          .icon-monitor {
-            font-size: 32px;
-          }
-
-          .status-text {
-            margin-top: 4px;
-            font-size: 14px;
-            font-weight: 400;
-            color: #000;
-            .right-icon {
-              margin-left: 8px;
-              color: $red;
-              cursor: pointer;
-              &.icon-tishi {
-                font-size: 16px;
-              }
-            }
-          }
-        }
-      }
-
-      .status-operate {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-top: 16px;
-
-        .operate-click {
-          font-weight: 400;
-          color: $blue;
-          cursor: pointer;
-        }
-
-        .operate-separate {
-          margin: 0 8px;
-        }
-
-        .shielded-text {
-          font-weight: 400;
-          color: $text;
-        }
-
-        .shielded-time {
-          margin-left: 2px;
-          font-weight: 400;
-          color: #ffa10d;
-        }
-      }
-
-      .shielded-link {
-        margin-top: 5px;
-        color: $blue;
-        cursor: pointer;
-
-        .icon-fenxiang {
-          margin-left: 5px;
-          font-size: 12px;
-        }
       }
     }
 
