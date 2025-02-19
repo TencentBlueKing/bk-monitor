@@ -745,7 +745,7 @@ const store = new Vuex.Store({
       const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
       const filterList = (payload || displayFields) ?? state.indexFieldInfo.display_fields;
-      const visibleFields =
+      const visibleFields = 
         filterList
           .map(displayName => {
             for (const field of state.indexFieldInfo.fields) {
@@ -753,6 +753,24 @@ const store = new Vuex.Store({
                 return field;
               }
             }
+            return {
+                field_type: "object",
+                field_name: displayName,
+                field_alias: "",
+                is_display: false,
+                is_editable: true,
+                tag: "",
+                origin_field: "",
+                es_doc_values: true,
+                is_analyzed: false,
+                field_operator: [
+                ],
+                is_built_in: true,
+                is_case_sensitive: false,
+                tokenize_on_chars: "",
+                description: "",
+                filterVisible: true
+            };
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
