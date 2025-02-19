@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,43 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { destroyTimezone } from '../../i18n/dayjs';
-import DataRetrieval from './data-retrieval';
-
-import type { Route } from 'vue-router';
-
-Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
+import './resident-setting.scss';
 
 @Component
-export default class EventRetrieval extends tsc<object> {
-  @Ref() eventRetrieval: DataRetrieval;
-
-  // beforeRouteEnter(to: Route, from: Route, next: (a: (vm: EventRetrieval) => void) => void) {
-  //   next((vm: EventRetrieval) => {
-  //     vm.eventRetrieval.handleBeforeRouteEnter(to, from);
-  //   });
-  // }
-  /*
-  todo: 这里需要把整个数据检索拆分出来
-  */
-  created() {
-    this.$nextTick(() => {
-      // this.eventRetrieval.handleBeforeRouteEnter(this.$route, { name: '' } as Route);
-    });
-  }
-  beforeRouteLeave(to: Route, from: Route, next: () => void) {
-    destroyTimezone();
-    next();
-  }
+export default class ResidentSetting extends tsc<object> {
   render() {
     return (
-      <DataRetrieval
-        key={this.$store.getters.bizId}
-        ref='eventRetrieval'
-      />
+      <div class='retrieval-filter__resident-setting-component'>
+        <span class='left-btn'>
+          <span class='icon-monitor icon-setting' />
+          <span class='setting-text'>{this.$t('设置筛选')}</span>
+        </span>
+        <div class='right-content'>
+          <span class='placeholder-text'>{`（${this.$t('暂未设置常驻筛选，请点击左侧设置按钮')}）`}</span>
+        </div>
+      </div>
     );
   }
 }
