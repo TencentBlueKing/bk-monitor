@@ -1,0 +1,28 @@
+.retrieval-filter__resident-setting-component {
+  display: flex;
+  align-items: flex-start;
+  min-height: 40px;
+
+  .left-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding: 0 7px;
+    font-size: 12px;
+    color: #3A84FF;
+    cursor: pointer;
+
+    .setting-text {
+      margin-left: 4px;
+    }
+  }
+
+  .right-content {
+    .placeholder-text {
+      font-size: 12px;
+      line-height: 40px;
+      color: #979BA5;
+    }
+  }
+}
