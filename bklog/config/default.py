@@ -843,11 +843,11 @@ PIPELINE_TASKS_EXPIRED_TIME = os.getenv("BKAPP_PIPELINE_TASKS_EXPIRED_TIME", 24)
 WINDOWS_ACCOUNT = os.getenv("BKAPP_WINDOWS_ACCOUNT", "system")
 
 # pipeline 配置
-# from pipeline.celery.settings import CELERY_QUEUES as PIPELINE_CELERY_QUEUES
-# from pipeline.celery.settings import CELERY_ROUTES as PIPELINE_CELERY_ROUTES
-#
-# CELERY_ROUTES = PIPELINE_CELERY_ROUTES
-# CELERY_QUEUES = PIPELINE_CELERY_QUEUES
+from pipeline.celery.settings import CELERY_QUEUES as PIPELINE_CELERY_QUEUES
+from pipeline.celery.settings import CELERY_ROUTES as PIPELINE_CELERY_ROUTES
+
+CELERY_ROUTES = PIPELINE_CELERY_ROUTES
+CELERY_QUEUES = PIPELINE_CELERY_QUEUES
 
 # ===============================================================================
 # databus
