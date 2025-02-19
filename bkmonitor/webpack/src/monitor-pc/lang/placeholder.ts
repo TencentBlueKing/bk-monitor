@@ -306,4 +306,6 @@ export default {
   '1-50字符，由小写字母、数字、下划线(_)、中划线(-)组成':
     '1-50 characters, consisting of lowercase letters, numbers, underscores (_), and hyphens (-)',
   '最大为{n}天': 'Up to {n} days',
+  '搜不到想要的？': "Can't find what you want?",
+  '试试。': 'and try.',
 };
