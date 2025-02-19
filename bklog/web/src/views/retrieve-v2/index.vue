@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-  import { computed, onMounted, ref, watch } from 'vue';
+  import { computed, ref, watch } from 'vue';
 
   import useStore from '@/hooks/use-store';
   import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -255,59 +255,31 @@
 <template>
   <div
     :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
-    :style="stickyStyle"
-  >
+    :style="stickyStyle">
     <div class="sub-head">
-      <div
-        :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
-        class="box-favorites"
-        @click="handleFavoritesClick"
-      >
-        <div
-          v-if="showFavorites"
-          class="collet-label"
-        >
+      <div :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }" class="box-favorites"
+        @click="handleFavoritesClick">
+        <div v-if="showFavorites" class="collet-label">
           <div class="left-info">
             <span class="collect-title">{{ $t('收藏夹') }}</span>
             <span class="collect-count">{{ favoriteRef?.allFavoriteNumber }}</span>
-            <span
-              class="collect-edit bklog-icon bklog-wholesale-editor"
-              @click="handleEditFavoriteGroup"
-            ></span>
+            <span class="collect-edit bklog-icon bklog-wholesale-editor" @click="handleEditFavoriteGroup"></span>
           </div>
-          <span
-            class="bklog-icon bklog-collapse-small"
-            @click="handleFavoritesClose"
-          ></span>
+          <span class="bklog-icon bklog-collapse-small" @click="handleFavoritesClose"></span>
         </div>
         <template v-else>
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar
-        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
-        show-favorites
-      />
+      <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }" show-favorites />
     </div>
-    <div
-      :class="['retrieve-v2-body']"
-      :style="contentStyle"
-    >
-      <CollectFavorites
-        ref="favoriteRef"
-        class="collect-favorites"
-        :is-refresh.sync="isRefreshList"
-        :is-show.sync="showFavorites"
-        :width.sync="favoriteWidth"
-        :style="favoritesStlye"
-        @update-active-favorite="updateActiveFavorite"
-      ></CollectFavorites>
+    <div :class="['retrieve-v2-body']" :style="contentStyle">
+      <CollectFavorites ref="favoriteRef" class="collect-favorites" :is-refresh.sync="isRefreshList"
+        :is-show.sync="showFavorites" :width.sync="favoriteWidth" :style="favoritesStlye"
+        @update-active-favorite="updateActiveFavorite"></CollectFavorites>
       <div class="retrieve-v2-content">
-        <SearchBar
-          :active-favorite="activeFavorite"
-          @height-change="handleHeightChange"
-          @refresh="handleRefresh"
-        ></SearchBar>
+        <SearchBar :active-favorite="activeFavorite" @height-change="handleHeightChange" @refresh="handleRefresh">
+        </SearchBar>
         <SearchResultTab v-model="activeTab"></SearchResultTab>
         <template v-if="showAnalysisTab">
           <GraphAnalysis></GraphAnalysis>

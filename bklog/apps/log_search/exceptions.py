@@ -390,7 +390,7 @@ class FavoriteNotExistException(BaseException):
 
 class FavoriteAlreadyExistException(BaseException):
     ERROR_CODE = "426"
-    MESSAGE = _("收藏名已存在")
+    MESSAGE = _("分组下已存在相同收藏名")
 
 
 class FavoriteVisibleTypeNotAllowedModifyException(BaseException):

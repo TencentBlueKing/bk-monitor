@@ -103,18 +103,18 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
   groupTagRender() {
     return this.groupInstance.groupFilters.map(id => {
       return (
-        <span
+        <div
           key={id}
           class={['group-by-item', !this.groupInstance.isDefaultGroupFilter(id) ? 'can-delete' : '']}
         >
-          {id || '--'}
+          <span>{id || '--'}</span>
           {!this.groupInstance.isDefaultGroupFilter(id) ? (
             <i
               class='icon-monitor icon-mc-close'
               onClick={() => this.handleDeleteItem(id)}
             />
           ) : null}
-        </span>
+        </div>
       );
     });
   }

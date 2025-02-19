@@ -23,7 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, ref, computed, type Ref, onUnmounted, onMounted, nextTick, watch } from 'vue';
+import {
+  defineComponent,
+  inject,
+  ref,
+  computed,
+  type Ref,
+  onUnmounted,
+  onMounted,
+  nextTick,
+  watch,
+  type ComputedRef,
+} from 'vue';
 
 import {
   MonitorRetrieve as Log,
@@ -36,9 +47,9 @@ import {
 import { Button, Exception } from 'bkui-vue';
 import { serviceRelationList, serviceLogInfo } from 'monitor-api/modules/apm_log';
 
-import { handleTransformToTimestamp, type TimeRangeType } from '../../../components/time-range/utils';
+import { handleTransformToTimestamp } from '../../../components/time-range/utils';
 import { useAppStore } from '../../../store/modules/app';
-import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, TIME_RANGE_KEY } from '../../hooks';
+import { REFLESH_IMMEDIATE_KEY, REFLESH_INTERVAL_KEY, useTimeRanceInject } from '../../hooks';
 
 import './monitor-trace-log.scss';
 import '@blueking/monitor-trace-log/css/main.css';
@@ -52,11 +63,19 @@ export default defineComponent({
     const bizId = computed(() => useAppStore().bizId || 0);
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
-    const timeRange = inject<Ref<TimeRangeType>>(TIME_RANGE_KEY);
     const refleshImmediate = inject<Ref<string>>(REFLESH_IMMEDIATE_KEY);
     const refleshInterval = inject<Ref<number>>(REFLESH_INTERVAL_KEY);
     const spanId = inject<Ref<string>>('spanId', ref(''));
     const mainRef = ref<HTMLDivElement>();
+    const customTimeProvider = inject<ComputedRef<string[]>>(
+      'customTimeProvider',
+      computed(() => [])
+    );
+    const defaultTimeRange = useTimeRanceInject();
+    const timeRange = computed(() => {
+      // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
+      return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];
+    });
 
     let unPropsWatch = null;
 
@@ -121,7 +140,7 @@ export default defineComponent({
         });
         await nextTick();
         app.$mount(mainRef.value);
-        window.mainComponent = app;
+        window.traceLogComponent = app;
       } else {
         empty.value = true;
       }
@@ -181,8 +200,8 @@ export default defineComponent({
     onUnmounted(() => {
       if (!empty.value) {
         logStore.commit('resetState');
-        window.mainComponent.$destroy();
-        window.mainComponent = null;
+        window.traceLogComponent.$destroy();
+        window.traceLogComponent = null;
         unPropsWatch?.();
       }
     });

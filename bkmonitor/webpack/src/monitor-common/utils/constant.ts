@@ -25,15 +25,15 @@
  */
 // 导航主题颜色
 export const APP_NAV_COLORS = {
-  'item-hover-bg-color': '#3a4561',
+  'item-hover-bg-color': '#31394F',
   'item-hover-color': '#FFFFFF',
-  'item-active-bg-color': '#0083FF',
+  'item-active-bg-color': '#3A84FF',
   'item-active-color': '#FFFFFE',
-  'item-default-bg-color': '#2C354D',
-  'item-default-color': '#acb5c6',
-  'item-default-icon-color': '#acb5c6',
-  'item-child-icon-default-color': '#acb5c6;',
-  'item-child-icon-hover-color': '#acb5c6;',
+  'item-default-bg-color': '#242B3B',
+  'item-default-color': '#96A2B9',
+  'item-default-icon-color': '#979BA5',
+  'item-child-icon-default-color': '#acb5c6',
+  'item-child-icon-hover-color': '#acb5c6',
   'item-active-icon-color': '#FFFFFE',
   'item-hover-icon-color': '#FFFFFF',
   'item-child-icon-active-color': '#FFFFFF',

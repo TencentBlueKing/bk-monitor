@@ -35,6 +35,8 @@ export enum ESearchType {
   alert = 'alert',
   // apm_application: APM应用
   apm_application = 'apm_application',
+  // bcs集群
+  bcs_cluster = 'bcs_cluster',
   // host: 主机
   host = 'host',
   // strategy: 策略
@@ -55,6 +57,8 @@ export const EStatusType = {
   disabled: '已停用',
   shielded: '已屏蔽',
 };
+/* 严重程度 */
+export const DEFAULT_SEVERITY_LIST = ['FATAL', 'WARNING', 'INFO'];
 
 /* 告警级别 */
 export enum EAlertLevel {
@@ -74,7 +78,7 @@ export const EFunctionNameType = {
 };
 export const RECENT_FAVORITE_LIST_KEY = 'recent_favorite_list_key'.toLocaleUpperCase();
 export const RECENT_ALARM_TIME_RANGE_KEY = 'recent_alarm_time_range_key'.toLocaleUpperCase();
-
+export const RECENT_ALARM_SEVERITY_KEY = 'recent_alarm_severity_key'.toLocaleUpperCase();
 /**
  * @description 输入字段匹配字段高亮
  * @param searchValue 输入的字段

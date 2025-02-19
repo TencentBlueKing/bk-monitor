@@ -109,7 +109,7 @@
   const getFieldName = field => {
     const { getFieldName } = useFieldNameHook({ store });
     return getFieldName(field);
-  }
+  };
   const rootList = computed(() => {
     formatCounter.value++;
     return fieldList.value.map((f: any) => ({
@@ -226,6 +226,7 @@
     &.is-inline {
       .bklog-root-field {
         word-break: break-all;
+        display: inline-flex;
 
         .segment-content {
           word-break: break-all;
@@ -234,7 +235,7 @@
     }
 
     &.is-json {
-      display: inline-block;
+      // display: inline-flex;
       width: 100%;
     }
 

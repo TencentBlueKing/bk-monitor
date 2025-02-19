@@ -62,6 +62,8 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
+    CC_HOST_FIELDS,
+    CC_SCOPE_FIELDS,
     CHECK_TASK_READY_NOTE_FOUND_EXCEPTION_CODE,
     CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS,
     DEFAULT_RETENTION,
@@ -71,6 +73,7 @@ from apps.log_databus.constants import (
     SEARCH_BIZ_INST_TOPO_LEVEL,
     STORAGE_CLUSTER_TYPE,
     ArchiveInstanceType,
+    CmdbFieldType,
     CollectStatus,
     ContainerCollectorType,
     ContainerCollectStatus,
@@ -853,6 +856,18 @@ class CollectorHandler(object):
         is_display = params.get("is_display", True)
         params["params"]["encoding"] = data_encoding
         params["params"]["run_task"] = params.get("run_task", True)
+
+        # cmdb元数据补充
+        extra_labels = params["params"].get("extra_labels")
+        if extra_labels:
+            for item in extra_labels:
+                if item["value"] == CmdbFieldType.HOST.value and item["key"] in CC_HOST_FIELDS:
+                    item["value"] = "{{cmdb_instance." + item["value"] + "." + item["key"] + "}}"
+                    item["key"] = "host.{}".format(item["key"])
+                if item["value"] == CmdbFieldType.SCOPE.value and item["key"] in CC_SCOPE_FIELDS:
+                    # TODO: 支持集群信息注入
+                    continue
+
         # 1. 创建CollectorConfig记录
         model_fields = {
             "collector_config_name": collector_config_name,
@@ -4847,6 +4862,32 @@ class CollectorHandler(object):
         )
 
         NOTIFY_EVENT(content=content, dimensions={"space_uid": space_uid, "msg_type": "create_collector_config"})
+
+    @staticmethod
+    def search_object_attribute():
+        return_data = defaultdict(list)
+        response = CCApi.search_object_attribute({"bk_obj_id": "host"})
+        for data in response:
+            if data["bk_obj_id"] == "host" and data["bk_property_id"] in CC_HOST_FIELDS:
+                host_data = {
+                    "field": data["bk_property_id"],
+                    "name": data["bk_property_name"],
+                    "group_name": data["bk_property_group_name"],
+                }
+                return_data["host"].append(host_data)
+        return_data["host"].extend(
+            [
+                {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
+                {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
+                {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"},
+            ]
+        )
+        # scope_data = [
+        #     {"field": "bk_module_id", "name": "模型ID", "group_name": "基础信息"},
+        #     {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"}
+        # ]
+        # return_data["scope"] = scope_data
+        return return_data
 
 
 def get_data_link_id(bk_biz_id: int, data_link_id: int = 0) -> int:

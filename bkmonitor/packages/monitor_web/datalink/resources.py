@@ -513,50 +513,23 @@ class TransferLatestMsgResource(BaseStatusResource):
                 return messages[:10]
         return messages
 
-    def query_latest_metric_msg(self, table_id: str, time_range: int = 600) -> List[str]:
-        """查询一个指标最近10分钟的最新数据"""
-        start_time, end_time = int(time.time() - time_range), int(time.time())
-        query_params = {
-            "bk_biz_id": self.collect_config.bk_biz_id,
-            "query_configs": [
-                {
-                    "data_source_label": "prometheus",
-                    "data_type_label": "time_series",
-                    "promql": """
-                    topk(10, {{__name__=~"bkmonitor:{table_id}:.*",
-                     bk_collect_config_id="{bk_collect_config_id}"}})""".format(
-                        table_id=table_id.replace('.', ':'), bk_collect_config_id=self.collect_config_id
-                    ),
-                    "interval": 60,
-                    "alias": "a",
-                }
-            ],
-            "expression": "",
-            "alias": "a",
-            "start_time": start_time,
-            "end_time": end_time,
-            "slimit": 500,
-            "down_sample_range": "",
-        }
-        series = resource.grafana.graph_unify_query(query_params)["series"]
+    def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[Dict]:
+        """查询一个指标的最新数据"""
+
+        series: List[Dict] = api.metadata.kafka_tail({"table_id": table_id, "size": size})
+        logger.info(f"kafka tail series: {series}")
         msgs = []
         for s in series:
-            metric_name = s["dimensions"]["__name__"]
-            val = s["datapoints"][-1][0]
-            ts = s["datapoints"][-1][1]
-            target = s["target"]
-            # 组装消息
-            msg = "{metric}{target} {val}".format(metric=metric_name, target=target, val=val)
-            # 原始数据拼接
-            raw = s["dimensions"]
-            raw[metric_name] = val
-            raw["time"] = ts
+            # 获取时间戳
+            timestamp = s.get("timestamp") or s.get("@timestamp") or s.get("time")
+            if len(str(timestamp)) == 13:
+                timestamp = timestamp / 1000
 
             msgs.append(
                 {
-                    "message": msg,
-                    "time": datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M:%S"),
-                    "raw": raw,
+                    "message": json.dumps(s),
+                    "time": datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S"),
+                    "raw": s,
                 }
             )
         return msgs
