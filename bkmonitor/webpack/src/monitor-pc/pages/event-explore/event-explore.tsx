@@ -36,6 +36,32 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
 export default class EventRetrievalNew extends tsc<object> {
+  /** 请求接口公共请求参数 */
+  get commonParams() {
+    return {
+      query_configs: [
+        {
+          data_source_label: 'bk_apm',
+          data_type_label: 'event',
+          table: 'k8s_event',
+          filter_dict: {},
+          where: [
+            {
+              condition: 'and',
+              key: 'kind',
+              method: 'eq',
+              value: ['Job'],
+            },
+          ],
+          query_string: '*',
+          group_by: ['type'],
+        },
+      ],
+      start_time: 1739499301,
+      end_time: 1739502901,
+    };
+  }
+
   render() {
     return (
       <div class='event-explore'>
@@ -50,7 +76,7 @@ export default class EventRetrievalNew extends tsc<object> {
                 slot='aside'
               />
               <div class='result-content-panel'>
-                <EventExploreView />
+                <EventExploreView commonParams={this.commonParams} />
               </div>
             </EventRetrievalLayout>
           </div>

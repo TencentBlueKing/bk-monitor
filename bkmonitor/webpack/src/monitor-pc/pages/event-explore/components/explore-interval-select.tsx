@@ -54,6 +54,13 @@ export default class ExploreIntervalSelect extends tsc<ExploreIntervalSelectProp
 
   popoverInstance = null;
 
+  get listLabelByIdMap() {
+    return this.intervalList.reduce((prev, curr) => {
+      prev[curr.id] = curr.name;
+      return prev;
+    }, {});
+  }
+
   /** 汇聚方法值改变后回调 */
   @Emit('change')
   handleIntervalChange(interval: EventRetrievalViewType.intervalType) {
@@ -94,7 +101,7 @@ export default class ExploreIntervalSelect extends tsc<ExploreIntervalSelectProp
           class={`popover-trigger ${this.popoverInstance ? 'is-active' : ''}`}
           onClick={e => this.handleIntervalListShow(e)}
         >
-          <span class='trigger-value'>{this.interval}</span>
+          <span class='trigger-value'>{this.listLabelByIdMap[this.interval] || '--'}</span>
           <i class='icon-monitor icon-arrow-up' />
         </div>
         <div style='display: none'>

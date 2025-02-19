@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EventExploreChart from './event-explore-chart';
@@ -31,7 +31,8 @@ import EventExploreChart from './event-explore-chart';
 import './event-explore-view.scss';
 
 interface IEventExploreViewProps {
-  test?: string;
+  /** 请求接口公共请求参数 */
+  commonParams: Record<string, any>;
 }
 interface IEventExploreViewEvent {
   onClick?: () => void;
@@ -39,11 +40,20 @@ interface IEventExploreViewEvent {
 
 @Component
 export default class EventExploreView extends tsc<IEventExploreViewProps, IEventExploreViewEvent> {
+  /** 请求接口公共请求参数 */
+  @Prop({ type: Object, default: () => ({}) }) commonParams: Record<string, any>;
+
+  /** 数据总数 */
+  total = 0;
+
   render() {
     return (
       <div class='event-explore-view-wrapper'>
         <div class='event-explore-chart-wrapper'>
-          <EventExploreChart />
+          <EventExploreChart
+            commonParams={this.commonParams}
+            total={this.total}
+          />
         </div>
         <div class='event-explore-table'>table</div>
       </div>

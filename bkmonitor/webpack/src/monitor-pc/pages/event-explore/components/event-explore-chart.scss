@@ -1,36 +1,73 @@
+// 图标容器顶部边距
+$container-pt: 8px;
+// 图表头部高度
+$chart-header-height: 22px;
+// 图表切换折叠状态时动画持续时长
+$expand-animation-duration: 0.6s;
+
 .event-explore-chart {
-  --container-padding-top: 8px;
-  --chart-header-height: 20px;
   display: grid;
   grid-template-rows: 0fr;
   grid-template-columns: 1fr;
   min-height: 28px;
   overflow-y: hidden;
-  transition: grid-template-rows 0.6s;
+  transition: grid-template-rows $expand-animation-duration;
   transition-timing-function: ease;
 
   &.is-expand {
     grid-template-rows: 1fr;
+
+    .event-explore-chart-title {
+      .chart-title-left {
+        .left-text {
+          .icon-mc-triangle-down {
+            transform: rotate(0deg);
+          }
+        }
+      }
+
+      .chart-title-right {
+        .interval-select {
+          display: block;
+        }
+      }
+    }
   }
 
   .event-explore-chart-container {
-    min-height: calc(var(--container-padding-top) + var(--chart-header-height));
-    padding-top: var(--container-padding-top);
+    min-height: $container-pt + $chart-header-height;
+    padding-top: $container-pt;
   }
 
   .explore-chart {
     height: unset;
-  }
 
-  .echart-header {
-    width: 100%;
+    .echart-header {
+      width: 100%;
+    }
+
+    .chart-wrapper-echarts {
+      .echart-legend {
+        display: flex;
+        justify-content: center;
+
+        .common-legend-item {
+          margin-left: 16px;
+
+          .legend-icon {
+            width: 8px;
+            height: 8px;
+          }
+        }
+      }
+    }
   }
 
   .event-explore-chart-title {
     display: flex;
     justify-content: space-between;
     width: 100%;
-    height: var(--chart-header-height);
+    height: $chart-header-height;
     padding-right: 12px;
     font-weight: normal;
     color: #4d4f56;
@@ -49,10 +86,6 @@
           font-size: 19px;
           transition: transform 0.3s ease;
           transform: rotate(-90deg);
-
-          &.is-expand {
-            transform: rotate(0deg);
-          }
         }
 
         .chart-title {
@@ -67,11 +100,49 @@
           }
         }
       }
+
+      .chart-tags {
+        display: flex;
+        border-radius: 2px;
+
+        .chart-tags-item {
+          display: flex;
+          align-items: center;
+          height: $chart-header-height;
+          padding-left: 5px;
+          margin-left: 6px;
+          color: var(--tag-color);
+          background-color: var(--tag-bg-color);
+
+          .icon-filter-fill {
+            width: 14px;
+            margin-right: 4px;
+            font-size: 14px;
+            line-height: 14px;
+          }
+
+          .tag-label {
+            line-height: 14px;
+            color: #4d4f56;
+          }
+
+          .icon-mc-close {
+            font-size: 18px;
+            color: #979ba5;
+            cursor: pointer;
+          }
+        }
+      }
     }
 
     .chart-title-right {
       display: flex;
       flex-shrink: 0;
+      align-items: center;
+
+      .interval-select {
+        display: none;
+      }
     }
   }
 }

@@ -5,7 +5,7 @@
   height: 20px;
 
   .explore-interval-label {
-    margin-right: 8px;
+    margin-right: 6px;
     color: #4d4f56;
   }
 
@@ -16,6 +16,9 @@
     cursor: pointer;
 
     .trigger-value {
+      display: inline-flex;
+      justify-content: center;
+      width: 30px;
       height: 20px;
       font-size: 12px;
       line-height: 20px;

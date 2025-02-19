@@ -832,6 +832,7 @@ export default class MonitorEcharts extends Vue {
             : false;
         }
         this.legend.list = optionData.legendData || [];
+        this.$emit('showLegendChange', this.legend.list.filter(v => v.show).map(v => v.name))
         if (this.chartOption.grid) {
           optionData.options.grid.bottom = this.chartOption.grid.bottom;
         }
@@ -1246,7 +1247,7 @@ export default class MonitorEcharts extends Vue {
           });
         }
       });
-
+      this.$emit('showLegendChange', showSeries.map(v => v.target))
       const optionData = this.chartOptionInstance.getOptions(this.handleTransformSeries(showSeries), {});
       this.chart.setOption(deepMerge(optionData.options, this.defaultOptions), {
         notMerge: true,
@@ -1263,6 +1264,12 @@ export default class MonitorEcharts extends Vue {
         .some(set => set.name !== item.name && set.show);
       this.legend.list.forEach(legend => {
         legend.show = legend.name === item.name || !hasOtherShow;
+      });
+      setOnlyOneMarkArea();
+    }else if(actionType === 'parent-change') {
+      this.legend.list.forEach(legend => {
+        if(legend.name !== item.name) return;
+        legend.show = item.show;
       });
       setOnlyOneMarkArea();
     }
