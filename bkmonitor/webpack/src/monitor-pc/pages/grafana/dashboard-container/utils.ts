@@ -31,6 +31,7 @@ export interface ITreeMenuItem {
   expend?: boolean;
   level?: number;
   uid: string;
+  hasPermission?: boolean;
   isFolder?: boolean;
   isStarred?: boolean;
   editable?: boolean;
@@ -52,6 +53,7 @@ export class TreeMenuItem {
   editable = true; /** 传入的icon */
   editValue = ''; /** 是否展开 */
   expend = false; /** 当前项的级别 */
+  hasPermission = false; /** 是否有权限 */
   icon = ''; /** 配置 */
   id: number = null; /** 新增按钮处于激活状态 */
   isFolder = false; /** 更多按钮处于激活状态 */

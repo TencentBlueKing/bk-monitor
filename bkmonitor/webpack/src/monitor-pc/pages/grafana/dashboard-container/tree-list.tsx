@@ -276,6 +276,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                   edit: item.edit,
                 },
               ]}
+              v-authority={{ active: !(item.hasPermission || item.isGroup) }}
               onClick={e => this.handleClickRow(e, item)}
               onMouseenter={() => this.handleMouseenter(item)}
               onMouseleave={() => this.handleMouseenter()}
@@ -301,7 +302,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                   {item.title}
                 </span>
               )}
-              {process.env.APP !== 'external' && item.uid !== GRAFANA_HOME_ID && (
+              {item.hasPermission && process.env.APP !== 'external' && item.uid !== GRAFANA_HOME_ID && (
                 <span class='list-item-handle'>
                   {item.isFolder && this.checkedGroupItemFocus(this.needAdd, item) && (
                     <IconBtn

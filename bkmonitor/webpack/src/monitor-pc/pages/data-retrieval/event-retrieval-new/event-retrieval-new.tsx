@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,46 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref } from 'vue';
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import { getTargetElement } from '@/hooks/hooks-helper';
-import useLocale from '@/hooks/use-locale';
-import useScroll from '@/hooks/use-scroll';
+import EventRetrievalHeader from './components/event-retrieval-header';
+import EventRetrievalLayout from './components/event-retrieval-layout';
 
-import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
+import './event-retrieval-new.scss';
+Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
-export default defineComponent({
-  emits: ['scroll-top'],
-  setup(_, { emit }) {
-    const { $t } = useLocale();
-    const offsetTop = ref(0);
-
-    useScroll(GLOBAL_SCROLL_SELECTOR, event => {
-      if (event.target) {
-        offsetTop.value = (event.target as HTMLElement).scrollTop;
-      }
-    });
-
-    const showBox = computed(() => offsetTop.value > 1000);
-    const scrollTop = () => {
-      getTargetElement(GLOBAL_SCROLL_SELECTOR)?.scrollTo(0, 0);
-      emit('scroll-top');
-    };
-
-    const renderBody = () => (
-      <span
-        class={['btn-scroll-top', { 'show-box': showBox.value }]}
-        v-bk-tooltips={$t('返回顶部')}
-        onClick={() => scrollTop()}
-      >
-        <i class='bklog-icon bklog-zhankai'></i>
-      </span>
-    );
-    return {
-      renderBody,
-    };
-  },
+@Component
+export default class EventRetrievalNew extends tsc<object> {
   render() {
-    return this.renderBody();
-  },
-});
+    return (
+      <div class='event-retrieval-new-page'>
+        <div class='left-favorite-panel' />
+        <div class='right-main-panel'>
+          <EventRetrievalHeader />
+          <div class='event-retrieval-content'>
+            <div class='search-condition-panel' />
+            <EventRetrievalLayout class='content-container'>
+              <div
+                class='dimension-filter-panel'
+                slot='aside'
+              />
+              <div class='result-content-panel' />
+            </EventRetrievalLayout>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
