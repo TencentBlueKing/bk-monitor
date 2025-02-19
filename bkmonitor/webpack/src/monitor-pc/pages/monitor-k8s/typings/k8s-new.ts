@@ -90,6 +90,10 @@ export enum K8sTableColumnKeysEnum {
    */
   CPU_LIMIT = 'kube_pod_cpu_limits_ratio',
   /**
+   * @description: container_cpu_cfs_throttled_ratio - CPU 限流占比
+   */
+  CPU_THROTTLED = 'container_cpu_cfs_throttled_ratio',
+  /**
    * @description: container_memory_rss - 内存使用量(rss)
    */
   MEMORY_RSS = 'container_memory_rss',
@@ -101,7 +105,16 @@ export enum K8sTableColumnKeysEnum {
    * @description: kube_pod_memory_limits_ratio - 内存 limit使用率
    */
   MEMORY_LIMIT = 'kube_pod_memory_limits_ratio',
+  /**
+   * @description: container_network_receive_bytes_total - 网络入带宽
+   */
+  NETWORK_RECEIVE_BYTES = 'container_network_receive_bytes_total',
+  /**
+   * @description: container_network_transmit_bytes_total - 网络出带宽
+   */
+  NETWORK_TRANSMIT_BYTES = 'container_network_transmit_bytes_total',
 }
+
 /** 汇聚类型枚举 */
 export enum K8sConvergeTypeEnum {
   AVG = 'avg',
@@ -115,10 +128,13 @@ export enum K8sConvergeTypeEnum {
 export type K8sTableMetricKeys =
   | 'CPU_LIMIT'
   | 'CPU_REQUEST'
+  | 'CPU_THROTTLED'
   | 'CPU_USAGE'
   | 'MEMORY_LIMIT'
   | 'MEMORY_REQUEST'
-  | 'MEMORY_RSS';
+  | 'MEMORY_RSS'
+  | 'NETWORK_RECEIVE_BYTES'
+  | 'NETWORK_TRANSMIT_BYTES';
 
 /** 排序类型 */
 export type K8sSortType = '' | 'asc' | 'desc';

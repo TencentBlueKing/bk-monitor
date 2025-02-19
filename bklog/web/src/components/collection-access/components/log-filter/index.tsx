@@ -469,7 +469,7 @@ export default class LogFilter extends tsc<object> {
                     <bk-table-column
                       label={this.$t('过滤参数')}
                       prop='fieldindex'
-                      scopedSlots={fieldIndexInputSlot}
+                      scopedSlots={fieldIndexInputSlot(index)}
                     />
                   )}
                   <bk-table-column

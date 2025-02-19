@@ -25,8 +25,8 @@
 -->
 <template>
   <article
-    v-bkloading="{ isLoading: loading }"
     class="strategy-config-target"
+    v-bkloading="{ isLoading: loading }"
   >
     <section
       ref="targetContainer"
@@ -38,17 +38,18 @@
       <topo-selector
         ref="topoSelector"
         class="topo-selector"
-        :tree-height="targetContainerHeight"
         :height="targetContainerHeight"
+        :hidden-dynamic-group="false"
         :target-object-type="targetType"
+        :tree-height="targetContainerHeight"
         @check-change="handleCheckedChange"
       />
     </section>
     <section class="target-footer">
       <bk-button
         class="btn"
-        theme="primary"
         :disabled="!checkedData.length || !historyId"
+        theme="primary"
         @click="handleSave"
       >
         {{ $t('保存') }}
@@ -111,11 +112,13 @@ export default {
     getParams() {
       // 字段名
       let field = '';
+      let targetValue = this.checkedData;
       const hostTargetFieldType = {
         TOPO: 'host_topo_node',
         INSTANCE: 'ip',
         SERVICE_TEMPLATE: 'host_service_template',
         SET_TEMPLATE: 'host_set_template',
+        DYNAMIC_GROUP: 'dynamic_group',
       };
       const serviceTargetFieldType = {
         TOPO: 'service_topo_node',
@@ -127,6 +130,9 @@ export default {
       } else {
         field = serviceTargetFieldType[this.targetNodeType];
       }
+      if (this.targetNodeType === 'DYNAMIC_GROUP') {
+        targetValue = this.checkedData.map(({ id, bk_obj_id }) => ({ bk_inst_id: id, bk_obj_id }));
+      }
 
       return {
         import_history_id: Number(this.historyId),
@@ -135,7 +141,7 @@ export default {
             {
               field,
               method: 'eq',
-              value: this.checkedData,
+              value: targetValue,
             },
           ],
         ],

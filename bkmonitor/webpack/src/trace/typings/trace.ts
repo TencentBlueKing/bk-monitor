@@ -93,7 +93,8 @@ export interface ITopoNode {
 export interface IDiffInfo {
   baseline: number;
   comparison: number;
-  mark: string;
+  mark: 'added' | 'changed' | 'removed' | 'unchanged';
+  diff: number;
 }
 
 export interface ITopoRelation {

@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-import { computed, ref, watch, defineProps, provide, onMounted } from 'vue';
+import { computed, ref, watch, defineProps, provide } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -316,8 +316,10 @@ const paddingTop = ref(0);
 const scrollContainerHeight = ref(0);
 
 useScroll(GLOBAL_SCROLL_SELECTOR, event => {
-  const scrollTop = event.target.scrollTop;
-  paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+  if(event.target) {
+    const scrollTop = event.target.scrollTop;
+    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+  }
 });
 
 useResizeObserve(
@@ -335,15 +337,15 @@ const isStickyTop = computed(() => {
   return paddingTop.value === subBarHeight.value;
 });
 
-const isScrollY = computed(() => {
-  return !window.__IS_MONITOR_TRACE__
-})
+// const isScrollY = computed(() => {
+//   return !window.__IS_MONITOR_TRACE__
+// })
 
 /** * 结束计算 ***/
 
 </script>
 <template>
-  <div :style="stickyStyle" :class="['retrieve-v2-index', { 'scroll-y': isScrollY, 'is-sticky-top': isStickyTop }]"  v-bkloading="{ isLoading: initLoading }" >
+  <div :style="stickyStyle" :class="['retrieve-v2-index', {'scroll-y': true, 'is-sticky-top': isStickyTop }]"  v-bkloading="{ isLoading: initLoading }" >
     <div class="sub-head"  v-show="!initLoading">
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"

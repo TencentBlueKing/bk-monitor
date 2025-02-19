@@ -207,8 +207,11 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                         from_value=update_info["from"],
                         to_value=update_info["to"],
                     )
-                    if incident_key == "status" and update_info["to"] == IncidentStatus.RECOVERED.value:
-                        incident_document.end_time = int(time.time())
+                    if incident_key == "status":
+                        if update_info["to"] == IncidentStatus.RECOVERING.value:
+                            incident_document.end_time = int(time.time())
+                        elif update_info["to"] == IncidentStatus.ABNORMAL.value:
+                            incident_document.end_time = None
                         api.bkdata.update_incident_detail(
                             incident_id=sync_info["incident_id"],
                             end_time=incident_document.end_time,

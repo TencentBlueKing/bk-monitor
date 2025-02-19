@@ -52,6 +52,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_DEFAULT_STRATEGY", slz.BooleanField(label="是否开启默认策略", default=True)),
         ("IS_ENABLE_VIEW_CMDB_LEVEL", slz.BooleanField(label="是否开启前端视图部分的CMDB预聚合", default=False)),
         ("K8S_OPERATOR_DEPLOY_NAMESPACE", slz.JSONField(label="bkmonitor-operator 特殊集群部署命名空间信息", default={})),
+        ("K8S_COLLECTOR_CONFIG", slz.JSONField(label="集群内 collector 数据接收端特殊配置", default={})),
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
@@ -305,6 +306,9 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ENABLE_V2_BKDATA_GSE_RESOURCE", slz.BooleanField(label="是否启用新版的GSE资源申请", default=False)),
         ("ENABLE_V2_VM_DATA_LINK", slz.BooleanField(label="是否启用新版的VM链路", default=False)),
         ("ENABLE_BKDATA_KAFKA_TAIL_API", slz.BooleanField(label="是否启用计算平台Kafka采样接口", default=False)),
+        ("KAFKA_TAIL_API_RETRY_TIMES", slz.IntegerField(label="Kafka采样接口重试次数", default=3)),
+        ("KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS", slz.IntegerField(label="Kafka采样接口超时时间(秒)", default=2)),
+        ("KAFKA_TAIL_API_TIMEOUT_SECONDS", slz.IntegerField(label="Kafka采样接口Consumer超时时间(秒)", default=1000)),
         ("DEFAULT_VM_DATA_LINK_NAMESPACE", slz.CharField(label="创建计算平台链路资源所属的命名空间", default="bkmonitor")),
         ("BKBASE_REDIS_PATTERN", slz.CharField(label="计算平台Redis监听模式", default="databus_v4_dataid")),
         ("BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS", slz.IntegerField(label="Redis Watch锁续约间隔(秒)", default=15)),

@@ -25,11 +25,12 @@
 -->
 <template>
   <div
-    class="ip-list"
     ref="ipListWrapper"
+    class="ip-list"
     v-bkloading="{ isLoading: isLoading && !disabledLoading }"
   >
     <bk-input
+      v-if="enableTableSearch"
       clearable
       right-icon="bk-icon icon-search"
       v-model="tableKeyword"
@@ -90,6 +91,7 @@ export default class IpList extends Vue {
   // 禁用组件的loading状态
   @Prop({ default: false, type: Boolean }) private readonly disabledLoading!: boolean;
   @Prop({ default: '', type: String }) private readonly emptyText!: string;
+  @Prop({ default: true, type: Boolean }) private readonly enableTableSearch!: boolean;
 
   @Ref('ipListWrapper') private readonly ipListWrapperRef!: HTMLElement;
   @Ref('table') private readonly tableRef!: IpSelectorTable;

@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { getHashVal } from '../plugins/profiling-graph/flame-graph/utils';
+
 import type { HierarchyNode } from 'd3-hierarchy';
 
 export const ColorTypes = {
@@ -176,3 +179,9 @@ export interface IZoomRect {
   left: number; // 矩形左边距离画布左边的距离
   width: number; // 矩形的宽度
 }
+
+export const getSpanColorByName = (name: string) => {
+  const palette = Object.values(ColorTypes);
+  const colorIndex = getHashVal(name) % palette.length;
+  return palette[colorIndex];
+};

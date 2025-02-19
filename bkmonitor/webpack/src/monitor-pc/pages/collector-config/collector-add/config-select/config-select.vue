@@ -77,6 +77,7 @@
         :style="{ height: selectContainerHeight + 'px' }"
         :class="countInstanceType === 'service_instance' ? 'service-instance-selector' : ''"
         :count-instance-type="countInstanceType"
+        :enable-origin-data="true"
         :node-table-custom-column-list="serviceInstanceColumnList"
         :original-value="originValue"
         :panel-list="ipSelectorPanels"
@@ -425,7 +426,7 @@ export default {
       selector.targetNodeType = targetNodeType || 'TOPO';
       selector.targetObjectType = objectType; // 采集对象为服务时，只能选择动态
       selector.checkedData = targetNodes || [];
-      this.ipCheckValue = transformMonitorToValue(targetNodes || [], targetNodeType);
+      this.ipCheckValue = this.transformMonitorToValueExpand(targetNodes || [], targetNodeType);
       this.originValue = targetNodes?.length ? deepClone(this.ipCheckValue) : undefined;
       this.ipTargetType = selector.targetNodeType;
       if (objectType === 'SERVICE') {
@@ -433,7 +434,14 @@ export default {
         this.ipSelectorPanels = ['dynamicTopo', 'serviceTemplate', 'setTemplate'];
       } else {
         this.countInstanceType = 'host';
-        this.ipSelectorPanels = ['staticTopo', 'dynamicTopo', 'serviceTemplate', 'setTemplate', 'manualInput'];
+        this.ipSelectorPanels = [
+          'staticTopo',
+          'dynamicTopo',
+          'serviceTemplate',
+          'setTemplate',
+          'manualInput',
+          'dynamicGroup',
+        ];
       }
     },
     // 保存配置
@@ -461,6 +469,30 @@ export default {
         },
       });
     },
+
+    /** 接口动态分组类型参数修改，需单独处理 */
+    transformMonitorToValueExpand(data, nodeType) {
+      if (nodeType === 'DYNAMIC_GROUP') {
+        return {
+          dynamic_group_list: data.map(item => ({
+            bk_obj_id: item.bk_obj_id,
+            id: item.bk_inst_id || item.id,
+          })),
+        };
+      }
+      return transformMonitorToValue(data, nodeType);
+    },
+
+    transformValueToMonitorExpand(value, nodeType) {
+      if (nodeType === 'DYNAMIC_GROUP') {
+        return value.dynamic_group_list.map(item => ({
+          bk_obj_id: item.bk_obj_id,
+          bk_inst_id: item.id,
+        }));
+      }
+      return transformValueToMonitor(value, nodeType);
+    },
+
     // 获取要保存的数据
     getParams() {
       const setData = this.config.set.data;
@@ -471,7 +503,7 @@ export default {
       // 获取选择的数据
       // const { type, data } = this.$refs.topoSelector.getCheckedData();
 
-      selectData.targetNodes = transformValueToMonitor(this.ipCheckValue, this.ipTargetType);
+      selectData.targetNodes = this.transformValueToMonitorExpand(this.ipCheckValue, this.ipTargetType);
 
       // 编辑态下如果目标节点为空，则取默认
       selectData.targetNodeType =

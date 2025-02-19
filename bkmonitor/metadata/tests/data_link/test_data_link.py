@@ -297,7 +297,7 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
                 "spec": {
                     "conditions": [
                         {
-                            "match_labels": [{"name": "namespace", "value": "ns1"}],
+                            "match_labels": [{"name": "namespace", "any": ["ns1", "ns2", "ns3"]}],
                             "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
                             "sinks": [
                                 {
@@ -308,51 +308,7 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
                             ],
                         },
                         {
-                            "match_labels": [{"name": "namespace", "value": "ns2"}],
-                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
-                            "sinks": [
-                                {
-                                    "kind": "VmStorageBinding",
-                                    "name": "bkm_1001_bkmonitor_time_series_60010",
-                                    "namespace": "bkmonitor",
-                                }
-                            ],
-                        },
-                        {
-                            "match_labels": [{"name": "namespace", "value": "ns3"}],
-                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
-                            "sinks": [
-                                {
-                                    "kind": "VmStorageBinding",
-                                    "name": "bkm_1001_bkmonitor_time_series_60010",
-                                    "namespace": "bkmonitor",
-                                }
-                            ],
-                        },
-                        {
-                            "match_labels": [{"name": "namespace", "value": "ns4"}],
-                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-70001"}],
-                            "sinks": [
-                                {
-                                    "kind": "VmStorageBinding",
-                                    "name": "bkm_1001_bkmonitor_time_series_70010",
-                                    "namespace": "bkmonitor",
-                                }
-                            ],
-                        },
-                        {
-                            "match_labels": [{"name": "namespace", "value": "ns5"}],
-                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-70001"}],
-                            "sinks": [
-                                {
-                                    "kind": "VmStorageBinding",
-                                    "name": "bkm_1001_bkmonitor_time_series_70010",
-                                    "namespace": "bkmonitor",
-                                }
-                            ],
-                        },
-                        {
-                            "match_labels": [{"name": "namespace", "value": "ns6"}],
+                            "match_labels": [{"name": "namespace", "any": ["ns4", "ns5", "ns6"]}],
                             "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-70001"}],
                             "sinks": [
                                 {
@@ -725,78 +681,6 @@ def test_create_sub_federal_data_link(create_or_delete_records, mocker):
 
     bkbase_vmrt_name = utils.compose_bkdata_table_id(sub_rt.table_id, DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES)
     assert bkbase_vmrt_name == "bkm_1001_bkmonitor_time_series_60011_fed"
-
-    expected = json.dumps(
-        [
-            {
-                "kind": "ConditionalSink",
-                "metadata": {
-                    "namespace": "bkmonitor",
-                    "name": "bkm_1001_bkmonitor_time_series_60011_fed",
-                    "labels": {"bk_biz_id": "1001"},
-                },
-                "spec": {
-                    "conditions": [
-                        {
-                            "match_labels": [
-                                {"name": "namespace", "value": "ns1"},
-                                {"name": "namespace", "value": "ns2"},
-                                {"name": "namespace", "value": "ns3"},
-                            ],
-                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-10001"}],
-                            "sinks": [
-                                {
-                                    "kind": "VmStorageBinding",
-                                    "name": "bkm_1001_bkmonitor_time_series_60010",
-                                    "namespace": "bkmonitor",
-                                }
-                            ],
-                        },
-                        {
-                            "match_labels": [
-                                {"name": "namespace", "value": "ns4"},
-                                {"name": "namespace", "value": "ns5"},
-                                {"name": "namespace", "value": "ns6"},
-                            ],
-                            "relabels": [{"name": "bcs_cluster_id", "value": "BCS-K8S-70001"}],
-                            "sinks": [
-                                {
-                                    "kind": "VmStorageBinding",
-                                    "name": "bkm_1001_bkmonitor_time_series_70010",
-                                    "namespace": "bkmonitor",
-                                }
-                            ],
-                        },
-                    ]
-                },
-            },
-            {
-                "kind": "Databus",
-                "metadata": {
-                    "name": "bkm_1001_bkmonitor_time_series_60011_fed",
-                    "namespace": "bkmonitor",
-                    "labels": {"bk_biz_id": "1001"},
-                },
-                "spec": {
-                    "maintainers": ["admin"],
-                    "sinks": [
-                        {
-                            "kind": "ConditionalSink",
-                            "name": "bkm_1001_bkmonitor_time_series_60011_fed",
-                            "namespace": "bkmonitor",
-                        }
-                    ],
-                    "sources": [
-                        {"kind": "DataId", "name": "bkm_bcs_BCS-K8S-10002_k8s_metric", "namespace": "bkmonitor"}
-                    ],
-                    "transforms": [
-                        {"kind": "PreDefinedLogic", "name": "log_to_metric", "format": "bkmonitor_standard_v2"}
-                    ],
-                },
-            },
-        ]
-    )
-    assert expected == expected
 
     # with patch.object(DataLink, 'compose_configs', return_value=expected) as mock_compose_configs, patch.object(
     #         DataLink, 'apply_data_link_with_retry', return_value={'status': 'success'}

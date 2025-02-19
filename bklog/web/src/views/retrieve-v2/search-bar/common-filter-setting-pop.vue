@@ -25,7 +25,7 @@
   });
 
   const filterFieldsList = computed(() => {
-    return store.state.retrieve.catchFieldCustomConfig?.filterSetting?.filterFields;
+    return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
   });
 
   // 新建提交逻辑
