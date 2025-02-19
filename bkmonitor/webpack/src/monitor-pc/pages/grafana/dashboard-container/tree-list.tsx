@@ -64,8 +64,11 @@ export default class TreeList extends tsc<IProps, IEvents> {
   @Prop({ type: Boolean, default: true }) needMore: boolean;
   @Inject('authority') authority;
   @Inject('authorityMap') authorityMap;
+  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
   /** 当前聚焦的数据项id */
   focusId = null;
+
+  actionId = 'view_single_dashboard';
 
   get moreOptions() {
     return [
@@ -176,8 +179,12 @@ export default class TreeList extends tsc<IProps, IEvents> {
     if (item.isGroup) {
       item.expend = !item.expend;
     } else {
-      this.handleSelected(item);
+      item.hasPermission ? this.handleSelected(item) : this.handleShowAuthorityDialog();
     }
+  }
+
+  handleShowAuthorityDialog() {
+    this.handleShowAuthorityDetail(this.actionId || this.$route.meta.authority?.MANAGE_AUTH);
   }
 
   handleMouseenter(item?: TreeMenuItem) {
@@ -274,6 +281,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
                 {
                   checked: item.uid === this.checked,
                   edit: item.edit,
+                  disabled: !item.hasPermission,
                 },
               ]}
               v-authority={{ active: !(item.hasPermission || item.isGroup) }}
