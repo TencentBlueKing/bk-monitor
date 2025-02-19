@@ -204,7 +204,7 @@ class UnifyQueryHandler(object):
             "start_time": str(self.start_time),
             "end_time": str(self.end_time),
             "down_sample_range": "",
-            "timezone": get_local_param("time_zone", settings.TIME_ZONE),
+            "timezone": "UTC",
             "bk_biz_id": self.bk_biz_id,
         }
 
