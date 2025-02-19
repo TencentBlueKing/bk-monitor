@@ -568,7 +568,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       confirmLoading: true,
       confirmFn: async () => {
         try {
-          const res = await migrateDashboard({ uid: item.uid, bk_biz_id: this.bizId });
+          const res = await migrateDashboard({ dashboard_uid: item.uid, bk_biz_id: this.bizId });
           const failedTotal = res.failed_total === 0;
             this.$bkMessage({
               message: Object.keys(res).length ? this.$t(`迁移成功${!failedTotal ? ',部分旧面板迁移失败' : ''}`) : this.$t('仪表盘内没有要迁移的旧面板'),
