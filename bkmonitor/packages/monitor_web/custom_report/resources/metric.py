@@ -17,6 +17,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkm_space.define import SpaceTypeEnum
+from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -55,6 +56,42 @@ def get_label_display_dict():
     except Exception:
         pass
     return label_display_dict
+
+
+class ProxyHostInfo(Resource):
+    """
+    Proxy主机信息
+    """
+
+    DEFAULT_PROXY_PORT = 10205
+
+    def get_listen_port(self):
+        return getattr(settings, "BK_MONITOR_PROXY_LISTEN_PORT", ProxyHostInfo.DEFAULT_PROXY_PORT)
+
+    def perform_request(self, validated_request_data):
+        port = self.get_listen_port()
+        proxy_host_info = []
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        proxy_hosts = []
+        try:
+            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+        except NoRelatedResourceError:
+            logger.warning("bk_biz_id: %s not found related resource", bk_biz_id)
+        except Exception as e:
+            logger.warning("get proxies by bk_biz_id(%s) error, %s", bk_biz_id, e)
+
+        for host in proxy_hosts:
+            bk_cloud_id = int(host["bk_cloud_id"])
+            # 默认云区域上报proxy，以settings配置为准！
+            if bk_cloud_id == 0:
+                continue
+            ip = host.get("conn_ip") or host.get("inner_ip")
+            proxy_host_info.append({"ip": ip, "bk_cloud_id": bk_cloud_id, "port": port})
+
+        default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN or settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
+        for proxy_ip in default_cloud_display:
+            proxy_host_info.append({"ip": proxy_ip, "bk_cloud_id": 0, "port": port})
+        return proxy_host_info
 
 
 class ValidateCustomTsGroupName(Resource):
@@ -566,6 +603,55 @@ class CustomTsGroupingRuleList(Resource):
         return serializer.data
 
 
+class ModifyCustomTsGroupingRuleList(Resource):
+    """
+    修改全量自定义指标分组规则列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=[])
+
+    def perform_request(self, validated_request_data):
+        # 校验分组名称唯一
+        group_names = {}
+        for group in validated_request_data["group_list"]:
+            if group_names.get(group["name"]):
+                raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group['name']))
+            group_names[group["name"]] = group
+
+        # 清除残余分组记录
+        grouping_rules = CustomTSGroupingRule.objects.filter(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        )
+        grouping_rules.exclude(name__in=list(group_names.keys())).delete()
+
+        # 更新已存在的分组
+        for grouping_rule in grouping_rules:
+            should_save = False
+            new_grouping_rule = group_names.pop(grouping_rule.name, {})
+            if grouping_rule.manual_list != new_grouping_rule.get("manual_list", []):
+                grouping_rule.manual_list = new_grouping_rule.get("manual_list", [])
+                should_save = True
+            if grouping_rule.auto_rules != new_grouping_rule.get("auto_rules", []):
+                grouping_rule.auto_rules = new_grouping_rule.get("auto_rules", [])
+                should_save = True
+
+            if should_save:
+                grouping_rule.save()
+        # 创建不存在的分组
+        CustomTSGroupingRule.objects.bulk_create(
+            [
+                CustomTSGroupingRule(time_series_group_id=validated_request_data["time_series_group_id"], **grouping)
+                for _, grouping in group_names.items()
+            ],
+            batch_size=200,
+        )
+        return resource.custom_report.group_custom_ts_item(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        )
+
+
 class CreateOrUpdateGroupingRule(Resource):
     """
     更新自定义指标分组规则
@@ -595,6 +681,38 @@ class CreateOrUpdateGroupingRule(Resource):
                 grouping_rule.manual_list = validated_request_data["auto_rules"]
             grouping_rule.save()
         return grouping_rule.to_json()
+
+
+class GroupCustomTSItem(Resource):
+    """
+    分组匹配自定义时序指标
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+
+    def perform_request(self, validated_request_data):
+        # 分组匹配现存指标
+        groups = CustomTSGroupingRule.objects.filter(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        )
+        metrics = CustomTSItem.objects.filter(table_id=validated_request_data["time_series_group_id"])
+        for metric in metrics:
+            metric_labels = set()
+            for group in groups:
+                if metric.metric_name in group.manual_list:
+                    metric_labels.add(group.name)
+                for rule in group.auto_rules:
+                    if re.search(rule, metric.metric_name):
+                        metric_labels.add(group.name)
+            if metric.label == list(metric_labels):
+                continue
+            metric.label = list(metric_labels)
+            metric.save()
+
+        return resource.custom_report.custom_ts_grouping_rule_list(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        )
 
 
 class AddCustomMetricResource(Resource):
@@ -702,7 +820,7 @@ class PreviewCustomMetricGroup(Resource):
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
         auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
-    
+
     def perform_request(self, params: Dict):
         """
         TODO: 预览自定义指标分组

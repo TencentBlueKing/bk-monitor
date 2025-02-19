@@ -254,7 +254,7 @@ class CustomTSItem(models.Model):
     interval = models.IntegerField("指标周期", default=0)
     aggregate_method = models.CharField("默认聚合方法", max_length=128, default="")
     # {"function": "top", "params": {}}
-    function = models.DictField("指标函数", default=dict)
+    function = models.JSONField("指标函数", default=dict)
 
 
 class CustomTSGroupingRule(models.Model):

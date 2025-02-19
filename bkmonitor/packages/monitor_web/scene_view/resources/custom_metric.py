@@ -34,7 +34,7 @@ class GetCustomMetricTargetListResource(Resource):
         return [{"id": target, "name": target} for target in targets]
 
 
-def GetCustomMetricGraphConfigResource(Resource):
+class GetCustomMetricGraphConfigResource(Resource):
     """
     获取自定义指标图表配置
     """
@@ -70,6 +70,7 @@ def GetCustomMetricGraphConfigResource(Resource):
         """
         返回格式
         """
+
         class PanelSerializer(serializers.Serializer):
             class TargetSerializer(serializers.Serializer):
                 expression = serializers.CharField(label="指标表达式")
@@ -92,7 +93,7 @@ def GetCustomMetricGraphConfigResource(Resource):
         return {"panels": []}
 
 
-def GetCustomMetricInfoResource(Resource):
+class GetCustomMetricInfoResource(Resource):
     """
     获取自定义指标信息
     """
@@ -120,7 +121,7 @@ def GetCustomMetricInfoResource(Resource):
         return {"metric_groups": [], "common_dimensions": []}
 
 
-def GetCustomMetricDimensionValuesResource(Resource):
+class GetCustomMetricDimensionValuesResource(Resource):
     """
     获取自定义指标维度值
     """
