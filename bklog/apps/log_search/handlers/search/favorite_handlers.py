@@ -224,12 +224,12 @@ class FavoriteHandler(object):
                 else:
                     group_id = FavoriteGroup.get_or_create_private_group(space_uid=space_uid, username=self.username).id
             # 名称检查
-            if (
-                self.data.name != name
-                and Favorite.objects.filter(
-                    name=name, space_uid=space_uid, group_id=group_id, created_by=self.username
-                ).exists()
-            ):
+            if Favorite.objects.filter(
+                name=name,
+                space_uid=space_uid,
+                group_id=group_id,
+                created_by=self.username,
+            ).exists():
                 raise FavoriteAlreadyExistException()
 
             update_model_fields = {
