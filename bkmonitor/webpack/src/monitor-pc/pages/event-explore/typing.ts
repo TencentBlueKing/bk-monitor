@@ -28,9 +28,28 @@ export interface IFormData {
   data_type_label: string;
   result_table_id: string;
   query_string: string;
+  where?: any[];
+  group_by?: any[];
+  filter_dict?: Record<string, any>;
 }
 
 export interface IDataIdItem {
   name: string;
   id: string;
+}
+
+export type DimensionType = 'date' | 'interger' | 'keyword' | 'text';
+
+export interface IDimensionOperation {
+  alias: string;
+  value: string;
+  options: { label: string; name: string }[];
+}
+export interface IDimensionField {
+  name: string;
+  alias: string;
+  type: DimensionType;
+  is_option_enabled: boolean;
+  is_dimensions: boolean;
+  support_operations: IDimensionOperation[];
 }

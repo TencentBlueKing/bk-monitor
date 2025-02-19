@@ -26,6 +26,7 @@
 import { Component, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { eventViewConfig } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
@@ -66,10 +67,15 @@ export default class EventRetrievalNew extends tsc<object> {
     data_source_label: 'custom',
     data_type_label: 'event',
     result_table_id: '',
-    query_string: '',
+    query_string: '*',
+    where: [],
+    group_by: [],
+    filter_dict: {},
   };
 
   dataIdList = [];
+
+  fieldList = [];
 
   handleDataIdChange(dataId: string) {
     this.formData.result_table_id = dataId;
@@ -115,12 +121,29 @@ export default class EventRetrievalNew extends tsc<object> {
     }
   }
 
+  async getViewConfig() {
+    const data = await eventViewConfig({
+      data_sources: [
+        {
+          data_source_label: this.formData.data_source_label,
+          data_type_label: this.formData.data_type_label,
+          table: this.formData.result_table_id,
+        },
+      ],
+      start_time: this.formatTimeRange[0],
+      end_time: this.formatTimeRange[1],
+    }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
+
+    this.fieldList = data.fields;
+  }
+
   handleCloseDimensionPanel() {
     this.eventRetrievalLayoutRef.handleClickShrink(false);
   }
 
-  mounted() {
-    this.getDataIdList(!this.formData.result_table_id);
+  async mounted() {
+    await this.getDataIdList(!this.formData.result_table_id);
+    await this.getViewConfig();
   }
 
   render() {
@@ -148,7 +171,11 @@ export default class EventRetrievalNew extends tsc<object> {
                 class='dimension-filter-panel'
                 slot='aside'
               >
-                <DimensionFilterPanel onClose={this.handleCloseDimensionPanel} />
+                <DimensionFilterPanel
+                  formData={this.formData}
+                  list={this.fieldList}
+                  onClose={this.handleCloseDimensionPanel}
+                />
               </div>
               <div class='result-content-panel' />
             </EventRetrievalLayout>
