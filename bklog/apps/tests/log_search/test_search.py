@@ -78,7 +78,7 @@ class TestSearchHandler(TestCase):
     )
     @patch(
         "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._init_indices_str",
-        lambda _, index_set_id: "",
+        lambda _: "",
     )
     @patch(
         "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler.init_time_field",
