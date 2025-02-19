@@ -556,6 +556,7 @@ export default class AiopsDimensionLine extends LineChart {
     const { self = '', good = 0, bad = 0 } = this.panel.feedback || {};
     const activeGood = self === EEvaluation.good;
     const activeBad = self === EEvaluation.bad;
+    return;
     return (
       <div class='aiops-correlation-link-position'>
         <span class='aiops-correlation-link'>

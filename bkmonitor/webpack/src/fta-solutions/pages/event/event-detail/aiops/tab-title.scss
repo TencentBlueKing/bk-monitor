@@ -27,13 +27,13 @@
 
     &.disabled {
       cursor: not-allowed;
-      opacity: .5;
+      opacity: 0.5;
     }
   }
 
   &-disabled {
     cursor: not-allowed;
-    opacity: .5;
+    opacity: 0.5;
   }
 
   &-item:first-child {
@@ -82,7 +82,7 @@
     font-size: 14px;
     color: #313238;
     letter-spacing: 0;
-    line-height: 22px
+    line-height: 22px;
   }
 
   &-message {
