@@ -390,7 +390,7 @@ class FavoriteNotExistException(BaseException):
 
 class FavoriteAlreadyExistException(BaseException):
     ERROR_CODE = "426"
-    MESSAGE = _("收藏名已存在")
+    MESSAGE = _("分组下已存在相同收藏名")
 
 
 class FavoriteVisibleTypeNotAllowedModifyException(BaseException):
@@ -488,6 +488,11 @@ class MultiFieldsErrorException(BaseSearchException):
     MESSAGE = _("跨集群获取字段结果处理异常")
 
 
+class LogSearchException(BaseSearchException):
+    ERROR_CODE = "447"
+    MESSAGE = _("日志检索异常, 原因: {e}")
+
+
 # =================================================
 # 导出
 # =================================================
@@ -511,6 +516,11 @@ class CouldNotFindTemplateException(BaseException):
 class PreCheckAsyncExportException(BaseException):
     ERROR_CODE = "504"
     MESSAGE = _("创建异步导出任务前置检查失败,请检查索引集字段配置")
+
+
+class BKBaseExportException(BaseException):
+    ERROR_CODE = "505"
+    MESSAGE = _("计算平台索引集暂不支持快速下载")
 
 
 # =================================================

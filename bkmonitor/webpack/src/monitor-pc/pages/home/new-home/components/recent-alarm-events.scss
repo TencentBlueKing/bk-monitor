@@ -8,30 +8,31 @@
 
   .title {
     margin-bottom: 12px;
-    font-family: MicrosoftYaHei;
-    font-size: 16px;
+    font-family: PingFangSC-SNaNpxibold;
+    font-size: 18px;
     line-height: 24px;
     color: #313238;
+    font-weight: 600;
   }
 
 
   .content {
+    overflow: auto;
     .loading-element {
       transition: height 0.5s ease; /* 0.3 秒的过渡时间，可以根据需要调整 */
     }
     .list-content {
       display: flex;
       flex-wrap: wrap;
-      gap: 24px 2%;
+      gap: 12px 1%;
       align-items: center;
 
       .list-item {
-        width: 32%;
+        width: calc(98%/3);
         height: 210px;
         background: #ffffff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919290d;
-
         &:hover {
           cursor: pointer;
         }
@@ -44,28 +45,39 @@
         justify-content: center;
         font-family: MicrosoftYaHei;
         font-size: 14px;
-        line-height: 22px;
-        color: #3a84ff;
+        color: #A3B1CC;
         text-align: center;
-        background: #f0f5ff;
-        border: 1px dashed #a3c5fd;
+        background: #EBEEF5;
         border-radius: 2px;
 
         .icon-mc-add {
-          font-size: 22px;
+          font-size: 48px;
         }
 
         &:hover {
-          background: #e1ecff;
+          background: #F0F5FF;
+          color: #3A84FF;
+        }
+
+        &.unable-add-graph {
+          &:hover {
+            background: #EBEEF5;
+            color: #A3B1CC;
+            cursor: not-allowed;
+          }
         }
       }
     }
 
     .empty-content {
+      width: 100%;
+      height: 180px;
+      background: #FAFBFD;
+      padding-top: 30px;
       .empty-img {
         width: 220px;
         height: 100px;
-        margin: 70px auto 0;
+        margin: 0 auto;
 
         img {
           width: 100%;
@@ -77,15 +89,17 @@
     .empty-info {
       margin-bottom: 24px;
       font-family: MicrosoftYaHei;
-      font-size: 14px;
+      font-size: 12px;
       line-height: 22px;
-      color: #4d4f56;
+      color: #979BA5;
       text-align: center;
     }
 
     .empty-btn {
-      margin-bottom: 100px;
-      text-align: center;
+      color: #3A84FF;
+      &:hover {
+        cursor: pointer;
+      }
     }
   }
 }

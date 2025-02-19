@@ -292,6 +292,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
       id: 99999,
       title: 'Home',
       uid: GRAFANA_HOME_ID,
+      hasPermission: true,
       icon: 'icon-mc-grafana-home',
       isFolder: false,
       isStarred: false,
@@ -306,11 +307,20 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   handleGrafanaTreeData(list: Array<any>): ITreeMenuItem[] {
     return list.map(item => {
-      const { id, title, dashboards = [], uid = '', isStarred = false, url } = item;
+      const {
+        id,
+        title,
+        dashboards = [],
+        uid = '',
+        isStarred = false,
+        url,
+        has_permission: hasPermission = true,
+      } = item;
       return {
         id,
         title,
         uid,
+        hasPermission,
         isStarred,
         url,
         isFolder: Object.prototype.hasOwnProperty.call(item, 'dashboards'),

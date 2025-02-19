@@ -30,13 +30,14 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
+import { CancelToken } from 'monitor-api/index';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 
 import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
-import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
+import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/profiling-flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { useIsEnabledProfilingInject } from '../../plugins/hooks';
 import { BookMarkModel } from '../../plugins/typings';
@@ -112,6 +113,7 @@ export default defineComponent({
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
+    console.log(appName);
 
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
@@ -119,14 +121,46 @@ export default defineComponent({
 
     const spans = computed(() => store.spanGroupTree);
 
+    /** 主机容器接口 */
+    let hostAndContainerCancelToken = null;
+
     // const countOfInfo = ref<object | Record<TabName, number>>({});
     const enableProfiling = useIsEnabledProfilingInject();
+    /** 主机和容器的自定义时间，不走右上角的时间选择器 */
+    const customTimeProvider = computed(() => {
+      if (activeTab.value === 'Container' || activeTab.value === 'Host' || activeTab.value === 'Log') {
+        const diff = dayjs(spanEndTime.value).diff(dayjs(spanStartTime.value), 'millisecond');
+        /**
+         * 2025/2/12 容器，主机，日志 时间规则调整
+           【如果 end_time - start_time 没超过 2 小时，即 span 跨度在 2 小时内】
+           1.  如果 span 的 end_time 比当前一小时外，那么时间范围就是 span 的 start_time - 1h 到 span 的 end_time + 1h
+           2.  如果 span 的 end_time 在当前一小时内，那么时间范围就是 span 的 start_time - 1h 到当前时间
+           【如果 end_time - start_time 超过 2 小时】
+           时间范围固定为：end_time - 2h ，  end_time
+         */
+        /** end_time - start_time 没超过 2 小时 */
+        if (Math.abs(diff) <= 2 * 60 * 60 * 1000) {
+          const diff2 = dayjs().diff(dayjs(spanEndTime.value), 'millisecond');
+          // span 的 end_time 在当前一小时内
+          if (Math.abs(diff2) <= 60 * 60 * 1000)
+            return [
+              dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+              dayjs().format('YYYY-MM-DD HH:mm:ss'),
+            ];
+          return [
+            dayjs(spanStartTime.value).subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+            dayjs(spanEndTime.value).add(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+          ];
+        }
+        return [
+          dayjs(spanEndTime.value).subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+          dayjs(spanEndTime.value).format('YYYY-MM-DD HH:mm:ss'),
+        ];
+      }
+      return [];
+    });
+    provide('customTimeProvider', customTimeProvider);
 
-    // 20230807 当前 span 开始和结束时间。用作 主机（host）标签下请求接口的时间区间参数。
-    const startTimeProvider = ref('');
-    provide('startTime', startTimeProvider);
-    const endTimeProvider = ref('');
-    provide('endTime', endTimeProvider);
     const serviceNameProvider = ref('');
     // 服务、应用 名在日志 tab 里能用到
     provide('serviceName', serviceNameProvider);
@@ -135,6 +169,9 @@ export default defineComponent({
     // 用于关联日志跳转信息
     const traceId = ref('');
     provide('traceId', traceId);
+    const spanTime = ref(0);
+    const spanStartTime = ref(0);
+    const spanEndTime = ref(0);
     const originSpanStartTime = ref(0);
     provide('originSpanStartTime', originSpanStartTime);
     const originSpanEndTime = ref(0);
@@ -235,8 +272,9 @@ export default defineComponent({
       // 根据span_id获取原始数据
       const curSpan = originalDataList.find((data: any) => data.span_id === originalSpanId);
       if (!curSpan) return;
-      startTimeProvider.value = `${formatDate(curSpan.start_time)} ${formatTime(curSpan.start_time)}`;
-      endTimeProvider.value = `${formatDate(curSpan.end_time)} ${formatTime(curSpan.end_time)}`;
+      spanStartTime.value = Math.floor(curSpan.start_time / 1000) || 0;
+      spanEndTime.value = Math.floor(curSpan.end_time / 1000) || 0;
+      spanTime.value = Number(curSpan.time || 0);
       originSpanStartTime.value = Math.floor(startTime / 1000);
       originSpanEndTime.value = Math.floor((startTime + duration) / 1000);
       if (curSpan) originalData.value = handleFormatJson(curSpan);
@@ -885,7 +923,6 @@ export default defineComponent({
     );
 
     const activeTab = ref<TabName>('BasicInfo');
-    provide('SpanDetailActiveTab', activeTab);
 
     watch(
       () => props.activeTab,
@@ -952,6 +989,10 @@ export default defineComponent({
     const isTabPanelLoading = ref(false);
     const handleActiveTabChange = async () => {
       isTabPanelLoading.value = true;
+      if (hostAndContainerCancelToken) {
+        hostAndContainerCancelToken?.();
+        hostAndContainerCancelToken = null;
+      }
       if (activeTab.value === 'Log') {
         const result = await getSceneView({
           scene_id: 'apm_trace',
@@ -978,32 +1019,38 @@ export default defineComponent({
         sceneData.value = new BookMarkModel(result);
       }
       if (activeTab.value === 'Host') {
-        const result = await getSceneView({
-          scene_id: 'apm_trace',
-          id: 'host',
-          bk_biz_id: window.bk_biz_id,
-          apm_app_name: props.spanDetails.app_name,
-          apm_service_name: props.spanDetails.service_name,
-          apm_span_id: props.spanDetails.span_id,
-        }).catch(() => null);
+        const result = await getSceneView(
+          {
+            scene_id: 'apm_trace',
+            id: 'host',
+            bk_biz_id: window.bk_biz_id,
+            apm_app_name: props.spanDetails.app_name,
+            apm_service_name: props.spanDetails.service_name,
+            apm_span_id: props.spanDetails.span_id,
+          },
+          { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
+        ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
         isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Container') {
-        const startTime = dayjs(startTimeProvider.value).unix() - 60 * 60;
-        let endTime = dayjs(endTimeProvider.value).unix() + 30 * 60;
+        const startTime = dayjs(spanTime.value).unix() - 60 * 60;
+        let endTime = dayjs(spanTime.value).unix() + 30 * 60;
         const curUnix = dayjs().unix();
         endTime = endTime > curUnix ? curUnix : endTime;
-        const result = await getSceneView({
-          scene_id: 'apm_trace',
-          id: 'container',
-          bk_biz_id: window.bk_biz_id,
-          apm_app_name: props.spanDetails.app_name,
-          apm_service_name: props.spanDetails.service_name,
-          apm_span_id: props.spanDetails.span_id,
-          start_time: startTime,
-          end_time: endTime,
-        }).catch(() => null);
+        const result = await getSceneView(
+          {
+            scene_id: 'apm_trace',
+            id: 'container',
+            bk_biz_id: window.bk_biz_id,
+            apm_app_name: props.spanDetails.app_name,
+            apm_service_name: props.spanDetails.service_name,
+            apm_span_id: props.spanDetails.span_id,
+            start_time: startTime,
+            end_time: endTime,
+          },
+          { cancelToken: new CancelToken(cb => (hostAndContainerCancelToken = cb)) }
+        ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
         isTabPanelLoading.value = false;
       }

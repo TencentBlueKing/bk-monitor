@@ -1,10 +1,11 @@
 <script setup>
-  import { ref, computed, watch, nextTick, onMounted } from 'vue';
+  import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import PopInstanceUtil from './pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -18,10 +19,10 @@
   import { deepClone, copyMessage } from '../../../common/util';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  // import CommonFilterSettingPop from './common-filter-setting-pop.vue';
   import { bkMessage } from 'bk-magic-vue';
-  // import CommonFilterSelect from './common-filter-select.vue';
+  import CommonFilterSelect from './common-filter-select.vue';
   import useResizeObserve from '../../../hooks/use-resize-observe';
+  import { withoutValueConditionList } from './const.common';
 
   const props = defineProps({
     activeFavorite: {
@@ -49,6 +50,11 @@
       return 1;
     }
 
+    // addition 是一个json字符串，解析出来之后至少为 [{'field': ''}], 所以这里判定长度至少 包含 '[{}]'
+    if (route.query.addition?.length > 4) {
+      return 0;
+    }
+
     return Number(localStorage.getItem('bkLogQueryType') ?? 0);
   };
 
@@ -56,6 +62,23 @@
 
   const uiQueryValue = ref([]);
   const sqlQueryValue = ref('');
+
+  // const refPopContent = ref(null);
+  // const refPopTraget = ref(null);
+
+  // const popToolInstance = new PopInstanceUtil({
+  //   refContent: refPopContent,
+  //   tippyOptions: {
+  //     placement: 'top-end',
+  //     zIndex: 200,
+  //     appendTo: document.body,
+  //     interactive: true,
+  //     theme: 'log-light transparent',
+  //     arrow: false,
+  //   },
+  // });
+
+  const isFilterSecFocused = computed(() => store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition);
 
   const indexItem = computed(() => store.state.indexItem);
 
@@ -319,8 +342,65 @@
     }
   };
 
+  // const handleMouseenterInputSection = () => {
+  //   popToolInstance.show(refPopTraget.value);
+  // };
+
+  // const handleMouseleaveInputSection = () => {
+  // };
+
   useResizeObserve(refRootElement, () => {
-    handleHeightChange(refRootElement.value.offsetHeight);
+    if (refRootElement.value) {
+      handleHeightChange(refRootElement.value.offsetHeight);
+    }
+  });
+
+  const additionFilter = addition => {
+    return withoutValueConditionList.includes(addition.operator) || addition.value?.length > 0;
+  };
+
+  const handleFilterSecClick = () => {
+    if (isFilterSecFocused.value) {
+      if (activeIndex.value === 0) {
+        window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
+
+        const { common_filter_addition } = store.getters.retrieveParams;
+        if (common_filter_addition.length) {
+          uiQueryValue.value.push(
+            ...formatAddition(common_filter_addition.filter(additionFilter)).map(item => ({
+              ...item,
+              isCommonFixed: true,
+            })),
+          );
+
+          store.commit('updateIndexItemParams', {
+            addition: uiQueryValue.value.filter(val => !val.is_focus_input),
+            keyword: sqlQueryValue.value ?? '',
+            ip_chooser: uiQueryValue.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
+          });
+
+          setRouteParams();
+        }
+      }
+    }
+
+    if (activeIndex.value === 1) {
+      store.dispatch('userFieldConfigChange', {
+        fixedFilterAddition: !isFilterSecFocused.value,
+      });
+
+      return;
+    }
+
+    store.dispatch('userFieldConfigChange', {
+      fixedFilterAddition: !isFilterSecFocused.value,
+      filterAddition: [],
+    });
+  };
+
+  onBeforeUnmount(() => {
+    // popToolInstance.onBeforeUnmount();
+    // popToolInstance.uninstallInstance();
   });
 </script>
 <template>
@@ -350,6 +430,10 @@
           v-model="sqlQueryValue"
           @retrieve="handleSqlRetrieve"
         ></SqlQuery>
+        <div
+          class="hidden-focus-pointer"
+          ref="refPopTraget"
+        ></div>
         <div class="search-tool items">
           <div
             v-bk-tooltips="$t('复制当前查询')"
@@ -361,6 +445,7 @@
             :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
             @click.stop="handleClearBtnClick"
           ></div>
+
           <BookmarkPop
             v-if="!props.activeFavorite"
             v-bk-tooltips="$t('收藏当前查询')"
@@ -385,12 +470,11 @@
               @click="saveCurrentActiveFavorite"
             ></div>
           </template>
-          <!-- <CommonFilterSettingPop
+          <div
             v-bk-tooltips="$t('常用查询设置')"
-            :class="{ disabled: isInputLoading }"
-            :filterList="uiQueryValue"
-          >
-          </CommonFilterSettingPop> -->
+            :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
+            @click="handleFilterSecClick"
+          ></div>
         </div>
         <div
           class="search-tool search-btn"
@@ -405,8 +489,27 @@
           >
         </div>
       </div>
+      <!-- <div style="display: none">
+        <div
+          ref="refPopContent"
+          class="bklog-search-input-poptool"
+        >
+          <div
+            v-bk-tooltips="$t('复制当前查询')"
+            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            @click.stop="handleCopyQueryValue"
+          ></div>
+          <div
+            v-bk-tooltips="$t('清理当前查询')"
+            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            @click.stop="handleClearBtnClick"
+          ></div>
+        </div>
+      </div> -->
     </div>
-    <!-- <CommonFilterSelect></CommonFilterSelect> -->
+    <template v-if="isFilterSecFocused">
+      <CommonFilterSelect></CommonFilterSelect>
+    </template>
   </div>
 </template>
 <style scoped lang="scss">
@@ -416,6 +519,39 @@
   .bklog-sql-input-loading {
     .bk-loading-wrapper {
       left: 30px;
+    }
+  }
+
+  [data-tippy-root] .tippy-box {
+    &[data-theme*='transparent'] {
+      background-color: transparent;
+      border: none;
+    }
+  }
+
+  .bklog-search-input-poptool {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+
+    .bklog-icon {
+      width: 28px;
+      height: 28px;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
+      box-shadow: 0 1px 3px 1px #0000001f;
+      border-radius: 2px;
+      color: #4d4f56;
+      margin-right: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
     }
   }
 </style>

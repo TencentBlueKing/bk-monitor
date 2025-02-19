@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import functools
 import gzip
 import hashlib
@@ -30,6 +31,7 @@ from apm_web.profile.constants import (
     BUILTIN_APP_NAME,
     DEFAULT_EXPORT_FORMAT,
     DEFAULT_SERVICE_NAME,
+    EBPF_PROFILING_APP_PREFIX,
     EXPORT_FORMAT_MAP,
     LARGE_SERVICE_MAX_QUERY_SIZE,
     NORMAL_SERVICE_MAX_QUERY_SIZE,
@@ -38,6 +40,7 @@ from apm_web.profile.constants import (
     CallGraphResponseDataMode,
 )
 from apm_web.profile.diagrams import get_diagrammer
+from apm_web.profile.diagrams.ebpf_converter import EbpfConverter
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.doris.querier import APIParams, APIType, ConverterType, Query
@@ -100,9 +103,6 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
 
         data = uploaded.read()
         md5 = hashlib.md5(data).hexdigest()
-        exist_record = ProfileUploadRecord.objects.filter(bk_biz_id=validated_data["bk_biz_id"], file_md5=md5).first()
-        if exist_record:
-            raise ValueError(_(f"已上传过相同文件，名称：{exist_record.file_name}({exist_record.origin_file_name})"))
 
         # 上传文件到 bkrepo, 上传文件失败，不记录，不执行异步任务
         try:
@@ -155,14 +155,45 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
             filter_params["app_name"] = validated_data.get("app_name")
         if validated_data.get("origin_file_name"):
             filter_params["origin_file_name"] = validated_data.get("origin_file_name")
-        if validated_data.get("service_name "):
+        if validated_data.get("service_name"):
             filter_params["service_name"] = validated_data.get("service_name")
-        queryset = ProfileUploadRecord.objects.filter(**filter_params)
+
+        # 过滤掉过期的文件 (过期文件在 bkbase 中已查不到不需要显示)
+        datasource = api.apm_api.query_builtin_profile_datasource()
+        last_retention = datetime.datetime.now() - datetime.timedelta(days=datasource["retention"])
+        queryset = ProfileUploadRecord.objects.filter(**filter_params, uploaded_time__gte=last_retention).order_by(
+            "-uploaded_time"
+        )
         return Response(data=ProfileUploadRecordSLZ(queryset, many=True).data)
 
 
 class ProfileQueryViewSet(ProfileBaseViewSet):
     """Profile Query viewSet"""
+
+    @staticmethod
+    def ebpf_query(
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str,
+        start: int,
+        end: int,
+        sample_type: str,
+        converter: Optional[ConverterType] = None,
+    ) -> TreeConverter:
+        """
+        获取 ebpf profile 数据
+        """
+        profile_data = api.apm_api.query_ebpf_profile(
+            app_name=app_name,
+            bk_biz_id=bk_biz_id,
+            service_name=service_name,
+            start=start,
+            data_type=sample_type,
+            end=end,
+        )
+        ebpf_converter = EbpfConverter()
+        ebpf_converter.convert(raw=profile_data, data_type=sample_type)
+        return ebpf_converter
 
     @staticmethod
     def query(
@@ -274,7 +305,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
     @classmethod
     def get_essentials(cls, validated_data: dict) -> dict:
         """获取 app_name,service_name,bk_biz_id,result_table_id"""
-
+        is_ebpf = False
+        result_table_id = ""
         # storing data in 2 ways:
         # - global storage, bk_biz_id/space_id level
         # - application storage, application level
@@ -285,17 +317,23 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             bk_biz_id = builtin_datasource["bk_biz_id"]
             result_table_id = builtin_datasource["result_table_id"]
         else:
-            bk_biz_id = validated_data["bk_biz_id"]
             app_name = validated_data["app_name"]
+            if validated_data["app_name"].startswith(EBPF_PROFILING_APP_PREFIX):
+                # 如果以 app_name 以 ebpf- 开头，则认为是 ebpf 采集数据 请求参数伪装成 application 格式 并在返回 essential 时增加标识位
+                app_name = validated_data["app_name"][len(EBPF_PROFILING_APP_PREFIX) :]
+                is_ebpf = True
+            bk_biz_id = validated_data["bk_biz_id"]
             service_name = validated_data.get("service_name", DEFAULT_SERVICE_NAME)
-            application_info = cls._examine_application(bk_biz_id, app_name)
-            result_table_id = application_info["profiling_config"]["result_table_id"]
+            if not is_ebpf:
+                application_info = cls._examine_application(bk_biz_id, app_name)
+                result_table_id = application_info["profiling_config"]["result_table_id"]
 
         return {
             "bk_biz_id": bk_biz_id,
             "app_name": app_name,
             "service_name": service_name,
             "result_table_id": result_table_id,
+            "is_ebpf": is_ebpf,
         }
 
     @classmethod
@@ -306,7 +344,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         essentials = cls.get_essentials(data)
         # 根据是否是大应用调整获取的消息条数 避免接口耗时过长
-        if cls.is_large_service(
+        if not essentials["is_ebpf"] and cls.is_large_service(
             essentials["bk_biz_id"], essentials["app_name"], essentials["service_name"], data["data_type"]
         ):
             extra_params = {"limit": {"offset": 0, "rows": LARGE_SERVICE_MAX_QUERY_SIZE}}
@@ -335,20 +373,29 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             del validate_data["filter_labels"]["end"]
         else:
             start_time, end_time = cls.enlarge_duration(start_time, end_time, offset)
-
-        return cls.query(
-            bk_biz_id=essentials["bk_biz_id"],
-            app_name=essentials["app_name"],
-            service_name=essentials["service_name"],
-            start=start_time,
-            end=end_time,
-            profile_id=validate_data.get("profile_id"),
-            filter_labels=validate_data.get("filter_labels"),
-            result_table_id=essentials["result_table_id"],
-            sample_type=validate_data["data_type"],
-            converter=ConverterType.Tree,
-            extra_params=extra_params,
-        )
+        if essentials["is_ebpf"]:
+            return cls.ebpf_query(
+                bk_biz_id=essentials["bk_biz_id"],
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
+                start=start_time,
+                end=end_time,
+                sample_type=validate_data["data_type"],
+            )
+        else:
+            return cls.query(
+                bk_biz_id=essentials["bk_biz_id"],
+                app_name=essentials["app_name"],
+                service_name=essentials["service_name"],
+                start=start_time,
+                end=end_time,
+                profile_id=validate_data.get("profile_id"),
+                filter_labels=validate_data.get("filter_labels"),
+                result_table_id=essentials["result_table_id"],
+                sample_type=validate_data["data_type"],
+                converter=ConverterType.Tree,
+                extra_params=extra_params,
+            )
 
     @classmethod
     def get_converter_options(cls, validate_data):

@@ -58,6 +58,7 @@ export default class CollectDialog extends tsc<IProps> {
   isDisableSelect = false; // 是否禁用 所属组下拉框
   isShowAddGroup = true;
   currentFavoriteName = '';
+  currentFavoriteGroupID = -1;
   currentFavoriteID = -1;
   isClickFavoriteEdit = false; // 当前编辑的收藏是否是点击活跃的
   verifyData = {
@@ -163,11 +164,9 @@ export default class CollectDialog extends tsc<IProps> {
   }
 
   get favStrList() {
-    return this.favoriteList.reduce((pre, cur) => {
-      // 获取所有收藏的名字新增时判断是否重命名
-      pre = pre.concat(cur.favorites.map(item => item.name));
-      return pre;
-    }, []);
+    const favoriteItem = this.favoriteList.find(item => item.group_id === this.favoriteData.group_id);
+    return favoriteItem?.favorites.map(group => group.name) || [];
+     
   }
 
   get unionIndexList() {
@@ -273,7 +272,7 @@ export default class CollectDialog extends tsc<IProps> {
 
   /** 判断是否收藏名是否重复 */
   checkRepeatName() {
-    if (this.currentFavoriteName === this.favoriteData.name) return true;
+    if (this.currentFavoriteName === this.favoriteData.name && this.currentFavoriteGroupID === this.favoriteData.group_id) return true;
     return !this.favStrList.includes(this.favoriteData.name);
   }
   /** 检查收藏语法是否正确 */
@@ -421,6 +420,7 @@ export default class CollectDialog extends tsc<IProps> {
         ...res.data.params,
       });
       this.currentFavoriteName = this.favoriteData.name;
+      this.currentFavoriteGroupID = this.favoriteData.group_id;
       this.currentFavoriteID = this.favoriteData.id;
     } catch {}
   }

@@ -44,6 +44,7 @@ import type { BookMarkModel, IViewOptions } from '../../../plugins/typings';
 
 import './dashboard-panel.scss';
 
+const LAYOUT_COLUMN_KEY = 'trace_span_detail_layout_column_key';
 const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
 const ipMap = ['bk_target_ip', 'ip', 'bk_host_id'];
 
@@ -88,11 +89,13 @@ export default defineComponent({
     // 目标对比的可选项
     const targetList = shallowRef([]);
     // group_by 可选项
-    const groups = shallowRef([]);
+    // const groups = shallowRef([]);
     const spanId = inject('spanId', '');
     const method = ref(DEFAULT_METHOD);
     const interval = ref('auto');
     const variables = ref({});
+
+    const groupBy = shallowRef([]);
 
     const viewOptions = shallowRef<IViewOptions>({
       interval: 'auto',
@@ -105,7 +108,7 @@ export default defineComponent({
       span_id: spanId.value,
     });
     // 当前选择的图表分列
-    const panelsColumn = ref(1);
+    const panelsColumn = ref(Number(localStorage.getItem(LAYOUT_COLUMN_KEY) || '1'));
     const groupsLoading = ref(false);
 
     useViewOptionsProvider(viewOptions);
@@ -176,12 +179,20 @@ export default defineComponent({
     // }
 
     function viewOptionsUpdate() {
+      const hasTarget = compareTargets.value?.length;
+      const targetGroupBy = hasTarget ? Object.keys(compareTargets.value?.[0] || {}).map(key => key) : [];
+      if (hasTarget) {
+        groupBy.value = [...new Set(targetGroupBy)];
+      } else {
+        groupBy.value = [];
+      }
       viewOptions.value = {
         ...variables.value,
         interval: interval.value,
         method: method.value,
         span_id: spanId.value,
         filters: {},
+        group_by: groupBy.value,
         variables: variables.value,
         compare_targets: compareTargets.value,
         current_target: currentTarget.value || undefined,
@@ -210,6 +221,7 @@ export default defineComponent({
      */
     function handleChangeLayout(val) {
       panelsColumn.value = val;
+      localStorage.setItem(LAYOUT_COLUMN_KEY, String(val));
     }
     /**
      * @description group_by数据
@@ -296,7 +308,6 @@ export default defineComponent({
       viewOptions,
       panelsColumn,
       variablesPanel,
-      groups,
       compareListEnable,
       curTargetTitle,
       groupsLoading,

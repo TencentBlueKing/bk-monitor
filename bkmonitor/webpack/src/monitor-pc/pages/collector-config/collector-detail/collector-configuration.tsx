@@ -288,7 +288,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
 
   handleCopyTarget() {
     let copyStr = '';
-    if (['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo.target_node_type)) {
+    if (['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE', 'DYNAMIC_GROUP'].includes(this.targetInfo.target_node_type)) {
       this.targetInfo.table_data.forEach(item => {
         copyStr += `${item.bk_inst_name}\n`;
       });
@@ -504,7 +504,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
               </bk-button>
             )}
             <div class='wrap-item-content mt-12'>
-              {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE'].includes(this.targetInfo?.target_node_type) ? (
+              {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE', 'DYNAMIC_GROUP'].includes(
+                this.targetInfo?.target_node_type
+              ) ? (
                 <bk-table
                   v-bkloading={{
                     isLoading: this.tableLoading,
@@ -530,7 +532,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                               return <span>{row.count}</span>;
                             }
                             case ETargetColumn.catetory: {
-                              if (row.labels.length) {
+                              if (row.labels?.length) {
                                 return row.labels.map((l, lIndex) => (
                                   <span
                                     key={lIndex}

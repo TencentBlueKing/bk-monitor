@@ -12,7 +12,8 @@
     "build": "cross-env MONITOR_APP=log bkmonitor-cli build --log",
     "build:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log",
     "build:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log && node ./scripts/prefix-css.js",
-    "analyze:apm": "bkmonitor-cli build --log -a",
+    "analyze:apm": "cross-env MONITOR_APP=apm bkmonitor-cli build --log -a",
+    "analyze:trace": "cross-env MONITOR_APP=trace bkmonitor-cli build --log -a",
     "clean": "rimraf ../static/dist/*",
     "analyze": "npm run clean && bkmonitor-cli build -a",
     "lint": "eslint \"**/*.{js,ts,tsx}\" --fix",
@@ -50,22 +51,23 @@
     "axios": "1.6.0",
     "babel-loader": "9.2.1",
     "babel-plugin-import-bk-magic-vue": "2.1.11",
-    "bk-magic-vue": "2.5.9-beta.22",
+    "bk-magic-vue": "2.5.10-beta.1",
     "codemirror": "6.0.1",
     "core-js": "3.38.0",
     "css-loader": "7.1.2",
     "dayjs": "1.11.10",
     "deepmerge": "4.3.1",
     "echarts": "^5.5.1",
-    "fabric": "^5.5.1",
     "html-to-image": "1.11.11",
     "interactjs": "1.10.27",
     "js-cookie": "3.0.5",
     "json-bignumber": "1.1.1",
+    "konva": "^9.3.18",
     "lodash": "4.17.21",
     "monaco-editor": "0.33.0",
     "monaco-editor-webpack-plugin": "7.0.1",
     "monaco-yaml": "4.0.0-alpha.3",
+    "pixi.js": "^8.6.6",
     "postcss-loader": "8.1.1",
     "qs": "6.11.2",
     "resize-detector": "0.3.0",
@@ -150,5 +152,6 @@
     "src/**/*.(vue|scss|css|sass)": [
       "stylelint --cache --fix"
     ]
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

@@ -102,8 +102,8 @@ export default defineComponent({
     const operationTypeMap = ref({});
     const playLoading = ref(false);
     const operationTypes = ref([]);
-    const refContent = ref<HTMLDivElement>();
-    const failureNavRef = ref<HTMLDivElement>();
+    const refContent = ref<InstanceType<typeof FailureContent>>();
+    const failureNavRef = ref<InstanceType<typeof FailureNav>>();
     const topoNodeId = ref<string>();
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
@@ -290,6 +290,10 @@ export default defineComponent({
           console.log(err);
         });
     };
+    // 出发拓扑的跳转span事件
+    const handleToSpan = () => {
+      refContent.value.handleRootToSpan();
+    };
     const handleChooseTag = (tag: ITagInfoType, isCheck: boolean) => {
       tagInfo.value = Object.assign({ isCheck }, tag);
     };
@@ -319,8 +323,8 @@ export default defineComponent({
       getIncidentOperations();
       failureNavRef.value.handleRefNavRefresh();
     };
-    const chooseOperation = (id, data) => {
-      refContent.value.goFailureTiming(id, data);
+    const chooseOperation = () => {
+      // refContent.value.goFailureTiming(id, data);
     };
     const handleChangeSelectNode = (nodeId: string) => {
       topoNodeId.value = nodeId;
@@ -335,6 +339,7 @@ export default defineComponent({
       incidentDetailData,
       getIncidentDetail,
       handleChooseTag,
+      handleToSpan,
       tagInfo,
       nodeClick,
       valueMap,
@@ -366,6 +371,7 @@ export default defineComponent({
         <FailureTags
           onChooseNode={this.nodeClick}
           onChooseTag={this.handleChooseTag}
+          onToSpan={this.handleToSpan}
         />
         <ResizeLayout
           class='failure-content-layout'

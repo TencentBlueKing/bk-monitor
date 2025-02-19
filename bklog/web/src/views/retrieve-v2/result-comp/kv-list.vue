@@ -28,7 +28,7 @@
   <div class="kv-list-wrapper">
     <div class="kv-content">
       <div
-        v-for="(field, index) in fieldKeyMap"
+        v-for="(field, index) in showFieldList"
         class="log-item"
         :key="index"
       >
@@ -38,36 +38,36 @@
         >
           <span
             class="field-type-icon mr5"
-            v-bk-tooltips="fieldTypePopover(field)"
-            :class="getFieldIcon(field)"
-            :style="{ backgroundColor: getFieldIconColor(field) }"
+            v-bk-tooltips="fieldTypePopover(field.field_name)"
+            :class="getFieldIcon(field.field_name)"
+            :style="{ backgroundColor: getFieldIconColor(field.field_name) }"
           ></span>
-          <span class="field-text">{{ field }}</span>
+          <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
-          <template v-if="isJsonFormat(formatterStr(data, field))">
+          <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
             <JsonFormatter
-              :jsonValue="formatterStr(data, field)"
-              :fields="getFieldItem(field)"
-              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
+              :jsonValue="formatterStr(data, field.field_name)"
+              :fields="getFieldItem(field.field_name)"
+              @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </template>
 
           <span
-            v-if="getRelationMonitorField(field)"
+            v-if="getRelationMonitorField(field.field_name)"
             class="relation-monitor-btn"
-            @click="handleViewMonitor(field)"
+            @click="handleViewMonitor(field.field_name)"
           >
-            <span>{{ getRelationMonitorField(field) }}</span>
+            <span>{{ getRelationMonitorField(field.field_name) }}</span>
             <i class="bklog-icon bklog-jump"></i>
           </span>
-          <template v-if="!isJsonFormat(formatterStr(data, field))">
+          <template v-if="!isJsonFormat(formatterStr(data, field.field_name))">
             <text-segmentation
-              :content="formatterStr(data, field)"
-              :field="getFieldItem(field)"
+              :content="formatterStr(data, field.field_name)"
+              :field="getFieldItem(field.field_name)"
               :forceAll="true"
               :autoWidth="true"
-              @menu-click="agrs => handleJsonSegmentClick(agrs, field)"
+              @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             />
           </template>
         </div>
@@ -83,7 +83,7 @@
   import { mapGetters, mapState } from 'vuex';
   import JsonFormatter from '@/global/json-formatter.vue';
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-
+  import { getFieldNameByField } from '@/hooks/use-field-name';
   export default {
     components: {
       TextSegmentation,
@@ -161,12 +161,16 @@
       }),
       ...mapState({
         formatJson: state => state.tableJsonFormat,
+        showFieldAlias: state => state.showFieldAlias ?? false,
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
       },
       bkBizId() {
         return this.$store.state.bkBizId;
+      },
+      showFieldList() {
+        return this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name));
       },
       fieldKeyMap() {
         return this.totalFields
@@ -233,10 +237,10 @@
       handleJsonSegmentClick({ isLink, option }, fieldName) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
-        const { operation, value, depth } = option;
+        const { operation, value, depth, isNestedField } = option;
         const operator = operation === 'not' ? 'is not' : operation;
         const field = this.totalFields.find(f => f.field_name === fieldName);
-        this.$emit('value-click', operator, value, isLink, field, depth);
+        this.$emit('value-click', operator, value, isLink, field, depth, isNestedField);
       },
 
       /**
@@ -331,6 +335,9 @@
       },
       getFieldItem(fieldName) {
         return this.fieldList.find(item => item.field_name === fieldName);
+      },
+      getFieldName(field) {
+        return getFieldNameByField(field, this.$store);
       },
     },
   };

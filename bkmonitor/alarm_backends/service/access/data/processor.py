@@ -425,7 +425,12 @@ class AccessDataProcess(BaseAccessDataProcess):
                 until_timestamp = 0
 
         time_delay = settings.ACCESS_DATA_TIME_DELAY
-        if (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG) in first_item.data_source_types:
+        if first_item.time_delay:
+            time_delay += first_item.time_delay
+        elif (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG) in first_item.data_source_types:
+            time_delay += 60
+        elif first_item.use_aiops_sdk:
+            # bkbase智能检测flow默认有1分钟的计算等待延迟, SDK智能检测保持相同的逻辑
             time_delay += 60
 
         if not until_timestamp:

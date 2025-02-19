@@ -70,7 +70,7 @@ class TranslateField(models.TextField):
             _('estab连接数'),
             _('finwait1连接数'),
             _('finwait2连接数'),
-            _('lastact连接数'),
+            _('lastack连接数'),
             _('listen连接数'),
             _('synrecv连接数'),
             _('synsent连接数'),

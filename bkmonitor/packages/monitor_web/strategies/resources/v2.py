@@ -58,6 +58,7 @@ from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_source_app
 from bkmonitor.utils.time_format import duration_string, parse_duration
 from bkmonitor.utils.user import get_global_user
+from constants.aiops import SDKDetectStatus
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType, TargetObjectType
 from constants.common import SourceApp
@@ -382,7 +383,7 @@ class GetStrategyListV2Resource(Resource):
             )
             for qc in query_configs:
                 for plugin in plugins:
-                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id"):
+                    if f"{plugin['plugin_id']}." in qc.config.get("result_table_id", ""):
                         plugin_strategy_ids.append(qc.strategy_id)
                         break
 
@@ -2135,6 +2136,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         更新策略启停状态
         """
         strategy.is_enabled = is_enabled
+
         return StrategyModel, ["is_enabled"], [strategy.instance]
 
     @staticmethod
@@ -2380,6 +2382,7 @@ class UpdatePartialStrategyV2Resource(Resource):
         update_time = datetime.datetime.now(tz=pytz.timezone(settings.TIME_ZONE))
         history = []
         for strategy in Strategy.from_models(strategies):
+            affect_history_data = False
             for key, value in config.items():
                 update_method: Callable[[Strategy, Any], None] = getattr(self, f"update_{key}", None)
                 if not update_method:
@@ -2395,6 +2398,18 @@ class UpdatePartialStrategyV2Resource(Resource):
                     updates_data[key]["cls"] = update_cls
                     updates_data[key]["keys"] = update_keys
                     updates_data[key]["objs"].extend(update_objs)
+
+                if key in ("is_enabled",):
+                    affect_history_data = True
+
+            if affect_history_data:
+                # 对于影响历史依赖的配置，如果使用的是智能监控SDK，还需要重置状态触发重新拉取历史依赖的逻辑
+                for item in strategy.items:
+                    if getattr(item.query_configs[0], "intelligent_detect", None) and item.query_configs[
+                        0
+                    ].intelligent_detect.get("use_sdk", False):
+                        item.query_configs[0].intelligent_detect["status"] = SDKDetectStatus.PREPARING
+                        item.query_configs[0].save()
 
             strategy.instance.update_time = update_time
             strategy.instance.update_user = username

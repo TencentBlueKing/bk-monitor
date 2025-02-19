@@ -26,7 +26,7 @@
 
 import { Component, Prop, Emit, Ref, ModelSync, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+import useFieldNameHook from '@/hooks/use-field-name';
 import { From } from 'bk-magic-vue';
 
 import $http from '../../../../../../api';
@@ -94,13 +94,16 @@ export default class FilterRule extends tsc<IProps> {
       return true;
     return false;
   }
-
+  get showFieldAlias() {
+    return this.$store.state.showFieldAlias;
+  }
+  // 优先展示选中字段名
   get filterSelectList() {
+    const { getConcatenatedFieldName } = useFieldNameHook({ store: this.$store });
     return this.totalFields
       .filter(item => !/^__dist/.test(item.field_name) && item.field_type !== '__virtual__')
       .map(el => {
-        const { field_name: id, field_alias: alias } = el;
-        return { id, name: alias ? `${id}(${alias})` : id };
+        return getConcatenatedFieldName(el)
       });
   }
 

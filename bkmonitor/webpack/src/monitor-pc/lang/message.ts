@@ -287,7 +287,11 @@ export default {
   '当前数据无维度，所以没有变量选择': 'No variables available as there are no dimensions for the current data',
   '你当前有 {0} 个业务权限，暂无告警事件':
     'You currently have {0} business permissions, and there are no alarm events temporarily',
-  '你当前有 {0} 个业务权限，暂无故障': 'You currently have {0} business permissions and there are no incidents yet.',
+  '{0} 空间未开启故障分析功能，请联系管理员开启':
+    '{0} The fault analysis function is not enabled in this space. Please contact the administrator to enable it.',
+  '你当前有 {0} 个空间权限，暂无故障': 'You currently have {0} space permissions, no faults',
+  '你当前有 {0} 个空间权限，暂未开启灰度, 请联系管理员开启':
+    'You currently have {0} space permissions, grayscale is not enabled yet, please contact the administrator to enable it',
   '本次操作未选择目标，无下发操作记录': 'No target selected for this operation, no records of issuance',
   无法选择Agent状态异常的服务器: 'Cannot select server with abnormal Agent status',
   '当前拨测任务状态良好，无告警事件产生': 'The current dialing task is in good condition and has no alarm events',
@@ -472,7 +476,7 @@ export default {
   '监控策略如何使用？': 'How to use bkmonitor strategy?',
   '是否将该业务设为默认业务？': 'Should this business be set as the default business?',
   '是否取消默认业务？': 'Should the default business be cancelled?',
-  '设为默认后，每次进入监控平台将会默认选中该业务': 
+  '设为默认后，每次进入监控平台将会默认选中该业务':
     'After setting it as default, the monitoring platform will default to this business every time you enter',
   '取消默认业务后，每次进入监控平台将会默认选中最近使用的业务而非当前默认业务':
     'After canceling the default business, the monitoring platform will default to the most recently used business instead of the current default business every time you enter',
@@ -502,4 +506,5 @@ export default {
   前匹配: 'match before',
   后匹配: 'match after',
   当前维度外层已选中: 'The outer layer of the current dimension is selected',
+  无请求数据: 'No request data',
 };

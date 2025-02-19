@@ -121,7 +121,7 @@
                 <span
                   class="field-name"
                   v-bk-overflow-tips
-                  >{{ getFiledDisplay(item.field_name) }}</span
+                  >{{ getFiledDisplay(item) }}</span
                 >
                 <span class="icon bklog-icon bklog-filled-right-arrow"></span>
               </li>
@@ -164,7 +164,7 @@
                   <span
                     class="field-name"
                     v-bk-overflow-tips
-                    >{{ getFiledDisplay(item) }}</span
+                    >{{ getFiledDisplayByFieldName(item) }}</span
                   >
                   <span
                     class="bk-icon icon-close-circle-shape delete"
@@ -208,7 +208,7 @@
                     :style="`width: calc(100% - ${fieldWidth}px);`"
                     class="field-name"
                     v-bk-overflow-tips
-                    >{{ getFiledDisplay(item[0]) }}</span
+                    >{{ getFiledDisplayByFieldName(item[0]) }}</span
                   >
                   <span :class="`bk-icon status ${filterStatusIcon(item[1])}`"></span>
                   <span
@@ -244,22 +244,23 @@
         {{ $t('取消') }}
       </bk-button>
     </div>
-    <div class="field-alias-setting">
+    <!-- <div class="field-alias-setting">
       <span style="margin-right: 4px">{{ $t('表头显示别名') }}</span>
       <bk-switcher
         v-model="showFieldAlias"
         size="small"
         theme="primary"
       ></bk-switcher>
-    </div>
+    </div> -->
   </div>
 </template>
 
 <script>
   import VueDraggable from 'vuedraggable';
   import { mapGetters } from 'vuex';
-
+  // import useFieldNameHook from '@/hooks/use-field-name';
   import fieldsSettingOperate from './fields-setting-operate';
+  import { getFieldNameByField } from '@/hooks/use-field-name';
 
   export default {
     components: {
@@ -275,7 +276,6 @@
       return {
         isLoading: false,
         shadowVisible: [],
-        showFieldAlias: localStorage.getItem('showFieldAlias') === 'true',
         shadowAllTotal: [], // 所有字段
         newConfigStr: '', // 新增配置配置名
         isShowAddInput: false, // 是否展示新增配置输入框
@@ -304,6 +304,9 @@
       },
       shadowTotal() {
         return this.$store.state.indexFieldInfo.fields;
+      },
+      showFieldAlias() {
+        return this.$store.state.showFieldAlias;
       },
       fieldAliasMap() {
         let fieldAliasMap = {};
@@ -351,12 +354,19 @@
       this.initRequestConfigListShow();
     },
     methods: {
-      getFiledDisplay(name) {
-        const alias = this.fieldAliasMap[name];
-        if (alias && alias !== name) {
-          return `${name}(${alias})`;
+      getFiledDisplayByFieldName(name) {
+        const field = this.shadowTotal.find(item => item.field_name === name);
+        return this.getFiledDisplay(field);
+      },
+      getFiledDisplay(field) {
+        if (this.showFieldAlias) {
+          return getFieldNameByField(field, this.$store);
         }
-        return name;
+        const alias = this.fieldAliasMap[field.field_name];
+        if (alias && alias !== field.field_name) {
+          return `${field.field_name}(${alias})`;
+        }
+        return field.field_name;
       },
       /** 带config列表请求的初始化 */
       async initRequestConfigListShow() {
@@ -383,7 +393,7 @@
             await this.submitFieldsSet(this.currentClickConfigData.id);
           }
           this.cancelModifyFields();
-          this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
+          // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {
@@ -625,7 +635,7 @@
           this.newConfigStr = '';
           if (this.filedSettingConfigID === configID) {
             this.currentClickConfigID = this.configTabPanels[0].id;
-            this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
+            // this.$store.commit('updateShowFieldAlias', this.showFieldAlias);
             const { display_fields } = this.configTabPanels[0];
             this.$store.commit('resetVisibleFields', display_fields);
             this.$store.dispatch('requestIndexSetQuery');
