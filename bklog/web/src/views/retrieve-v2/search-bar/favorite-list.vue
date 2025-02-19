@@ -4,9 +4,6 @@
   // @ts-ignore
   import { getRegExp } from '@/common/util';
 
-  import imgEnterKey from '@/images/icons/enter-key.svg';
-  import imgUpDownKey from '@/images/icons/up-down-key.svg';
-
   const props = defineProps({
     searchValue: {
       type: String,
@@ -41,7 +38,6 @@
       }),
   );
 
-  const svgImg = ref({ imgUpDownKey, imgEnterKey });
   const handleClickFavorite = item => {
     emit('change', item);
   };
@@ -69,14 +65,10 @@
             type="empty"
             scene="part"
           >
+            {{ $t('暂未匹配到符合条件的收藏项') }}
           </bk-exception>
         </template>
       </div>
-    </div>
-    <!-- 移动光标and确认结果提示 -->
-    <div class="ui-shortcut-key">
-      <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-      <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
     </div>
   </div>
 </template>
@@ -141,33 +133,6 @@
         &:hover {
           cursor: pointer;
           background-color: #eaf3ff;
-        }
-      }
-    }
-
-    /* 移动光标and确认结果提示 样式 */
-    .ui-shortcut-key {
-      padding: 9px 0 7px 15px;
-      background-color: #fafbfd;
-      border-top: 1px solid #ecedf2;
-
-      span {
-        display: inline-flex;
-        align-items: center;
-        margin-right: 24px;
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
-        letter-spacing: 0;
-
-        img {
-          display: inline-flex;
-          width: 16px;
-          height: 16px;
-          margin-right: 4px;
-          background: #ffffff;
-          border: 1px solid #dcdee5;
-          border-radius: 2px;
         }
       }
     }
