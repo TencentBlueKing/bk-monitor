@@ -74,7 +74,7 @@ CC_HOST_FIELDS = [
 ]
 
 # 节点管理支持的cmdb 集群信息
-CC_SCOPE_FIELDS = ["bk_obj_id", "bk_inst_id"]
+CC_SCOPE_FIELDS = ["bk_set_id", "bk_module_id"]
 
 
 class CmdbFieldType(ChoicesEnum):

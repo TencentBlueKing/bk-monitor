@@ -302,18 +302,17 @@
     }
 
     &.is-log-tab {
+      padding: 0 16px 14px 40px;
       overflow: initial;
 
       .flex-dashboard-item {
+        min-height: calc(100vh - 230px);
         margin-right: 0;
         margin-bottom: 0;
 
         .monitor-trace-log {
           padding-right: 16px;
 
-          .retrieve-v2-index {
-            overflow: hidden;
-          }
         }
       }
 
@@ -875,7 +874,8 @@
     }
 
     .retrieve-v2-index {
-      padding: 0 16px;
+      // padding: 0 16px;
+      padding-left: 16px;
 
       .retrieve-body {
         .retrieve-context {

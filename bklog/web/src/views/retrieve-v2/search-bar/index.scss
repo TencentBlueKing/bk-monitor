@@ -51,7 +51,7 @@
       display: flex;
       width: 100%;
       min-height: 56px;
-      padding-right: 160px;
+      padding-right: 200px;
       background: #ffffff;
       border-radius: 2px;
 
@@ -101,8 +101,9 @@
             cursor: pointer;
             border-radius: 2px;
 
-            &:hover {
-              background: #e1ecff;
+            &:hover,
+            &.is-focused {
+              background: #eaebf0;
             }
 
             .bklog-star-line {

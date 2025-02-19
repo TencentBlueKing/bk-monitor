@@ -1122,7 +1122,7 @@
         }
         const params = this.handleParams();
         // console.log(params);
-        // return 
+        // return
         if (deepEqual(this.localParams, params)) {
           this.isHandle = false;
           if (this.isFinishCreateStep) {

@@ -2457,7 +2457,7 @@ class CollectorViewSet(ModelViewSet):
         collector_config_ids = params["collector_config_ids"]
         operation_type = params["operation_type"]
         return Response(CollectorBatchHandler(collector_config_ids, operation_type).batch_operation(params))
-    
+
     @list_route(methods=["GET"], url_path="search_object_attribute")
     def search_object_attribute(self, request):
         return Response(CollectorHandler.search_object_attribute())

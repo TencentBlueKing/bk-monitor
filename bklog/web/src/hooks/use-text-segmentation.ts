@@ -226,7 +226,7 @@ export default class UseTextSegmentation {
       '&gt;': '>',
       '&quot;': '"',
       '&#x27;': "'",
-      ' ': '\u2002',
+      // ' ': '\u2002',
     };
 
     return typeof val !== 'string'

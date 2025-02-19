@@ -37,7 +37,7 @@ import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
-import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/flame-graph/flame-graph';
+import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/profiling-flame-graph/flame-graph';
 import FlexDashboardPanel from '../../plugins/components/flex-dashboard-panel';
 import { useIsEnabledProfilingInject } from '../../plugins/hooks';
 import { BookMarkModel } from '../../plugins/typings';
@@ -113,6 +113,7 @@ export default defineComponent({
 
     /* 当前应用名称 */
     const appName = computed(() => store.traceData.appName);
+    console.log(appName);
 
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 

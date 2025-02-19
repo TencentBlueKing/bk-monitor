@@ -306,6 +306,14 @@ class CollectTargetStatusTopoResource(Resource):
         elif target_node_type == TargetNodeType.INSTANCE:
             for instance in instance_status.values():
                 result.append(self.get_instance_info(instance))
+        elif target_node_type == TargetNodeType.DYNAMIC_GROUP:
+            for node in collect_status:
+                for child in node.get("child", []):
+                    instance_id = child.get("instance_id")
+                    if instance_id in instance_status:
+                        instance_info = self.get_instance_info(instance_status[instance_id])
+                        child.update(instance_info)
+                result.append(node)
         else:
             # TODO: k8s插件下发
             pass

@@ -17,11 +17,12 @@ from operator import methodcaller
 from django.conf import settings
 from django.db import models
 
-from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
 from core.drf_resource import api
+from core.errors.api import BKAPIError
 from metadata.models.constants import LOG_REPORT_MAX_QPS
+from utils.redis_client import RedisClient
 
 logger = logging.getLogger("metadata")
 
@@ -190,6 +191,10 @@ class CustomReportSubscription(models.Model):
             logger.info("no custom report config in database")
             return biz_id_to_data_id_config
 
+        # 无效的prometheus上报分组id
+        redis_client = RedisClient.from_envs(prefix="BK_MONITOR_TRANSFER")
+        disabled_ts_group_ids = list(map(int, redis_client.hgetall("bkmonitor:disabled_ts_group").keys()))
+
         for r in result:
             max_rate = int(r.get("max_rate", MAX_DATA_ID_THROUGHPUT))
             if max_rate < 0:
@@ -232,9 +237,27 @@ class CustomReportSubscription(models.Model):
                         },
                     }
                 else:
+                    from metadata.models.custom_report.time_series import (
+                        TimeSeriesGroup,
+                    )
+
+                    group = TimeSeriesGroup.objects.get(bk_data_id=r["bk_data_id"])
+                    try:
+                        if group.custom_group_id in disabled_ts_group_ids:
+                            continue
+                        group_info = api.monitor.custom_time_series_detail(
+                            bk_biz_id=group.bk_biz_id, time_series_group_id=group.custom_group_id
+                        )
+                    except BKAPIError:
+                        logger.warning(
+                            f"[{r['bk_data_id']}]get custom time series group[{group.custom_group_id}] detail error"
+                        )
+                        redis_client.hset("bkmonitor:disabled_ts_group", str(group.custom_group_id), 1)
+                        continue
+
                     # prometheus格式: bk-collector-application.conf
                     item = {
-                        "bk_data_token": transform_data_id_to_token(r["bk_data_id"]),
+                        "bk_data_token": group_info["access_token"],
                         "bk_biz_id": r["bk_biz_id"],
                         "bk_data_id": r["bk_data_id"],
                         "bk_app_name": "prometheus_report",

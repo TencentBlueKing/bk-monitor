@@ -26,7 +26,7 @@
 import { ref, Ref } from 'vue';
 
 import { debounce } from 'lodash';
-import tippy from 'tippy.js';
+import tippy, { Props } from 'tippy.js';
 
 type PopInstanceUtilType = {
   refContent: Ref<{ $el?: HTMLElement }>;
@@ -34,7 +34,7 @@ type PopInstanceUtilType = {
   onHiddenFn: () => boolean;
   arrow: boolean;
   newInstance: boolean;
-  tippyOptions: any;
+  tippyOptions: Partial<Props>;
   watchElement: Ref<HTMLElement>; // 添加需要监视的元素，能在元素高度变化时，自动更新 pop
 };
 

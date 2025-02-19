@@ -1185,5 +1185,11 @@ METADATA_DATA_LINK_ACCESS_TOTAL = Counter(
     labelnames=("version", "biz_id", 'strategy', 'status'),
 )
 
+API_REQUESTS_TOTAL = Counter(
+    name="bkmonitor_api_requests_total",
+    documentation="三方APi调用统计",
+    labelnames=("action", "module", "code", "role"),
+)
+
 
 TOTAL_TAG = "__total__"

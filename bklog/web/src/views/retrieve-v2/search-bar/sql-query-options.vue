@@ -15,6 +15,9 @@
 
   import useFieldEgges from './use-field-egges';
 
+  import imgEnterKey from '@/images/icons/enter-key.svg';
+  import imgUpDownKey from '@/images/icons/up-down-key.svg';
+
   const props = defineProps({
     value: {
       type: String,
@@ -24,9 +27,11 @@
   });
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
+  const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { $t } = useLocale();
+  const { getFieldNames } = useFieldNameHook({ store });
 
   enum OptionItemType {
     Colon = 'Colon',
@@ -66,9 +71,7 @@
   /** 所有字段的字段名 */
   const totalFieldsNameList = computed(() => {
     const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-    const { getFieldNames } = useFieldNameHook({ store });
-    return  getFieldNames(totalFields.value.filter(filterFn));
-   
+    return getFieldNames(totalFields.value.filter(filterFn));
   });
 
   // 检索后的日志数据如果字段在字段接口找不到则不展示联想的key
@@ -635,7 +638,7 @@
             </li>
           </div>
         </template>
-        <template
+        <!-- <template
           v-if="!showOption.showFields && !showOption.showValue && !showOption.showColon && !showOption.showContinue"
         >
           <bk-exception
@@ -645,12 +648,17 @@
           >
             当前页面未获取到该字段信息，无法获取联想内容，请手动输入查询内容
           </bk-exception>
-        </template>
+        </template> -->
       </ul>
       <FavoriteList
         @change="handleFavoriteClick"
         :searchValue="value"
       ></FavoriteList>
+      <!-- 移动光标and确认结果提示 -->
+      <div class="ui-shortcut-key">
+        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
+        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
+      </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
       <span
@@ -689,13 +697,50 @@
 <style lang="scss" scoped>
   @import './sql-query-options.scss';
 
-  .sql-query-container {
+  div.sql-query-container {
     display: flex;
     border: 1px solid #dcdee5;
     border-radius: 2px;
+    line-height: 1;
+
+    position: relative;
 
     .sql-field-list {
       width: 100%;
+      position: relative;
+      padding-bottom: 38px;
+
+      /* 移动光标and确认结果提示 样式 */
+      .ui-shortcut-key {
+        padding: 9px 0 7px 15px;
+        background-color: #fafbfd;
+        border-top: 1px solid #ecedf2;
+        height: 38px;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+
+        span {
+          display: inline-flex;
+          align-items: center;
+          margin-right: 24px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #63656e;
+          letter-spacing: 0;
+
+          img {
+            display: inline-flex;
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            background: #ffffff;
+            border: 1px solid #dcdee5;
+            border-radius: 2px;
+          }
+        }
+      }
     }
 
     .sql-syntax-tips {

@@ -482,6 +482,20 @@ class CollectConfigDetailResource(Resource):
                 item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                 item.update({"bk_inst_name": templates.get(item["bk_inst_id"])})
                 target_result.append(item)
+        elif (
+            collect_config_meta.target_object_type == TargetObjectType.HOST
+            and collect_config_meta.deployment_config.target_node_type == TargetNodeType.DYNAMIC_GROUP
+        ):
+            bk_inst_ids = []
+            for item in collect_config_meta.deployment_config.target_nodes:
+                bk_inst_ids.append(item["bk_inst_id"])
+            target_result = api.cmdb.search_dynamic_group(
+                bk_biz_id=collect_config_meta.bk_biz_id,
+                bk_obj_id="host",
+                dynamic_group_ids=bk_inst_ids,
+                with_count=True,
+            )
+
         else:
             node_list = []
             for item in collect_config_meta.deployment_config.target_nodes:

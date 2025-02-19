@@ -2494,14 +2494,18 @@ class Strategy(AbstractConfig):
 
         # 4.4 如果不需要走bkbase接入流程或者配置使用SDK进行检测，则更新query_config中关于使用sdk的配置
         intelligent_detect = getattr(query_config, "intelligent_detect", {})
-        # 如果已经配置了使用SDK，则不再走bkbase接入的方式
-        if not need_access or intelligent_detect.get("use_sdk", False):
+        # 如果已经配置了使用SDK，则不再走bkbase接入的方式，默认使用SDK的方式进行检测
+        if (
+            intelligent_detect.get("use_sdk", True)
+            and algorithm_name != AlgorithmModel.AlgorithmChoices.HostAnomalyDetection
+        ):
             intelligent_detect["use_sdk"] = True
             if algorithm_name == AlgorithmModel.AlgorithmChoices.AbnormalCluster:
                 # 离群检测不需要历史依赖，因此如果使用SDK，默认可以直接进行检测
                 intelligent_detect["status"] = SDKDetectStatus.READY
             else:
                 intelligent_detect["status"] = SDKDetectStatus.PREPARING
+            need_access = False
 
         query_config.intelligent_detect = intelligent_detect
 
