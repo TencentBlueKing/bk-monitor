@@ -214,6 +214,7 @@
   };
 
   const setDefaultFilterList = () => {
+    shadowVisible.value = [];
     shadowVisible.value.push(...filterFieldsList.value);
   };
 
