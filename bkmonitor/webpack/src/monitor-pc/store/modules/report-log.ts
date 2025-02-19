@@ -31,8 +31,52 @@ import { getRouteConfigById } from '../../router/router-config';
 import store from '../store';
 
 let oldRouteId = '';
-@Module({ name: 'report-log', dynamic: true, namespaced: true, store })
+@Module({ name: 'reportLog', dynamic: true, namespaced: true, store })
 class ReportLogStore extends VuexModule {
+  @Action
+  reportHomeSearchLog(params: Record<string, any>) {
+    const space = window.space_list?.find(item => +item.bk_biz_id === +window.cc_biz_id);
+    frontendReportEvent(
+      {
+        event_name: '首页搜索功能',
+        event_content: '基于首页搜索功能的运营数据上报',
+        target: 'bk_monitor',
+        timestamp: Date.now(),
+        dimensions: {
+          ...params,
+          space_id: space?.space_uid || window.cc_biz_id,
+          space_name: space?.space_name || window.cc_biz_id,
+          user_name: window.user_name || window.username,
+        },
+      },
+      {
+        needMessage: false,
+        needTraceId: false,
+      }
+    ).catch(() => false);
+  }
+  @Action
+  reportHomeSearchNavLog(params: Record<string, any>) {
+    const space = window.space_list?.find(item => +item.bk_biz_id === +window.cc_biz_id);
+    frontendReportEvent(
+      {
+        event_name: '首页搜索跳转页面功能',
+        event_content: '基于首页搜索结果跳转页面的运营数据上报',
+        target: 'bk_monitor',
+        timestamp: Date.now(),
+        dimensions: {
+          ...params,
+          space_id: space?.space_uid || window.cc_biz_id,
+          space_name: space?.space_name || window.cc_biz_id,
+          user_name: window.user_name || window.username,
+        },
+      },
+      {
+        needMessage: false,
+        needTraceId: false,
+      }
+    ).catch(() => false);
+  }
   @Action
   @debounceDecorator(1000)
   reportRouteLog(params: Record<string, any>) {
