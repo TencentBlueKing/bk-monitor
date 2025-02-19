@@ -23,46 +23,54 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref } from 'vue';
 
-import { getTargetElement } from '@/hooks/hooks-helper';
-import useLocale from '@/hooks/use-locale';
-import useScroll from '@/hooks/use-scroll';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
+import aiWhaleStore from '../../store/modules/ai-whale';
 
-export default defineComponent({
-  emits: ['scroll-top'],
-  setup(_, { emit }) {
-    const { $t } = useLocale();
-    const offsetTop = ref(0);
+interface AIWhaleIconProps {
+  type: 'explanation' | 'guideline' | 'translate';
+  content: string;
+  tip?: string;
+}
 
-    useScroll(GLOBAL_SCROLL_SELECTOR, event => {
-      if (event.target) {
-        offsetTop.value = (event.target as HTMLElement).scrollTop;
-      }
-    });
+@Component
+export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
+  @Prop({ required: true }) type!: AIWhaleIconProps['type']; // 功能
+  @Prop({ required: true }) content!: string; // 内容
+  @Prop({ default: '' }) tip?: string; // 提示信息
 
-    const showBox = computed(() => offsetTop.value > 1000);
-    const scrollTop = () => {
-      getTargetElement(GLOBAL_SCROLL_SELECTOR)?.scrollTo(0, 0);
-      emit('scroll-top');
-    };
+  /* 图标点击事件 */
+  handleClick() {
+    aiWhaleStore.setShowAIBlueking(true);
+    if (this.type === 'guideline') {
+      // 提问
+      aiWhaleStore.handleAiBluekingSend({
+        content: this.content,
+      });
+    } else {
+      // 解释、翻译
+      aiWhaleStore.setAIQuickActionData({
+        type: this.type,
+        content: this.content,
+      });
+    }
+  }
 
-    const renderBody = () => (
-      <span
-        class={['btn-scroll-top', { 'show-box': showBox.value }]}
-        v-bk-tooltips={$t('返回顶部')}
-        onClick={() => scrollTop()}
-      >
-        <i class='bklog-icon bklog-zhankai'></i>
-      </span>
-    );
-    return {
-      renderBody,
-    };
-  },
   render() {
-    return this.renderBody();
-  },
-});
+    return (
+      <i
+        class='icon-monitor icon-AI'
+        v-bk-tooltips={{
+          content: this.tip,
+          placement: 'top-start',
+          maxWidth: '200',
+          allowHTML: false,
+          disabled: !this.tip,
+        }}
+        onClick={this.handleClick}
+      />
+    );
+  }
+}

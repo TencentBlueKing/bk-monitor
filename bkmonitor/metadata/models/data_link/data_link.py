@@ -207,6 +207,7 @@ class DataLink(models.Model):
                 record.fed_cluster_id,
                 record.fed_namespaces,
             )
+            # 联邦集群链路格式调整,由原先的每一个Namespace一个Condition变更为每一个联邦拓扑一个Condition，通过any方式进行匹配
             sinks = [
                 {
                     "kind": "VmStorageBinding",
@@ -214,14 +215,13 @@ class DataLink(models.Model):
                     "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
                 }
             ]
-            # 将每个 namespace 单独生成一个 condition
-            for ns in record.fed_namespaces:
-                condition = {
-                    "match_labels": [{"name": "namespace", "value": ns}],
-                    "relabels": relabels,
-                    "sinks": sinks,
-                }
-                conditions.append(condition)
+
+            condition = {
+                "match_labels": [{"name": "namespace", "any": record.fed_namespaces}],
+                "relabels": relabels,
+                "sinks": sinks,
+            }
+            conditions.append(condition)
 
         logger.info(
             "compose_federal_sub_configs: data_link_name->[%s],bcs_cluster_id->[%s] will use conditions->[%s]to "

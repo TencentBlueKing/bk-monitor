@@ -27,7 +27,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AiBlueking, { RoleType } from '@blueking/ai-blueking/vue2';
+import AiBlueking, { RoleType, type AIBluekingExpose } from '@blueking/ai-blueking/vue2';
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
@@ -73,6 +73,11 @@ interface IWhaleHelperListItem {
 
 type ThemeType = 'blue' | 'red' | 'yellow';
 
+export type AIQuickActionData = {
+  type: 'explanation' | 'translate';
+  content: string;
+};
+
 interface IData {
   alert: {
     abnormal_count: number; // 空间告警
@@ -112,6 +117,7 @@ export default class AiWhale extends tsc<{
   enableAiAssistant: boolean;
 }> {
   @Ref('robot') robotRef: HTMLDivElement;
+  @Ref('aiAssistant') aiAssistantRef: AIBluekingExpose;
   @Prop({ default: false }) enableAiAssistant: boolean;
   type: ThemeType = 'blue';
   /* 机器人位置 */
@@ -160,7 +166,7 @@ export default class AiWhale extends tsc<{
     top: window.innerHeight - 600 - 20,
   };
   mousemoveFn: (event: MouseEvent) => void;
-  resizeFn = () => { };
+  resizeFn = () => {};
 
   get showAIBlueking() {
     return aiWhaleStore.showAIBlueking;
@@ -180,6 +186,14 @@ export default class AiWhale extends tsc<{
   @Watch('enableAiAssistant', { immediate: true })
   enableAiAssistantChange() {
     this.enableAiAssistant && aiWhaleStore.initStreamChatHelper();
+  }
+
+  @Watch('$store.state.aiWhale.aiQuickActionData')
+  handleIsTypeChange(newVal: AIQuickActionData, oldVal: AIQuickActionData) {
+    // 检查新值是否有 type 和 content
+    if (newVal.type && newVal.content && (newVal.type !== oldVal.type || newVal.content !== oldVal.content)) {
+      this.aiAssistantRef.quickActions(newVal.type, newVal.content);
+    }
   }
   created() {
     this.mousemoveFn = throttle(50, this.handleMousemove);
@@ -401,7 +415,7 @@ export default class AiWhale extends tsc<{
     }
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-      }#/event-center?${query}`;
+    }#/event-center?${query}`;
     window.open(url);
   }
 
@@ -425,7 +439,7 @@ export default class AiWhale extends tsc<{
     const fetchRange = this.data?.fetch_range || '24h';
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-      }#/performance/detail/${ip}-${bkCloudId || 0}?from=now-${fetchRange}&to=now`;
+    }#/performance/detail/${ip}-${bkCloudId || 0}?from=now-${fetchRange}&to=now`;
     window.open(url);
   }
 
@@ -433,14 +447,14 @@ export default class AiWhale extends tsc<{
   handleToAiSettings() {
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-      }#/ai-settings`;
+    }#/ai-settings`;
     window.open(url);
   }
   /* 跳转到策略 */
   handleToStrategyConfig() {
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-      }#/strategy-config/add`;
+    }#/strategy-config/add`;
     window.open(url);
   }
   handleAiBluekingClear() {
@@ -701,6 +715,7 @@ export default class AiWhale extends tsc<{
   createAiBlueking() {
     return (
       <AiBlueking
+        ref='aiAssistant'
         class='ai-blueking'
         background={this.background}
         head-background={this.headBackground}
