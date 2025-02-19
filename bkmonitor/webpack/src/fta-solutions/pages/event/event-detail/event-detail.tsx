@@ -31,7 +31,7 @@ import { listIndexByHost } from 'monitor-api/modules/alert_events';
 import { graphTraceQuery } from 'monitor-api/modules/grafana';
 import { checkAllowedByActionIds } from 'monitor-api/modules/iam';
 import { getPluginInfoByResultTable } from 'monitor-api/modules/scene_view';
-import { deepClone, random } from 'monitor-common/utils/utils';
+import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone, getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
 import LogRetrievalDialog from 'monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
@@ -39,11 +39,11 @@ import authorityStore from 'monitor-pc/store/modules/authority';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
-import ChatGroup from '../../../components/chat-group/chat-group';
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
 import BasicInfo from './basic-info';
+import EventDetailHead from './event-detail-head';
 import Feedback from './feedback';
 import HandleStatusDialog from './handle-status-dialog';
 import ManualDebugStatus from './manual-debug-status';
@@ -51,7 +51,6 @@ import ManualProcess from './manual-process';
 import QuickShield from './quick-shield';
 import TabContainer from './tab-container';
 
-import type { IChatGroupDialogOptions } from '../typings/event';
 import type { IDetail } from './type';
 
 import './event-detail.scss';
@@ -75,10 +74,13 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   @Prop({ default: '', type: [String, Number] }) id: string;
   @Prop({ default: '', type: String }) activeTab: string;
   @Prop({ type: Number, default: +window.bk_biz_id }) bizId: number;
+  /** 是否需要展示顶部菜单栏 */
+  @Prop({ type: Boolean, default: true }) isShowHead: boolean;
   // bizId
   @ProvideReactive('bkBizId') bkBizId = null;
   // 时区
   @ProvideReactive('timezone') timezone: string = window.timezone || getDefaultTimezone();
+
   // public id = 0
   basicInfo: IDetail = {
     id: '', // 告警id
@@ -156,13 +158,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   };
   /* 是否已反馈 */
   isFeedback = false;
-  /** 一键拉群弹窗 */
-  chatGroupDialog: IChatGroupDialogOptions = {
-    show: false,
-    alertName: '',
-    alertIds: [],
-    assignee: [],
-  };
   /* traceIds 用于展示trace标签页 */
   traceIds = [];
   /* 场景id 用于场景视图标签页 */
@@ -170,13 +165,10 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   sceneName = '';
   /* 权限校验 */
   authorityConfig = {};
-  enableCreateChatGroup = false;
   throttledScroll: () => void = () => {};
 
   created() {
     this.getDetailData();
-    // 是否支持一键拉群 todo
-    this.enableCreateChatGroup = !!window.enable_create_chat_group;
   }
 
   mounted() {
@@ -218,7 +210,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
       .then(res => !!res.length)
       .catch(() => false);
     this.tabShow = true;
-    this.$emit('info', data);
+    this.$emit('info', data, this.isFeedback);
     if (data) {
       this.basicInfo = data;
       this.bkBizId = data.bk_biz_id || this.bizId;
@@ -315,20 +307,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     this.basicInfo.shield_left_time = time;
   }
 
-  toStrategyDetail() {
-    // 如果 告警来源 是监控策略就要跳转到 策略详情 。
-    if (this.basicInfo.plugin_id === 'bkmonitor') {
-      window.open(
-        `${location.origin}${location.pathname}?bizId=${this.basicInfo.bk_biz_id}/#/strategy-config/detail/${this.id}?fromEvent=true`
-      );
-    } else if (this.basicInfo.plugin_id) {
-      // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
-      const query = deepClone(this.$route.query);
-      query.queryString = `告警源 : "${this.basicInfo.plugin_id}"`;
-      const queryString = new URLSearchParams(query).toString();
-      window.open(`${location.origin}${location.pathname}${location.search}/#/event-center?${queryString}`);
-    }
-  }
   processingStatus(v) {
     this.dialog.statusDialog.show = v;
   }
@@ -590,24 +568,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   handleFeedBackConfirm() {
     this.isFeedback = true;
   }
-  /**
-   * @description: 一键拉群
-   * @return {*}
-   */
-  handleChatGroup() {
-    this.chatGroupDialog.assignee = this.basicInfo.assignee || [];
-    this.chatGroupDialog.alertName = this.basicInfo.alert_name;
-    this.chatGroupDialog.alertIds.splice(0, this.chatGroupDialog.alertIds.length, this.basicInfo.id);
-    this.chatGroupShowChange(true);
-  }
-  /**
-   * @description: 一键拉群弹窗关闭/显示
-   * @param {boolean} show
-   * @return {*}
-   */
-  chatGroupShowChange(show: boolean) {
-    this.chatGroupDialog.show = show;
-  }
 
   render() {
     return (
@@ -615,33 +575,23 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         class='event-detail-container'
         v-bkloading={{ isLoading: this.isLoading }}
       >
-        <div class='container-group'>
-          {this.enableCreateChatGroup ? (
-            <div
-              v-en-style='right: 120px'
-              class='chat-btn'
-              onClick={() => this.handleChatGroup()}
-            >
-              <span class='icon-monitor icon-we-com' />
-              {window.i18n.tc('拉群')}
-            </div>
-          ) : (
-            ''
-          )}
-          <div
-            class='feedback-btn'
-            onClick={() => this.handleFeedback(true)}
-          >
-            <span class='icon-monitor icon-fankui' />
-            {this.isFeedback ? window.i18n.tc('已反馈') : window.i18n.tc('反馈')}
+        {this.isShowHead && (
+          <div class='event-detail-head-container'>
+            <EventDetailHead
+              basicInfo={this.basicInfo}
+              bizId={this.bizId}
+              eventId={this.id}
+              isFeedback={this.isFeedback}
+            />
           </div>
+        )}
+        <div class='container-group'>
           <BasicInfo
             basicInfo={this.basicInfo}
             on-alarm-confirm={this.alarmConfirmChange}
             on-manual-process={this.handleManualProcess}
             on-processing-status={this.processingStatus}
             on-quick-shield={this.quickShieldChange}
-            on-strategy-detail={this.toStrategyDetail}
             onAlarmDispatch={this.handleAlarmDispatch}
           />
           <div class='basicinfo-bottom-border' />
@@ -658,13 +608,6 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
           />
         </div>
         {this.getDialogComponent()}
-        <ChatGroup
-          alarmEventName={this.chatGroupDialog.alertName}
-          alertIds={this.chatGroupDialog.alertIds}
-          assignee={this.chatGroupDialog.assignee}
-          show={this.chatGroupDialog.show}
-          onShowChange={this.chatGroupShowChange}
-        />
       </div>
     );
   }

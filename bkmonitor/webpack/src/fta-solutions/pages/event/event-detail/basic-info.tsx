@@ -96,10 +96,6 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     return getOperatorDisabled(this.basicInfo.follower, this.basicInfo.assignee);
   }
 
-  @Emit('strategy-detail')
-  toStrategyDetail() {
-    return true;
-  }
   @Emit('processing-status')
   processingStatus() {
     return true;
@@ -134,14 +130,18 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     }
   }
   // 头部彩色条形
-  getHeaderBarComponent(eventStatus: string, isShielded: boolean) {
+  getHeaderBarComponent(eventStatus: string, isShielded: boolean, isAck: boolean) {
     const classList = {
       RECOVERED: 'bar-recovered',
       ABNORMAL: 'bar-abnormal',
       CLOSED: 'bar-closed',
     };
     const className = eventStatus ? classList[eventStatus] : '';
-    return <div class={[className, { 'bar-small': isShielded }]} />;
+    return (
+      <div class={[className, { 'bar-small': isShielded }]}>
+        {this.getRightStatusComponent(eventStatus, isAck, isShielded)}
+      </div>
+    );
   }
   // 告警级别标签
   getTagComponent(severity) {
@@ -156,19 +156,19 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   }
   getDimensionsInfo() {
     return this.filterDimensions?.length
-      ? this.filterDimensions?.map((item, index) => [
-          index !== 0 && <span>&nbsp;,&nbsp;</span>,
+      ? this.filterDimensions?.map(item => [
           <span
             style={{
               cursor: this.ipMap.includes(item.key) ? 'pointer' : 'auto',
             }}
+            class='dimensions-item'
             onClick={() => !this.readonly && this.handleToPerformance(item)}
           >
-            <span>{item.display_key}</span>
-            <span>=</span>
+            <span class='name'>{item.display_key}</span>
+            <span class='eq'>=</span>
             <span
-              style='margin-left: 0;'
-              class={{ 'info-check': this.ipMap.includes(item.key) }}
+              style='margin-left: 0; display: block'
+              class={['content', { 'info-check': this.ipMap.includes(item.key) }]}
             >
               {item.display_value}
             </span>
@@ -226,17 +226,15 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       <span>
         {stage_display || '--'}
         {!this.readonly && [
-          <span
-            class='icon-monitor icon-chuli'
-            v-bk-tooltips={{ content: this.$t('手动处理') }}
-            onClick={() => this.$emit('manual-process')}
-          />,
-          <span
-            class='alarm-dispatch'
-            v-bk-tooltips={{ content: this.$t('告警分派') }}
-            onClick={this.handleAlarmDispatch}
-          >
-            <span class='icon-monitor icon-fenpai' />
+          <span onClick={() => this.$emit('manual-process')}>
+            <span class='icon-monitor icon-chuli' />
+            <span class='blue-txt'>{this.$t('手动处理')}</span>
+          </span>,
+          <span onClick={this.handleAlarmDispatch}>
+            <span class='alarm-dispatch'>
+              <span class='icon-monitor icon-fenpai' />
+            </span>
+            <span class='blue-txt'>{this.$t('告警分派')}</span>
           </span>,
         ]}
       </span>
@@ -266,8 +264,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           {
             title: this.$t('处理状态'),
             content: alertInfoList,
-            icon: alertInfoList === '--' ? '' : 'icon-tishi',
+            icon: alertInfoList === '--' ? '' : 'icon-xiangqing1',
             iconTip: this.$t('处理详情'),
+            iconText: this.$t('处理详情'),
             click: this.processingStatus,
           },
           // {
@@ -298,7 +297,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       {
         children: [
           {
-            title: this.$t('首次异常时间'),
+            title: this.$t('异常时间'),
             content: dayjs.tz(first_anomaly_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
             timeZone: dayjs.tz(first_anomaly_time * 1000).format('Z'),
           },
@@ -308,7 +307,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       {
         children: [
           {
-            title: this.$t('告警产生时间'),
+            title: this.$t('告警产生'),
             content: dayjs.tz(create_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
             timeZone: dayjs.tz(create_time * 1000).format('Z'),
           },
@@ -407,7 +406,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   }
   // 右侧状态操作区域
   getRightStatusComponent(eventStatus: string, isAck: boolean, isShielded: boolean) {
-    const { shield_left_time } = this.basicInfo;
+    const { shield_left_time, duration } = this.basicInfo;
     // eventStatus 已/未恢复/关闭 isAck 已确认 isShielded 已屏蔽
     const status = ['RECOVERED', 'ABNORMAL', 'CLOSED'];
     let iconName = '';
@@ -416,20 +415,17 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     let operateDom = null;
     const shieldedDom = () =>
       this.readonly ? undefined : (
-        <bk-button
-          class='mr10'
-          outline={true}
-          size='small'
-          theme='primary'
+        <span
+          class='shielded-link mr10'
           on-click={this.handleQuickShield}
         >
+          <i class='icon-monitor icon-mc-notice-shield'></i>
           {this.$t('快捷屏蔽')}
-        </bk-button>
+        </span>
       );
     const confirmDom = () =>
       this.readonly ? undefined : (
         <bk-button
-          outline={true}
           size='small'
           theme='primary'
           on-click={this.handleAlarmConfirm}
@@ -451,7 +447,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         iconColor = '#ff5656';
         iconText = `${this.$t('未恢复')}`;
         operateDom = (
-          <div class='status-operate'>
+          <div class='status-operate-btn'>
             {shieldedDom()}
             {confirmDom()}
           </div>
@@ -460,19 +456,22 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
         /* 未恢复已屏蔽 */
         iconName = 'icon-menu-shield';
         iconColor = '#979ba5';
-        iconText = `${this.$t('未恢复')}（${this.$t('已屏蔽')}）`;
+        iconText = `${this.$t('未恢复')}(${this.$t('已屏蔽')})`;
         operateDom = this.basicInfo.shield_id && [
           <div class='status-operate'>
-            <span class='shielded-text'>{this.$t('屏蔽时间剩余')}</span>
+            <span class='status-operate-line'></span>
+            <span class='shielded-text'>{this.$t('屏蔽时间剩余')}：</span>
             <span class='shielded-time'>{shield_left_time}</span>
           </div>,
           !this.readonly ? (
-            <div
-              class='shielded-link'
-              onClick={this.handleToShield}
-            >
-              {this.$t('屏蔽策略')}
-              <span class='icon-monitor icon-fenxiang' />
+            <div class='status-operate-btn'>
+              <div
+                class='shielded-link'
+                onClick={this.handleToShield}
+              >
+                <span class='icon-monitor icon-fenxiang' />
+                {this.$t('屏蔽策略')}
+              </div>
             </div>
           ) : undefined,
         ];
@@ -502,7 +501,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
             class={['icon-monitor', iconName]}
           />
           <div class='status-text'>
-            {iconText}
+            <span>{iconText}</span>
             {this.showReason ? (
               <span
                 class={['right-icon', 'icon-monitor', 'icon-tishi']}
@@ -510,6 +509,13 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               ></span>
             ) : undefined}
           </div>
+          {this.basicInfo?.duration && !isShielded && (
+            <div class='status-operate'>
+              <span class='status-operate-line'></span>
+              <span class='shielded-text'>{this.$t('持续时间')}：</span>
+              <span>{duration}</span>
+            </div>
+          )}
         </div>
         {!this.followerDisabled ? operateDom || undefined : undefined}
       </div>
@@ -518,12 +524,13 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
 
   render() {
     const { severity, is_shielded, is_ack, status, alert_name } = this.basicInfo;
+    console.log(this.basicInfo, 'this.basicInfo');
     return (
       <div class='event-detail-basic'>
-        {this.getHeaderBarComponent(status, is_shielded)}
+        {this.getHeaderBarComponent(status, is_shielded, is_ack)}
         <div class='basic-detail'>
           <div class='basic-left'>
-            <div class='basic-title'>
+            {/* <div class='basic-title'>
               {this.getTagComponent(severity)}
               <span
                 class='basic-title-name'
@@ -540,15 +547,15 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
                   <i class='icon-monitor icon-fenxiang icon-float' />
                 </span>
               ) : undefined}
-            </div>
+            </div> */}
             {this.getDetailFormComponent()}
           </div>
-          <div
+          {/* <div
             class='basic-right'
             v-en-class='en-lang'
           >
             {this.getRightStatusComponent(status, is_ack, is_shielded)}
-          </div>
+          </div> */}
         </div>
       </div>
     );
