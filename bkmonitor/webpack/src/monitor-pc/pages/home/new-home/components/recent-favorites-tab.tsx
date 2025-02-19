@@ -110,7 +110,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
           return accumulator;
         }, selectList || [])
         .slice();
-    } catch { }
+    } catch {}
   }
 
   async created() {
@@ -217,10 +217,10 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     if (event.key !== 'Enter') return;
     // 阻止默认行为，即在没有按下 Shift 或 Ctrl 时不插入换行符
     if (event.shiftKey || event.ctrlKey) return;
-    if (this.loading) {
-      event.preventDefault();
-      return;
-    }
+    // if (this.loading) {
+    //   event.preventDefault();
+    //   return;
+    // }
     // 获取实际输入内容（考虑换行符情况）
     const hasContent = event.target.innerText.replace(/[\n\r]/g, '').trim().length > 0;
 
@@ -231,6 +231,7 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
     event.preventDefault();
     // 打开小鲸聊天框
     aiWhaleStore.setShowAIBlueking(true);
+    console.info('send content: ', event.target.innerText);
     aiWhaleStore.handleAiBluekingSend({
       content: event.target.innerText,
     });
@@ -272,7 +273,6 @@ export default class RecentFavoritesTab extends Mixins(UserConfigMixin) {
         </div>
         {/* 快捷入口 */}
         <QuickAccess
-          // @ts-ignore
           categoriesHasTwoRows={this.categoriesHasTwoRows}
           enableAiAssistant={this.enableAiAssistant}
           onHandleGoStoreRoute={this.handleGoStoreRoute}
