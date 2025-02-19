@@ -80,6 +80,7 @@ function destroy(el: IElement) {
   el.removeEventListener('mouseleave', el.mouseLeaveHandler);
 }
 
+// biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 export default class AuthorityDirective {
   public static install(Vue: VueConstructor) {
     Vue.directive('authority', {
@@ -87,7 +88,7 @@ export default class AuthorityDirective {
         const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
         init(el, options);
       },
-      updated(el: IElement, binding: DirectiveBinding) {
+      update(el: IElement, binding: DirectiveBinding) {
         const options: IOptions = Object.assign({}, DEFAULT_OPTIONS, binding.value);
         destroy(el);
         init(el, options);
