@@ -57,6 +57,9 @@ class AiWhaleStore extends VuexModule {
   handleAiBluekingSend(message: ISendData) {
     // 记录当前消息记录
     // const chatHistory = [...this.messages];
+    if (this.loading) {
+      this.chatHelper.stop(this.chartId);
+    }
     // 添加一条消息
     this.messages.push({
       role: RoleType.User,
