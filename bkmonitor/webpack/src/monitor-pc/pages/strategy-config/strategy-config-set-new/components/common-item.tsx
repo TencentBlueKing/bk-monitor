@@ -26,15 +26,17 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
+
 import type { TranslateResult } from 'vue-i18n';
 
 import './common-item.scss';
 
 interface ICommonProps {
-  title: TranslateResult | string;
+  title: string | TranslateResult;
   isRequired?: boolean;
   showSemicolon?: boolean;
-  tips?: TranslateResult | string;
+  tips?: string | TranslateResult;
   isWrap?: boolean;
   isSwitch?: boolean;
   desc?: string;
@@ -57,19 +59,19 @@ export default class MyComponent extends tsc<ICommonProps> {
   render() {
     return (
       <div class={['common-item', { 'common-item-w50': this.isWrap, 'common-item-switch': this.isSwitch }]}>
-        <label class='common-item-label-wrap'>
+        <label
+          class='common-item-label-wrap'
+          for=''
+        >
           <div class={{ 'common-item-label': true, 'is-required': this.isRequired }}>
             {this.showSemicolon ? `${this.title}:` : this.title}
           </div>
           {this.tips && (
-            <i
-              class='icon-monitor icon-tips common-item-desc'
-              v-bk-tooltips={{
-                content: this.tips,
-                width: 200,
-                placement: 'top-start',
-                allowHTML: false,
-              }}
+            <AIWhaleIcon
+              class='common-item-desc'
+              content={this.title}
+              tip={this.tips}
+              type='explanation'
             />
           )}
           {this.desc && <span class='common-item-label-desc'>{this.desc}</span>}
