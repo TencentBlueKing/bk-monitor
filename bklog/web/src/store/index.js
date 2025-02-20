@@ -741,20 +741,16 @@ const store = new Vuex.Store({
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
     /**
-     * 用于更新可见field，对于object字段整体添加参数不一样
-     * 
-     * @param {Array | Object} payload  前者是field_name组成的数组，后者是该数组和version组成的对象
+     * @desc: 用于更新可见field，当object字段整体添加时参数不一样且version === 'v2'
+     * @param {Array | Object} payload  前者是field_name组成的数组，后者是该数组和versions组成的对象
      * 
      */
     resetVisibleFields(state, payload) {
       const isObjectField = payload?.version === 'v2'
-      if(isObjectField){
-        payload = payload.displayFieldNames
-      }
       const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
       const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-      const filterList = (payload || displayFields) ?? state.indexFieldInfo.display_fields;
+      const filterList = ( isObjectField ? payload.version : payload || displayFields) ?? state.indexFieldInfo.display_fields;
       const visibleFields = 
         filterList
           .map(displayName => {
