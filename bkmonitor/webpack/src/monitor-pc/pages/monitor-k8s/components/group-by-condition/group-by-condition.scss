@@ -8,12 +8,10 @@
     display: flex;
     flex-shrink: 0;
     align-items: center;
-    padding-right: 16px;
-    padding-left: 24px;
+    padding: 0 12px;
     font-size: 12px;
-    font-weight: 700;
     color: #313238;
-    background: #fafbfd;
+    background: #ebeef5;
     border-right: 1px solid #dcdee5;
     border-left: 1px solid #dcdee5;
   }
@@ -28,18 +26,22 @@
 
     .group-by-item {
       position: relative;
-      display: inline-block;
+      display: flex;
+      align-items: center;
       height: 22px;
-      padding: 0 10px;
+      padding: 0 8px;
       margin-right: 4px;
       line-height: 22px;
       color: #4d4f56;
-      background-color: #f0f1f5;
+      background: #fafbfd;
+      border: 1px solid #dcdee5;
       border-radius: 2px;
 
       &.can-delete {
         padding-right: 22px;
         color: #63656e;
+        background: #f0f1f5;
+        border: 0;
       }
 
       .icon-mc-close {
@@ -53,6 +55,8 @@
     }
 
     .group-by-select {
+      height: 22px;
+
       .custom-select-target {
         display: inline-block;
 

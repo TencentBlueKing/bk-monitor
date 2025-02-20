@@ -70,6 +70,7 @@ export default class K8SCharts extends tsc<
 
   // 汇聚周期
   interval: number | string = 'auto';
+  limitFunc = 'top';
   limit = 10;
   // 汇聚方法
   method = K8S_METHOD_LIST[0].id;
@@ -80,6 +81,7 @@ export default class K8SCharts extends tsc<
   resourceList: Set<Partial<Record<K8sTableColumnKeysEnum, string>>> = new Set();
   sideDetailShow = false;
   sideDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
+
   get groupByField() {
     return this.groupBy.at(-1) || K8sTableColumnKeysEnum.CLUSTER;
   }
@@ -253,8 +255,8 @@ export default class K8SCharts extends tsc<
     }
     switch (this.groupByField) {
       case K8sTableColumnKeysEnum.CONTAINER:
-      // content += `,container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
-      // break;
+        content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",container_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
+        break;
       case K8sTableColumnKeysEnum.POD:
         content += `,pod_name=~"^(${this.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
         break;
@@ -420,6 +422,7 @@ export default class K8SCharts extends tsc<
             page_size: Math.abs(this.limit),
             page: 1,
             page_type: 'scrolling',
+            order_by: this.limitFunc === 'bottom' ? 'asc' : 'desc',
           })
             .then(data => {
               if (!data?.items?.length) return [];
@@ -432,7 +435,7 @@ export default class K8SCharts extends tsc<
         const workload = new Set<string>();
         const workloadKind = new Set<string>();
         const namespace = new Set<string>();
-        const list = data.slice(0, 10);
+        const list = data.slice(0, this.limit);
         for (const item of list) {
           item.container && container.add(item.container);
           item.pod && pod.add(item.pod);
@@ -470,7 +473,9 @@ export default class K8SCharts extends tsc<
     this.method = v;
     this.updateViewOptions();
   }
+  @Debounce(300)
   handleLimitChange(v: string) {
+    if (Number.isNaN(+v) || +v < 1 || +v > 100 || +v === this.limit) return;
     this.limit = +v;
     this.createPanelList();
   }
@@ -482,6 +487,10 @@ export default class K8SCharts extends tsc<
 
   handleShowTimeCompare(v: boolean) {
     this.handleCompareTimeChange(!v ? [] : ['1h']);
+  }
+  handleLimitFuncChange(v: string) {
+    this.limitFunc = v;
+    this.createPanelList();
   }
   render() {
     return (
@@ -503,14 +512,33 @@ export default class K8SCharts extends tsc<
               value={this.method}
               onChange={this.handleMethodChange}
             />
-            <FilterVarSelectSimple
-              class='ml-36'
-              options={[
-                { name: 'top(10)', id: 10 },
-                { name: 'bottom(10)', id: -10 },
-              ]}
-              field={'limit'}
-              label={this.$t('Limit')}
+            <span class='ml-36 mr-8'>Limit</span>
+            <bk-select
+              style='width: 90px;'
+              ext-cls='ml-8'
+              behavior='simplicity'
+              clearable={false}
+              size='small'
+              value={this.limitFunc}
+              onChange={this.handleLimitFuncChange}
+            >
+              {['top', 'bottom'].map(method => (
+                <bk-option
+                  id={method}
+                  key={method}
+                  name={method}
+                />
+              ))}
+            </bk-select>
+            <bk-input
+              style='width: 150px;'
+              class='ml-8'
+              behavior='simplicity'
+              max={100}
+              min={1}
+              placeholder={this.$t('请输入1~100的数字')}
+              size='small'
+              type='number'
               value={this.limit}
               onChange={this.handleLimitChange}
             />

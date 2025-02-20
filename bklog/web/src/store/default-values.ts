@@ -37,7 +37,6 @@ export const getDefaultRetrieveParams = () => {
     interval: 'auto',
     timezone: 'Asia/Shanghai',
     search_mode: 'ui',
-    commonFilters: [],
   };
 };
 
@@ -53,6 +52,8 @@ export const DEFAULT_DATETIME_PARAMS = getDefaultDatePickerValue();
 
 export const IndexSetQueryResult = {
   is_loading: false,
+  exception_msg: '',
+  is_error: false,
   request_counter: 0,
   search_count: 0,
   aggregations: {},
@@ -78,6 +79,12 @@ export const IndexFieldInfo = {
   config_id: 0,
   aggs_items: {},
   last_eggs_request_token: null,
+  user_custom_config: {
+    filterSetting: [],
+    displayFields: [],
+    fieldsWidth: {},
+    filterAddition: []
+  }
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };

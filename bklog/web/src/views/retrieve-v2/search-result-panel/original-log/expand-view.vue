@@ -71,7 +71,7 @@
 <script>
   import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
-
+  import { getFieldNameByField } from '@/hooks/use-field-name';
   import KvList from '../../result-comp/kv-list.vue';
 
   export default {
@@ -110,15 +110,16 @@
         return this.totalFields
           .filter(item => this.kvShowFieldsList.includes(item.field_name))
           .sort((a, b) => {
-            const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
-            const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+            const sortA = getFieldNameByField(a, this.$store).replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
+            const sortB = getFieldNameByField(b, this.$store).replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
             return sortA.localeCompare(sortB);
           });
       },
       jsonShowData() {
         return this.kvListData.reduce((pre, cur) => {
           const showTableData = cur.field_type === '__virtual__' ? this.listData : this.data;
-          pre[cur.field_name] = this.tableRowDeepView(showTableData, cur.field_name, cur.field_type) ?? '';
+          const fieldName = getFieldNameByField(cur, this.$store);
+          pre[fieldName] = this.tableRowDeepView(showTableData, cur.field_name, cur.field_type) ?? '';
           return pre;
         }, {});
       },

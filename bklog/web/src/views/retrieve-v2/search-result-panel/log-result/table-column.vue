@@ -60,6 +60,10 @@
       JsonFormatter,
     },
     props: {
+      formatJson: {
+        type: Boolean,
+        default: false,
+      },
       content: {
         type: [String, Number, Boolean],
         required: true,
@@ -83,7 +87,7 @@
     },
     computed: {
       ...mapState({
-        formatJson: state => state.tableJsonFormat,
+        // formatJson: state => state.tableJsonFormat,
         tableLineIsWrap: state => state.tableLineIsWrap,
         isFormatDateField: state => state.isFormatDate,
       }),
@@ -114,9 +118,9 @@
       handleJsonSegmentClick({ isLink, option }) {
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
-        const { depth, operation, value } = option;
+        const { depth, operation, value, isNestedField } = option;
         const operator = operation === 'not' ? 'is not' : operation;
-        this.$emit('icon-click', operator, value, isLink, depth); // type, content, field, row, isLink
+        this.$emit('icon-click', operator, value, isLink, depth, isNestedField); // type, content, field, row, isLink
       },
     },
   };

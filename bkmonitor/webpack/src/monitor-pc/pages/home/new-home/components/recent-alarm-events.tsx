@@ -31,6 +31,7 @@ import draggable from 'vuedraggable';
 
 import { shortcuts } from '../../../../components/time-range/utils';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
+import { DEFAULT_SEVERITY_LIST, RECENT_ALARM_SEVERITY_KEY } from '../utils';
 import AddAlarmChartDialog from './add-alarm-chart-dialog';
 import HomeAlarmChart from './home-alarm-chart';
 import RecentAlarmTab from './recent-alarm-tab';
@@ -66,6 +67,9 @@ export default class RecentAlarmEvents extends tsc<object> {
   showDelDialog = false; // 展示删除图表/业务弹窗
   currentDelId = null; // 当前删除的图表id
 
+  bizLimit = 5; // 默认添加5个业务
+  graphLimit = 10; // 默认添加十个图表
+
   /** 策略配置 相关 */
   strategyConfig = {
     strategy_ids: [],
@@ -79,22 +83,36 @@ export default class RecentAlarmEvents extends tsc<object> {
   timeRange = shortcuts[5].value as TimeRangeType; // 时间选择器
 
   @Watch('activeTabId')
-  handleSwitchTab() {
+  handleSwitchTab(val) {
+    if (!val) return;
     this.getTabAndAlarmConfig(false);
   }
 
+  // 可以添加图表flag
+  get canAddGraph() {
+    // 仅支持添加 n 个图表
+    return this.alarmGraphContent.length < this.graphLimit;
+  }
+
+  get computedWidth() {
+    return window.innerWidth < 2560 ? 392 : 452;
+  }
+
   async created() {
-    await this.getTabAndAlarmConfig();
+    await this.getTabAndAlarmConfig(true, false);
     this.activeTabId = this.businessTab[0]?.bk_biz_id; // 默认选中第一个标签
   }
 
-  async getTabAndAlarmConfig(updateTab = true) {
+  async getTabAndAlarmConfig(updateTab = true, updateAlarmConfig = true) {
     try {
       this.loadingAlarmList = !this.editChartIndex;
       this.showTabLoading = updateTab;
       const data = await getAlarmGraphConfig({
-        bk_biz_id: this.activeTabId,
+        bk_biz_id: this.activeTabId || this.$store.getters.bizId,
       });
+      const currentBizLength = data.tags.length;
+      this.bizLimit = currentBizLength > data.biz_limit ? currentBizLength : data.biz_limit || this.bizLimit;
+      this.graphLimit = data.graph_limit || this.graphLimit;
       if (updateTab) {
         if (this.businessTab.length === 0) {
           this.activeTabId = data.tags?.[0]?.bk_biz_id;
@@ -104,7 +122,9 @@ export default class RecentAlarmEvents extends tsc<object> {
         }
         this.businessTab = data.tags || [];
       }
-      this.alarmGraphContent = data.config || [];
+      if (updateAlarmConfig) {
+        this.alarmGraphContent = data.config || [];
+      }
     } catch (error) {
       console.log('get Date error', error);
     } finally {
@@ -119,11 +139,22 @@ export default class RecentAlarmEvents extends tsc<object> {
     // 列表最后一个为新增图表
     const add = () => (
       <div
-        class='add-content list-item'
+        style={{ 'min-width': `${this.computedWidth}px` }}
+        class={{ 'add-content list-item': true, 'unable-add-graph': !this.canAddGraph }}
+        v-bk-tooltips={{
+          content: this.$t('仅支持添加 {0} 个图表', {
+            0: this.graphLimit,
+          }),
+          trigger: 'mouseenter',
+          zIndex: 9999,
+          boundary: document.body,
+          allowHTML: false,
+          disabled: this.canAddGraph,
+        }}
         onClick={() => this.handleAddChart()}
       >
         <i class='icon-mc-add icon-monitor' />
-        <span>{this.$t('新增图表')}</span>
+        <span>{this.$t('添加图表')}</span>
       </div>
     );
     return (
@@ -131,14 +162,17 @@ export default class RecentAlarmEvents extends tsc<object> {
         {list.map((item, index) => (
           <div
             key={item.name + index}
+            style={{ 'min-width': `${this.computedWidth}px` }}
             class='list-item'
           >
             <HomeAlarmChart
               ref={el => (this.childRefs[index] = el)} // 存储子组件的 ref
               config={item}
               currentActiveId={this.activeTabId}
+              severityProp={this.severityList[index]}
               timeRange={this.timeRange}
-              onMenuClick={({ id }) => this.handleMenuClick(id, item, index)}
+              onMenuClick={data => this.handleMenuClick(data, item, index)}
+              onSeverityChange={severity => this.saveSeverityList(index, severity)}
             />
           </div>
         ))}
@@ -147,8 +181,23 @@ export default class RecentAlarmEvents extends tsc<object> {
     );
   }
 
+  get severityList() {
+    return JSON.parse(
+      localStorage.getItem(`${RECENT_ALARM_SEVERITY_KEY}_${this.activeTabId}`) ||
+      JSON.stringify(Array(this.alarmGraphContent.length).fill(DEFAULT_SEVERITY_LIST))
+    );
+  }
+
+  /** 保存图表严重程度数组 */
+  saveSeverityList(index, severity = []) {
+    const severityList = this.severityList;
+    severity.length ? severityList.splice(index, 1, severity) : severityList.splice(index, 1);
+    localStorage.setItem(`${RECENT_ALARM_SEVERITY_KEY}_${this.activeTabId}`, JSON.stringify(severityList));
+  }
+
   /** MenuList操作 */
-  handleMenuClick(mode, item, index) {
+  handleMenuClick(data, item, index) {
+    const { id: mode } = data;
     this.handleMenuMode = mode;
     switch (mode) {
       case 'edit':
@@ -171,14 +220,21 @@ export default class RecentAlarmEvents extends tsc<object> {
         }
         queryString = queryString.slice(0, queryString.length - 3);
         const [from, to] = this.timeRange;
-        const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${from}&to=${to}&bizIds=${this.activeTabId}`;
+        const xAxis = data.xAxis;
+        const url = `${baseUrl}#/event-center/?queryString=${encodeURIComponent(queryString)}&from=${xAxis ? xAxis : from}&to=${xAxis ? xAxis : to}&bizIds=${this.activeTabId}`;
         window.open(url, '_blank');
         break;
       }
     }
   }
+
+  // 新增业务
+  handleAddSpace() {
+    this.$refs.recentAlarmTab?.$refs?.homeBizSelect?.$refs?.homePopoverRef?.showHandler?.();
+  }
   // 新增图表
   handleAddChart() {
+    if (!this.canAddGraph) return;
     this.alarmGraphBizId = this.activeTabId;
     this.isAppendMode = true;
     this.showAddTaskDialog = true;
@@ -223,8 +279,10 @@ export default class RecentAlarmEvents extends tsc<object> {
 
     if (isEditMode) {
       this.handleEditMode(config, editChartIndex, isDeleteMode, strategyConfig, delStrategyIdSet);
+      isDeleteMode && this.saveSeverityList(editChartIndex);
     } else {
       // 如果不是编辑模式，添加新的配置
+      this.saveSeverityList(this.alarmGraphContent.length, DEFAULT_SEVERITY_LIST);
       config.push(strategyConfig);
     }
   }
@@ -408,6 +466,7 @@ export default class RecentAlarmEvents extends tsc<object> {
     deleteAlarmGraphConfig({
       bk_biz_id: this.currentDelId,
     });
+    localStorage.removeItem(`${RECENT_ALARM_SEVERITY_KEY}_${this.activeTabId}`);
     // 当删除的是当前的业务，切换activeTab状态
     if (this.currentDelId === this.activeTabId && this.businessTab.length) {
       this.activeTabId = this.businessTab[0].bk_biz_id;
@@ -432,22 +491,14 @@ export default class RecentAlarmEvents extends tsc<object> {
           />
         </div>
         <div class='empty-info'>
-          {this.businessTab.length === 0
-            ? this.$t('当前还未配置业务，快点击添加业务按钮新增图表')
-            : this.$t('当前业务还未配置视图，快点击下方按钮新增图表')}
+          {this.businessTab.length === 0 ? this.$t('尚未添加业务') : this.$t('尚未添加图表')},&nbsp;
+          <span
+            class='empty-btn'
+            onClick={this.businessTab.length ? this.handleAddChart : this.handleAddSpace}
+          >
+            {this.$t('立刻添加')}
+          </span>
         </div>
-        {this.businessTab.length > 0 && (
-          <div class='empty-btn'>
-            <bk-button
-              icon='plus'
-              outline={true}
-              theme='primary'
-              onClick={this.handleAddChart}
-            >
-              {this.$t('新增图表')}
-            </bk-button>
-          </div>
-        )}
       </div>
     );
   }
@@ -480,8 +531,10 @@ export default class RecentAlarmEvents extends tsc<object> {
         </div>
         {/* 头部功能区 */}
         <RecentAlarmTab
+          ref='recentAlarmTab'
           // @ts-ignore
           activeTabId={this.activeTabId}
+          bizLimit={this.bizLimit}
           showTabLoading={this.showTabLoading}
           tabs={this.businessTab}
           onChangeTab={id => {
@@ -516,6 +569,7 @@ export default class RecentAlarmEvents extends tsc<object> {
             editStrategyConfig={this.strategyConfig}
             handleMenuMode={this.handleMenuMode}
             showAddTaskDialog={this.showAddTaskDialog}
+            spaceName={this.businessTab.filter(item => item.bk_biz_id === this.alarmGraphBizId)[0]?.bk_biz_name}
             onAfterDialogLeave={() => {
               this.handleMenuMode = '';
               this.editChartIndex = null;

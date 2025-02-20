@@ -39,13 +39,14 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: String, default: 'visible', validator: v => ['visible', 'hidden'].includes(v as string) }) type: string;
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
-  @Prop({ type: String, default: false }) showFieldAlias: string;
+  @Prop({ type: Boolean, default: false }) showFieldAlias: Boolean;
   @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
   @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
+  @Prop({ type: Boolean, default: false }) isFieldObject: boolean;
 
   isExpand = false;
   analysisActive = false;
@@ -54,6 +55,7 @@ export default class FieldItem extends tsc<object> {
   ifShowMore = false;
   fieldData = null;
   distinctCount = 0;
+  btnLoading = false
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -111,12 +113,7 @@ export default class FieldItem extends tsc<object> {
   getFieldIcon(fieldType: string) {
     return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
   }
-  // 点击字段行，展开显示聚合信息
-  handleClickItem() {
-    if (this.showFieldsChart) {
-      this.isExpand = !this.isExpand;
-    }
-  }
+
   // 显示或隐藏字段
   handleShowOrHiddenItem() {
     this.instanceDestroy();
@@ -193,7 +190,7 @@ export default class FieldItem extends tsc<object> {
   };
 
   downloadFieldStatistics() {
-    console.log(this.retrieveParams);
+    this.btnLoading = true
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
@@ -220,22 +217,30 @@ export default class FieldItem extends tsc<object> {
         const downloadName = `bk_log_search__${lightName.substring(2, lightName.length - 1)}_${this.fieldItem.field_name}.txt`;
         blobDownload(res, downloadName);
       })
-      .finally(() => {});
+      .finally(() => {
+        this.btnLoading = false
+      });
   }
-  getdistinctCount(val) {
-    this.distinctCount = val;
+  getdistinctCount(val){
+    this.distinctCount = val
+  }
+  retuanFieldName(){
+    let name = this.showFieldAlias ? this.fieldItem.field_name || this.fieldItem.field_alias : this.fieldItem.query_alias  || this.fieldItem.alias_name || this.fieldItem.field_name
+    if(this.isFieldObject){
+      const objectName = name.split('.')
+      name = objectName[objectName.length - 1] || objectName[0]
+    }
+    return  name
   }
   render() {
     return (
       <li class='filed-item'>
         <div
           class={{ 'filed-title': true, expanded: this.isExpand }}
-          onClick={() => this.handleClickItem()}
         >
           <div>
             {/* 三角符号 */}
-            <div class={{ 'filed-item-triangle': true }}>
-              <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }} />
+            <div  class={ this.isFieldObject? 'filed-item-object': 'filed-item-triangle' }> 
             </div>
 
             {/* 字段类型对应的图标 */}
@@ -255,17 +260,16 @@ export default class FieldItem extends tsc<object> {
             </div>
 
             {/* 字段名 */}
-            <span class='field-name'>
-              <span>
-                {/* {this.showFieldAlias ? this.fieldAliasMap[this.fieldItem.field_name] : this.fieldItem.field_name} */}
-                {this.fieldAliasMap[this.fieldItem.field_name]}
+            <span >
+               <span class='field-name'>
+                {this.retuanFieldName()}
               </span>
-              <span
+              {/* <span
                 class='field-count'
                 v-show={this.isShowFieldsCount}
               >
                 ({this.gatherFieldsCount})
-              </span>
+              </span> */}
               {this.isUnionConflictFields(this.fieldItem.field_type) && (
                 <bk-popover
                   ext-cls='conflict-popover'
@@ -306,26 +310,29 @@ export default class FieldItem extends tsc<object> {
               </div>
             )}
             {/* 设置字段显示或隐藏 */}
-            <div
-              class='operation-icon-box'
-              v-bk-tooltips={{
-                content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
-              }}
-              onClick={e => {
-                e.stopPropagation();
-                this.handleShowOrHiddenItem();
-              }}
-            >
-              <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]} />
-            </div>
+            {
+              <div
+                class='operation-icon-box'
+                v-bk-tooltips={{
+                  content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
+                }}
+                onClick={e => {
+                  e.stopPropagation();
+                  this.handleShowOrHiddenItem();
+                }}
+              >
+                <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
+              </div>
+            }
+          
             {/* 拖动字段位置按钮 */}
             <div>
               <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
             </div>
           </div>
         </div>
-        {/* 显示聚合字段图表信息 */}
-        {!!this.showFieldsChart && this.isExpand && (
+        {/* 显示聚合字段图表信息
+        {/* {!!this.showFieldsChart && this.isExpand && (
           <AggChart
             field-name={this.fieldItem.field_name}
             field-type={this.fieldItem.field_type}
@@ -334,7 +341,7 @@ export default class FieldItem extends tsc<object> {
             retrieve-params={this.retrieveParams}
             statistical-field-data={this.statisticalFieldData}
           />
-        )}
+        )} */}
         <bk-sideslider
           width={600}
           class='sideslider'
@@ -354,6 +361,7 @@ export default class FieldItem extends tsc<object> {
                 <bk-button
                   style='margin-right:8px'
                   size='small'
+                  loading={this.btnLoading}
                   onClick={e => {
                     e.stopPropagation();
                     this.downloadFieldStatistics();

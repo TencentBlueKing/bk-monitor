@@ -27,21 +27,15 @@ import { h, computed } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-
+import useFieldNameHook from '@/hooks/use-field-name';
 import TimeFormatterSwitcher from '../original-log/time-formatter-switcher';
 
 export default () => {
   const store = useStore();
   const { $t } = useLocale();
+  const { getFieldNameByField } = useFieldNameHook({ store });
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
-  const fieldAliasMap = computed(() =>
-    (indexFieldInfo.value.fields ?? []).reduce(
-      (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
-      {},
-    ),
-  );
-  const showFieldAlias = computed(() => store.state.showFieldAlias);
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
@@ -55,7 +49,7 @@ export default () => {
     const isAsc = currentSort === 'asc';
     const isShowSwitcher = ['date', 'date_nanos'].includes(field?.field_type);
     if (field) {
-      const fieldName = showFieldAlias.value ? fieldAliasMap.value[field.field_name] : field.field_name;
+      const fieldName = getFieldNameByField(field);
       const fieldType = field.field_type;
       const isUnionSource = field?.tag === 'union-source';
       const fieldIcon = fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';

@@ -138,7 +138,7 @@
               v-for="option in totalFields"
               :id="option.field_name"
               :key="option.field_name"
-              :name="option.field_name"
+              :name="getFieldName(option)"
             >
             </bk-option>
           </bk-select>
@@ -187,7 +187,7 @@
 <script>
   import { blobDownload } from '@/common/util';
   import { mapGetters, mapState } from 'vuex';
-
+  import useFieldNameHook from '@/hooks/use-field-name';
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
 
@@ -291,6 +291,7 @@
         queueStatus: state => !state.retrieve.isTrendDataLoading,
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
+        showFieldAlias: state => state.showFieldAlias ?? false
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',
@@ -383,6 +384,12 @@
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
+            }else{
+              this.$bkMessage({
+                theme: 'error',
+                ellipsisLine: 2,
+                message: res.message,
+              });
             }
           })
           .finally(() => {
@@ -470,6 +477,10 @@
       handleCloseDialog() {
         this.showHistoryExport = false;
       },
+      getFieldName(field){
+        const { getQueryAlias } = useFieldNameHook({ store: this.$store });
+        return getQueryAlias(field);
+      }
     },
   };
 </script>

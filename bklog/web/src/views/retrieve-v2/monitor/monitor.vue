@@ -25,7 +25,7 @@
 -->
 
 <script setup>
-import { computed, ref, watch, defineProps, provide, onMounted } from 'vue';
+import { computed, ref, watch, defineProps, provide } from 'vue';
 
 import * as authorityMap from '@/common/authority-map';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -72,9 +72,8 @@ provide('handleChartDataZoom', props.handleChartDataZoom);
 const store = useStore();
 const router = useRouter();
 const route = useRoute();
-
 const indexSetParams = computed(() => store.state.indexItem);
-
+const initLoading = ref(true);
 
 // 解析默认URL为前端参数
 // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
@@ -134,6 +133,7 @@ const getApmIndexSetList = async () => {
       }
     })
     .finally(() => {
+      initLoading.value = false;
       store.commit('retrieve/updateIndexSetLoading', false);
     });
 };
@@ -307,10 +307,6 @@ const contentStyle = computed(() => {
     };
   });
 
-onMounted(() => {
-  init();
-});
-
 /** 开始处理滚动容器滚动时，收藏夹高度 */
 
 // 顶部二级导航高度，这个高度是固定的
@@ -320,8 +316,10 @@ const paddingTop = ref(0);
 const scrollContainerHeight = ref(0);
 
 useScroll(GLOBAL_SCROLL_SELECTOR, event => {
-  const scrollTop = event.target.scrollTop;
-  paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+  if(event.target) {
+    const scrollTop = event.target.scrollTop;
+    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+  }
 });
 
 useResizeObserve(
@@ -339,16 +337,16 @@ const isStickyTop = computed(() => {
   return paddingTop.value === subBarHeight.value;
 });
 
-const isScrollY = computed(() => {
-  return !window.__IS_MONITOR_TRACE__
-})
+// const isScrollY = computed(() => {
+//   return !window.__IS_MONITOR_TRACE__
+// })
 
 /** * 结束计算 ***/
 
 </script>
 <template>
-  <div :style="stickyStyle" :class="['retrieve-v2-index', { 'scroll-y': isScrollY, 'is-sticky-top': isStickyTop }]">
-    <div class="sub-head">
+  <div :style="stickyStyle" :class="['retrieve-v2-index', {'scroll-y': true, 'is-sticky-top': isStickyTop }]"  v-bkloading="{ isLoading: initLoading }" >
+    <div class="sub-head"  v-show="!initLoading">
       <SelectIndexSet
         :popover-options="{ offset: '-6,10' }"
         @collection="getIndexSetList"
@@ -359,6 +357,7 @@ const isScrollY = computed(() => {
     <div
       :style="contentStyle"
       :class="['retrieve-v2-body']"
+       v-show="!initLoading"
     >
       <div class="retrieve-v2-content">
         <SearchBar @height-change="handleHeightChange"></SearchBar>

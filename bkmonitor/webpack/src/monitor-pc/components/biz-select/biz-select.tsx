@@ -113,11 +113,11 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     limit: number;
     data: IListItem[];
   } = {
-    current: 1,
-    count: 0,
-    limit: 20,
-    data: [],
-  };
+      current: 1,
+      count: 0,
+      limit: 20,
+      data: [],
+    };
 
   /* type栏左右切换数据 */
   typeWrapInfo = {
@@ -629,6 +629,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   checked={this.localValue}
                   list={this.bizListFilter}
                   theme={this.theme}
+                  onHide={() => this.popoverRef.instance.hide()}
                   onSelected={this.handleBizChange}
                 />
               </ul>

@@ -169,9 +169,10 @@ export default defineComponent({
     const handleChartDataZoom = inject<(value: any) => void>('handleChartDataZoom') || (() => null);
     const handleRestoreEvent = inject<() => void>('handleRestoreEvent') || (() => null);
     const showRestore = inject<Ref>('showRestore') || ref(false);
+    const defaultTimeRange = useTimeRanceInject();
     const timeRange = computed(() => {
       // 如果有自定义时间取自定义时间，否则使用默认的 timeRange inject
-      return customTimeProvider.value?.length ? customTimeProvider.value : useTimeRanceInject()?.value || [];
+      return customTimeProvider.value?.length ? customTimeProvider.value : defaultTimeRange?.value || [];
     });
     const timeOffset = useTimeOffsetInject();
     const viewOptions = useViewOptionsInject();
@@ -678,7 +679,7 @@ export default defineComponent({
                         const obj = getValueFormat(item.unit)(v, item.precision);
                         return obj.text + (obj.suffix || '');
                       }
-                      return (v: number) => handleYxisLabelFormatter(v - minBase.value);
+                      return handleYxisLabelFormatter(v - minBase.value);
                     },
                     /* formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
                       ? (v: any) => {
@@ -705,7 +706,7 @@ export default defineComponent({
                         const obj = getValueFormat(item.unit)(v, item.precision);
                         return obj.text + (obj.suffix || '');
                       }
-                      return (v: number) => handleYxisLabelFormatter(v - minBase.value);
+                      return handleYxisLabelFormatter(v - minBase.value);
                     },
                   },
                   splitNumber: height.value < 120 ? 2 : 4,

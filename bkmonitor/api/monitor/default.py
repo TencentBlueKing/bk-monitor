@@ -113,6 +113,15 @@ class CreateCustomTimeSeriesResource(MonitorAPIGWResource):
     method = "POST"
 
 
+class CustomTimeSeriesDetailResource(MonitorAPIGWResource):
+    """
+    获取自定义指标上报详情
+    """
+
+    action = "/custom_time_series_detail/"
+    method = "POST"
+
+
 class IsSuperuser(MonitorAPIGWResource):
     """
     判断用户是否超级管理员

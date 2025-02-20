@@ -28,6 +28,7 @@ import { Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { Debounce } from 'monitor-common/utils/utils';
 
 import { EStatusType } from '../utils';
 
@@ -36,6 +37,7 @@ import './add-alarm-chart-dialog.scss';
 interface IAddAlarmChartDialogProps {
   showAddTaskDialog: boolean;
   handleMenuMode: string;
+  spaceName: string;
   currentBizId: number;
   editStrategyConfig?: IStrategyConfig;
 }
@@ -61,12 +63,14 @@ type IAddAlarmChartDialogEvent = {
 export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, IAddAlarmChartDialogEvent> {
   @Prop({ default: false, type: Boolean }) showAddTaskDialog: boolean;
   @Prop({ default: '', type: String }) handleMenuMode: string;
+  @Prop({ default: '', type: String }) spaceName: string;
   @Prop({ default: null, type: Number }) currentBizId: number;
   @Prop({ default: {}, type: Object }) editStrategyConfig: IStrategyConfig;
 
   @Ref() taskFormRef; // 新增图表表单ref
 
   strategyList = []; // 策略列表
+  searchVal = ''; // 搜索值
 
   filterStrategyIdSet = new Set(); // 修改时回显的策略id列表
 
@@ -130,46 +134,105 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
       .catch(() => false);
   }
 
-  async getStrategyListByPage() {
+  // 数据获取逻辑
+  fetchStrategies() {
+    const { currentPage: page, limit } = this.pagination;
+    return getStrategyListV2({
+      conditions: this.buildSearchConditions(),
+      page,
+      limit,
+      bk_biz_id: this.currentBizId,
+    });
+  }
+
+  // 搜索条件构建
+  buildSearchConditions() {
+    return this.searchVal ? [{ key: 'strategy_name', value: [this.searchVal] }] : [];
+  }
+
+  // 分离分页更新逻辑
+  updatePagination(total) {
+    const { currentPage, limit } = this.pagination;
+    this.pagination = {
+      ...this.pagination,
+      isLastPage: total <= currentPage * limit,
+      currentPage: currentPage + 1,
+    };
+  }
+
+  // 排序逻辑
+  sortStrategies() {
+    this.strategyList.sort((a, b) => {
+      const enabledDiff = Number(b.is_enabled) - Number(a.is_enabled);
+      if (enabledDiff !== 0) return enabledDiff;
+
+      const aShield = Number(a.shield_info?.is_shielded || 0);
+      const bShield = Number(b.shield_info?.is_shielded || 0);
+      return aShield - bShield;
+    });
+  }
+
+  async getStrategyListByPage(clearList = false) {
     if (!this.currentBizId) return;
+
     this.loadingStrategyList = true;
+
     try {
-      const { currentPage: page, limit } = this.pagination;
-      const data = await getStrategyListV2({
-        page,
-        limit,
-        bk_biz_id: this.currentBizId,
-      });
-      this.pagination.isLastPage = data.total <= page * limit;
-      this.pagination.currentPage++;
-      if (this.handleMenuMode === 'edit') {
-        this.strategyList.push(
-          ...(data.strategy_config_list.filter(item => {
-            if (!this.filterStrategyIdSet.has(item.id)) {
-              return true; // 保留在 filter 结果中
-            }
-            this.filterStrategyIdSet.delete(item.id); // 从集合中移除已处理的 ID
-          }) || [])
-        );
-        return;
-      }
-      this.strategyList.push(...(data.strategy_config_list || []));
-      this.strategyList.sort((a, b) => {
-        // 根据优先级字段排序，优先级 is_shielded < is_enabled
-        // 将 true 视为 0，false 视为 1 进行比较
-        if (a.is_enabled !== b.is_enabled) {
-          return (b.is_enabled ? 1 : 0) - (a.is_enabled ? 1 : 0);
-        }
-        if (a.shield_info?.is_shielded !== b.shield_info?.is_shielded) {
-          return (a.shield_info?.is_shielded ? 1 : 0) - (b.shield_info?.is_shielded ? 1 : 0);
-        }
-        return 0;
-      });
+      // 重置分页状态（新增逻辑）
+      if (clearList) this.resetPagination();
+
+      const data = await this.fetchStrategies();
+      this.updatePagination(data.total);
+
+      this.handleStrategiesData(data.strategy_config_list, clearList);
     } catch (error) {
       console.log('getStrategyListByPage error', error);
     } finally {
       this.loadingStrategyList = false;
     }
+  }
+
+  // 新增分页重置方法
+  resetPagination() {
+    this.pagination = {
+      ...this.pagination,
+      currentPage: 1,
+      isLastPage: false,
+    };
+  }
+
+  // 修改策略处理方法（参数增加 clearList）
+  handleStrategiesData(strategyList, clearList) {
+    if (this.handleMenuMode === 'edit') {
+      this.processEditModeStrategies(strategyList, clearList);
+    } else {
+      this.processNormalModeStrategies(strategyList, clearList);
+    }
+  }
+
+  // 修改编辑模式处理方法
+  processEditModeStrategies(list, clearList) {
+    // 清空条件：强制刷新或搜索触发
+    if (clearList) {
+      this.strategyList = list;
+      return;
+    }
+
+    const filtered = list.filter(item => {
+      const shouldKeep = !this.filterStrategyIdSet.has(item.id);
+      if (!shouldKeep) this.filterStrategyIdSet.delete(item.id);
+      return shouldKeep;
+    });
+
+    // 搜索模式下保持策略唯一性
+    this.strategyList = [...new Set([...this.strategyList, ...filtered])];
+  }
+
+  // 修改普通模式处理方法
+  processNormalModeStrategies(list, clearList) {
+    if (clearList) this.strategyList = [];
+    this.strategyList.push(...list);
+    this.sortStrategies();
   }
 
   // 根据策略 Id 获取数据
@@ -205,6 +268,36 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
     } finally {
       this.loadingStrategyList = false;
     }
+  }
+
+  handleSelectStrategy(isExpand) {
+    if (isExpand) return;
+    if (this.handleMenuMode === 'edit') return;
+    if (!this.strategyConfig.name && this.strategyConfig.strategy_ids.length === 1) {
+      const [id] = this.strategyConfig.strategy_ids;
+      const { name } = this.strategyList.find(item => item.id === id);
+      this.strategyConfig.name = name;
+    }
+  }
+
+  /* 搜索策略 */
+  @Debounce(300)
+  async searchStrategy(v: string) {
+    this.pagination = {
+      currentPage: 1,
+      limit: 10,
+      isLastPage: false,
+    };
+    this.searchVal = v;
+    if (this.handleMenuMode === 'edit' && !v) {
+      this.strategyList = [];
+      this.strategyConfig.strategy_ids = this.editStrategyConfig.strategy_ids;
+      this.strategyConfig.name = this.editStrategyConfig.name;
+      this.strategyConfig.status = this.editStrategyConfig.status;
+      this.getStrategyListById();
+      return;
+    }
+    await this.getStrategyListByPage(true);
   }
 
   async handleScrollToBottom() {
@@ -254,6 +347,7 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
       limit: 10,
       isLastPage: false,
     };
+    this.searchVal = '';
     this.filterStrategyIdSet = new Set();
     this.delStrategyIdSet = new Set();
     this.strategyList = [];
@@ -263,10 +357,14 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
     return (
       <bk-dialog
         width={480}
+        title={
+          this.handleMenuMode === 'edit'
+            ? this.$t('修改业务【{name}】的图表', { name: this.spaceName })
+            : this.$t('添加图表')
+        }
         escClose={false}
         header-position='left'
         mask-close={false}
-        title={this.handleMenuMode === 'edit' ? this.$t('修改图表') : this.$t('新增图表')}
         value={this.showAddTaskDialog}
         show-footer
         on-after-leave={() => {
@@ -301,12 +399,14 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
                 // list={this.strategyList}
                 loading={this.loadingStrategyList}
                 placeholder={this.$t('请选择策略')}
+                remote-method={this.searchStrategy}
                 scrollLoading={this.bottomLoadingOptions}
                 // enable-virtual-scroll
                 enable-scroll-load
                 multiple
                 searchable
                 on-scroll-end={this.handleScrollToBottom}
+                onToggle={this.handleSelectStrategy}
               >
                 {this.strategyList.map(item => (
                   <bk-option
@@ -329,14 +429,7 @@ export default class AddAlarmChartDialog extends tsc<IAddAlarmChartDialogProps, 
                         ),
                         selected: this.isSelected(item.id),
                       }}
-                      v-bk-tooltips={{
-                        content: item.name,
-                        trigger: 'mouseenter',
-                        zIndex: 9999,
-                        boundary: document.body,
-                        allowHTML: false,
-                        delay: [1000, 0],
-                      }}
+                      v-bk-overflow-tips
                     >
                       {item.name}
                     </div>

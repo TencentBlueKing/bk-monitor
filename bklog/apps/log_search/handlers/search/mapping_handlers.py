@@ -104,6 +104,7 @@ class MappingHandlers(object):
         end_time="",
         bk_biz_id=None,
         only_search=False,
+        index_set=None,
     ):
         self.indices = indices
         self.index_set_id = index_set_id
@@ -119,6 +120,8 @@ class MappingHandlers(object):
 
         # 仅查询使用
         self.only_search = only_search
+
+        self._index_set = index_set
 
     def check_fields_not_conflict(self, raise_exception=True):
         """
@@ -257,6 +260,7 @@ class MappingHandlers(object):
                 "is_display": False,
                 "is_editable": True,
                 "tag": field.get("tag", "metric"),
+                "origin_field": field.get("path", ""),
                 "es_doc_values": field.get("es_doc_values", False),
                 "is_analyzed": field.get("is_analyzed", False),
                 "field_operator": OPERATORS.get(field["field_type"], []),
@@ -358,22 +362,26 @@ class MappingHandlers(object):
 
         return obj
 
-    @classmethod
+    @property
+    def index_set(self):
+        if not self._index_set:
+            self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
+        return self._index_set
+
     def get_default_sort_list(
-        cls,
+        self,
         index_set_id: int = None,
         scenario_id: str = None,
         scope: str = SearchScopeEnum.DEFAULT.value,
         default_sort_tag: bool = False,
     ):
         """默认字段排序规则"""
-        time_field = cls.get_time_field(index_set_id)
+        time_field = self.get_time_field(index_set_id, self.index_set)
         if not time_field:
             return []
 
         # 先看索引集有没有配排序字段
-        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        sort_fields = log_index_set_obj.sort_fields if log_index_set_obj else []
+        sort_fields = self.index_set.sort_fields if self.index_set else []
         if sort_fields:
             return [[field, "desc"] for field in sort_fields]
 
@@ -392,7 +400,7 @@ class MappingHandlers(object):
                     _field["is_display"] = True
                     return final_fields_list, ["log"]
             return final_fields_list, []
-        display_fields_list = [self.get_time_field(self.index_set_id)]
+        display_fields_list = [self.get_time_field(self.index_set_id, self.index_set)]
         if self._get_object_field(final_fields_list):
             display_fields_list.append(self._get_object_field(final_fields_list))
         display_fields_list.extend(self._get_text_fields(final_fields_list))
@@ -407,9 +415,9 @@ class MappingHandlers(object):
         return final_fields_list, display_fields_list
 
     @classmethod
-    def get_time_field(cls, index_set_id: int):
+    def get_time_field(cls, index_set_id: int, index_set_obj: LogIndexSet = None):
         """获取索引时间字段"""
-        index_set_obj: LogIndexSet = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        index_set_obj: LogIndexSet = index_set_obj or LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if index_set_obj.scenario_id in [Scenario.BKDATA, Scenario.LOG]:
             return "dtEventTimeStamp"
 
@@ -465,7 +473,7 @@ class MappingHandlers(object):
         end_time_format = end_time.ceil("hour").strftime("%Y-%m-%d %H:%M:%S")
 
         return self._get_latest_mapping(
-            index_set_id=self.index_set_id,
+            indices=self.indices,
             start_time=start_time_format,
             end_time=end_time_format,
             only_search=self.only_search,
@@ -482,8 +490,8 @@ class MappingHandlers(object):
             latest_mapping = BkLogApi.mapping(params)
         return latest_mapping
 
-    @cache_one_minute("latest_mapping_key_{index_set_id}_{start_time}_{end_time}_{only_search}")
-    def _get_latest_mapping(self, index_set_id, start_time, end_time, only_search=False):  # noqa
+    @cache_one_minute("latest_mapping_key_{indices}_{start_time}_{end_time}_{only_search}", need_md5=True)
+    def _get_latest_mapping(self, indices, start_time, end_time, only_search=False):  # noqa
         storage_cluster_record_objs = StorageClusterRecord.objects.none()
 
         if self.start_time:
@@ -624,6 +632,8 @@ class MappingHandlers(object):
                         "tokenize_on_chars": tokenize_on_chars,
                     }
                 )
+                if field_type == "alias":
+                    data["path"] = properties_dict[key]["path"]
                 fields_result.append(data)
                 continue
         return fields_result
@@ -808,6 +818,10 @@ class MappingHandlers(object):
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
+        alias_dict = {
+            _field["origin_field"]: _field["field_name"] for _field in fields_list if _field.get("origin_field")
+        }
+        remove_field_list = list()
         # 增加description别名字段
         for _field in fields_list:
             a_field_name = _field.get("field_name", "")
@@ -840,6 +854,19 @@ class MappingHandlers(object):
                             "field_time_format": field_time_format_dict.get("field_time_format"),
                         }
                     )
+
+                # 添加别名信息
+                if a_field_name in alias_dict:
+                    _field["query_alias"] = alias_dict[a_field_name]
+
+                # 别名字段
+                if _field.get("field_type") == "alias":
+                    remove_field_list.append(_field)
+
+        # 移除不展示的别名字段
+        for field in remove_field_list:
+            if field in fields_list:
+                fields_list.remove(field)
 
         return fields_list
 
