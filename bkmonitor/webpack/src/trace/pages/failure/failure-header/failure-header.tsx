@@ -83,7 +83,7 @@ export default defineComponent({
       assignee: [],
       alertIds: [],
     });
-    const editIncidenDialogRef = ref(null);
+    const editIncidentDialogRef = ref(null);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const incidentDetailData: Ref<IIncident> = computed(() => {
       return incidentDetail.value;
@@ -175,7 +175,7 @@ export default defineComponent({
       );
     };
     const editIncidentHandle = (type = 'edit') => {
-      editIncidenDialogRef.value?.validate().then(() => {
+      editIncidentDialogRef.value?.validate().then(() => {
         btnLoading.value = true;
         const { id, incident_id } = incidentDetailData.value;
         editIncident({ incident_reason: incidentReason.value, incident_id, id, status: 'closed' })
@@ -215,7 +215,7 @@ export default defineComponent({
         }}
       >
         <Form
-          ref='editIncidenDialogRef'
+          ref='editIncidentDialogRef'
           form-type={'vertical'}
           model={{ incidentReason: incidentReason.value }}
         >
@@ -298,7 +298,7 @@ export default defineComponent({
       chatGroupShowChange,
       currentData,
       handleChatGroup,
-      editIncidenDialogRef,
+      editIncidentDialogRef,
     };
   },
   render() {
@@ -360,14 +360,16 @@ export default defineComponent({
             </div>
           </div>
           <Popover
-            width='235'
+            width='220'
+            extCls='header-status-popover'
             v-slots={{
               content: () => {
                 return this.statusTips();
               },
             }}
             disabled={status !== 'abnormal'}
-            placement='bottom'
+            offset={{ mainAxis: 1, alignmentAxis: 16 }}
+            placement='bottom-start'
             theme='light'
           >
             <div class='header-status'>
