@@ -126,6 +126,8 @@ class UnifyQueryHandler(object):
 
         self.export_fields = self.search_params.get("export_fields")
 
+        self.only_for_agg = self.search_params.get("only_for_agg", False)
+
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
 
