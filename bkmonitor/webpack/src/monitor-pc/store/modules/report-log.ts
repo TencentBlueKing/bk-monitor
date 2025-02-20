@@ -39,7 +39,7 @@ class ReportLogStore extends VuexModule {
       {
         event_name: '首页搜索功能',
         event_content: '基于首页搜索功能的运营数据上报',
-        target: 'bk_monitor',
+        target: 'home_search',
         timestamp: Date.now(),
         dimensions: {
           ...params,
@@ -58,7 +58,7 @@ class ReportLogStore extends VuexModule {
       {
         event_name: '首页最近使用功能',
         event_content: '基于首页最近使用功能的运营数据上报',
-        target: 'bk_monitor',
+        target: 'home_recent',
         timestamp: Date.now(),
         dimensions: {
           ...params,

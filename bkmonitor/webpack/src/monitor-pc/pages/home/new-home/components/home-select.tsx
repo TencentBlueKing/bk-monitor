@@ -272,9 +272,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.localHistoryList = JSON.parse(localStorage.getItem(storageKey))?.slice(0, 10) || [];
   }
   /** 关联的屏蔽策略/关联的告警  */
-  handleOperator(e: Event, item: ISearchItem, key: string) {
+  handleOperator(e: Event, item: ISearchItem, key: string, parentIndex: number) {
     e.stopPropagation();
-    this.handleSearchJumpPage(item, key);
+    this.handleSearchJumpPage(item, key, parentIndex);
   }
 
   /**
@@ -296,7 +296,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             active: this.highlightedIndex[0] === parentInd && this.highlightedIndex[1] === ind,
           },
         ]}
-        onClick={() => this.handleItemClick(item, type, this.searchList[ind])}
+        onClick={() => this.handleItemClick(item, type, parentInd)}
       >
         {isHost && <span class='ip-tag'>{item.bk_cloud_id}:</span>}
         <span class='item-label'>
@@ -318,7 +318,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               <span
                 key={operator.key}
                 class='item-operator-item'
-                onClick={e => this.handleOperator(e, item, operator.key)}
+                onClick={e => this.handleOperator(e, item, operator.key, parentInd)}
               >
                 {operator.name}
               </span>
@@ -428,11 +428,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     }
   }
   /** 选中搜索结果 */
-  handleItemClick(item: ISearchItem, type: string) {
+  handleItemClick(item: ISearchItem, type: string, parentIndex: number) {
     this.searchType = type;
     this.showPopover = false;
     this.highlightedItem = item;
-    this.handleSearchJumpPage(item, type);
+    this.handleSearchJumpPage(item, type, parentIndex);
   }
   /** 渲染历史搜索列表 */
   renderHistoryList() {
@@ -499,10 +499,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         totalLines += Math.ceil((line.length === 0 ? charsPerLine : line.length) / charsPerLine);
       });
       return totalLines;
-    } else {
-      // 无换行符的情况
-      return Math.ceil(text.length / charsPerLine);
     }
+    // 无换行符的情况
+    return Math.ceil(text.length / charsPerLine);
   }
   /** 根据设置的最大最小值，计算出最终要展示的row值 */
   limitRows() {
@@ -626,7 +625,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     }
   }
   /** 跳转到具体的页面 */
-  handleSearchJumpPage(item: ISearchItem, type: string) {
+  handleSearchJumpPage(item: ISearchItem, type: string, parentIndex: number) {
     /** 回车跳转了则存入到历史搜索中 */
     if (this.searchValue) {
       this.setLocalHistory(this.searchValue);
@@ -710,12 +709,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
     this.handleShowChange(false);
     const option = routeOptions[type];
+    const groupName = this.searchList[parentIndex]?.name || this.searchList[this.highlightedIndex[0]]?.name || '其他';
     /** 如果不在指定的url跳转对象里，item中存在url字段的话，则默认使用该字段的url链接打开新页面 */
     if (!option) {
       item.url && window.open(item.url, '_blank');
       reportLogStore.reportHomeSearchLog({
         type: 'others',
-        name: item.name || '其他',
+        name: groupName,
       });
       return;
     }
@@ -724,14 +724,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       window.open(option.url, '_blank');
       reportLogStore.reportHomeSearchLog({
         type: 'others',
-        name: item.name || '其他',
+        name: groupName,
       });
       return;
     }
-    console.info(option, item, '+++++++');
+    console.info(item, this.searchList[parentIndex], this.highlightedIndex, '+++++++');
     reportLogStore.reportHomeSearchLog({
       type,
-      name: item.name || type,
+      name: groupName,
     });
     const routeData = this.$router.resolve(option);
     const extraParams = option.extraParams ? `&${new URLSearchParams(option.extraParams).toString()}` : '';
