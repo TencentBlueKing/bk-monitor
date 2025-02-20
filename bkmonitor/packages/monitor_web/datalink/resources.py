@@ -519,13 +519,13 @@ class TransferLatestMsgResource(BaseStatusResource):
         查找数据解构中的时间，并转化成指定的格式输出
         """
         logger.info(f"kafka tail series: {series}")
-        timestamps = []
+        timestamps = {}
+        iso_pattern = r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z?$'
 
         def is_valid_timestamp(value):
             # 检查是否为有效的时间戳
             if isinstance(value, str):
                 # 检查是否为 ISO 8601 格式
-                iso_pattern = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$'
                 if re.match(iso_pattern, value):
                     return True
                 # 检查10位或13位的字符串
@@ -536,13 +536,22 @@ class TransferLatestMsgResource(BaseStatusResource):
             return False
 
         def convert_to_string(ts):
+            if not is_valid_timestamp(ts):
+                logger.warning(f"Invalid timestamp: {ts}")
+                return ""
+
             if isinstance(ts, str):
                 if len(ts) == 10:  # 10位字符串时间戳（秒）
                     dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
                 elif len(ts) == 13:  # 13位字符串时间戳（毫秒）
                     dt = datetime.fromtimestamp(int(ts) / 1000, tz=timezone.utc)
-                else:  # ISO 8601 格式
-                    dt = datetime.fromisoformat(ts[:-1])  # 去掉最后的 'Z'
+                else:
+                    if re.match(
+                        r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$', ts
+                    ):  # ISO 8601 格式: %Y-%m-%dT%H:%M:%SZ
+                        dt = datetime.fromisoformat(ts[:-1])  # 去掉最后的 'Z'
+                    else:
+                        dt = datetime.fromisoformat(ts)
             elif isinstance(ts, int):
                 if len(str(ts)) == 10:  # 10位整数时间戳（秒）
                     dt = datetime.fromtimestamp(ts, tz=timezone.utc)
@@ -551,21 +560,18 @@ class TransferLatestMsgResource(BaseStatusResource):
 
             return dt.strftime("%Y-%m-%d %H:%M:%S")
 
-        def recurse(item):
-            if isinstance(item, dict):
-                for key, value in item.items():
-                    if key in ['timestamp', "@timestamp"]:  # 如果有更多包含的字段，将在这里补充
-                        if is_valid_timestamp(value):
-                            timestamps.append(value)
-                    else:
-                        recurse(value)
-            elif isinstance(item, list):
-                for element in item:
-                    recurse(element)
+        def extract_timestamps(series) -> dict:
+            """
+            提取时间戳
 
-        recurse(series)
-        # 转换时间戳为字符串格式
-        formatted_timestamps = [convert_to_string(ts) for ts in timestamps]
+            将字典通过json.dumps() 转化成字符串，然后正则匹配时间戳
+            """
+            pattern = r'"(utctime|timestamp|@timestamp)"\s*: \s*("[^"]*"|\d{10}|\d{13})'
+            matches = re.findall(pattern, json.dumps(series))
+            return {match[0]: match[1].strip('"') for match in matches}
+
+        timestamps = extract_timestamps(series)
+        formatted_timestamps = [convert_to_string(ts) for ts in timestamps.values()]
         return formatted_timestamps[0] if formatted_timestamps else ""
 
     def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[Dict]:
