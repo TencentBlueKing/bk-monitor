@@ -14,7 +14,7 @@ API_TIME_SERIES_RESPONSE = {
             "unit": "",
         },
         {
-            "dimensions": {"dimensions.type": "Warning"},
+            "dimensions": {"type": "Warning"},
             "target": "SUM(_index){dimensions.type=Warning}",
             "metric_field": "_result_",
             "datapoints": [
