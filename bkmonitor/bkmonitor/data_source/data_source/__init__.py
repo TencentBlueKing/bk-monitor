@@ -2098,11 +2098,6 @@ class BkApmTraceTimeSeriesDataSource(BkApmTraceDataSource):
     data_type_label = DataTypeLabel.TIME_SERIES
 
 
-class BkApmEventDataSource(BkApmTraceDataSource):
-    data_source_label = DataSourceLabel.BK_APM
-    data_type_label = DataTypeLabel.EVENT
-
-
 class CustomEventDataSource(BkMonitorLogDataSource):
     """
     自定义事件数据源
@@ -2143,12 +2138,13 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         # 过滤掉恢复事件
         self.filter_dict["event_type__neq"] = RECOVERY
 
-        for metric in self.metrics:
-            if metric["field"] == "event.count":
-                metric["method"] = "SUM"
-            else:
-                metric["field"] = "_index"
-                metric["method"] = "COUNT"
+        if kwargs.get("is_time_agg", True):
+            for metric in self.metrics:
+                if metric["field"] == "event.count":
+                    metric["method"] = "SUM"
+                else:
+                    metric["field"] = "_index"
+                    metric["method"] = "COUNT"
 
         # 平台级且业务不等于绑定的平台业务
         self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
@@ -2206,27 +2202,102 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         return records[:limit]
 
 
-class NewCustomEventDataSource(BkMonitorLogDataSource):
+class NewCustomEventDataSource(CustomEventDataSource):
     data_source_label = DataSourceLabel.BK_APM
     data_type_label = DataTypeLabel.EVENT
     INNER_DIMENSIONS = ["target", "event_name"]
 
-    @classmethod
-    def init_by_query_config(cls, query_config: Dict, name: str = "", *args, **kwargs):
-        agg_dimension: List[str] = [dimension for dimension in query_config.get("agg_dimension", []) if dimension]
-        return cls(
-            name=name,
-            metrics=[{"field": "_index", "method": "COUNT"}],
-            table=query_config.get("result_table_id", ""),
-            interval=query_config.get("agg_interval", 60),
-            group_by=agg_dimension,
-            query_string=query_config.get("query_string", ""),
-            where=query_config.get("agg_condition", []),
-            time_field=query_config.get("time_field"),
-            custom_event_name=query_config.get("custom_event_name", ""),
-            data_label=query_config.get("data_label", ""),
-            bk_biz_id=kwargs.get("bk_biz_id", 0),
-        )
+    OPERATOR_MAPPING: Dict[str, str] = {
+        "neq": "ne",
+        "exists": "eq",
+        "nexists": "ne",
+        "include": "contains",
+        "exclude": "ncontains",
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_time_agg: bool = kwargs.get("is_time_agg", True)
+        self.reference_name: str = kwargs.get("reference_name") or "a"
+
+    def _get_unify_query_table(self) -> str:
+        if self.table in {"system_event", "k8s_event"}:
+            return self.table
+        return f"{self.table}.__default__"
+
+    def process_unify_query_data(self, records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        records: List[Dict[str, Any]] = self._remove_dimensions_prefix(records)
+        records: List[Dict[str, Any]] = self._filter_by_advance_method(records)
+        return records
+
+    def to_unify_query_config(self) -> List[Dict]:
+        group_by: List[str] = self._get_group_by()
+        where: List[Dict[str, Any]] = self._get_where()
+        filter_dict: Dict[str, Any] = self._get_filter_dict()
+        base_query: Dict[str, Any] = {
+            "driver": "influxdb",
+            "data_source": "bkapm",
+            "table_id": self._get_unify_query_table(),
+            "reference_name": "",
+            "field_name": "",
+            "time_field": self.time_field,
+            "dimensions": group_by,
+            "query_string": self.query_string or "*",
+            "conditions": _parse_conditions(filter_dict, where, self.OPERATOR_MAPPING),
+            "function": [],
+            "time_aggregation": {},
+            "keep_columns": [],
+            "order_by": [],
+        }
+
+        query_list: List[Dict[str, Any]] = []
+        for metric in self.metrics:
+            query: Dict[str, Any] = copy.deepcopy(base_query)
+            method: str = metric["method"].lower()
+            # 非时间聚合，直接使用传入的方法
+            func_method: str = (method, "sum")[self.is_time_agg]
+            function: Dict[str, Any] = {"method": func_method, "dimensions": group_by}
+            if method in CpAggMethods:
+                cp_agg_method = CpAggMethods[method]
+                function["vargs_list"] = cp_agg_method.vargs_list
+                query["time_aggregation"]["position"] = cp_agg_method.position
+                query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
+
+            if self.is_time_agg:
+                # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
+                agg_func_name: str = "{method}_over_time".format(method=method)
+                query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
+
+            field: str = metric["field"]
+            if self.is_dimensions_field(field) and field != "_index":
+                query["field_name"] = f"dimensions.{field}"
+            else:
+                query["field_name"] = field
+
+            query["reference_name"] = (self.reference_name or metric.get("alias") or field).lower()
+            query["function"].append(function)
+
+            if self.is_time_agg:
+                time_aggregation, functions = _parse_function_params(self.functions, group_by)
+                query["function"].extend(functions)
+                if time_aggregation:
+                    query["time_aggregation"].update(time_aggregation)
+
+            query_list.append(query)
+
+        if not query_list:
+            query: Dict[str, Any] = copy.deepcopy(base_query)
+            query["reference_name"] = self.reference_name or "a"
+
+            # 原始数据保留字段
+            for select_field in self.select:
+                if "(" in select_field and ")" in select_field:
+                    continue
+                query["keep_columns"].append(select_field)
+
+            query_list.append(query)
+
+        return query_list
 
 
 class BkMonitorEventDataSource(DataSource):
@@ -2490,6 +2561,9 @@ def judge_auto_filter(bk_biz_id: int, table_id: str) -> Dict[str, Any]:
     if need_add_filter:
         return biz_filter
 
+    if table_id in ["k8s_event", "system_event"]:
+        return biz_filter
+
     if settings.ENVIRONMENT == "development":
         table_info = api.metadata.get_result_table(table_id=table_id)
         if table_info["bk_biz_id"] != 0:
@@ -2557,7 +2631,7 @@ def load_data_source(data_source_label: str, data_type_label: str) -> Type[DataS
         BkFtaAlertDataSource,
         BkFtaEventDataSource,
         BkApmTraceDataSource,
-        BkApmEventDataSource,
+        NewCustomEventDataSource,
         BkApmTraceTimeSeriesDataSource,
         PrometheusTimeSeriesDataSource,
     ]
