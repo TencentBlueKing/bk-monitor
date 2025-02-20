@@ -98,6 +98,20 @@ class ChatViewSet(viewsets.GenericViewSet):
                 "stream": True,
             }
         )
+        # 切换index_specific
+        if settings.AIDEV_KNOWLEDGE_BASE_IDS:
+            params.update(
+                {
+                    "type": "index_specific",
+                    "index_query_kwargs": [
+                        {
+                            "index_name": "full_text",
+                            "index_value": "日志清洗",
+                            "knowledge_base_id": settings.AIDEV_KNOWLEDGE_BASE_IDS[0],
+                        }
+                    ],
+                }
+            )
         results = api.aidev.create_knowledgebase_query(params)
 
         return results
