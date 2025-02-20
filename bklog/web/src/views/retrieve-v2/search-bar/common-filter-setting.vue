@@ -6,6 +6,8 @@
     theme="light bk-select-dropdown"
     trigger="click"
     class="common-filter-popper"
+    :on-show="handlePopoverShow"
+    :tippy-options="tippyOptions"
   >
     <slot name="trigger">
       <div class="operation-icon">
@@ -24,6 +26,15 @@
                 @click="addAllField"
                 >{{ $t('全部添加') }}</span
               >
+            </div>
+            <div style="padding: 4px 8px; height: 40px">
+              <bk-input
+                behavior="simplicity"
+                left-icon="bk-icon icon-search"
+                v-model="searchKeyword"
+                :placeholder="$t('请输入关键字')"
+                :clearable="true"
+              ></bk-input>
             </div>
             <ul class="select-list">
               <li
@@ -117,10 +128,15 @@
 
   import VueDraggable from 'vuedraggable';
   import { excludesFields } from './const.common';
+  import { getRegExp } from '@/common/util';
 
   // 获取 store
   const store = useStore();
   const { $t } = useLocale();
+  const searchKeyword = ref('');
+  const tippyOptions = {
+    offset: '0, 4',
+  };
 
   // 定义响应式数据
   const isLoading = ref(false);
@@ -137,14 +153,17 @@
   });
 
   const shadowTotal = computed(() => {
+    const reg = getRegExp(searchKeyword.value);
     const filterFn = field =>
       !shadowVisible.value.includes(field) &&
       field.field_type !== '__virtual__' &&
-      !excludesFields.includes(field.field_name);
+      !excludesFields.includes(field.field_name) &&
+      (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
     return fieldList.value.filter(filterFn);
   });
 
   const shadowVisible = ref([]);
+
   const dragOptions = ref({
     animation: 150,
     tag: 'ul',
@@ -222,16 +241,9 @@
     shadowVisible.value.push(...filterFieldsList.value);
   };
 
-  let isFirstMounted = true;
-  watch(
-    () => [filterFieldsList.value.length],
-    () => {
-      if (isFirstMounted) {
-        setDefaultFilterList();
-      }
-    },
-    { immediate: true },
-  );
+  const handlePopoverShow = () => {
+    setDefaultFilterList();
+  };
 </script>
 
 <style lang="scss">
@@ -244,8 +256,8 @@
     .total-fields-list,
     .visible-fields-list,
     .sort-fields-list {
-      width: 330px;
-      height: 268px;
+      width: 350px;
+      height: 340px;
       border: 1px solid #dcdee5;
       border-bottom: none;
 
@@ -283,17 +295,19 @@
       }
 
       .select-list {
-        height: 223px;
+        height: 255px;
         padding: 4px 0;
         overflow: auto;
 
         @include scroller;
 
         .select-item {
-          display: flex;
+          overflow: hidden;
+          display: inline-block;
           align-items: center;
           width: 100%;
           height: 32px;
+          line-height: 32px;
           padding: 0 12px;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -372,15 +386,14 @@
 
     .visible-fields-list {
       border-left: none;
+      width: 380px;
     }
 
     /* stylelint-disable-next-line no-descending-specificity */
     .total-fields-list .select-list .select-item {
+      position: relative;
       .field-name {
-        // width: calc(100% - 24px);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        display: inline;
       }
 
       .bklog-filled-right-arrow {
@@ -393,6 +406,10 @@
         transition: opacity 0.2s linear;
         transform: scale(0.5);
         transform-origin: right center;
+        position: absolute;
+        right: 4px;
+        top: 8px;
+        z-index: 10;
       }
 
       &:hover .bklog-filled-right-arrow {
@@ -406,9 +423,7 @@
       position: relative;
 
       .field-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        display: inline;
       }
 
       .delete {

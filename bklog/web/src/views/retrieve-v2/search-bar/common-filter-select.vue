@@ -124,6 +124,17 @@
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
+
+  const focusIndex = ref(null);
+  const handleRowFocus = (index, e) => {
+    if (document.activeElement === e.target) {
+      focusIndex.value = index;
+    }
+  };
+
+  const handleRowBlur = () => {
+    focusIndex.value = null;
+  };
 </script>
 
 <template>
@@ -137,7 +148,9 @@
     >
       <div
         v-for="(item, index) in filterFieldsList"
-        class="filter-select-wrap"
+        :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
+        @focus.capture="e => handleRowFocus(index, e)"
+        @blur.capture="handleRowBlur"
       >
         <div class="title">
           {{ item?.field_alias || item?.field_name || '' }}
@@ -195,7 +208,7 @@
       v-else
       class="empty-tips"
     >
-      （暂未设置常驻筛选，请点击左侧设置按钮）
+      （{{ $t('暂未设置常驻筛选，请点击左侧设置按钮') }}）
     </div>
   </div>
 </template>
@@ -242,6 +255,10 @@
     border: 1px solid #dbdde1;
     border-radius: 3px;
 
+    &.is-focus {
+      border-color: #3a84ff;
+    }
+
     .title {
       max-width: 125px;
       margin-left: 8px;
@@ -256,7 +273,7 @@
 
       .operator-label {
         padding: 4px;
-        color: #ff9c01;
+        color: #3a84ff;
       }
 
       &.bk-select.is-focus {
