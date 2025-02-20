@@ -1627,6 +1627,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         params: {
           id,
         },
+        query: {
+          activeTab,
+        },
       });
     } else {
       this.detailInfo.id = id;
