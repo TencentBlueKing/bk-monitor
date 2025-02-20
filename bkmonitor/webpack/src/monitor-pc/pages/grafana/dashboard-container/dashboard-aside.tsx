@@ -563,15 +563,15 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
    */
   async handleMigrateDashboard(item: IMoreData['item']) {
     this.$bkInfo({
-      title: this.$t('确认迁移仪表盘？'),
-      subTitle: item.title,
+      title: this.$t('确认更新？'),
+      subTitle: this.$t('解决grafana升级后组件兼容性问题，不影响数据'),
       confirmLoading: true,
       confirmFn: async () => {
         try {
           const res = await migrateDashboard({ dashboard_uid: item.uid, bk_biz_id: this.bizId });
           const failedTotal = res.failed_total === 0;
             this.$bkMessage({
-              message: Object.keys(res).length ? this.$t(`迁移成功${!failedTotal ? ',部分旧面板迁移失败' : ''}`) : this.$t('仪表盘内没有要迁移的旧面板'),
+              message: Object.keys(res).length ? this.$t(`更新成功${!failedTotal ? ',部分旧面板更新失败' : ''}`) : this.$t('仪表盘内没有要更新的旧面板'),
               theme: failedTotal ? 'success' : 'warning',
             });
             this.handleFetchGrafanaTree();

@@ -150,7 +150,7 @@ export default class TreeList extends tsc<IProps, IEvents> {
       },
       {
         id: MoreType.migrate,
-        name: window.i18n.tc('迁移'),
+        name: window.i18n.tc('更新'),
         icon: 'icon-mc-migrate-tool',
         hasAuth: true,
       },
