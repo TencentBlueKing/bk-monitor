@@ -398,8 +398,31 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             )
 
     @classmethod
+    def get_services_language(cls, validate_data):
+        from apm_web.metric.resources import ServiceListResource
+
+        start_time, end_time, _offset = cls.calculate_timerange(validate_data)
+        options = {
+            "app_name": validate_data.get("app_name"),
+            "bk_biz_id": validate_data.get("bk_biz_id"),
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        try:
+            services = ServiceListResource().request(options)
+            services_language = services["data"][0]["language"]
+            return services_language == "python"
+        except Exception:
+            return None
+
+    @classmethod
     def get_converter_options(cls, validate_data):
-        return {"sort": validate_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
+        is_python = cls.get_services_language(validate_data)
+        return {
+            "sort": validate_data.get("sort"),
+            "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE,
+            "is_python": is_python,
+        }
 
     @classmethod
     def converter_to_data(cls, validate_data, tree_converter):

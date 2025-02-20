@@ -17,6 +17,7 @@ from apm_web.profile.diagrams.tree_converter import TreeConverter
 @dataclass
 class TableDiagrammer:
     def draw(self, c: TreeConverter, **options) -> dict:
+        is_python = options.get("is_python")
         nodes = list(c.tree.function_node_map.values())
         # 添加total节点
         total_node = FunctionNode(id="", value=c.tree.root.value, name="total", filename="", system_name="")
@@ -36,7 +37,10 @@ class TableDiagrammer:
         return {
             "table_data": {
                 "total": c.tree.root.value,
-                "items": [{"id": x.id, "name": x.name, "self": x.self_time, "total": x.value} for x in sorted_nodes],
+                "items": [
+                    {"id": x.id, "name": x.id if is_python else x.name, "self": x.self_time, "total": x.value}
+                    for x in sorted_nodes
+                ],
             }
         }
 

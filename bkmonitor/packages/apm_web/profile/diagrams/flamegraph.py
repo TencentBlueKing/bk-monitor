@@ -28,11 +28,13 @@ def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
 
 @dataclass
 class FlamegraphDiagrammer:
-    def draw(self, c: TreeConverter, **_) -> dict:
+    def draw(self, c: TreeConverter, **options) -> dict:
+        is_python = options.get("is_python")
+
         def function_node_to_element(function_node: FunctionNode) -> dict:
             return {
                 "id": function_node.id,
-                "name": function_node.name,
+                "name": function_node.id if is_python else function_node.name,
                 "value": function_node.value,
                 "self": function_node.self_time,
                 "children": [function_node_to_element(child) for child in function_node.children.values()],
