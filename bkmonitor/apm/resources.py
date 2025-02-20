@@ -297,6 +297,14 @@ class ApplicationInfoResource(Resource):
         return ApmApplication.objects.get(id=application_id)
 
 
+class QueryBkDataTokenInfoResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        application_id = serializers.IntegerField(label="应用id")
+
+    def perform_request(self, validated_request_data):
+        return ApplicationInfoResource()(**validated_request_data)["token"]
+
+
 class ApdexSerializer(serializers.Serializer):
     apdex_t = serializers.IntegerField(label="apdex_t", min_value=0)
     span_kind = serializers.CharField(label="span_kind", allow_blank=True)

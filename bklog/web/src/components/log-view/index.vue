@@ -299,7 +299,7 @@
         }
       },
       getLineColor(item) {
-        return `background: ${item.color.dark}; color: #FFFFFF; padding: 0 4px; border-radius: 2px; height: 32px; display: inline-block; line-height: 32px; font-weight: 700; opacity: 0.5`;
+        return `background: ${item.color.dark}; color: #FFFFFF; padding: 0 4px; margin: 2px 1px ; border-radius: 2px; height: 30px; display: inline-block; line-height: 30px; font-weight: 700; opacity: 0.5`;
       },
     },
   };

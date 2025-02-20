@@ -555,7 +555,7 @@
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
           :key="index"
-          :title="row.value"
+          v-bk-tooltips.top="row.value || $t('暂无数据')"
         >
           {{ row.value }}
         </div>
@@ -566,7 +566,7 @@
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
           :key="index"
-          :title="row.value"
+          v-bk-tooltips.top="row.value || $t('暂无数据')"
         >
           {{ row.value }}
         </div>

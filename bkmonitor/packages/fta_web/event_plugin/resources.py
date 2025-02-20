@@ -632,7 +632,7 @@ class TailEventPluginDataResource(Resource):
 
         try:
             # 需确定是获取清洗前还是清洗后的数据
-            if not validated_data["data_type"] == "cleaned":
+            if validated_data["data_type"] != "cleaned":
                 kafka_config = data_id_info["mq_config"]
             else:
                 kafka_config = data_id_info["result_table_list"][0]["shipper_list"][0]
