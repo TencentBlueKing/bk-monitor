@@ -137,7 +137,10 @@
   });
 
   const shadowTotal = computed(() => {
-    const filterFn = field => !shadowVisible.value.includes(field) && field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
+    const filterFn = field =>
+      !shadowVisible.value.includes(field) &&
+      field.field_type !== '__virtual__' &&
+      !excludesFields.includes(field.field_name);
     return fieldList.value.filter(filterFn);
   });
 
@@ -186,6 +189,7 @@
 
   const confirmModifyFields = async () => {
     handleCreateRequest();
+    fieldsSettingPopperRef?.value.instance.hide();
   };
 
   const fieldsSettingPopperRef = ref('');
@@ -203,7 +207,7 @@
 
   const addAllField = () => {
     shadowTotal.value.forEach(fieldInfo => {
-      if(!shadowVisible.value.includes(fieldInfo)) {
+      if (!shadowVisible.value.includes(fieldInfo)) {
         shadowVisible.value.push(fieldInfo);
       }
     });

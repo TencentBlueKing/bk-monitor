@@ -378,10 +378,9 @@
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
-        window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
-
         const { common_filter_addition } = store.getters.retrieveParams;
         if (common_filter_addition.length) {
+          window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
             ...formatAddition(common_filter_addition.filter(additionFilter)).map(item => ({
               ...item,
