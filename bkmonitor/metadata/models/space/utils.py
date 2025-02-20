@@ -59,6 +59,23 @@ def get_biz_ids_by_space_ids(space_type, space_ids):
     return res
 
 
+def reformat_table_id(table_id: str) -> str:
+    """检查并补充 table_id 中的 '.__default__'"""
+    parts = table_id.split(".")
+
+    if len(parts) == 1:
+        # 如果长度为 1，表示缺少点，补充 '.__default__'
+        logger.info("reformat_table_id: table_id->[%s] missing '.', add '.__default__'", table_id)
+        return f"{table_id}.__default__"
+    elif len(parts) != 2:
+        # 如果长度不是 2，表示不符合二段式规则，记录错误日志并返回原始值
+        logger.error("reformat_table_id: table_id->[%s] is not two parts, return original value", table_id)
+        return table_id  # 保持原样
+
+    # 如果已经是二段式，直接返回
+    return table_id
+
+
 def list_spaces(
     space_type_id: Optional[str] = None,
     space_id: Optional[str] = None,
