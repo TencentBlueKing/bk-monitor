@@ -490,7 +490,7 @@
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
-        class="sql-query-options"
+        :class="['sql-query-options', { 'is-loading': isRequesting }]"
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
       >
         <!-- 字段列表 -->
