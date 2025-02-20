@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import itertools
 import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
@@ -59,6 +60,7 @@ class QueryConfig(Query):
         self.metrics: List[Dict[str, Any]] = []
         self.dimension_fields: List[str] = []
         self.functions: List[Dict[str, Any]] = []
+        self.conditions: List[Dict[str, Any]] = []
 
     def clone(self) -> "QueryConfig":
         obj: "QueryConfig" = super().clone()
@@ -66,6 +68,7 @@ class QueryConfig(Query):
         obj.interval = self.interval
         obj.metrics = self.metrics[:]
         obj.functions = self.functions[:]
+        obj.conditions = self.conditions[:]
         obj.dimension_fields = self.dimension_fields[:]
         return obj
 
@@ -81,6 +84,9 @@ class QueryConfig(Query):
 
     def add_func(self, _id: str, params: List[Dict[str, Any]]):
         self.functions.append({"id": _id, "params": params})
+
+    def add_condition(self, condition: Dict[str, Any]):
+        self.conditions.append(copy.deepcopy(condition))
 
     def add_dimension_fields(self, field: str):
         if field not in self.dimension_fields:
@@ -103,6 +109,12 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
     def func(self, _id: str, params: List[Dict[str, Any]]) -> "QueryConfigBuilder":
         clone = self._clone()
         clone.query.add_func(_id, params)
+        return clone
+
+    def conditions(self, conditions: List[Dict[str, Any]]) -> "QueryConfigBuilder":
+        clone = self._clone()
+        for cond in conditions:
+            clone.query.add_condition(cond)
         return clone
 
     def tag_values(self, *fields) -> "QueryConfigBuilder":
@@ -253,7 +265,7 @@ class UnifyQueryCompiler(SQLCompiler):
                 "time_field": query_config_obj.time_field,
                 "select": query_config_obj.select,
                 "distinct": query_config_obj.distinct,
-                "where": [],
+                "where": query_config_obj.conditions,
                 "metrics": query_config_obj.metrics,
                 "functions": query_config_obj.functions,
                 "group_by": query_config_obj.group_by,
