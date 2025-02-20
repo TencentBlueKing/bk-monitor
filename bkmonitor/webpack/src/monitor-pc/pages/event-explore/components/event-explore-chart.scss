@@ -1,0 +1,150 @@
+// 图表头部高度
+$chart-header-height: 22px;
+// 图表头部区域垂直内边距
+$chart-header-intersect-padding: 6px;
+// 图表切换折叠状态时动画持续时长
+$expand-animation-duration: 0.6s;
+
+.event-explore-chart {
+  display: grid;
+  grid-template-rows: 0fr;
+  grid-template-columns: 1fr;
+  overflow-y: hidden;
+  transition: grid-template-rows $expand-animation-duration;
+  transition-timing-function: ease;
+
+  &.is-expand {
+    grid-template-rows: 1fr;
+
+    .event-explore-chart-title {
+      .chart-title-left {
+        .left-text {
+          .icon-mc-triangle-down {
+            transform: rotate(0deg);
+          }
+        }
+      }
+
+      .chart-title-right {
+        .interval-select {
+          display: block;
+        }
+      }
+    }
+  }
+
+  .event-explore-chart-container {
+    min-height: $chart-header-height + $chart-header-intersect-padding * 2;
+  }
+
+  .explore-chart {
+    height: unset;
+
+    .echart-header {
+      width: 100%;
+      padding: $chart-header-intersect-padding 0;
+      background-color: #ffffff;
+    }
+
+    .chart-wrapper-echarts {
+      .echart-legend {
+        display: flex;
+        justify-content: center;
+
+        .common-legend-item {
+          margin-left: 16px;
+
+          .legend-icon {
+            width: 8px;
+            height: 8px;
+          }
+        }
+      }
+    }
+  }
+
+  .event-explore-chart-title {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    height: $chart-header-height;
+    padding-right: 12px;
+    font-weight: normal;
+    color: #4d4f56;
+
+    .chart-title-left {
+      display: flex;
+      flex: 1;
+      align-items: center;
+
+      .left-text {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+
+        .icon-mc-triangle-down {
+          font-size: 19px;
+          transition: transform 0.3s ease;
+          transform: rotate(-90deg);
+        }
+
+        .chart-title {
+          margin-right: 8px;
+          font-weight: 700;
+          color: #313238;
+        }
+
+        .chart-description {
+          user-select: none;
+
+          .query-count {
+            color: #f00;
+          }
+        }
+      }
+
+      .chart-tags {
+        display: flex;
+        border-radius: 2px;
+
+        .chart-tags-item {
+          display: flex;
+          align-items: center;
+          height: $chart-header-height;
+          padding-left: 5px;
+          margin-left: 6px;
+          color: var(--tag-color);
+          background-color: var(--tag-bg-color);
+
+          .icon-filter-fill {
+            width: 14px;
+            margin-right: 4px;
+            font-size: 14px;
+            line-height: 14px;
+          }
+
+          .tag-label {
+            line-height: 14px;
+            color: #4d4f56;
+          }
+
+          .icon-mc-close {
+            font-size: 18px;
+            color: #979ba5;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+
+    .chart-title-right {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+
+      .interval-select {
+        display: none;
+      }
+    }
+  }
+}
