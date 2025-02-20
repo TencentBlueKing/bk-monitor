@@ -740,7 +740,17 @@ const store = new Vuex.Store({
       }
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
+    /**
+     * 用于更新可见field，对于object字段整体添加参数不一样
+     * 
+     * @param {Array | Object} payload  前者是field_name组成的数组，后者是该数组和version组成的对象
+     * 
+     */
     resetVisibleFields(state, payload) {
+      const isObjectField = payload?.version === 'v2'
+      if(isObjectField){
+        payload = payload.displayFieldNames
+      }
       const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
       const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
@@ -750,7 +760,8 @@ const store = new Vuex.Store({
           .map(displayName => {
             const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
             if (field) return field;
-            return {
+            if(isObjectField){
+              return {
                 field_type: "object",
                 field_name: displayName,
                 field_alias: "",
@@ -767,7 +778,8 @@ const store = new Vuex.Store({
                 tokenize_on_chars: "",
                 description: "",
                 filterVisible: true
-            };
+              };
+            }
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
