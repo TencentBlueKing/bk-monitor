@@ -26,14 +26,16 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
+
 import type { TranslateResult } from 'vue-i18n';
 
 import './notice-item.scss';
 
 interface IProps {
   value: boolean;
-  title: TranslateResult | string;
-  subTitle: TranslateResult | string;
+  title: string | TranslateResult;
+  subTitle: string | TranslateResult;
   onChange?: (v: boolean) => void;
   clearError: () => void;
 }
@@ -70,7 +72,10 @@ export default class NoticeItem extends tsc<IProps> {
               {this.title}
             </div>
             <div class='subTitle'>
-              <i class='icon-monitor icon-hint' />
+              <AIWhaleIcon
+                content={this.subTitle}
+                type='translate'
+              />
               <span v-bk-overflow-tips> {this.subTitle}</span>
             </div>
             {this.$slots.header && <span class='header-right'>{this.$slots.header}</span>}

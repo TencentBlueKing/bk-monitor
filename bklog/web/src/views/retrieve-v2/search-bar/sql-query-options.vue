@@ -15,6 +15,9 @@
 
   import useFieldEgges from './use-field-egges';
 
+  import imgEnterKey from '@/images/icons/enter-key.svg';
+  import imgUpDownKey from '@/images/icons/up-down-key.svg';
+
   const props = defineProps({
     value: {
       type: String,
@@ -24,6 +27,7 @@
   });
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
+  const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { $t } = useLocale();
@@ -486,7 +490,7 @@
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
-        class="sql-query-options"
+        :class="['sql-query-options', { 'is-loading': isRequesting }]"
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
       >
         <!-- 字段列表 -->
@@ -650,6 +654,11 @@
         @change="handleFavoriteClick"
         :searchValue="value"
       ></FavoriteList>
+      <!-- 移动光标and确认结果提示 -->
+      <div class="ui-shortcut-key">
+        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
+        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
+      </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
       <span
@@ -688,13 +697,50 @@
 <style lang="scss" scoped>
   @import './sql-query-options.scss';
 
-  .sql-query-container {
+  div.sql-query-container {
     display: flex;
     border: 1px solid #dcdee5;
     border-radius: 2px;
+    line-height: 1;
+
+    position: relative;
 
     .sql-field-list {
       width: 100%;
+      position: relative;
+      padding-bottom: 38px;
+
+      /* 移动光标and确认结果提示 样式 */
+      .ui-shortcut-key {
+        padding: 9px 0 7px 15px;
+        background-color: #fafbfd;
+        border-top: 1px solid #ecedf2;
+        height: 38px;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+
+        span {
+          display: inline-flex;
+          align-items: center;
+          margin-right: 24px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #63656e;
+          letter-spacing: 0;
+
+          img {
+            display: inline-flex;
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            background: #ffffff;
+            border: 1px solid #dcdee5;
+            border-radius: 2px;
+          }
+        }
+      }
     }
 
     .sql-syntax-tips {

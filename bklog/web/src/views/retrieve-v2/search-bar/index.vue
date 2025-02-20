@@ -95,6 +95,14 @@
     return indexFieldInfo.value.is_loading;
   });
 
+  const isCopyBtnActive = computed(() => {
+    if (activeIndex.value === 0) {
+      return addition.value.length > 0;
+    }
+
+    return sqlQueryValue.value.length > 0;
+  });
+
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
 
   watch(
@@ -316,29 +324,37 @@
   };
 
   const handleCopyQueryValue = async () => {
-    const { search_mode, keyword, addition } = store.getters.retrieveParams;
-    if (search_mode === 'ui') {
-      $http
-        .request('retrieve/generateQueryString', {
-          data: {
-            addition,
-          },
-        })
-        .then(res => {
-          if (res.result) {
-            copyMessage(res.data?.querystring || '', $t('复制成功'));
-          } else {
-            bkMessage({
-              theme: 'error',
-              message: $t('复制失败'),
-            });
-          }
-        })
-        .catch(err => {
-          console.log(err);
-        });
+    if (!isCopyBtnActive.value) {
+      return;
+    }
+
+    if (activeIndex.value === 0) {
+      if (addition.value.length > 0) {
+        $http
+          .request('retrieve/generateQueryString', {
+            data: {
+              addition: addition.value,
+            },
+          })
+          .then(res => {
+            if (res.result) {
+              copyMessage(res.data?.querystring || '', $t('复制成功'));
+            } else {
+              bkMessage({
+                theme: 'error',
+                message: $t('复制失败'),
+              });
+            }
+          })
+          .catch(err => {
+            console.log(err);
+          });
+      }
     } else {
-      copyMessage(JSON.stringify(keyword), $t('复制成功'));
+      const target = sqlQueryValue.value.replace(/^\s+|\s+$/, '');
+      if (target.length) {
+        copyMessage(target, $t('复制成功'));
+      }
     }
   };
 
@@ -437,12 +453,12 @@
         <div class="search-tool items">
           <div
             v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleCopyQueryValue"
           ></div>
           <div
             v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            :class="['bklog-icon bklog-brush', { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleClearBtnClick"
           ></div>
 
