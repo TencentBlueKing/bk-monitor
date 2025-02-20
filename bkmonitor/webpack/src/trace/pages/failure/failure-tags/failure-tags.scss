@@ -38,6 +38,10 @@
     color: white;
     background: #E71818;
     border-radius: 2px;
+
+    &:hover {
+      background: #E71818;
+    }
   }
 
   .failure-tags-container {
