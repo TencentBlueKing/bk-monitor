@@ -1087,19 +1087,21 @@ export default defineComponent({
                   </div>
                 ),
                 subtitle: () => (
-                  <div
-                    class='sub-head'
-                    v-bk-tooltips={{
-                      content: (
-                        <div style={{ width: '360px' }}>
-                          {this.t('指标：')}
-                          <br />
-                          {this.$props.subtitle}
-                        </div>
-                      ),
-                    }}
-                  >
-                    <span class='txt'>{this.$props.subtitle}</span>
+                  <div class='sub-head'>
+                    <span
+                      class='txt'
+                      v-bk-tooltips={{
+                        content: (
+                          <div style={{ 'max-width': '360px' }}>
+                            {this.t('指标：')}
+                            <br />
+                            {this.$props.subtitle}
+                          </div>
+                        ),
+                      }}
+                    >
+                      {this.$props.subtitle}
+                    </span>
                   </div>
                 ),
                 tagTitle: () => (
