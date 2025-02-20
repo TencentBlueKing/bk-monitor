@@ -99,20 +99,19 @@ class ChatViewSet(viewsets.GenericViewSet):
             }
         )
         # 切换index_specific
-        if settings.AIDEV_KNOWLEDGE_BASE_IDS:
-            params.update(
-                {
-                    "type": "index_specific",
-                    "index_query_kwargs": [
-                        {
-                            "index_name": "full_text",
-                            "index_value": params["query"],
-                            "knowledge_base_id": knowledge_base_id,
-                        }
-                        for knowledge_base_id in settings.AIDEV_KNOWLEDGE_BASE_IDS
-                    ],
-                }
-            )
+        params.update(
+            {
+                "type": "index_specific",
+                "index_query_kwargs": [
+                    {
+                        "index_name": "full_text",
+                        "index_value": params["query"],
+                        "knowledge_base_id": knowledge_base_id,
+                    }
+                    for knowledge_base_id in settings.AIDEV_KNOWLEDGE_BASE_IDS
+                ],
+            }
+        )
         results = api.aidev.create_knowledgebase_query(params)
 
         return results
