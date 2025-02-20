@@ -192,7 +192,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
         qs: UnifyQuerySet = self.metric_helper.time_range_qs(start_time, end_time)
         if self.instant:
-            return qs.instant(align_interval=self.interval * self.metric_helper.TIME_FIELD_ACCURACY)
+            return qs.instant(align_interval=self.interval * self.metric_helper.TIME_FIELD_ACCURACY).limit(1)
         return qs.limit(self.metric_helper.MAX_DATA_LIMIT)
 
     def _panic_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
