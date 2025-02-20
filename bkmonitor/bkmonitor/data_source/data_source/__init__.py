@@ -405,7 +405,9 @@ def _parse_conditions(
         operator: str = operator_mapping.get(condition["method"], condition["method"])
         if operator in ["include", "exclude"]:
             value = [re.escape(v) for v in value]
-        conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator})
+
+        options: Dict[str, Any] = condition.get("options") or {}
+        conditions["field_list"].append({"field_name": condition["key"], "value": value, "op": operator, **options})
     return conditions
 
 
