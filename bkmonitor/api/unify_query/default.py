@@ -173,7 +173,6 @@ class QueryReferenceResource(UnifyQueryAPIResource):
         end_time = serializers.CharField()
         step = serializers.CharField()
         space_uid = serializers.CharField(allow_null=True)
-        down_sample_range = serializers.CharField(allow_blank=True)
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False)
         order_by = serializers.ListField(allow_null=True, required=False, allow_empty=True)
