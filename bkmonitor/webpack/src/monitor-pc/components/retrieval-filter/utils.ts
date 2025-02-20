@@ -38,27 +38,31 @@ export enum EMethod {
   ne = 'ne',
 }
 export enum EFieldType {
+  all = 'all',
+  date = 'date',
+  integer = 'integer',
   keyword = 'keyword',
+  text = 'text',
 }
 
 export const fieldTypeMap = {
-  number: {
+  all: {
     name: window.i18n.tc('数字'),
-    icon: 'icon-monitor icon-number',
-    color: '#60A087',
-    bgColor: '#DDEBE6',
+    icon: '*',
+    color: '#979BA5',
+    bgColor: '#E8EAF0',
   },
-  boolean: {
-    name: window.i18n.tc('布尔值'),
+  integer: {
+    name: window.i18n.tc('数字'),
     icon: 'icon-monitor icon-number',
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
   keyword: {
     name: window.i18n.tc('字符串'),
-    icon: 'icon-monitor icon-text',
-    color: '#508CC8',
-    bgColor: '#E1E7F2',
+    icon: 'icon-monitor icon-string',
+    color: '#6498B3',
+    bgColor: '#D9E5EB',
   },
   text: {
     name: window.i18n.tc('文本'),
@@ -98,3 +102,21 @@ export const MODE_LIST = [
   { id: EMode.ui, name: window.i18n.tc('UI 模式') },
   { id: EMode.ql, name: window.i18n.tc('语句模式') },
 ];
+
+/**
+ * 获取字符长度，汉字两个字节
+ * @param str 需要计算长度的字符
+ * @returns 字符长度
+ */
+export function getCharLength(str) {
+  const len = str.length;
+  let bitLen = 0;
+
+  for (let i = 0; i < len; i++) {
+    if ((str.charCodeAt(i) & 0xff00) !== 0) {
+      bitLen += 1;
+    }
+    bitLen += 1;
+  }
+  return bitLen;
+}
