@@ -166,6 +166,18 @@ class QueryHelper:
         return data
 
     @classmethod
+    def _query_reference(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
+        data = unify_query.query_reference(
+            start_time=query_body["start_time"],
+            end_time=query_body["end_time"],
+            limit=query_body["limit"],
+            offset=query_body["offset"],
+            instant=query_body["instant"],
+            order_by=query_body["order_by"],
+        )
+        return data
+
+    @classmethod
     def _query_dimensions(cls, unify_query: UnifyQuery, query_body: Dict[str, Any]) -> List[Dict[str, Any]]:
         dimension_fields: List[str] = query_body["dimension_fields"]
         data = unify_query.query_dimensions(
@@ -200,7 +212,9 @@ class QueryHelper:
         # 2. Data
         for query_config in query_body.get("query_configs") or []:
             if query_config.get("metrics"):
-                return cls._query_data
+                if query_config["is_time_agg"]:
+                    return cls._query_data
+                return cls._query_reference
 
         # 3. Log
         return cls._query_log
@@ -248,6 +262,7 @@ class UnifyQueryCompiler(SQLCompiler):
                 "query_string": query_config_obj.raw_query_string or "*",
                 "nested_paths": query_config_obj.nested_paths,
                 "order_by": query_config_obj.order_by,
+                "is_time_agg": self.query.is_time_agg,
             }
             if query_config_obj.interval:
                 query_config["interval"] = query_config_obj.interval
@@ -300,6 +315,7 @@ class UnifyQueryConfig:
         # 是否返回瞬时量
         self.bk_biz_id: Optional[int] = None
         self.instant: bool = False
+        self.is_time_agg: bool = True
         self.expression: str = ""
         self.functions: List[Dict[str, Any]] = []
         self.query_configs: List[QueryConfig] = []
@@ -316,6 +332,7 @@ class UnifyQueryConfig:
         obj: "UnifyQueryConfig" = self.__class__()
         obj.bk_biz_id = self.bk_biz_id
         obj.instant = self.instant
+        obj.is_time_agg = self.is_time_agg
         obj.expression = self.expression
         obj.functions = self.functions[:]
         obj.query_configs = self.query_configs[:]
@@ -339,6 +356,9 @@ class UnifyQueryConfig:
 
     def set_instant(self, instant: bool):
         self.instant = instant
+
+    def set_time_agg(self, is_time_agg: bool):
+        self.is_time_agg = is_time_agg
 
     def set_expression(self, expression: Optional[str]):
         if expression:
@@ -442,7 +462,6 @@ class UnifyQuerySet(IterMixin, CompilerMixin):
     def instant(self, instant: bool = True, align_interval: Optional[int] = None) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_instant(instant)
-        clone.query.set_limits(high=1)
 
         if not align_interval:
             return clone
@@ -451,6 +470,11 @@ class UnifyQuerySet(IterMixin, CompilerMixin):
         # 瞬时量（instant）在相同时间范围内是返回时间戳为 end_time 的点。
         # 为保证瞬时和时序行为一致（end_time - interval），instant 的 end_time 需要往前推一个 interval。
         clone.query.set_end_time(clone.query.end_time - align_interval)
+        return clone
+
+    def time_agg(self, is_time_agg: bool = True) -> "UnifyQuerySet":
+        clone = self._clone()
+        clone.query.set_time_agg(is_time_agg)
         return clone
 
     def func(self, _id: str, params: List[Dict[str, Any]]) -> "UnifyQuerySet":
