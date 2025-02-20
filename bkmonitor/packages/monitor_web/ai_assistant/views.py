@@ -113,7 +113,6 @@ class ChatViewSet(viewsets.GenericViewSet):
                     ],
                 }
             )
-            params.pop("knowledge_base_id")
         results = api.aidev.create_knowledgebase_query(params)
 
         return results
