@@ -1626,7 +1626,7 @@ class QueryBkDataToken(Resource):
         application_id = serializers.IntegerField(label="应用id")
 
     def perform_request(self, validated_request_data):
-        return api.apm_api.detail_application(validated_request_data)["token"]
+        return api.apm_api.query_bk_data_token_info(validated_request_data)
 
 
 class DataViewConfigResource(Resource):

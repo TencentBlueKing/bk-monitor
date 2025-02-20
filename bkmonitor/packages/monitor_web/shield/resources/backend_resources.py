@@ -113,6 +113,12 @@ class ShieldListResource(Resource):
             if key not in enabled_fields:
                 # 不在里面的，直接忽略
                 continue
+
+            # description 特殊处理，支持模糊搜索
+            if key == "description":
+                filter_dict["description__icontains"] = condition["value"]
+                continue
+
             value = condition["value"]
             if not isinstance(value, list):
                 value = [value]

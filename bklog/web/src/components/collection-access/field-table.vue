@@ -79,15 +79,17 @@
           v-model="deletedVisible"
           @change="visibleHandle">
         </bk-switcher> -->
-        <span
+        <div @click="visibleHandle">
+          <span
           :class="`bk-icon toggle-icon icon-${deletedVisible ? 'eye-slash' : 'eye'}`"
           data-test-id="fieldExtractionBox_span_hideItem"
-          @click="visibleHandle"
+          
         >
         </span>
         <span class="visible-deleted-text">
           {{ $t('已隐藏 {n} 项', { n: deletedNum }) }}
         </span>
+        </div>
       </div>
     </div>
 
@@ -553,7 +555,7 @@
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
           :key="index"
-          :title="row.value"
+          v-bk-tooltips.top="row.value || $t('暂无数据')"
         >
           {{ row.value }}
         </div>
@@ -564,7 +566,7 @@
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
           :key="index"
-          :title="row.value"
+          v-bk-tooltips.top="row.value || $t('暂无数据')"
         >
           {{ row.value }}
         </div>
@@ -940,6 +942,15 @@
           if (item.hasOwnProperty('typeErr')) {
             delete item.typeErr;
           }
+
+          if (item.hasOwnProperty('fieldAliasErr')) {
+            delete item.fieldAliasErr;
+          }
+
+          if (item.hasOwnProperty('alias_name_show')) {
+            delete item.alias_name_show;
+          }
+          
         });
         return data;
       },
@@ -957,6 +968,14 @@
 
           if (item.hasOwnProperty('typeErr')) {
             delete item.typeErr;
+          }
+          
+          if (item.hasOwnProperty('fieldAliasErr')) {
+            delete item.fieldAliasErr;
+          }
+
+          if (item.hasOwnProperty('alias_name_show')) {
+            delete item.alias_name_show;
           }
         });
         return data;

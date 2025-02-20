@@ -466,14 +466,16 @@
         },
       })
       .then(res => {
-        res.data.etl_fields.forEach(item => {
-          alias_settings.value.forEach(item2 => {
-            if( item.field_name === item2.field_name || item.alias_name === item2.field_name ){
-              item.query_alias = item2.query_alias
-            }
-          })
-        })
-        tableField.value = res?.data?.etl_fields.filter(item => !item.is_built_in && !item.is_delete);
+        const etlFields = res?.data?.etl_fields || [];
+        etlFields.forEach(field => {
+          const matchingAlias = alias_settings.value.find(alias =>
+            field.field_name === alias.field_name || field.alias_name === alias.field_name
+          );
+          if (matchingAlias) {
+            field.query_alias = matchingAlias.query_alias;
+          }
+        });
+        tableField.value = etlFields.filter(item => !item.is_built_in && !item.is_delete);
         formData.value.etl_params.retain_original_text = res?.data?.etl_params.retain_original_text;
       });
     sliderLoading.value = false;
@@ -535,6 +537,7 @@
         Promise.all(promises).then(
           async () => {
             confirmLoading.value = true;
+            sliderLoading.value = true;
             const originfieldTableData = originfieldTable.value.getData();
             const indexfieldTableData = indexfieldTable.value.getAllData().filter(item=> item.query_alias)
             const data = {
@@ -576,9 +579,13 @@
                     isEdit.value = false;
                   });
                 }
+                //请求成功后刷新页面
+                location.reload();
+                // store.dispatch('requestIndexSetFieldInfo',)
               })
               .finally(() => {
                 confirmLoading.value = false;
+                sliderLoading.value = false;
               });
           },
           validator => {
@@ -623,6 +630,7 @@
 
   .field-slider-content {
     min-height: 394px;
+    max-height: calc(-119px + 100vh);
     overflow-y: auto;
 
     .add-collection-title {
@@ -706,7 +714,9 @@
     }
 
     .submit-container {
-      padding: 16px 36px 36px;
+      position: fixed;
+      bottom: 0;
+      padding: 16px 36px 16px;
     }
   }
 </style>

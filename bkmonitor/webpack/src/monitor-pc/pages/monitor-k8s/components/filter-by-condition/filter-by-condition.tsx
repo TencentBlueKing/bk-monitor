@@ -31,7 +31,7 @@ import { debounce, throttle } from 'throttle-debounce';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { EDimensionKey, type ICommonParams } from '../../typings/k8s-new';
-import KvTag from './kv-tag';
+import KvTag from './big-kv-tag';
 import {
   type IGroupOptionsItem,
   type ITagListItem,
@@ -113,11 +113,17 @@ export default class FilterByCondition extends tsc<IProps> {
       return;
     }
     this.loading = true;
+    const filterDict = {};
+    for (const key in this.filterBy) {
+      if (this.filterBy[key]?.length) {
+        filterDict[key] = JSON.parse(JSON.stringify(this.filterBy[key]));
+      }
+    }
     this.filterByOptions = new FilterByOptions({
       ...this.commonParams,
       page_size: 10,
       page_type: 'scrolling',
-      filter_dict: {},
+      filter_dict: filterDict,
       with_history: false,
       query_string: this.searchValue,
     });
@@ -195,6 +201,9 @@ export default class FilterByCondition extends tsc<IProps> {
         filterDict[item.key] = item.value;
       }
       this.$emit('change', filterDict);
+      this.filterByOptions.setCommonParams({
+        filter_dict: filterDict,
+      });
     }
     this.oldLocalFilterBy = JSON.parse(JSON.stringify(filterBy));
   }
@@ -296,6 +305,7 @@ export default class FilterByCondition extends tsc<IProps> {
       onHidden: () => {
         this.destroyPopoverInstance();
         this.setTagList();
+        this.filterByOptions.setIsUpdate(false);
         this.updateActive = '';
         this.addValueSelected = new Map();
         this.workloadValueSelected = '';
@@ -490,12 +500,14 @@ export default class FilterByCondition extends tsc<IProps> {
                 // name: item.name,
                 name: item.id,
               }));
-              values.unshift(
-                ...otherIds.map(id => ({
-                  id: id,
-                  name: id,
-                }))
-              );
+              if (this.groupSelected !== EDimensionKey.workload) {
+                values.unshift(
+                  ...otherIds.map(id => ({
+                    id: id,
+                    name: id,
+                  }))
+                );
+              }
               tag.values = values;
               break;
             }
@@ -529,6 +541,7 @@ export default class FilterByCondition extends tsc<IProps> {
   async handleAddTag(event: MouseEvent) {
     this.searchValue = '';
     this.setGroupOptions();
+    this.setCountData();
     this.handleAdd(event);
     this.handleSearchChange('');
   }
@@ -538,13 +551,16 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param item
    */
   async handleUpdateTag(target: any, item: ITagListItem) {
+    this.searchValue = '';
     this.updateActive = item.key;
     if (item.id === EDimensionKey.workload) {
       this.workloadValueSelected = item.values?.[0]?.id || '';
     } else {
       this.addValueSelected.set(item.id, new Set(item.values.map(v => v.id)));
     }
+    this.filterByOptions.setIsUpdate(true);
     this.setGroupOptions();
+    this.setCountData();
     this.handleAdd({ target } as any);
     this.handleSearchChange('');
   }
@@ -768,6 +784,32 @@ export default class FilterByCondition extends tsc<IProps> {
     }
   }
 
+  /**
+   * @description 清空当前选中项
+   */
+  handleClear() {
+    this.destroyPopoverInstance();
+    this.tagList = [];
+    this.updateActive = '';
+    this.groupSelected = '';
+    this.handleChange();
+    this.overflowCountRender();
+  }
+
+  /**
+   * @description 更新每个维度统计数据
+   */
+  setCountData() {
+    const dimensions = this.groupOptions.map(item => item.id).filter(id => id !== this.groupSelected);
+    this.filterByOptions.getCountData(dimensions as EDimensionKey[], this.searchValue, v => {
+      for (const item of this.groupOptions) {
+        const count = v.get(item.id as EDimensionKey);
+        if (typeof count === 'number') {
+          item.count = count;
+        }
+      }
+    });
+  }
   valuesWrap() {
     return (
       <div
@@ -886,7 +928,7 @@ export default class FilterByCondition extends tsc<IProps> {
       ) : this.hasAdd ? (
         <span
           key='__add__'
-          class='filter-by-condition-tag type-add'
+          class={['filter-by-condition-tag type-add', { 'mt-9': !this.tagList.length }]}
           onClick={this.handleAddTag}
         >
           <span class='icon-monitor icon-plus-line' />
@@ -901,6 +943,18 @@ export default class FilterByCondition extends tsc<IProps> {
           <span class='count-text'>{this.$t('收起')}</span>
           <span class='icon-monitor icon-arrow-up' />
         </span>
+      ),
+      !!this.tagList.length && (
+        <div
+          class='filter-by-condition-tag clear-btn'
+          v-bk-tooltips={{
+            content: this.$t('清空过滤条件'),
+            delay: [300, 0],
+          }}
+          onClick={() => this.handleClear()}
+        >
+          <span class='icon-monitor icon-a-Clearqingkong' />
+        </div>
       ),
     ];
   }

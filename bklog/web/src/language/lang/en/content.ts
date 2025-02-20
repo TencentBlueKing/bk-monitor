@@ -1009,6 +1009,10 @@ export default {
   复制当前查询: 'Copy the current query',
   清理当前查询: 'Clean up the current query',
   收藏当前查询: 'Add current query to favorites',
+  该设置可以将采集设备的元数据信息补充至日志中:'The setting can augment the metadata information of the collection device into the log',
   "检测到字段名称包含异常值，只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾。请重命名，命名后原字段将被覆盖；": 'The field name contains invalid characters. It can only include a-z, A-Z, 0-9, and _, and it cannot start or end with _. Please rename it; the original field will be overwritten after renaming',
   "检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖": 'The field name conflicts with a system built-in name. Please rename it; the original field will be overwritten after renaming',
+  "可通过正则语法排除符合条件的匹配项": 'Can exclude matching items that meet the conditions through regular expression syntax. Reference: ',
+  "正则语法说明": 'expression syntax description',
+  "。如：匹配任意字符：.*":'For example: Match any character: .*',
 };

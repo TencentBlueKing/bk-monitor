@@ -4,22 +4,18 @@
   display: flex;
   flex-wrap: wrap;
   height: calc(100% - 36px);
-  padding: 24px;
+  padding-bottom: 4px;
   background-color: #fff;
-  border-radius: 8px;
+  border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
+  justify-content: space-between;
   .category {
     box-sizing: box-sizing;
-    padding: 0 8px 0 8px;
-
+    padding: 8px 12px 8px 12px;
     .sub-head {
       display: flex;
       justify-content: space-between;
       margin-bottom: 8px;
-      .head {
-        padding-left: 8px;
-      }
       .recent-subtitle {
         font-family: MicrosoftYaHei-Bold;
         font-size: 14px;
@@ -61,19 +57,18 @@
     }
 
     .recent-list {
-      height: 180px;
-      overflow: auto;
+      height: 224px;
 
-      &-empty {
+      .recent-list-empty {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         width: 100%;
         height: 100%;
-        font-size: 14px;
+        font-size: 12px;
         text-align: center;
-
+        color: #979BA5;
+        padding-top: 30px;
         .empty-img {
           width: 220px;
           height: 100px;
@@ -88,7 +83,7 @@
       .recent-item {
         display: flex;
         justify-content: space-between;
-        padding: 8px;
+        padding: 5px 8px 7px 8px;
         color: #555;
         cursor: pointer;
         transition: color 0.3s;
@@ -106,6 +101,7 @@
           overflow: hidden;
           letter-spacing: 0;
           width: 80%;
+          @include ellipsis;
           .favorite {
             margin-right: 3px;
             font-size: 14px;
@@ -137,7 +133,7 @@
           font-family: MicrosoftYaHei;
           font-size: 12px;
           line-height: 20px;
-          color: #979BA5;
+          color: #A3B1CC;
           text-align: right;
           letter-spacing: 0;
           @include ellipsis;
@@ -159,7 +155,7 @@
       .skeleton-list {
         .skeleton-element {
           margin-bottom: 13px;
-          height: 23px;
+          height: 20px;
         }
       }
     }

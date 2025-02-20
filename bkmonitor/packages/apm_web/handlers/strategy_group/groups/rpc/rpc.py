@@ -277,7 +277,7 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                 user_group_inst, data={"duty_arranges": [{"users": current_users}]}, partial=True
             )
 
-        user_group_serializer.is_valid(True)
+        user_group_serializer.is_valid(raise_exception=True)
         return user_group_serializer.save().id
 
     def _apply_default_notice_group(self) -> int:

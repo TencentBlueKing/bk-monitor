@@ -122,7 +122,12 @@ export default defineComponent({
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed(() => indexSetQueryResult.value?.list ?? []);
 
-    const exceptionMsg = computed(() => indexSetQueryResult.value?.exception_msg || $t('检索结果为空'));
+    const exceptionMsg = computed(() => {
+      if (indexSetQueryResult.value?.exception_msg === 'Cancel') {
+        return $t('检索结果为空');
+      }
+      return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
+    });
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
 
@@ -413,7 +418,7 @@ export default defineComponent({
       if (apmRelation.value?.is_active) {
         const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.value.extra;
         const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
-        const url = `${window.__IS_MONITOR_APM__ ? location.origin : window.MONITOR_URL}${path}`;
+        const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
         window.open(url, '_blank');
       } else {
         bkMessage({

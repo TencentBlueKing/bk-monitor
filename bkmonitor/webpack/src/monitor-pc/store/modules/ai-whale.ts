@@ -156,6 +156,11 @@ class AiWhaleStore extends VuexModule {
     this.chatHelper = chatHelper;
   }
 
+  @Mutation
+  stopChatHelper() {
+    this.chatHelper.stop(this.chartId);
+  }
+
   // Mutation: 设置默认消息
   @Mutation
   setDefaultMessage() {

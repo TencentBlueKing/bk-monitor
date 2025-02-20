@@ -24,8 +24,11 @@ from apm.resources import (
     OperateApmDataIdResource,
     QueryAppByHostInstanceResource,
     QueryAppByTraceResource,
+    QueryBkDataTokenInfoResource,
     QueryBuiltinProfileDatasourceResource,
     QueryDiscoverRulesResource,
+    QueryEbpfProfileResource,
+    QueryEbpfServiceListResource,
     QueryEndpointResource,
     QueryEsMappingResource,
     QueryEsResource,
@@ -76,6 +79,7 @@ class ApplicationViewSet(ResourceViewSet):
         ResourceRoute("POST", ApplyDatasourceResource, endpoint="apply_datasource"),
         ResourceRoute("GET", ListApplicationResources, endpoint="list_application"),
         ResourceRoute("GET", ApplicationInfoResource, endpoint="detail_application"),
+        ResourceRoute("GET", QueryBkDataTokenInfoResource, endpoint="query_bk_data_token_info"),
         ResourceRoute("GET", StopApplicationResource, endpoint="stop_application"),
         ResourceRoute("GET", StopApplicationSimpleResource, endpoint="stop_application_simple"),
         ResourceRoute("GET", StartApplicationResource, endpoint="start_application"),
@@ -126,4 +130,6 @@ class ProfilingViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", QueryBuiltinProfileDatasourceResource, endpoint="builtin_profile_datasource"),
         ResourceRoute("GET", QueryProfileServiceDetailResource, endpoint="services_detail"),
+        ResourceRoute("POST", QueryEbpfServiceListResource, endpoint="ebpf_service_list"),
+        ResourceRoute("POST", QueryEbpfProfileResource, endpoint="ebpf_profile"),
     ]

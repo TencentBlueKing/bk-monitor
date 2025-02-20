@@ -160,28 +160,12 @@
   });
 </script>
 <template>
-  <div
-    class="search-sql-query"
-    @click="handleEditorClick"
-  >
-    <div
-      ref="refEditorParent"
-      class="search-sql-editor"
-    ></div>
-    <span
-      class="empty-placeholder-text"
-      v-show="isEmptySqlString"
-      >{{ placeholderText }}</span
-    >
+  <div class="search-sql-query" @click="handleEditorClick">
+    <div ref="refEditorParent" class="search-sql-editor"></div>
+    <span class="empty-placeholder-text" v-show="isEmptySqlString">{{ placeholderText }}</span>
     <div style="display: none">
-      <SqlQueryOptions
-        ref="refSqlQueryOption"
-        :value="modelValue"
-        @active-change="handleSqlParamsActiveChange"
-        @cancel="handleCancel"
-        @change="handleQueryChange"
-        @retrieve="closeAndRetrieve"
-      ></SqlQueryOptions>
+      <SqlQueryOptions ref="refSqlQueryOption" :value="modelValue" @active-change="handleSqlParamsActiveChange"
+        @cancel="handleCancel" @change="handleQueryChange" @retrieve="closeAndRetrieve"></SqlQueryOptions>
     </div>
   </div>
 </template>
@@ -219,6 +203,10 @@
           font-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
           font-size: 12px;
 
+          .cm-line {
+            width: fit-content;
+          }
+
           .cm-gutters {
             display: none;
 
@@ -243,7 +231,7 @@
 </style>
 <style lang="scss">
   [data-tippy-root] .tippy-box {
-    &[data-theme='log-light'] {
+    &[data-theme^='log-light'] {
       color: #63656e;
       background-color: #fff;
       box-shadow: 0 2px 6px 0 #0000001a;

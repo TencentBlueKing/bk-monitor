@@ -154,6 +154,7 @@ class ListApplicationServicesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField()
+        is_get_ebpf = serializers.BooleanField(required=False, default=False)
 
     @classmethod
     def batch_query_profile_services_detail(cls, validated_data):
@@ -201,7 +202,11 @@ class ListApplicationServicesResource(Resource):
                         "services": [],
                     }
                 )
-
+        if data.get("is_get_ebpf", False):
+            deepflow_data = api.apm_api.query_ebpf_service_list(bk_biz_id=data["bk_biz_id"])
+            # 查询 deepflow 集群和 service 装载入结果
+            # 其他 ebpf 数据源数据 可横向拓展
+            apps.extend(deepflow_data)
         return {
             "normal": apps,
             "no_data": nodata_apps,

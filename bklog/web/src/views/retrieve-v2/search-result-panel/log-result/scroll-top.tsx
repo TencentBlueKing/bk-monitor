@@ -38,7 +38,9 @@ export default defineComponent({
     const offsetTop = ref(0);
 
     useScroll(GLOBAL_SCROLL_SELECTOR, event => {
-      offsetTop.value = (event.target as HTMLElement).scrollTop;
+      if (event.target) {
+        offsetTop.value = (event.target as HTMLElement).scrollTop;
+      }
     });
 
     const showBox = computed(() => offsetTop.value > 1000);

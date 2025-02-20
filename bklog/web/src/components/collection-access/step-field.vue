@@ -1211,7 +1211,10 @@
         return this.$store.state.isEnLanguage ? this.enLabelWidth : 125;
       },
       renderFieldNameList() {
-        return this.fieldNameList.filter(item => item.field_name);
+        return this.fieldNameList.filter((item,index) => {
+          item.field_index = index
+          return item.field_name && !item.is_built_in
+        });
       },
     },
     watch: {
@@ -1545,19 +1548,21 @@
           // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
-          if(!this.builtFieldShow){
-            this.copyBuiltField.forEach(field => {
+          // 添加内置字段
+          if(!this.builtFieldShow){                                
+            const copyBuiltField = deepClone(this.copyBuiltField);                  
+            copyBuiltField.forEach(field => {
               if (field.hasOwnProperty('expand')) {
                 if (field.expand === false) {
-                  this.copyBuiltField.push(...field.children)
+                  copyBuiltField.push(...field.children)
                 } 
               }
             })
-            data.etl_fields.push(...this.copyBuiltField)
+            data.etl_fields.push(...copyBuiltField)
+          }else{
+            delete data.etl_params['separator_regexp'];
+            delete data.etl_params['separator'];
           }
-         
-          delete data.etl_params['separator_regexp'];
-          delete data.etl_params['separator'];
         }
         data.alias_settings = fieldTableData.filter(item => item.query_alias).map(item => {
           return {
@@ -1596,7 +1601,6 @@
           requestUrl = this.isEditTemp ? 'clean/updateTemplate' : 'clean/createTemplate';
         }
         const updateData = { params: urlParams, data };
-
         this.$http
           .request(requestUrl, updateData)
           .then(res => {
@@ -2594,7 +2598,8 @@
           return
         }
         const typeConversion= {
-          keyword : 'string'
+          keyword: 'string',
+          long: 'string'
         }
         try {
           const res = await this.$http.request('retrieve/getLogTableHead', {
@@ -2607,6 +2612,7 @@
             let name = item.field_name.split('.')[0]
             item.field_type = typeConversion[item.field_type]
             item.is_objectKey = true
+            item.is_delete = false
             this.copyBuiltField.forEach( builtField => {
               if(builtField.field_type === "object" && name.includes(builtField.field_name)){
                 if (!Array.isArray(builtField.children)) {

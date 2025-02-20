@@ -43,8 +43,7 @@ import {
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 
 import { generateFormatterFunc, handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import loadingChartSrc from '../../../../static/images/png/new-page/loadingChart.png';
-import { handleYAxisLabelFormatter, EStatusType, EAlertLevel } from '../utils';
+import { handleYAxisLabelFormatter, EStatusType, EAlertLevel, DEFAULT_SEVERITY_LIST } from '../utils';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
 import type { IAlarmGraphConfig } from '../type';
@@ -56,9 +55,11 @@ interface IHomeAlarmChartProps {
   config: IAlarmGraphConfig;
   timeRange: TimeRangeType;
   currentActiveId: number;
+  severityProp?: Array<string>;
 }
 interface IHomeAlarmChartEvents {
   onMenuClick: any;
+  onSeverityChange: any;
 }
 
 const handleSetTooltip = params => {
@@ -92,6 +93,7 @@ class HomeAlarmChart extends Mixins<
   @Prop({ default: () => ({}) }) config: IAlarmGraphConfig;
   @Prop() currentActiveId: number;
   @Prop({ default: () => ['', ''] }) timeRange: TimeRangeType;
+  @Prop({ default: () => DEFAULT_SEVERITY_LIST }) severityProp;
   @Ref('menuPopover') menuPopoverRef: HTMLDivElement;
   // 高度
   height = 100;
@@ -102,8 +104,8 @@ class HomeAlarmChart extends Mixins<
   cancelTokens = [];
   emptyText = window.i18n.tc('暂无数据');
   minBase = 0;
-  colorList = ['#F8B4B4', '#A1E3BA', '#C4C6CC'];
-  searchList = [
+  colorList = ['#F59789', '#6FC5BF', '#DCDEE5'];
+  severityList = [
     {
       name: 'FATAL',
       display_name: window.i18n.tc('致命'),
@@ -137,7 +139,7 @@ class HomeAlarmChart extends Mixins<
       id: 'delete',
     },
   ];
-  searchValue = ['FATAL', 'WARNING', 'INFO'];
+  severityValue = DEFAULT_SEVERITY_LIST;
   options = {};
   chartOption = {
     color: this.colorList,
@@ -162,6 +164,7 @@ class HomeAlarmChart extends Mixins<
     },
     yAxis: {
       type: 'value',
+      minInterval: 1,
       splitLine: {
         show: true,
         lineStyle: {
@@ -177,6 +180,10 @@ class HomeAlarmChart extends Mixins<
 
   formatterFunc = null; // x轴格式化函数
 
+  created() {
+    this.severityValue = this.severityProp.slice();
+  }
+
   /** 更多操作 */
   @Emit('menuClick')
   handleMenuClick(item) {
@@ -185,8 +192,11 @@ class HomeAlarmChart extends Mixins<
   }
 
   // 告警等级切换
-  changeSelect() {
+  @Emit('severityChange')
+  @Debounce(100)
+  changeSelect(val) {
     this.getPanelData();
+    return val;
   }
 
   @Watch('timeRange')
@@ -219,8 +229,8 @@ class HomeAlarmChart extends Mixins<
       const [start, end] = handleTransformToTimestamp(this.timeRange);
       const conditions = [{ key: 'strategy_id', value: this.config.strategy_ids || [] }];
       // 下拉切换告警级别筛选
-      if (this.searchValue.length !== this.searchList.length) {
-        conditions.push({ key: 'severity', value: this.searchValue.map(val => EAlertLevel[val]) });
+      if (this.severityValue.length !== this.severityList.length) {
+        conditions.push({ key: 'severity', value: this.severityValue.map(val => EAlertLevel[val]) });
       }
       const { series } = await alertDateHistogram(
         {
@@ -328,17 +338,17 @@ class HomeAlarmChart extends Mixins<
           </span>
           <bk-select
             class='chart-header-select'
-            v-model={this.searchValue}
+            v-model={this.severityValue}
             behavior='simplicity'
             clearable={false}
             multiple
             on-Change={this.changeSelect}
           >
-            {this.searchList.map(item => (
+            {this.severityList.map(item => (
               <bk-option
                 id={item.name}
                 key={item.name}
-                disabled={this.searchValue.length === 1 && this.searchValue.includes(item.name)}
+                disabled={this.severityValue.length === 1 && this.severityValue.includes(item.name)}
                 name={item.display_name}
               />
             ))}
@@ -386,18 +396,21 @@ class HomeAlarmChart extends Mixins<
                     ref='baseChart'
                     width={this.width}
                     height={this.height}
+                    needZrClick={true}
                     options={this.options}
+                    onZrClick={item =>
+                      this.handleMenuClick({
+                        name: window.i18n.tc('查看详情'),
+                        checked: false,
+                        id: 'detail',
+                        xAxis: item.xAxis,
+                      })
+                    }
                   />
                 )
               ) : (
                 <div class='loading-chart'>
-                  <div class='loading-img'>
-                    <img
-                      alt=''
-                      src={loadingChartSrc}
-                    />
-                  </div>
-                  <span class='loading-text'>加载中…</span>
+                  <div class='loading-img' />
                 </div>
               )}
             </div>

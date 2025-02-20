@@ -295,6 +295,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                     view_config = cls._replace_variable(view_config, "${app_name}", app_name)
                     view_config = cls._replace_variable(view_config, "${service_name}", service_name)
                     view_config = cls._replace_variable(view_config, "${span_id}", span_id)
+                    # trace检索处将图表的维度全部改为显示在下方 而不是右边
+                    for i in view_config.get("overview_panels", []):
+                        for j in i.get("panels", []):
+                            j.update({"options": {"legend": {"placement": "bottom", "displayMode": "list"}}})
+
                     return view_config
 
                 return cls._get_non_host_view_config(builtin_view, params)
@@ -433,10 +438,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
             view_variables = {}
             if not view_switches.get("only_dimension", False):
+                server_config: Dict[str, Any] = MetricTemporality.get_metric_config(MetricTemporality.DELTA)
                 discover_result: Dict[str, Union[Dict[str, Any], List[str]]] = discover_caller_callee(
                     bk_biz_id, app_name, result_table_id, params["service_name"]
                 )
-                server_config: Dict[str, Any] = discover_result["server_config"]
+                if discover_result["exists"]:
+                    server_config = discover_result["server_config"]
 
                 if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                     # 指标为累加类型，需要添加 increase 函数
