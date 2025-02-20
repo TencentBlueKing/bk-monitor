@@ -248,8 +248,8 @@
   .filter-select-wrap {
     display: flex;
     align-items: center;
-    min-width: 250px;
-    max-width: 600px;
+    min-width: 120px;
+    max-width: 560px;
     margin: 4px 0;
     margin-right: 8px;
     border: 1px solid #dbdde1;
@@ -260,7 +260,7 @@
     }
 
     .title {
-      max-width: 125px;
+      max-width: 120px;
       margin-left: 8px;
       overflow: hidden;
       font-size: 12px;
@@ -284,6 +284,18 @@
     .value-select {
       min-width: 200px;
       max-width: 460px;
+
+      :deep(.bk-select-dropdown .bk-select-tag-container) {
+        .bk-select-tag {
+          &.width-limit-tag {
+            max-width: 200px;
+
+            > span {
+              max-width: 180px;
+            }
+          }
+        }
+      }
 
       &.bk-select {
         border: none;

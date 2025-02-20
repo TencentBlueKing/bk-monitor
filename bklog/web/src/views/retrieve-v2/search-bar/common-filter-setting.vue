@@ -43,6 +43,7 @@
                 class="select-item"
                 :key="item.field_name"
                 @click="addField(item)"
+                v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
               >
                 <span
                   :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
@@ -81,6 +82,7 @@
                   v-for="(item, index) in shadowVisible"
                   class="select-item"
                   :key="item.field_name"
+                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                 >
                   <span class="icon bklog-icon bklog-drag-dots"></span>
                   <span
