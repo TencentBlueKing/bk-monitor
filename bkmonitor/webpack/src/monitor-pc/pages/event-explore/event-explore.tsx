@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, ProvideReactive, Ref } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { eventViewConfig } from 'monitor-api/modules/data_explorer';
@@ -34,6 +34,7 @@ import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter'
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import DimensionFilterPanel from './components/dimension-filter-panel';
+import EventExploreView from './components/event-explore-view';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
@@ -77,6 +78,26 @@ export default class EventRetrievalNew extends tsc<object> {
 
   fieldList = [];
 
+  /** 公共参数 */
+  get commonParams() {
+    const { result_table_id: table, ...configs } = this.formData;
+    return {
+      query_configs: [
+        {
+          ...configs,
+          table,
+        },
+      ],
+      start_time: this.formatTimeRange[0],
+      end_time: this.formatTimeRange[1],
+    };
+  }
+
+  @Provide('handleTimeRangeChange')
+  handleTimeRangeChange(timeRange: TimeRangeType) {
+    this.timeRange = timeRange;
+  }
+
   handleDataIdChange(dataId: string) {
     this.formData.result_table_id = dataId;
   }
@@ -100,10 +121,6 @@ export default class EventRetrievalNew extends tsc<object> {
         this.handleImmediateRefresh();
       }, value);
     }
-  }
-
-  handleTimeRangeChange(timeRange: TimeRangeType) {
-    this.timeRange = timeRange;
   }
 
   handleTimezoneChange(timezone: string) {
@@ -177,7 +194,9 @@ export default class EventRetrievalNew extends tsc<object> {
                   onClose={this.handleCloseDimensionPanel}
                 />
               </div>
-              <div class='result-content-panel' />
+              <div class='result-content-panel'>
+                <EventExploreView commonParams={this.commonParams} />
+              </div>
             </EventRetrievalLayout>
           </div>
         </div>
