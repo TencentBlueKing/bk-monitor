@@ -6,6 +6,10 @@
   overflow: auto;
   background: #fff;
 
+  &.is-loading {
+    min-height: 40px;
+  }
+
   .list-item {
     display: flex;
     align-items: center;
