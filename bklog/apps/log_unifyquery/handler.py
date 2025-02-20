@@ -567,6 +567,8 @@ class UnifyQueryHandler(object):
         return bucket_data
 
     def _init_sort(self) -> list:
+        if self.only_for_agg:
+            return []
         index_set_id = self.search_params.get("index_set_ids", [])[0]
         # 获取用户对sort的排序需求
         sort_list: List = self.search_params.get("sort_list", [])
