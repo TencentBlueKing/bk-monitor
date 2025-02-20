@@ -602,7 +602,10 @@ class SDKPreDetectMixin(object):
                     self._local_pre_detect_results[output_data["__index__"]] = output_data
             except Exception as e:
                 # 统计检测异常的策略
-                error_counter[e.data["code"]] += 1
+                if isinstance(getattr(e, "data", None), dict) and "code" in e.data:
+                    error_counter[e.data["code"]] += 1
+                else:
+                    error_counter[e.__class__.__name__] += 1
                 logger.warning(f"Predict error: {e}")
 
         metrics.AIOPS_PRE_DETECT_LATENCY.labels(**base_labels).set(time.time() - start_time)

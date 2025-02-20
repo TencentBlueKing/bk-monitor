@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import time
+from collections import Counter
 from typing import Dict, List
 
 from django.conf import settings
@@ -105,6 +106,7 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
                     )
 
         anomaly_results = {}
+        error_counter = Counter()
         for future in concurrent.futures.as_completed(tasks):
             try:
                 predict_result = future.result()
@@ -114,6 +116,11 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
                             anomaly_results[output_data["timestamp"]] = []
                         anomaly_results[output_data["timestamp"]].append(output_data)
             except Exception as e:
+                # 统计检测异常的策略
+                if isinstance(getattr(e, "data", None), dict) and "code" in e.data:
+                    error_counter[e.data["code"]] += 1
+                else:
+                    error_counter[e.__class__.__name__] += 1
                 logger.warning(f"Predict error: {e}")
 
         for anomaly_list in anomaly_results.values():
@@ -121,6 +128,8 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
             self._local_pre_detect_results[anomaly_list[0]["__index__"]] = anomaly_list[0]
 
         metrics.AIOPS_PRE_DETECT_LATENCY.labels(**base_labels).set(time.time() - start_time)
+        for error_code, count in error_counter.items():
+            metrics.AIOPS_DETECT_ERROR_COUNT.labels(**base_labels, error_code=error_code).set(count)
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
