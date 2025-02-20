@@ -71,6 +71,7 @@ INSTALLED_APPS += (
     "apps.esb",
     "apps.bk_log_admin",
     "apps.grafana",
+    "apps.ai_assistant",
     "bk_monitor",
     "home_application",
     "console",
@@ -111,7 +112,7 @@ MIDDLEWARE = (
     "apps.middleware.pyinstrument.ProfilerMiddleware",
     # http -> https 转换中间件
     "apps.middlewares.HttpsMiddleware",
-    "django.middleware.gzip.GZipMiddleware",
+    # "django.middleware.gzip.GZipMiddleware",
     "apps.middleware.user_middleware.BkLogMetricsBeforeMiddleware",
     # request instance provider
     "blueapps.middleware.request_provider.RequestProvider",
@@ -1233,6 +1234,9 @@ UNIFY_QUERY_DATA_SOURCE = "bklog"
 # UNIFYQUERY APIGW HOST
 UNIFYQUERY_APIGATEWAY_ROOT = os.getenv("BKAPP_UNIFYQUERY_APIGATEWAY_ROOT", "")
 
+# AIDEV
+# aidev的apigw地址
+AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
 """
 以下为框架代码 请勿修改
