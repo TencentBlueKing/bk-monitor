@@ -748,11 +748,8 @@ const store = new Vuex.Store({
       const visibleFields = 
         filterList
           .map(displayName => {
-            for (const field of state.indexFieldInfo.fields) {
-              if (field.field_name === displayName) {
-                return field;
-              }
-            }
+            const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
+            if (field) return field;
             return {
                 field_type: "object",
                 field_name: displayName,
