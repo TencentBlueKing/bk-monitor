@@ -106,12 +106,14 @@ class ChatViewSet(viewsets.GenericViewSet):
                     "index_query_kwargs": [
                         {
                             "index_name": "full_text",
-                            "index_value": "日志清洗",
-                            "knowledge_base_id": settings.AIDEV_KNOWLEDGE_BASE_IDS[0],
+                            "index_value": params["query"],
+                            "knowledge_base_id": knowledge_base_id,
                         }
+                        for knowledge_base_id in settings.AIDEV_KNOWLEDGE_BASE_IDS
                     ],
                 }
             )
+            params.pop("knowledge_base_id")
         results = api.aidev.create_knowledgebase_query(params)
 
         return results
