@@ -23,17 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ResidentSetting from './resident-setting';
 import UiSelector from './ui-selector';
-import { EMode, MODE_LIST } from './utils';
+import { EMode, type IFilterField, MODE_LIST } from './utils';
 
 import './retrieval-filter.scss';
 
+interface IProps {
+  fields: IFilterField[];
+}
+
 @Component
-export default class RetrievalFilter extends tsc<object> {
+export default class RetrievalFilter extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
   /* 当前查询模式 */
   mode = EMode.ui;
   /* 是否展开常驻设置 */
@@ -68,7 +73,7 @@ export default class RetrievalFilter extends tsc<object> {
               </div>,
             ])}
           </div>
-          <div class='filter-content'>{this.mode === EMode.ui ? <UiSelector /> : undefined}</div>
+          <div class='filter-content'>{this.mode === EMode.ui ? <UiSelector fields={this.fields} /> : undefined}</div>
           <div class='component-right'>
             {this.mode === EMode.ui && (
               <div

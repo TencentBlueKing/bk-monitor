@@ -162,7 +162,7 @@ export default class EventRetrievalNew extends tsc<object> {
             onTimezoneChange={this.handleTimezoneChange}
           />
           <div class='event-retrieval-content'>
-            <RetrievalFilter />
+            <RetrievalFilter fields={this.fieldList} />
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
               class='content-container'
