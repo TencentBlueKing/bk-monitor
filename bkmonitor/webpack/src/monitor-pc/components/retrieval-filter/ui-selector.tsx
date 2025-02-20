@@ -23,18 +23,26 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import KvTag from './kv-tag';
 import UiSelectorOptions from './ui-selector-options';
-import { ECondition, EMethod } from './utils';
+import { ECondition, EMethod, type IFilterField, EFieldType } from './utils';
 
 import './ui-selector.scss';
 
+interface IProps {
+  fields: IFilterField[];
+}
+
 @Component
-export default class UiSelector extends tsc<object> {
+export default class UiSelector extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
   @Ref('selector') selectorRef: HTMLDivElement;
+
+  showSelector = false;
+
   localValue = [
     {
       key: { id: 'key001', name: 'key001' },
@@ -104,7 +112,7 @@ export default class UiSelector extends tsc<object> {
       interactive: true,
       boundary: 'window',
       distance: 20,
-      zIndex: 9999,
+      zIndex: 9998,
       animation: 'slide-toggle',
       followCursor: false,
       onHidden: () => {
@@ -113,11 +121,13 @@ export default class UiSelector extends tsc<object> {
     });
     await this.$nextTick();
     this.popoverInstance?.show();
+    this.showSelector = true;
   }
   destroyPopoverInstance() {
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
+    this.showSelector = false;
   }
 
   handleAdd(event: MouseEvent) {
@@ -146,7 +156,18 @@ export default class UiSelector extends tsc<object> {
         ))}
         <div style='display: none;'>
           <div ref='selector'>
-            <UiSelectorOptions />
+            <UiSelectorOptions
+              fields={[
+                {
+                  type: EFieldType.all,
+                  name: '*',
+                  alias: this.$tc('全文检索'),
+                  is_option_enabled: false,
+                  supported_operations: [],
+                },
+                ...this.fields,
+              ]}
+            />
           </div>
         </div>
       </div>
