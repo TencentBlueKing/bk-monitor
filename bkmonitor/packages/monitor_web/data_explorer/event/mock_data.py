@@ -210,7 +210,10 @@ API_VIEW_CONFIG_RESPONSE = {
             "type": "date",
             # 为 true 时需要拉取候选值、启用字段分析功能
             "is_option_enabled": False,
-            "supported_operations": [{"label": "=", "operator": "eq"}, {"label": "!=", "operator": "ne"}],
+            "supported_operations": [
+                {"alias": "=", "value": "eq"},
+                {"alias": "!=", "value": "ne"},
+            ],
         },
         {
             "name": "event_name",
