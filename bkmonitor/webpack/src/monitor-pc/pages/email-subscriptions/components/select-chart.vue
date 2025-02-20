@@ -112,6 +112,12 @@
               >
                 {{ item.name }}
               </div>
+              <bk-exception
+                class="exception"
+                v-if="exceptionType"
+                scene="part"
+                :type="exceptionType"
+              />
             </div>
           </div>
           <div class="right-panel">
@@ -139,6 +145,12 @@
                 :list="rightList"
                 @valueChange="handleValueChange"
               />
+              <bk-exception
+                class="exception"
+                v-if="!rightList.length"
+                scene="part"
+                :type="chartKeyWord ? 'search-empty' : 'empty'"
+              />
             </div>
           </div>
         </div>
@@ -155,7 +167,6 @@
           </bk-button>
         </div>
         <transition-group
-          v-if="selectedList.length"
           class="selected-list-wrap"
           name="flip-list"
           tag="ul"
@@ -196,6 +207,12 @@
             >
           </li>
         </transition-group>
+        <bk-exception
+          class="exception"
+          v-if="!selectedList.length"
+          scene="part"
+          type="empty"
+        />
       </div>
     </div>
   </div>
@@ -309,6 +326,18 @@ export default class SelectChart extends Vue {
     return this.rightSelect.length >= MAX;
   }
 
+  // 内置  / 仪表盘 空数据类型
+  get exceptionType(): string {
+    // 选择使用的关键字
+    const selectedKeyWord = this.tool.active === 'grafana' ? this.grafanaKeyWord : this.defaultKeyWord;
+    // 根据条件返回异常类型
+    if (!this.leftList.length) {
+      return selectedKeyWord ? 'search-empty' : 'empty';
+    }
+    // 如果没有需要显示的异常类型，返回 null
+    return null;
+  }
+  
   @Emit('valueChange')
   handleValueChange(v?: string) {
     return v || this.selectedList;
@@ -617,6 +646,7 @@ export default class SelectChart extends Vue {
           }
 
           .left-list-wrap {
+            position: relative;
             height: calc(100% - 76px);
             overflow-y: auto;
 
@@ -643,12 +673,12 @@ export default class SelectChart extends Vue {
         .right-panel {
           flex: 1;
           height: 100%;
-          padding-left: 12px;
           border-left: 1px solid #dcdee5;
 
           .right-title {
             height: 32px;
             margin-bottom: 8px;
+            margin-left: 12px;
             font-size: 12px;
             font-weight: 700;
             line-height: 32px;
@@ -660,16 +690,17 @@ export default class SelectChart extends Vue {
           }
 
           .chart-search-input {
-            width: calc(100% - 12px);
+            width: calc(100% - 24px);
+            margin-left: 12px;
           }
 
           .right-list-wrap {
-            height: calc(100% - 82px);
+            height: calc(100% - 70px);
             overflow-y: auto;
 
             .checkbox-group-wrap {
-              height: 100%;
               padding-right: 12px;
+              margin-left: 12px;
             }
           }
         }
@@ -677,6 +708,7 @@ export default class SelectChart extends Vue {
     }
 
     .selected-chart {
+      position: relative;
       flex: 1;
       width: 240px;
       padding: 10px 12px 0;
@@ -781,6 +813,13 @@ export default class SelectChart extends Vue {
         }
       }
     }
+  }
+
+  .exception {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
   }
 }
 </style>
