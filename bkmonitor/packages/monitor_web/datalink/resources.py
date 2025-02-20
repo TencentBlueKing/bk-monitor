@@ -560,7 +560,7 @@ class TransferLatestMsgResource(BaseStatusResource):
 
             return dt.strftime("%Y-%m-%d %H:%M:%S")
 
-        def extract_timestamps(series) -> dict:
+        def extract_timestamps(series) -> list:
             """
             提取时间戳
 
@@ -568,11 +568,11 @@ class TransferLatestMsgResource(BaseStatusResource):
             """
             pattern = r'"(utctime|timestamp|@timestamp)"\s*: \s*("[^"]*"|\d{10}|\d{13})'
             matches = re.findall(pattern, json.dumps(series))
-            return {match[0]: match[1].strip('"') for match in matches}
+            logger.info(f"matche timestamps: {matches}")
+            return [match[1].strip('"') for match in matches]
 
         timestamps = extract_timestamps(series)
-        formatted_timestamps = [convert_to_string(ts) for ts in timestamps.values()]
-        return formatted_timestamps[0] if formatted_timestamps else ""
+        return convert_to_string(timestamps[0]) if timestamps else ""
 
     def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[Dict]:
         """查询一个指标的最新数据"""
