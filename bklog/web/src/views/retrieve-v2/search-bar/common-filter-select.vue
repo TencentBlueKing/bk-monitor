@@ -199,13 +199,16 @@
     </div>
   </div>
 </template>
-<style lang="scss">
+<style lang="scss" scoped>
   .filter-container-wrap {
     display: flex;
     max-height: 95px;
     padding: 0 10px 0px 10px;
     overflow: auto;
     background: #ffffff;
+    box-shadow:
+      0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
+      0 1px 0 0 #eaebf0;
 
     .filter-setting-btn {
       width: 83px;

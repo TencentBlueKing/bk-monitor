@@ -247,6 +247,7 @@
       width: 330px;
       height: 268px;
       border: 1px solid #dcdee5;
+      border-bottom: none;
 
       .text-action {
         font-size: 12px;
@@ -263,8 +264,8 @@
         line-height: 40px;
         color: #313238;
         border-bottom: 1px solid #dcdee5;
+        border-top: 1px solid #dcdee5;
         background: #fafbfd;
-        border: 1px solid #dcdee5;
 
         .bklog-info-fill {
           margin-left: 8px;
@@ -308,8 +309,6 @@
             color: #979ba5;
             text-align: left;
             cursor: move;
-            opacity: 0;
-            transition: opacity 0.2s linear;
           }
 
           &.sortable-ghost-class {
@@ -319,12 +318,6 @@
 
           &:hover {
             background: #eaf3ff;
-            transition: background 0.2s linear;
-
-            .bklog-drag-dots {
-              opacity: 1;
-              transition: opacity 0.2s linear;
-            }
           }
 
           .field-type-icon {
