@@ -1,3 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+
 API_TIME_SERIES_RESPONSE = {
     "series": [
         {
@@ -234,8 +245,8 @@ API_VIEW_CONFIG_RESPONSE = {
             "is_option_enabled": False,
             "supported_operations": [
                 # options：额外的配置，用于过滤操作增加配置项。
-                {"alias": "包含", "value": "eq", "options": {"label": "使用通配符", "name": "is_wildcard"}},
-                {"alias": "不包含", "value": "ne", "options": {"label": "使用通配符", "name": "is_wildcard"}},
+                {"alias": "包含", "value": "include", "options": {"label": "使用通配符", "name": "is_wildcard"}},
+                {"alias": "不包含", "value": "exclude", "options": {"label": "使用通配符", "name": "is_wildcard"}},
             ],
         },
         {
