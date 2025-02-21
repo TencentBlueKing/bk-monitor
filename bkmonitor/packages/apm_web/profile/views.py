@@ -408,11 +408,11 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         }
         try:
             node_data = ServiceHandler.get_node(**options)
-            service_language = node_data.get('extra_data', {}).get('service_language', '')
+            service_language = node_data.get("extra_data", {}).get("service_language", "")
             return service_language
         except Exception:
             logger.exception(f"【ProfileQueryViewSet】Failed to query service_language using the parameter {options}.")
-            return ''
+            return ""
 
     @classmethod
     def get_converter_options(cls, validate_data):

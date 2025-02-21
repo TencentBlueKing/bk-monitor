@@ -169,13 +169,7 @@ def is_func(name: str) -> bool:
 
 language_handler_mapping = {
     "python": {"handler": lambda i: {**i, "name": i["id"] if is_func(i["name"]) else i["name"]}},  # 根据 name 的类型修改 name
-    "java": {"handler": lambda i: i},
-    "php": {"handler": lambda i: i},
-    "C++": {"handler": lambda i: i},
-    "rust": {"handler": lambda i: i},
-    "javascript": {"handler": lambda i: i},
-    "go": {"handler": lambda i: i},
-    "other": {"handler": lambda i: i},
+    "default": {"handler": lambda i: i},
 }
 
 
@@ -183,6 +177,6 @@ def get_handler_by_mapping(options):
     language = options.get("service_language")
     handler = None
     if language in language_handler_mapping:
-        handler = language_handler_mapping[language]["handler"]
+        handler = language_handler_mapping.get(language, "default").get("handler")
 
     return handler
