@@ -37,11 +37,13 @@ import {
   registerNode,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Loading } from 'bkui-vue';
+import { Loading, Exception } from 'bkui-vue';
 import { incidentTopologyUpstream } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 
+import ErrorImg from '../../../static/img/error.svg';
+import NoDataImg from '../../../static/img/no-data.svg';
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
 import TopoTooltip from '../failure-topo/topo-tppltip-plugin';
@@ -97,6 +99,12 @@ export default defineComponent({
     const incidentId = useIncidentInject();
     const loading = ref<boolean>(false);
     let graph: Graph;
+    // 右侧画布数据获取检测
+    const exceptionData = ref({
+      showException: false,
+      type: '',
+      msg: '',
+    });
     /** 检测文字长度 */
     const accumulatedWidth = (text, maxWidth = 80) => {
       const context = graph.get('canvas').get('context'); // 获取canvas上下文用于测量文本
@@ -998,12 +1006,30 @@ export default defineComponent({
     /** 获取数据 */
     const getTopologyUpstream = () => {
       if (!props.entityId) {
+        exceptionData.value.showException = true;
+        exceptionData.value.type = 'noData';
+        exceptionData.value.msg = t('暂无数据');
         return;
       }
-      incidentTopologyUpstream({ id: incidentId.value, entity_id: props.entityId })
+      exceptionData.value.showException = false;
+      incidentTopologyUpstream(
+        { id: incidentId.value, entity_id: props.entityId },
+        {
+          needMessage: false,
+        }
+      )
         .then(res => {
           loading.value = true;
           const { ranks, edges } = res;
+          if (ranks.length === 0 && edges.length === 0) {
+            exceptionData.value.showException = true;
+            exceptionData.value.type = 'noData';
+            exceptionData.value.msg =
+              props.entityId.indexOf('Unknown') !== -1 ? t('第三方节点不支持查看从属') : t('暂无数据');
+          } else {
+            exceptionData.value.showException = false;
+          }
+
           const ranksMap = {};
           ranks.forEach(rank => {
             if (ranksMap[rank.rank_category.category_name]) {
@@ -1015,7 +1041,13 @@ export default defineComponent({
           graphData.value = createGraphData(ranksMap, edges);
           renderGraph();
         })
-        .catch(() => {})
+        .catch(err => {
+          if (err) {
+            exceptionData.value.showException = true;
+            exceptionData.value.type = 'error';
+            exceptionData.value.msg = err.data?.error_details ? err.data.error_details.overview : err.message;
+          }
+        })
         .finally(() => {
           setTimeout(() => {
             loading.value = false;
@@ -1414,6 +1446,28 @@ export default defineComponent({
     const handleToDetail = node => {
       emit('toDetail', node);
     };
+    const handleException = () => {
+      const { type, msg } = exceptionData.value;
+      return (
+        <Exception
+          class='exception-wrap'
+          v-slots={{
+            type: () => (
+              <img
+                class='custom-icon'
+                alt=''
+                src={type === 'noData' ? NoDataImg : ErrorImg}
+              />
+            ),
+          }}
+        >
+          <div style={{ color: type === 'noData' ? '#979BA5' : '#E04949' }}>
+            <div class='exception-title'>{type === 'noData' ? msg : t('查询异常')}</div>
+            {type === 'error' && <div class='exception-desc'>{msg}</div>}
+          </div>
+        </Exception>
+      );
+    };
     return {
       graphRef,
       tooltipsRef,
@@ -1424,21 +1478,27 @@ export default defineComponent({
       handleToDetail,
       loading,
       graph,
+      exceptionData,
+      handleException,
     };
   },
   render() {
     return (
       <div class='resource-graph'>
-        <Loading
-          class='resource-graph-loading'
-          color='#292A2B'
-          loading={this.loading}
-        >
-          <div
-            ref='graphRef'
-            class='graph-wrapper'
-          />
-        </Loading>
+        {this.exceptionData.showException ? (
+          this.handleException()
+        ) : (
+          <Loading
+            class='resource-graph-loading'
+            color='#292A2B'
+            loading={this.loading}
+          >
+            <div
+              ref='graphRef'
+              class='graph-wrapper'
+            />
+          </Loading>
+        )}
         <div style='display: none'>
           <FailureTopoTooltips
             ref='tooltipsRef'

@@ -324,15 +324,21 @@ DETECT_PROCESS_LATENCY = Histogram(
     buckets=(1, 2, 3, 5, 10, 15, 20, 30, 60, 180, 300, INF),
 )
 
-AIOPS_DETECT_FAILED_COUNT = Counter(
-    name="bkmonitor_aiops_detect_failed_count",
-    documentation="AIOPS SDK检测失败统计",
+AIOPS_DETECT_ERROR_COUNT = Gauge(
+    name="bkmonitor_aiops_detect_error_count",
+    documentation="AIOPS SDK检测异常类型统计",
     labelnames=("strategy_id", "strategy_name", "error_code"),
 )
 
 AIOPS_DETECT_DIMENSION_COUNT = Gauge(
     name="bkmonitor_aiops_detect_dimension_count",
     documentation="AIOPS SDK策略覆盖维度数量",
+    labelnames=("strategy_id", "strategy_name"),
+)
+
+AIOPS_PRE_DETECT_LATENCY = Gauge(
+    name="bkmonitor_aiops_pre_detect_latency",
+    documentation="AIOPS SDK策略预检测耗时",
     labelnames=("strategy_id", "strategy_name"),
 )
 

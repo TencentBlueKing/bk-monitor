@@ -15,6 +15,8 @@ import functools
 import inspect
 import json
 import logging
+import time
+from collections import Counter
 from typing import Dict, List
 
 from django.conf import settings
@@ -579,6 +581,7 @@ class SDKPreDetectMixin(object):
         # 统计每个策略处理的维度数量
         metrics.AIOPS_DETECT_DIMENSION_COUNT.labels(**base_labels).set(len(predict_inputs))
 
+        start_time = time.time()
         tasks = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_PREDICT_CONCURRENCY) as executor:
             for predict_input in predict_inputs.values():
@@ -591,6 +594,7 @@ class SDKPreDetectMixin(object):
                     )
                 )
 
+        error_counter = Counter()
         for future in concurrent.futures.as_completed(tasks):
             try:
                 predict_result = future.result()
@@ -598,8 +602,15 @@ class SDKPreDetectMixin(object):
                     self._local_pre_detect_results[output_data["__index__"]] = output_data
             except Exception as e:
                 # 统计检测异常的策略
-                metrics.AIOPS_DETECT_FAILED_COUNT.labels(**base_labels, error_code=e.data["code"]).inc()
+                if isinstance(getattr(e, "data", None), dict) and "code" in e.data:
+                    error_counter[e.data["code"]] += 1
+                else:
+                    error_counter[e.__class__.__name__] += 1
                 logger.warning(f"Predict error: {e}")
+
+        metrics.AIOPS_PRE_DETECT_LATENCY.labels(**base_labels).set(time.time() - start_time)
+        for error_code, count in error_counter.items():
+            metrics.AIOPS_DETECT_ERROR_COUNT.labels(**base_labels, error_code=error_code).set(count)
 
     def fetch_pre_detect_result_point(self, data_point, **kwargs) -> DataPoint:
         """从预检测结果中获取检测输入的结果

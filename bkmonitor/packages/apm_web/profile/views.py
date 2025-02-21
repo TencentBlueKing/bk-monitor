@@ -161,7 +161,9 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         # 过滤掉过期的文件 (过期文件在 bkbase 中已查不到不需要显示)
         datasource = api.apm_api.query_builtin_profile_datasource()
         last_retention = datetime.datetime.now() - datetime.timedelta(days=datasource["retention"])
-        queryset = ProfileUploadRecord.objects.filter(**filter_params, uploaded_time__gte=last_retention)
+        queryset = ProfileUploadRecord.objects.filter(**filter_params, uploaded_time__gte=last_retention).order_by(
+            "-uploaded_time"
+        )
         return Response(data=ProfileUploadRecordSLZ(queryset, many=True).data)
 
 

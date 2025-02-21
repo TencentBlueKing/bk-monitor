@@ -15,6 +15,8 @@ import concurrent.futures
 import hashlib
 import json
 import logging
+import time
+from collections import Counter
 from typing import Dict, List
 
 from django.conf import settings
@@ -27,6 +29,7 @@ from alarm_backends.service.detect.strategy import (
     SDKPreDetectMixin,
 )
 from core.drf_resource import api
+from core.prometheus import metrics
 
 logger = logging.getLogger("detect")
 
@@ -47,6 +50,7 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
         self._local_pre_detect_results = {}
 
         item = data_points[0].item
+        base_labels = {"strategy_id": item.strategy.id, "strategy_name": item.strategy.name}
         if not item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
             return
 
@@ -59,10 +63,13 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
         }
 
         predict_inputs = {}
-
-        clster_keys = self.validated_config.get("group", [])
+        dimension_set = set()
         for data_point in data_points:
-            cluster_dimensions = {cluster_key: data_point.dimensions[cluster_key] for cluster_key in clster_keys}
+            dimension_md5 = data_point.record_id.split(".")[0]
+            dimension_set.add(dimension_md5)
+            cluster_dimensions = {
+                cluster_key: data_point.dimensions[cluster_key] for cluster_key in list(cluster_fields)
+            }
             cluster_md5 = self.generate_cluster_hash(cluster_dimensions)
             timestamp = data_point.timestamp
             if cluster_md5 not in predict_inputs:
@@ -82,6 +89,10 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
                 }
             )
 
+        # 统计每个策略处理的维度数量
+        metrics.AIOPS_DETECT_DIMENSION_COUNT.labels(**base_labels).set(len(dimension_set))
+
+        start_time = time.time()
         tasks = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=settings.AIOPS_SDK_PREDICT_CONCURRENCY) as executor:
             for cluster_set in predict_inputs.values():
@@ -94,19 +105,31 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
                         )
                     )
 
-        anomaly_results = []
+        anomaly_results = {}
+        error_counter = Counter()
         for future in concurrent.futures.as_completed(tasks):
             try:
                 predict_result = future.result()
                 for output_data in predict_result:
                     if output_data["is_anomaly"]:
-                        anomaly_results.append(output_data)
+                        if output_data["timestamp"] not in anomaly_results:
+                            anomaly_results[output_data["timestamp"]] = []
+                        anomaly_results[output_data["timestamp"]].append(output_data)
             except Exception as e:
+                # 统计检测异常的策略
+                if isinstance(getattr(e, "data", None), dict) and "code" in e.data:
+                    error_counter[e.data["code"]] += 1
+                else:
+                    error_counter[e.__class__.__name__] += 1
                 logger.warning(f"Predict error: {e}")
 
-        if len(anomaly_results) > 0:
-            anomaly_results[0]["value"] = len(anomaly_results)
-            self._local_pre_detect_results[anomaly_results[0]["__index__"]] = anomaly_results[0]
+        for anomaly_list in anomaly_results.values():
+            anomaly_list[0]["value"] = len(anomaly_list)
+            self._local_pre_detect_results[anomaly_list[0]["__index__"]] = anomaly_list[0]
+
+        metrics.AIOPS_PRE_DETECT_LATENCY.labels(**base_labels).set(time.time() - start_time)
+        for error_code, count in error_counter.items():
+            metrics.AIOPS_DETECT_ERROR_COUNT.labels(**base_labels, error_code=error_code).set(count)
 
     def detect(self, data_point):
         if data_point.item.query_configs[0]["intelligent_detect"].get("use_sdk", False):
