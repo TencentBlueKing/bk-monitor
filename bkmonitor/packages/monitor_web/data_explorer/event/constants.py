@@ -8,7 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from enum import Enum
+import sys
+from enum import Enum, IntEnum
+
+from django.utils.translation import gettext_lazy as _
 
 
 class EventDimensionTypeEnum(Enum):
@@ -35,57 +38,56 @@ class EventDataLabelEnum(Enum):
 # 事件字段别名
 EVENT_FIELD_ALIAS = {
     "common": {
-        "event_name": "事件名",
-        "event.content": "事件内容",
-        "target": "目标",
-        "bk_biz_id": "业务",
-        "bk_cloud_id": "管控区域",
-        "bk_target_cloud_id": "管控区域",
-        "bk_target_ip": "IP",
-        "ip": "IP",
-        "bk_agent_id": "AgentID",
-        "domain": "事件领域",
-        "source": "事件来源",
+        "event_name": _("事件名"),
+        "event.content": _("事件内容"),
+        "target": _("目标"),
+        "bk_biz_id": _("业务"),
+        "bk_cloud_id": _("管控区域"),
+        "bk_target_cloud_id": _("管控区域"),
+        "bk_target_ip": _("IP"),
+        "ip": _("IP"),
+        "bk_agent_id": _("AgentID"),
+        "domain": _("事件领域"),
+        "source": _("事件来源"),
+        "host": _("IP"),
+        "type": _("事件类型"),
     },
     "system_event": {
-        "process": "进程",
-        "oom_memcg": "实际内存 cgroup",
-        "task_memcg": "进程所属内存 cgroup",
-        "file_system": "文件系统",
-        "fstype": "文件系统类型",
-        "disk": "磁盘",
+        "process": _("进程"),
+        "oom_memcg": _("实际内存 cgroup"),
+        "task_memcg": _("进程所属内存 cgroup"),
+        "file_system": _("文件系统"),
+        "fstype": _("文件系统类型"),
+        "disk": _("磁盘"),
     },
     "k8s_event": {
-        "bcs_cluster_id": "集群 ID",
-        "host": "IP",
-        "type": "事件类型",
-        "uid": "资源对象 Unique ID",
-        "apiVersion": "资源对象 API 版本",
-        "kind": "资源对象类型",
-        "namespace": "资源对象命名空间",
-        "name": "资源对象名称",
+        "bcs_cluster_id": _("集群 ID"),
+        "uid": _("资源对象 Unique ID"),
+        "apiVersion": _("资源对象 API 版本"),
+        "kind": _("资源对象类型"),
+        "namespace": _("资源对象命名空间"),
+        "name": _("资源对象名称"),
     },
     "cicd_event": {
-        "source": "事件来源",
-        "duration": "持续时间",
-        "start_time": "启动时间",
-        "typeti": "事件优先级",
-        "projectId": "项目 ID",
-        "pipelineId": "流水线 ID",
-        "pipelineName": "流水线名称",
-        "trigger": "任务类型",
-        "triggerUser": "任务创建用户",
-        "buildId": "任务 ID",
-        "status": "任务状态",
+        "duration": _("持续时间"),
+        "start_time": _("启动时间"),
+        "typeti": _("事件优先级"),
+        "projectId": _("项目 ID"),
+        "pipelineId": _("流水线 ID"),
+        "pipelineName": _("流水线名称"),
+        "trigger": _("任务类型"),
+        "triggerUser": _("任务创建用户"),
+        "buildId": _("任务 ID"),
+        "status": _("任务状态"),
     },
 }
 
 DISPLAY_FIELDS = [
-    {"name": "time", "alias": "数据上报时间"},
-    {"name": "type", "alias": "事件级别", "type": "attach"},
-    {"name": "event_name", "alias": "事件名"},
-    {"name": "event.content", "alias": "内容", "type": "descriptions"},
-    {"name": "target", "alias": "目标", "type": "link"},
+    {"name": "time", "alias": _("数据上报时间")},
+    {"name": "type", "alias": _("事件级别"), "type": "attach"},
+    {"name": "event_name", "alias": _("事件名")},
+    {"name": "event.content", "alias": _("内容"), "type": "descriptions"},
+    {"name": "target", "alias": _("目标"), "type": "link"},
 ]
 
 # 内置字段类型映射集
@@ -101,10 +103,10 @@ INNER_FIELD_TYPE_MAPPINGS = {
 class Operation:
     EQ = [{"alias": "=", "value": "eq"}, {"alias": "!=", "value": "ne"}]
     NE = {"alias": "!=", "value": "ne"}
-    INCLUDE = {"alias": "包含", "value": "include"}
-    EXCLUDE = {"alias": "不包含", "value": "exclude"}
-    EQ_WITH_WILDCARD = {"alias": "包含", "value": "eq", "options": {"label": "使用通配符", "name": "is_wildcard"}}
-    NE_WITH_WILDCARD = {"alias": "不包含", "value": "ne", "options": {"label": "使用通配符", "name": "is_wildcard"}}
+    INCLUDE = {"alias": _("包含"), "value": "include"}
+    EXCLUDE = {"alias": _("不包含"), "value": "exclude"}
+    EQ_WITH_WILDCARD = {"alias": _("包含"), "value": "include", "options": {"label": _("使用通配符"), "name": "is_wildcard"}}
+    NE_WITH_WILDCARD = {"alias": _("不包含"), "value": "exclude", "options": {"label": _("使用通配符"), "name": "is_wildcard"}}
 
 
 # 类型和操作符映射
@@ -121,11 +123,44 @@ ENTITIES = [
     # 注意：bcs_cluster_id 存在的情况下，host 形式是 "node-127-0-0-1"，此时跳转到旧版容器监控页面的 Node
     {
         "type": "k8s",
-        "alias": "容器",
+        "alias": _("容器"),
         "fields": ["container_id", "namespace", "bcs_cluster_id", "host"],
         # 原始数据存在这个字段，本规则才生效
         "dependent_fields": ["bcs_cluster_id"],
     },
     # 跳转到主机监控
-    {"type": "ip", "alias": "主机", "fields": ["host", "bk_target_ip", "ip", "serverip", "bk_host_id"]},
+    {"type": "ip", "alias": _("主机"), "fields": ["host", "bk_target_ip", "ip", "serverip", "bk_host_id"]},
 ]
+
+
+class EventCategory(Enum):
+    """
+    事件类别枚举
+    """
+
+    COMMON = "common"
+    SYSTEM_EVENT = "system_event"
+    K8S_EVENT = "k8s_event"
+    CICD_EVENT = "cicd_event"
+    UNKNOWN_EVENT = ""
+
+
+class CategoryWeight(IntEnum):
+    """
+    事件类别权重枚举
+    """
+
+    COMMON = 0
+    SYSTEM_EVENT = 1
+    K8S_EVENT = 2
+    CICD_EVENT = 3
+    UNKNOWN = sys.maxsize
+
+
+# 事件类别和权重映射
+CATEGORY_WEIGHTS = {
+    EventCategory.COMMON: CategoryWeight.COMMON,
+    EventCategory.SYSTEM_EVENT: CategoryWeight.SYSTEM_EVENT,
+    EventCategory.K8S_EVENT: CategoryWeight.K8S_EVENT,
+    EventCategory.CICD_EVENT: CategoryWeight.CICD_EVENT,
+}

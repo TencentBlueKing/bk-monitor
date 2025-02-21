@@ -16,12 +16,14 @@ from core.drf_resource import Resource
 
 from . import serializers
 from .constants import (
+    CATEGORY_WEIGHTS,
     DISPLAY_FIELDS,
     ENTITIES,
     EVENT_FIELD_ALIAS,
     INNER_FIELD_TYPE_MAPPINGS,
     TYPE_OPERATION_MAPPINGS,
-    EventDataLabelEnum,
+    CategoryWeight,
+    EventCategory,
     EventDimensionTypeEnum,
 )
 from .mock_data import (
@@ -66,67 +68,67 @@ class EventViewConfigResource(Resource):
 
         # 遍历查询集并聚合数据
         for dimension_metadata in dimensions_queryset:
-            dimensions = dimension_metadata['dimensions']
-            result_table_id = dimension_metadata['result_table_id']
-            result_table_label = dimension_metadata['data_label']
+            dimensions = dimension_metadata["dimensions"]
+            result_table_id = dimension_metadata["result_table_id"]
+            result_data_label = dimension_metadata.get("data_label", "")
 
             for dimension in dimensions:
-                dimension_name = dimension['id']
-                if dimension_name not in dimension_metadatas:
-                    dimension_metadatas[dimension_name] = {'result_table_ids': [], 'data_labels': []}
-                if result_table_id not in dimension_metadatas[dimension_name]['result_table_ids']:
-                    dimension_metadatas[dimension_name]['result_table_ids'].append(result_table_id)
-                if result_table_label not in dimension_metadatas[dimension_name]['data_labels']:
-                    dimension_metadatas[dimension_name]['data_labels'].append(result_table_label)
+                dimension_metadatas.setdefault(dimension["id"], {}).setdefault("result_table_ids", []).append(
+                    result_table_id
+                )
+                dimension_metadatas[dimension["id"]].setdefault("data_labels", []).append(result_data_label)
 
-        inner_fields = []
-        system_event_fields = []
-        k8s_event_fields = []
-        cicd_event_fields = []
-
-        for dimension_name, result_table_info in dimension_metadatas.items():
-            dimension_type = self.get_field_type(dimension_name)
-            dimension_alias = self.get_field_alias(dimension_name, result_table_info)
-            is_option_enabled = self.is_option_enabled(dimension_name)
-            is_dimensions = self.get_is_dimensions(dimension_name)
-            supported_operations = self.get_supported_operations(dimension_type)
-            field = {
-                "name": dimension_name,
-                "alias": dimension_alias,
-                "type": dimension_type,
-                "is_option_enabled": is_option_enabled,
-                "is_dimensions": is_dimensions,
-                "supported_operations": supported_operations,
-            }
-            if dimension_name in INNER_FIELD_TYPE_MAPPINGS:
-                inner_fields.append(field)
-            elif result_table_info["data_labels"][0] == EventDataLabelEnum.SYSTEM_EVENT.value:
-                system_event_fields.append(field)
-            elif result_table_info["data_labels"][0] == EventDataLabelEnum.K8S_EVENT.value:
-                k8s_event_fields.append(field)
-            else:
-                cicd_event_fields.append(field)
-
-        # 按照内置字段，system_event 字段，k8s_event 字段，cicd_event 字段排序
-        fields = [*inner_fields, *system_event_fields, *k8s_event_fields, *cicd_event_fields]
+        fields = self.sort_fields(dimension_metadatas)
         return {"display_fields": DISPLAY_FIELDS, "entities": ENTITIES, "field": fields}
 
     @classmethod
-    def get_field_alias(cls, field, result_table_info) -> str:
+    def sort_fields(cls, dimension_metadatas) -> List[Dict[str, Any]]:
+        fields = []
+        for name, result_table_info in dimension_metadatas.items():
+            field_type = cls.get_field_type(name)
+            alias, field_category = cls.get_field_alias(name, result_table_info)
+            is_option_enabled = cls.is_option_enabled(name)
+            is_dimensions = cls.get_is_dimensions(name)
+            supported_operations = cls.get_supported_operations(field_type)
+            field = {
+                "name": name,
+                "alias": alias,
+                "type": field_type,
+                "is_option_enabled": is_option_enabled,
+                "is_dimensions": is_dimensions,
+                "supported_operations": supported_operations,
+                "category": field_category,
+            }
+            fields.append(field)
+
+        # 使用 category_weights 对 fields 进行排序
+        fields.sort(key=lambda field: CATEGORY_WEIGHTS.get(EventCategory(field["category"]), CategoryWeight.UNKNOWN))
+
+        # 排序后除去权重字段
+        for field in fields:
+            del field["category"]
+        return fields
+
+    @classmethod
+    def get_field_alias(cls, name, result_table_info) -> tuple:
         """
         获取字段别名
         """
         # 先渲染 common
-        if EVENT_FIELD_ALIAS["common"].get(field):
-            return "{}（{}）".format(EVENT_FIELD_ALIAS["common"].get(field), field)
-        if EVENT_FIELD_ALIAS[result_table_info["data_labels"][0]].get(field):
-            return "{}（{}）".format(EVENT_FIELD_ALIAS[result_table_info["data_labels"][0]].get(field), field)
-        return field
+        if EVENT_FIELD_ALIAS["common"].get(name):
+            return "{}（{}）".format(EVENT_FIELD_ALIAS["common"].get(name), name), "common"
+
+        data_label = result_table_info["data_labels"][0]
+        # 考虑 data_label 为空时处理
+        if EVENT_FIELD_ALIAS.get(data_label, {}).get(name):
+            return "{}（{}）".format(EVENT_FIELD_ALIAS[data_label].get(name), name), data_label
+
+        return name, ""
 
     @classmethod
-    def get_is_dimensions(cls, field):
+    def get_is_dimensions(cls, name) -> bool:
         # 如果是内置字段，不需要补充 dimensions.
-        return field not in INNER_FIELD_TYPE_MAPPINGS
+        return name not in INNER_FIELD_TYPE_MAPPINGS
 
     @classmethod
     def get_field_type(cls, field) -> str:
@@ -137,12 +139,12 @@ class EventViewConfigResource(Resource):
         return INNER_FIELD_TYPE_MAPPINGS.get(field, EventDimensionTypeEnum.KEYWORD.value)
 
     @classmethod
-    def is_option_enabled(cls, dimension_type) -> bool:
-        return dimension_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
+    def is_option_enabled(cls, field_type) -> bool:
+        return field_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
 
     @classmethod
-    def get_supported_operations(cls, dimension_type) -> List[dict]:
-        return TYPE_OPERATION_MAPPINGS[dimension_type]
+    def get_supported_operations(cls, field_type) -> List[dict]:
+        return TYPE_OPERATION_MAPPINGS[field_type]
 
 
 class EventTopKResource(Resource):
