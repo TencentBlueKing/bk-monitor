@@ -8,15 +8,14 @@
 
     .event-retrieval-content {
       display: flex;
-      flex: 1;
       flex-direction: column;
       height: calc(100% - 52px);
       padding: 8px;
 
       .content-container {
         flex: 1;
+        min-height: 0;
         margin-top: 8px;
-        overflow: hidden;
         background: #ffffff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919291f;
