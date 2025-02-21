@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -7,10 +8,3 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from ai_agent.views.assistant import QAViewSet
-
-
-class ChatViewSet(QAViewSet):
-    # ai小鲸功能迁移至ai agent模块
-    def chat_v2(self, request, *args, **kwargs):
-        return self.ask(request, *args, **kwargs)
