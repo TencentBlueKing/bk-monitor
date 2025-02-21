@@ -41,3 +41,7 @@ declare module '@/hooks/*';
 declare module '@/common/*';
 declare module '@/skeleton/*';
 declare module '@/store/*';
+
+interface Window {
+  AJAX_URL_PREFIX: string;
+}
