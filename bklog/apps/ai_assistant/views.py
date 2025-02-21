@@ -40,7 +40,7 @@ class AIAssistantViewSet(APIViewSet):
         if not FeatureToggleObject.switch(name=AI_ASSISTANT):
             return Response({"error": "assistant is not configured"}, status=status.HTTP_501_NOT_IMPLEMENTED)
 
-        result = ChatHandler().interpret_log(
+        result_or_stream = ChatHandler().interpret_log(
             index_set_id=data["index_set_id"],
             log_data=data["log_data"],
             query=data["query"],
@@ -49,9 +49,9 @@ class AIAssistantViewSet(APIViewSet):
         )
 
         if data["stream"]:
-            resp = StreamingHttpResponse(result, content_type="text/event-stream; charset=utf-8")
+            resp = StreamingHttpResponse(result_or_stream, content_type="text/event-stream; charset=utf-8")
             resp.headers["Cache-Control"] = "no-cache"
             resp.headers["X-Accel-Buffering"] = "no"
         else:
-            resp = Response(result)
+            resp = Response(result_or_stream)
         return resp
