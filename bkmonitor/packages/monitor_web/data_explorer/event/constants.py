@@ -14,6 +14,39 @@ from enum import Enum, IntEnum
 from django.utils.translation import gettext_lazy as _
 
 
+class EventCategory(Enum):
+    """
+    事件类别枚举
+    """
+
+    COMMON = "common"
+    SYSTEM_EVENT = "system_event"
+    K8S_EVENT = "k8s_event"
+    CICD_EVENT = "cicd_event"
+    UNKNOWN_EVENT = ""
+
+
+class CategoryWeight(IntEnum):
+    """
+    事件类别权重枚举
+    """
+
+    COMMON = 0
+    SYSTEM_EVENT = 1
+    K8S_EVENT = 2
+    CICD_EVENT = 3
+    UNKNOWN = sys.maxsize
+
+
+# 事件类别和权重映射
+CATEGORY_WEIGHTS = {
+    EventCategory.COMMON.value: CategoryWeight.COMMON.value,
+    EventCategory.SYSTEM_EVENT.value: CategoryWeight.SYSTEM_EVENT.value,
+    EventCategory.K8S_EVENT.value: CategoryWeight.K8S_EVENT.value,
+    EventCategory.CICD_EVENT.value: CategoryWeight.CICD_EVENT.value,
+}
+
+
 class EventDimensionTypeEnum(Enum):
     """
     事件维度类型枚举
@@ -25,19 +58,9 @@ class EventDimensionTypeEnum(Enum):
     DATE: str = "date"
 
 
-class EventDataLabelEnum(Enum):
-    """
-    数据标签枚举
-    """
-
-    SYSTEM_EVENT: str = "system_event"
-    K8S_EVENT: str = "k8s_event"
-    CICD_EVENT: str = "cicd_event"
-
-
 # 事件字段别名
 EVENT_FIELD_ALIAS = {
-    "common": {
+    EventCategory.COMMON.value: {
         "event_name": _("事件名"),
         "event.content": _("事件内容"),
         "target": _("目标"),
@@ -52,7 +75,7 @@ EVENT_FIELD_ALIAS = {
         "host": _("IP"),
         "type": _("事件类型"),
     },
-    "system_event": {
+    EventCategory.SYSTEM_EVENT.value: {
         "process": _("进程"),
         "oom_memcg": _("实际内存 cgroup"),
         "task_memcg": _("进程所属内存 cgroup"),
@@ -60,7 +83,7 @@ EVENT_FIELD_ALIAS = {
         "fstype": _("文件系统类型"),
         "disk": _("磁盘"),
     },
-    "k8s_event": {
+    EventCategory.K8S_EVENT.value: {
         "bcs_cluster_id": _("集群 ID"),
         "uid": _("资源对象 Unique ID"),
         "apiVersion": _("资源对象 API 版本"),
@@ -68,7 +91,7 @@ EVENT_FIELD_ALIAS = {
         "namespace": _("资源对象命名空间"),
         "name": _("资源对象名称"),
     },
-    "cicd_event": {
+    EventCategory.CICD_EVENT.value: {
         "duration": _("持续时间"),
         "start_time": _("启动时间"),
         "projectId": _("项目 ID"),
@@ -130,36 +153,3 @@ ENTITIES = [
     # 跳转到主机监控
     {"type": "ip", "alias": _("主机"), "fields": ["host", "bk_target_ip", "ip", "serverip", "bk_host_id"]},
 ]
-
-
-class EventCategory(Enum):
-    """
-    事件类别枚举
-    """
-
-    COMMON = "common"
-    SYSTEM_EVENT = "system_event"
-    K8S_EVENT = "k8s_event"
-    CICD_EVENT = "cicd_event"
-    UNKNOWN_EVENT = ""
-
-
-class CategoryWeight(IntEnum):
-    """
-    事件类别权重枚举
-    """
-
-    COMMON = 0
-    SYSTEM_EVENT = 1
-    K8S_EVENT = 2
-    CICD_EVENT = 3
-    UNKNOWN = sys.maxsize
-
-
-# 事件类别和权重映射
-CATEGORY_WEIGHTS = {
-    EventCategory.COMMON: CategoryWeight.COMMON,
-    EventCategory.SYSTEM_EVENT: CategoryWeight.SYSTEM_EVENT,
-    EventCategory.K8S_EVENT: CategoryWeight.K8S_EVENT,
-    EventCategory.CICD_EVENT: CategoryWeight.CICD_EVENT,
-}

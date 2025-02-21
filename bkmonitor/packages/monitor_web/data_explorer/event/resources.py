@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from bkmonitor.models import MetricListCache
 from core.drf_resource import Resource
@@ -76,8 +76,8 @@ class EventViewConfigResource(Resource):
             data_label = data_labels_map.get(table_id, "")
 
             for dimension in dimensions:
-                dimension_metadata_map.setdefault(dimension["id"], {}).setdefault("table_ids", []).append(table_id)
-                dimension_metadata_map[dimension["id"]].setdefault("data_labels", []).append(data_label)
+                dimension_metadata_map.setdefault(dimension["id"], {}).setdefault("table_ids", set()).add(table_id)
+                dimension_metadata_map[dimension["id"]].setdefault("data_labels", set()).add(data_label)
 
         fields = self.sort_fields(dimension_metadata_map)
         return {"display_fields": DISPLAY_FIELDS, "entities": ENTITIES, "field": fields}
@@ -91,19 +91,22 @@ class EventViewConfigResource(Resource):
             is_option_enabled = cls.is_option_enabled(name)
             is_dimensions = cls.is_dimensions(name)
             supported_operations = cls.get_supported_operations(field_type)
-            field = {
-                "name": name,
-                "alias": alias,
-                "type": field_type,
-                "is_option_enabled": is_option_enabled,
-                "is_dimensions": is_dimensions,
-                "supported_operations": supported_operations,
-                "category": field_category,
-            }
-            fields.append(field)
+            fields.append(
+                {
+                    "name": name,
+                    "alias": alias,
+                    "type": field_type,
+                    "is_option_enabled": is_option_enabled,
+                    "is_dimensions": is_dimensions,
+                    "supported_operations": supported_operations,
+                    "category": field_category,
+                }
+            )
 
         # 使用 category_weights 对 fields 进行排序
-        fields.sort(key=lambda field: CATEGORY_WEIGHTS.get(EventCategory(field["category"]), CategoryWeight.UNKNOWN))
+        fields.sort(
+            key=lambda field: CATEGORY_WEIGHTS.get(EventCategory(field["category"]), CategoryWeight.UNKNOWN.value)
+        )
 
         # 排序后除去权重字段
         for field in fields:
@@ -111,7 +114,7 @@ class EventViewConfigResource(Resource):
         return fields
 
     @classmethod
-    def get_field_alias(cls, name, dimension_metadata) -> tuple:
+    def get_field_alias(cls, name, dimension_metadata) -> Tuple[str, str]:
         """
         获取字段别名
         """
@@ -119,7 +122,7 @@ class EventViewConfigResource(Resource):
         if EVENT_FIELD_ALIAS["common"].get(name):
             return "{}（{}）".format(EVENT_FIELD_ALIAS["common"].get(name), name), "common"
 
-        data_label = dimension_metadata["data_labels"][0]
+        data_label = list(dimension_metadata["data_labels"])[0]
         # 考虑 data_label 为空时处理
         if EVENT_FIELD_ALIAS.get(data_label, {}).get(name):
             return "{}（{}）".format(EVENT_FIELD_ALIAS[data_label].get(name), name), data_label
@@ -144,7 +147,7 @@ class EventViewConfigResource(Resource):
         return field_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
 
     @classmethod
-    def get_supported_operations(cls, field_type) -> List[dict]:
+    def get_supported_operations(cls, field_type) -> List[Dict[str, Any]]:
         return TYPE_OPERATION_MAPPINGS[field_type]
 
 
