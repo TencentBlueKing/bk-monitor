@@ -53,8 +53,12 @@ export default defineComponent({
 
     // 接收消息
     const handleReceiveMessage = (message: string, id: number | string) => {
-      const currentMessage = messages.value.at(-1);
+      if (id !== chatid) {
+        chatHelper.stop(id);
+        return;
+      }
 
+      const currentMessage = messages.value.at(-1);
       if (currentMessage.status === MessageStatus.Loading) {
         // 如果是loading状态，直接覆盖
         currentMessage.content = message;
@@ -212,6 +216,7 @@ export default defineComponent({
       isShow.value = false;
       storeMsg.value.push(...messages.value);
       messages.value = [];
+      chatid = null;
     };
 
     const setAiStart = (sendMsg = false, args: IRowSendData) => {
@@ -227,8 +232,7 @@ export default defineComponent({
 
     const handleScroll = () => {};
     const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
-      const currentMessage = messages.value.at(-1);
-      if (isShow.value && currentMessage?.status === MessageStatus.Loading) {
+      if (isShow.value && chatid) {
         handleStop();
         storeMsg.value.push(...messages.value);
         messages.value = [];
