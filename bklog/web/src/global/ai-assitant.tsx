@@ -22,14 +22,18 @@ export default defineComponent({
   setup(props, { expose }) {
     const loading = ref(false);
     const messages = ref([]);
-    const positionLimit = ref({ bottom: 100, right: 100 });
+    // const positionLimit = ref({ bottom: 100, right: 100 });
     const prompts = ref([]);
     let chatid = random(10);
     const sizeLimit = ref({
-      height: 320,
-      width: 400,
+      height: 400,
+      width: 800,
     });
-    const startPosition = ref({ top: window.innerHeight - 560, bottom: 0, left: window.innerWidth - 400, right: 0 });
+
+    const top = window.innerHeight - 700;
+    const left = window.innerWidth - 900;
+
+    const startPosition = ref({ top: top > 0 ? top : 20, bottom: 100, left: left > 0 ? left : 100, right: 40 });
     const isShow = ref(false);
     const aiFixedLinkArgs = { index: null, id: null };
 
@@ -165,10 +169,10 @@ export default defineComponent({
     };
     const handleScroll = () => {};
     const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
-      Object.assign(startPosition.value, {
-        bottom: 100,
-        right: 100,
-      });
+      // Object.assign(startPosition.value, {
+      //   bottom: 100,
+      //   right: 100,
+      // });
 
       if (isShow.value) {
         handleStop();
@@ -202,12 +206,10 @@ export default defineComponent({
         head-background='linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)'
         loading={loading.value}
         messages={messages.value}
-        position-limit={positionLimit.value}
         prompts={prompts.value}
-        size-limit={sizeLimit.value}
-        start-position={startPosition.value}
         is-show={isShow.value}
         enable-popup={false}
+        startPosition={startPosition.value}
         on-choose-prompt={handleChoosePrompt}
         on-clear={handleClear}
         on-close={handleClose}
