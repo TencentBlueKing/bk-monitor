@@ -503,4 +503,6 @@ export default {
   取消聚合: 'Cancel Aggregation',
   聚合: 'Aggregate',
   清空过滤条件: 'Clear Filter Conditions',
+  收藏夹: 'Favorites',
+  常驻筛选: 'Permanent Filter',
 };
