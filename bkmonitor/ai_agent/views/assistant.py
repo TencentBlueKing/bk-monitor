@@ -19,13 +19,13 @@ from core.drf_resource import api
 from monitor.models import GlobalConfig
 
 
-class ChatSerializer(serializers.Serializer):
+class ChatV2Serializer(serializers.Serializer):
     query = serializers.CharField(required=True, allow_blank=False)
     type = serializers.CharField(required=True, allow_blank=False)
     polish = serializers.BooleanField(required=False, default=True)
 
 
-class AssistantViewSet(viewsets.GenericViewSet):
+class QAViewSet(viewsets.GenericViewSet):
     @action(methods=['get'], detail=False, url_path='join')
     def apply_join(self, request, *args, **kwargs):
         username = request.user.username
@@ -41,7 +41,7 @@ class AssistantViewSet(viewsets.GenericViewSet):
         config.save()
         return Response({"result": "joined!"})
 
-    @action(methods=['post'], detail=False, url_path='ask')
+    @action(methods=['post'], detail=False, url_path='chat_v2')
     def ask(self, request, *args, **kwargs):
         # 如果没有配置 AIDEV 接口地址，则直接返回错误
         if not settings.AIDEV_API_BASE_URL:
@@ -49,7 +49,7 @@ class AssistantViewSet(viewsets.GenericViewSet):
         if not settings.AIDEV_KNOWLEDGE_BASE_IDS:
             return Response({'error': 'knowledge base is not configured'}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = ChatSerializer(data=request.data)
+        serializer = ChatV2Serializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -58,6 +58,20 @@ class AssistantViewSet(viewsets.GenericViewSet):
             {
                 "knowledge_base_id": settings.AIDEV_KNOWLEDGE_BASE_IDS,
                 "stream": True,
+            }
+        )
+        # 切换index_specific
+        params.update(
+            {
+                "type": "index_specific",
+                "index_query_kwargs": [
+                    {
+                        "index_name": "full_text",
+                        "index_value": params["query"],
+                        "knowledge_base_id": knowledge_base_id,
+                    }
+                    for knowledge_base_id in settings.AIDEV_KNOWLEDGE_BASE_IDS
+                ],
             }
         )
         results = api.aidev.create_knowledgebase_query(params)

@@ -11,11 +11,11 @@ specific language governing permissions and limitations under the License.
 
 from django.urls import include, re_path
 
-from ai_agent.views import assistant as assistant_views
+# from ai_agent.views import assistant as assistant_views
 from core.drf_resource.routers import ResourceRouter
 
 router = ResourceRouter()
-router.register_module(assistant_views)
+# router.register_module(assistant_views)
 
 urlpatterns = [
     re_path(r"^ai/", include(router.urls)),
