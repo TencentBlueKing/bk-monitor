@@ -1020,4 +1020,6 @@ export default {
   正则语法说明: 'expression syntax description',
   '。如：匹配任意字符：.*': 'For example: Match any character: .*',
   暂未匹配到符合条件的收藏项: 'No matching favorites have been found yet',
+  '暂未设置常驻筛选，请点击左侧设置按钮':
+    'No permanent filtering has been set, please click the settings button on the left',
 };

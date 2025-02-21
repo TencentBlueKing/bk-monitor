@@ -94,16 +94,19 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 40px;
-            height: 40px;
+            width: 24px;
+            height: 24px;
             font-size: 18px;
             color: #63656e;
             cursor: pointer;
             border-radius: 2px;
 
-            &:hover,
-            &.is-focused {
+            &:hover {
               background: #eaebf0;
+            }
+            &.is-focused {
+              background: #e1ecff;
+              color: #3a84ff;
             }
 
             .bklog-star-line {

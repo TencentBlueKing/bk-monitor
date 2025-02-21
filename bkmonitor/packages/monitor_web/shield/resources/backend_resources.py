@@ -284,7 +284,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
 
     @staticmethod
     def handle_alert(data):
-        alert_id = data["dimension_config"]["id"]
+        alert_id = data["dimension_config"]["alert_id"] or data["dimension_config"]["alert_ids"][0]
         alert = AlertDocument.get(alert_id)
 
         dimension_keys = data.get("dimension_keys")
@@ -396,7 +396,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
     """
 
     def handle_alerts(self, data):
-        alert_ids = data["dimension_config"]["alert_ids"]
+        alert_ids = data["dimension_config"]["alert_ids"] or [data["dimension_config"]["alert_id"]]
         # dimension_config.dimensions 标记告警保留需要匹配的屏蔽维度
         target_dimension_config = data["dimension_config"].get("dimensions", {})
         alerts = AlertDocument.mget(ids=alert_ids)
