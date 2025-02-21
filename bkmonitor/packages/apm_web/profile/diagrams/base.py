@@ -163,11 +163,8 @@ class ValueCalculator:
 
 
 def is_func(name: str) -> bool:
-    path_list = name.split("/")
-    if len(path_list) <= 1:
-        return True
-    else:
-        return False
+    """name包含斜杠或点说明是路径，返回True，不包含说明name是函数名，返回False"""
+    return len(name.split("/")) <= 1 or len(name.split(".")) <= 1
 
 
 language_handler_mapping = {
