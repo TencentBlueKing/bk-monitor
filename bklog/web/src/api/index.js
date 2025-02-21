@@ -80,6 +80,8 @@ axiosInstance.interceptors.request.use(
 
 /**
  * response interceptor
+ * 
+ * @returns {Object|Promise} - 如果数据是 Blob 类型，则直接返回响应对象；否则返回处理后的响应数据。
  */
 axiosInstance.interceptors.response.use(
   async response => {
