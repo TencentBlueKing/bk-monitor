@@ -1913,4 +1913,7 @@ export default {
   图表: 'Chart',
   数据明细: 'Data details',
   聚合维度: 'Group by',
+
+  'UI 模式': 'UI mode',
+  语句模式: 'Statement mode',
 };
