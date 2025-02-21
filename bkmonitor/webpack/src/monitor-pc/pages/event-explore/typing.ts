@@ -53,3 +53,14 @@ export interface IDimensionField {
   is_dimensions: boolean;
   support_operations: IDimensionOperation[];
 }
+
+export interface ITopKField {
+  distinct_count: number;
+  field: string;
+  list: {
+    alias: string;
+    count: number;
+    proportions: number;
+    value: string;
+  }[];
+}
