@@ -1,7 +1,10 @@
 import { defineComponent, ref } from 'vue';
 import AIBlueking, { ChatHelper, MessageStatus, RoleType } from '@blueking/ai-blueking/vue2';
 import { random } from '../common/util';
+
 import '@blueking/ai-blueking/dist/vue2/style.css';
+import './ai-assistant.scss';
+
 interface ISendData {
   content: string; // 用户输入的内容
   cite?: string; // 引用的内容
@@ -12,8 +15,9 @@ interface IRowSendData {
   space_uid: string;
   index_set_id: string;
   log_data: unknown;
-  message: string;
+  query: string;
   index: number;
+  type: string;
   chat_context: unknown;
   'chat_context.role': RoleType;
   'chat_context.content': string;
@@ -22,20 +26,16 @@ export default defineComponent({
   setup(props, { expose }) {
     const loading = ref(false);
     const messages = ref([]);
-    // const positionLimit = ref({ bottom: 100, right: 100 });
     const prompts = ref([]);
     let chatid = random(10);
-    const sizeLimit = ref({
-      height: 400,
-      width: 800,
-    });
 
-    const top = window.innerHeight - 700;
+    const top = 100;
     const left = window.innerWidth - 900;
 
-    const startPosition = ref({ top: top > 0 ? top : 20, bottom: 100, left: left > 0 ? left : 100, right: 40 });
+    const startPosition = ref({ top, bottom: 100, left: left > 0 ? left : 100, right: 10 });
     const isShow = ref(false);
     const aiFixedLinkArgs = { index: null, id: null };
+    const cachedArgs: Partial<IRowSendData> = {};
 
     const handleStart = () => {
       loading.value = true;
@@ -93,7 +93,7 @@ export default defineComponent({
 
     const prefix = window.AJAX_URL_PREFIX || '/api/v1';
     const chatHelper = new ChatHelper(
-      `${prefix}ai_assistant/interpret_log/`,
+      `${prefix}ai_assistant/chat/`,
       handleStart,
       handleReceiveMessage,
       handleEnd,
@@ -101,15 +101,27 @@ export default defineComponent({
     );
 
     const handleChoosePrompt = prompt => {};
-    const handleClose = () => {
-      isShow.value = false;
+
+    const getFixedRow = () => {
+      return `<div data-ai="{ type: 'button', data: '[${aiFixedLinkArgs.index}, ${aiFixedLinkArgs.id}]' }" class="ai-clickable" >
+          <div class="bklog-ai-row-title">分析当前日志:</div>
+          <div class="bklog-ai-row-content">
+            ${Object.keys(cachedArgs.log_data ?? {})
+              .slice(0, 100)
+              .map(key => {
+                return `<span class="bklog-ai-cell-label">${key}:</span><span class="bklog-ai-cell-text">${JSON.stringify(cachedArgs.log_data[key])}</span>`;
+              })
+              .join('')}
+          </div>
+        </div >`;
     };
+
     // 清空消息
     const handleClear = () => {
       messages.value = [];
       messages.value.push({
         role: RoleType.User,
-        content: `<span  data-ai="{ type: 'link', data: '[${aiFixedLinkArgs.index}, ${aiFixedLinkArgs.id}]' }" class="ai-clickable" >分析当前日志...</span >`,
+        content: getFixedRow(),
         status: MessageStatus.Success,
         isFixedMsg: true,
       });
@@ -133,9 +145,12 @@ export default defineComponent({
           ? `${args.content}: ${args.cite}` // 如果有 cite，拼接 content 和 cite
           : args.content; // 否则只使用 content
 
+      const { space_uid, index_set_id } = cachedArgs;
       const streamArgs = {
-        messages: input,
+        query: input,
         chat_context: chatHistory,
+        space_uid,
+        index_set_id,
         'chat_context.role': RoleType.User,
       };
 
@@ -150,11 +165,12 @@ export default defineComponent({
       const chatHistory = [...messages.value];
       args.chat_context = chatHistory;
       args['chat_context.role'] = RoleType.User;
-      args.message = '帮我分析这条日志';
+      args.query = '帮我分析这条日志';
+      args.type = 'log_interpretation';
 
       messages.value.push({
         role: RoleType.User,
-        content: `<span  data-ai="{ type: 'link', data: '[${aiFixedLinkArgs.index}, ${aiFixedLinkArgs.id}]' }" class="ai-clickable" >分析当前日志...</span >`,
+        content: getFixedRow(),
         status: MessageStatus.Success,
         isFixedMsg: true,
       });
@@ -167,18 +183,19 @@ export default defineComponent({
     const handleStop = () => {
       chatHelper.stop(chatid);
     };
+
+    const handleClose = () => {
+      isShow.value = false;
+      handleStop();
+    };
+
     const handleScroll = () => {};
     const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
-      // Object.assign(startPosition.value, {
-      //   bottom: 100,
-      //   right: 100,
-      // });
-
       if (isShow.value) {
         handleStop();
         handleClear();
       }
-
+      Object.assign(cachedArgs, args);
       chatid = random(10);
       isShow.value = true;
       if (sendMsg) {
@@ -192,7 +209,7 @@ export default defineComponent({
     };
 
     const handleAiClick = args => {
-      console.log(args);
+      console.log('handleAiClick', args);
     };
 
     expose({
