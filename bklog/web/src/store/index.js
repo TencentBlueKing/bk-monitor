@@ -739,18 +739,49 @@ const store = new Vuex.Store({
       }
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
+    /**
+     * @desc: 用于更新可见field
+     * 根据传入的 `payload` 参数更新当前可见的字段。`payload` 可以是一个字段名称的数组，
+     * 或者是包含字段名称数组和版本信息的对象。
+     *
+     * @param {Array | Object} payload  - 可传入字段名称数组或包含字段数组以及版本信息的对象。
+     *   - 当为数组时，表示字段名称列表。
+     *   - 当为对象时，应包含以下属性：
+     *     - {Array} displayFieldNames - 字段名称数组。
+     *     - {string} version - 版本信息，包含 v2时，表示是新版本设计，目前包含了object字段层级展示的添加功能，后续如果需要区别于之前的逻辑处理，可以参照此逻辑处理
+     *
+     */
     resetVisibleFields(state, payload) {
+      const isVersion2Payload = payload?.version === 'v2';
       const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
       const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-      const filterList = (payload || displayFields) ?? state.indexFieldInfo.display_fields;
+      const filterList =
+        (isVersion2Payload ? payload.displayFieldNames : payload || displayFields) ??
+        state.indexFieldInfo.display_fields;
       const visibleFields =
         filterList
           .map(displayName => {
-            for (const field of state.indexFieldInfo.fields) {
-              if (field.field_name === displayName) {
-                return field;
-              }
+            const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
+            if (field) return field;
+            if (isVersion2Payload) {
+              return {
+                field_type: 'object',
+                field_name: displayName,
+                field_alias: '',
+                is_display: false,
+                is_editable: true,
+                tag: '',
+                origin_field: '',
+                es_doc_values: true,
+                is_analyzed: false,
+                field_operator: [],
+                is_built_in: true,
+                is_case_sensitive: false,
+                tokenize_on_chars: '',
+                description: '',
+                filterVisible: true,
+              };
             }
           })
           .filter(Boolean) ?? [];

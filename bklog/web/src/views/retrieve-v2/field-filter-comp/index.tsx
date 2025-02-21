@@ -171,15 +171,20 @@ export default class FieldFilterComp extends tsc<object> {
   addToNestedStructure(targetArray, originalObject) {
     const parts = originalObject.field_name.split('.');
     let currentLevel = targetArray; 
+    let parentFieldName = null; // 用于存储父节点的名称
     parts.forEach((part, index) => {
       let existingPart = currentLevel.find(item => item.field_name === part);
       if (!existingPart) {
         existingPart = { field_name: part, filterVisible: true, field_type: 'object' };
+        if (parentFieldName !== null) {
+          existingPart.parentFieldName = parentFieldName;
+        }
         if (index < parts.length - 1) {
           existingPart.children = [];
         }
         currentLevel.push(existingPart);
       }
+      parentFieldName = parentFieldName ? `${parentFieldName}.${part}` : part;
       if (index === parts.length - 1) {
         Object.assign(existingPart, originalObject);
       }
@@ -353,22 +358,22 @@ export default class FieldFilterComp extends tsc<object> {
   // 字段显示或隐藏
   async handleToggleItem(type: string, fieldItem) {
     const displayFieldNames = this.visibleFields.map(item => item.field_name);
-
+    // object格式单独处理
     if (fieldItem.field_type === 'object') {
-      const arr = this.convertNestedStructureToArray([fieldItem]).map(item => item.field_name);
+      const fieldName = fieldItem.parentFieldName 
+      ? `${fieldItem.parentFieldName}.${fieldItem.field_name}` 
+      : fieldItem.field_name;
+     
       if (type === 'visible') {
-        arr.forEach(fieldName => {
-          const index = displayFieldNames.findIndex(item => fieldName === item);
-          if (index !== -1) {
-            displayFieldNames.splice(index, 1);
-          }
-        });
+        // 需要隐藏字段
+        const index = this.visibleFields.findIndex(item => fieldName === item.field_name);
+        displayFieldNames.splice(index, 1);
       } else {
-        arr.forEach(fieldName => {
-          if (!displayFieldNames.includes(fieldName)) {
-            displayFieldNames.push(fieldName);
-          }
-        });
+        // 需要显示字段 如果已存在不进行操作
+        if (this.visibleFields.some(item => item.field_name === fieldName)) {
+          return;
+        }
+        displayFieldNames.push(fieldName);
       }
     }else{
       if (type === 'visible') {
@@ -531,8 +536,8 @@ export default class FieldFilterComp extends tsc<object> {
                   on-end={this.handleVisibleMoveEnd}
                 >
                   <transition-group>
-                    {this.showFields.map((item, index) => (
-                      item.children?.length ? this.bigTreeRender(item, index+'show') :
+                    {this.visibleFields.map((item, index) => (
+                      // item.children?.length ? this.bigTreeRender(item, index+'show') :
                       <FieldItem
                         key={item.field_name}
                         v-show={item.filterVisible}
@@ -544,7 +549,7 @@ export default class FieldFilterComp extends tsc<object> {
                         show-field-alias={this.showFieldAlias}
                         statistical-field-data={this.statisticalFieldsData[item.field_name]}
                         type='visible'
-                        visible-fields={this.showFields}
+                        visible-fields={this.visibleFields}
                         onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
                       />
                     ))}
