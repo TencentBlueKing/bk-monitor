@@ -77,12 +77,12 @@ class ChatHandler:
         except requests.exceptions.RequestException as e:
             raise ApiRequestError(f"aidev request error: {e}", request_id)
 
-    def interpret_log(self, index_set_id: str, log_data: dict, message: str, chat_context: list, stream=True):
+    def interpret_log(self, index_set_id: str, log_data: dict, query: str, chat_context: list, stream=True):
         """
         处理日志分析请求
         :param index_set_id: 索引集ID
         :param log_data: 日志内容
-        :param message: 当前聊天输入内容
+        :param query: 当前聊天输入内容
         :param chat_context: 上下文信息
         :param stream: 是否流式返回
         :return: 响应生成器
@@ -100,7 +100,7 @@ class ChatHandler:
         messages = [
             {"role": "system", "content": feature_conf.prompt.format(log_content=json.dumps(log_data))},
             *chat_context[-feature_conf.max_chat_context_count :],
-            {"role": "user", "content": message},
+            {"role": "user", "content": query},
         ]
 
         # 调用OpenAI接口
