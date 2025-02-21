@@ -121,6 +121,7 @@ export default {
   '共成功{0}了{1}个实例': 'A total of {0} instances were successfully {1}',
   '共{0}个指标，{1}个维度': 'A total of {0} metrics, {1} dimensions',
   '共{0}条': 'total: {0}',
+  '{0}条': 'total: {0}',
   '共成功{type}了': 'Successfully completed {type}', // 看语境
   '共 {slot0} 个维度': 'Dimensions: {slot0}  ',
   '共 {slot0} 个指标': 'Metrics: {slot0} ',
