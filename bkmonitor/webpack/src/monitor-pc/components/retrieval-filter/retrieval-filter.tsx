@@ -28,17 +28,30 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ResidentSetting from './resident-setting';
 import UiSelector from './ui-selector';
-import { EMode, type IFilterField, MODE_LIST } from './utils';
+import { EMode, type IFilterField, type IGetValueFnParams, type IWhereValueOptionsItem, MODE_LIST } from './utils';
 
 import './retrieval-filter.scss';
 
 interface IProps {
   fields: IFilterField[];
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 }
 
 @Component
 export default class RetrievalFilter extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
+  @Prop({
+    type: Function,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  })
+  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+
+  /* 展示常驻设置 */
+  showResidentSetting = false;
   /* 当前查询模式 */
   mode = EMode.ui;
   /* 是否展开常驻设置 */
@@ -73,7 +86,14 @@ export default class RetrievalFilter extends tsc<IProps> {
               </div>,
             ])}
           </div>
-          <div class='filter-content'>{this.mode === EMode.ui ? <UiSelector fields={this.fields} /> : undefined}</div>
+          <div class='filter-content'>
+            {this.mode === EMode.ui ? (
+              <UiSelector
+                fields={this.fields}
+                getValueFn={this.getValueFn}
+              />
+            ) : undefined}
+          </div>
           <div class='component-right'>
             {this.mode === EMode.ui && (
               <div
@@ -97,7 +117,7 @@ export default class RetrievalFilter extends tsc<IProps> {
             </div>
           </div>
         </div>
-        {this.residentSettingActive && <ResidentSetting />}
+        {this.residentSettingActive && <ResidentSetting fields={this.fields} />}
       </div>
     );
   }
