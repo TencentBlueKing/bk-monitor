@@ -68,7 +68,7 @@ export default class EventRetrievalLayout extends tsc<object> {
               maxWidth={this.maxWidth}
               minWidth={this.minWidth}
               startPlacement='right'
-              theme='line-round'
+              theme='simple-line-round'
               onMove={this.handleDragChange}
             />
           ) : (

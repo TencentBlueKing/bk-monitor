@@ -158,4 +158,6 @@ export default {
   // 调用分析
   维度值分布: 'Dimension value distribution',
   K8S对象: 'K8S object',
+
+  去重后的字段统计: 'Field statistics after deduplication',
 };
