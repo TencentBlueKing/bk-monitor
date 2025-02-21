@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import time
 
 import requests
 from django.conf import settings
@@ -11,6 +12,7 @@ from apps.exceptions import ApiRequestError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import AI_ASSISTANT
 from apps.utils.local import get_request_id
+from apps.utils.log import logger
 
 
 class ChatHandler:
@@ -34,6 +36,8 @@ class ChatHandler:
             "messages": messages,
             "stream": stream,
         }
+
+        start_time = time.time()
 
         try:
             with requests.post(
@@ -75,7 +79,15 @@ class ChatHandler:
                 yield "data: [DONE]\n\n"
 
         except requests.exceptions.RequestException as e:
-            raise ApiRequestError(f"aidev request error: {e}", request_id)
+            try:
+                exc_info = response.json()
+            except Exception:  # pylint: disable=broad-except
+                exc_info = response.text
+            logger.exception(f"[call_chat_completion] api error: {e} => {exc_info}")
+            raise ApiRequestError(f"aidev request error: {e}  => {exc_info}", request_id)
+
+        end_time = time.time() - start_time
+        logger.info(f"[call_chat_completion] params: {json.dumps(data)}, time taken: {end_time}s")
 
     def interpret_log(self, index_set_id: str, log_data: dict, query: str, chat_context: list, stream=True):
         """
@@ -99,7 +111,7 @@ class ChatHandler:
         # 构造消息列表
         messages = [
             {"role": "system", "content": feature_conf.prompt.format(log_content=json.dumps(log_data))},
-            *chat_context[-feature_conf.max_chat_context_count :],
+            *chat_context[-feature_conf.max_chat_context_count * 2 :],
             {"role": "user", "content": query},
         ]
 
