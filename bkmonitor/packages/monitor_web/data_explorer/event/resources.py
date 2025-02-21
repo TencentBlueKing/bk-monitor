@@ -13,6 +13,7 @@ from typing import Any, Dict, List
 
 from bkmonitor.models import MetricListCache
 from core.drf_resource import Resource
+from metadata.models import ResultTable
 
 from . import serializers
 from .constants import (
@@ -61,34 +62,34 @@ class EventViewConfigResource(Resource):
         data_sources = validated_request_data["data_sources"]
         tables = [data_source["table"] for data_source in data_sources]
         dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=tables).values(
-            "dimensions", "result_table_id", "data_label"
+            "dimensions", "result_table_id"
         )
         # 维度元数据集
-        dimension_metadatas = {}
+        data_labels_queryset = ResultTable.objects.filter(table_id__in=tables).values("table_id", "data_label")
+        data_labels_map = {item["table_id"]: item["data_label"] for item in data_labels_queryset}
+        dimension_metadata_map = {}
 
         # 遍历查询集并聚合数据
-        for dimension_metadata in dimensions_queryset:
-            dimensions = dimension_metadata["dimensions"]
-            result_table_id = dimension_metadata["result_table_id"]
-            result_data_label = dimension_metadata.get("data_label", "")
+        for dimension_entry in dimensions_queryset:
+            dimensions = dimension_entry["dimensions"]
+            table_id = dimension_entry["result_table_id"]
+            data_label = data_labels_map.get(table_id, "")
 
             for dimension in dimensions:
-                dimension_metadatas.setdefault(dimension["id"], {}).setdefault("result_table_ids", []).append(
-                    result_table_id
-                )
-                dimension_metadatas[dimension["id"]].setdefault("data_labels", []).append(result_data_label)
+                dimension_metadata_map.setdefault(dimension["id"], {}).setdefault("table_ids", []).append(table_id)
+                dimension_metadata_map[dimension["id"]].setdefault("data_labels", []).append(data_label)
 
-        fields = self.sort_fields(dimension_metadatas)
+        fields = self.sort_fields(dimension_metadata_map)
         return {"display_fields": DISPLAY_FIELDS, "entities": ENTITIES, "field": fields}
 
     @classmethod
-    def sort_fields(cls, dimension_metadatas) -> List[Dict[str, Any]]:
+    def sort_fields(cls, dimension_metadata_map) -> List[Dict[str, Any]]:
         fields = []
-        for name, result_table_info in dimension_metadatas.items():
+        for name, dimension_metadata in dimension_metadata_map.items():
             field_type = cls.get_field_type(name)
-            alias, field_category = cls.get_field_alias(name, result_table_info)
+            alias, field_category = cls.get_field_alias(name, dimension_metadata)
             is_option_enabled = cls.is_option_enabled(name)
-            is_dimensions = cls.get_is_dimensions(name)
+            is_dimensions = cls.is_dimensions(name)
             supported_operations = cls.get_supported_operations(field_type)
             field = {
                 "name": name,
@@ -110,7 +111,7 @@ class EventViewConfigResource(Resource):
         return fields
 
     @classmethod
-    def get_field_alias(cls, name, result_table_info) -> tuple:
+    def get_field_alias(cls, name, dimension_metadata) -> tuple:
         """
         获取字段别名
         """
@@ -118,7 +119,7 @@ class EventViewConfigResource(Resource):
         if EVENT_FIELD_ALIAS["common"].get(name):
             return "{}（{}）".format(EVENT_FIELD_ALIAS["common"].get(name), name), "common"
 
-        data_label = result_table_info["data_labels"][0]
+        data_label = dimension_metadata["data_labels"][0]
         # 考虑 data_label 为空时处理
         if EVENT_FIELD_ALIAS.get(data_label, {}).get(name):
             return "{}（{}）".format(EVENT_FIELD_ALIAS[data_label].get(name), name), data_label
@@ -126,7 +127,7 @@ class EventViewConfigResource(Resource):
         return name, ""
 
     @classmethod
-    def get_is_dimensions(cls, name) -> bool:
+    def is_dimensions(cls, name) -> bool:
         # 如果是内置字段，不需要补充 dimensions.
         return name not in INNER_FIELD_TYPE_MAPPINGS
 

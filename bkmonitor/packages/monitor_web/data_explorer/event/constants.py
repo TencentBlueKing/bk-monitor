@@ -71,7 +71,6 @@ EVENT_FIELD_ALIAS = {
     "cicd_event": {
         "duration": _("持续时间"),
         "start_time": _("启动时间"),
-        "typeti": _("事件优先级"),
         "projectId": _("项目 ID"),
         "pipelineId": _("流水线 ID"),
         "pipelineName": _("流水线名称"),
