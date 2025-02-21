@@ -52,3 +52,6 @@ DIRECT_ESQUERY_SEARCH = "direct_esquery_search"
 
 # 日志脱敏开关
 LOG_DESENSITIZE = "log_desensitize"
+
+# unify_query_search查询的开关
+UNIFY_QUERY_SEARCH = "unify_query_search"
