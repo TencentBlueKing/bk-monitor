@@ -130,7 +130,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
             clearable={false}
             value={this.formData.result_table_id}
             searchable
-            onChange={this.handleDataIdChange}
+            onSelected={this.handleDataIdChange}
             onToggle={this.handleDataIdToggle}
           >
             <div

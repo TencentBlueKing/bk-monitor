@@ -130,6 +130,24 @@
   }
 }
 
+.dimension-filter-panel-skeleton {
+  padding: 8px 12px;
+
+  .title {
+    height: 20px;
+  }
+
+  .search-input {
+    height: 32px;
+    margin: 8px 0;
+  }
+
+  .list-item {
+    height: 14px;
+    margin-bottom: 14px;
+  }
+}
+
 .event-retrieval-dimension-filter-theme {
   padding: 12px 16px;
   box-shadow: 0 2px 12px 0 #00000033;
@@ -210,6 +228,13 @@
         line-height: 20px;
         color: #3A84FF;
         cursor: pointer;
+      }
+    }
+
+    .skeleton-wrap {
+      .skeleton-element {
+        height: 28px;
+        margin-top: 12px;
       }
     }
   }
