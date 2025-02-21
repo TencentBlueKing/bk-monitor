@@ -93,6 +93,22 @@
             }
           }
         }
+
+        .simple-line-round-wrap {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: space-between;
+          height: 18px;
+          margin-left: -8px;
+
+          .line-round {
+            width: 2px;
+            height: 2px;
+            background-color: #979BA5;
+            border-radius: 50%;
+          }
+        }
       }
     }
 

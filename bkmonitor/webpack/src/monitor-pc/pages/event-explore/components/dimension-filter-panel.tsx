@@ -29,28 +29,33 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { eventTopK } from 'monitor-api/modules/data_explorer';
 
-import type { IDimensionField, IFormData } from '../typing';
+import EmptyStatus from '../../../components/empty-status/empty-status';
+
+import type { EmptyStatusType } from '../../../components/empty-status/types';
+import type { IDimensionField, IFormData, ITopKField } from '../typing';
 
 import './dimension-filter-panel.scss';
 
 interface DimensionFilterPanelProps {
   formData: IFormData;
   list: IDimensionField[];
+  listLoading: boolean;
 }
 
 interface DimensionFilterPanelEvents {
   onClose(): void;
+  onConditionChange(val): void;
 }
 
 @Component
 export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps, DimensionFilterPanelEvents> {
   @Prop() formData!: IFormData;
   @Prop({ default: () => [] }) list!: IDimensionField[];
+  @Prop({ default: false }) listLoading!: boolean;
 
   @Ref('dimensionPopover') dimensionPopoverRef!: HTMLDivElement;
 
   @InjectReactive('formatTimeRange') formatTimeRange;
-
   typeIconMap = {
     keyword: 'icon-string',
     text: 'icon-text',
@@ -58,21 +63,36 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     date: 'icon-mc-time',
   };
 
+  emptyStatus: EmptyStatusType = 'empty';
+
+  /** 字段列表的count统计 */
   fieldListCount = {};
 
   searchVal = '';
-
+  /** 搜索结果列表 */
+  searchResultList: IDimensionField[] = [];
+  /** 已选择的字段 */
   activeField = '';
+  popoverLoading = true;
+  /** popover实例 */
   popoverInstance = null;
+  /** 统计列表 */
+  statisticsList: ITopKField[] = [];
 
   @Watch('list')
   async handleListChange() {
+    this.searchVal = '';
+    this.emptyStatus = 'search-empty';
+    this.searchResultList = this.list;
+
+    const fields = this.list.reduce((pre, cur) => {
+      if (cur.is_option_enabled) pre.push(cur.name);
+      return pre;
+    }, []);
+    if (!fields.length) return;
     const list = await this.getFieldTopK({
       limit: 0,
-      fields: this.list.reduce((pre, cur) => {
-        if (cur.is_option_enabled) pre.push(cur.name);
-        return pre;
-      }, []),
+      fields,
     });
     this.fieldListCount = list.reduce((pre, cur) => {
       pre[cur.field] = cur.distinct_count;
@@ -80,7 +100,23 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     }, {});
   }
 
+  handleSearchValChange(val: string) {
+    this.searchVal = val;
+    this.emptyStatus = val ? 'search-empty' : 'empty';
+  }
+
+  /** 关键字搜索 */
+  handleSearch() {
+    if (!this.searchVal) {
+      this.searchResultList = this.list;
+    } else {
+      this.searchResultList = this.list.filter(item => item.name.includes(this.searchVal));
+    }
+  }
+
+  /** 维度项点击 */
   async handleDimensionItemClick(e: Event, item) {
+    this.popoverLoading = true;
     this.popoverInstance?.hide(100);
     this.popoverInstance?.destroy();
     this.popoverInstance = null;
@@ -100,12 +136,21 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
         this.activeField = '';
       },
     });
+    this.popoverInstance?.show(100);
     const list = await this.getFieldTopK({
       limit: 5,
       fields: [item.name],
     });
-    console.log(list);
-    this.popoverInstance?.show(100);
+    this.statisticsList = list;
+    this.popoverLoading = false;
+  }
+
+  @Emit('conditionChange')
+  handleConditionChange(type, item: ITopKField['list'][0]) {
+    if (type === 'eq') {
+      return { condition: 'and', key: this.activeField, method: 'eq', value: [item.value] };
+    }
+    return { condition: 'and', key: this.activeField, method: 'ne', value: [item.value] };
   }
 
   getFieldTopK(params) {
@@ -126,7 +171,25 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Emit('close')
   handleClose() {}
 
+  // 渲染骨架屏
+  renderSkeleton() {
+    return (
+      <div class='dimension-filter-panel-skeleton'>
+        <div class='skeleton-element title' />
+        <div class='skeleton-element search-input' />
+        {new Array(10).fill(null).map((item, index) => (
+          <div
+            key={index}
+            class='skeleton-element list-item'
+          />
+        ))}
+      </div>
+    );
+  }
+
   render() {
+    if (this.listLoading) return this.renderSkeleton();
+
     return (
       <div class='dimension-filter-panel-comp'>
         <div class='header'>
@@ -141,27 +204,38 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
             v-model={this.searchVal}
             placeholder={this.$t('搜索 维度字段')}
             right-icon='bk-icon icon-search'
+            on-right-icon-click={this.handleSearch}
+            onBlur={this.handleSearch}
+            onChange={this.handleSearchValChange}
+            onEnter={this.handleSearch}
           />
         </div>
 
-        <div class='dimension-list'>
-          {this.list.map(item => (
-            <div
-              key={item.name}
-              class={{ 'dimension-item': true, active: this.activeField === item.name }}
-              onClick={e => this.handleDimensionItemClick(e, item)}
-            >
-              <span class={['icon-monitor', this.typeIconMap[item.type], 'type-icon']} />
-              <span
-                class='dimension-name'
-                v-bk-overflow-tips
+        {this.searchResultList.length ? (
+          <div class='dimension-list'>
+            {this.searchResultList.map(item => (
+              <div
+                key={item.name}
+                class={{ 'dimension-item': true, active: this.activeField === item.name }}
+                onClick={e => this.handleDimensionItemClick(e, item)}
               >
-                {item.alias}
-              </span>
-              {item.is_option_enabled && <span class='dimension-count'>{this.fieldListCount[item.name] || 0}</span>}
-            </div>
-          ))}
-        </div>
+                <span class={['icon-monitor', this.typeIconMap[item.type], 'type-icon']} />
+                <span
+                  class='dimension-name'
+                  v-bk-overflow-tips
+                >
+                  {item.alias}
+                </span>
+                {item.is_option_enabled && <span class='dimension-count'>{this.fieldListCount[item.name] || 0}</span>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyStatus
+            showOperation={false}
+            type={this.emptyStatus}
+          />
+        )}
 
         <div style={{ display: 'none' }}>
           <div
@@ -173,33 +247,54 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
                 {this.activeField}
                 {this.$t('去重后的字段统计')}
               </div>
-              <div class='count'>12</div>
+              <div class='count'>{this.fieldListCount[this.activeField]}</div>
             </div>
-
-            <div class='field-list'>
-              <div class='field-item'>
-                <div class='filter-tools'>
-                  <i class='icon-monitor icon-a-sousuo' />
-                  <i class='icon-monitor icon-sousuo-' />
-                </div>
-                <div class='progress-content'>
-                  <div class='info-text'>
-                    <span class='field-name'>11.154.121.234</span>
-                    <span class='counts'>
-                      <span class='total'>13条</span>
-                      <span class='progress-count'>24%</span>
-                    </span>
-                  </div>
-                  <bk-progress
-                    color='#5AB8A8'
-                    percent={0.24}
-                    show-text={false}
-                    stroke-width={6}
+            {this.popoverLoading ? (
+              <div class='skeleton-wrap'>
+                {new Array(5).fill(null).map((_, index) => (
+                  <div
+                    key={index}
+                    class='skeleton-element'
                   />
-                </div>
+                ))}
               </div>
-              <div class='load-more'>{this.$t('更多')}</div>
-            </div>
+            ) : (
+              <div class='field-list'>
+                {this.statisticsList[0].list.map(item => (
+                  <div
+                    key={item.value}
+                    class='field-item'
+                  >
+                    <div class='filter-tools'>
+                      <i
+                        class='icon-monitor icon-a-sousuo'
+                        onClick={() => this.handleConditionChange('eq', item)}
+                      />
+                      <i
+                        class='icon-monitor icon-sousuo-'
+                        onClick={() => this.handleConditionChange('ne', item)}
+                      />
+                    </div>
+                    <div class='progress-content'>
+                      <div class='info-text'>
+                        <span class='field-name'>{item.alias}</span>
+                        <span class='counts'>
+                          <span class='total'>{this.$t('{0}条', [item.count])}</span>
+                          <span class='progress-count'>{item.proportions}%</span>
+                        </span>
+                      </div>
+                      <bk-progress
+                        color='#5AB8A8'
+                        percent={item.proportions / 100}
+                        show-text={false}
+                        stroke-width={6}
+                      />
+                    </div>
+                  </div>
+                ))}
+                {this.fieldListCount[this.activeField] > 5 && <div class='load-more'>{this.$t('更多')}</div>}
+              </div>
+            )}
           </div>
         </div>
       </div>
