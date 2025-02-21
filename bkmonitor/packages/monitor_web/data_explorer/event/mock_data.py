@@ -245,8 +245,8 @@ API_VIEW_CONFIG_RESPONSE = {
             "is_option_enabled": False,
             "supported_operations": [
                 # options：额外的配置，用于过滤操作增加配置项。
-                {"alias": "包含", "value": "eq", "options": {"label": "使用通配符", "name": "is_wildcard"}},
-                {"alias": "不包含", "value": "ne", "options": {"label": "使用通配符", "name": "is_wildcard"}},
+                {"alias": "包含", "value": "include", "options": {"label": "使用通配符", "name": "is_wildcard"}},
+                {"alias": "不包含", "value": "exclude", "options": {"label": "使用通配符", "name": "is_wildcard"}},
             ],
         },
         {
