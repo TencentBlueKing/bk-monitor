@@ -47,12 +47,11 @@ from apps.log_search.serializers import (
     ESRouterListSerializer,
     IndexSetAddTagSerializer,
     IndexSetDeleteTagSerializer,
-    UserSearchSerializer,
     UserFavoriteSerializer,
+    UserSearchSerializer,
 )
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_username
 from bkm_space.serializers import SpaceUIDField
 
 
@@ -346,11 +345,12 @@ class IndexSetViewSet(ModelViewSet):
                                     else TimeFieldUnitEnum.MILLISECOND.value,
                                 }
                             ),
-                        }, {
+                        },
+                        {
                             "name": "need_add_time",
                             "value_type": "bool",
                             "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
-                        }
+                        },
                     ],
                 }
             )
@@ -1229,3 +1229,23 @@ class IndexSetViewSet(ModelViewSet):
         """
         data = self.params_valid(UserFavoriteSerializer)
         return Response(IndexSetHandler.fetch_user_favorite_index_set(params=data))
+
+    @detail_route(methods=["GET"], url_path="memory_usage")
+    def memory_usage(self, request, index_set_id=None):
+        """
+        @api {post} /index_set/${index_set_id}/memory_usage/ 查询索引集的内存使用情况
+        @apiDescription 查询索引集的内存使用情况
+        @apiName memory_usage
+        @apiParam {String} index_set_id 索引集ID(必填)
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": {
+                "daily_usage": 2320943376,
+                "total_usage": 696462795791
+            },
+            "code": 0,
+            "message": ""
+        }
+        """
+        return Response(IndexSetHandler(index_set_id).get_memory_usage_info())

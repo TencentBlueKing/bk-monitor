@@ -81,10 +81,12 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
 )
+from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
     IndexSetFieldsConfig,
     IndexSetTag,
+    IndexSetUserFavorite,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
@@ -93,21 +95,22 @@ from apps.log_search.models import (
     UserIndexSetCustomConfig,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
-    IndexSetUserFavorite,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
 from apps.log_search.utils import fetch_request_username
 from apps.log_trace.handlers.proto.proto import Proto
+from apps.log_trace.serializers import DateHistogramSerializer
 from apps.models import model_to_dict
 from apps.utils import APIModel
 from apps.utils.bk_data_auth import BkDataAuthHandler
 from apps.utils.db import array_hash
+from apps.utils.drf import custom_params_valid
 from apps.utils.local import (
+    get_local_param,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
-    get_local_param,
 )
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -612,6 +615,47 @@ class IndexSetHandler(APIModel):
                     ret[index_name].append(index_es_info)
                     break
         return self._indices_result(ret, index_list)
+
+    def get_memory_usage_info(self):
+        """
+        查询索引集内存的日用量和总用量
+        """
+        indices_info = self.indices()
+        # 总条数
+        total_count = sum(int(idx["stat"]["docs.count"]) for idx in indices_info["list"])
+        # 总用量
+        total_usage = sum(int(idx["stat"]["store.size"]) for idx in indices_info["list"])
+        # 24小时日志数量
+        daily_count = 0
+
+        try:
+            # 获取24小时的条数
+            log_index_set_obj = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+            bk_biz_id = space_uid_to_bk_biz_id(log_index_set_obj.space_uid)
+            current_time = arrow.now()
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "keyword": "*",
+                "start_time": current_time.shift(days=-1).timestamp,
+                "end_time": current_time.timestamp,
+                "begin": 0,
+                "size": 0,
+                "interval": "1d",
+                "time_range": "customized",
+            }
+            data = custom_params_valid(DateHistogramSerializer, params)
+            result = AggsViewAdapter().date_histogram(self.index_set_id, data)
+            for item in result.get("aggs", {}).get("group_by_histogram", {}).get("buckets", {}):
+                daily_count += item.get("doc_count", 0)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("query daily log count failed: index_set_id -> [%s] reason: %s", self.index_set_id, e)
+
+        # 日用量
+        daily_usage = daily_count * (total_usage / total_count) if total_count != 0 else 0
+        return {
+            "daily_usage": int(daily_usage),
+            "total_usage": total_usage,
+        }
 
     def _match_rt_for_index(self, index_es_name: str, index_name: str, scenario_id: str) -> bool:
         index_re = re.compile(COMMON_LOG_INDEX_RE.format(index_name))
@@ -1186,35 +1230,22 @@ class IndexSetHandler(APIModel):
         end_time = params.get("end_time")
         limit = params["limit"]
         if not start_time:
-            history_obj = (
-                UserIndexSetSearchHistory.objects.filter(
-                    is_deleted=False,
-                    search_type="default",
-                    created_by=username
-                )
-                .order_by("-created_at")
-            )
+            history_obj = UserIndexSetSearchHistory.objects.filter(
+                is_deleted=False, search_type="default", created_by=username
+            ).order_by("-created_at")
         else:
             tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
             start_time = arrow.get(start_time).to(tz=tz_info).datetime
             end_time = arrow.get(end_time).to(tz=tz_info).datetime
-            history_obj = (
-                UserIndexSetSearchHistory.objects.filter(
-                    is_deleted=False,
-                    search_type="default",
-                    created_at__range=[start_time, end_time],
-                    created_by=username
-                )
-                .order_by("-created_at")
-            )
+            history_obj = UserIndexSetSearchHistory.objects.filter(
+                is_deleted=False, search_type="default", created_at__range=[start_time, end_time], created_by=username
+            ).order_by("-created_at")
         history_data = list(history_obj.values("index_set_id", "created_at", "params", "duration"))
         index_set_ids = list(history_obj.values_list("index_set_id", flat=True))
         detail_data = list(
-            LogIndexSet.objects.filter(
-                index_set_id__in=index_set_ids,
-                is_active=True
+            LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
+                "index_set_id", "index_set_name", "space_uid"
             )
-            .values("index_set_id", "index_set_name", "space_uid")
         )
         return_data = []
         for history in history_data:
@@ -1228,10 +1259,10 @@ class IndexSetHandler(APIModel):
                         "params": history["params"],
                         "duration": history["duration"],
                         "index_set_name": detail["index_set_name"],
-                        "space_uid": detail["space_uid"]
+                        "space_uid": detail["space_uid"],
                     }
                     return_data.append(search_data)
-        return_data = return_data[:int(limit)]
+        return_data = return_data[: int(limit)]
         return return_data
 
     @staticmethod
@@ -1243,17 +1274,12 @@ class IndexSetHandler(APIModel):
         space_uid = params.get("space_uid")
         limit = params.get("limit")
         index_set_ids = list(IndexSetUserFavorite.fetch_user_favorite_index_set(username=username))
-        index_set_obj = (
-            LogIndexSet.objects.filter(
-                index_set_id__in=index_set_ids,
-                is_active=True
-            )
-        )
+        index_set_obj = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True)
         if space_uid:
             index_set_obj = index_set_obj.filter(space_uid=space_uid)
         index_set_data = list(index_set_obj.values("index_set_id", "index_set_name", "created_at", "space_uid"))
         if limit:
-            index_set_data = index_set_data[:int(limit)]
+            index_set_data = index_set_data[: int(limit)]
         return index_set_data
 
 
