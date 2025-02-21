@@ -616,6 +616,8 @@ class UnifyQueryHandler(object):
         @return:
         """
         search_dict = copy.deepcopy(self.base_dict)
+        if self.only_for_agg:
+            pass
         # 校验是否超出最大查询数量
         if self.search_params["size"] > MAX_RESULT_WINDOW:
             self.search_params["size"] = MAX_RESULT_WINDOW
