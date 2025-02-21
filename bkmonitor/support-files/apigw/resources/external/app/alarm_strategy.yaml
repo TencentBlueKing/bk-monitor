@@ -1,0 +1,261 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /app/alarm_strategy/search/:
+    post:
+      operationId: search_alarm_strategy
+      description: 查询告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy/search/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: search alarm strategy
+  /app/alarm_strategy/save/:
+    post:
+      operationId: save_alarm_strategy
+      description: 保存告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy/save/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save alarm strategy
+  /app/alarm_strategy/delete/:
+    post:
+      operationId: delete_alarm_strategy
+      description: 删除告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete alarm strategy
+  /app/alarm_strategy/switch/:
+    post:
+      operationId: switch_alarm_strategy
+      description: 启停告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy/switch/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: switch alarm strategy
+  /app/alarm_strategy/search/v2/:
+    post:
+      operationId: search_alarm_strategy_v2
+      description: 查询告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v2/search/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: search alarm strategy
+  /app/alarm_strategy/save/v2/:
+    post:
+      operationId: save_alarm_strategy_v2
+      description: 保存告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v2/save/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save alarm strategy
+  /app/alarm_strategy/delete/v2/:
+    post:
+      operationId: delete_alarm_strategy_v2
+      description: 删除告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v2/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete alarm strategy
+  /app/alarm_strategy/update_bulk/v2/:
+    post:
+      operationId: update_partial_strategy_v2
+      description: 批量更新策略局部配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v2/update_bulk/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: update partial strategy
+  /app/alarm_strategy/search/v3/:
+    post:
+      operationId: search_alarm_strategy_v3
+      description: 查询告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v3/search/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: search alarm strategy
+  /app/alarm_strategy/switch_by_labels/v3/:
+    post:
+      operationId: switch_alarm_strategy_by_labels
+      description: 根据标签批量启停告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v3/switch_by_labels/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: switch alarm strategy by labels
+  /app/alarm_strategy/save/v3/:
+    post:
+      operationId: save_alarm_strategy_v3
+      description: 保存告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v3/save/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save alarm strategy
+  /app/alarm_strategy/delete/v3/:
+    post:
+      operationId: delete_alarm_strategy_v3
+      description: 删除告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v3/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete alarm strategy
+  /app/alarm_strategy/update_bulk/v3/:
+    post:
+      operationId: update_partial_strategy_v3
+      description: 批量更新策略局部配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v3/update_bulk/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: update partial strategy
+  /app/alarm_strategy/search_without_biz/v3/:
+    post:
+      operationId: search_alarm_strategy_without_biz
+      description: 查询全业务告警策略
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alarm_strategy_v3/search_without_biz/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: search alarm strategy without biz

@@ -241,13 +241,16 @@ def install_resource(rs_path):
     if is_api(dotted_path) or is_adapter(dotted_path):
         return install_adapter(rs_path)
 
-    # resource
+
+    # apm_web.profile
+    # dotted_path="apm_web.profile"
     for p in dotted_path.split("."):
         if isinstance(_resource, ResourceShortcut):
             logger.debug("ignored: {}".format(dotted_path))
             rs_path.ignored()
             return
         _resource = getattr(_resource or resource, p)
+        #
         endpoint = p
 
     if _resource:
@@ -266,8 +269,9 @@ def install_resource(rs_path):
             raise ResourceModuleConflict(
                 "resources conflict:\n>>> {}\n<<< {}".format(shortcut._path, ".".join(_resource))
             )
-        setattr(_resource.__parent__, endpoint, resource_module)
+        # setattr(_resource.__parent__, endpoint, resource_module)
         setattr(resource, endpoint, resource_module)
+        # resource.apm_web=resource_module
 
 
 def install_adapter(rs_path):
