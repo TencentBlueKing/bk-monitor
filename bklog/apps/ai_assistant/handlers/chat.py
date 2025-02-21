@@ -67,7 +67,7 @@ class ChatHandler:
                         content = chunk_data["choices"][0]["delta"].get("content")
                         if not content:
                             continue
-                        data_to_send = json.dumps({"content": content}, ensure_ascii=False)
+                        data_to_send = json.dumps({"event": "text", "content": content}, ensure_ascii=False)
                         yield f"data: {data_to_send}\n\n"
                     except json.JSONDecodeError:
                         continue
