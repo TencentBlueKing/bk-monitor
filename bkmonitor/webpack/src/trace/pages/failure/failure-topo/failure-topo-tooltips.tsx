@@ -779,6 +779,7 @@ export default defineComponent({
             )}
             <div class='node-tooltip-header-icon-wrap'>
               {this.showViewResource &&
+                node.entity.rank.rank_category.category_name !== 'third_party' &&
                 createCommonIconBtn(
                   this.$t('查看从属'),
                   {

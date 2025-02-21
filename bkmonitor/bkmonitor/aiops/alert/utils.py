@@ -853,6 +853,9 @@ class DimensionDrillManager(AIOPSManager):
         graph_panel = AIOPSManager.get_graph_panel(self.alert, use_raw_query_config=True)
         # 获取当前告警的指标详情
         metric_info = parse_metric_id(self.alert.event["metric"][0])
+        if "index_set_id" in metric_info:
+            metric_info["related_id"] = metric_info["index_set_id"]
+            del metric_info["index_set_id"]
         metric = MetricListCache.objects.filter(**metric_info).first()
 
         serving_output = self.get_serving_output(metric, graph_panel)

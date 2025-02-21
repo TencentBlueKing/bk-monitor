@@ -107,6 +107,9 @@ class EventDocument(BaseDocument):
             raise EventNotFoundError({"event_id": "{}_{}".format(metric_id, target)})
         return cls(**hits[0].to_dict())
 
+    def to_dict(self, include_meta=False, skip_empty=False):
+        return super().to_dict(include_meta, skip_empty)
+
     class Index:
         name = "bkfta_event"
         settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
