@@ -3,19 +3,18 @@
   height: 100%;
 
   .right-main-panel {
-    display: flex;
     flex: 1;
-    flex-direction: column;
     height: 100%;
 
     .event-retrieval-content {
       display: flex;
-      flex: 1;
       flex-direction: column;
+      height: calc(100% - 52px);
       padding: 8px;
 
       .content-container {
         flex: 1;
+        min-height: 0;
         margin-top: 8px;
         background: #ffffff;
         border-radius: 2px;
