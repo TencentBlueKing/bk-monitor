@@ -3,20 +3,20 @@
   height: 100%;
 
   .right-main-panel {
-    display: flex;
     flex: 1;
-    flex-direction: column;
     height: 100%;
 
     .event-retrieval-content {
       display: flex;
       flex: 1;
       flex-direction: column;
+      height: calc(100% - 52px);
       padding: 8px;
 
       .content-container {
         flex: 1;
         margin-top: 8px;
+        overflow: hidden;
         background: #ffffff;
         border-radius: 2px;
         box-shadow: 0 2px 4px 0 #1919291f;
