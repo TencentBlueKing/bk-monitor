@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import inspect
 import logging
 from contextlib import contextmanager
@@ -28,7 +27,6 @@ from core.drf_resource.management.exceptions import (
 from core.drf_resource.management.finder import API_DIR, ResourceFinder
 
 logger = logging.getLogger(__name__)
-
 
 __setup__ = False
 __doc__ = """
@@ -241,16 +239,12 @@ def install_resource(rs_path):
     if is_api(dotted_path) or is_adapter(dotted_path):
         return install_adapter(rs_path)
 
-
-    # apm_web.profile
-    # dotted_path="apm_web.profile"
     for p in dotted_path.split("."):
         if isinstance(_resource, ResourceShortcut):
             logger.debug("ignored: {}".format(dotted_path))
             rs_path.ignored()
             return
         _resource = getattr(_resource or resource, p)
-        #
         endpoint = p
 
     if _resource:
@@ -269,9 +263,7 @@ def install_resource(rs_path):
             raise ResourceModuleConflict(
                 "resources conflict:\n>>> {}\n<<< {}".format(shortcut._path, ".".join(_resource))
             )
-        # setattr(_resource.__parent__, endpoint, resource_module)
         setattr(resource, endpoint, resource_module)
-        # resource.apm_web=resource_module
 
 
 def install_adapter(rs_path):
@@ -280,7 +272,7 @@ def install_adapter(rs_path):
     # adapter 和 api 代码结构一致， 唯一区别是entry不同，adapter多了一层`adapter`目录
     if is_api(dotted_path):
         api_root = path_to_dotted(API_DIR)
-        result = dotted_path[(len(API_DIR) + 1) :].split(".", 1)
+        result = dotted_path[(len(API_DIR) + 1):].split(".", 1)
         if len(result) == 2:
             rs, ada = result
         else:
