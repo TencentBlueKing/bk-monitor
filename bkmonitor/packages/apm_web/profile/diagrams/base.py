@@ -174,9 +174,10 @@ language_handler_mapping = {
 
 
 def get_handler_by_mapping(options):
-    language = options.get("service_language")
+    language = options.get("service_language", "default")  # service_language为空时，language取默认key
     handler = None
     if language in language_handler_mapping:
-        handler = language_handler_mapping.get(language, "default").get("handler")
+        # language是非python的其他语言时，获取默认值
+        handler = language_handler_mapping.get(language, language_handler_mapping["default"]).get("handler")
 
     return handler
