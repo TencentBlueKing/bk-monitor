@@ -34,11 +34,12 @@ import Vue from 'vue';
 
 import { messageError } from '@/common/bkmagic';
 import { bus } from '@/common/bus';
-import { makeMessage, blobToJson } from '@/common/util';
+import { makeMessage } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
 import { showLoginModal } from '@blueking/login-modal';
 import axios from 'axios';
+
 import { random } from '../common/util';
 import HttpRequst from './_httpRequest';
 import CachedPromise from './cached-promise';
@@ -68,11 +69,11 @@ axiosInstance.interceptors.request.use(
     if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
     }
-    // if (window.__IS_MONITOR_COMPONENT__) {
-    // 监控上层并没有使用 OT 这里直接自己生成traceparent id
-    const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
-    config.headers.Traceparent = traceparent;
-    // }
+    if (window.__IS_MONITOR_COMPONENT__) {
+      // 监控上层并没有使用 OT 这里直接自己生成traceparent id
+      const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+      config.headers.Traceparent = traceparent;
+    }
     return config;
   },
   error => Promise.reject(error),
@@ -80,30 +81,32 @@ axiosInstance.interceptors.request.use(
 
 /**
  * response interceptor
- * 
+ *
  * @returns {Object|Promise} - 如果数据是 Blob 类型，则直接返回响应对象；否则返回处理后的响应数据。
  */
 axiosInstance.interceptors.response.use(
   async response => {
-    if(response.data instanceof Blob){
-      return response
+    if (response.data instanceof Blob) {
+      return response;
     }
     const traceparent = response.config.headers.Traceparent || response.config.headers.traceparent;
-    const config = initConfig('', '', {headers:{traceparent}});
+    const config = initConfig('', '', { headers: { traceparent } });
     new Promise(async (resolve, reject) => {
       try {
         handleResponse({ config, response: response.data, resolve, reject });
       } catch (error) {
         return reject(error);
       }
-    }).catch(async error => {
-      await handleReject(error, config);
-    }).catch(rejectError => {
-    });
-    return response.data
+    })
+      .catch(async error => {
+        await handleReject(error, config);
+      })
+      .catch(rejectError => {
+        console.log(rejectError);
+      });
+    return response.data;
   },
-  error => Promise.reject(error)
-
+  error => Promise.reject(error),
 );
 
 const http = {
@@ -177,9 +180,10 @@ async function getPromise(method, url, data, userConfig = {}) {
       Object.assign(config, error.config);
       reject(error);
     }
-  }).catch(
+  })
+    .catch
     // error => handleReject(error, config)
-  );
+    ();
 
   // 添加请求队列
   http.queue.set(config);
