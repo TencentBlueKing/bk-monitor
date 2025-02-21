@@ -35,7 +35,7 @@
       :checked="isChecked(item.key)"
       :key="JSON.stringify(item)"
     >
-      {{ item.title }}
+      <span class="checkbox-item-title" v-bk-overflow-tips>{{ item.title }}</span>
     </bk-checkbox>
   </div>
 </template>
@@ -98,11 +98,23 @@ export default class CheckboxGroup extends Vue {
 .checkbox-group-wrap {
   .list-item {
     display: block;
-    height: 28px;
+    height: 20px;
+    margin-top: 8px;
+    line-height: 20px;
+
+    .checkbox-item-title {
+      display: inline-block;
+      max-width: 229px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     :deep(.bk-checkbox-text) {
-      margin-left: 15px;
+      height: 20px;
+      margin-left: 6px;
       font-size: 12px;
+      line-height: 20px;
       color: #63656e;
 
       &:hover {

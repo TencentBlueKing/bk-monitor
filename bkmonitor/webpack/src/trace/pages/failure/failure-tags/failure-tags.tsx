@@ -155,7 +155,7 @@ export default defineComponent({
             const replacements = {
               0: (
                 <span
-                  v-bk-tooltips={{ content: t('在拓扑图中高亮该节点') }}
+                  v-bk-tooltips={{ content: t('点击可在拓扑图中高亮该节点') }}
                   onClick={() => {
                     const node = entities.filter(item => item.is_root) || [];
                     node.length > 0 && emit('chooseNode', [node[0].entity_id]);

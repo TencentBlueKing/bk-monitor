@@ -234,6 +234,7 @@ def discover_bcs_clusters():
             # 场景1:集群迁移业务，项目ID不变，只会变业务ID
             # 场景2:集群迁移项目，项目ID和业务ID都可能变化
             update_fields = []
+            is_fed_cluster = cluster_id in fed_cluster_id_list
             # NOTE: 现阶段完全以 BCS 的集群状态为准，
             if cluster_raw_status != cluster.status:
                 cluster.status = cluster_raw_status
@@ -257,7 +258,12 @@ def discover_bcs_clusters():
                 )
 
                 # 变更对应的路由元信息
-                change_cluster_router(cluster=cluster, old_bk_biz_id=old_bk_biz_id, new_bk_biz_id=int(bk_biz_id))
+                change_cluster_router(
+                    cluster=cluster,
+                    old_bk_biz_id=old_bk_biz_id,
+                    new_bk_biz_id=int(bk_biz_id),
+                    is_fed_cluster=is_fed_cluster,
+                )
 
             # 如果project_id改动，需要更新集群信息
             if project_id != cluster.project_id:
@@ -278,7 +284,6 @@ def discover_bcs_clusters():
             logger.debug("cluster_id:{},project_id:{} already exists,skip create it".format(cluster_id, project_id))
             continue
 
-        is_fed_cluster = cluster_id in fed_cluster_id_list
         cluster = BCSClusterInfo.register_cluster(
             bk_biz_id=bk_biz_id,
             cluster_id=cluster_id,

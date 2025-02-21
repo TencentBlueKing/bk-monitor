@@ -1075,6 +1075,7 @@ if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
 
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
+NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 # bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # bkdata api only for query data (not required)
