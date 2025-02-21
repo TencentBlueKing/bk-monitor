@@ -63,7 +63,7 @@ export default class EventRetrievalNew extends tsc<object> {
   @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
 
   timer = null;
-
+  loading = false;
   formData: IFormData = {
     data_source_label: 'custom',
     data_type_label: 'event',
@@ -100,17 +100,19 @@ export default class EventRetrievalNew extends tsc<object> {
 
   handleDataIdChange(dataId: string) {
     this.formData.result_table_id = dataId;
+    this.getViewConfig();
   }
 
-  handleEventTypeChange(dataType: { data_source_label: string; data_type_label: string }) {
+  async handleEventTypeChange(dataType: { data_source_label: string; data_type_label: string }) {
     this.formData.data_source_label = dataType.data_source_label;
     this.formData.data_type_label = dataType.data_type_label;
-    this.formData.result_table_id = '';
-    this.getDataIdList();
+    await this.getDataIdList();
+    await this.getViewConfig();
   }
 
   handleImmediateRefresh() {
     this.refreshImmediate = random(4);
+    this.getViewConfig();
   }
 
   handleRefreshChange(value: number) {
@@ -139,6 +141,11 @@ export default class EventRetrievalNew extends tsc<object> {
   }
 
   async getViewConfig() {
+    if (!this.formData.result_table_id) {
+      this.fieldList = [];
+      return;
+    }
+    this.loading = true;
     const data = await eventViewConfig({
       data_sources: [
         {
@@ -149,9 +156,9 @@ export default class EventRetrievalNew extends tsc<object> {
       ],
       start_time: this.formatTimeRange[0],
       end_time: this.formatTimeRange[1],
-    }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
-
-    this.fieldList = data.fields;
+    }).catch(() => ({ display_fields: [], entities: [], field: [] }));
+    this.loading = false;
+    this.fieldList = data.field;
   }
 
   handleCloseDimensionPanel() {
@@ -191,6 +198,7 @@ export default class EventRetrievalNew extends tsc<object> {
                 <DimensionFilterPanel
                   formData={this.formData}
                   list={this.fieldList}
+                  listLoading={this.loading}
                   onClose={this.handleCloseDimensionPanel}
                 />
               </div>
