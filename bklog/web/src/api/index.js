@@ -102,7 +102,8 @@ axiosInstance.interceptors.response.use(
     });
     return response.data
   },
-  error => error
+  error => Promise.reject(error)
+
 );
 
 const http = {
