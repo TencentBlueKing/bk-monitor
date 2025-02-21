@@ -206,7 +206,7 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const operatorToolsWidth = computed(() => {
-      return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
+      return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 104 : 78;
     });
 
     const originalColumns = computed(() => {

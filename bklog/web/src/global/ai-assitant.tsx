@@ -41,7 +41,7 @@ export default defineComponent({
       loading.value = true;
       messages.value.push({
         role: RoleType.Assistant,
-        content: '正在分析当前日志',
+        content: '正在分析...',
         status: MessageStatus.Loading,
       });
     };
@@ -145,12 +145,14 @@ export default defineComponent({
           ? `${args.content}: ${args.cite}` // 如果有 cite，拼接 content 和 cite
           : args.content; // 否则只使用 content
 
-      const { space_uid, index_set_id } = cachedArgs;
+      const { space_uid, index_set_id, log_data, type } = cachedArgs;
       const streamArgs = {
         query: input,
         chat_context: chatHistory,
         space_uid,
         index_set_id,
+        log_data,
+        type,
         'chat_context.role': RoleType.User,
       };
 
@@ -166,7 +168,6 @@ export default defineComponent({
       args.chat_context = chatHistory;
       args['chat_context.role'] = RoleType.User;
       args.query = '帮我分析这条日志';
-      args.type = 'log_interpretation';
 
       messages.value.push({
         role: RoleType.User,
@@ -195,10 +196,12 @@ export default defineComponent({
         handleStop();
         handleClear();
       }
-      Object.assign(cachedArgs, args);
+
       chatid = random(10);
       isShow.value = true;
       if (sendMsg) {
+        args.type = 'log_interpretation';
+        Object.assign(cachedArgs, args);
         Object.assign(aiFixedLinkArgs, { index: args.index, id: chatid });
         handleSendRowAi(args);
       }
