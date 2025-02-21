@@ -48,12 +48,12 @@ class FunctionNode:
         sub = self.value - sum(x.value for x in self.children.values())
         return sub if sub > 0 else 0
 
-    def to_dict(self):
+    def to_dict(self, is_python=False, is_function=False):
         return {
             "id": self.id,
             "value": self.value,
             "self": self.self_time,
-            "name": self.name,
+            "name": self.id if is_python and is_function else self.name,
             "system_name": self.system_name,
             "filename": self.filename,
         }
@@ -160,3 +160,11 @@ class ValueCalculator:
         @classmethod
         def calculate(cls, values):
             return sum(values)
+
+
+def is_func(name: str) -> bool:
+    path_list = name.split("/")
+    if len(path_list) <= 1:
+        return True
+    else:
+        return False

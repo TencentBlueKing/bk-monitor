@@ -11,30 +11,31 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from apm_web.profile.diagrams.base import FunctionNode
+from apm_web.profile.diagrams.base import FunctionNode, is_func
 from apm_web.profile.diagrams.diff import DiffNode, ProfileDiffer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 logger = logging.getLogger("apm")
 
 
-def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
+def diff_node_to_element(diff_node: Optional[DiffNode], is_python: bool) -> dict:
     return {
-        **diff_node.default.to_dict(),
+        **diff_node.default.to_dict(is_python, is_func(diff_node.default.name)),
         "diff_info": diff_node.diff_info,
-        "children": [diff_node_to_element(child) for child in diff_node.children],
+        "children": [diff_node_to_element(child, is_python) for child in diff_node.children],
     }
 
 
 @dataclass
 class FlamegraphDiagrammer:
     def draw(self, c: TreeConverter, **options) -> dict:
-        is_python = options.get("is_python")
+        service_language = options.get("service_language")
+        is_python = service_language == "python"
 
         def function_node_to_element(function_node: FunctionNode) -> dict:
             return {
                 "id": function_node.id,
-                "name": function_node.id if is_python else function_node.name,
+                "name": function_node.id if is_python and is_func(function_node.name) else function_node.name,
                 "value": function_node.value,
                 "self": function_node.self_time,
                 "children": [function_node_to_element(child) for child in function_node.children.values()],
@@ -46,17 +47,19 @@ class FlamegraphDiagrammer:
 
         return {"flame_data": root}
 
-    def diff(self, base_tree_c: TreeConverter, comp_tree_c: TreeConverter, **_) -> dict:
+    def diff(self, base_tree_c: TreeConverter, comp_tree_c: TreeConverter, **options) -> dict:
         diff_tree = ProfileDiffer.from_raw(base_tree_c, comp_tree_c).diff_tree()
         diff_tree_root = diff_tree.root
         if diff_tree_root is None:
             return {"flame_data": {}}
 
+        service_language = options.get("service_language")
+        is_python = service_language == "python"
         flame_data = [
             {
-                **diff_tree_root.default.to_dict(),
+                **diff_tree_root.default.to_dict(is_python, is_func(diff_tree_root.default.name)),
                 "diff_info": diff_tree_root.diff_info,
-                "children": [diff_node_to_element(child) for child in diff_tree_root.children],
+                "children": [diff_node_to_element(child, is_python) for child in diff_tree_root.children],
             }
         ]
 
