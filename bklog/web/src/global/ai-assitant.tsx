@@ -1,4 +1,4 @@
-import { defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 import AIBlueking, { ChatHelper, MessageStatus, RoleType } from '@blueking/ai-blueking/vue2';
 import { random } from '../common/util';
 
@@ -26,6 +26,8 @@ export default defineComponent({
   setup(props, { expose }) {
     const loading = ref(false);
     const messages = ref([]);
+    const storeMsg = ref([]);
+
     const prompts = ref([]);
     let chatid = random(10);
 
@@ -37,13 +39,16 @@ export default defineComponent({
     const aiFixedLinkArgs = { index: null, id: null };
     const cachedArgs: Partial<IRowSendData> = {};
 
+    const concatMsg = computed(() => [...storeMsg.value, ...messages.value]);
+
     const handleStart = () => {
       loading.value = true;
-      messages.value.push({
+      const msg = {
         role: RoleType.Assistant,
         content: '正在分析...',
         status: MessageStatus.Loading,
-      });
+      };
+      messages.value.push(msg);
     };
 
     // 接收消息
@@ -62,6 +67,10 @@ export default defineComponent({
 
     // 聊天结束
     const handleEnd = (id: number | string, message?: string) => {
+      if (id !== chatid) {
+        return;
+      }
+
       loading.value = false;
       const currentMessage = messages.value.at(-1);
       if (message) {
@@ -77,6 +86,10 @@ export default defineComponent({
 
     // 错误处理
     const handleError = (message: string, code: string | number, id: number | string) => {
+      if (id !== chatid) {
+        return;
+      }
+
       if (message.includes('user authentication failed')) {
         // 未登录，跳转登录
         const loginUrl = new URL(process.env.BK_LOGIN_URL);
@@ -118,8 +131,14 @@ export default defineComponent({
 
     // 清空消息
     const handleClear = () => {
+      storeMsg.value = [];
+      const lastMesg = messages.value.at(-1);
       messages.value = [];
-      messages.value.push({
+      if (lastMesg.status === MessageStatus.Loading) {
+        messages.value.push(lastMesg);
+      }
+
+      messages.value.unshift({
         role: RoleType.User,
         content: getFixedRow(),
         status: MessageStatus.Success,
@@ -163,16 +182,19 @@ export default defineComponent({
     // 外部调用启动首次聊天
     // args：Partial<IRowSendData>
     const handleSendRowAi = (args: Partial<IRowSendData>) => {
+      const lastMesg = messages.value.at(-1);
+      if (lastMesg?.isFixedMsg) {
+        messages.value.pop();
+      }
+
       // 记录当前消息记录
-      const chatHistory = [...messages.value];
-      args.chat_context = chatHistory;
       args['chat_context.role'] = RoleType.User;
       args.query = '帮我分析这条日志';
 
       messages.value.push({
         role: RoleType.User,
         content: getFixedRow(),
-        status: MessageStatus.Success,
+        status: MessageStatus.Loading,
         isFixedMsg: true,
       });
 
@@ -186,17 +208,13 @@ export default defineComponent({
     };
 
     const handleClose = () => {
-      isShow.value = false;
       handleStop();
+      isShow.value = false;
+      storeMsg.value.push(...messages.value);
+      messages.value = [];
     };
 
-    const handleScroll = () => {};
-    const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
-      if (isShow.value) {
-        handleStop();
-        handleClear();
-      }
-
+    const setAiStart = (sendMsg = false, args: IRowSendData) => {
       chatid = random(10);
       isShow.value = true;
       if (sendMsg) {
@@ -205,6 +223,22 @@ export default defineComponent({
         Object.assign(aiFixedLinkArgs, { index: args.index, id: chatid });
         handleSendRowAi(args);
       }
+    };
+
+    const handleScroll = () => {};
+    const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
+      const currentMessage = messages.value.at(-1);
+      if (isShow.value && currentMessage?.status === MessageStatus.Loading) {
+        handleStop();
+        storeMsg.value.push(...messages.value);
+        messages.value = [];
+        setTimeout(() => {
+          setAiStart(sendMsg, args);
+        });
+        return;
+      }
+
+      setAiStart(sendMsg, args);
     };
 
     const hiddenAiAssistant = () => {
@@ -225,7 +259,7 @@ export default defineComponent({
         background='#f5f7fa'
         head-background='linear-gradient(267deg, #2dd1f4 0%, #1482ff 95%)'
         loading={loading.value}
-        messages={messages.value}
+        messages={concatMsg.value}
         prompts={prompts.value}
         is-show={isShow.value}
         enable-popup={false}
