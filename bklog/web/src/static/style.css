@@ -407,3 +407,6 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-time-2:before {
 	content: "\e1b0";
 }
+.bklog-ai:before {
+	content: "\e1b2";
+}

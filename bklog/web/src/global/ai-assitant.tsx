@@ -13,6 +13,7 @@ interface IRowSendData {
   index_set_id: string;
   log_data: unknown;
   message: string;
+  index: number;
   chat_context: unknown;
   'chat_context.role': RoleType;
   'chat_context.content': string;
@@ -21,21 +22,22 @@ export default defineComponent({
   setup(props, { expose }) {
     const loading = ref(false);
     const messages = ref([]);
-    const positionLimit = ref({ top: 0, bottom: 0, left: 0, right: 0 });
+    const positionLimit = ref({ bottom: 100, right: 100 });
     const prompts = ref([]);
-    const chatid = random(10);
+    let chatid = random(10);
     const sizeLimit = ref({
       height: 320,
       width: 400,
     });
     const startPosition = ref({ top: window.innerHeight - 560, bottom: 0, left: window.innerWidth - 400, right: 0 });
     const isShow = ref(false);
+    const aiFixedLinkArgs = { index: null, id: null };
 
-    const handleStart = (id: number | string) => {
+    const handleStart = () => {
       loading.value = true;
       messages.value.push({
         role: RoleType.Assistant,
-        content: '内容正在生成中...',
+        content: '正在分析当前日志',
         status: MessageStatus.Loading,
       });
     };
@@ -43,6 +45,7 @@ export default defineComponent({
     // 接收消息
     const handleReceiveMessage = (message: string, id: number | string) => {
       const currentMessage = messages.value.at(-1);
+
       if (currentMessage.status === MessageStatus.Loading) {
         // 如果是loading状态，直接覆盖
         currentMessage.content = message;
@@ -100,6 +103,12 @@ export default defineComponent({
     // 清空消息
     const handleClear = () => {
       messages.value = [];
+      messages.value.push({
+        role: RoleType.User,
+        content: `<span  data-ai="{ type: 'link', data: '[${aiFixedLinkArgs.index}, ${aiFixedLinkArgs.id}]' }" class="ai-clickable" >分析当前日志...</span >`,
+        status: MessageStatus.Success,
+        isFixedMsg: true,
+      });
     };
 
     // 发送消息
@@ -120,46 +129,66 @@ export default defineComponent({
           ? `${args.content}: ${args.cite}` // 如果有 cite，拼接 content 和 cite
           : args.content; // 否则只使用 content
 
+      const streamArgs = {
+        messages: input,
+        chat_context: chatHistory,
+        'chat_context.role': RoleType.User,
+      };
+
       // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
-      chatHelper.stream(
-        {
-          inputs: {
-            input,
-            chat_history: chatHistory,
-          },
-        },
-        chatid,
-      );
+      chatHelper.stream(streamArgs, chatid, { 'X-Requested-With': 'XMLHttpRequest' });
     };
 
-    // 发送消息
+    // 外部调用启动首次聊天
+    // args：Partial<IRowSendData>
     const handleSendRowAi = (args: Partial<IRowSendData>) => {
       // 记录当前消息记录
       const chatHistory = [...messages.value];
-      // 添加一条消息
+      args.chat_context = chatHistory;
+      args['chat_context.role'] = RoleType.User;
+      args.message = '帮我分析这条日志';
+
       messages.value.push({
-        role: 'user',
-        content: `正在分析日志...`,
+        role: RoleType.User,
+        content: `<span  data-ai="{ type: 'link', data: '[${aiFixedLinkArgs.index}, ${aiFixedLinkArgs.id}]' }" class="ai-clickable" >分析当前日志...</span >`,
+        status: MessageStatus.Success,
+        isFixedMsg: true,
       });
 
       // ai 消息，id是唯一标识当前流，调用 chatHelper.stop 的时候需要传入
-      chatHelper.stream(args, chatid);
+      chatHelper.stream(args, chatid, { 'X-Requested-With': 'XMLHttpRequest' });
     };
 
     // 暂停聊天
     const handleStop = () => {
-      chatHelper.stop(1);
+      chatHelper.stop(chatid);
     };
     const handleScroll = () => {};
     const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
+      Object.assign(startPosition.value, {
+        bottom: 100,
+        right: 100,
+      });
+
+      if (isShow.value) {
+        handleStop();
+        handleClear();
+      }
+
+      chatid = random(10);
       isShow.value = true;
       if (sendMsg) {
+        Object.assign(aiFixedLinkArgs, { index: args.index, id: chatid });
         handleSendRowAi(args);
       }
     };
 
     const hiddenAiAssistant = () => {
       isShow.value = false;
+    };
+
+    const handleAiClick = args => {
+      console.log(args);
     };
 
     expose({
@@ -178,12 +207,14 @@ export default defineComponent({
         size-limit={sizeLimit.value}
         start-position={startPosition.value}
         is-show={isShow.value}
+        enable-popup={false}
         on-choose-prompt={handleChoosePrompt}
         on-clear={handleClear}
         on-close={handleClose}
         on-send={handleSend}
         on-scroll={handleScroll}
         on-stop={handleStop}
+        on-ai-click={handleAiClick}
       />
     );
   },

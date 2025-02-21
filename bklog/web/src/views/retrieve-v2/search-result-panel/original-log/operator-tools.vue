@@ -28,7 +28,7 @@
   <div :class="{ 'handle-content': true, 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }">
     <span class="handle-card">
       <span
-        class="bklog-icon bklog-qiyeweixin"
+        class="bklog-icon bklog-ai"
         @click="() => handleClick('ai')"
       ></span>
     </span>
@@ -184,6 +184,12 @@
       height: 14px;
       margin-left: 10px;
       width: 14px;
+
+      .bklog-ai {
+        color: #699df4;
+        font-size: 16px;
+        cursor: pointer;
+      }
     }
   }
 

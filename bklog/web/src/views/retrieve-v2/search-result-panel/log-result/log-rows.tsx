@@ -354,7 +354,14 @@ export default defineComponent({
             return (
               // @ts-ignore
               <OperatorTools
-                handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
+                handle-click={event =>
+                  props.handleClickTools(
+                    event,
+                    row,
+                    indexSetOperatorConfig.value,
+                    tableRowConfig.get(row).value[ROW_INDEX] + 1,
+                  )
+                }
                 index={row[ROW_INDEX]}
                 operator-config={indexSetOperatorConfig.value}
                 row-data={row}

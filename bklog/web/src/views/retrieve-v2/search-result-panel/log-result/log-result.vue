@@ -157,13 +157,13 @@
             console.warn(e);
           });
       },
-      handleClickTools(event, row, config) {
+      handleClickTools(event, row, config, index) {
         if (event === 'ai') {
           this.$refs.refAiAssitant.open(true, {
             space_uid: this.$store.getters.spaceUid,
             index_set_id: this.$store.getters.indexId,
             log_data: row,
-            message: '帮我分析这条日志',
+            index,
           });
           return;
         }
