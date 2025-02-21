@@ -124,6 +124,17 @@
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
+
+  const focusIndex = ref(null);
+  const handleRowFocus = (index, e) => {
+    if (document.activeElement === e.target) {
+      focusIndex.value = index;
+    }
+  };
+
+  const handleRowBlur = () => {
+    focusIndex.value = null;
+  };
 </script>
 
 <template>
@@ -137,7 +148,9 @@
     >
       <div
         v-for="(item, index) in filterFieldsList"
-        class="filter-select-wrap"
+        :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
+        @focus.capture="e => handleRowFocus(index, e)"
+        @blur.capture="handleRowBlur"
       >
         <div class="title">
           {{ item?.field_alias || item?.field_name || '' }}
@@ -195,17 +208,20 @@
       v-else
       class="empty-tips"
     >
-      （暂未设置常驻筛选，请点击左侧设置按钮）
+      （{{ $t('暂未设置常驻筛选，请点击左侧设置按钮') }}）
     </div>
   </div>
 </template>
-<style lang="scss">
+<style lang="scss" scoped>
   .filter-container-wrap {
     display: flex;
     max-height: 95px;
     padding: 0 10px 0px 10px;
     overflow: auto;
     background: #ffffff;
+    box-shadow:
+      0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
+      0 1px 0 0 #eaebf0;
 
     .filter-setting-btn {
       width: 83px;
@@ -232,15 +248,19 @@
   .filter-select-wrap {
     display: flex;
     align-items: center;
-    min-width: 250px;
-    max-width: 600px;
+    min-width: 120px;
+    max-width: 560px;
     margin: 4px 0;
     margin-right: 8px;
     border: 1px solid #dbdde1;
     border-radius: 3px;
 
+    &.is-focus {
+      border-color: #3a84ff;
+    }
+
     .title {
-      max-width: 125px;
+      max-width: 120px;
       margin-left: 8px;
       overflow: hidden;
       font-size: 12px;
@@ -253,7 +273,7 @@
 
       .operator-label {
         padding: 4px;
-        color: #ff9c01;
+        color: #3a84ff;
       }
 
       &.bk-select.is-focus {
@@ -264,6 +284,18 @@
     .value-select {
       min-width: 200px;
       max-width: 460px;
+
+      :deep(.bk-select-dropdown .bk-select-tag-container) {
+        .bk-select-tag {
+          &.width-limit-tag {
+            max-width: 200px;
+
+            > span {
+              max-width: 180px;
+            }
+          }
+        }
+      }
 
       &.bk-select {
         border: none;
