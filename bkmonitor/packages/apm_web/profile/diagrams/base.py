@@ -48,12 +48,12 @@ class FunctionNode:
         sub = self.value - sum(x.value for x in self.children.values())
         return sub if sub > 0 else 0
 
-    def to_dict(self, is_python=False, is_function=False):
+    def to_dict(self):
         return {
             "id": self.id,
             "value": self.value,
             "self": self.self_time,
-            "name": self.id if is_python and is_function else self.name,
+            "name": self.name,
             "system_name": self.system_name,
             "filename": self.filename,
         }
@@ -168,3 +168,24 @@ def is_func(name: str) -> bool:
         return True
     else:
         return False
+
+
+language_handler_mapping = {
+    "python": {"handler": lambda i: {**i, "name": i["id"] if is_func(i["name"]) else i["name"]}},  # 根据 name 的类型修改 name
+    "java": {"handler": lambda i: i},
+    "php": {"handler": lambda i: i},
+    "C++": {"handler": lambda i: i},
+    "rust": {"handler": lambda i: i},
+    "javascript": {"handler": lambda i: i},
+    "go": {"handler": lambda i: i},
+    "other": {"handler": lambda i: i},
+}
+
+
+def get_handler_by_mapping(options):
+    language = options.get("service_language")
+    handler = None
+    if language in language_handler_mapping:
+        handler = language_handler_mapping[language]["handler"]
+
+    return handler

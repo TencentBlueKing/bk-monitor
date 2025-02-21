@@ -11,35 +11,37 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from apm_web.profile.diagrams.base import FunctionNode, is_func
+from apm_web.profile.diagrams.base import FunctionNode, get_handler_by_mapping
 from apm_web.profile.diagrams.diff import DiffNode, ProfileDiffer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 logger = logging.getLogger("apm")
 
 
-def diff_node_to_element(diff_node: Optional[DiffNode], is_python: bool) -> dict:
+def diff_node_to_element(diff_node: Optional[DiffNode], **options) -> dict:
+    handler = get_handler_by_mapping(options)
     return {
-        **diff_node.default.to_dict(is_python, is_func(diff_node.default.name)),
+        **handler(diff_node.default.to_dict()),
         "diff_info": diff_node.diff_info,
-        "children": [diff_node_to_element(child, is_python) for child in diff_node.children],
+        "children": [diff_node_to_element(child, **options) for child in diff_node.children],
     }
 
 
 @dataclass
 class FlamegraphDiagrammer:
     def draw(self, c: TreeConverter, **options) -> dict:
-        service_language = options.get("service_language")
-        is_python = service_language == "python"
+        handler = get_handler_by_mapping(options)
 
         def function_node_to_element(function_node: FunctionNode) -> dict:
-            return {
-                "id": function_node.id,
-                "name": function_node.id if is_python and is_func(function_node.name) else function_node.name,
-                "value": function_node.value,
-                "self": function_node.self_time,
-                "children": [function_node_to_element(child) for child in function_node.children.values()],
-            }
+            return handler(
+                {
+                    "id": function_node.id,
+                    "name": function_node.name,
+                    "value": function_node.value,
+                    "self": function_node.self_time,
+                    "children": [function_node_to_element(child) for child in function_node.children.values()],
+                }
+            )
 
         root = {"name": "total", "value": c.tree.root.value, "children": [], "id": 0}
         for r in c.tree.root.children.values():
@@ -53,13 +55,12 @@ class FlamegraphDiagrammer:
         if diff_tree_root is None:
             return {"flame_data": {}}
 
-        service_language = options.get("service_language")
-        is_python = service_language == "python"
+        handler = get_handler_by_mapping(options)
         flame_data = [
             {
-                **diff_tree_root.default.to_dict(is_python, is_func(diff_tree_root.default.name)),
+                **handler(diff_tree_root.default.to_dict()),
                 "diff_info": diff_tree_root.diff_info,
-                "children": [diff_node_to_element(child, is_python) for child in diff_tree_root.children],
+                "children": [diff_node_to_element(child, **options) for child in diff_tree_root.children],
             }
         ]
 
