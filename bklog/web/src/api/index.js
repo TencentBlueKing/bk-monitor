@@ -83,12 +83,14 @@ axiosInstance.interceptors.request.use(
  */
 axiosInstance.interceptors.response.use(
   async response => {
-    const responseCopy = response.data instanceof Blob? await blobToJson(response.data): response.data
+    if(response.data instanceof Blob){
+      return response
+    }
     const traceparent = response.config.headers.Traceparent || response.config.headers.traceparent;
     const config = initConfig('', '', {headers:{traceparent}});
     new Promise(async (resolve, reject) => {
       try {
-        handleResponse({ config, response: responseCopy, resolve, reject });
+        handleResponse({ config, response: response.data, resolve, reject });
       } catch (error) {
         return reject(error);
       }
