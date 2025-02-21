@@ -94,7 +94,7 @@ DISPLAY_FIELDS = [
 INNER_FIELD_TYPE_MAPPINGS = {
     "time": EventDimensionTypeEnum.DATE.value,
     "event_name": EventDimensionTypeEnum.KEYWORD.value,
-    "event.content": EventDimensionTypeEnum.KEYWORD.value,
+    "event.content": EventDimensionTypeEnum.TEXT.value,
     "target": EventDimensionTypeEnum.KEYWORD.value,
 }
 
