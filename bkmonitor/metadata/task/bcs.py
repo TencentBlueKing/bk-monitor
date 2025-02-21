@@ -226,6 +226,7 @@ def discover_bcs_clusters():
         cluster_id = bcs_cluster["cluster_id"]
         cluster_raw_status = bcs_cluster["status"]
         cluster_list.append(cluster_id)
+        is_fed_cluster = cluster_id in fed_cluster_id_list
 
         # todo 同一个集群在切换业务时不能重复接入
         cluster = BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
@@ -234,7 +235,6 @@ def discover_bcs_clusters():
             # 场景1:集群迁移业务，项目ID不变，只会变业务ID
             # 场景2:集群迁移项目，项目ID和业务ID都可能变化
             update_fields = []
-            is_fed_cluster = cluster_id in fed_cluster_id_list
             # NOTE: 现阶段完全以 BCS 的集群状态为准，
             if cluster_raw_status != cluster.status:
                 cluster.status = cluster_raw_status
@@ -278,10 +278,14 @@ def discover_bcs_clusters():
                 # 更新云区域ID
                 update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
 
-            # 若集群变为联邦集群的子集群且此前未创建过联邦集群的汇聚链路，需要额外进行联邦汇聚链路创建操作
-            # check_create_fed_vm_data_link(cluster)
+            if is_fed_cluster:
+                # 创建联邦集群记录
+                try:
+                    sync_federation_clusters(fed_clusters)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("discover_bcs_clusters: sync_federation_clusters failed, error:{}".format(e))
 
-            logger.debug("cluster_id:{},project_id:{} already exists,skip create it".format(cluster_id, project_id))
+            logger.info("cluster_id:{},project_id:{} already exists,skip create it".format(cluster_id, project_id))
             continue
 
         cluster = BCSClusterInfo.register_cluster(
@@ -291,12 +295,6 @@ def discover_bcs_clusters():
             creator="admin",
             is_fed_cluster=is_fed_cluster,
         )
-        if is_fed_cluster:
-            # 创建联邦集群记录
-            try:
-                sync_federation_clusters(fed_clusters)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning("discover_bcs_clusters: sync_federation_clusters failed, error:{}".format(e))
         logger.info(
             "discover_bcs_clusters: cluster_id:{},project_id:{},bk_biz_id:{} registered".format(
                 cluster.cluster_id, cluster.project_id, cluster.bk_biz_id
