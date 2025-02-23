@@ -10,8 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 
 
-from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 from rest_framework import serializers
+
+from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 
 
 class EventInfoSerializer(serializers.Serializer):
@@ -62,19 +63,6 @@ class CustomEventGroupSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class MetricListSerializer(serializers.Serializer):
-    class FieldSerializer(serializers.Serializer):
-
-        unit = serializers.CharField(required=True, label="字段单位", allow_blank=True)
-        name = serializers.CharField(required=True, label="字段名")
-        description = serializers.CharField(required=True, label="字段描述", allow_blank=True)
-        monitor_type = serializers.CharField(required=True, label="字段类型，指标或维度")
-        type = serializers.CharField(required=True, label="字段类型")
-        label = serializers.ListField(required=False, label="分组标签", default=[])
-
-    fields = FieldSerializer(required=True, label="字段信息", many=True)
-
-
 class CustomTSTableSerializer(serializers.ModelSerializer):
     is_readonly = serializers.SerializerMethodField()
 
@@ -96,5 +84,9 @@ class CustomTSTableSerializer(serializers.ModelSerializer):
 
 class CustomTSGroupingRuleSerializer(serializers.Serializer):
     name = serializers.CharField(required=True, label="分组名称")
-    manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
-    auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+    manual_list = serializers.ListField(label="手动分组的指标列表", default=list)
+    auto_rules = serializers.ListField(label="自动分组的匹配规则列表", default=list)
+
+    def validate(self, attrs: dict) -> dict:
+        attrs["name"] = attrs["name"].strip()
+        return attrs
