@@ -61,6 +61,7 @@ class EventDimensionTypeEnum(Enum):
 # 事件字段别名
 EVENT_FIELD_ALIAS = {
     EventCategory.COMMON.value: {
+        "time": _("时间"),
         "event_name": _("事件名"),
         "event.content": _("事件内容"),
         "target": _("目标"),
@@ -118,12 +119,13 @@ INNER_FIELD_TYPE_MAPPINGS = {
     "event_name": EventDimensionTypeEnum.KEYWORD.value,
     "event.content": EventDimensionTypeEnum.TEXT.value,
     "target": EventDimensionTypeEnum.KEYWORD.value,
+    "type": EventDimensionTypeEnum.KEYWORD.value,
 }
 
 
 # 查询操作符
 class Operation:
-    EQ = [{"alias": "=", "value": "eq"}, {"alias": "!=", "value": "ne"}]
+    EQ = {"alias": "=", "value": "eq"}
     NE = {"alias": "!=", "value": "ne"}
     INCLUDE = {"alias": _("包含"), "value": "include"}
     EXCLUDE = {"alias": _("不包含"), "value": "exclude"}
@@ -133,7 +135,7 @@ class Operation:
 
 # 类型和操作符映射
 TYPE_OPERATION_MAPPINGS = {
-    "time": [Operation.EQ, Operation.NE],
+    "date": [Operation.EQ, Operation.NE],
     "keyword": [Operation.EQ, Operation.NE, Operation.INCLUDE, Operation.EXCLUDE],
     "text": [Operation.EQ_WITH_WILDCARD, Operation.NE_WITH_WILDCARD],
     "integer": [Operation.EQ, Operation.NE],
@@ -153,3 +155,5 @@ ENTITIES = [
     # 跳转到主机监控
     {"type": "ip", "alias": _("主机"), "fields": ["host", "bk_target_ip", "ip", "serverip", "bk_host_id"]},
 ]
+
+INNER_FIELD = ["time", "event_name", "event.content", "target", "type"]
