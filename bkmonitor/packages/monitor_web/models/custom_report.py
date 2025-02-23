@@ -16,6 +16,8 @@ from django.db import models
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.db import JsonField
+from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.user import get_backend_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.constants import EVENT_TYPE
@@ -67,6 +69,31 @@ class CustomEventItem(models.Model):
     dimension_list = JsonField("维度", default=[])
 
 
+class CustomTSField(models.Model):
+    """
+    自定义时序字段
+    """
+
+    METRIC_TYPE_CHOICES = (
+        ("metric", "指标"),
+        ("dimension", "维度"),
+    )
+
+    class MetricType:
+        METRIC = "metric"
+        DIMENSION = "dimension"
+
+    MetricConfigFields = ["unit", "hidden", "aggregate_method", "function", "interval", "label", "dimensions"]
+    DimensionConfigFields = ["common"]
+
+    time_series_group_id = models.IntegerField("时序分组ID")
+    type = models.CharField("字段类型", max_length=16, choices=METRIC_TYPE_CHOICES, default=MetricType.METRIC)
+    name = models.CharField("字段名称", max_length=128)
+    description = models.CharField("字段描述", max_length=128, default="")
+    disabled = models.BooleanField("禁用字段", default=False)
+    config = models.JSONField("字段配置", default=dict)
+
+
 class CustomTSTable(OperateRecordModelBase):
     """
     自定义时序
@@ -105,41 +132,75 @@ class CustomTSTable(OperateRecordModelBase):
             data_id_info = api.metadata.get_data_id({"bk_data_id": self.bk_data_id, "with_rt_info": False})
             return data_id_info["token"]
 
-    def get_and_sync_fields(self) -> list["CustomTSItem"]:
+    def save_to_metadata(self, with_fields=False):
+        """
+        保存 metadata 信息
+        """
+        request_params = {
+            "operator": get_request_username() or get_backend_username(),
+            "time_series_group_id": self.time_series_group_id,
+            "time_series_group_name": self.name,
+            "label": self.scenario,
+            "data_label": self.data_label,
+            "enable_field_black_list": self.auto_discover,
+        }
+
+        # 如果没有开启自动发现，才需要设置指标维度
+        if not self.auto_discover and with_fields:
+            fields = CustomTSField.objects.filter(time_series_group_id=self.time_series_group_id)
+            request_params["field_list"] = [
+                {
+                    "field_name": field.name,
+                    "tag": field.type,
+                    "field_type": "string" if field.type == "dimension" else "float",
+                    "description": field.description,
+                    "unit": field.config.get("unit", ""),
+                }
+                for field in fields
+                if not field.disabled
+            ]
+
+        api.metadata.modify_time_series_group(request_params)
+
+    def get_and_sync_fields(self) -> list[CustomTSField]:
         """
         获取并同步指标信息
-        1. 在查询自定义指标的指标/维度列表时，尝试从 metadata 中获取指标/维度列表，并写入到 CustomTSItem中
+        1. 在查询自定义指标的指标/维度列表时，尝试从 metadata 中获取指标/维度列表，并写入到 CustomTSField中
         2. 同步时只增不删，除非用户手动删除
         3. 同步需要设置时间间隔，避免过于频繁请求
         4. 当开启自动发现时，修改指标信息不需要向 metadata 同步，反之则需要同步
         """
         # 获取当前指标/维度集合
-        fields: dict[tuple[str, str], CustomTSItem] = {
-            (item.metric_name, item.type): item for item in CustomTSItem.objects.filter(table=self)
+        fields: dict[tuple[str, str], CustomTSField] = {
+            (item.name, item.type): item
+            for item in CustomTSField.objects.filter(time_series_group_id=self.time_series_group_id)
         }
 
         # 获取 metadata
         results = api.metadata.get_time_series_group(time_series_group_id=self.time_series_group_id)
 
         # 计算需要补充指标/维度
-        need_create_fields: list[CustomTSItem] = []
-        need_update_fields: list[CustomTSItem] = []
+        need_create_fields: list[CustomTSField] = []
+        need_update_fields: list[CustomTSField] = []
         for result in results:
             for metric_info in result["metric_info_list"]:
                 # 指标信息同步，为了向前兼容
                 dimensions = sorted([tag["field_name"] for tag in metric_info["tag_list"]])
                 metric = fields.get((metric_info["field_name"], "")) or fields.get(
-                    (metric_info["field_name"], CustomTSItem.MetricType.METRIC)
+                    (metric_info["field_name"], CustomTSField.MetricType.METRIC)
                 )
                 if not metric:
                     # 新建指标
-                    metric = CustomTSItem(
-                        table=self,
-                        metric_name=metric_info["field_name"],
-                        type=CustomTSItem.MetricType.METRIC,
-                        dimension_list=dimensions,
-                        metric_display_name=metric_info["description"],
-                        unit=metric_info["unit"],
+                    metric = CustomTSField(
+                        time_series_group_id=self.time_series_group_id,
+                        name=metric_info["field_name"],
+                        type=CustomTSField.MetricType.METRIC,
+                        config={
+                            "dimensions": dimensions,
+                            "unit": metric_info["unit"],
+                            "label": [],
+                        },
+                        description=metric_info["description"],
                         disabled=metric_info["is_disabled"],
                     )
                     need_create_fields.append(metric)
@@ -148,20 +209,20 @@ class CustomTSTable(OperateRecordModelBase):
 
                     # 指标信息同步
                     if not metric.type:
-                        metric.type = CustomTSItem.MetricType.METRIC
+                        metric.type = CustomTSField.MetricType.METRIC
                         changed = True
 
-                    if not metric.unit and metric_info.get("unit"):
-                        metric.unit = metric_info["unit"]
+                    if not metric.config.get("unit") and metric_info.get("unit"):
+                        metric.config["unit"] = metric_info["unit"]
                         changed = True
 
-                    if not metric.metric_display_name and metric_info.get("description"):
-                        metric.metric_display_name = metric_info["description"]
+                    if not metric.description and metric_info.get("description"):
+                        metric.description = metric_info["description"]
                         changed = True
 
                     # 维度变化
-                    if dimensions != metric.dimension_list:
-                        metric.dimension_list = dimensions
+                    if dimensions != metric.config.get("dimensions", []):
+                        metric.config["dimensions"] = dimensions
                         changed = True
 
                     # 需要更新
@@ -169,28 +230,28 @@ class CustomTSTable(OperateRecordModelBase):
                         need_update_fields.append(metric)
 
                 # 兼容旧的字段
-                if (metric.metric_name, "") in fields:
-                    fields.pop((metric.metric_name, ""))
-                fields[(metric.metric_name, metric.type)] = metric
+                if (metric.name, "") in fields:
+                    fields.pop((metric.name, ""))
+                fields[(metric.name, metric.type)] = metric
 
                 # 遍历维度
                 for tag in metric_info["tag_list"]:
                     # 需要补充的维度
-                    if (tag["field_name"], CustomTSItem.MetricType.DIMENSION) not in fields:
-                        item = CustomTSItem(
-                            table=self,
-                            metric_name=tag["field_name"],
-                            type=CustomTSItem.MetricType.DIMENSION,
-                            metric_display_name=tag["description"],
+                    if (tag["field_name"], CustomTSField.MetricType.DIMENSION) not in fields:
+                        item = CustomTSField(
+                            time_series_group_id=self.time_series_group_id,
+                            name=tag["field_name"],
+                            type=CustomTSField.MetricType.DIMENSION,
+                            description=tag["description"],
                         )
                         # 添加维度字段
                         need_create_fields.append(item)
-                        fields[(tag["field_name"], CustomTSItem.MetricType.DIMENSION)] = item
+                        fields[(tag["field_name"], CustomTSField.MetricType.DIMENSION)] = item
                     else:
                         # 如果存在维度别名不为空，则更新
-                        item = fields[(tag["field_name"], CustomTSItem.MetricType.DIMENSION)]
-                        if item.metric_display_name == "" and tag["description"]:
-                            item.metric_display_name = tag["description"]
+                        item = fields[(tag["field_name"], CustomTSField.MetricType.DIMENSION)]
+                        if item.description == "" and tag["description"]:
+                            item.description = tag["description"]
                             need_update_fields.append(item)
 
         if need_create_fields:
@@ -200,23 +261,23 @@ class CustomTSTable(OperateRecordModelBase):
             # 对新增指标进行分组匹配
             for field in need_create_fields:
                 # 跳过维度
-                if field.type == CustomTSItem.MetricType.DIMENSION:
+                if field.type == CustomTSField.MetricType.DIMENSION:
                     continue
 
                 labels = []
                 for group in group_rules:
-                    if group.match_metric(field.metric_name):
+                    if group.match_metric(field.name):
                         labels.append(group.name)
-                field.label = sorted(labels)
+                field.config["label"] = sorted(labels)
 
             # 批量创建
-            CustomTSItem.objects.bulk_create(need_create_fields, batch_size=500)
+            CustomTSField.objects.bulk_create(need_create_fields, batch_size=500)
 
         # 批量更新
         if need_update_fields:
-            CustomTSItem.objects.bulk_update(
+            CustomTSField.objects.bulk_update(
                 need_update_fields,
-                ["label", "metric_display_name", "unit", "disabled", "type", "dimension_list"],
+                ["config", "description", "disabled", "type"],
                 batch_size=500,
             )
 
@@ -227,54 +288,60 @@ class CustomTSTable(OperateRecordModelBase):
         更新指标标签
         """
         # 获取当前指标标签
-        fields = CustomTSItem.objects.filter(table=self)
+        fields = CustomTSField.objects.filter(
+            time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.METRIC
+        )
         updated_fields = []
         for field in fields:
             # 清空标签
             if clean:
-                field.label = []
+                field.config["label"] = []
 
+            field.config.setdefault("label", [])
             for group_rule in group_rules:
-                if not delete and group_rule.match_metric(field.metric_name):
-                    if group_rule.name not in field.label:
-                        field.label.append(group_rule.name)
+                if not delete and group_rule.match_metric(field.name):
+                    if group_rule.name not in field.config["label"]:
+                        field.config["label"].append(group_rule.name)
                         updated_fields.append(field)
                 else:
-                    if group_rule.name in field.label:
-                        field.label.remove(group_rule.name)
+                    if group_rule.name in field.config["label"]:
+                        field.config["label"].remove(group_rule.name)
                         updated_fields.append(field)
 
         # 批量更新
         if updated_fields:
-            CustomTSItem.objects.bulk_update(updated_fields, ["label"], batch_size=500)
+            CustomTSField.objects.bulk_update(updated_fields, ["config"], batch_size=500)
 
-    def get_metrics(self):
+    def get_metrics(self) -> dict[str, dict]:
         """
         获取指标/维度信息
         """
         fields = self.get_and_sync_fields()
         dimension_names: dict[str, str] = {
-            dimension.metric_name: dimension.metric_display_name
-            for dimension in CustomTSItem.objects.filter(table=self, type=CustomTSItem.MetricType.DIMENSION)
+            dimension.name: dimension.description
+            for dimension in CustomTSField.objects.filter(
+                time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.DIMENSION
+            )
         }
 
         field_map = {}
         for field in fields:
-            field_map[field.metric_name] = {
-                "name": field.metric_name,
+            field_map[field.name] = {
+                "name": field.name,
                 "monitor_type": field.type,
-                "unit": field.unit,
-                "description": field.metric_display_name,
+                "unit": field.config.get("unit", ""),
+                "description": field.description,
                 "type": field.type,
             }
 
-            if field.type == CustomTSItem.MetricType.METRIC:
-                field_map[field.metric_name].update(
+            if field.type == CustomTSField.MetricType.METRIC:
+                field_map[field.name].update(
                     {
                         "dimension_list": [
-                            {"id": dimension, "name": dimension_names[dimension]} for dimension in field.dimension_list
+                            {"id": dimension, "name": dimension_names[dimension]}
+                            for dimension in field.config.get("dimensions", [])
                         ],
-                        "label": field.label,
+                        "label": field.config.get("label", []),
                     }
                 )
         return field_map
@@ -283,7 +350,9 @@ class CustomTSTable(OperateRecordModelBase):
         """
         查询 target 维度字段
         """
-        metric = CustomTSItem.objects.filter(table=self).first()
+        metric = CustomTSField.objects.filter(
+            time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.METRIC
+        ).first()
         if not metric:
             return []
 
@@ -294,7 +363,7 @@ class CustomTSTable(OperateRecordModelBase):
                 "table": self.table_id,
                 "data_label": self.data_label,
                 "group_by": ["target"],
-                "metrics": [{"field": metric.metric_name}],
+                "metrics": [{"field": metric.name}],
             },
         )
         query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
@@ -315,23 +384,14 @@ class CustomTSTable(OperateRecordModelBase):
 
 class CustomTSItem(models.Model):
     """
-    自定义时序指标
+    自定义时序指标（弃用）
     """
-
-    METRIC_TYPE_CHOICES = (
-        ("metric", "指标"),
-        ("dimension", "维度"),
-    )
-
-    class MetricType:
-        METRIC = "metric"
-        DIMENSION = "dimension"
 
     table = models.ForeignKey(
         CustomTSTable, verbose_name="自定义时序ID", related_name="metric_list", default=0, on_delete=models.CASCADE
     )
-    metric_name = models.CharField("指标名称", max_length=128)
-    type = models.CharField("类型", max_length=16, choices=METRIC_TYPE_CHOICES, default=MetricType.METRIC)
+    field_name = models.CharField("字段名称", max_length=128, db_column="metric_name")
+    type = models.CharField("类型", max_length=16, default="")
     label = JsonField("分组标签", default=list, blank=False)
 
     unit = models.CharField("字段单位", max_length=16, default="")

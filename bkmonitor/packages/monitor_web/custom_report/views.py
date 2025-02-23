@@ -71,14 +71,15 @@ class CustomMetricReportViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.custom_report.create_custom_time_series, endpoint="create_custom_time_series"),
         # 修改自定义指标
         ResourceRoute("POST", resource.custom_report.modify_custom_time_series, endpoint="modify_custom_time_series"),
-        # 修改自定义指标描述
-        ResourceRoute(
-            "POST", resource.custom_report.modify_custom_time_series_desc, endpoint="modify_custom_time_series_desc"
-        ),
         # 删除自定义指标
         ResourceRoute("POST", resource.custom_report.delete_custom_time_series, endpoint="delete_custom_time_series"),
         # 添加自定义指标
         ResourceRoute("POST", resource.custom_report.add_custom_metric, endpoint="add_custom_metric"),
+        # 指标字段 API
+        ResourceRoute("GET", resource.custom_report.get_custom_metric_fields, endpoint="get_custom_metric_fields"),
+        ResourceRoute(
+            "POST", resource.custom_report.modify_custom_metric_fields, endpoint="modify_custom_metric_fields"
+        ),
         # 分组规则 API
         # 创建或更新分组规则
         ResourceRoute(
