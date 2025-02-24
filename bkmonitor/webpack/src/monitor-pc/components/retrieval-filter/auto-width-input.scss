@@ -1,0 +1,17 @@
+.auto-width-input-component {
+  display: inline-flex;
+  align-items: center;
+
+  .input-value-hidden {
+    position: fixed;
+    top: 9999px;
+    left: 9999px;
+    padding: 0;
+    visibility: hidden;
+  }
+
+  input {
+    background: #ffffff00;
+    border: none;
+  }
+}
