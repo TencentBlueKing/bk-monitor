@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import traceback
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from copy import deepcopy
 from typing import Any, Dict
 
@@ -26,7 +26,6 @@ from bkmonitor.utils.request import get_request
 from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from core.errors.dashboard import GetFolderOrDashboardError
-from monitor_web.grafana.constant import PanelMigrationConfig
 from monitor_web.grafana.permissions import DashboardPermission
 
 logger = logging.getLogger(__name__)
@@ -427,6 +426,7 @@ class MigrateOldPanels(Resource):
     将旧版 panels 迁移到新版本
     """
 
+    PanelMigrationConfig = namedtuple('PanelMigrationConfig', ['old_type', 'new_type', 'method_name'])
     GRAPH_TO_TIMESERIES = PanelMigrationConfig("graph", "timeseries", "graph_to_timeseries")
     OLD_TABLE_TO_NEW = PanelMigrationConfig("table-old", "table", "oldtable_to_newtable")
     OLD_PIECHART_TO_NEW = PanelMigrationConfig("grafana-piechart-panel", "piechart", "old_piechart_to_new")
