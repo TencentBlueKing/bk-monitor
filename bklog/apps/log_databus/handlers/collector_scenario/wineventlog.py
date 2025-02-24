@@ -20,7 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.log_databus.constants import EtlConfig, LogPluginInfo
 from apps.log_databus.handlers.collector_scenario import CollectorScenario

@@ -23,7 +23,7 @@ import copy
 from collections import defaultdict
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import CmsiApi, TransferApi
 from apps.feature_toggle.handlers import toggle

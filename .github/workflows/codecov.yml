@@ -26,10 +26,13 @@ jobs:
       run:
         shell: bash
         working-directory: bklog
-    container:
-      image: python:3.6.8
+    timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - name: Setup Python environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11.10'
     - name: Generate Report
       run: |
         source scripts/test_env.sh

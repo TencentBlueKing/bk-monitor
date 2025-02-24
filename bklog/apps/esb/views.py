@@ -19,6 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf import settings
+from django.urls import Resolver404, resolve
+from django.utils.translation import gettext as _
+from rest_framework.response import Response
+
 from apps.api import BkLogApi, TransferApi, WeWorkApi
 from apps.esb import exceptions
 from apps.esb.serializers import WeWorkCreateChat
@@ -31,10 +36,6 @@ from apps.iam.handlers.drf import (
 )
 from apps.iam.handlers.resources import _all_resources
 from apps.utils.drf import list_route
-from django.conf import settings
-from django.urls import Resolver404, resolve
-from django.utils.translation import ugettext as _
-from rest_framework.response import Response
 
 
 class WeWorkViewSet(APIViewSet):

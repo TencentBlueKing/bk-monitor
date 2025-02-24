@@ -21,6 +21,12 @@ the project delivered to anyone in the future.
 """
 import os
 
+from django.conf import settings
+from django.http import HttpResponse
+from django.shortcuts import redirect
+from django.utils.translation import gettext_lazy as _
+from rest_framework.response import Response
+
 from apps.generic import ModelViewSet
 from apps.log_extract import exceptions, serializers
 from apps.log_extract.exceptions import TaskFileLinkNotExist
@@ -29,11 +35,6 @@ from apps.log_extract.handlers.tasks import TasksHandler
 from apps.log_extract.models import Tasks
 from apps.log_extract.serializers import DownloadFileSerializer
 from apps.utils.drf import list_route
-from django.conf import settings
-from django.http import HttpResponse
-from django.shortcuts import redirect
-from django.utils.translation import ugettext_lazy as _
-from rest_framework.response import Response
 
 
 class TasksViewSet(ModelViewSet):
@@ -86,7 +87,7 @@ class TasksViewSet(ModelViewSet):
                  "task_id": 1,
                  "bk_biz_id": 251,
                  "preview_directory": "/data/data/",
-                 "preview_ip": "1.123.31.12",
+                 "preview_ip": "127.0.0.1",
                  "preview_time_range": "1d", -> ["1d", "1w", "1m", "all"]
                  "preview_is_search_child": false,
                  "ip_list": ["x.x.x.x"],
@@ -100,7 +101,7 @@ class TasksViewSet(ModelViewSet):
                  "task_id": 2,
                  "bk_biz_id": 251,
                  "preview_directory": "/data/data/",
-                 "preview_ip": "1.123.31.12",
+                 "preview_ip": "127.0.0.1",
                  "preview_time_range": "1d", -> ["1d", "1w", "1m", "all"]
                  "preview_is_search_child": false,
                  "ip_list": [{"ip": "x.x.x.x", "bk_cloud_id": 1}, {"ip": "x.x.x.x", "bk_cloud_id": 1}],
@@ -146,7 +147,7 @@ class TasksViewSet(ModelViewSet):
             "bk_biz_id": 123,
             "remark": "这是一个备注",
             "preview_directory": "/data/test/data",
-            "preview_ip: "1.23.1.1",
+            "preview_ip: "127.0.0.1",
             "preview_time_range": "1d", -> ["1d", "1w", "1m", "all"]
             "preview_is_search_child": false,
             "preview_start_time": "2020-01-02 xx:xx",
@@ -376,7 +377,7 @@ class TasksViewSet(ModelViewSet):
              "start_time": "2020-06-04 11:19:32"
              "end_time": "--" (此时任务未结束),
              "preview_directory": "/data/data/",
-             "preview_ip": "1.123.31.12",
+             "preview_ip": "127.0.0.1",
              "preview_time_range": "1d", -> ["1d", "1w", "1m", "all"]
              "preview_is_search_child": false,
              "task_step_status": [{

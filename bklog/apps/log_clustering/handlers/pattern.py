@@ -330,7 +330,7 @@ class PatternHandler:
                     .select(*select_fields)
                     .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                     .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                     .query()
                 )
             except Exception:  # pylint: disable=broad-except
@@ -341,7 +341,7 @@ class PatternHandler:
                     .select(*select_fields)
                     .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.pattern_aggs_field)
                     .where(IS_NEW_PATTERN_PREFIX, "=", 1)
-                    .time_range(start_time.timestamp, end_time.timestamp)
+                    .time_range(int(start_time.timestamp()), int(end_time.timestamp()))
                     .query()
                 )
         else:
@@ -350,7 +350,7 @@ class PatternHandler:
                 BkData(self._clustering_config.new_cls_pattern_rt)
                 .select(*select_fields)
                 .where(NEW_CLASS_SENSITIVITY_FIELD, "=", self.new_class_field)
-                .time_range(start_time.timestamp, end_time.timestamp)
+                .time_range(int(start_time.timestamp(), int(end_time.timestamp())))
                 .query()
             )
         return {tuple(str(new_class[field]) for field in select_fields) for new_class in new_classes}
@@ -366,7 +366,7 @@ class PatternHandler:
                 BkData(self._clustering_config.signature_pattern_rt)
                 .select("signature", "pattern")
                 .where("signature", "IN", patterns)
-                .time_range(start_time=start_time.shift(days=-1).timestamp)  # 只查开始时间前1天的数据，避免历史数据膨胀
+                .time_range(start_time=int(start_time.shift(days=-1).timestamp()))  # 只查开始时间前1天的数据，避免历史数据膨胀
                 .limit(50000)  # 最多只拉取 5w 条
                 .query()
             )
@@ -442,7 +442,7 @@ class PatternHandler:
             )
             .first()
         )
-        now = int(arrow.now().timestamp * 1000)
+        now = int(arrow.now().timestamp() * 1000)
         # 如果不存在则新建  同时同步其它signature或origin_pattern相同的ClusteringRemark
         if method == "create":
             remark_info = {"username": get_request_username(), "create_time": now, "remark": params["remark"]}

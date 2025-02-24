@@ -29,7 +29,7 @@ import pytz
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -85,6 +85,7 @@ from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
     IndexSetFieldsConfig,
     IndexSetTag,
+    IndexSetUserFavorite,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
@@ -93,7 +94,6 @@ from apps.log_search.models import (
     UserIndexSetCustomConfig,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
-    IndexSetUserFavorite,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
@@ -104,10 +104,10 @@ from apps.utils import APIModel
 from apps.utils.bk_data_auth import BkDataAuthHandler
 from apps.utils.db import array_hash
 from apps.utils.local import (
+    get_local_param,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
-    get_local_param,
 )
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -1186,35 +1186,22 @@ class IndexSetHandler(APIModel):
         end_time = params.get("end_time")
         limit = params["limit"]
         if not start_time:
-            history_obj = (
-                UserIndexSetSearchHistory.objects.filter(
-                    is_deleted=False,
-                    search_type="default",
-                    created_by=username
-                )
-                .order_by("-created_at")
-            )
+            history_obj = UserIndexSetSearchHistory.objects.filter(
+                is_deleted=False, search_type="default", created_by=username
+            ).order_by("-created_at")
         else:
             tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
             start_time = arrow.get(start_time).to(tz=tz_info).datetime
             end_time = arrow.get(end_time).to(tz=tz_info).datetime
-            history_obj = (
-                UserIndexSetSearchHistory.objects.filter(
-                    is_deleted=False,
-                    search_type="default",
-                    created_at__range=[start_time, end_time],
-                    created_by=username
-                )
-                .order_by("-created_at")
-            )
+            history_obj = UserIndexSetSearchHistory.objects.filter(
+                is_deleted=False, search_type="default", created_at__range=[start_time, end_time], created_by=username
+            ).order_by("-created_at")
         history_data = list(history_obj.values("index_set_id", "created_at", "params", "duration"))
         index_set_ids = list(history_obj.values_list("index_set_id", flat=True))
         detail_data = list(
-            LogIndexSet.objects.filter(
-                index_set_id__in=index_set_ids,
-                is_active=True
+            LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
+                "index_set_id", "index_set_name", "space_uid"
             )
-            .values("index_set_id", "index_set_name", "space_uid")
         )
         return_data = []
         for history in history_data:
@@ -1228,10 +1215,10 @@ class IndexSetHandler(APIModel):
                         "params": history["params"],
                         "duration": history["duration"],
                         "index_set_name": detail["index_set_name"],
-                        "space_uid": detail["space_uid"]
+                        "space_uid": detail["space_uid"],
                     }
                     return_data.append(search_data)
-        return_data = return_data[:int(limit)]
+        return_data = return_data[: int(limit)]
         return return_data
 
     @staticmethod
@@ -1243,17 +1230,12 @@ class IndexSetHandler(APIModel):
         space_uid = params.get("space_uid")
         limit = params.get("limit")
         index_set_ids = list(IndexSetUserFavorite.fetch_user_favorite_index_set(username=username))
-        index_set_obj = (
-            LogIndexSet.objects.filter(
-                index_set_id__in=index_set_ids,
-                is_active=True
-            )
-        )
+        index_set_obj = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True)
         if space_uid:
             index_set_obj = index_set_obj.filter(space_uid=space_uid)
         index_set_data = list(index_set_obj.values("index_set_id", "index_set_name", "created_at", "space_uid"))
         if limit:
-            index_set_data = index_set_data[:int(limit)]
+            index_set_data = index_set_data[: int(limit)]
         return index_set_data
 
 

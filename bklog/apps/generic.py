@@ -23,7 +23,7 @@ from typing import List
 
 from django.conf import settings
 from django.http import Http404, JsonResponse
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django_filters import rest_framework as django_filters
 from iam import Resource
 from opentelemetry import trace

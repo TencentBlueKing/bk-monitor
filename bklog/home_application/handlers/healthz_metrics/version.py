@@ -22,7 +22,8 @@ the project delivered to anyone in the future.
 import logging
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
+
 from home_application.handlers.metrics import (
     HealthzMetric,
     NamespaceData,

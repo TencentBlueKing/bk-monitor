@@ -21,13 +21,13 @@ the project delivered to anyone in the future.
 """
 from collections import defaultdict
 
-from django.utils.translation import ugettext as _
 from django.conf import settings
+from django.utils.translation import gettext as _
 
-from apps.utils.log import logger
 from apps.log_measure.utils.metric import MetricUtils
-from bk_monitor.utils.metric import register_metric, Metric
+from apps.utils.log import logger
 from bk_monitor.constants import TimeFilterEnum
+from bk_monitor.utils.metric import Metric, register_metric
 
 
 class ClusterMetricCollector(object):

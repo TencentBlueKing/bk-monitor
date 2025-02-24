@@ -24,6 +24,9 @@ import logging
 import time
 
 import requests
+from django.conf import settings
+from django.utils.translation import gettext as _
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import CHECK_COLLECTOR_CUSTOM_CONFIG
 from apps.log_databus.constants import TRANSFER_METRICS, EtlConfig
@@ -33,8 +36,6 @@ from apps.log_databus.models import CleanStash
 from apps.log_search.constants import TimeEnum
 from bk_monitor.api.client import Client
 from config.domains import MONITOR_APIGATEWAY_ROOT
-from django.conf import settings
-from django.utils.translation import ugettext as _
 
 logger = logging.getLogger()
 

@@ -19,14 +19,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
-from celery.task import periodic_task
 from django.utils import timezone
 
 from apps.api import TransferApi
-from apps.utils.log import logger
 from apps.log_databus.models import RestoreConfig
 from apps.log_search.handlers.index_set import IndexSetHandler
+from apps.utils.log import logger
 
 
 @periodic_task(run_every=crontab(minute="0", hour="1"))

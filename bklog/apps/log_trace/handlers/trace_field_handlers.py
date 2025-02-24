@@ -22,8 +22,7 @@ the project delivered to anyone in the future.
 import copy
 from typing import List
 
-from django.utils.translation import ugettext_lazy as _
-
+from django.utils.translation import gettext_lazy as _
 
 TRACE_TYPE_AVAILABLE = ["log", "jaeger"]
 TRACE_PRODUCE_FIELDS = [

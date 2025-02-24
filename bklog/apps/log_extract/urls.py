@@ -19,9 +19,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import url, include
+from django.conf.urls import include
+from django.urls import re_path
 from rest_framework import routers
-from apps.log_extract.views import explorer_views, strategies_views, tasks_views, links_views
+
+from apps.log_extract.views import (
+    explorer_views,
+    links_views,
+    strategies_views,
+    tasks_views,
+)
 
 #
 router = routers.DefaultRouter(trailing_slash=True)
@@ -29,4 +36,4 @@ router.register(r"explorer", explorer_views.ExplorerViewSet, basename="explorer"
 router.register(r"strategies", strategies_views.StrategiesViewSet, basename="strategies")
 router.register(r"tasks", tasks_views.TasksViewSet, basename="tasks")
 router.register(r"links", links_views.LinksViewSet, basename="links")
-urlpatterns = [url(r"", include(router.urls))]
+urlpatterns = [re_path(r"", include(router.urls))]

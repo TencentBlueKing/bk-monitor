@@ -22,6 +22,11 @@ the project delivered to anyone in the future.
 import os
 import random
 
+from django.conf import settings
+from django.utils.translation import gettext as _
+from pipeline.component_framework.component import Component
+from pipeline.core.flow.activity import Service, StaticIntervalGenerator
+
 from apps.log_extract import constants
 from apps.log_extract.constants import BKREPO_CHILD_PACKING_PATH, ExtractLinkType
 from apps.log_extract.fileserver import FileServer
@@ -29,10 +34,6 @@ from apps.log_extract.models import ExtractLink, ExtractLinkHost, Tasks
 from apps.log_extract.utils.packing import get_packed_dir_name
 from apps.log_extract.utils.transit_server import TransitServer
 from apps.utils.pipline import BaseService
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from pipeline.component_framework.component import Component
-from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
 
 class FileDistributionService(BaseService):

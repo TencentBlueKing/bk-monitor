@@ -25,6 +25,8 @@ import os
 import time
 from collections import defaultdict
 
+from django.utils.translation import gettext as _
+
 from apps.api import JobApi
 from apps.constants import ScriptType
 from apps.log_commons.job import JobHelper
@@ -42,7 +44,6 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from config import BASE_DIR
-from django.utils.translation import ugettext as _
 
 
 class AgentChecker(Checker):

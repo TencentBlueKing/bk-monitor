@@ -22,8 +22,8 @@ the project delivered to anyone in the future.
 import base64
 
 from django.conf import settings
-from django.utils.translation import ugettext
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as SlzValidationError
 
@@ -1459,9 +1459,9 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
         keys = attrs.keys()
         if "storage_cluster_id" in keys:
             if "retention" not in keys:
-                raise serializers.ValidationError(ugettext("有效时间不能为空"))
+                raise serializers.ValidationError(gettext("有效时间不能为空"))
             if "allocation_min_days" not in keys:
-                raise serializers.ValidationError(ugettext("冷热数据生效时间不能为空"))
+                raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
         return attrs
 
 
