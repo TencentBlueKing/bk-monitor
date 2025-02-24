@@ -31,6 +31,7 @@ from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.statistics_query import StatisticsQuery
 from apm.core.handlers.query.trace_query import TraceQuery
 from apm.models import ApmApplication, ApmDataSourceConfigBase
+from apm_ebpf.models import DeepflowWorkload
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from constants.apm import OtlpKey, TraceWaterFallDisplayKey
 
@@ -173,7 +174,7 @@ class QueryProxy:
                     for i in relation_spans
                 }
 
-        return spans, relation_mapping
+        return spans, relation_mapping, {"ebpf_enabled": DeepflowWorkload.is_exist_ebpf(bk_biz_id)}
 
     def query_span_detail(self, span_id):
         return self.span_query.query_by_span_id(span_id)
