@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount } from 'vue';
 
 import {
   parseTableRowData,
@@ -66,6 +66,7 @@ import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
+import PopInstanceUtil from '../../search-bar/pop-instance-util';
 
 import './log-rows.scss';
 
@@ -76,9 +77,6 @@ type RowConfig = {
   stickyTop?: number;
   rowMinHeight?: number;
 };
-
-// type RowData = Record<string, any>;
-// type ColumnFiled = Record<string, any>;
 
 export default defineComponent({
   props: {
@@ -93,6 +91,14 @@ export default defineComponent({
     const { $t } = useLocale();
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
+    const popInstanceUtil = new PopInstanceUtil({
+      refContent: ref('智能分析'),
+      tippyOptions: {
+        appendTo: document.body,
+        placement: 'top',
+        theme: 'dark',
+      },
+    });
 
     const pageIndex = ref(1);
     // 前端本地分页
@@ -858,6 +864,20 @@ export default defineComponent({
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
 
+    const handleMouseenter = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.classList?.contains('bklog-row-ai')) {
+        popInstanceUtil.show(target);
+      }
+    };
+
+    const handleMouseleave = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.classList?.contains('bklog-row-ai')) {
+        popInstanceUtil.hide();
+      }
+    };
+
     const renderRowCells = (row, rowIndex) => {
       const { expand } = tableRowConfig.get(row).value;
       const opStyle = {
@@ -892,6 +912,8 @@ export default defineComponent({
         <span
           class='bklog-row-ai'
           onClick={e => handleRowAIClcik(e, row)}
+          onMouseenter={handleMouseenter}
+          onMouseleave={handleMouseleave}
         >
           <img src={aiBlueking} />
         </span>,
@@ -966,6 +988,10 @@ export default defineComponent({
       return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
     });
 
+    onBeforeUnmount(() => {
+      popInstanceUtil.uninstallInstance();
+    });
+
     return {
       refRootElement,
       isTableLoading,
@@ -975,6 +1001,7 @@ export default defineComponent({
       renderScrollXBar,
       renderLoader,
       renderHeadVNode,
+
       tableDataSize,
       resultContainerId,
       hasScrollX,
