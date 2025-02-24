@@ -19,39 +19,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.conf.urls import include, url
+from rest_framework import routers
 
-# 创建bkdata data_id 特性开关
-FEATURE_BKDATA_DATAID = "feature_bkdata_dataid"
+from apps.ai_assistant.views import AIAssistantViewSet
 
-# 是否开启ITSM特性开关
-FEATURE_COLLECTOR_ITSM = "collect_itsm"
-ITSM_SERVICE_ID = "itsm_service_id"
-SCENARIO_BKDATA = "scenario_bkdata"
-# 是否使用数据平台超级token
-BKDATA_SUPER_TOKEN = "bkdata_super_token"
-# AIOPS相关配置
-BKDATA_CLUSTERING_TOGGLE = "bkdata_aiops_toggle"
-# es相关配置
-BKLOG_ES_CONFIG = "bklog_es_config"
-# 新人指引相关配置
-USER_GUIDE_CONFIG = "user_guide_config"
+router = routers.DefaultRouter(trailing_slash=True)
 
-BCS_COLLECTOR = "bcs_collector"
-BCS_DEPLOYMENT_TYPE = "bcs_deployment_type"
-CHECK_COLLECTOR_CUSTOM_CONFIG = "check_collector_custom_config"
+router.register(r"ai_assistant", AIAssistantViewSet, basename="ai_assistant")
 
-# grafana自定义ES数据源
-GRAFANA_CUSTOM_ES_DATASOURCE = "grafana_custom_es_datasource"
-# EXTERNAL业务被授权人配置
-EXTERNAL_AUTHORIZER_MAP = "external_authorizer_map"
-# 字段分析白名单开关
-FIELD_ANALYSIS_CONFIG = "field_analysis_config"
-
-# 直接进行esquery_search查询的开关
-DIRECT_ESQUERY_SEARCH = "direct_esquery_search"
-
-# 日志脱敏开关
-LOG_DESENSITIZE = "log_desensitize"
-
-# AI 助手
-AI_ASSISTANT = 'ai_assistant'
+urlpatterns = [
+    url(r"^", include(router.urls)),
+]

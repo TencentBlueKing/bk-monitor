@@ -31,11 +31,11 @@ Including another URLconf
     1. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 
+from bk_notice_sdk import config as notice_config
 from django.conf import settings
 from django.conf.urls import include, url
 from django.contrib import admin
 from django.views import static
-from bk_notice_sdk import config as notice_config
 from version_log import config
 
 urlpatterns = [
@@ -56,6 +56,7 @@ urlpatterns = [
     url(r"^api/v1/", include("apps.log_bcs.urls")),
     url(r"^api/v1/", include("apps.log_clustering.urls")),
     url(r"^api/v1/", include("apps.log_desensitize.urls")),
+    url(r"^api/v1/", include("apps.ai_assistant.urls")),
     url(r"^", include("apps.grafana.urls")),
     url(r"^", include("log_adapter.urls")),
     # 前端页面

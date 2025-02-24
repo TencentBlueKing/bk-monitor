@@ -50,6 +50,11 @@ from apps.utils import get_local_ip
 
 def requests_callback(span: Span, response):
     """处理蓝鲸格式返回码"""
+
+    # 流式请求不统计，避免流式失效
+    if hasattr(response.raw, "stream"):
+        return
+
     try:
         json_result = response.json()
     except Exception:  # pylint: disable=broad-except
