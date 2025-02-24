@@ -273,6 +273,9 @@
   });
 
   const saveCurrentActiveFavorite = async () => {
+    if (matchSQLStr.value) {
+      return;
+    }
     const {
       name,
       group_id,
@@ -462,42 +465,43 @@
           ></div>
 
           <BookmarkPop
-            v-if="!props.activeFavorite"
-            v-bk-tooltips="$t('收藏当前查询')"
+            :activeFavorite="!props.activeFavorite"
+            
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :search-mode="queryParams[activeIndex]"
             :sql="sqlQueryValue"
+            :matchSQLStr="matchSQLStr"
+            @saveCurrentActiveFavorite="saveCurrentActiveFavorite"
             @refresh="handleRefresh"
           ></BookmarkPop>
-          <template v-else>
+          <!-- <template v-else> -->
             <!-- <div
               v-if="matchSQLStr"
               class="bklog-icon bklog-star-line disabled"
               v-bk-tooltips="$t('已收藏')"
               :data-boolean="matchSQLStr"
             ></div> -->
-            <bk-dropdown-menu :align="'center'">
+            <!-- <bk-dropdown-menu :align="'center'">
               <template slot="dropdown-trigger">
                  <div
                     style="color: #63656e"
                     v-bk-tooltips="$t('收藏')"
                     class="icon bk-icon icon-save"
-                    @click="saveCurrentActiveFavorite"
                   ></div>
               </template>
               <ul class="bk-dropdown-list" slot="dropdown-content">
                   <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentActiveFavorite">覆盖当前收藏</a></li>
                   <li><a href="javascript:;">另存为新收藏</a></li>
               </ul>
-          </bk-dropdown-menu>
+          </bk-dropdown-menu> -->
             <!-- <div
               style="color: #63656e"
               v-bk-tooltips="$t('收藏')"
               class="icon bk-icon icon-save"
               @click="saveCurrentActiveFavorite"
             ></div> -->
-          </template>
+          <!-- </template> -->
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
