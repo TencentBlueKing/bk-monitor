@@ -23,15 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getCharLength } from './utils';
+import AutoWidthInput from './auto-width-input';
+import TextHighlighter from './text-highlighter';
+import { onClickOutside } from './utils';
 import ValueTagInput from './value-tag-input';
 
 import './value-tag-selector.scss';
 
-interface IValue {
+export interface IValue {
   id: string;
   name: string; // 暂不显示 预留
 }
@@ -39,15 +41,19 @@ interface IValue {
 interface IProps {
   options?: IValue[];
   loading?: boolean;
+  value?: IValue[];
+  onChange?: (v: IValue[]) => void;
+  onSearch?: (v: string) => void;
 }
 
 @Component
 export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) options: IValue[];
   @Prop({ type: Boolean, default: false }) loading: boolean;
-
-  @Ref('input') inputRef: HTMLInputElement;
+  @Prop({ type: Array, default: () => [] }) value: IValue[];
+  /* tag列表 */
   localValue: IValue[] = [];
+  /* 可选项 */
   localOptions: IValue[] = [];
   /* 是否显示下拉框 */
   isShowDropDown = false;
@@ -55,6 +61,10 @@ export default class ValueTagSelector extends tsc<IProps> {
   activeIndex = -1;
   /* 当前光标位置输入值 */
   inputValue = '';
+  /* 可选项悬停位置 */
+  hoverActiveIndex = -1;
+  /* 输入框是否聚焦 */
+  isFocus = false;
 
   @Watch('options', { immediate: true })
   handleWatchOptions() {
@@ -71,73 +81,163 @@ export default class ValueTagSelector extends tsc<IProps> {
   @Watch('loading', { immediate: true })
   handleWatchLoading() {
     if (this.loading) {
-      this.isShowDropDown = true;
+      this.handleShowShowDropDown(true);
     }
   }
 
+  @Watch('value', { immediate: true })
+  handleWatchValue() {
+    this.localValue = JSON.parse(JSON.stringify(this.value));
+  }
+
+  /**
+   * @description 下拉选项点击事件
+   * @param item
+   */
   handleCheck(item: IValue) {
     this.localValue.push(item);
+    this.handleChange();
   }
 
+  /**
+   * @description 点击输入框
+   */
   handleClick() {
-    this.isShowDropDown = !this.isShowDropDown;
+    if (!this.isShowDropDown) {
+      this.handleShowShowDropDown(true);
+    }
     this.activeIndex = this.localValue.length - 1;
-    this.inputFocus();
+    this.isFocus = true;
   }
 
-  handleInput(event) {
-    const input = event.target;
-    const value = input.value;
-    const charLen = getCharLength(value);
-    input.style.setProperty('width', `${charLen * 12}px`);
+  /**
+   * @description 输入框输入事件
+   * @param event
+   */
+  handleInput(value) {
+    this.inputValue = value;
+  }
+  /**
+   * @description 输入框失去焦点事件
+   */
+  handleBlur() {
+    this.inputValue = '';
+    this.isFocus = false;
+  }
+  /**
+   * @description 输入框enter事件
+   */
+  handleEnter() {
+    if (this.hoverActiveIndex === -1) {
+      this.handleShowShowDropDown(false);
+      this.localValue.push({ id: this.inputValue, name: this.inputValue });
+      this.activeIndex = this.localValue.length - 1;
+      this.handleChange();
+    }
+    this.inputValue = '';
   }
 
-  inputFocus() {
-    this.$nextTick(() => {
-      this.inputRef?.focus?.();
-    });
+  /**
+   * @description 下拉展开与收起
+   * @param v
+   */
+  handleShowShowDropDown(v: boolean) {
+    this.isShowDropDown = v;
+    if (this.isShowDropDown) {
+      setTimeout(() => {
+        onClickOutside(
+          this.$el,
+          () => {
+            this.isShowDropDown = false;
+          },
+          { once: true }
+        );
+      }, 100);
+    }
+  }
+
+  /**
+   * @description 删除tag
+   * @param index
+   */
+  handleDelete(index: number) {
+    this.localValue.splice(index, 1);
+    this.handleChange();
+  }
+
+  handleChange() {
+    this.$emit('change', this.localValue);
+  }
+  handleTagUpdate(v: string, index: number) {
+    this.localValue.splice(index, 1, { id: v, name: v });
   }
 
   render() {
+    const inputRender = () => (
+      <AutoWidthInput
+        key={'input'}
+        height={22}
+        class='mb-4 mr-4'
+        fontSize={12}
+        isFocus={this.isFocus}
+        value={this.inputValue}
+        onBlur={this.handleBlur}
+        onEnter={this.handleEnter}
+        onInput={this.handleInput}
+      />
+    );
     return (
       <div class='retrieval__value-tag-selector-component'>
         <div
           class='value-tag-selector-component-wrap'
           onClick={this.handleClick}
         >
-          {this.localValue.length ? (
-            this.localValue.map((item, index) => [
-              <ValueTagInput
-                key={index}
-                class='value-tag-input'
-                value={item.id}
-              />,
-              this.activeIndex === index && (
-                <input
-                  ref='input'
-                  class='focus-input'
-                  v-model={this.inputValue}
-                  type='text'
-                  onInput={this.handleInput}
-                />
-              ),
-            ])
-          ) : (
-            <span class='placeholder-span'>{`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}</span>
-          )}
+          {this.localValue.length
+            ? this.localValue.map((item, index) => [
+                <ValueTagInput
+                  key={index}
+                  class='value-tag-input'
+                  value={item.id}
+                  onChange={v => this.handleTagUpdate(v, index)}
+                  onDelete={() => this.handleDelete(index)}
+                />,
+                this.activeIndex === index && inputRender(),
+              ])
+            : [
+                inputRender(),
+                !this.inputValue && (
+                  <span
+                    key={'no-data-placeholder'}
+                    class='placeholder-span'
+                  >{`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}</span>
+                ),
+              ]}
         </div>
         {this.isShowDropDown && (
           <div class='options-drop-down-wrap'>
+            {!!this.inputValue && (
+              <div
+                key={'00'}
+                class={['options-item', { 'active-index': this.hoverActiveIndex === -1 }]}
+              >
+                <i18n path='生成"{0}"Tag'>
+                  <span class='highlight'>{this.inputValue}</span>
+                </i18n>
+              </div>
+            )}
             {this.localOptions.map((item, index) => (
               <div
                 key={index}
-                class='options-item'
+                class={['options-item', { 'active-index': this.hoverActiveIndex === index }]}
                 onClick={e => {
                   e.stopPropagation();
                   this.handleCheck(item);
                 }}
               >
-                {item.name}
+                <TextHighlighter
+                  content={item.name}
+                  keyword={this.inputValue}
+                />
               </div>
             ))}
           </div>

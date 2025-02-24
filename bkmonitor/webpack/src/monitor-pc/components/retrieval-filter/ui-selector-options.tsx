@@ -34,15 +34,18 @@ import {
   type IWhereValueOptionsItem,
   type IFilterField,
   ECondition,
+  type IFilterItem,
 } from './utils';
-import ValueTagSelector from './value-tag-selector';
+import ValueTagSelector, { type IValue } from './value-tag-selector';
 
 import './ui-selector-options.scss';
 
 interface IProps {
   fields: IFilterField[];
+  value?: IFilterItem;
+  show?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
-  onConfirm?: () => void;
+  onConfirm?: (v: IFilterItem) => void;
   onCancel?: () => void;
 }
 @Component
@@ -57,6 +60,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
       }),
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  @Prop({ type: Object, default: () => null }) value: IFilterItem;
+  @Prop({ type: Boolean, default: false }) show: boolean;
   /* 搜索值 */
   searchValue = '';
   /* 当前 */
@@ -90,17 +95,31 @@ export default class UiSelectorOptions extends tsc<IProps> {
     }
   }
 
+  @Watch('show', { immediate: true })
+  handleWatchShow() {
+    if (this.show && this.value) {
+      const id = this.value.key.id;
+      for (const item of this.localFields) {
+        if (item.name === id) {
+          const checkedItem = JSON.parse(JSON.stringify(item));
+          this.handleCheck(checkedItem, this.value.method.id, this.value.value);
+          break;
+        }
+      }
+    }
+  }
+
   /**
    * @description 选中
    * @param item
    */
-  handleCheck(item: IFilterField) {
+  handleCheck(item: IFilterField, method = '', value = []) {
     this.checkedItem = JSON.parse(JSON.stringify(item));
+    this.values = value || [];
     this.valueOptions = [];
     this.valueLoading = true;
     if (this.checkedItem?.name !== '*') {
-      this.method = this.checkedItem?.supported_operations?.[0]?.value || '';
-      this.values = [];
+      this.method = method || this.checkedItem?.supported_operations?.[0]?.value || '';
       this.getValueFn({
         where: [
           {
@@ -126,79 +145,109 @@ export default class UiSelectorOptions extends tsc<IProps> {
    * @description 点击确定
    */
   handleConfirm() {
-    this.$emit('confirm');
+    if (this.values.length) {
+      const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
+      const value: IFilterItem = {
+        key: { id: this.checkedItem.name, name: this.checkedItem.alias },
+        method: { id: this.method as any, name: methodName },
+        value: this.values,
+        condition: { id: ECondition.and, name: 'AND' },
+      };
+      this.$emit('confirm', value);
+    } else {
+      this.$emit('confirm', null);
+    }
   }
   handleCancel() {
     this.$emit('cancel');
   }
 
-  rightRender() {
-    if (this.checkedItem?.name === '*') {
-      return [
-        <div
-          key={'all'}
-          class='form-item'
-        >
-          <div class='form-item-label mt-16'>{this.$t('检索内容')}</div>
-          <div class='form-item-content mt-8'>
-            <bk-input
-              v-model={this.queryString}
-              placeholder={this.$t('请输入')}
-              rows={15}
-              type={'textarea'}
-            />
-          </div>
-        </div>,
-      ];
+  handleValueChange(v: IValue[]) {
+    this.values = v;
+  }
+
+  handleChange() {
+    if (this.values.length) {
+      const methodName = this.checkedItem.supported_operations.find(item => item.value === this.method)?.alias;
+      const value: IFilterItem = {
+        key: { id: this.checkedItem.name, name: this.checkedItem.alias },
+        method: { id: this.method as any, name: methodName },
+        value: this.values,
+        condition: { id: ECondition.and, name: 'AND' },
+      };
+      this.$emit('change', value);
     }
-    return this.checkedItem
-      ? [
+  }
+
+  render() {
+    const rightRender = () => {
+      if (this.checkedItem?.name === '*') {
+        return [
           <div
-            key={'method'}
-            class='form-item mt-34'
-            onClick={e => e.stopPropagation()}
+            key={'all'}
+            class='form-item'
           >
-            <div class='form-item-label'>{this.$t('条件')}</div>
-            <div class='form-item-content mt-6'>
-              <bk-select
-                ext-cls={'method-select'}
-                v-model={this.method}
-                popover-options={{
-                  appendTo: 'parent',
-                }}
-                clearable={false}
-              >
-                {this.checkedItem.supported_operations.map(item => (
-                  <bk-option
-                    id={item.value}
-                    key={item.value}
-                    name={item.alias}
-                  />
-                ))}
-              </bk-select>
-            </div>
-          </div>,
-          <div
-            key={'value'}
-            class='form-item mt-16'
-          >
-            <div class='form-item-label'>
-              <span class='left'>{this.$t('检索值')}</span>
-              <span class='right'>
-                <bk-checkbox v-model={this.isWildcard}>{this.wildcardItem?.label || '使用通配符'}</bk-checkbox>
-              </span>
-            </div>
-            <div class='form-item-content mt-6'>
-              <ValueTagSelector
-                loading={this.valueLoading}
-                options={this.valueOptions}
+            <div class='form-item-label mt-16'>{this.$t('检索内容')}</div>
+            <div class='form-item-content mt-8'>
+              <bk-input
+                v-model={this.queryString}
+                placeholder={this.$t('请输入')}
+                rows={15}
+                type={'textarea'}
               />
             </div>
           </div>,
-        ]
-      : undefined;
-  }
-  render() {
+        ];
+      }
+      return this.checkedItem
+        ? [
+            <div
+              key={'method'}
+              class='form-item mt-34'
+              onClick={e => e.stopPropagation()}
+            >
+              <div class='form-item-label'>{this.$t('条件')}</div>
+              <div class='form-item-content mt-6'>
+                <bk-select
+                  ext-cls={'method-select'}
+                  v-model={this.method}
+                  popover-options={{
+                    appendTo: 'parent',
+                  }}
+                  clearable={false}
+                >
+                  {this.checkedItem.supported_operations.map(item => (
+                    <bk-option
+                      id={item.value}
+                      key={item.value}
+                      name={item.alias}
+                    />
+                  ))}
+                </bk-select>
+              </div>
+            </div>,
+            <div
+              key={'value'}
+              class='form-item mt-16'
+            >
+              <div class='form-item-label'>
+                <span class='left'>{this.$t('检索值')}</span>
+                <span class='right'>
+                  <bk-checkbox v-model={this.isWildcard}>{this.wildcardItem?.label || '使用通配符'}</bk-checkbox>
+                </span>
+              </div>
+              <div class='form-item-content mt-6'>
+                <ValueTagSelector
+                  loading={this.valueLoading}
+                  options={this.valueOptions}
+                  value={this.values}
+                  onChange={this.handleValueChange}
+                />
+              </div>
+            </div>,
+          ]
+        : undefined;
+    };
     return (
       <div class='retrieval-filter__ui-selector-options-component'>
         <div class='component-top'>
@@ -240,7 +289,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               })}
             </div>
           </div>
-          <div class='component-top-right'>{this.rightRender()}</div>
+          <div class='component-top-right'>{rightRender()}</div>
         </div>
         <div class='component-bottom'>
           <span class='desc-item'>
