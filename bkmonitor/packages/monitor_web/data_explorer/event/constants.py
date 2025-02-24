@@ -61,7 +61,7 @@ class EventDimensionTypeEnum(Enum):
 # 事件字段别名
 EVENT_FIELD_ALIAS = {
     EventCategory.COMMON.value: {
-        "time": _("时间"),
+        "time": _("数据上报时间"),
         "event_name": _("事件名"),
         "event.content": _("事件内容"),
         "target": _("目标"),
