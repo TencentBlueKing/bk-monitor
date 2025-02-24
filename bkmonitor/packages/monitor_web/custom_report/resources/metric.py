@@ -525,7 +525,7 @@ class CustomTimeSeriesDetail(Resource):
         return data
 
 
-class GetCustomMetricFields(Resource):
+class GetCustomTsFields(Resource):
     """
     获取自定义指标字段
     """
@@ -577,7 +577,7 @@ class GetCustomMetricFields(Resource):
         return {"dimensions": dimensions, "metrics": metrics}
 
 
-class ModifyCustomMetricFields(Resource):
+class ModifyCustomTsFields(Resource):
     """
     修改自定义指标字段
     """
@@ -596,7 +596,6 @@ class ModifyCustomMetricFields(Resource):
             common = serializers.BooleanField(required=False, label="是否常用字段")
 
             # 指标属性
-            label = serializers.ListField(required=False, label="分组标签")
             unit = serializers.CharField(required=False, label="字段单位")
             hidden = serializers.BooleanField(required=False, label="是否隐藏")
             aggregate_method = serializers.CharField(required=False, label="聚合方法")
@@ -674,6 +673,9 @@ class ModifyCustomMetricFields(Resource):
         CustomTSField.objects.bulk_create(need_create_fields, batch_size=500)
         # 批量更新字段
         CustomTSField.objects.bulk_update(need_update_fields, ["description", "disabled", "config"], batch_size=500)
+
+        # 同步metadata
+        table.save_to_metadata(with_fields=True)
 
 
 class ValidateCustomTsGroupLabel(Resource):

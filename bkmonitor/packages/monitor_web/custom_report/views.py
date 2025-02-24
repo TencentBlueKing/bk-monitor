@@ -76,10 +76,8 @@ class CustomMetricReportViewSet(ResourceViewSet):
         # 添加自定义指标
         ResourceRoute("POST", resource.custom_report.add_custom_metric, endpoint="add_custom_metric"),
         # 指标字段 API
-        ResourceRoute("GET", resource.custom_report.get_custom_metric_fields, endpoint="get_custom_metric_fields"),
-        ResourceRoute(
-            "POST", resource.custom_report.modify_custom_metric_fields, endpoint="modify_custom_metric_fields"
-        ),
+        ResourceRoute("GET", resource.custom_report.get_custom_ts_fields, endpoint="get_custom_ts_fields"),
+        ResourceRoute("POST", resource.custom_report.modify_custom_ts_fields, endpoint="modify_custom_ts_fields"),
         # 分组规则 API
         # 创建或更新分组规则
         ResourceRoute(
