@@ -61,9 +61,11 @@
         transition: transform 0.3s;
       }
     }
+
     .filed-item-object {
       width: 7px;
     }
+
     .field-type-icon {
       display: inline-flex;
       align-items: center;
@@ -77,12 +79,12 @@
     }
 
     .field-name {
-      font-size: 12px;
       width: calc(100% - 42px);
       padding-right: 12px;
+      font-size: 12px;
       word-break: break-all;
       overflow-wrap: break-word; /* 或者 word-wrap: break-word; */
-      white-space: wrap;
+      white-space: nowrap;
     }
 
     .conflict-icon {
@@ -177,6 +179,7 @@
       }
     }
   }
+
   .sideslider{
     left: auto ;
   }

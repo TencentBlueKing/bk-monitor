@@ -65,7 +65,7 @@
       displayFields: displayFieldNames,
     });
     await nextTick();
-    store.commit('resetVisibleFields', displayFieldNames);
+    store.commit('resetVisibleFields', { displayFieldNames, version: 'v2' });
     store.commit('updateIsSetDefaultTableColumn', false);
   };
   const handleCloseFilterTitle = isTextClick => {
