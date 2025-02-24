@@ -1,11 +1,11 @@
 # refer to requirements
 -r requirements.txt
 
-pytest==7.4.4
-pytest-django==4.5.2
-pytest-mock==3.11.1
-coverage==6.1.2
+pytest==8.3.4
+pytest-django==4.8.0
+pytest-mock==3.14.0
+coverage==7.6.12
 mock==5.1.0
-fakeredis==2.26.2
-pytest-cov==4.1.0
+fakeredis==2.27.0
+pytest-cov==6.0.0
 ElasticMock==1.8.1

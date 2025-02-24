@@ -166,7 +166,8 @@ export default defineComponent({
                   }
                 ).catch(() => false)
               )?.flame_data ?? false);
-
+          chartInstance?.clear();
+          chartInstance?.dispose();
           if (data) {
             if (props.diffTraceId) {
               emit('diffTraceSuccess');
