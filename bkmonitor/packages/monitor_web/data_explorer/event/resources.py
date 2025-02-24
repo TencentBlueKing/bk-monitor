@@ -18,6 +18,7 @@ from metadata.models import ResultTable
 from . import serializers
 from .constants import (
     CATEGORY_WEIGHTS,
+    DEFAULT_DIMENSION_FIELDS,
     DISPLAY_FIELDS,
     ENTITIES,
     EVENT_FIELD_ALIAS,
@@ -67,13 +68,17 @@ class EventViewConfigResource(Resource):
         # 维度元数据集
         data_labels_queryset = ResultTable.objects.filter(table_id__in=tables).values("table_id", "data_label")
         data_labels_map = {item["table_id"]: item["data_label"] for item in data_labels_queryset}
-        dimension_metadata_map = {}
+        dimension_metadata_map = {
+            default_dimension_field: {"table_ids": set(), "data_labels": set()}
+            for default_dimension_field in DEFAULT_DIMENSION_FIELDS
+        }
 
         # 遍历查询集并聚合数据
         for dimension_entry in dimensions_queryset:
             dimensions = dimension_entry["dimensions"]
             table_id = dimension_entry["result_table_id"]
-            data_label = data_labels_map.get(table_id, "")
+            # 如果维度查询的 table_id 在 result_table 中查询不到，默认设置该 table_id 对应的维度的事件类型为 UNKNOWN_EVENT
+            data_label = data_labels_map.get(table_id, EventCategory.UNKNOWN_EVENT.value)
 
             for dimension in dimensions:
                 dimension_metadata_map.setdefault(dimension["id"], {}).setdefault("table_ids", set()).add(table_id)
@@ -88,7 +93,7 @@ class EventViewConfigResource(Resource):
         for name, dimension_metadata in dimension_metadata_map.items():
             field_type = cls.get_field_type(name)
             alias, field_category = cls.get_field_alias(name, dimension_metadata)
-            is_option_enabled = cls.is_option_enabled(name)
+            is_option_enabled = cls.is_option_enabled(field_type)
             is_dimensions = cls.is_dimensions(name)
             supported_operations = cls.get_supported_operations(field_type)
             fields.append(
@@ -104,9 +109,7 @@ class EventViewConfigResource(Resource):
             )
 
         # 使用 category_weights 对 fields 进行排序
-        fields.sort(
-            key=lambda field: CATEGORY_WEIGHTS.get(EventCategory(field["category"]), CategoryWeight.UNKNOWN.value)
-        )
+        fields.sort(key=lambda field: CATEGORY_WEIGHTS.get(field["category"], CategoryWeight.UNKNOWN.value))
 
         # 排序后除去权重字段
         for field in fields:
@@ -119,15 +122,18 @@ class EventViewConfigResource(Resource):
         获取字段别名
         """
         # 先渲染 common
-        if EVENT_FIELD_ALIAS["common"].get(name):
-            return "{}（{}）".format(EVENT_FIELD_ALIAS["common"].get(name), name), "common"
+        if EVENT_FIELD_ALIAS[EventCategory.COMMON.value].get(name):
+            return (
+                "{}（{}）".format(EVENT_FIELD_ALIAS[EventCategory.COMMON.value].get(name), name),
+                EventCategory.COMMON.value,
+            )
 
         data_label = list(dimension_metadata["data_labels"])[0]
         # 考虑 data_label 为空时处理
         if EVENT_FIELD_ALIAS.get(data_label, {}).get(name):
             return "{}（{}）".format(EVENT_FIELD_ALIAS[data_label].get(name), name), data_label
 
-        return name, ""
+        return name, EventCategory.UNKNOWN_EVENT.value
 
     @classmethod
     def is_dimensions(cls, name) -> bool:
