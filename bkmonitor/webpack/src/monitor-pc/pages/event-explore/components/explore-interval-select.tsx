@@ -83,7 +83,7 @@ export default class ExploreIntervalSelect extends tsc<ExploreIntervalSelectProp
       followCursor: false,
       boundary: 'viewport',
       distance: 4,
-      offset: '-4, 0',
+      offset: '-2, 0',
       onHidden: () => {
         this.popoverInstance?.destroy?.();
         this.popoverInstance = null;
