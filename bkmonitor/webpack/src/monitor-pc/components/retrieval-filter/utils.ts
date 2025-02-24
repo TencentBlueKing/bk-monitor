@@ -77,6 +77,7 @@ export const fieldTypeMap = {
     bgColor: '#EDE7DB',
   },
 };
+/* 可选数据格式 */
 export interface IFilterField {
   name: string;
   alias: string;
@@ -91,6 +92,17 @@ export interface IFilterField {
     };
   }[]; // 支持的操作
 }
+/* 接口where参数格式 */
+export interface IWhereItem {
+  key: string;
+  condition: ECondition;
+  method: EMethod | string;
+  value: string[];
+  options?: {
+    is_wildcard: boolean;
+  };
+}
+/* 条件结果数据格式 */
 export interface IFilterItem {
   key: { id: string; name: string };
   condition: { id: ECondition; name: string };
@@ -119,4 +131,37 @@ export function getCharLength(str) {
     bitLen += 1;
   }
   return bitLen;
+}
+
+export function getTitleAndSubtitle(str) {
+  const regex = /^(.*?)（(.*?)）$/;
+  const match = str.match(regex);
+  return {
+    title: match?.[1] || str,
+    subtitle: match?.[2],
+  };
+}
+
+export function defaultWhereItem(params = {}): IWhereItem {
+  return {
+    condition: ECondition.and,
+    key: '',
+    method: EMethod.eq,
+    value: [],
+    ...params,
+  };
+}
+
+export interface IWhereValueOptionsItem {
+  count: number;
+  list: {
+    id: string;
+    name: string;
+  }[];
+}
+export interface IGetValueFnParams {
+  limit?: number;
+  where?: IWhereItem[];
+  fields?: string[];
+  queryString?: string;
 }
