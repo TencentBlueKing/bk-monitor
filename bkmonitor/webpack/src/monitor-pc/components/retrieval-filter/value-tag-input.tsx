@@ -36,6 +36,7 @@ interface IProps {
   value: string;
   onInput?: (v: string) => void;
   onChange?: (v: string) => void;
+  onDelete?: () => void;
 }
 
 @Component
@@ -77,8 +78,16 @@ export default class ValueTagInput extends tsc<IProps> {
   handleKeyUp(event) {
     const key = event.key || event.keyCode || event.which;
     if (key === 'Enter' || key === 13) {
+      event.preventDefault();
       this.isEdit = false;
       this.handleChangeEmit();
+    }
+  }
+  handleKeyDown(event) {
+    const key = event.key || event.keyCode || event.which;
+    if (key === 'Enter' || key === 13) {
+      event.preventDefault();
+      return false;
     }
   }
   /**
@@ -108,6 +117,9 @@ export default class ValueTagInput extends tsc<IProps> {
   handleComponentClick(event) {
     event.stopPropagation();
   }
+  handleDelete() {
+    this.$emit('delete');
+  }
 
   render() {
     return (
@@ -129,12 +141,14 @@ export default class ValueTagInput extends tsc<IProps> {
             v-model={this.localValue}
             onBlur={this.handleBlur}
             onInput={this.handleInput}
+            onKeydown={this.handleKeyDown}
             onKeyup={this.handleKeyUp}
           />
         ) : (
           <span
             key={'02'}
             class='icon-monitor icon-mc-close'
+            onClick={this.handleDelete}
           />
         )}
       </div>
