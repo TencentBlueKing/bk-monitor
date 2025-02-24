@@ -233,7 +233,6 @@ export default {
   原故障根因: 'Original incident root cause',
   '针对指定时间点和类型的内容进行处理，传递用户组信息作为处理内容，如工单生成等。':
     '针对指定时间点和类型的内容进行处理，传递用户组信息作为处理内容，如工单生成等。',
-  暂无数据: 'No data',
   查询异常: 'Query exception',
   第三方节点不支持查看从属: 'The third-party node does not support viewing subordinates',
   报警时执行: 'When alarm is triggered',

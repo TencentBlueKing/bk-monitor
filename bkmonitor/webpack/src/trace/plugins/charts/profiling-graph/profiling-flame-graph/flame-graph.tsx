@@ -149,6 +149,8 @@ export default defineComponent({
       debounce(16, async () => {
         emit('update:loading', true);
         showException.value = false;
+        chartInstance?.clear();
+        chartInstance?.dispose();
         try {
           const { bizId, appName, serviceName, start, end, profileId } = props;
           const data: IFlameGraphDataItem = props.data
@@ -169,8 +171,6 @@ export default defineComponent({
                   }
                 ).catch(() => false)
               )?.flame_data ?? false);
-          chartInstance?.clear();
-          chartInstance?.dispose();
           if (data) {
             if (props.diffTraceId) {
               emit('diffTraceSuccess');
