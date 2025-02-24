@@ -317,17 +317,20 @@
         border-radius: 50%;
       }
 
+
+
       .node-name {
         margin: 0 4px;
         overflow: hidden;
-        color: rgba(105, 157, 244, 1);
+        color: #c4c6cc;
         text-overflow: ellipsis;
         white-space: nowrap;
-
-        &:hover {
-          cursor: pointer;
-        }
       }
+
+      .node-link-name {
+        color: rgba(105, 157, 244, 1);
+        cursor: pointer;
+      } 
     }
 
     .node-source-anomaly {

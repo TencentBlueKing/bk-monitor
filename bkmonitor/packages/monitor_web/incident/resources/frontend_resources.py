@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import time
 from collections import Counter, defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import arrow
 from django.conf import settings
@@ -59,13 +59,15 @@ class IncidentBaseResource(Resource):
     故障相关资源基类
     """
 
-    def get_snapshot_alerts(self, snapshot: IncidentSnapshot, incident: IncidentDocument, **kwargs) -> List[Dict]:
-        if "start_time" not in kwargs:
-            kwargs["start_time"] = incident.begin_time - 86400
-        if "end_time" not in kwargs:
-            kwargs["end_time"] = incident.end_time or int(time.time())
-
+    def get_snapshot_alerts(self, snapshot: IncidentSnapshot, **kwargs) -> List[Dict]:
         alert_ids = snapshot.get_related_alert_ids()
+        start_time, end_time = self.generate_time_range_from_alerts(alert_ids)
+
+        if "start_time" not in kwargs:
+            kwargs["start_time"] = start_time
+        if "end_time" not in kwargs:
+            kwargs["end_time"] = int(time.time()) if start_time == end_time else end_time
+
         if "conditions" in kwargs:
             kwargs["conditions"].append({'key': 'id', 'value': alert_ids, 'method': 'eq'})
         else:
@@ -76,6 +78,17 @@ class IncidentBaseResource(Resource):
             )
         alerts = IncidentAlertQueryHandler(**kwargs).search()["alerts"]
         return alerts
+
+    def generate_time_range_from_alerts(self, alert_ids: List[int]) -> Tuple[int, int]:
+        start_time, end_time = None, None
+        for alert_id in alert_ids:
+            timestamp = str(alert_id)[:10]
+            if start_time is None or timestamp < start_time:
+                start_time = timestamp
+            if end_time is None or timestamp > end_time:
+                end_time = timestamp
+
+        return start_time, end_time
 
     def get_item_by_chain_key(self, data: Dict, chain_key: str) -> Any:
         keys = chain_key.split(".")
@@ -235,6 +248,10 @@ class IncidentListResource(IncidentBaseResource):
             result = handler.search(show_overview=False, show_aggs=True)
 
         result["greyed_spaces"] = settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
+        result["wx_cs_link"] = ""
+        for item in settings.BK_DATA_ROBOT_LINK_LIST:
+            if item["icon_name"] == "icon-kefu":
+                result["wx_cs_link"] = item["link"]
 
         return result
 
@@ -569,7 +586,7 @@ class IncidentTopologyResource(IncidentBaseResource):
             "combos": [
                 {
                     "id": str(category.category_id),
-                    "label": category.category_alias,
+                    "label": category.layer_alias,
                     "dataType": category.category_name,
                 }
                 for category in snapshot.incident_graph_categories.values()
@@ -770,7 +787,7 @@ class IncidentAlertAggregateResource(IncidentBaseResource):
             validated_request_data,
             enabled=record_history and validated_request_data.get("query_string"),
         ):
-            alerts = self.get_snapshot_alerts(snapshot, incident, **validated_request_data)
+            alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
         aggregate_results = self.aggregate_alerts(
             alerts, ["status", *validated_request_data["aggregate_bys"]], snapshot, incident
@@ -884,7 +901,7 @@ class IncidentHandlersResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data["id"])
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot, incident, page_size=MAX_INCIDENT_ALERT_SIZE)
+        alerts = self.get_snapshot_alerts(snapshot, page_size=MAX_INCIDENT_ALERT_SIZE)
         current_username = get_request_username()
 
         alert_abornomal_agg_results = Counter()
@@ -1131,7 +1148,7 @@ class IncidentAlertListResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot, incident, **validated_request_data)
+        alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
@@ -1172,7 +1189,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         incident = IncidentDocument.get(validated_request_data.pop("id"))
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
-        alerts = self.get_snapshot_alerts(snapshot, incident, **validated_request_data)
+        alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:

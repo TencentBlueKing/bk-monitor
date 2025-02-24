@@ -276,7 +276,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 origin_id = group_detail.pop("id", None)
                 group_detail["bk_biz_id"] = bk_biz_id
                 user_group_serializer = UserGroupDetailSlz(user_group, data=group_detail)
-                user_group_serializer.is_valid(True)
+                user_group_serializer.is_valid(raise_exception=True)
                 instance = user_group_serializer.save()
                 if origin_id:
                     user_groups_mapping[origin_id] = instance.id
@@ -288,7 +288,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                 origin_id = group_detail.pop("id", None)
                 group_detail["bk_biz_id"] = bk_biz_id
                 user_group_serializer = UserGroupDetailSlz(data=group_detail)
-                user_group_serializer.is_valid(True)
+                user_group_serializer.is_valid(raise_exception=True)
                 instance = user_group_serializer.save()
                 if origin_id:
                     user_groups_mapping[origin_id] = instance.id
