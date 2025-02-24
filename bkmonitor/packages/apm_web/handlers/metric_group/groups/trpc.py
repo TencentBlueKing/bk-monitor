@@ -133,22 +133,38 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return list(used_labels)
 
     def _add_metric(
-        self, q: QueryConfigBuilder, metric: str, method: str, alias: Optional[str] = ""
+        self,
+        q: QueryConfigBuilder,
+        metric: str,
+        method: str,
+        alias: Optional[str] = "",
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
     ) -> QueryConfigBuilder:
         """添加一个指标到查询表达式
         处理流程：
           1）[可选] 路由到相应的预计算指标。
           2）累加（Cumulative）类型指标统一增加 increase 处理。
         """
+        time_shift: Optional[str] = self.time_shift
         result: Dict[str, Any] = {"table_id": self.metric_helper.table_id, "metric": metric, "is_hit": False}
         if self.pre_calculate_helper:
             result: Dict[str, str] = self.pre_calculate_helper.router(
-                self.metric_helper.table_id, metric, used_labels=self._used_labels
+                self.metric_helper.table_id,
+                metric,
+                used_labels=self._used_labels,
+                start_time=start_time,
+                end_time=end_time,
+                time_shift=time_shift,
             )
+            if result["is_hit"]:
+                time_shift = self.pre_calculate_helper.adjust_time_shift(self.time_shift)
 
         q = q.table(result["table_id"]).metric(result["metric"], method, alias).alias(alias)
         if self._is_cumulative_metric() and not result["is_hit"]:
             q = q.func(_id="increase", params=[{"id": "window", "value": f"{self.interval}s"}])
+        if time_shift:
+            q = q.func(_id="time_shift", params=[{"id": "n", "value": time_shift}])
 
         return q
 
@@ -157,9 +173,6 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         q: QueryConfigBuilder = (
             self.metric_helper.q.group_by(*self.group_by).interval(self.interval).filter(self._filter_dict_to_q())
         )
-
-        if self.time_shift:
-            q = q.func(_id="time_shift", params=[{"id": "n", "value": self.time_shift}])
 
         if self.instant:
             interval: int = self.metric_helper.get_interval(start_time, end_time)
@@ -189,24 +202,34 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return self.qs(start_time, end_time).add_query(q).expression("a")
 
     def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
+        time_kwargs: Dict[str, Optional[int]] = {"start_time": start_time, "end_time": end_time}
         q: QueryConfigBuilder = self._add_metric(
-            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "a"
+            self.q(**time_kwargs), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "a", **time_kwargs
         )
         # a != 0：非时序计算反应的是一段时间内的统计值，不需要展示请求量为 0 的数据。
-        return self.qs(start_time, end_time).add_query(q).expression("a != 0")
+        return self.qs(**time_kwargs).add_query(q).expression("a != 0")
 
     def _request_total(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._request_total_qs(start_time, end_time))
 
     def _avg_duration_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
+        time_kwargs: Dict[str, Optional[int]] = {"start_time": start_time, "end_time": end_time}
         sum_q: QueryConfigBuilder = self._add_metric(
-            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_sum"], "SUM", "a"
+            q=self.q(**time_kwargs),
+            metric=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_sum"],
+            method="SUM",
+            alias="a",
+            **time_kwargs,
         )
         count_q: QueryConfigBuilder = self._add_metric(
-            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"], "SUM", "b"
+            q=self.q(start_time, end_time),
+            metric=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"],
+            method="SUM",
+            alias="b",
+            **time_kwargs,
         )
         # b == 0：分母为 0 需短路返回
-        return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("b == 0 or (a / b) * 1000")
+        return self.qs(**time_kwargs).add_query(sum_q).add_query(count_q).expression("b == 0 or (a / b) * 1000")
 
     def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._avg_duration_qs(start_time, end_time))
@@ -214,13 +237,14 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _histogram_quantile_duration_qs(
         self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> UnifyQuerySet:
+        time_kwargs: Dict[str, Optional[int]] = {"start_time": start_time, "end_time": end_time}
         q: QueryConfigBuilder = (
-            self.q(start_time, end_time)
+            self.q(**time_kwargs)
             .group_by("le")
             .func(_id="histogram_quantile", params=[{"id": "scalar", "value": scalar}])
         )
-        q = self._add_metric(q, self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_bucket"], "SUM", "a")
-        return self.qs(start_time, end_time).add_query(q).expression("a * 1000")
+        q = self._add_metric(q, self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_bucket"], "SUM", "a", **time_kwargs)
+        return self.qs(**time_kwargs).add_query(q).expression("a * 1000")
 
     def _histogram_quantile_duration(
         self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
@@ -241,16 +265,21 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _request_code_rate_qs(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> UnifyQuerySet:
+        time_kwargs: Dict[str, Optional[int]] = {"start_time": start_time, "end_time": end_time}
         code_q: QueryConfigBuilder = self._add_metric(
-            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "a"
+            q=self.q(**time_kwargs),
+            metric=self.METRIC_FIELDS[self.kind]["rpc_handled_total"],
+            method="SUM",
+            alias="a",
+            **time_kwargs,
         )
         code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)
 
         total_q: QueryConfigBuilder = self._add_metric(
-            self.q(start_time, end_time), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "b"
+            self.q(**time_kwargs), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "b", **time_kwargs
         )
         return (
-            self.qs(start_time, end_time)
+            self.qs(**time_kwargs)
             .add_query(code_q)
             .add_query(total_q)
             # 单个错误码的占比为 100% or 0% 时，对时间序列来说，是某段时间内不出现这条线，即无数据。
