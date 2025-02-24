@@ -447,6 +447,11 @@ export default {
     "Detected Alarm rule No monitoring target is configured. After creating the rule, don't forget to add the target to take effect. Can self-developed middleware be connected to BlueKing Monitoring? ",
   '没找到相关的维度？': 'No related dimensions found?',
   '确认删除仪表盘？': 'Confirmed to delete the dashboard?',
+  '确认更新？': 'Confirmed to update the dashboard?',
+  仪表盘内没有要更新的旧面板: 'There are no old panels to update in the dashboard',
+  '更新成功,部分旧面板更新失败': 'Update completed. Some panels may have failed to update',
+  '解决grafana升级后组件兼容性问题，不影响数据':
+    'Resolve component compatibility issues after Grafana upgrade without affecting data',
   '覆盖已有监控目标？': 'Overwrite existing monitoring targets?',
   '是否开始迁移策略？': 'start migrating the rule?',
   确定回收所选分享链接: 'Recycle these sharing links ?',
