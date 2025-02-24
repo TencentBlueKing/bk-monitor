@@ -21,8 +21,8 @@ from .constants import (
     DISPLAY_FIELDS,
     ENTITIES,
     EVENT_FIELD_ALIAS,
-    INNER_FIELD,
     INNER_FIELD_TYPE_MAPPINGS,
+    INNER_FIELDS,
     TYPE_OPERATION_MAPPINGS,
     CategoryWeight,
     EventCategory,
@@ -68,7 +68,9 @@ class EventViewConfigResource(Resource):
         # 维度元数据集
         data_labels_queryset = ResultTable.objects.filter(table_id__in=tables).values("table_id", "data_label")
         data_labels_map = {item["table_id"]: item["data_label"] for item in data_labels_queryset}
-        dimension_metadata_map = {key: {"table_ids": set(), "data_labels": set()} for key in INNER_FIELD}
+        dimension_metadata_map = {
+            inner_field: {"table_ids": set(), "data_labels": set()} for inner_field in INNER_FIELDS
+        }
 
         # 遍历查询集并聚合数据
         for dimension_entry in dimensions_queryset:

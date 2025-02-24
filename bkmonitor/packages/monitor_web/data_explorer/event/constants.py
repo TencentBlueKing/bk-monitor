@@ -156,4 +156,4 @@ ENTITIES = [
     {"type": "ip", "alias": _("主机"), "fields": ["host", "bk_target_ip", "ip", "serverip", "bk_host_id"]},
 ]
 
-INNER_FIELD = ["time", "event_name", "event.content", "target", "type"]
+INNER_FIELDS = ["time", "event_name", "event.content", "target", "type"]
