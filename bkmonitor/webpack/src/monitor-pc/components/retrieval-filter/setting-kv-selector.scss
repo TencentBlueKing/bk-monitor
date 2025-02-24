@@ -1,0 +1,17 @@
+.resident-setting__setting-kv-selector-component {
+  .component-main {
+    display: flex;
+    align-items: center;
+    min-width: 180px;
+    height: 32px;
+    background: #FFFFFF;
+    border: 1px solid #DCDEE5;
+    border-radius: 2px;
+
+    &.hidden {
+      position: fixed;
+      top: 9999px;
+      visibility: hidden;
+    }
+  }
+}

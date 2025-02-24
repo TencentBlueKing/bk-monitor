@@ -28,17 +28,34 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import KvTag from './kv-tag';
 import UiSelectorOptions from './ui-selector-options';
-import { ECondition, EMethod, type IFilterField, EFieldType } from './utils';
+import {
+  ECondition,
+  EMethod,
+  type IFilterField,
+  EFieldType,
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+} from './utils';
 
 import './ui-selector.scss';
 
 interface IProps {
   fields: IFilterField[];
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 }
 
 @Component
 export default class UiSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
+  @Prop({
+    type: Function,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  })
+  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Ref('selector') selectorRef: HTMLDivElement;
 
   showSelector = false;
@@ -112,7 +129,7 @@ export default class UiSelector extends tsc<IProps> {
       interactive: true,
       boundary: 'window',
       distance: 20,
-      zIndex: 9998,
+      zIndex: 998,
       animation: 'slide-toggle',
       followCursor: false,
       onHidden: () => {
@@ -136,6 +153,19 @@ export default class UiSelector extends tsc<IProps> {
       target: event.currentTarget,
     };
     this.handleShowSelect(customEvent);
+  }
+
+  /**
+   * @description 点击弹层取消
+   */
+  handleCancel() {
+    this.destroyPopoverInstance();
+  }
+  /**
+   * @description 点击弹层确认
+   */
+  handleConfirm() {
+    this.destroyPopoverInstance();
   }
 
   render() {
@@ -167,6 +197,9 @@ export default class UiSelector extends tsc<IProps> {
                 },
                 ...this.fields,
               ]}
+              getValueFn={this.getValueFn}
+              onCancel={this.handleCancel}
+              onConfirm={this.handleConfirm}
             />
           </div>
         </div>
