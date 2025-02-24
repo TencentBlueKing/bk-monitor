@@ -94,8 +94,10 @@ class OTLPLogHandler(OTLPHandler):
     """
 
     def __init__(self, level=logging.NOTSET) -> None:
+        super().__init__(level=level)
+
         from django.conf import settings
-        from opentelemetry._logs._internal import set_logger_provider
+        from opentelemetry._logs._internal import get_logger, set_logger_provider
         from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
         from opentelemetry.sdk._logs import LoggerProvider
         from opentelemetry.sdk.resources import Resource
@@ -104,15 +106,17 @@ class OTLPLogHandler(OTLPHandler):
         otlp_grpc_host = settings.OTLP_GRPC_HOST
         otlp_bk_log_token = settings.OTLP_BK_LOG_TOKEN
 
-        log_emitter_provider = LoggerProvider(
+        log_provider = LoggerProvider(
             resource=Resource.create({"service.name": service_name, "bk.data.token": otlp_bk_log_token})
         )
-        set_logger_provider(log_emitter_provider)
+        set_logger_provider(log_provider)
 
         # init exporter
         exporter = OTLPLogExporter(endpoint=otlp_grpc_host)
-        log_emitter_provider.add_log_record_processor(LazyBatchLogProcessor(exporter))
-        super(OTLPLogHandler, self).__init__(level=level, logger_provider=log_emitter_provider.get_logger(service_name))
+        log_provider.add_log_record_processor(LazyBatchLogProcessor(exporter))
+
+        self._logger_provider = log_provider
+        self._logger = get_logger(service_name, logger_provider=self._logger_provider)
 
 
 # ===============================================================================
