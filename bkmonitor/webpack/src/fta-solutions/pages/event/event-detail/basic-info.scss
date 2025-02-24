@@ -32,6 +32,7 @@ $grey-bg: #eaebf0;
   .bar-recovered,
   .bar-abnormal,
   .bar-closed,
+  .bar-shielded,
   .bar-small {
     height: 36px;
     border-left: 4px solid transparent;
@@ -53,13 +54,17 @@ $grey-bg: #eaebf0;
   .bar-closed {
     background: $grey-bg;
     border-color: $grey;
-    color: $grey;
+    color: $text;
+  }
+  .bar-shielded {
+    background: $grey-bg;
+    border-color: $red;
+    color: $text;
   }
 
   .bar-small {
-    background: $grey-bg;
-    border-color: $grey;
-    color: $text;
+    // background: $grey-bg;
+    // color: $text;
   }
   .right-status {
     display: flex;
@@ -118,6 +123,10 @@ $grey-bg: #eaebf0;
       background: $grey;
       margin: 0 8px;
     }
+    .close-tips {
+      color: #979ba5;
+      font-size: 12px;
+    }
 
     .operate-click {
       font-weight: 400;
@@ -154,7 +163,6 @@ $grey-bg: #eaebf0;
   .basic-detail {
     display: flex;
     padding: 12px 0 24px 32px;
-    background: #fafbfd;
 
     .basic-left {
       display: flex;

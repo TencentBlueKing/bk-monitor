@@ -1,6 +1,6 @@
 .aiops-container {
   display: none;
-  margin-top: 40px;
+  // margin-top: 40px;
 
   &.aiops-container-show {
     display: flex;
@@ -18,5 +18,66 @@
 
   .bk-functional-dependency {
     padding: 16px;
+  }
+  .aiops-container-menu {
+    width: 100%;
+    .aiops-container-menu-item-head {
+      display: flex;
+    }
+    .bk-collapse-item-header {
+      height: 52px;
+      background: #dfe4f0;
+      line-height: 20px;
+      padding-right: 4px;
+      .bk-icon {
+        color: #a3b1cc;
+        font-size: 30px;
+      }
+      .fr {
+        margin-top: 10px;
+      }
+    }
+    .aiops-container-menu-item {
+      width: 100%;
+      margin-bottom: 5px;
+      .aiops-tab-title-icon {
+        margin-top: 6px;
+        width: 40px;
+        height: 40px;
+        background: #ffffff;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+
+        &.disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+      }
+      .aiops-tab-icon {
+        font-size: 26px;
+        color: #a3b1cc;
+      }
+
+      .aiops-tab-title-text {
+        display: inline-block;
+        margin-top: 6px;
+        font-size: 12px;
+      }
+    }
+    .aiops-tab-title-message {
+      color: rgba(99, 101, 110, 1);
+      font-size: 12px;
+      line-height: 20px;
+      position: relative;
+
+      font {
+        color: rgba(234, 54, 54, 1);
+        font-size: 12px;
+        font-weight: 700;
+      }
+    }
   }
 }

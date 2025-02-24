@@ -138,7 +138,9 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     };
     const className = eventStatus ? classList[eventStatus] : '';
     return (
-      <div class={[className, { 'bar-small': isShielded }]}>
+      <div
+        class={[className, { 'bar-small': isShielded }, { 'bar-shielded': eventStatus === 'ABNORMAL' && isShielded }]}
+      >
         {this.getRightStatusComponent(eventStatus, isAck, isShielded)}
       </div>
     );
@@ -158,6 +160,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     return this.filterDimensions?.length
       ? this.filterDimensions?.map(item => [
           <span
+            key={item.display_key}
             style={{
               cursor: this.ipMap.includes(item.key) ? 'pointer' : 'auto',
             }}
@@ -340,10 +343,16 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     return (
       <div class='detail-form'>
         <div class='detail-form-top'>
-          {topItems.map(child => (
-            <div class='top-form-item'>
-              {child.children.map(item => (
-                <div class='item-col'>
+          {topItems.map((child, index) => (
+            <div
+              key={index}
+              class='top-form-item'
+            >
+              {child.children.map((item, ind) => (
+                <div
+                  key={ind}
+                  class='item-col'
+                >
                   <div
                     class='item-label'
                     v-en-class='fb-146'
@@ -369,8 +378,11 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           ))}
         </div>
         <div class='detail-form-bottom'>
-          {bottomItems.map(item => (
-            <div class={['item-col', item.extCls]}>
+          {bottomItems.map((item, ind) => (
+            <div
+              key={`item${ind}`}
+              class={['item-col', item.extCls]}
+            >
               <div
                 class='item-label'
                 v-en-class='fb-146'
@@ -485,7 +497,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
     } else if (eventStatus === status[2]) {
       /* 已关闭 */
       iconName = 'icon-mc-close-fill';
-      iconColor = '#dcdee5';
+      iconColor = '#979BA5';
       iconText = `${this.$t('已失效')}`;
       operateDom = null;
       this.getEventLog().then(res => {
@@ -502,14 +514,14 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
           />
           <div class='status-text'>
             <span>{iconText}</span>
-            {this.showReason ? (
-              <span
-                class={['right-icon', 'icon-monitor', 'icon-tishi']}
-                v-bk-tooltips={{ content: this.operateDesc, placement: 'bottom' }}
-              ></span>
-            ) : undefined}
           </div>
-          {this.basicInfo?.duration && !isShielded && (
+          {this.showReason ? (
+            <div class='status-operate'>
+              <span class='status-operate-line'></span>
+              <span class='close-tips'>{this.operateDesc}</span>
+            </div>
+          ) : undefined}
+          {eventStatus !== status[2] && this.basicInfo?.duration && !isShielded && (
             <div class='status-operate'>
               <span class='status-operate-line'></span>
               <span class='shielded-text'>{this.$t('持续时间')}：</span>
@@ -523,39 +535,13 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
   }
 
   render() {
-    const { severity, is_shielded, is_ack, status, alert_name } = this.basicInfo;
+    const { is_shielded, is_ack, status } = this.basicInfo;
     console.log(this.basicInfo, 'this.basicInfo');
     return (
       <div class='event-detail-basic'>
         {this.getHeaderBarComponent(status, is_shielded, is_ack)}
         <div class='basic-detail'>
-          <div class='basic-left'>
-            {/* <div class='basic-title'>
-              {this.getTagComponent(severity)}
-              <span
-                class='basic-title-name'
-                v-bk-tooltips={{ content: alert_name, allowHTML: false }}
-              >
-                {alert_name}
-              </span>
-              {!this.readonly && this.basicInfo.plugin_id ? (
-                <span
-                  class='btn-strategy-detail'
-                  onClick={this.toStrategyDetail}
-                >
-                  <span>{this.$t('来源：{0}', [this.basicInfo.plugin_display_name])}</span>
-                  <i class='icon-monitor icon-fenxiang icon-float' />
-                </span>
-              ) : undefined}
-            </div> */}
-            {this.getDetailFormComponent()}
-          </div>
-          {/* <div
-            class='basic-right'
-            v-en-class='en-lang'
-          >
-            {this.getRightStatusComponent(status, is_ack, is_shielded)}
-          </div> */}
+          <div class='basic-left'>{this.getDetailFormComponent()}</div>
         </div>
       </div>
     );

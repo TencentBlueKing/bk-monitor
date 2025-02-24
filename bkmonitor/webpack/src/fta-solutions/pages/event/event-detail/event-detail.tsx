@@ -35,10 +35,12 @@ import { random } from 'monitor-common/utils/utils';
 import { destroyTimezone, getDefaultTimezone } from 'monitor-pc/i18n/dayjs';
 import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
 import LogRetrievalDialog from 'monitor-pc/pages/event-center/event-center-detail/log-retrieval-dialog/log-retrieval-dialog';
+import { MetricType } from 'monitor-pc/pages/strategy-config/strategy-config-set-new/typings';
 import authorityStore from 'monitor-pc/store/modules/authority';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
+// import AiopsContainer from './aiops/aiops-container-new';
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
@@ -188,6 +190,23 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   @Emit('closeSlider')
   handleCloseSlider() {
     return true;
+  }
+
+  /**
+   * @description 是否为主机智能异常检测
+   */
+  get isHostAnomalyDetection() {
+    return this.basicInfo?.extra_info?.strategy?.items?.[0]?.algorithms?.[0]?.type === MetricType.HostAnomalyDetection;
+  }
+
+  // 判断当前panel是否是Promql类型的 是则不展示aiops指标推荐等功能
+  get checkPromqlPanel() {
+    const { promql, data_source_label } = this.basicInfo?.extra_info?.strategy?.items?.[0]?.query_configs?.[0] ?? {};
+    return promql && data_source_label === 'prometheus';
+  }
+  /** 是否需要展示右侧的AI相关的视图 */
+  get isShowAiopsView() {
+    return !!(window as any).enable_aiops && !this.isHostAnomalyDetection && !this.checkPromqlPanel;
   }
 
   /* 权限校验 */
@@ -568,6 +587,59 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   handleFeedBackConfirm() {
     this.isFeedback = true;
   }
+  /** 渲染绘制告警详情内容 */
+  renderDetailContainer() {
+    return (
+      <div class='container-group'>
+        <BasicInfo
+          basicInfo={this.basicInfo}
+          on-alarm-confirm={this.alarmConfirmChange}
+          on-manual-process={this.handleManualProcess}
+          on-processing-status={this.processingStatus}
+          on-quick-shield={this.quickShieldChange}
+          onAlarmDispatch={this.handleAlarmDispatch}
+        />
+        <div class='basicinfo-bottom-border' />
+        <TabContainer
+          actions={this.actions}
+          activeTab={this.activeTab}
+          alertId={this.id}
+          detail={this.basicInfo}
+          isScrollEnd={this.isScrollEnd}
+          sceneId={this.sceneId}
+          sceneName={this.sceneName}
+          show={this.tabShow}
+          traceIds={this.traceIds}
+        />
+      </div>
+    );
+  }
+  /** 判断当前是否需要展示AI相关的内容，需要的话则左右布局，并支持拖拽拉伸 */
+
+  renderLayoutContent() {
+    // if (this.isShowAiopsView) {
+    //   return (
+    //     <bk-resize-layout
+    //       class='detail-resize-view'
+    //       auto-minimize={true}
+    //       initial-divide={'62%'}
+    //       min={760}
+    //     >
+    //       <div slot='aside'>{this.renderDetailContainer()}</div>
+    //       <div
+    //         class='event-detail-aiops'
+    //         slot='main'
+    //       >
+    //         <AiopsContainer
+    //           detail={this.basicInfo}
+    //           show={true}
+    //         />
+    //       </div>
+    //     </bk-resize-layout>
+    //   );
+    // }
+    return this.renderDetailContainer();
+  }
 
   render() {
     return (
@@ -575,6 +647,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
         class='event-detail-container'
         v-bkloading={{ isLoading: this.isLoading }}
       >
+        {/* 顶部状态栏渲染 */}
         {this.isShowHead && (
           <div class='event-detail-head-container'>
             <EventDetailHead
@@ -585,28 +658,9 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
             />
           </div>
         )}
-        <div class='container-group'>
-          <BasicInfo
-            basicInfo={this.basicInfo}
-            on-alarm-confirm={this.alarmConfirmChange}
-            on-manual-process={this.handleManualProcess}
-            on-processing-status={this.processingStatus}
-            on-quick-shield={this.quickShieldChange}
-            onAlarmDispatch={this.handleAlarmDispatch}
-          />
-          <div class='basicinfo-bottom-border' />
-          <TabContainer
-            actions={this.actions}
-            activeTab={this.activeTab}
-            alertId={this.id}
-            detail={this.basicInfo}
-            isScrollEnd={this.isScrollEnd}
-            sceneId={this.sceneId}
-            sceneName={this.sceneName}
-            show={this.tabShow}
-            traceIds={this.traceIds}
-          />
-        </div>
+        {/* 详情主体内容渲染 */}
+        {this.renderLayoutContent()}
+        {/* 相关的弹框组件渲染 */}
         {this.getDialogComponent()}
       </div>
     );
