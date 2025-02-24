@@ -175,7 +175,7 @@ export default class EventExploreChart extends tsc<IEventExploreChartProps> {
       .map(item => ({
         ...item,
         target: item.dimensions.type,
-        stack: 'event-explore',
+        stack: 'event-explore-bar-chart',
       }));
 
     this.duration = +new Date() - start;
