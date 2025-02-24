@@ -148,7 +148,6 @@ export default class EventRetrievalNew extends tsc<object> {
     }
     this.loading = true;
     const data = await eventViewConfig({
-      // is_mock: true,
       data_sources: [
         {
           data_source_label: this.formData.data_source_label,
