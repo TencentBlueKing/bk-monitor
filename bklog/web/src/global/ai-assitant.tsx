@@ -110,7 +110,7 @@ export default defineComponent({
         currentMessage.status = MessageStatus.Success;
       } else if (currentMessage.status === MessageStatus.Loading) {
         // loading 情况下终止
-        currentMessage.content = '聊天内容已中断';
+        currentMessage.content = '聊天内容已中断...';
         currentMessage.status = MessageStatus.Error;
       }
     };
