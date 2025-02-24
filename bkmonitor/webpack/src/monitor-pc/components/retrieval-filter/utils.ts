@@ -165,3 +165,24 @@ export interface IGetValueFnParams {
   fields?: string[];
   queryString?: string;
 }
+
+/**
+ * @description 关闭模态框事件
+ * @param element
+ * @param callback
+ * @param param2
+ * @returns
+ */
+export function onClickOutside(element, callback, { once = false } = {}) {
+  const handler = (event: MouseEvent) => {
+    const isInside = element.contains(event.target);
+    if (!isInside) {
+      callback(event);
+      if (once) document.removeEventListener('click', handler);
+    }
+  };
+  document.addEventListener('click', handler);
+  return () => document.removeEventListener('click', handler);
+}
+// 单次触发示例
+// const removeListener = onClickOutside(targetElement, closeModal, { once: true });
