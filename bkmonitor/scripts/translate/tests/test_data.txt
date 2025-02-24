@@ -1,0 +1,26 @@
+# -*- coding: utf-8 -*-
+
+
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
+
+"""
+模块描述
+"""
+
+a = "str"
+b = "字符串"
+
+
+class A(object):
+    """
+    类注释
+    """
+    a = _lazy("字符串" + "1")
+    b = _("字符串2")
+
+    def add(self):
+        """
+        函数注释
+        """
+        return _("返回值" "asdf")
