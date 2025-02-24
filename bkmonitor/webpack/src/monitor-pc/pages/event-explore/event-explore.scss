@@ -4,6 +4,7 @@
 
   .right-main-panel {
     flex: 1;
+    min-width: 0;
     height: 100%;
 
     .event-retrieval-content {
@@ -23,6 +24,10 @@
         .dimension-filter-panel {
           height: 100%;
           border-right: 1px solid #dcdee5;
+        }
+
+        .result-content-panel {
+          height: 100%;
         }
       }
     }
