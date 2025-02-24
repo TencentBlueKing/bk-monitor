@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getCharLength } from './utils';
@@ -36,35 +36,44 @@ interface IValue {
   name: string; // 暂不显示 预留
 }
 
+interface IProps {
+  options?: IValue[];
+  loading?: boolean;
+}
+
 @Component
-export default class ValueTagSelector extends tsc<object> {
+export default class ValueTagSelector extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) options: IValue[];
+  @Prop({ type: Boolean, default: false }) loading: boolean;
+
   @Ref('input') inputRef: HTMLInputElement;
-  localValue: IValue[] = [
-    {
-      id: 'test1',
-      name: 'test',
-    },
-    {
-      id: 'test2',
-      name: 'test2',
-    },
-  ];
-  localOptions: IValue[] = [
-    {
-      id: 'test1',
-      name: 'test',
-    },
-    {
-      id: 'test2',
-      name: 'test2',
-    },
-  ];
+  localValue: IValue[] = [];
+  localOptions: IValue[] = [];
   /* 是否显示下拉框 */
   isShowDropDown = false;
   /* 当前光标位置 */
   activeIndex = -1;
   /* 当前光标位置输入值 */
   inputValue = '';
+
+  @Watch('options', { immediate: true })
+  handleWatchOptions() {
+    const localOptions = [];
+    const valueSet = new Set(this.localValue.map(item => item.id));
+    for (const item of this.options) {
+      if (!valueSet.has(item.id)) {
+        localOptions.push(item);
+      }
+    }
+    this.localOptions = localOptions;
+  }
+
+  @Watch('loading', { immediate: true })
+  handleWatchLoading() {
+    if (this.loading) {
+      this.isShowDropDown = true;
+    }
+  }
 
   handleCheck(item: IValue) {
     this.localValue.push(item);
