@@ -27,10 +27,12 @@ import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
-import TemporaryShare from 'monitor-pc/components/temporary-share/temporary-share';
 
 import ActionDetail from './action-detail';
 import EventDetail from './event-detail';
+import EventDetailHead from './event-detail-head';
+
+import type { IDetail } from './type';
 
 import './event-detail-slider.scss';
 
@@ -57,6 +59,35 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   @Prop({ default: 'eventDetail', validator: v => ['eventDetail', 'handleDetail'].includes(v) }) type: TType;
 
   loading = false;
+  detailInfo: IDetail = {
+    id: '', // 告警id
+    bk_biz_id: 0, // 业务id
+    alert_name: '', // 告警名称
+    first_anomaly_time: 0, // 首次异常事件
+    begin_time: 0, // 事件产生事件
+    create_time: 0, // 告警产生时间
+    is_ack: false, // 是否确认
+    is_shielded: false, // 是否屏蔽
+    is_handled: false, // 是否已处理
+    dimension: [], // 维度信息
+    severity: 0, // 严重程度
+    status: '',
+    description: '', //
+    alert_info: {
+      count: 0,
+      empty_receiver_count: 0,
+      failed_count: 0,
+      partial_count: 0,
+      shielded_count: 0,
+      success_count: 0,
+    },
+    duration: '',
+    dimension_message: '',
+    overview: {}, // 处理状态数据
+    assignee: [],
+  };
+  /* 是否已反馈 */
+  isFeedback = false;
 
   alertName = '';
   init = false;
@@ -111,7 +142,9 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
     );
   }
 
-  handleInfo(v) {
+  handleInfo(v, isFeedback) {
+    this.detailInfo = v;
+    this.isFeedback = isFeedback;
     this.alertName = v.alert_name;
   }
 
@@ -119,23 +152,13 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
   tplTitle() {
     const tplMap = {
       eventDetail: () => (
-        <div class='title-wrap'>
-          <span>{this.$t('告警详情')}</span>
-          <span class='event-id'>{this.eventId}</span>
-          {window.source_app === 'fta' ? (
-            <i
-              class='icon-monitor icon-copy-link'
-              onClick={() => this.handleToEventDetail('detail')}
-            />
-          ) : (
-            <TemporaryShare
-              customData={{ eventId: this.eventId }}
-              navMode={'share'}
-              pageInfo={{ alertName: this.alertName }}
-            />
-          )}
-          {this.newPageBtn('detail')}
-        </div>
+        <EventDetailHead
+          basicInfo={this.detailInfo}
+          bizId={this.bizId}
+          eventId={this.eventId}
+          isFeedback={this.isFeedback}
+          isNewPage={true}
+        />
       ),
       handleDetail: () => (
         <div class='title-wrap'>
@@ -160,6 +183,7 @@ export default class EventDetailSlider extends tsc<IEventDetailSlider, IEvent> {
           class='event-detail-content'
           activeTab={this.activeTab}
           bizId={this.bizId}
+          isShowHead={false}
           onCloseSlider={() => this.emitIsShow(false)}
           onInfo={this.handleInfo}
         />

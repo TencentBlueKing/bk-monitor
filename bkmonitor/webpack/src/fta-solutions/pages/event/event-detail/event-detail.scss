@@ -5,10 +5,17 @@
   align-items: center;
   min-width: 1200px;
   max-height: 100%;
-  padding: 0 200px;
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: smooth;
+  .event-detail-head-container {
+    width: 100%;
+    min-height: 52px;
+    background: #ffffff;
+    box-shadow: 0 2px 4px 0 #1919291f;
+    border-radius: 2px;
+    padding-left: 8px;
+  }
 
   .chat-btn,
   .feedback-btn {
@@ -32,6 +39,7 @@
   .container-group {
     position: relative;
     width: 100%;
+    padding: 0 84px;
     min-width: 1200px;
     // padding-bottom: 68px;
 
