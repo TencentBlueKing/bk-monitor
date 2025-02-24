@@ -84,11 +84,6 @@ class CustomMetricReportViewSet(ResourceViewSet):
             "POST", resource.custom_report.create_or_update_grouping_rule, endpoint="create_or_update_grouping_rule"
         ),
         # 全量更新分组规则
-        ResourceRoute(
-            "POST",
-            resource.custom_report.modify_custom_ts_grouping_rule_list,
-            endpoint="modify_custom_ts_grouping_rule_list",
-        ),
         # 自定义指标分组规则列表
         ResourceRoute(
             "GET", resource.custom_report.custom_ts_grouping_rule_list, endpoint="custom_ts_grouping_rule_list"
@@ -97,4 +92,18 @@ class CustomMetricReportViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.custom_report.preview_grouping_rule, endpoint="preview_grouping_rule"),
         # 删除分组规则
         ResourceRoute("POST", resource.custom_report.delete_grouping_rule, endpoint="delete_grouping_rule"),
+        # 待删除API
+        ResourceRoute(
+            "POST",
+            resource.custom_report.modify_custom_ts_grouping_rule_list,
+            endpoint="modify_custom_ts_grouping_rule_list",
+        ),
+        ResourceRoute(
+            "POST",
+            resource.custom_report.get_custom_time_series_latest_data_by_fields,
+            endpoint="get_custom_time_series_latest_data_by_fields",
+        ),
+        ResourceRoute(
+            "POST", resource.custom_report.modify_custom_time_series_desc, endpoint="modify_custom_time_series_desc"
+        ),
     ]
