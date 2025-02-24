@@ -575,6 +575,7 @@ export function readBlobResponse(response) {
 export function readBlobRespToJson(resp) {
   return readBlobResponse(resp).then(resText => Promise.resolve(JSONBigNumber.parse(resText)));
 }
+
 export function bigNumberToString(value) {
   // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
   return (value || {})._isBigNumber ? (value.toString().length < 16 ? Number(value) : value.toString()) : value;
@@ -823,21 +824,21 @@ export const setDefaultSettingSelectFiled = (key, filed) => {
  */
 export const Debounce =
   (delay = 200) =>
-  (target, key, descriptor) => {
-    const originFunction = descriptor.value;
-    const getNewFunction = () => {
-      let timer;
-      const newFunction = function (...args) {
-        if (timer) window.clearTimeout(timer);
-        timer = setTimeout(() => {
-          originFunction.call(this, ...args);
-        }, delay);
+    (target, key, descriptor) => {
+      const originFunction = descriptor.value;
+      const getNewFunction = () => {
+        let timer;
+        const newFunction = function (...args) {
+          if (timer) window.clearTimeout(timer);
+          timer = setTimeout(() => {
+            originFunction.call(this, ...args);
+          }, delay);
+        };
+        return newFunction;
       };
-      return newFunction;
+      descriptor.value = getNewFunction();
+      return descriptor;
     };
-    descriptor.value = getNewFunction();
-    return descriptor;
-  };
 
 export const formatDateTimeField = (data, fieldType) => {
   if (fieldType === 'date') {
