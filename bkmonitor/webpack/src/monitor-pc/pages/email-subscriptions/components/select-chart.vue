@@ -109,6 +109,7 @@
                 :class="['left-list-item', { active: leftActive === item.uid }]"
                 :key="index"
                 @click="handleSelectLeftItem(item)"
+                v-bk-overflow-tips
               >
                 {{ item.name }}
               </div>
@@ -337,7 +338,7 @@ export default class SelectChart extends Vue {
     // 如果没有需要显示的异常类型，返回 null
     return null;
   }
-  
+
   @Emit('valueChange')
   handleValueChange(v?: string) {
     return v || this.selectedList;
@@ -653,9 +654,12 @@ export default class SelectChart extends Vue {
             .left-list-item {
               height: 32px;
               padding: 0 12px;
+              overflow: hidden;
               font-size: 12px;
               line-height: 32px;
               color: #63656e;
+              text-overflow: ellipsis;
+              white-space: nowrap;
               cursor: pointer;
 
               &:hover {
