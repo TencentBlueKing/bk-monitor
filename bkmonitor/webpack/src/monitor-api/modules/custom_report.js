@@ -52,7 +52,6 @@ export default {
   customTsGroupingRuleList,
   previewGroupingRule,
   deleteGroupingRule,
-  customTsGroupingRuleList,
   getCustomTimeSeriesLatestDataByFields,
   modifyCustomTimeSeriesDesc,
 };
