@@ -471,19 +471,32 @@
             @refresh="handleRefresh"
           ></BookmarkPop>
           <template v-else>
-            <div
+            <!-- <div
               v-if="matchSQLStr"
               class="bklog-icon bklog-star-line disabled"
               v-bk-tooltips="$t('已收藏')"
               :data-boolean="matchSQLStr"
-            ></div>
-            <div
-              v-else
+            ></div> -->
+            <bk-dropdown-menu :align="'center'">
+              <template slot="dropdown-trigger">
+                 <div
+                    style="color: #63656e"
+                    v-bk-tooltips="$t('收藏')"
+                    class="icon bk-icon icon-save"
+                    @click="saveCurrentActiveFavorite"
+                  ></div>
+              </template>
+              <ul class="bk-dropdown-list" slot="dropdown-content">
+                  <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentActiveFavorite">覆盖当前收藏</a></li>
+                  <li><a href="javascript:;">另存为新收藏</a></li>
+              </ul>
+          </bk-dropdown-menu>
+            <!-- <div
               style="color: #63656e"
               v-bk-tooltips="$t('收藏')"
               class="icon bk-icon icon-save"
               @click="saveCurrentActiveFavorite"
-            ></div>
+            ></div> -->
           </template>
           <div
             v-bk-tooltips="$t('常用查询设置')"
@@ -546,23 +559,23 @@
 
   .bklog-search-input-poptool {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     background: transparent;
 
     .bklog-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       width: 28px;
       height: 28px;
+      margin-right: 4px;
+      color: #4d4f56;
+      cursor: pointer;
       background: #fafbfd;
       border: 1px solid #dcdee5;
-      box-shadow: 0 1px 3px 1px #0000001f;
       border-radius: 2px;
-      color: #4d4f56;
-      margin-right: 4px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
+      box-shadow: 0 1px 3px 1px #0000001f;
 
       &:hover {
         color: #3a84ff;
