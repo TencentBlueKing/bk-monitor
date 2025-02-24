@@ -651,9 +651,11 @@ class ModifyCustomMetricFields(Resource):
 
             # 如果字段存在，则更新字段
             if field:
-                field.description = update_field["description"]
-                field.disabled = update_field["disabled"]
                 field.config.update(field_config)
+                if "description" in update_field:
+                    field.description = update_field["description"]
+                if "disabled" in update_field:
+                    field.disabled = update_field["disabled"]
                 need_update_fields.append(field)
             else:
                 # 如果字段不存在，则创建字段
@@ -662,8 +664,8 @@ class ModifyCustomMetricFields(Resource):
                         time_series_group_id=table.time_series_group_id,
                         type=update_field["type"],
                         name=update_field["name"],
-                        description=update_field["description"],
-                        disabled=update_field["disabled"],
+                        description=update_field.get("description", ""),
+                        disabled=update_field.get("disabled", False),
                         config=field_config,
                     )
                 )
