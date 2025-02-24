@@ -26,15 +26,17 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
 import UiSelectorOptions from './ui-selector-options';
 import {
-  ECondition,
-  EMethod,
   type IFilterField,
   EFieldType,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
+  type IFilterItem,
+  EMethod,
+  ECondition,
 } from './utils';
 
 import './ui-selector.scss';
@@ -58,62 +60,20 @@ export default class UiSelector extends tsc<IProps> {
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Ref('selector') selectorRef: HTMLDivElement;
 
+  /* 是否显示弹出层 */
   showSelector = false;
-
-  localValue = [
-    {
-      key: { id: 'key001', name: 'key001' },
-      value: [{ id: 'cls-f6cqrjth', name: 'cls-f6cqrjth' }],
-      method: { id: EMethod.eq, name: '=' },
-      condition: { id: ECondition.and, name: 'AND' },
-      hide: false,
-    },
-    {
-      key: { id: 'key001', name: 'key002' },
-      value: [{ id: 'cls-f6cqrjth', name: 'cls-f6cqrjth' }],
-      method: { id: EMethod.eq, name: '=' },
-      condition: { id: ECondition.and, name: 'AND' },
-      hide: false,
-    },
-    {
-      key: { id: 'key002', name: 'key002' },
-      value: [
-        { id: 'cls-f6cqrjth', name: 'cls-f6cqrjth' },
-        { id: 'cls-f6cqrjth11zxcvzxcvasdf', name: 'cls-f6cqrjth11zxcvzxcvasdf' },
-        { id: 'cls-f6cqrjth11asdfasdfasdfasdfasdf', name: 'cls-f6cqrjth11asdfasdfasdfasdfasdf' },
-        { id: 'cls-f6cqrjth11asdfasdfasdfasdfasdfasdfasdf', name: 'cls-f6cqrjth11asdfasdfasdfasdfasdfasdfasdf' },
-      ],
-      method: { id: EMethod.include, name: '包含' },
-      condition: { id: ECondition.and, name: 'AND' },
-      hide: false,
-    },
-    {
-      key: { id: 'key002', name: 'key003' },
-      value: [
-        { id: 'cls-f6cqrjth', name: 'cls-f6cqrjth' },
-        { id: 'cls-f6cqrjth11zxcvzxcvasdf', name: 'cls-f6cqrjth11zxcvzxcvasdf' },
-        { id: 'cls-f6cqrjth11asdfasdfasdfasdfasdf', name: 'cls-f6cqrjth11asdfasdfasdfasdfasdf' },
-        { id: 'cls-f6cqrjth11asdfasdfasdfasdfasdfasdfasdf', name: 'cls-f6cqrjth11asdfasdfasdfasdfasdfasdfasdf' },
-      ],
-      method: { id: EMethod.include, name: '包含' },
-      condition: { id: ECondition.and, name: 'AND' },
-      hide: false,
-    },
-    {
-      key: { id: 'key002', name: 'key001' },
-      value: [
-        { id: 'cls-f6cqrjth', name: 'cls-f6cqrjth' },
-        { id: 'cls-f6cqrjth11zxcvzxcvasdf', name: 'cls-f6cqrjth11zxcvzxcvasdf' },
-        { id: 'cls-f6cqrjth11asdfasdfasdfasdfasdf', name: 'cls-f6cqrjth11asdfasdfasdfasdfasdf' },
-        { id: 'cls-f6cqrjth11asdfasdfasdfasdfasdfasdfasdf', name: 'cls-f6cqrjth11asdfasdfasdfasdfasdfasdfasdf' },
-      ],
-      method: { id: EMethod.include, name: '包含' },
-      condition: { id: ECondition.and, name: 'AND' },
-      hide: false,
-    },
-  ];
-
+  /* tag列表 */
+  localValue: IFilterItem[] = [];
+  /* 弹层实例 */
   popoverInstance = null;
+  /* 当亲编辑项 */
+  updateActive = -1;
+  /* 是否显示输入框 */
+  showInput = false;
+  /* 输入框的值 */
+  inputValue = '';
+  /* 是否聚焦 */
+  inputFocus = false;
 
   async handleShowSelect(event: MouseEvent) {
     if (this.popoverInstance) {
@@ -148,11 +108,14 @@ export default class UiSelector extends tsc<IProps> {
   }
 
   handleAdd(event: MouseEvent) {
+    event.stopPropagation();
+    this.updateActive = -1;
     const customEvent = {
       ...event,
       target: event.currentTarget,
     };
     this.handleShowSelect(customEvent);
+    this.hideInput();
   }
 
   /**
@@ -160,17 +123,129 @@ export default class UiSelector extends tsc<IProps> {
    */
   handleCancel() {
     this.destroyPopoverInstance();
+    this.hideInput();
   }
   /**
    * @description 点击弹层确认
    */
-  handleConfirm() {
+  handleConfirm(value: IFilterItem) {
+    if (value) {
+      if (this.updateActive > -1) {
+        this.localValue.splice(this.updateActive, 1, value);
+      } else {
+        this.localValue.push(value);
+      }
+    }
     this.destroyPopoverInstance();
+    this.hideInput();
+  }
+
+  /**
+   * @description 删除tag
+   * @param index
+   */
+  handleDeleteTag(index: number) {
+    this.localValue.splice(index, 1);
+  }
+
+  /**
+   * @description 编辑tag
+   * @param event
+   * @param index
+   */
+  handleUpdateTag(event: MouseEvent, index: number) {
+    event.stopPropagation();
+    this.updateActive = index;
+    const customEvent = {
+      ...event,
+      target: event.currentTarget,
+    };
+    this.handleShowSelect(customEvent);
+    this.hideInput();
+  }
+
+  /**
+   * @description 隐藏tag
+   * @param index
+   */
+  handleHideTag(index: number) {
+    let hide = false;
+    if (typeof this.localValue[index]?.hide === 'boolean') {
+      hide = !this.localValue[index].hide;
+    } else {
+      hide = true;
+    }
+    this.localValue.splice(index, 1, {
+      ...this.localValue[index],
+      hide,
+    });
+  }
+
+  /**
+   * @description 清空
+   */
+  handleClear(event: MouseEvent) {
+    event.stopPropagation();
+    this.localValue = [];
+    this.updateActive = -1;
+    this.hideInput();
+  }
+
+  /**
+   * @description 点击组件
+   */
+  handleClickComponent(event?: MouseEvent) {
+    event?.stopPropagation();
+    this.updateActive = -1;
+    this.showInput = true;
+    this.inputFocus = true;
+    const el = this.$el.querySelector('.kv-placeholder');
+    const customEvent = {
+      ...event,
+      target: el,
+    };
+    this.handleShowSelect(customEvent);
+  }
+
+  handleBlur() {
+    this.inputFocus = false;
+    if (!this.inputValue) {
+      this.hideInput();
+    }
+  }
+
+  hideInput() {
+    this.inputFocus = false;
+    this.showInput = false;
+    this.inputValue = '';
+  }
+  handleInput(v: string) {
+    this.inputValue = v;
+  }
+
+  handleEnter() {
+    this.localValue.push({
+      key: {
+        id: '*',
+        name: this.$tc('全文'),
+      },
+      value: [{ id: this.inputValue, name: this.inputValue }],
+      method: { id: EMethod.include, name: this.$tc('包含') },
+      condition: { id: ECondition.and, name: 'AND' },
+    });
+    this.inputValue = '';
+    this.destroyPopoverInstance();
+    setTimeout(() => {
+      this.handleClickComponent();
+    }, 50);
   }
 
   render() {
     return (
-      <div class='retrieval-filter__ui-selector-component'>
+      <div
+        class='retrieval-filter__ui-selector-component'
+        onClick={this.handleClickComponent}
+      >
         <div
           class='add-btn'
           onClick={this.handleAdd}
@@ -182,8 +257,38 @@ export default class UiSelector extends tsc<IProps> {
           <KvTag
             key={`${index}_kv`}
             value={item}
+            onDelete={() => this.handleDeleteTag(index)}
+            onHide={() => this.handleHideTag(index)}
+            onUpdate={event => this.handleUpdateTag(event, index)}
           />
         ))}
+        <div class='kv-placeholder'>
+          {this.showInput ? (
+            <AutoWidthInput
+              height={40}
+              isFocus={this.inputFocus}
+              value={this.inputValue}
+              onBlur={this.handleBlur}
+              onEnter={this.handleEnter}
+              onInput={this.handleInput}
+            />
+          ) : (
+            <span class='placeholder-text'>{`/ ${this.$t('快速定位到搜索，请输入关键词...')}`}</span>
+          )}
+          {!!this.localValue.length && !this.showSelector && (
+            <div class='hover-btn-wrap'>
+              <div
+                class='operate-btn'
+                onClick={this.handleClear}
+              >
+                <span class='icon-monitor icon-a-Clearqingkong' />
+              </div>
+              <div class='operate-btn'>
+                <span class='icon-monitor icon-mc-copy' />
+              </div>
+            </div>
+          )}
+        </div>
         <div style='display: none;'>
           <div ref='selector'>
             <UiSelectorOptions
@@ -198,6 +303,8 @@ export default class UiSelector extends tsc<IProps> {
                 ...this.fields,
               ]}
               getValueFn={this.getValueFn}
+              show={this.showSelector}
+              value={this.localValue?.[this.updateActive]}
               onCancel={this.handleCancel}
               onConfirm={this.handleConfirm}
             />

@@ -32,6 +32,9 @@ import './kv-tag.scss';
 
 interface IProps {
   value: IFilterItem;
+  onDelete?: () => void;
+  onUpdate?: (event: MouseEvent) => void;
+  onHide?: () => void;
 }
 @Component
 export default class KvTag extends tsc<IProps> {
@@ -40,6 +43,13 @@ export default class KvTag extends tsc<IProps> {
 
   localValue: IFilterItem = null;
   hideCount = 0;
+
+  get isHide() {
+    if (typeof this.localValue?.hide === 'boolean') {
+      return this.localValue.hide;
+    }
+    return false;
+  }
 
   @Watch('value', { immediate: true })
   handleWatchValue() {
@@ -64,9 +74,26 @@ export default class KvTag extends tsc<IProps> {
       this.hideCount = this.value.value.length - 3;
     }
   }
+
+  handleDelete(event: MouseEvent) {
+    event.stopPropagation();
+    this.$emit('delete');
+  }
+
+  handleClickComponent(event) {
+    this.$emit('update', event);
+  }
+  handleHide(event: MouseEvent) {
+    event.stopPropagation();
+    this.$emit('hide');
+  }
+
   render() {
     return this.localValue ? (
-      <div class='retrieval-filter__kv-tag-component'>
+      <div
+        class='retrieval-filter__kv-tag-component'
+        onClick={this.handleClickComponent}
+      >
         <div
           class='retrieval-filter__kv-tag-component-wrap'
           v-bk-tooltips={{
@@ -79,7 +106,7 @@ export default class KvTag extends tsc<IProps> {
             <span class='key-name'>{this.localValue.key.name}</span>
             <span class={['key-method', this.localValue.method.id]}>{this.localValue.method.name}</span>
           </div>
-          <div class={['value-wrap', { 'hide-value': this.localValue.hide }]}>
+          <div class={['value-wrap', { 'hide-value': this.isHide }]}>
             {this.localValue.value.map((item, index) => [
               index > 0 && (
                 <span
@@ -99,14 +126,20 @@ export default class KvTag extends tsc<IProps> {
             {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
           </div>
           <div class='btn-wrap'>
-            <div class='hide-btn'>
-              {this.localValue.hide ? (
+            <div
+              class='hide-btn'
+              onClick={this.handleHide}
+            >
+              {this.isHide ? (
                 <span class='icon-monitor icon-mc-invisible' />
               ) : (
                 <span class='icon-monitor icon-guanchazhong' />
               )}
             </div>
-            <div class='delete-btn'>
+            <div
+              class='delete-btn'
+              onClick={this.handleDelete}
+            >
               <span class='icon-monitor icon-mc-close-fill' />
             </div>
           </div>
