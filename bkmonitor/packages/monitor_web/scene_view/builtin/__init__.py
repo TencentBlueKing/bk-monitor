@@ -27,7 +27,7 @@ BUILTIN_SCENES = {
 _BUILTIN_VIEWS: Optional[Dict[str, Dict]] = None
 
 
-def get_builtin_processors():
+def get_builtin_processors() -> List["BuiltinProcessor"]:
     """
     内置视图处理器
     """
@@ -36,6 +36,7 @@ def get_builtin_processors():
     from .collect import CollectBuiltinProcessor
     from .custom_event import CustomEventBuiltinProcessor
     from .custom_metric import CustomMetricBuiltinProcessor
+    from .custom_metric_v2 import CustomMetricV2BuiltinProcessor
     from .host import HostBuiltinProcessor
     from .kubernetes import KubernetesBuiltinProcessor
     from .observation_scene import ObservationSceneBuiltinProcessor
@@ -51,6 +52,7 @@ def get_builtin_processors():
         CustomMetricBuiltinProcessor,
         ApmBuiltinProcessor,
         AlertBuiltinProcessor,
+        CustomMetricV2BuiltinProcessor,
     ]
 
 

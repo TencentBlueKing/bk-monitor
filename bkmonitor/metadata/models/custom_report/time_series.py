@@ -550,7 +550,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
                 # 因为获取到的为bytes类型，避免后续更新`table id`时，组装格式错误，转换为字符串
                 field_name = metric_with_score[0]
-                if type(field_name) == bytes:
+                if isinstance(field_name, bytes):
                     field_name = field_name.decode("utf-8")
                 metrics_info.append(
                     {
@@ -762,7 +762,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
         }
 
-    def _filter_metric_by_dimension(self, metrics: List, dimension_name: str, dimension_value: str) -> (Set, Set):
+    def _filter_metric_by_dimension(self, metrics: List, dimension_name: str, dimension_value: str) -> Tuple[Set, Set]:
         metric_by_dimension_name = set()
         metric_by_dimension_value = set()
         for d in metrics:
