@@ -121,6 +121,7 @@ export default {
   '共成功{0}了{1}个实例': 'A total of {0} instances were successfully {1}',
   '共{0}个指标，{1}个维度': 'A total of {0} metrics, {1} dimensions',
   '共{0}条': 'total: {0}',
+  '{0}条': 'total: {0}',
   '共成功{type}了': 'Successfully completed {type}', // 看语境
   '共 {slot0} 个维度': 'Dimensions: {slot0}  ',
   '共 {slot0} 个指标': 'Metrics: {slot0} ',
@@ -146,6 +147,7 @@ export default {
   '查询结果(找到 {0} 条，用时 {1} 毫秒)，将搜索条件 {2}{3}':
     'Query results (found {0} , cost {1} milliseconds), add search criteria {2}{3}',
   '查询结果(找到 {0} 条，用时 {1} 毫秒)': 'Query results (found {0} , cost {1} milliseconds)',
+  '(找到 {0} 条结果，用时 {1} 毫秒)': '(Found {0} results, cost {1} milliseconds)',
   '成功复制{0}个IP': 'Successfully Copied {0} IPs',
   '您一共选择了{0}条告警': 'You have selected a total of {0} alarms',
   '已停用{0}个节点内的{1}台主机': '{1} hosts in {0} nodes have been disabled',
