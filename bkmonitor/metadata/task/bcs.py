@@ -190,7 +190,7 @@ def refresh_bcs_metrics_label():
 @share_lock(ttl=3600, identify="metadata_discoverBCSClusters")
 def discover_bcs_clusters():
     """
-    周期刷新bcs集群列表，将未注册进metadata的集群注册进来
+    BCS集群同步周期任务,调用BCS侧API全量拉取集群信息（包含联邦集群）,并进行同步逻辑
     """
     # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
