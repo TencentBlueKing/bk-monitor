@@ -81,7 +81,6 @@ from apps.log_search.exceptions import (
     SearchUnKnowTimeField,
     UnauthorizedResultTableException,
 )
-from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
     IndexSetFieldsConfig,
@@ -100,12 +99,10 @@ from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
 from apps.log_search.utils import fetch_request_username
 from apps.log_trace.handlers.proto.proto import Proto
-from apps.log_trace.serializers import DateHistogramSerializer
 from apps.models import model_to_dict
 from apps.utils import APIModel
 from apps.utils.bk_data_auth import BkDataAuthHandler
 from apps.utils.db import array_hash
-from apps.utils.drf import custom_params_valid
 from apps.utils.local import (
     get_local_param,
     get_request_app_code,
@@ -616,46 +613,57 @@ class IndexSetHandler(APIModel):
                     break
         return self._indices_result(ret, index_list)
 
-    def get_memory_usage_info(self):
+    @staticmethod
+    def get_storage_usage_info(bk_biz_id, index_set_ids):
         """
-        查询索引集内存的日用量和总用量
+        查询索引集存储的日用量和总用量
         """
-        indices_info = self.indices()
-        # 总条数
-        total_count = sum(int(idx["stat"]["docs.count"]) for idx in indices_info["list"])
-        # 总用量
-        total_usage = sum(int(idx["stat"]["store.size"]) for idx in indices_info["list"])
-        # 24小时日志数量
-        daily_count = 0
+        from apps.log_databus.handlers.collector import CollectorHandler
+        from apps.log_unifyquery.handler import UnifyQueryHandler
 
-        try:
-            # 获取24小时的条数
-            log_index_set_obj = LogIndexSet.objects.get(index_set_id=self.index_set_id)
-            bk_biz_id = space_uid_to_bk_biz_id(log_index_set_obj.space_uid)
-            current_time = arrow.now()
-            params = {
-                "bk_biz_id": bk_biz_id,
-                "keyword": "*",
-                "start_time": current_time.shift(days=-1).timestamp,
-                "end_time": current_time.timestamp,
-                "begin": 0,
-                "size": 0,
-                "interval": "1d",
-                "time_range": "customized",
-            }
-            data = custom_params_valid(DateHistogramSerializer, params)
-            result = AggsViewAdapter().date_histogram(self.index_set_id, data)
-            for item in result.get("aggs", {}).get("group_by_histogram", {}).get("buckets", {}):
-                daily_count += item.get("doc_count", 0)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.exception("query daily log count failed: index_set_id -> [%s] reason: %s", self.index_set_id, e)
+        result_data = []
+        collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids)
+        for collector in collectors:
+            try:
+                index_set_id = collector.index_set_id
+                indices_info = CollectorHandler(collector.collector_config_id).indices_info()
+                # 总条数
+                total_count = sum(int(idx["docs.count"]) for idx in indices_info)
+                # 总用量
+                total_usage = sum(int(idx["store.size"]) for idx in indices_info)
 
-        # 日用量
-        daily_usage = daily_count * (total_usage / total_count) if total_count != 0 else 0
-        return {
-            "daily_usage": int(daily_usage),
-            "total_usage": total_usage,
-        }
+                if total_count:
+                    # 获取24小时的日志条数
+                    current_time = arrow.now()
+                    params = {
+                        "bk_biz_id": bk_biz_id,
+                        "index_set_ids": [collector.index_set_id],
+                        "start_time": current_time.shift(days=-1).timestamp,
+                        "end_time": current_time.timestamp,
+                    }
+
+                    daily_count = UnifyQueryHandler(params).get_total_count()
+                    # 日用量
+                    daily_usage = daily_count * (total_usage / total_count) if total_count != 0 else 0
+                else:
+                    daily_usage = 0
+                result_data.append(
+                    {
+                        "index_set_id": index_set_id,
+                        "daily_usage": int(daily_usage),
+                        "total_usage": total_usage,
+                    }
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception("query storage usage failed: index_set_id -> [%s] reason: %s", index_set_id, e)
+                result_data.append(
+                    {
+                        "index_set_id": index_set_id,
+                        "daily_usage": 0,
+                        "total_usage": 0,
+                    }
+                )
+        return result_data
 
     def _match_rt_for_index(self, index_es_name: str, index_name: str, scenario_id: str) -> bool:
         index_re = re.compile(COMMON_LOG_INDEX_RE.format(index_name))

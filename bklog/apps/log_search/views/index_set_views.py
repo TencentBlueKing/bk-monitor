@@ -47,6 +47,7 @@ from apps.log_search.serializers import (
     ESRouterListSerializer,
     IndexSetAddTagSerializer,
     IndexSetDeleteTagSerializer,
+    StorageUsageSerializer,
     UserFavoriteSerializer,
     UserSearchSerializer,
 )
@@ -1230,22 +1231,32 @@ class IndexSetViewSet(ModelViewSet):
         data = self.params_valid(UserFavoriteSerializer)
         return Response(IndexSetHandler.fetch_user_favorite_index_set(params=data))
 
-    @detail_route(methods=["GET"], url_path="memory_usage")
-    def memory_usage(self, request, index_set_id=None):
+    @list_route(methods=["POST"], url_path="storage_usage")
+    def storage_usage(self, request):
         """
-        @api {post} /index_set/${index_set_id}/memory_usage/ 查询索引集的内存使用情况
-        @apiDescription 查询索引集的内存使用情况
-        @apiName memory_usage
-        @apiParam {String} index_set_id 索引集ID(必填)
+        @api {post} /index_set/storage_usage/ 查询索引集的存储使用量
+        @apiDescription 查询索引集的存储使用量
+        @apiName storage_usage
+        @apiParam {Int} bk_biz_id 业务ID
+        @apiParam {Int} index_set_ids 索引集列表
         @apiSuccessExample {json} 成功返回:
         {
             "result": true,
-            "data": {
-                "daily_usage": 2320943376,
-                "total_usage": 696462795791
-            },
+            "data": [
+                {
+                    "index_set_id": 71,
+                    "daily_usage": 12345678,
+                    "total_usage": 50339300366
+                },
+                {
+                    "index_set_id": 81,
+                    "daily_usage": 123456780,
+                    "total_usage": 26409316486
+                }
+            ],
             "code": 0,
             "message": ""
         }
         """
-        return Response(IndexSetHandler(index_set_id).get_memory_usage_info())
+        data = self.params_valid(StorageUsageSerializer)
+        return Response(IndexSetHandler.get_storage_usage_info(data["bk_biz_id"], data["index_set_ids"]))
