@@ -26,8 +26,16 @@
     extendParams: {
       type: Object,
     },
+    activeFavorite:{
+      default: true,
+      type: Boolean,
+    },
+    matchSQLStr:{
+      default: false,
+      type: Boolean,
+    }
   });
-  const emit = defineEmits(['refresh']);
+  const emit = defineEmits(['refresh','saveCurrentActiveFavorite']);
   const { $t } = useLocale();
   const store = useStore();
 
@@ -276,6 +284,9 @@
       }
     } catch (error) {}
   };
+  const saveCurrentFavorite = () => {
+    emit('saveCurrentActiveFavorite');
+  }
   // 提交表单校验
   const handleSubmitFormData = () => {
     popoverFormRef.value.validate().then(() => {
@@ -350,8 +361,23 @@
       }"
       class="bklog-icon bklog-star-line"
       @click="handleCollection"
+      v-if="activeFavorite"
+      v-bk-tooltips="$t('收藏当前查询')"
       ><slot></slot
     ></span>
+    <bk-dropdown-menu :align="'center'" v-else>
+        <template slot="dropdown-trigger">
+            <div
+              v-bk-tooltips="$t('收藏')"
+              style="color: #63656e"
+              class="icon bk-icon icon-save"
+            ></div>
+        </template>
+        <ul class="bk-dropdown-list" slot="dropdown-content">
+            <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentFavorite">覆盖当前收藏</a></li>
+            <li><a href="javascript:;" @click.stop="handleCollection">另存为新收藏</a></li>
+        </ul>
+    </bk-dropdown-menu>
     <template #content>
       <div>
         <div class="popover-title-content">
