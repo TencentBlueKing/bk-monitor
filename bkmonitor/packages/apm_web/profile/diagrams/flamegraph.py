@@ -11,32 +11,37 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from apm_web.profile.diagrams.base import FunctionNode
+from apm_web.profile.diagrams.base import FunctionNode, get_handler_by_mapping
 from apm_web.profile.diagrams.diff import DiffNode, ProfileDiffer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 
 logger = logging.getLogger("apm")
 
 
-def diff_node_to_element(diff_node: Optional[DiffNode]) -> dict:
+def diff_node_to_element(diff_node: Optional[DiffNode], **options) -> dict:
+    handler = get_handler_by_mapping(options)
     return {
-        **diff_node.default.to_dict(),
+        **handler(diff_node.default.to_dict()),
         "diff_info": diff_node.diff_info,
-        "children": [diff_node_to_element(child) for child in diff_node.children],
+        "children": [diff_node_to_element(child, **options) for child in diff_node.children],
     }
 
 
 @dataclass
 class FlamegraphDiagrammer:
-    def draw(self, c: TreeConverter, **_) -> dict:
+    def draw(self, c: TreeConverter, **options) -> dict:
+        handler = get_handler_by_mapping(options)
+
         def function_node_to_element(function_node: FunctionNode) -> dict:
-            return {
-                "id": function_node.id,
-                "name": function_node.name,
-                "value": function_node.value,
-                "self": function_node.self_time,
-                "children": [function_node_to_element(child) for child in function_node.children.values()],
-            }
+            return handler(
+                {
+                    "id": function_node.id,
+                    "name": function_node.name,
+                    "value": function_node.value,
+                    "self": function_node.self_time,
+                    "children": [function_node_to_element(child) for child in function_node.children.values()],
+                }
+            )
 
         root = {"name": "total", "value": c.tree.root.value, "children": [], "id": 0}
         for r in c.tree.root.children.values():
@@ -44,17 +49,18 @@ class FlamegraphDiagrammer:
 
         return {"flame_data": root}
 
-    def diff(self, base_tree_c: TreeConverter, comp_tree_c: TreeConverter, **_) -> dict:
+    def diff(self, base_tree_c: TreeConverter, comp_tree_c: TreeConverter, **options) -> dict:
         diff_tree = ProfileDiffer.from_raw(base_tree_c, comp_tree_c).diff_tree()
         diff_tree_root = diff_tree.root
         if diff_tree_root is None:
             return {"flame_data": {}}
 
+        handler = get_handler_by_mapping(options)
         flame_data = [
             {
-                **diff_tree_root.default.to_dict(),
+                **handler(diff_tree_root.default.to_dict()),
                 "diff_info": diff_tree_root.diff_info,
-                "children": [diff_node_to_element(child) for child in diff_tree_root.children],
+                "children": [diff_node_to_element(child, **options) for child in diff_tree_root.children],
             }
         ]
 

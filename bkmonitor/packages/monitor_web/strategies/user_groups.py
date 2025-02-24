@@ -46,7 +46,7 @@ def create_default_notice_group(bk_biz_id: int, group_name=None) -> int:
                 }
             )
             try:
-                user_group_serializer.is_valid(True)
+                user_group_serializer.is_valid(raise_exception=True)
             except ValidationError:
                 continue
             user_group_serializer.save()
@@ -66,7 +66,7 @@ def _get_or_create_user_group(bk_biz_id, group_name, receivers):
                 "action_notice": DEFAULT_NOTICE_GROUPS[0]["action_notice"],
             }
         )
-        user_group_serializer.is_valid(True)
+        user_group_serializer.is_valid(raise_exception=True)
         user_group_serializer.save()
 
     try:
@@ -121,7 +121,7 @@ def get_or_create_ops_notice_group(bk_biz_id: int) -> Optional[int]:
                 "action_notice": user_group["action_notice"],
             }
         )
-        user_group_serializer.is_valid(True)
+        user_group_serializer.is_valid(raise_exception=True)
         user_group_serializer.save()
 
     return UserGroup.objects.get(bk_biz_id=bk_biz_id, name=six.text_type(user_group["name"])).id
@@ -163,7 +163,7 @@ def add_member_to_collecting_notice_group(bk_biz_id: int, user_id: str) -> int:
             inst, data={"duty_arranges": [{"users": current_users}]}, partial=True
         )
 
-    user_group_serializer.is_valid(True)
+    user_group_serializer.is_valid(raise_exception=True)
     inst = user_group_serializer.save()
     return inst.id
 
