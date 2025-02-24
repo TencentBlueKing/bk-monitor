@@ -301,7 +301,7 @@ class AsyncExportUtils(object):
         return storage_cluster_ids
 
     def _async_export(self, search_handler, file_path):
-        max_result_window = search_handler.index_set_obj.result_window
+        max_result_window = search_handler.index_set.result_window
         result = search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
         # 判断是否成功
         if result["_shards"]["total"] != result["_shards"]["successful"]:

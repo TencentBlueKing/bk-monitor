@@ -89,9 +89,9 @@ class TestSearchHandler(TestCase):
     )
     def setUp(self) -> None:
         self.search_handler = SearchHandler(index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False)
-        self.search_handler.index_set_obj = Mock()
-        self.search_handler.index_set_obj.max_async_count = 2010000
-        self.search_handler.index_set_obj.result_window = 10000
+        self.search_handler.index_set = Mock()
+        self.search_handler.index_set.max_async_count = 2010000
+        self.search_handler.index_set.result_window = 10000
 
     @patch("apps.api.BkLogApi.search", lambda _, data_api_retry_cls: SEARCH_RESULT)
     @patch(
