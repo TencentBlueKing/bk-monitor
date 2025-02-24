@@ -146,7 +146,7 @@ class CustomTSTable(OperateRecordModelBase):
         }
 
         # 如果没有开启自动发现，才需要设置指标维度
-        if not self.auto_discover and with_fields:
+        if with_fields:
             fields = CustomTSField.objects.filter(time_series_group_id=self.time_series_group_id)
             request_params["field_list"] = [
                 {
@@ -155,9 +155,9 @@ class CustomTSTable(OperateRecordModelBase):
                     "field_type": "string" if field.type == "dimension" else "float",
                     "description": field.description,
                     "unit": field.config.get("unit", ""),
+                    "is_disabled": field.disabled,
                 }
                 for field in fields
-                if not field.disabled
             ]
 
         api.metadata.modify_time_series_group(request_params)
