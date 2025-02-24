@@ -1,6 +1,14 @@
 .retrieval__value-tag-selector-component {
   position: relative;
 
+  .mb-4 {
+    margin-bottom: 4px;
+  }
+
+  .mr-4 {
+    margin-right: 4px;
+  }
+
   .value-tag-selector-component-wrap {
     position: relative;
     display: flex;
@@ -17,20 +25,16 @@
     border-radius: 2px;
 
     .placeholder-span {
+      position: absolute;
+      top: 0;
+      left: 6px;
       font-size: 12px;
+      line-height: 30px;
       color: #C4C6CC;
     }
 
     .value-tag-input {
       margin: 0 4px 4px 0;
-    }
-
-    .focus-input {
-      min-width: 8px;
-      height: 20px;
-      font-size: 12px;
-      color: #4D4F56;
-      border: none;
     }
   }
 
@@ -57,8 +61,13 @@
       white-space: nowrap;
       cursor: pointer;
 
-      &:hover {
+      &:hover,
+      &.active-index {
         background: #F5F7FA;
+      }
+
+      .highlight {
+        color: #3A84FF;
       }
     }
   }
