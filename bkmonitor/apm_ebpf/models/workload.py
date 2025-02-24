@@ -33,7 +33,7 @@ class DeepflowWorkload(models.Model):
         verbose_name = "deepflow集群管理表"
 
     @classmethod
-    @using_cache(CacheType.BIZ)
+    @using_cache(CacheType.APM(60 * 15))
     def is_exist_ebpf(cls, bk_biz_id):
         return cls.objects.filter(bk_biz_id=bk_biz_id).exists()
 
