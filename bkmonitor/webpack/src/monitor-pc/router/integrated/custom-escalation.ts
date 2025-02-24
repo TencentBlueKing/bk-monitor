@@ -31,7 +31,11 @@ import type { RouteConfig } from 'vue-router';
 const CustomEscalationSet = () =>
   import(/* webpackChunkName: 'CustomEscalationAdd' */ '@page/custom-escalation/custom-escalation-set.vue');
 const CustomEscalationDetail = () =>
-  import(/* webpackChunkName: 'CustomEscalationDetail' */ '@page/custom-escalation/custom-escalation-detail.vue');
+  import(
+    /* webpackChunkName: 'CustomEscalationDetail' */ '../../pages/custom-escalation/custom-escalation-detail/custom-escalation-detail'
+  );
+// const CustomEscalationDetail = () =>
+//   import(/* webpackChunkName: 'CustomEscalationDetail' */ '@page/custom-escalation/custom-escalation-detail.vue');
 const CustomEscalationView = () =>
   import(/* webpackChunkName: 'CustomEscalationView' */ '../../pages/custom-escalation/view-detail/metric-view');
 const CustomEscalationEventView = () =>
