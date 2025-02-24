@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 
 import { random } from '../../../monitor-common/utils/utils';
 import { transformLogUrlQuery } from '../../../monitor-pc/utils';
+import { TableClickCurrentExpand } from '../../common/table-expand-plugins';
 import { handleToAlertList } from './event-detail/action-detail';
 
 import type { TType as TSliderType } from './event-detail/event-detail-slider';
@@ -150,6 +151,9 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   popoperOperateIndex = -1;
   opetateRow = null;
   enableCreateChatGroup = false;
+  /** table 行定位色功能类实例 */
+  tableClickCurrentInstance = new TableClickCurrentExpand();
+
   /**
    * @description: 处理记录列表字段
    * @param {*}
@@ -316,10 +320,17 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
       ] as IColumnItem[]
     ).filter(Boolean);
   }
+
+  @Watch('tableData')
+  handleTableDataChange() {
+    this.tableClickCurrentInstance.resetRowCurrentIndex();
+  }
+
   @Watch('doLayout')
   handleDolayoutChange(v: eventPanelType) {
     v === 'list' && this.tableRef?.doLayout?.();
   }
+
   /**
    * @description: 初始化
    * @param {*}
@@ -585,7 +596,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   }
   // 跳转关联事件
   handleClickEventCount(item: IncidentItem) {
-    this.handleShowDetail(item, 'relatedEvents');
+    this.handleShowDetail(item, 'FailureView');
   }
   /**
    * @description: 跳转到告警列表
@@ -802,9 +813,11 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           header-border={false}
           outer-border={false}
           pagination={this.pagination}
+          row-class-name={this.tableClickCurrentInstance.getClassNameByCurrentIndex()}
           size={this.tableSize}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
+          on-row-click={this.tableClickCurrentInstance.tableRowClick()}
           on-row-mouse-enter={index => {
             this.hoverRowIndex = index;
           }}

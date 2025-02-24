@@ -289,9 +289,13 @@ export default {
     'You currently have {0} business permissions, and there are no alarm events temporarily',
   '{0} 空间未开启故障分析功能，请联系管理员开启':
     '{0} The fault analysis function is not enabled in this space. Please contact the administrator to enable it.',
-  '你当前有 {0} 个空间权限，暂无故障': 'You currently have {0} space permissions, no faults',
-  '你当前有 {0} 个空间权限，暂未开启灰度, 请联系管理员开启':
-    'You currently have {0} space permissions, grayscale is not enabled yet, please contact the administrator to enable it',
+  当前空间下暂无故障: 'There is no fault in the current space',
+  '{count} 空间未开启故障分析功能，请联系 {link}':
+    '{count} space does not have fault analysis function enabled, please contact {link}',
+  '你当前有 {0} 个空间权限，暂无您负责的故障':
+    'You currently have {0} space permissions, and there are no faults that you are responsible for.',
+  '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}':
+    'You currently have {count} space permissions, grayscale is not enabled yet, please contact {link}',
   '本次操作未选择目标，无下发操作记录': 'No target selected for this operation, no records of issuance',
   无法选择Agent状态异常的服务器: 'Cannot select server with abnormal Agent status',
   '当前拨测任务状态良好，无告警事件产生': 'The current dialing task is in good condition and has no alarm events',

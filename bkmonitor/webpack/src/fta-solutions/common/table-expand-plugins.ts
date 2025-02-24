@@ -23,14 +23,53 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { TranslateResult } from 'vue-i18n';
-// 空状态类型枚举
-export type EmptyStatusType = '403' | '500' | 'empty' | 'incidentEmpty' | 'search-empty';
 
-// 空状态操作枚举
-export type EmptyStatusOperationType = 'clear-filter' | 'refresh';
+/**
+ * @description vue2版本 bk-table 功能拓展--表格定位色功能类（点击table行存储当前行索引变色）
+ */
+export class TableClickCurrentExpand {
+  private rowCurrentIndex = -1;
 
-// 空状态文本枚举
-export type IEmptyStatusTextMap = {
-  [key in EmptyStatusType]?: TranslateResult;
-};
+  /**
+   * @description 根据表格行索引判断设置行类名（bk-table-row--current）从而实现表格点击后定位色功能
+   * @description 主要利用 bk-table 的 row-class-name 属性
+   */
+  getClassNameByCurrentIndex() {
+    return (rowObject: { row: unknown; rowIndex: number }) => {
+      const { rowIndex } = rowObject;
+      return rowIndex === this.rowCurrentIndex ? 'bk-table-row--current' : '';
+    };
+  }
+
+  /**
+   * @description 获取当前缓存的表格行索引
+   */
+  getRowCurrentIndex() {
+    return this.rowCurrentIndex;
+  }
+
+  /**
+   * @description 重置当前缓存表格行索引
+   */
+  resetRowCurrentIndex() {
+    this.rowCurrentIndex = -1;
+  }
+
+  /**
+   * @description 设置当前表格行索引
+   * @param { number } index 需要缓存的表格行索引
+   */
+  setRowCurrentIndex(index: number) {
+    this.rowCurrentIndex = index;
+  }
+
+  /**
+   * @description 表格点击行事件（点击后设置当前表格行索引）
+   * @description 参数可看vue2 bk-table 文档 -- row-click 事件
+   */
+  tableRowClick() {
+    return (row, event, column, rowIndex) => {
+      this.setRowCurrentIndex(rowIndex);
+    };
+  }
+}

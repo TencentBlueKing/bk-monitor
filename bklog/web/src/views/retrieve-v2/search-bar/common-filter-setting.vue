@@ -6,6 +6,8 @@
     theme="light bk-select-dropdown"
     trigger="click"
     class="common-filter-popper"
+    :on-show="handlePopoverShow"
+    :tippy-options="tippyOptions"
   >
     <slot name="trigger">
       <div class="operation-icon">
@@ -25,6 +27,15 @@
                 >{{ $t('全部添加') }}</span
               >
             </div>
+            <div style="padding: 4px 8px; height: 40px">
+              <bk-input
+                behavior="simplicity"
+                left-icon="bk-icon icon-search"
+                v-model="searchKeyword"
+                :placeholder="$t('请输入关键字')"
+                :clearable="true"
+              ></bk-input>
+            </div>
             <ul class="select-list">
               <li
                 v-for="item in shadowTotal"
@@ -32,6 +43,7 @@
                 class="select-item"
                 :key="item.field_name"
                 @click="addField(item)"
+                v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
               >
                 <span
                   :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
@@ -70,6 +82,7 @@
                   v-for="(item, index) in shadowVisible"
                   class="select-item"
                   :key="item.field_name"
+                  v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                 >
                   <span class="icon bklog-icon bklog-drag-dots"></span>
                   <span
@@ -117,10 +130,15 @@
 
   import VueDraggable from 'vuedraggable';
   import { excludesFields } from './const.common';
+  import { getRegExp } from '@/common/util';
 
   // 获取 store
   const store = useStore();
   const { $t } = useLocale();
+  const searchKeyword = ref('');
+  const tippyOptions = {
+    offset: '0, 4',
+  };
 
   // 定义响应式数据
   const isLoading = ref(false);
@@ -137,11 +155,17 @@
   });
 
   const shadowTotal = computed(() => {
-    const filterFn = field => !shadowVisible.value.includes(field) && field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
+    const reg = getRegExp(searchKeyword.value);
+    const filterFn = field =>
+      !shadowVisible.value.includes(field) &&
+      field.field_type !== '__virtual__' &&
+      !excludesFields.includes(field.field_name) &&
+      (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
     return fieldList.value.filter(filterFn);
   });
 
   const shadowVisible = ref([]);
+
   const dragOptions = ref({
     animation: 150,
     tag: 'ul',
@@ -186,6 +210,7 @@
 
   const confirmModifyFields = async () => {
     handleCreateRequest();
+    fieldsSettingPopperRef?.value.instance.hide();
   };
 
   const fieldsSettingPopperRef = ref('');
@@ -203,7 +228,7 @@
 
   const addAllField = () => {
     shadowTotal.value.forEach(fieldInfo => {
-      if(!shadowVisible.value.includes(fieldInfo)) {
+      if (!shadowVisible.value.includes(fieldInfo)) {
         shadowVisible.value.push(fieldInfo);
       }
     });
@@ -218,16 +243,9 @@
     shadowVisible.value.push(...filterFieldsList.value);
   };
 
-  let isFirstMounted = true;
-  watch(
-    () => [filterFieldsList.value.length],
-    () => {
-      if (isFirstMounted) {
-        setDefaultFilterList();
-      }
-    },
-    { immediate: true },
-  );
+  const handlePopoverShow = () => {
+    setDefaultFilterList();
+  };
 </script>
 
 <style lang="scss">
@@ -240,9 +258,10 @@
     .total-fields-list,
     .visible-fields-list,
     .sort-fields-list {
-      width: 330px;
-      height: 268px;
+      width: 350px;
+      height: 340px;
       border: 1px solid #dcdee5;
+      border-bottom: none;
 
       .text-action {
         font-size: 12px;
@@ -259,8 +278,8 @@
         line-height: 40px;
         color: #313238;
         border-bottom: 1px solid #dcdee5;
+        border-top: 1px solid #dcdee5;
         background: #fafbfd;
-        border: 1px solid #dcdee5;
 
         .bklog-info-fill {
           margin-left: 8px;
@@ -278,17 +297,19 @@
       }
 
       .select-list {
-        height: 223px;
+        height: 255px;
         padding: 4px 0;
         overflow: auto;
 
         @include scroller;
 
         .select-item {
-          display: flex;
+          overflow: hidden;
+          display: inline-block;
           align-items: center;
           width: 100%;
           height: 32px;
+          line-height: 32px;
           padding: 0 12px;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -304,8 +325,6 @@
             color: #979ba5;
             text-align: left;
             cursor: move;
-            opacity: 0;
-            transition: opacity 0.2s linear;
           }
 
           &.sortable-ghost-class {
@@ -315,12 +334,6 @@
 
           &:hover {
             background: #eaf3ff;
-            transition: background 0.2s linear;
-
-            .bklog-drag-dots {
-              opacity: 1;
-              transition: opacity 0.2s linear;
-            }
           }
 
           .field-type-icon {
@@ -375,15 +388,14 @@
 
     .visible-fields-list {
       border-left: none;
+      width: 380px;
     }
 
     /* stylelint-disable-next-line no-descending-specificity */
     .total-fields-list .select-list .select-item {
+      position: relative;
       .field-name {
-        // width: calc(100% - 24px);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        display: inline;
       }
 
       .bklog-filled-right-arrow {
@@ -396,6 +408,10 @@
         transition: opacity 0.2s linear;
         transform: scale(0.5);
         transform-origin: right center;
+        position: absolute;
+        right: 4px;
+        top: 8px;
+        z-index: 10;
       }
 
       &:hover .bklog-filled-right-arrow {
@@ -409,9 +425,7 @@
       position: relative;
 
       .field-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        display: inline;
       }
 
       .delete {

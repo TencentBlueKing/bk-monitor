@@ -1,4 +1,4 @@
-default_stages: [commit]
+default_stages: [pre-commit]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.3.0
@@ -39,7 +39,7 @@ repos:
         name: check pre ci pipeline
         entry: python3 scripts/pre-commit/pre-push.py
         language: system
-        stages: [ push ]
+        stages: [ pre-push ]
         verbose: true
 
       # flake8
