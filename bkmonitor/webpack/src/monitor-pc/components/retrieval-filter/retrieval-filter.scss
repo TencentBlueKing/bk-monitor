@@ -73,9 +73,13 @@
         cursor: pointer;
         border-radius: 2px;
   
-        &:hover,
-        &.btn-active {
+        &:hover {
           background: #EAEBF0;
+        }
+
+        &.btn-active {
+          color: #3A84FF;
+          background: #E1ECFF;
         }
       }
 
