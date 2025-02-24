@@ -41,7 +41,8 @@ import {
   getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import axios from 'axios';
+// import axios from 'axios';
+import { axiosInstance } from '@/api';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -1199,7 +1200,7 @@ const store = new Vuex.Store({
         };
       }
 
-      return axios(params)
+      return axiosInstance(params)
         .then(resp => {
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
