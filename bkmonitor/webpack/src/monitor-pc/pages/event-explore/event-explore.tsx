@@ -26,7 +26,7 @@
 import { Component, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { eventViewConfig } from 'monitor-api/modules/data_explorer';
+import { eventTopK, eventViewConfig } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
@@ -38,6 +38,7 @@ import EventExploreView from './components/event-explore-view';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
+import type { IGetValueFnParams } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFormData } from './typing';
 
@@ -147,6 +148,7 @@ export default class EventRetrievalNew extends tsc<object> {
     }
     this.loading = true;
     const data = await eventViewConfig({
+      // is_mock: true,
       data_sources: [
         {
           data_source_label: this.formData.data_source_label,
@@ -156,9 +158,9 @@ export default class EventRetrievalNew extends tsc<object> {
       ],
       start_time: this.formatTimeRange[0],
       end_time: this.formatTimeRange[1],
-    }).catch(() => ({ display_fields: [], entities: [], field: [] }));
+    }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
     this.loading = false;
-    this.fieldList = data.field;
+    this.fieldList = data.fields || data.field;
   }
 
   handleCloseDimensionPanel() {
@@ -168,6 +170,42 @@ export default class EventRetrievalNew extends tsc<object> {
   async mounted() {
     await this.getDataIdList(!this.formData.result_table_id);
     await this.getViewConfig();
+  }
+
+  async getRetrievalFilterValueData(params: IGetValueFnParams = {}) {
+    return eventTopK({
+      limit: params?.limit || 5,
+      query_configs: [
+        {
+          data_source_label: this.formData.data_source_label,
+          data_type_label: this.formData.data_type_label,
+          table: this.formData.result_table_id,
+          filter_dict: {},
+          where: params?.where || [],
+          query_string: params?.queryString || '*',
+        },
+      ],
+      fields: params?.fields || [],
+      start_time: this.formatTimeRange[0],
+      end_time: this.formatTimeRange[1],
+    })
+      .then(res => {
+        const data = res?.[0] || {};
+        return {
+          count: data?.distinct_count || 0,
+          list:
+            data?.list?.map(item => ({
+              id: item.value,
+              name: item.alias,
+            })) || [],
+        };
+      })
+      .catch(() => {
+        return {
+          count: 0,
+          list: [],
+        };
+      });
   }
 
   render() {
@@ -186,7 +224,10 @@ export default class EventRetrievalNew extends tsc<object> {
             onTimezoneChange={this.handleTimezoneChange}
           />
           <div class='event-retrieval-content'>
-            <RetrievalFilter fields={this.fieldList} />
+            <RetrievalFilter
+              fields={this.fieldList}
+              getValueFn={this.getRetrievalFilterValueData}
+            />
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
               class='content-container'

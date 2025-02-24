@@ -27,26 +27,36 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { fieldTypeMap, type IFilterField } from './utils';
+import {
+  fieldTypeMap,
+  getTitleAndSubtitle,
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+  type IFilterField,
+  ECondition,
+} from './utils';
 import ValueTagSelector from './value-tag-selector';
 
 import './ui-selector-options.scss';
 
-function getTitleAndSubtitle(str) {
-  const regex = /^(.*?)（(.*?)）$/;
-  const match = str.match(regex);
-  return {
-    title: match?.[1] || str,
-    subtitle: match?.[2],
-  };
-}
-
 interface IProps {
   fields: IFilterField[];
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }
 @Component
 export default class UiSelectorOptions extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
+  @Prop({
+    type: Function,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  })
+  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   /* 搜索值 */
   searchValue = '';
   /* 当前 */
@@ -63,6 +73,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
   values = [];
   /* 是否使用通配符 */
   isWildcard = false;
+  /* 检索值loading */
+  valueLoading = false;
+  /* 检索值候选项 */
+  valueOptions = [];
 
   get wildcardItem() {
     return this.checkedItem?.supported_operations?.find(item => item.value === this.method)?.options;
@@ -82,6 +96,40 @@ export default class UiSelectorOptions extends tsc<IProps> {
    */
   handleCheck(item: IFilterField) {
     this.checkedItem = JSON.parse(JSON.stringify(item));
+    this.valueOptions = [];
+    this.valueLoading = true;
+    if (this.checkedItem?.name !== '*') {
+      this.method = this.checkedItem?.supported_operations?.[0]?.value || '';
+      this.values = [];
+      this.getValueFn({
+        where: [
+          {
+            key: this.checkedItem.name,
+            method: this.method,
+            value: this.values,
+            condition: ECondition.and,
+          },
+        ],
+        fields: [this.checkedItem.name],
+        limit: 5,
+      })
+        .then(data => {
+          this.valueOptions = data.list;
+        })
+        .finally(() => {
+          this.valueLoading = false;
+        });
+    }
+  }
+
+  /**
+   * @description 点击确定
+   */
+  handleConfirm() {
+    this.$emit('confirm');
+  }
+  handleCancel() {
+    this.$emit('cancel');
   }
 
   rightRender() {
@@ -122,9 +170,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
               >
                 {this.checkedItem.supported_operations.map(item => (
                   <bk-option
-                    id={item.value || item.operator}
-                    key={item.value || item.operator}
-                    name={item.alias || item.label}
+                    id={item.value}
+                    key={item.value}
+                    name={item.alias}
                   />
                 ))}
               </bk-select>
@@ -141,7 +189,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
               </span>
             </div>
             <div class='form-item-content mt-6'>
-              <ValueTagSelector />
+              <ValueTagSelector
+                loading={this.valueLoading}
+                options={this.valueOptions}
+              />
             </div>
           </div>,
         ]
@@ -217,8 +268,11 @@ export default class UiSelectorOptions extends tsc<IProps> {
             <bk-button
               class='mr-8'
               theme='primary'
-            >{`${this.$t('确定')} Ctrl+ Enter`}</bk-button>
-            <bk-button>{`${this.$t('取消')}`}</bk-button>
+              onClick={() => this.handleConfirm()}
+            >
+              {`${this.$t('确定')} Ctrl+ Enter`}
+            </bk-button>
+            <bk-button onClick={() => this.handleCancel()}>{`${this.$t('取消')}`}</bk-button>
           </div>
         </div>
       </div>
