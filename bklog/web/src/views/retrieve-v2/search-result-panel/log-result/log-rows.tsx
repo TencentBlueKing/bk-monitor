@@ -39,6 +39,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
+import aiBlueking from '@/images/ai/ai-blueking.svg';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
 import { uniqueId, debounce } from 'lodash';
@@ -206,7 +207,7 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
     const operatorToolsWidth = computed(() => {
-      return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 104 : 78;
+      return indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
     });
 
     const originalColumns = computed(() => {
@@ -842,6 +843,17 @@ export default defineComponent({
       );
     };
 
+    const handleRowAIClcik = (e: MouseEvent, row: any) => {
+      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
+      const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
+      const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
+
+      oldRow?.classList.remove('ai-active');
+      targetRow?.classList.add('ai-active');
+
+      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
+    };
+
     const renderScrollTop = () => {
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
     };
@@ -877,6 +889,12 @@ export default defineComponent({
           ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
+        <span
+          class='bklog-row-ai'
+          onClick={e => handleRowAIClcik(e, row)}
+        >
+          <img src={aiBlueking} />
+        </span>,
       ];
     };
 

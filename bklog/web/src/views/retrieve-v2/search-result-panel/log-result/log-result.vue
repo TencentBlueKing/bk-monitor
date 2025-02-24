@@ -62,7 +62,10 @@
       />
     </bk-dialog>
 
-    <AiAssitant ref="refAiAssitant"></AiAssitant>
+    <AiAssitant
+      ref="refAiAssitant"
+      @close="handleAiClose"
+    ></AiAssitant>
   </div>
 </template>
 
@@ -109,6 +112,9 @@
     },
 
     methods: {
+      handleAiClose() {
+        this.$el.querySelector('.ai-active')?.classList.remove('ai-active');
+      },
       // 打开实时日志或上下文弹窗
       openLogDialog(row, type) {
         this.logDialog.data = row;

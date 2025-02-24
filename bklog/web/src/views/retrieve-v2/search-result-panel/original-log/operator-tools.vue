@@ -26,12 +26,12 @@
 
 <template>
   <div :class="{ 'handle-content': true, 'fix-content': showAllHandle, 'origin-content': logType === 'origin' }">
-    <span class="handle-card">
+    <!-- <span class="handle-card">
       <span
         class="bklog-icon bklog-ai"
         @click="() => handleClick('ai')"
       ></span>
-    </span>
+    </span> -->
     <template v-if="!isUnionSearch">
       <span
         class="handle-card"
@@ -181,13 +181,13 @@
 
     .handle-card {
       display: inline-block;
+      width: 14px;
       height: 14px;
       margin-left: 10px;
-      width: 14px;
 
       .bklog-ai {
-        color: #699df4;
         font-size: 16px;
+        color: #699df4;
         cursor: pointer;
       }
     }
