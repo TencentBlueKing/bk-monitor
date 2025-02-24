@@ -160,3 +160,24 @@ class ValueCalculator:
         @classmethod
         def calculate(cls, values):
             return sum(values)
+
+
+def is_func(name: str) -> bool:
+    """name包含斜杠或点说明是路径，返回True，不包含说明name是函数名，返回False"""
+    return len(name.split("/")) <= 1 or len(name.split(".")) <= 1
+
+
+language_handler_mapping = {
+    "python": {"handler": lambda i: {**i, "name": i["id"] if is_func(i["name"]) else i["name"]}},  # 根据 name 的类型修改 name
+    "default": {"handler": lambda i: i},
+}
+
+
+def get_handler_by_mapping(options):
+    language = options.get("service_language", "default")  # service_language为空时，language取默认key
+    handler = None
+    if language in language_handler_mapping:
+        # language是非python的其他语言时，获取默认值
+        handler = language_handler_mapping.get(language, language_handler_mapping["default"]).get("handler")
+
+    return handler
