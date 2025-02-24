@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { EStatus } from '../../../../trace/pages/rotation/typings/common';
+import type { EStatus } from 'monitor-common/rotation-utils/common';
 
 export interface IDutyListItem {
   id: number | string;
