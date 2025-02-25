@@ -57,6 +57,51 @@
           @click.stop="handleCheckClick('webConsole', isCanClickWebConsole)"
         ></span>
       </span>
+      <div v-show="false">
+        <div id="realTimeLog-html">
+          <span>
+            <span
+              v-if="!isActiveLog"
+              class="bk-icon icon-exclamation-circle-shape"
+            ></span>
+            <span>{{ toolMessage.realTimeLog }}</span>
+            <!-- <i18n path="请前往 {0}">
+                  <span class="clean-str">{{$t('清洗')}}</span>
+                </i18n>
+              <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
+          </span>
+        </div>
+      </div>
+      <div v-show="false">
+        <div id="webConsole-html">
+          <span>
+            <span
+              v-if="!isCanClickWebConsole"
+              class="bk-icon icon-exclamation-circle-shape"
+            ></span>
+            <span>{{ toolMessage.webConsole }}</span>
+            <!-- <i18n path="请前往 {0}">
+              <span class="clean-str">{{$t('清洗')}}</span>
+            </i18n>
+            <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
+          </span>
+        </div>
+      </div>
+      <div v-show="false">
+        <div id="contextLog-html">
+          <span>
+            <span
+              v-if="!isActiveLog"
+              class="bk-icon icon-exclamation-circle-shape"
+            ></span>
+            <span>{{ toolMessage.contextLog }}</span>
+            <!-- <i18n path="请前往 {0}">
+                <span class="clean-str">{{$t('清洗')}}</span>
+              </i18n>
+              <span class="clean-str" @click="handleGotoLink('logExtract')">{{$t('说明文档')}}</span> -->
+          </span>
+        </div>
+      </div>
     </template>
     <template v-else>
       <span

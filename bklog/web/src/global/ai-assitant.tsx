@@ -58,10 +58,10 @@ export default defineComponent({
     const prompts = ref([]);
     let chatid = random(10);
 
-    const top = 100;
+    const top = 2;
     const left = window.innerWidth - 900;
 
-    const startPosition = ref({ top, bottom: 100, left: left > 0 ? left : 100, right: 10 });
+    const startPosition = ref({ top, bottom: 4, left: left > 0 ? left : 100, right: 4 });
     const isShow = ref(false);
     const aiFixedLinkArgs = { index: null, id: null };
     const cachedArgs: Partial<IRowSendData> = {};
