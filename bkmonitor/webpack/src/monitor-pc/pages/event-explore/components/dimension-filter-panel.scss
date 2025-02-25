@@ -18,6 +18,7 @@
     }
 
     .icon-monitor {
+      font-size: 12px;
       cursor: pointer;
     }
   }
@@ -71,42 +72,7 @@
           background-color: #fff;
         }
       }
-
-      .type-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 14px;
-        height: 14px;
-        font-size: 12px;
-        background: #dcdee5;
-        border-radius: 2px;
-
-
-        &.icon-string {
-          color: #6498B3;
-          background-color: #D9E5EB;
-        }
-
-        &.icon-text {
-          font-size: 11px;
-          color: #508CC8;
-          background: #E1E7F2;
-        }
-
-        &.icon-number {
-          font-size: 10px;
-          color: #60A087;
-          background: #DDEBE6;
-        }
-
-        &.icon-mc-time {
-          font-size: 11px;
-          color: #CDAE71;
-          background: #EDE7DB;
-        }
-      }
-
+      
       .dimension-name {
         margin: 0 3px 0 4px;
         overflow: hidden;
@@ -148,6 +114,54 @@
   }
 }
 
+.top-k-list {
+  .top-k-list-item {
+    display: flex;
+    margin-top: 12px;
+
+    .filter-tools {
+      margin-top: 2px;
+      color: #3A84FF;
+
+      .icon-monitor {
+        cursor: pointer;
+      }
+
+      .icon-sousuo- {
+        margin: 0 6px 0 8px;
+      }
+    }
+
+    .progress-content {
+      flex: 1;
+
+      .info-text {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 20px;
+        margin-bottom: 2px;
+
+        .field-name {
+          font-size: 12px;
+          color: #313238;
+        }
+
+        .counts {
+          font-size: 12px;
+          color: #5AB8A8;
+
+          .progress-count {
+            margin-left: 4px;
+            font-weight: 700;
+          }
+        }
+      }
+
+    }
+  }
+}
+
 .event-retrieval-dimension-filter-theme {
   padding: 12px 16px;
   box-shadow: 0 2px 12px 0 #00000033;
@@ -175,67 +189,63 @@
       }
     }
 
-    .field-list {
-      .field-item {
-        display: flex;
-        margin-top: 12px;
-
-        .filter-tools {
-          margin-top: 2px;
-          color: #3A84FF;
-
-          .icon-monitor {
-            cursor: pointer;
-          }
-
-          .icon-sousuo- {
-            margin: 0 6px 0 8px;
-          }
-        }
-
-        .progress-content {
-          flex: 1;
-
-          .info-text {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 20px;
-            margin-bottom: 2px;
-
-            .field-name {
-              font-size: 12px;
-              color: #313238;
-            }
-
-            .counts {
-              font-size: 12px;
-              color: #5AB8A8;
-
-              .progress-count {
-                margin-left: 4px;
-                font-weight: 700;
-              }
-            }
-          }
-
-        }
-      }
-
-      .load-more {
-        margin: 8px 0 0 48px;
-        font-size: 12px;
-        line-height: 20px;
-        color: #3A84FF;
-        cursor: pointer;
-      }
-    }
-
     .skeleton-wrap {
       .skeleton-element {
         height: 28px;
         margin-top: 12px;
       }
     }
+
+    .load-more {
+      margin: 8px 0 0 46px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #3A84FF;
+      cursor: pointer;
+    }
+  }
+}
+
+.dimension-top-k-slider {
+  .dimension-slider-header {
+    display: flex;
+    justify-content: space-between;
+
+    .field-name {
+      font-size: 16px;
+      color: #313238;
+    }
+
+    .divider {
+      display: inline-block;
+      width: 1px;
+      height: 14px;
+      margin: 0 8px 0 6px;
+      background: #DCDEE5;
+    }
+
+    .desc {
+      font-size: 14px;
+      color: #979BA5;
+    }
+
+    .download-tool {
+      cursor: pointer;
+
+      .icon-xiazai1 {
+        font-size: 12px;
+        color: #4D4F56;
+      }
+
+      .text {
+        margin-left: 6px;
+        font-size: 12px;
+        color: #4D4F56;
+      }
+    }
+  }
+
+  .dimension-slider-content {
+    padding: 12px 40px;
   }
 }
