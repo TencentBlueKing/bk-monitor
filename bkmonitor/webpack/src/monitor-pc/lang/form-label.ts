@@ -1130,6 +1130,7 @@ export default {
   规则名称: 'Rule Name',
   详细信息: 'Details',
   事项列表: 'Items',
+  迁移: 'Migrate',
 
   // 日历相关
   日历: 'Calendar',
