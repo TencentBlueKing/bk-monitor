@@ -667,6 +667,8 @@ class IndexSetHandler(APIModel):
             result_data.append(
                 {
                     "index_set_id": _index_set_id,
+                    "daily_count": daily_count,
+                    "total_count": total_count,
                     "daily_usage": daily_usage,
                     "total_usage": total_usage,
                 }

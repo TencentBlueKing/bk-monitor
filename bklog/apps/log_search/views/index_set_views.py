@@ -1245,12 +1245,16 @@ class IndexSetViewSet(ModelViewSet):
             "data": [
                 {
                     "index_set_id": 71,
-                    "daily_usage": 12345678,
+                    "daily_count": 8888,
+                    "total_count": 191067379,
+                    "daily_usage": 2341664,
                     "total_usage": 50339300366
                 },
                 {
                     "index_set_id": 81,
-                    "daily_usage": 123456780,
+                    "daily_count": 8888,
+                    "total_count": 23202673,
+                    "daily_usage": 10116334,
                     "total_usage": 26409316486
                 }
             ],
