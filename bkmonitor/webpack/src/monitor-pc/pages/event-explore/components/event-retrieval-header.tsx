@@ -64,7 +64,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
   dataIdToggle = false;
 
   get selectDataIdName() {
-    return this.dataIdList.find(item => item.id === this.formData.result_table_id)?.name || '';
+    return this.dataIdList.find(item => item.id === this.formData.table)?.name || '';
   }
 
   handleDataIdToggle(toggle: boolean) {
@@ -128,7 +128,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
           <bk-select
             class='data-id-select'
             clearable={false}
-            value={this.formData.result_table_id}
+            value={this.formData.table}
             searchable
             onSelected={this.handleDataIdChange}
             onToggle={this.handleDataIdToggle}
