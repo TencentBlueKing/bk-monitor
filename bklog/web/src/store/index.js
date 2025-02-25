@@ -1118,7 +1118,7 @@ const store = new Vuex.Store({
         state.searchTotal = 0;
         commit('updateSqlQueryFieldList', []);
         commit('updateIndexSetQueryResult', { is_error: false, exception_msg: '' });
-        return Promise.reject({ message: `index_set_id is undefined` });
+        return; // Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
       const { size, ...otherPrams } = getters.retrieveParams;
