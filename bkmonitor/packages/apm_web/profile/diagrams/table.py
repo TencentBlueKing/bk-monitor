@@ -20,7 +20,7 @@ class TableDiagrammer:
         handler = get_handler_by_mapping(options)
         nodes = list(c.tree.function_node_map.values())
         # 添加total节点
-        total_node = FunctionNode(id="", value=c.tree.root.value, name="total", filename="", system_name="")
+        total_node = FunctionNode(id="total", value=c.tree.root.value, name="total", filename="", system_name="")
         nodes.append(total_node)
         sort_map = {
             "name": lambda x: x.name,
