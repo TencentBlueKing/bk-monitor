@@ -10,9 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 import copy
 import json
+import re
 import time
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, List, Tuple
 
@@ -513,22 +514,78 @@ class TransferLatestMsgResource(BaseStatusResource):
                 return messages[:10]
         return messages
 
+    def find_timestamps(self, series: dict) -> str:
+        """
+        查找数据解构中的时间，并转化成指定的格式输出
+        """
+        logger.info(f"kafka tail series: {series}")
+        timestamps = {}
+        iso_pattern = r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z?$'
+
+        def is_valid_timestamp(value):
+            # 检查是否为有效的时间戳
+            if isinstance(value, str):
+                # 检查是否为 ISO 8601 格式
+                if re.match(iso_pattern, value):
+                    return True
+                # 检查10位或13位的字符串
+                return len(value) == 10 or len(value) == 13
+            elif isinstance(value, int):
+                # 检查10位或13位的整数
+                return len(str(value)) == 10 or len(str(value)) == 13
+            return False
+
+        def convert_to_string(ts):
+            if not is_valid_timestamp(ts):
+                logger.warning(f"Invalid timestamp: {ts}")
+                return ""
+
+            if isinstance(ts, str):
+                if len(ts) == 10:  # 10位字符串时间戳（秒）
+                    dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+                elif len(ts) == 13:  # 13位字符串时间戳（毫秒）
+                    dt = datetime.fromtimestamp(int(ts) / 1000, tz=timezone.utc)
+                else:
+                    if re.match(
+                        r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$', ts
+                    ):  # ISO 8601 格式: %Y-%m-%dT%H:%M:%SZ
+                        dt = datetime.fromisoformat(ts[:-1])  # 去掉最后的 'Z'
+                    else:
+                        dt = datetime.fromisoformat(ts)
+            elif isinstance(ts, int):
+                if len(str(ts)) == 10:  # 10位整数时间戳（秒）
+                    dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+                elif len(str(ts)) == 13:  # 13位整数时间戳（毫秒）
+                    dt = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        def extract_timestamps(series) -> list:
+            """
+            提取时间戳
+
+            将字典通过json.dumps() 转化成字符串，然后正则匹配时间戳
+            """
+            pattern = r'"(utctime|timestamp|@timestamp)"\s*: \s*("[^"]*"|\d{10}|\d{13})'
+            matches = re.findall(pattern, json.dumps(series))
+            logger.info(f"matche timestamps: {matches}")
+            return [match[1].strip('"') for match in matches]
+
+        timestamps = extract_timestamps(series)
+        return convert_to_string(timestamps[0]) if timestamps else ""
+
     def query_latest_metric_msg(self, table_id: str, size: int = 10) -> List[Dict]:
         """查询一个指标的最新数据"""
 
         series: List[Dict] = api.metadata.kafka_tail({"table_id": table_id, "size": size})
-        logger.info(f"kafka tail series: {series}")
         msgs = []
         for s in series:
-            # 获取时间戳
-            timestamp = s.get("timestamp") or s.get("@timestamp") or s.get("time")
-            if len(str(timestamp)) == 13:
-                timestamp = timestamp / 1000
+            time = self.find_timestamps(s)
 
             msgs.append(
                 {
                     "message": json.dumps(s),
-                    "time": datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S"),
+                    "time": time,
                     "raw": s,
                 }
             )

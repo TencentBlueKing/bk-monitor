@@ -29,6 +29,7 @@ export default {
 
   '包括{0}个指标,{1}个维度': 'includes {0} metrics, {1} dimensions',
   '可选图表({num})': 'Optional charts ({num})',
+  可选图表: 'Optional charts',
   '标准化事件-字段映射': 'Standardized Event-Field Mapping',
   业务独享集群: 'Exclusive Cluster',
   关联的处理套餐: 'Associated Alarm Solution',

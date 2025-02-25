@@ -901,11 +901,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       const groupItem = this.filterBy?.[column.id];
       const hasFilter = groupItem?.includes(resourceValue);
       const elAttr = hasFilter
-        ? { className: ['icon-sousuo-', 'is-active'], text: '移除该筛选项' }
-        : { className: ['icon-a-sousuo'], text: '添加为筛选项' };
+        ? { className: ['selected'], text: '移除该筛选项' }
+        : { className: ['icon-monitor icon-a-sousuo'], text: '添加为筛选项' };
       return (
         <i
-          class={['icon-monitor', ...elAttr.className]}
+          class={elAttr.className}
           v-bk-tooltips={{ content: this.$t(elAttr.text), interactive: false }}
           onClick={() => this.onFilterChange(resourceValue, column.id, !hasFilter)}
         />

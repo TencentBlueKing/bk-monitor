@@ -95,6 +95,14 @@
     return indexFieldInfo.value.is_loading;
   });
 
+  const isCopyBtnActive = computed(() => {
+    if (activeIndex.value === 0) {
+      return addition.value.length > 0;
+    }
+
+    return sqlQueryValue.value.length > 0;
+  });
+
   const isIndexFieldLoading = computed(() => store.state.indexFieldInfo.is_loading);
 
   watch(
@@ -248,6 +256,9 @@
   );
 
   const matchSQLStr = computed(() => {
+    if(props.activeFavorite.index_set_id !== store.getters.indexId ){
+      return false;
+    }
     if (activeIndex.value === 0) {
       if (sourceUISQLAddition.value.length !== uiQueryValue.value.length) {
         return false;
@@ -265,6 +276,9 @@
   });
 
   const saveCurrentActiveFavorite = async () => {
+    if (matchSQLStr.value) {
+      return;
+    }
     const {
       name,
       group_id,
@@ -316,29 +330,37 @@
   };
 
   const handleCopyQueryValue = async () => {
-    const { search_mode, keyword, addition } = store.getters.retrieveParams;
-    if (search_mode === 'ui') {
-      $http
-        .request('retrieve/generateQueryString', {
-          data: {
-            addition,
-          },
-        })
-        .then(res => {
-          if (res.result) {
-            copyMessage(res.data?.querystring || '', $t('复制成功'));
-          } else {
-            bkMessage({
-              theme: 'error',
-              message: $t('复制失败'),
-            });
-          }
-        })
-        .catch(err => {
-          console.log(err);
-        });
+    if (!isCopyBtnActive.value) {
+      return;
+    }
+
+    if (activeIndex.value === 0) {
+      if (addition.value.length > 0) {
+        $http
+          .request('retrieve/generateQueryString', {
+            data: {
+              addition: addition.value,
+            },
+          })
+          .then(res => {
+            if (res.result) {
+              copyMessage(res.data?.querystring || '', $t('复制成功'));
+            } else {
+              bkMessage({
+                theme: 'error',
+                message: $t('复制失败'),
+              });
+            }
+          })
+          .catch(err => {
+            console.log(err);
+          });
+      }
     } else {
-      copyMessage(JSON.stringify(keyword), $t('复制成功'));
+      const target = sqlQueryValue.value.replace(/^\s+|\s+$/, '');
+      if (target.length) {
+        copyMessage(target, $t('复制成功'));
+      }
     }
   };
 
@@ -362,10 +384,9 @@
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
-        window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
-
         const { common_filter_addition } = store.getters.retrieveParams;
         if (common_filter_addition.length) {
+          window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
             ...formatAddition(common_filter_addition.filter(additionFilter)).map(item => ({
               ...item,
@@ -437,39 +458,52 @@
         <div class="search-tool items">
           <div
             v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading }]"
+            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleCopyQueryValue"
           ></div>
           <div
             v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading }]"
+            :class="['bklog-icon bklog-brush', { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleClearBtnClick"
           ></div>
 
           <BookmarkPop
-            v-if="!props.activeFavorite"
-            v-bk-tooltips="$t('收藏当前查询')"
+            :activeFavorite="!props.activeFavorite"
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :search-mode="queryParams[activeIndex]"
             :sql="sqlQueryValue"
+            :matchSQLStr="matchSQLStr"
+            @saveCurrentActiveFavorite="saveCurrentActiveFavorite"
             @refresh="handleRefresh"
           ></BookmarkPop>
-          <template v-else>
-            <div
+          <!-- <template v-else> -->
+            <!-- <div
               v-if="matchSQLStr"
               class="bklog-icon bklog-star-line disabled"
               v-bk-tooltips="$t('已收藏')"
               :data-boolean="matchSQLStr"
-            ></div>
-            <div
-              v-else
+            ></div> -->
+            <!-- <bk-dropdown-menu :align="'center'">
+              <template slot="dropdown-trigger">
+                 <div
+                    style="color: #63656e"
+                    v-bk-tooltips="$t('收藏')"
+                    class="icon bk-icon icon-save"
+                  ></div>
+              </template>
+              <ul class="bk-dropdown-list" slot="dropdown-content">
+                  <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentActiveFavorite">覆盖当前收藏</a></li>
+                  <li><a href="javascript:;">另存为新收藏</a></li>
+              </ul>
+          </bk-dropdown-menu> -->
+            <!-- <div
               style="color: #63656e"
               v-bk-tooltips="$t('收藏')"
               class="icon bk-icon icon-save"
               @click="saveCurrentActiveFavorite"
-            ></div>
-          </template>
+            ></div> -->
+          <!-- </template> -->
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
@@ -531,23 +565,23 @@
 
   .bklog-search-input-poptool {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     background: transparent;
 
     .bklog-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       width: 28px;
       height: 28px;
+      margin-right: 4px;
+      color: #4d4f56;
+      cursor: pointer;
       background: #fafbfd;
       border: 1px solid #dcdee5;
-      box-shadow: 0 1px 3px 1px #0000001f;
       border-radius: 2px;
-      color: #4d4f56;
-      margin-right: 4px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
+      box-shadow: 0 1px 3px 1px #0000001f;
 
       &:hover {
         color: #3a84ff;

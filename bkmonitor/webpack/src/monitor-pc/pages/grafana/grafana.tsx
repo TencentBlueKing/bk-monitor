@@ -27,6 +27,7 @@ import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getDashboardList } from 'monitor-api/modules/grafana';
+import { addAccessRecord } from 'monitor-api/modules/overview';
 import { skipToDocsLink } from 'monitor-common/utils/docs';
 import bus from 'monitor-common/utils/event-bus';
 
@@ -71,9 +72,8 @@ export default class MyComponent extends tsc<object> {
     this.showAlert = !localStorage.getItem(UPDATE_GRAFANA_KEY);
     if (this.$store.getters.bizIdChangePedding) {
       this.loading = true;
-      this.grafanaUrl = `${this.orignUrl}${this.$store.getters.bizIdChangePedding.replace('/home', '')}/?orgName=${
-        this.$store.getters.bizId
-      }${this.getUrlParamsString()}`;
+      this.grafanaUrl = `${this.orignUrl}${this.$store.getters.bizIdChangePedding.replace('/home', '')}/?orgName=${this.$store.getters.bizId
+        }${this.getUrlParamsString()}`;
       setTimeout(() => (this.loading = false), 2000);
       return;
     }
@@ -127,9 +127,8 @@ export default class MyComponent extends tsc<object> {
       // );
     } else {
       const isFavorite = this.$route.name === FavoriteDashboardRouteName;
-      grafanaUrl = `${this.orignUrl}grafana/${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${
-        this.$store.getters.bizId
-      }${this.getUrlParamsString()}`;
+      grafanaUrl = `${this.orignUrl}grafana/${isFavorite && !this.url?.startsWith('d/') ? `d/${this.url}` : this.url}?orgName=${this.$store.getters.bizId
+        }${this.getUrlParamsString()}`;
       isFavorite && this.handleSetDashboardCache(this.url);
     }
     return grafanaUrl;
@@ -145,9 +144,19 @@ export default class MyComponent extends tsc<object> {
     return '';
   }
   mounted() {
+    this.trackPageVisit(this.url);
     window.addEventListener('message', this.handleMessage, false);
   }
-
+  /** 埋点 */
+  trackPageVisit(url) {
+    if (!url) return;
+    const [uid = ''] = url.split('/');
+    uid &&
+      addAccessRecord({
+        function: 'dashboard',
+        config: { dashboard_uid: uid },
+      });
+  }
   beforeDestroy() {
     window.removeEventListener('message', this.handleMessage, false);
     const iframeContent = this.iframeRef?.contentWindow;

@@ -151,6 +151,12 @@ export default class TreeList extends tsc<IProps, IEvents> {
         icon: 'icon-mc-copy',
         hasAuth: true,
       },
+      {
+        id: MoreType.migrate,
+        name: window.i18n.tc('更新'),
+        icon: 'icon-mc-migrate-tool',
+        hasAuth: true,
+      },
     ];
   }
   /**

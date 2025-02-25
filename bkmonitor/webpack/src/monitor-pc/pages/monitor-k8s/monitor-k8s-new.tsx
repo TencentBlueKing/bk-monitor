@@ -610,7 +610,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 class='cluster-select-trigger'
                 slot='trigger'
               >
-                <span class='cluster-name'>
+                <span
+                  class='cluster-name'
+                  v-bk-overflow-tips
+                >
                   {this.$t('集群')}: {this.selectClusterName}
                 </span>
                 <span class={`icon-monitor icon-mc-arrow-down ${this.clusterToggle ? 'expand' : ''}`} />
