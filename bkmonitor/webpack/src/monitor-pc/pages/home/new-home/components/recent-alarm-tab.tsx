@@ -65,7 +65,7 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
   currentDelId = null;
 
   /** 选择器text */
-  selectedText: string;
+  selectedText = shortcuts[5].text;
   /** 时间选择器 */
   timeRange = JSON.stringify(shortcuts[5].value as TimeRangeType);
 
