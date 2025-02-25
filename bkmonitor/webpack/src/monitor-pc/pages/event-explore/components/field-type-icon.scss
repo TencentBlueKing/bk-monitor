@@ -1,0 +1,22 @@
+.field-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  font-size: 12px;
+  background: #dcdee5;
+  border-radius: 2px;
+
+  &.icon-text {
+    font-size: 11px;
+  }
+
+  &.icon-number {
+    font-size: 10px;
+  }
+
+  &.icon-mc-time {
+    font-size: 11px;
+  }
+}
