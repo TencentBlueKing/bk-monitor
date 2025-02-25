@@ -193,7 +193,25 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
       fields: params?.fields || [],
       start_time: this.formatTimeRange[0],
       end_time: this.formatTimeRange[1],
-    });
+    })
+      .then(res => {
+        const data = res?.[0] || {};
+        console.log(res);
+        return {
+          count: +data?.distinct_count || 0,
+          list:
+            data?.list?.map(item => ({
+              id: item.value,
+              name: item.alias,
+            })) || [],
+        };
+      })
+      .catch(() => {
+        return {
+          count: 0,
+          list: [],
+        };
+      });
   }
 
   /** 兼容以前的事件检索URL格式 */
