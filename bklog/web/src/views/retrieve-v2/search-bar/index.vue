@@ -256,7 +256,7 @@
   );
 
   const matchSQLStr = computed(() => {
-    if(props.activeFavorite.index_set_id !== store.getters.indexId ){
+    if(props.activeFavorite?.index_set_id !== store.state.indexId ){
       return false;
     }
     if (activeIndex.value === 0) {
@@ -274,6 +274,10 @@
       return sqlQueryValue.value === sourceSQLStr.value;
     }
   });
+  const indexSetItemList = computed(() => store.state.indexItem.items);
+  const indexSetName = computed(() => {
+    return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
+  });
 
   const saveCurrentActiveFavorite = async () => {
     if (matchSQLStr.value) {
@@ -285,11 +289,9 @@
       display_fields,
       visible_type,
       is_enable_display_fields,
-      index_set_name,
       index_set_names,
       index_set_type,
       index_set_ids,
-      index_set_id,
     } = props.activeFavorite;
     const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
     const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam());
@@ -309,9 +311,9 @@
       is_enable_display_fields,
       search_mode: searchMode,
       ip_chooser: reqFormatAddition.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
-      index_set_id,
+      index_set_id: store.state.indexId,
       index_set_ids,
-      index_set_name,
+      index_set_name: indexSetName.value,
       index_set_type,
       index_set_names,
       ...searchParams,
