@@ -21,6 +21,8 @@ the project delivered to anyone in the future.
 """
 import logging
 
+from django.utils.translation import gettext as _
+
 from apps.api import GseApi
 from apps.log_databus.constants import (
     DEFAULT_BK_USERNAME,
@@ -28,7 +30,6 @@ from apps.log_databus.constants import (
     KAFKA_SSL_CONFIG_ITEMS,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
-from django.utils.translation import ugettext as _
 
 logger = logging.getLogger()
 

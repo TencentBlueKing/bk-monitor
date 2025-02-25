@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*
+from django.utils.translation import gettext_lazy as _
+
 from bk_monitor.constants import ErrorEnum
 from bk_monitor.exceptions import GetTsDataException
 from bk_monitor.models import MonitorReportConfig
-from django.utils.translation import ugettext_lazy as _
 
 
 class SqlSplice(object):

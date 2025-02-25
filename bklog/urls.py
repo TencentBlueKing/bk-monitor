@@ -31,46 +31,47 @@ Including another URLconf
     1. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 
-from django.conf import settings
-from django.conf.urls import include, url
-from django.contrib import admin
-from django.views import static
 from bk_notice_sdk import config as notice_config
+from django.conf import settings
+from django.conf.urls import include
+from django.contrib import admin
+from django.urls import re_path
+from django.views import static
 from version_log import config
 
 urlpatterns = [
-    url(r"^bklog_manage/", admin.site.urls),
-    url(r"^account/", include("blueapps.account.urls")),
-    url(r"^console/", include("console.urls")),
+    re_path(r"^bklog_manage/", admin.site.urls),
+    re_path(r"^account/", include("blueapps.account.urls")),
+    re_path(r"^console/", include("console.urls")),
     # 通用
-    url(r"^api/v1/", include("apps.log_commons.urls")),
+    re_path(r"^api/v1/", include("apps.log_commons.urls")),
     # 接口
-    url(r"^api/v1/iam/", include("apps.iam.urls")),
-    url(r"^api/v1/databus/", include("apps.log_databus.urls")),
+    re_path(r"^api/v1/iam/", include("apps.iam.urls")),
+    re_path(r"^api/v1/databus/", include("apps.log_databus.urls")),
     # trace
-    url(r"^api/v1/trace/", include("apps.log_trace.urls")),
-    url(r"^api/v1/", include("apps.log_search.urls")),
-    url(r"^api/v1/", include("apps.log_esquery.urls")),
-    url(r"^api/v1/", include("apps.esb.urls")),
-    url(r"^api/v1/", include("apps.bk_log_admin.urls")),
-    url(r"^api/v1/", include("apps.log_bcs.urls")),
-    url(r"^api/v1/", include("apps.log_clustering.urls")),
-    url(r"^api/v1/", include("apps.log_desensitize.urls")),
-    url(r"^", include("apps.grafana.urls")),
-    url(r"^", include("log_adapter.urls")),
+    re_path(r"^api/v1/trace/", include("apps.log_trace.urls")),
+    re_path(r"^api/v1/", include("apps.log_search.urls")),
+    re_path(r"^api/v1/", include("apps.log_esquery.urls")),
+    re_path(r"^api/v1/", include("apps.esb.urls")),
+    re_path(r"^api/v1/", include("apps.bk_log_admin.urls")),
+    re_path(r"^api/v1/", include("apps.log_bcs.urls")),
+    re_path(r"^api/v1/", include("apps.log_clustering.urls")),
+    re_path(r"^api/v1/", include("apps.log_desensitize.urls")),
+    re_path(r"^", include("apps.grafana.urls")),
+    re_path(r"^", include("log_adapter.urls")),
     # 前端页面
-    url(r"^", include("home_application.urls")),
+    re_path(r"^", include("home_application.urls")),
     # celery flower
-    url(r"^flower/", include("flower_proxy.urls")),
-    url(r"^{}".format(config.ENTRANCE_URL), include("version_log.urls")),
-    url(r"^api/v1/log_extract/", include("apps.log_extract.urls")),
-    url(r"^api/v1/", include("apps.log_measure.urls")),
-    url(r"^api/v1/ipchooser/", include("bkm_ipchooser.urls")),
-    url(r"^api/v1/search_module/", include("bkm_search_module.urls")),
-    url(r'^{}'.format(notice_config.ENTRANCE_URL), include(('bk_notice_sdk.urls', 'notice'), namespace='notice')),
+    re_path(r"^flower/", include("flower_proxy.urls")),
+    re_path(r"^{}".format(config.ENTRANCE_URL), include("version_log.urls")),
+    re_path(r"^api/v1/log_extract/", include("apps.log_extract.urls")),
+    re_path(r"^api/v1/", include("apps.log_measure.urls")),
+    re_path(r"^api/v1/ipchooser/", include("bkm_ipchooser.urls")),
+    re_path(r"^api/v1/search_module/", include("bkm_search_module.urls")),
+    re_path(r'^{}'.format(notice_config.ENTRANCE_URL), include(('bk_notice_sdk.urls', 'notice'), namespace='notice')),
 ]
 
 if settings.IS_K8S_DEPLOY_MODE:
     urlpatterns.extend(
-        [url(r"^static/(?P<path>.*)$", static.serve, {"document_root": settings.STATIC_ROOT}, name="static")]
+        [re_path(r"^static/(?P<path>.*)$", static.serve, {"document_root": settings.STATIC_ROOT}, name="static")]
     )

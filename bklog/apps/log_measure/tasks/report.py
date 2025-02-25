@@ -25,8 +25,9 @@ import logging
 import time
 
 import arrow
+from blueapps.contrib.celery_tools.periodic import periodic_task
+from blueapps.core.celery.celery import app
 from celery.schedules import crontab
-from celery.task import periodic_task, task
 from django.conf import settings
 
 from apps.feature_toggle.models import FeatureToggle
@@ -129,7 +130,7 @@ def bk_monitor_collect():
     clear_registered_metrics()
 
 
-@task(ignore_result=True)
+@app.task(ignore_result=True)
 def collect_metrics(
     collector_import_paths: list, namespaces: list = None, data_names: list = None, sub_types: list = None
 ):

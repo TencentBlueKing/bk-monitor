@@ -22,6 +22,11 @@ the project delivered to anyone in the future.
 import json
 import logging
 
+from django.conf import settings
+from django.utils.translation import gettext as _
+from kafka import KafkaConsumer
+from kafka.structs import TopicPartition
+
 from apps.log_databus.constants import (
     DEFAULT_KAFKA_SECURITY_PROTOCOL,
     KAFKA_SSL_MECHANISM,
@@ -31,10 +36,6 @@ from apps.log_databus.constants import (
     KAFKA_TEST_GROUP,
 )
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from kafka import KafkaConsumer
-from kafka.structs import TopicPartition
 
 logger = logging.getLogger()
 
