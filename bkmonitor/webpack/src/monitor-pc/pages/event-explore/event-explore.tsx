@@ -23,16 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { eventTopK, eventViewConfig } from 'monitor-api/modules/data_explorer';
+import { eventViewConfig } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
+import { APIType, getEventTopK } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
 import EventRetrievalHeader from './components/event-retrieval-header';
@@ -46,7 +47,9 @@ import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 @Component
-export default class EventRetrievalNew extends tsc<object> {
+export default class EventRetrievalNew extends tsc<{ source: APIType }> {
+  /** 来源 */
+  @Prop({ default: APIType.MONITOR }) source: APIType;
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
@@ -172,7 +175,7 @@ export default class EventRetrievalNew extends tsc<object> {
   }
 
   async getRetrievalFilterValueData(params: IGetValueFnParams = {}) {
-    return eventTopK({
+    return getEventTopK({
       limit: params?.limit || 5,
       query_configs: [
         {
@@ -187,24 +190,7 @@ export default class EventRetrievalNew extends tsc<object> {
       fields: params?.fields || [],
       start_time: this.formatTimeRange[0],
       end_time: this.formatTimeRange[1],
-    })
-      .then(res => {
-        const data = res?.[0] || {};
-        return {
-          count: data?.distinct_count || 0,
-          list:
-            data?.list?.map(item => ({
-              id: item.value,
-              name: item.alias,
-            })) || [],
-        };
-      })
-      .catch(() => {
-        return {
-          count: 0,
-          list: [],
-        };
-      });
+    });
   }
 
   render() {
