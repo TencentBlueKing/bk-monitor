@@ -1007,3 +1007,12 @@ class UserFavoriteSerializer(serializers.Serializer):
     username = serializers.CharField(label=_("用户名"), required=True)
     space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
     limit = serializers.IntegerField(label=_("限制条数"), required=False)
+
+
+class StorageUsageSerializer(serializers.Serializer):
+    """
+    索引集存储量
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())

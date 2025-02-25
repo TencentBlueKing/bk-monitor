@@ -613,6 +613,68 @@ class IndexSetHandler(APIModel):
                     break
         return self._indices_result(ret, index_list)
 
+    @staticmethod
+    def get_storage_usage_info(bk_biz_id, index_set_ids):
+        """
+        查询索引集存储的日用量和总用量
+        """
+        from apps.log_databus.handlers.collector import CollectorHandler
+        from apps.log_unifyquery.handler import UnifyQueryHandler
+
+        multi_execute_func = MultiExecuteFunc(max_workers=5)
+
+        collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids)
+        for collector in collectors:
+            index_set_id = collector.index_set_id
+            multi_execute_func.append(
+                result_key=f"indices_info_{index_set_id}",
+                func=CollectorHandler(collector.collector_config_id).indices_info,
+            )
+
+            # 获取24小时的日志条数
+            current_time = arrow.now()
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "index_set_ids": [collector.index_set_id],
+                "start_time": current_time.shift(days=-1).timestamp,
+                "end_time": current_time.timestamp,
+            }
+            multi_execute_func.append(
+                result_key=f"daily_count_{index_set_id}", func=UnifyQueryHandler(params).get_total_count
+            )
+
+        indices_info_dict = {}
+        daily_usage_dict = {}
+        multi_result = multi_execute_func.run()
+        for key, result in multi_result.items():
+            field_name, _index_set_id = key.rsplit("_", maxsplit=1)
+            if field_name == "indices_info":
+                # 总条数
+                total_count = sum(int(idx["docs.count"]) for idx in result)
+                # 总用量
+                total_usage = sum(int(idx["store.size"]) for idx in result)
+                indices_info_dict.update({_index_set_id: {"total_count": total_count, "total_usage": total_usage}})
+            else:
+                daily_usage_dict.update({_index_set_id: result})
+        result_data = []
+        # 返回索引集,日用量和总用量
+        for _index_set_id, item in indices_info_dict.items():
+            total_count = item["total_count"]
+            total_usage = item["total_usage"]
+            daily_count = daily_usage_dict.get(_index_set_id, 0)
+            # 计算日用量
+            daily_usage = int(daily_count * (total_usage / total_count)) if total_count != 0 else 0
+            result_data.append(
+                {
+                    "index_set_id": _index_set_id,
+                    "daily_count": daily_count,
+                    "total_count": total_count,
+                    "daily_usage": daily_usage,
+                    "total_usage": total_usage,
+                }
+            )
+        return result_data
+
     def _match_rt_for_index(self, index_es_name: str, index_name: str, scenario_id: str) -> bool:
         index_re = re.compile(COMMON_LOG_INDEX_RE.format(index_name))
         if scenario_id == Scenario.BKDATA:
