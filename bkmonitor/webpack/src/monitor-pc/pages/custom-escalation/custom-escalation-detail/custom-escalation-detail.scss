@@ -184,12 +184,99 @@
               margin: -4px 0 0 6px;
             }
           }
-          .demo {
+          .group-list {
             overflow: hidden;
+            .group {
+              font-family: MicrosoftYaHei;
+              font-size: 13px;
+              color: #4D4F56;
+              padding: 4px 18px 6px 20px;
+              margin-bottom: 4px;
+              line-height: 22px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              .group-count {
+                font-family: Menlo-Bold;
+                font-weight: 700;
+                font-size: 12px;
+                color: #A3B1CC;
+                width: 20px;
+                height: 20px;
+                text-align: center;
+              }
+              .icon-monitor {
+                color: #A3B1CC;
+                margin-right: 7px;
+                font-size: 13px;
+              }
+
+              &:hover {
+                cursor: pointer;
+              }
+              &.group-selected {
+                background-color: #E1ECFF;
+                color: #3A84FF;
+                .icon-monitor, .group-count {
+                  color: #3A84FF;
+                }
+              }
+            }
+            .top-group {
+              padding: 16px 0 4px;
+              border-bottom: 1px solid #DCDEE5;
+            }
+            .custom-group {
+              padding-top: 8px;
+              .group-popover {
+                display: none;
+                .icon-mc-more {
+                  margin-right: 0;
+                  color: #979BA5;
+                }
+                .more-operation {
+                  display: inline-block;
+                  width: 20px;
+                  height: 20px;
+                  line-height: 20px;
+                  font-size: 13px;
+                  font-weight: 600;
+                  border-radius: 50%;
+                  text-align: center;
+                  color: #63656e;
+                  cursor: pointer;
+                  &:hover {
+                    background: #fff;
+                  }
+                }
+              }
+              .group {
+                position: relative;
+                &:hover {
+                  .group-count {
+                    display: none;
+                  }
+                  .group-popover {
+                    display: block;
+                  }
+                  .item-drag {
+                    cursor: move;
+                    visibility: inherit;
+                  }
+                }
+                .item-drag {
+                  position: absolute;
+                  color: #979BA5;
+                  top: 3px;
+                  left: 4px;
+                  width: 7px;
+                  height: 10px;
+                  font-size: 10px;
+                  visibility: hidden;
+                }
+              }
+            }
           }
-          // .custom-group {
-          //   overflow: hidden;
-          // }
         }
         .right {
           flex: 1;

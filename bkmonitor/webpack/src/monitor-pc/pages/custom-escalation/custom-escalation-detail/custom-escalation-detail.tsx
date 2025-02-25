@@ -54,6 +54,36 @@ interface IGroupListItem {
 @Component
 export default class CustomEscalationDetailNew extends tsc<any, any> {
   @Ref() readonly describeInput!: HTMLInputElement;
+
+  menuList = [
+    {
+      name: window.i18n.tc('编辑'),
+      checked: false,
+      id: 'edit',
+    },
+    {
+      name: window.i18n.tc('删除'),
+      checked: false,
+      id: 'delete',
+    },
+  ];
+
+  groupListMock = [
+    {
+      title: '分组1',
+      count: 23,
+    },
+    {
+      title: '分组2',
+      count: 2,
+    },
+    {
+      title: '分组放大哈第三方和',
+      count: 3,
+    },
+  ];
+
+  /** 分割线 ============================================= */
   descName = ''; // 别名
   loading = false;
   isCreat = ''; // 是否从创建过来
@@ -777,6 +807,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     };
     toView[this.type]();
   }
+
+  /** 分割线 ================================ */
+  handleMenuClick(item) {
+    // TODO
+    console.log(item);
+  }
   render() {
     return (
       <div
@@ -976,14 +1012,73 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                       <i class='icon-monitor icon-arrow-right icon' />
                     )}
                   </div>
-                  <div class='demo'>
+                  <div class='group-list'>
                     <div class='top-group'>
-                      <div class='group'>全部分组</div>
-                      <div class='group'>未分组</div>
+                      <div class={{ group: true, 'group-selected': true }}>
+                        <div class='group-name'>
+                          <i class='icon-monitor icon-mc-all' />
+                          所有指标
+                        </div>
+                        <div class='group-count'>23</div>
+                      </div>
+                      <div class='group'>
+                        <div class='group-name'>
+                          <i class='icon-monitor icon-mc-full-folder' />
+                          未分组
+                        </div>
+                        <div class='group-count'>23</div>
+                      </div>
                     </div>
                     <div class='custom-group'>
-                      <div class='group'>分组1</div>
-                      <div class='group'>分组2</div>
+                      {this.groupListMock.length ? (
+                        this.groupListMock.map(group => (
+                          <div
+                            key={group.title}
+                            class='group'
+                          >
+                            <i class='icon-monitor icon-mc-tuozhuai item-drag' />
+                            <div class='group-name'>
+                              <i class='icon-monitor icon-mc-full-folder' />
+                              {group.title}
+                            </div>
+                            <div class='group-count'>{group.count || 0}</div>
+                            <bk-popover
+                              ref='menuPopover'
+                              class='group-popover'
+                              tippy-options={{
+                                trigger: 'click',
+                              }}
+                              arrow={false}
+                              offset={'0, 0'}
+                              placement='bottom-start'
+                              theme='light common-monitor'
+                            >
+                              <span class='more-operation'>
+                                <i class='icon-monitor icon-mc-more' />
+                              </span>
+                              <div
+                                class='home-chart-more-list'
+                                slot='content'
+                              >
+                                {this.menuList.map(item => (
+                                  <span
+                                    key={item.id}
+                                    class={`more-list-item ${item.id}`}
+                                    on-click={() => this.handleMenuClick(item)}
+                                  >
+                                    {item.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </bk-popover>
+                          </div>
+                        ))
+                      ) : (
+                        <div>
+                          {/* TODO 空态 */}
+                          空的
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
