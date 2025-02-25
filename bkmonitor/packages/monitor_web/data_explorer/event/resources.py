@@ -8,7 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 from typing import Any, Dict, List, Tuple
 
 from bkmonitor.models import MetricListCache
@@ -28,6 +27,7 @@ from .constants import (
     EventCategory,
     EventDimensionTypeEnum,
 )
+from .core.processors import BaseEventProcessor, OriginEventProcessor
 from .mock_data import (
     API_LOGS_RESPONSE,
     API_TIME_SERIES_RESPONSE,
@@ -49,7 +49,11 @@ class EventLogsResource(Resource):
     RequestSerializer = serializers.EventLogsRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        # 系统事件可读性：alarm_backends/service/access/event/records/oom.py
+        # Processor 使用样例
+        events: List[Dict[str, Any]] = []
+        processors: List[BaseEventProcessor] = [OriginEventProcessor()]
+        for processor in processors:
+            events = processor.process(events)
         return API_LOGS_RESPONSE
 
 
