@@ -137,6 +137,11 @@ export default defineComponent({
     });
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
+    const showAiAssistant = computed(
+      () =>
+        window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant?.includes(store.state.bkBizId) ||
+        window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant?.includes(store.state.spaceUid),
+    );
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
@@ -909,14 +914,18 @@ export default defineComponent({
           ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
-        <span
-          class='bklog-row-ai'
-          onClick={e => handleRowAIClcik(e, row)}
-          onMouseenter={handleMouseenter}
-          onMouseleave={handleMouseleave}
-        >
-          <img src={aiBlueking} />
-        </span>,
+        showAiAssistant.value ? (
+          <span
+            class='bklog-row-ai'
+            onClick={e => handleRowAIClcik(e, row)}
+            onMouseenter={handleMouseenter}
+            onMouseleave={handleMouseleave}
+          >
+            <img src={aiBlueking} />
+          </span>
+        ) : (
+          ''
+        ),
       ];
     };
 
