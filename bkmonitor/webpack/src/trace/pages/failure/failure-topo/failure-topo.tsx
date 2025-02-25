@@ -50,12 +50,14 @@ import {
   registerNode,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Loading, Message, Popover, Slider } from 'bkui-vue';
+import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
 import { cloneDeep } from 'lodash';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 
+import ErrorImg from '../../../static/img/error.svg';
+import NoDataImg from '../../../static/img/no-data.svg';
 import ResourceGraph from '../resource-graph/resource-graph';
 import { useIncidentInject } from '../utils';
 import ElkjsUtils from './elkjs-utils';
@@ -164,6 +166,13 @@ export default defineComponent({
     const aggregateConfig = ref({});
     // const shouldUpdateNode = ref(null);
     const showLegend = ref<boolean>(localStorage.getItem('showLegend') === 'true');
+
+    // 左侧画布数据获取检测
+    const errorData = ref({
+      isError: false,
+      msg: '',
+    });
+    const isNoData = ref(false);
 
     const feedbackCauseShow = ref<boolean>(false);
     const feedbackModel: Ref<{ entity: IEntity }> = ref(null);
@@ -1134,6 +1143,9 @@ export default defineComponent({
           complete.sub_combos = latest.sub_combos;
           formatResponseData(complete);
           const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
+          isNoData.value = combos.length === 0;
+          errorData.value.isError = false;
+
           ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
           const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
           const processedNodes = [];
@@ -1148,6 +1160,11 @@ export default defineComponent({
           const diffLen = topoRawDataCache.value.diff.length;
           timelinePosition.value = diffLen - 1;
           return ElkjsUtils.getTopoRawData(resolvedCombos, edges, nodes);
+        })
+        .catch(err => {
+          errorData.value.isError = true;
+          errorData.value.msg = err.data?.error_details ? err.data.error_details.overview : err.message;
+          isNoData.value = false;
         })
         .finally(() => {
           if (!graph) {
@@ -1914,6 +1931,10 @@ export default defineComponent({
       data.id = node.alert_ids[0];
       window.__BK_WEWEB_DATA__?.showDetailSlider?.(data);
     };
+    const handleRootToSpan = () => {
+      const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
+      rootNode && goToTracePage(rootNode.entity, 'traceDetail');
+    };
     const goToTracePage = (entity: IEntity, type) => {
       const { rca_trace_info, observe_time_rage } = entity;
       const query: Record<string, number | string> = {};
@@ -1975,8 +1996,11 @@ export default defineComponent({
       resourceNodeId,
       topoRawDataCache,
       tooltipsType,
+      errorData,
+      isNoData,
       handleToDetail,
       handleHideToolTips,
+      handleRootToSpan,
       handleFeedBackChange,
       handleFeedBack,
       handleShowLegend,
@@ -2026,127 +2050,149 @@ export default defineComponent({
               style={{ width: this.showResourceGraph ? '70%' : '100%' }}
               class='topo-graph-wrapper-padding'
             >
-              <div
-                id='topo-graph'
-                ref='graphRef'
-                class='topo-graph'
-              />
-              <div class='failure-topo-graph-zoom'>
-                <Popover
-                  extCls='failure-topo-graph-legend-popover'
+              {this.errorData.isError || this.isNoData ? (
+                <Exception
+                  class='exception-wrap'
                   v-slots={{
-                    content: (
-                      <div class='failure-topo-graph-legend-content'>
-                        <ul class='node-type'>
-                          <li class='node-type-title'>{this.$t('节点图例')}</li>
-                          {NODE_TYPE.map(node => {
-                            return (
-                              <li key={node.status}>
-                                <span class='circle-wrap'>
-                                  <span class={['circle', node.status]}>
-                                    {'error' === node.status && <i class='icon-monitor icon-mc-pod' />}
-                                    {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
-                                  </span>
-                                </span>
-                                <span>{this.$t(node.text)}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <ul class='node-type node-line-type'>
-                          <li class='node-type-title'>{this.$t('标签图例')}</li>
-                          {TAG_TYPE.map(node => {
-                            return (
-                              <li key={node.status}>
-                                <span class='circle-wrap'>
-                                  <span class={['circle', node.status]}>
-                                    {['notRestored', 'restored'].includes(node.status) && (
-                                      <i class='icon-monitor icon-menu-event' />
-                                    )}
-                                    {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
-                                  </span>
-                                </span>
-                                <span>{this.$t(node.text)}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        <ul class='node-line-type'>
-                          <li class='node-line-title'>{this.$t('边图例')}</li>
-                          <li>
-                            <span class='line' />
-                            <span>{this.$t('从属关系')}</span>
-                          </li>
-                          <li>
-                            <span class='line arrow' />
-                            <span>{this.$t('调用关系')}</span>
-                          </li>
-                          <li>
-                            <span class='line dash' />
-                            <span>{this.$t('故障传播')}</span>
-                          </li>
-                        </ul>
-                      </div>
-                    ),
-                    default: (
-                      <div
-                        class={['failure-topo-graph-legend', this.showLegend && 'failure-topo-graph-legend-active']}
-                        v-bk-tooltips={{
-                          content: this.$t('显示图例'),
-                          disabled: this.showLegend,
-                          boundary: this.wrapRef,
-                        }}
-                        onClick={this.handleShowLegend}
-                      >
-                        <i class='icon-monitor icon-legend' />
-                      </div>
+                    type: () => (
+                      <img
+                        class='custom-icon'
+                        alt=''
+                        src={this.isNoData ? NoDataImg : ErrorImg}
+                      />
                     ),
                   }}
-                  always={true}
-                  arrow={false}
-                  boundary='body'
-                  disabled={!this.showLegend}
-                  isShow={this.showLegend}
-                  offset={{ crossAxis: 90, mainAxis: 10 }}
-                  placement='top'
-                  renderType='auto'
-                  theme='dark common-table'
-                  trigger='manual'
-                  zIndex={100}
-                />
-                <span class='failure-topo-graph-line' />
-                <div class='failure-topo-graph-zoom-slider'>
-                  <div
-                    class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
-                    onClick={this.handleUpdateZoom.bind(this, -2)}
-                  >
-                    <i class='icon-monitor icon-minus-line' />
-                  </div>
-                  <Slider
-                    class='slider'
-                    v-model={this.zoomValue}
-                    disable={this.isPlay}
-                    maxValue={20}
-                    minValue={2}
-                    onChange={this.handleZoomChange}
-                    onUpdate:modelValue={this.handleZoomChange}
-                  />
-                  <div
-                    class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
-                    onClick={this.handleUpdateZoom.bind(this, 2)}
-                  >
-                    <i class='icon-monitor icon-plus-line' />
-                  </div>
-                </div>
-                <span class='failure-topo-graph-line' />
-                <div
-                  class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
-                  v-bk-tooltips={{ content: this.$t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
-                  onClick={this.handleResetZoom}
                 >
-                  <i class='icon-monitor icon-mc-restoration-ratio' />
-                </div>
-              </div>
+                  <div style={{ color: this.isNoData ? '#979BA5' : '#E04949' }}>
+                    <div class='exception-title'>{this.isNoData ? this.$t('暂无数据') : this.$t('查询异常')}</div>
+                    {this.errorData.isError && <div class='exception-desc'>{this.errorData.msg}</div>}
+                  </div>
+                </Exception>
+              ) : (
+                <>
+                  <div
+                    id='topo-graph'
+                    ref='graphRef'
+                    class='topo-graph'
+                  />
+                  <div class='failure-topo-graph-zoom'>
+                    <Popover
+                      extCls='failure-topo-graph-legend-popover'
+                      v-slots={{
+                        content: (
+                          <div class='failure-topo-graph-legend-content'>
+                            <ul class='node-type'>
+                              <li class='node-type-title'>{this.$t('节点图例')}</li>
+                              {NODE_TYPE.map(node => {
+                                return (
+                                  <li key={node.status}>
+                                    <span class='circle-wrap'>
+                                      <span class={['circle', node.status]}>
+                                        {'error' === node.status && <i class='icon-monitor icon-mc-pod' />}
+                                        {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
+                                      </span>
+                                    </span>
+                                    <span>{this.$t(node.text)}</span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <ul class='node-type node-line-type'>
+                              <li class='node-type-title'>{this.$t('标签图例')}</li>
+                              {TAG_TYPE.map(node => {
+                                return (
+                                  <li key={node.status}>
+                                    <span class='circle-wrap'>
+                                      <span class={['circle', node.status]}>
+                                        {['notRestored', 'restored'].includes(node.status) && (
+                                          <i class='icon-monitor icon-menu-event' />
+                                        )}
+                                        {['feedBackRoot', 'root'].includes(node.status) && this.$t('根因')}
+                                      </span>
+                                    </span>
+                                    <span>{this.$t(node.text)}</span>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            <ul class='node-line-type'>
+                              <li class='node-line-title'>{this.$t('边图例')}</li>
+                              <li>
+                                <span class='line' />
+                                <span>{this.$t('从属关系')}</span>
+                              </li>
+                              <li>
+                                <span class='line arrow' />
+                                <span>{this.$t('调用关系')}</span>
+                              </li>
+                              <li>
+                                <span class='line dash' />
+                                <span>{this.$t('故障传播')}</span>
+                              </li>
+                            </ul>
+                          </div>
+                        ),
+                        default: (
+                          <div
+                            class={['failure-topo-graph-legend', this.showLegend && 'failure-topo-graph-legend-active']}
+                            v-bk-tooltips={{
+                              content: this.$t('显示图例'),
+                              disabled: this.showLegend,
+                              boundary: this.wrapRef,
+                            }}
+                            onClick={this.handleShowLegend}
+                          >
+                            <i class='icon-monitor icon-legend' />
+                          </div>
+                        ),
+                      }}
+                      always={true}
+                      arrow={false}
+                      boundary='body'
+                      disabled={!this.showLegend}
+                      isShow={this.showLegend}
+                      offset={{ crossAxis: 90, mainAxis: 10 }}
+                      placement='top'
+                      renderType='auto'
+                      theme='dark common-table'
+                      trigger='manual'
+                      zIndex={100}
+                    />
+                    <span class='failure-topo-graph-line' />
+                    <div class='failure-topo-graph-zoom-slider'>
+                      <div
+                        class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
+                        onClick={this.handleUpdateZoom.bind(this, -2)}
+                      >
+                        <i class='icon-monitor icon-minus-line' />
+                      </div>
+                      <Slider
+                        class='slider'
+                        v-model={this.zoomValue}
+                        disable={this.isPlay}
+                        maxValue={20}
+                        minValue={2}
+                        onChange={this.handleZoomChange}
+                        onUpdate:modelValue={this.handleZoomChange}
+                      />
+                      <div
+                        class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
+                        onClick={this.handleUpdateZoom.bind(this, 2)}
+                      >
+                        <i class='icon-monitor icon-plus-line' />
+                      </div>
+                    </div>
+                    <span class='failure-topo-graph-line' />
+                    <div
+                      class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
+                      v-bk-tooltips={{ content: this.$t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
+                      onClick={this.handleResetZoom}
+                    >
+                      <i class='icon-monitor icon-mc-restoration-ratio' />
+                    </div>
+                  </div>
+                </>
+              )}
               {!this.isPlay && (
                 <div
                   class='expand-resource'

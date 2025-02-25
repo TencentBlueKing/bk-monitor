@@ -31,8 +31,46 @@ import { getRouteConfigById } from '../../router/router-config';
 import store from '../store';
 
 let oldRouteId = '';
-@Module({ name: 'report-log', dynamic: true, namespaced: true, store })
+@Module({ name: 'reportLog', dynamic: true, namespaced: true, store })
 class ReportLogStore extends VuexModule {
+  @Action
+  reportHomeSearchLog(params: Record<string, any>) {
+    frontendReportEvent(
+      {
+        event_name: '首页搜索功能',
+        event_content: '基于首页搜索功能的运营数据上报',
+        target: 'home_search',
+        timestamp: Date.now(),
+        dimensions: {
+          ...params,
+          user_name: window.user_name || window.username,
+        },
+      },
+      {
+        needMessage: false,
+        needTraceId: false,
+      }
+    ).catch(() => false);
+  }
+  @Action
+  reportHomeSearchNavLog(params: Record<string, any>) {
+    frontendReportEvent(
+      {
+        event_name: '首页最近使用功能',
+        event_content: '基于首页最近使用功能的运营数据上报',
+        target: 'home_recent',
+        timestamp: Date.now(),
+        dimensions: {
+          ...params,
+          user_name: window.user_name || window.username,
+        },
+      },
+      {
+        needMessage: false,
+        needTraceId: false,
+      }
+    ).catch(() => false);
+  }
   @Action
   @debounceDecorator(1000)
   reportRouteLog(params: Record<string, any>) {

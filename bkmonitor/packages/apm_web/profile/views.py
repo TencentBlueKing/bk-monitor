@@ -161,7 +161,9 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         # 过滤掉过期的文件 (过期文件在 bkbase 中已查不到不需要显示)
         datasource = api.apm_api.query_builtin_profile_datasource()
         last_retention = datetime.datetime.now() - datetime.timedelta(days=datasource["retention"])
-        queryset = ProfileUploadRecord.objects.filter(**filter_params, uploaded_time__gte=last_retention)
+        queryset = ProfileUploadRecord.objects.filter(**filter_params, uploaded_time__gte=last_retention).order_by(
+            "-uploaded_time"
+        )
         return Response(data=ProfileUploadRecordSLZ(queryset, many=True).data)
 
 
@@ -396,8 +398,30 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             )
 
     @classmethod
+    def get_services_language(cls, validate_data):
+        from apm_web.handlers.service_handler import ServiceHandler
+
+        options = {
+            "app_name": validate_data.get("app_name"),
+            "bk_biz_id": validate_data.get("bk_biz_id"),
+            "service_name": validate_data.get("service_name"),
+        }
+        try:
+            node_data = ServiceHandler.get_node(**options)
+            service_language = node_data.get("extra_data", {}).get("service_language", "")
+            return service_language
+        except Exception:
+            logger.exception(f"【ProfileQueryViewSet】Failed to query service_language using the parameter {options}.")
+            return ""
+
+    @classmethod
     def get_converter_options(cls, validate_data):
-        return {"sort": validate_data.get("sort"), "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE}
+        service_language = cls.get_services_language(validate_data)
+        return {
+            "sort": validate_data.get("sort"),
+            "data_mode": CallGraphResponseDataMode.IMAGE_DATA_MODE,
+            "service_language": service_language,
+        }
 
     @classmethod
     def converter_to_data(cls, validate_data, tree_converter):

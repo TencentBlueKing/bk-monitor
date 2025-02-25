@@ -39,19 +39,13 @@
     "@codemirror/language": "6.10.2",
     "@codemirror/state": "6.4.1",
     "@codemirror/view": "6.33.0",
-    "@opentelemetry/api": "1.8.0",
-    "@opentelemetry/context-zone": "1.23.0",
-    "@opentelemetry/instrumentation": "0.50.0",
-    "@opentelemetry/instrumentation-http": "0.50.0",
-    "@opentelemetry/instrumentation-xml-http-request": "0.50.0",
-    "@opentelemetry/sdk-trace-base": "1.23.0",
-    "@opentelemetry/sdk-trace-web": "1.23.0",
+ 
     "@vue/babel-helper-vue-jsx-merge-props": "1.4.0",
     "@vue/babel-preset-jsx": "1.4.0",
     "axios": "1.6.0",
     "babel-loader": "9.2.1",
     "babel-plugin-import-bk-magic-vue": "2.1.11",
-    "bk-magic-vue": "2.5.9-beta.22",
+    "bk-magic-vue": "2.5.10-beta.1",
     "codemirror": "6.0.1",
     "core-js": "3.38.0",
     "css-loader": "7.1.2",
@@ -152,5 +146,6 @@
     "src/**/*.(vue|scss|css|sass)": [
       "stylelint --cache --fix"
     ]
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

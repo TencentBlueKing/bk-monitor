@@ -68,12 +68,12 @@ const tabList = [
   {
     label: window.i18n.t('指标视图'),
     id: K8sNewTabEnum.CHART,
-    icon: 'icon-mc-two-column',
+    icon: 'icon-zhibiao',
   },
   {
     label: window.i18n.t('K8S集群数据详情'),
     id: K8sNewTabEnum.DETAIL,
-    icon: 'icon-mingxi',
+    icon: 'icon-Component',
   },
 ];
 
@@ -94,6 +94,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   scene: SceneEnum = SceneEnum.Performance;
   // 集群
   cluster = '';
+  /** 集群选择器下拉折叠状态 */
+  clusterToggle = false;
   // 集群列表
   clusterList = [];
   // 集群加载状态
@@ -105,7 +107,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   @ProvideReactive('groupInstance')
   groupInstance: K8sGroupDimension = new K8sPerformanceGroupDimension();
 
-  // 是否展示取消下钻
+  // 是否展示撤回下钻
   showCancelDrill = false;
   groupList = [];
 
@@ -132,6 +134,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
+  }
+
+  get selectClusterName() {
+    return this.clusterList.find(item => item.id === this.cluster)?.name;
   }
 
   get groupFilters() {
@@ -368,7 +374,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.dimensionTotal = dimensionTotal;
   }
 
-  /** 取消下钻 */
+  /** 撤回下钻 */
   handleCancelDrillDown() {
     this.filterBy = this.cacheFilterBy;
     this.groupInstance.setGroupFilters(this.cacheGroupBy);
@@ -429,6 +435,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.showCancelDrill = false;
     this.getScenarioMetricList();
     this.setRouteParams();
+  }
+
+  handleClusterToggle(toggle: boolean) {
+    this.clusterToggle = toggle;
   }
 
   /**
@@ -520,12 +530,6 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       });
     }
   }
-  handleGotoOld() {
-    this.$router.push({
-      name: 'k8s',
-      query: {},
-    });
-  }
 
   tabContentRender() {
     switch (this.activeTab) {
@@ -583,27 +587,11 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
                 onClick={this.handleCancelDrillDown}
               >
                 <div class='back-icon'>
-                  <i class='icon-monitor icon-back-left' />
+                  <i class='icon-monitor icon-undo' />
                 </div>
-                <span class='text'>{this.$t('取消下钻')}</span>
+                <span class='text'>{this.$t('撤回下钻')}</span>
               </div>
             )}
-            <div
-              style={{
-                'margin-left': this.showCancelDrill ? '0px' : 'auto',
-              }}
-              class='goto-old'
-            >
-              <i class='icon-monitor icon-remind' />
-              {this.$t('新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看')}
-              <bk-button
-                style='margin-left: 6px'
-                onClick={this.handleGotoOld}
-              >
-                <i class='icon-monitor icon-mc-change-version change-version' />
-                {this.$t('回到旧版')}
-              </bk-button>
-            </div>
           </K8sNavBar>
         </div>
         <div class='monitor-k8s-new-header ____monitor-k8s-new-header'>
@@ -616,7 +604,20 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               value={this.cluster}
               searchable
               onChange={this.handleClusterChange}
+              onToggle={this.handleClusterToggle}
             >
+              <div
+                class='cluster-select-trigger'
+                slot='trigger'
+              >
+                <span
+                  class='cluster-name'
+                  v-bk-overflow-tips
+                >
+                  {this.$t('集群')}: {this.selectClusterName}
+                </span>
+                <span class={`icon-monitor icon-mc-arrow-down ${this.clusterToggle ? 'expand' : ''}`} />
+              </div>
               {this.clusterList.map(cluster => (
                 <bk-option
                   id={cluster.id}
@@ -629,7 +630,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
 
           <div class='filter-header-wrap'>
             <div class='filter-by-wrap __filter-by__'>
-              <div class='filter-by-title'>Filter by</div>
+              <div class='filter-by-title'>{this.$t('过滤条件')}</div>
               <div class='filter-by-content'>
                 <FilterByCondition
                   commonParams={this.commonParams}
@@ -642,7 +643,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
               <GroupByCondition
                 dimensionTotal={this.dimensionTotal}
                 groupInstance={this.groupInstance}
-                title='Group by'
+                title={this.$tc('聚合维度')}
                 onChange={this.handleGroupChecked}
               />
             </div>

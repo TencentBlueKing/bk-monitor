@@ -1075,6 +1075,7 @@ if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
 
 # monitor api base url:
 MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
+NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 # bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # bkdata api only for query data (not required)
@@ -1399,7 +1400,12 @@ ENABLE_V2_VM_DATA_LINK_CLUSTER_ID_LIST = []
 
 # 是否启用计算平台Kafka采样接口
 ENABLE_BKDATA_KAFKA_TAIL_API = False
-
+# Kafka采样接口重试次数
+KAFKA_TAIL_API_RETRY_TIMES = 3
+# Kafka Consumer超时时间(秒)
+KAFKA_TAIL_API_TIMEOUT_SECONDS = 1000
+# Kafka采样接口重试间隔(秒)
+KAFKA_TAIL_API_RETRY_INTERVAL_SECONDS = 2
 # 计算平台&监控平台数据一致性Redis相关配置
 # 计算平台Redis监听模式
 BKBASE_REDIS_PATTERN = "databus_v4_dataid"
@@ -1476,6 +1482,13 @@ FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
 #     "BCS-K8S-00001": "bkmonitor-operator",
 # }
 K8S_OPERATOR_DEPLOY_NAMESPACE = {}
+
+# 集群内 collector 接收端特殊配置，针对一个集群部署多套 operator 时需要配置这个
+# 格式: {
+#     "BCS-K8S-00000": {"cache": {"interval": "10s"}},
+#     "BCS-K8S-00001": {"cache": {"interval": "1s"}},
+# }
+K8S_COLLECTOR_CONFIG = {}
 
 # 默认K8S插件采集集群ID
 K8S_PLUGIN_COLLECT_CLUSTER_ID = ""

@@ -170,13 +170,16 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
           style={{ display: this.loadMoreLoading[id] ? 'inline-block' : 'none' }}
           size='mini'
         />
-        <span
-          style={{ display: !this.loadMoreLoading[id] ? 'inline-block' : 'none' }}
-          class='text'
+        <div
+          style={{ display: !this.loadMoreLoading[id] ? 'flex' : 'none' }}
+          class='content'
           onClick={() => this.handleShowMore(id)}
         >
-          {this.$t('点击加载更多')}
-        </span>
+          <span class='dot' />
+          <span class='dot' />
+          <span class='dot' />
+          <span class='text'>{this.$t('点击加载更多')}</span>
+        </div>
       </div>
     );
   }
@@ -196,7 +199,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
                 class='child-header'
                 onClick={() => this.collapseChange(child.id, Boolean(child.children.length))}
               >
-                <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[child.id] ? 'expand' : ''}`} />
+                <i class={`icon-monitor arrow-icon icon-mc-arrow-right ${this.expand[child.id] ? 'expand' : ''}`} />
                 <span class='group-name'>{child.name}</span>
                 <div class='group-count'>{child.count}</div>
               </div>
@@ -227,10 +230,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
             }}
           >
             <div
-              class={{
-                'content-name': true,
-                select: isSelectSearch,
-              }}
+              class='content-name'
               onClick={() => !isDisabled && this.handleItemClick(child.id)}
             >
               <span
@@ -247,17 +247,17 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
                   child.name
                 )}
               </span>
+            </div>
+            <div class='tools'>
               {this.tools.includes('search') && (
                 <i
-                  class={`icon-monitor search-tools ${isSelectSearch ? 'icon-sousuo-' : 'icon-a-sousuo'}`}
+                  class={`search-tools  ${isSelectSearch ? 'selected' : 'icon-monitor icon-a-sousuo'}`}
                   v-bk-tooltips={{
                     content: this.$t(isSelectSearch ? '移除该筛选项' : '添加为筛选项'),
                   }}
                   onClick={e => this.handleSearch(child.id, !isSelectSearch, e)}
                 />
               )}
-            </div>
-            <div class='tools'>
               {this.tools.includes('drillDown') && (
                 <K8sDimensionDrillDown
                   dimension={this.list.id}
@@ -285,13 +285,13 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
 
   render() {
     return (
-      <div class='k8s-new___group-item'>
+      <div class={{ 'k8s-new___group-item': true, expand: this.expand[this.list.id] }}>
         <div
           class='group-header'
           onClick={() => this.collapseChange(this.list.id, Boolean(this.list.children))}
         >
           <div class='group-header-left'>
-            <i class={`icon-monitor arrow-icon icon-arrow-right ${this.expand[this.list.id] ? 'expand' : ''}`} />
+            <i class={`icon-monitor arrow-icon icon-mc-arrow-right ${this.expand[this.list.id] ? 'expand' : ''}`} />
             <span class='group-name'>{this.list.name}</span>
             <div class='group-count'>{this.list.count}</div>
             {this.value.length > 0 && this.tools.includes('clear') && (
@@ -309,7 +309,7 @@ export default class GroupItem extends tsc<GroupItemProps, GroupItemEvent> {
               class='group-select'
               onClick={this.handleGroupByChange}
             >
-              {this.isGroupBy ? 'UnGroup' : 'Group'}
+              {this.isGroupBy ? this.$t('取消聚合') : this.$t('聚合')}
             </div>
           )}
         </div>

@@ -41,7 +41,8 @@ import {
   getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import axios from 'axios';
+// import axios from 'axios';
+import { axiosInstance } from '@/api';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -232,8 +233,9 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
-        commonFilters,
       } = state.indexItem;
+
+      const common_filter_addition = state.retrieve.catchFieldCustomConfig.filterAddition ?? [];
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
@@ -271,7 +273,7 @@ const store = new Vuex.Store({
         sort_list,
         bk_biz_id: state.bkBizId,
         ...searchParams,
-        commonFilters,
+        common_filter_addition,
       };
     },
     isNewRetrieveRoute: () => {
@@ -288,9 +290,7 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
-    updateCommonFilter(state, param) {
-      state.indexItem.commonFilters = param;
-    },
+
     updatetableJsonFormatDepth(state, val) {
       state.tableJsonFormatDepth = val;
     },
@@ -1162,7 +1162,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...otherPrams.addition, ...otherPrams.commonFilters],
+        addition: [...otherPrams.addition, ...(otherPrams.common_filter_addition ?? [])],
       };
 
       // 更新联合查询的begin
@@ -1200,7 +1200,7 @@ const store = new Vuex.Store({
         };
       }
 
-      return axios(params)
+      return axiosInstance(params)
         .then(resp => {
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
@@ -1603,7 +1603,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
-              addition: [...getters.retrieveParams.addition, ...getters.retrieveParams.commonFilters],
+              addition: [...getters.retrieveParams.addition, ...(getters.retrieveParams.common_filter_addition ?? [])],
             },
           },
           {
@@ -1659,11 +1659,7 @@ const store = new Vuex.Store({
             data: queryParams,
           });
           if (res.code === 0) {
-            const userConfig = {
-              fieldsWidth: res.data.index_set_config.fieldsWidth,
-              displayFields: res.data.index_set_config.displayFields,
-              filterSetting: res.data.index_set_config.filterSetting,
-            };
+            const userConfig = res.data.index_set_config;
             commit('retrieve/updateCatchFieldCustomConfig', userConfig);
           }
           resolve(res);

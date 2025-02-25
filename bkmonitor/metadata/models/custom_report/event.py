@@ -183,12 +183,14 @@ class EventGroup(CustomGroupBase):
                 # 降低返回的内容条数，我们只关注聚合后的内容
                 "size": 0,
             },
-        )["aggregations"]["find_event_name"]["buckets"]
-        logger.info("event->[{}] found total event->[{}]".format(self.event_group_id, len(result)))
+        )
+        # 使用 .get() 获取，避免直接 KeyError
+        buckets = result.get("aggregations", {}).get("find_event_name", {}).get("buckets", [])
+        logger.info("event->[{}] found total event->[{}]".format(self.event_group_id, len(buckets)))
 
         # 逐个获取信息
         event_dimension_list = []
-        for event_info in result:
+        for event_info in buckets:
             try:
                 result = client.search(
                     index="{}*".format(self.table_id),

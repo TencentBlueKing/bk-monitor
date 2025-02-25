@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import ipaddress
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -32,12 +33,25 @@ def get_value_if_not_none(value, default):
 
 def compose_es_hosts(host: str, port: int) -> List:
     """组装 es 需要的 host
-    NOTE：兼容 IPV6， 格式组装为 [host]:port
+    NOTE：兼容 IPV6与python3.11，将IPV6对应格式组装为 [host]:port
     """
-    if not host.startswith("["):
-        host = "[" + host
-    if not host.endswith("]"):
-        host += "]"
+    try:
+        # 尝试解析为 IP 地址
+        ip = ipaddress.ip_address(host)
+
+        # 如果是 IPv6 地址，则加上方括号
+        if ip.version == 6:
+            if not host.startswith("["):
+                host = "[" + host
+            if not host.endswith("]"):
+                host += "]"
+        # 如果是 IPv4 地址，不加方括号
+        # 不需要做任何修改，直接使用原 host
+    except ValueError as e:  # pylint: disable=broad-except
+        logger.warning(
+            "compose_es_hosts:host->[%s],port->[%s],may be not invalid,please check,error->[%s]", host, port, e
+        )
+
     return [f"{host}:{port}"]
 
 

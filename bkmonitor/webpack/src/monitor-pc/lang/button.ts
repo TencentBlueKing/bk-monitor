@@ -59,6 +59,7 @@ export default {
   回滚: 'Rollback',
   清除: 'Clear',
   删除: 'Delete',
+  更新: 'Update',
   复位: 'Reset',
   复制链接: 'Copy Link',
   保存并匹配: 'Save & Match',
@@ -498,6 +499,8 @@ export default {
   回到旧版: 'Back to Legacy',
   切换新版: 'Switch to New Version',
   CPU使用率: 'CPU Usage',
-  '新版容器监控尚未完全覆盖旧版功能，如需可切换到旧版查看':
-    'The new version of container monitoring does not fully cover the legacy features yet. You can switch to the legacy version to view them if necessary',
+  撤回下钻: 'Recall Drill-down',
+  取消聚合: 'Cancel Aggregation',
+  聚合: 'Aggregate',
+  清空过滤条件: 'Clear Filter Conditions',
 };
