@@ -508,13 +508,13 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             origin_time_shift: Optional[str] = None
             try:
                 origin_time_shift = time_shift_function["params"][0]["value"]
+                if origin_time_shift:
+                    is_time_shift_exists = True
             except (KeyError, IndexError):
                 time_shift_function["params"] = [{"id": "n", "value": None}]
-            else:
-                is_time_shift_exists = True
 
             result: Dict[str, Any] = helper.router(
-                table_id, metric, used_labels, validate_data["start_time"], validate_data["end_time"], origin_time_shift
+                table_id, metric, used_labels, query_params["start_time"], query_params["end_time"], origin_time_shift
             )
             if not result["is_hit"]:
                 if increase_function:
@@ -534,9 +534,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
 
-        if is_pre_cal_hit and is_time_shift_exists:
-            validate_data["start_time"], validate_data["end_time"] = helper.adjust_time_range(
-                validate_data["start_time"], validate_data["end_time"]
+        if is_pre_cal_hit and not is_time_shift_exists:
+            query_params["start_time"], query_params["end_time"] = helper.adjust_time_range(
+                query_params["start_time"], query_params["end_time"]
             )
 
     @classmethod
