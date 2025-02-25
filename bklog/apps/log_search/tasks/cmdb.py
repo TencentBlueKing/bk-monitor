@@ -20,8 +20,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from datetime import datetime, timedelta
 
+from blueapps.contrib.celery_tools.periodic import periodic_task  # noqa
 from celery.schedules import crontab  # noqa
-from celery.task import periodic_task  # noqa
 
 from apps.log_search.models import LogIndexSet, Space, UserIndexSetSearchHistory
 from apps.utils.core.cache.cmdb_host import CmdbHostCache

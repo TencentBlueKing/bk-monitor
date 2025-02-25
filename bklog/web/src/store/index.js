@@ -41,7 +41,8 @@ import {
   getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import axios from 'axios';
+// import axios from 'axios';
+import { axiosInstance } from '@/api';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -1117,7 +1118,7 @@ const store = new Vuex.Store({
         state.searchTotal = 0;
         commit('updateSqlQueryFieldList', []);
         commit('updateIndexSetQueryResult', { is_error: false, exception_msg: '' });
-        return Promise.reject({ message: `index_set_id is undefined` });
+        return; // Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
       const { size, ...otherPrams } = getters.retrieveParams;
@@ -1199,7 +1200,7 @@ const store = new Vuex.Store({
         };
       }
 
-      return axios(params)
+      return axiosInstance(params)
         .then(resp => {
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {

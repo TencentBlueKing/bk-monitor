@@ -24,6 +24,9 @@ from dataclasses import asdict, dataclass, fields
 from hashlib import md5
 from typing import Any, Dict, List, Union
 
+from django.core.cache import cache
+from django.utils.translation import gettext as _
+
 from apps.log_databus.constants import (
     CHECK_COLLECTOR_CACHE_KEY_PREFIX,
     CHECK_COLLECTOR_ITEM_CACHE_TIMEOUT,
@@ -31,8 +34,6 @@ from apps.log_databus.constants import (
     CheckStatusEnum,
     InfoTypeEnum,
 )
-from django.core.cache import cache
-from django.utils.translation import ugettext as _
 
 
 def generate_host_string(host: Dict[str, Any]) -> str:

@@ -9,16 +9,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-# 待翻译字符串文件路径
+from django.urls import include, re_path
 
+# from ai_agent.views import assistant as assistant_views
+from core.drf_resource.routers import ResourceRouter
 
-COLLECTED_WORDS_FILE = "scripts/translate/data/collected_words.json"
+router = ResourceRouter()
+# router.register_module(assistant_views)
 
-# 已翻译字符串文件路径
-TRANSLATE_WORDS_FILE = "scripts/translate/data/translated_words.json"
-
-# 标准翻译文件路径
-STANDARD_WORDS_FILE = "scripts/translate/data/standard_words.json"
-
-# 翻译接口调用时间间隔
-TRANSLATE_INTERVAL = 1
+urlpatterns = [
+    re_path(r"^ai/", include(router.urls)),
+]
