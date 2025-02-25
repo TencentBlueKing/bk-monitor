@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 
 from rest_framework import serializers
 
+from constants.data_source import DataSourceLabel
+
 
 class EventMetricSerializer(serializers.Serializer):
     field = serializers.CharField(label="指标名")
@@ -22,6 +24,10 @@ class EventDataSource(serializers.Serializer):
     table = serializers.CharField(label="结果表")
     data_type_label = serializers.CharField(label="数据类型标签")
     data_source_label = serializers.CharField(label="数据源标签")
+
+    def validate(self, attrs):
+        attrs["data_source_label"] = DataSourceLabel.BK_APM
+        return attrs
 
 
 class EventFilterSerializer(EventDataSource):
