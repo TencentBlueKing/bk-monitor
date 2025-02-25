@@ -223,6 +223,11 @@ const reviewToken = {
   url: '/databus/collectors/:collector_config_id/report_token/',
   method: 'get',
 };
+// 获取日志采集-增加用量数据
+const getStorageUsage = {
+  url: '/index_set/storage_usage/',
+  method: 'post',
+};
 
 export {
   getStorage,
@@ -263,4 +268,5 @@ export {
   runCheck,
   getCheckInfos,
   reviewToken,
+  getStorageUsage
 };

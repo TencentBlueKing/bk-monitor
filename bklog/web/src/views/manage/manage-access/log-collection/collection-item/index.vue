@@ -111,6 +111,18 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          v-if="checkcFields('storage_usage')"
+          :label="$t('日用量/总用量')"
+          :render-header="$renderHeader"
+          min-width="80"
+        >
+          <template #default="props">
+            <span :class="{ 'text-disabled': props.row.status === 'stop' }">
+              {{ props.row.table_id ? `${props.row.daily_usage} / ${props.row.total_usage}` : '--' }}
+            </span>
+          </template>
+        </bk-table-column>
+        <bk-table-column
           v-if="checkcFields('table_id')"
           :label="$t('存储名')"
           :render-header="$renderHeader"
@@ -629,6 +641,11 @@
           label: this.$t('名称'),
           disabled: true,
         },
+        // 用量展示
+        {
+          id: 'storage_usage',
+          label: this.$t('日用量/总用量'),
+        },
         // 存储名
         {
           id: 'table_id',
@@ -735,7 +752,7 @@
         isAllowedCreate: null,
         columnSetting: {
           fields: settingFields,
-          selectedFields: [...settingFields.slice(3, 7), settingFields[2]],
+          selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
         },
         statusEnum: statusEnum,
         // 是否支持一键检测
@@ -1039,7 +1056,7 @@
             this.emptyType = '500';
           })
           .finally(() => {
-            this.isTableLoading = false;
+            this.requestStorageUsage()
             // 如果有ids 重置路由
             if (ids)
               this.$router.replace({
@@ -1048,6 +1065,45 @@
                 },
               });
           });
+      },
+      requestStorageUsage() {
+        const index_set_ids = this.collectShowList.filter(item => item.index_set_id && item.is_active).map(item => item.index_set_id);
+
+        this.$http
+          .request('collect/getStorageUsage', {
+          data: {
+            bk_biz_id: this.bkBizId,
+            index_set_ids,
+          },
+        })
+        .then(res => {
+          const { data } = res;
+          const map = new Map();
+          data.forEach(item => {
+            map.set(item.index_set_id, { ...item });
+          });
+          console.log(map);
+          
+          this.collectList.forEach(item => {
+            if (map.has(item.index_set_id)) {
+              const existingItem = map.get(item.index_set_id);
+              // this.$set(existingItem, 'daily_usage', item.daily_usage);
+              // this.$set(existingItem, 'daily_usage', item.daily_usage);
+              this.$set(item, 'daily_usage', existingItem.daily_usage);
+              this.$set(item, 'total_usage', existingItem.total_usage);
+            } else {
+              // map.set(item.index_set_id, { ...item });
+            }
+          });
+          // console.log(Array.from(map.values()));
+          console.log(this.collectList);
+          
+        })
+        .catch(() => {
+        })
+        .finally(() => {
+          this.isTableLoading = false;
+         });
       },
       handleOperation(type) {
         if (type === 'clear-filter') {
@@ -1193,6 +1249,8 @@
         this.changePagination({ limit, current: 1 });
       },
       changePagination(pagination = {}) {
+        console.log(this.pagination, pagination);
+        
         Object.assign(this.pagination, pagination);
       },
       filterIsNotCompared(val) {
