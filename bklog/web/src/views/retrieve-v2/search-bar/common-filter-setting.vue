@@ -252,7 +252,7 @@
   @import '../../../scss/mixins/scroller';
 
   .bklog-common-field-filter {
-    &.fields-list-container {
+    .fields-list-container {
       display: flex;
       padding: 0;
 
