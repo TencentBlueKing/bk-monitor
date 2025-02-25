@@ -11,7 +11,56 @@ specific language governing permissions and limitations under the License.
 import sys
 from enum import Enum, IntEnum
 
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+
+from constants.apm import CachedEnum
+
+
+class EventDomain(CachedEnum):
+    """事件领域
+    一个领域的事件具有多个源。
+    例如 CICD 可能来源于 BKCI、ARGO、GITHUB_ACTIONS
+    """
+
+    K8S: str = "K8S"
+    CICD: str = "CICD"
+    SYSTEM: str = "SYSTEM"
+
+    @cached_property
+    def label(self):
+        return str({self.K8S: _("Kubernetes"), self.CICD: _("CICD"), self.SYSTEM: _("系统")}.get(self, self.value))
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        return default
+
+
+class EventSource(CachedEnum):
+    """事件来源，需要保持唯一"""
+
+    # CICD
+    BKCI: str = "BKCI"
+    # K8S
+    BCS: str = "BCS"
+    # HOST
+    HOST: str = "HOST"
+
+    @classmethod
+    def choices(cls):
+        return [(cls.BCS.value, cls.BCS.value), (cls.BKCI.value, cls.BKCI.value), (cls.HOST.value, cls.HOST.value)]
+
+    @cached_property
+    def label(self):
+        return str({self.BKCI: _("蓝盾"), self.BCS: _("BCS"), self.HOST: _("主机")}.get(self, self.value))
+
+    @classmethod
+    def get_default(cls, value):
+        default = super().get_default(value)
+        default.label = value
+        return default
 
 
 class EventCategory(Enum):

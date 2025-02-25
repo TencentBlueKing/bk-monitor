@@ -14,8 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from bkmonitor.data_source.unify_query.builder import UnifyQuerySet
 from bkmonitor.utils.time_tools import time_interval_align
-
-from . import constants
+from monitor_web.data_explorer.event.constants import EventDomain, EventSource
 
 
 class EventQueryHelper:
@@ -63,8 +62,8 @@ class EventHandler:
         return [
             {
                 "table": "k8s_event",
-                "domain": constants.EventDomain.K8S.value,
-                "source": constants.EventSource.BCS.value,
+                "domain": EventDomain.K8S.value,
+                "source": EventSource.BCS.value,
                 "relations": [
                     # 集群 / 命名空间 / Workload 类型 / Workload 名称
                     # case 1：勾选整个集群
@@ -86,8 +85,8 @@ class EventHandler:
             },
             {
                 "table": "system_event",
-                "domain": constants.EventDomain.SYSTEM.value,
-                "source": constants.EventSource.HOST.value,
+                "domain": EventDomain.SYSTEM.value,
+                "source": EventSource.HOST.value,
                 "relations": [
                     {"bk_biz_id": self.bk_biz_id},
                 ],
