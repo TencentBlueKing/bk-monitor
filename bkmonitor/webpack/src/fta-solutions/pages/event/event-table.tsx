@@ -1104,18 +1104,17 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   }
 
   handleMetricMouseenter(e: MouseEvent, data: IEventItem['metric_display']) {
-    this.metricPopoverIns?.hide?.(0);
+    // this.metricPopoverIns?.hide?.(0);
+    this.metricPopoverIns?.destroy?.();
     const { clientWidth, scrollWidth } = e.target as HTMLDivElement;
     if (scrollWidth > clientWidth) {
       this.metricPopoverIns = this.$bkPopover(e.target, {
-        content: `${data.map(item => `<div>${item.name}</div>`).join('')}`,
+        content: `${data.map(item => `<div>${item.name || item.id}</div>`).join('')}`,
         interactive: true,
         distance: 0,
         duration: [200, 0],
       });
       this.metricPopoverIns?.show?.(100);
-    } else {
-      this.metricPopoverIns?.destroy?.();
     }
   }
 
