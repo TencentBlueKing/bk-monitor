@@ -68,10 +68,11 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
   timer = null;
   loading = false;
+
   formData: IFormData = {
     data_source_label: 'custom',
     data_type_label: 'event',
-    result_table_id: '',
+    table: '',
     query_string: '*',
     where: [],
     group_by: [],
@@ -83,13 +84,12 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   fieldList = [];
 
   /** 公共参数 */
+  @ProvideReactive('commonParams')
   get commonParams() {
-    const { result_table_id: table, ...configs } = this.formData;
     return {
       query_configs: [
         {
-          ...configs,
-          table,
+          ...this.formData,
         },
       ],
       start_time: this.formatTimeRange[0],
@@ -100,10 +100,11 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   @Provide('handleTimeRangeChange')
   handleTimeRangeChange(timeRange: TimeRangeType) {
     this.timeRange = timeRange;
+    this.getViewConfig();
   }
 
   handleDataIdChange(dataId: string) {
-    this.formData.result_table_id = dataId;
+    this.formData.table = dataId;
     this.getViewConfig();
   }
 
@@ -140,12 +141,12 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     }).catch(() => []);
     this.dataIdList = list;
     if (init) {
-      this.formData.result_table_id = list[0]?.id || '';
+      this.formData.table = list[0]?.id || '';
     }
   }
 
   async getViewConfig() {
-    if (!this.formData.result_table_id) {
+    if (!this.formData.table) {
       this.fieldList = [];
       return;
     }
@@ -155,7 +156,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
         {
           data_source_label: this.formData.data_source_label,
           data_type_label: this.formData.data_type_label,
-          table: this.formData.result_table_id,
+          table: this.formData.table,
         },
       ],
       start_time: this.formatTimeRange[0],
@@ -163,6 +164,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
     this.loading = false;
     this.fieldList = data.fields || data.field;
+    this.setRouteParams();
   }
 
   handleCloseDimensionPanel() {
@@ -170,7 +172,8 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   }
 
   async mounted() {
-    await this.getDataIdList(!this.formData.result_table_id);
+    this.getRouteParams();
+    await this.getDataIdList(!this.formData.table);
     await this.getViewConfig();
   }
 
@@ -181,7 +184,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
         {
           data_source_label: this.formData.data_source_label,
           data_type_label: this.formData.data_type_label,
-          table: this.formData.result_table_id,
+          table: this.formData.table,
           filter_dict: {},
           where: params?.where || [],
           query_string: params?.queryString || '*',
@@ -193,6 +196,82 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     });
   }
 
+  /** 兼容以前的事件检索URL格式 */
+  getRouteParams() {
+    const { targets, from, to, timezone, refreshInterval } = this.$route.query;
+    if (targets) {
+      try {
+        const targetsList = JSON.parse(decodeURIComponent(targets as string));
+        const [
+          {
+            data: {
+              query_configs: [
+                {
+                  data_type_label,
+                  data_source_label,
+                  result_table_id,
+                  where,
+                  query_string: queryString,
+                  group_by: groupBy,
+                  filter_dict: filterDict,
+                },
+              ],
+            },
+          },
+        ] = targetsList;
+        this.formData = {
+          data_type_label,
+          data_source_label,
+          table: result_table_id,
+          where: where || [],
+          query_string: queryString || '',
+          group_by: groupBy || [],
+          filter_dict: filterDict || {},
+        };
+
+        this.timeRange = from ? [from as string, to as string] : DEFAULT_TIME_RANGE;
+        this.timezone = (timezone as string) || getDefaultTimezone();
+        this.refreshInterval = Number(refreshInterval) || -1;
+      } catch (error) {
+        console.log('route query:', error);
+      }
+    }
+  }
+
+  setRouteParams() {
+    const { table: result_table_id, ...other } = this.formData;
+    const query = {
+      ...this.$route.query,
+      from: this.timeRange[0],
+      to: this.timeRange[1],
+      timezone: this.timezone,
+      refreshInterval: String(this.refreshInterval),
+      targets: JSON.stringify([
+        {
+          data: {
+            query_configs: [
+              {
+                ...other,
+                result_table_id,
+              },
+            ],
+          },
+        },
+      ]),
+    };
+
+    const targetRoute = this.$router.resolve({
+      query,
+    });
+
+    /** 防止出现跳转当前地址导致报错 */
+    if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+      this.$router.replace({
+        query,
+      });
+    }
+  }
+
   render() {
     return (
       <div class='event-explore'>
@@ -201,6 +280,9 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
           <EventRetrievalHeader
             dataIdList={this.dataIdList}
             formData={this.formData}
+            refreshInterval={this.refreshInterval}
+            timeRange={this.timeRange}
+            timezone={this.timezone}
             onDataIdChange={this.handleDataIdChange}
             onEventTypeChange={this.handleEventTypeChange}
             onImmediateRefresh={this.handleImmediateRefresh}
@@ -222,7 +304,6 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
                 slot='aside'
               >
                 <DimensionFilterPanel
-                  formData={this.formData}
                   list={this.fieldList}
                   listLoading={this.loading}
                   onClose={this.handleCloseDimensionPanel}
