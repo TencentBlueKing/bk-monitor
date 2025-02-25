@@ -67,7 +67,7 @@ API_LOGS_RESPONSE = {
             # alias - 展示值、value - 原始数据值。
             "time": {"value": 1736927543000, "alias": 1736927543000},
             "type": {"value": "Normal", "alias": "Normal"},
-            "source": {"value": "SYSTEM", "type": "icon", "alias": "系统/主机"},
+            "source": {"value": "SYSTEM", "alias": "系统/主机"},
             "event_name": {"value": "oom", "alias": "进程 OOM"},
             "event.content": {
                 "value": "oom",
