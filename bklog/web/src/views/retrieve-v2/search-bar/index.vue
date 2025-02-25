@@ -256,6 +256,9 @@
   );
 
   const matchSQLStr = computed(() => {
+    if(props.activeFavorite.index_set_id !== store.getters.indexId ){
+      return false;
+    }
     if (activeIndex.value === 0) {
       if (sourceUISQLAddition.value.length !== uiQueryValue.value.length) {
         return false;
@@ -466,7 +469,6 @@
 
           <BookmarkPop
             :activeFavorite="!props.activeFavorite"
-            
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :search-mode="queryParams[activeIndex]"
