@@ -2,5 +2,5 @@
 -r requirements.txt
 -r requirements_test.txt
 
-pre-commit<4.2.0
-pyproject-flake8<8
+pre-commit==4.1.0
+pyproject-flake8==7.0.0
