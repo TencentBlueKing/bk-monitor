@@ -23,52 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IFormData {
-  data_source_label: string;
-  data_type_label: string;
-  table: string;
-  query_string: string;
-  where?: any[];
-  group_by?: any[];
-  filter_dict?: Record<string, any>;
-}
 
-export interface IDataIdItem {
-  name: string;
-  id: string;
-}
-
-export type DimensionType = 'date' | 'interger' | 'keyword' | 'text';
-
-export interface IDimensionOperation {
-  alias: string;
-  value: string;
-  options: { label: string; name: string }[];
-}
-export interface IDimensionField {
-  name: string;
-  alias: string;
-  type: DimensionType;
-  is_option_enabled: boolean;
-  is_dimensions: boolean;
-  support_operations: IDimensionOperation[];
-}
-
-export interface ITopKRequestParams {
-  limit: number;
-  query_configs: IFormData[];
-  fields: string[];
-  start_time: number;
-  end_time: number;
-}
-
-export interface ITopKField {
-  distinct_count: number;
-  field: string;
-  list: {
-    alias: string;
-    count: number;
-    proportions: number;
-    value: string;
-  }[];
-}
+export const fieldTypeMap = {
+  interger: {
+    name: window.i18n.tc('数字'),
+    icon: 'icon-monitor icon-number',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
+  keyword: {
+    name: window.i18n.tc('字符串'),
+    icon: 'icon-monitor icon-string',
+    color: '#6498B3',
+    bgColor: '#D9E5EB',
+  },
+  text: {
+    name: window.i18n.tc('文本'),
+    icon: 'icon-monitor icon-text',
+    color: '#508CC8',
+    bgColor: '#E1E7F2',
+  },
+  date: {
+    name: window.i18n.tc('时间'),
+    icon: 'icon-monitor icon-mc-time',
+    color: '#CDAE71',
+    bgColor: '#EDE7DB',
+  },
+};

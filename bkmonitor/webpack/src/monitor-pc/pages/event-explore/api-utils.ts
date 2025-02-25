@@ -24,36 +24,22 @@
  * IN THE SOFTWARE.
  */
 import { eventTopK, eventViewConfig } from 'monitor-api/modules/data_explorer';
+
+import type { ITopKField, ITopKRequestParams } from './typing';
 export enum APIType {
   APM = 'apm', // apm
   MONITOR = 'monitor', // monitor default
 }
+
 /**
  * @description: 获取事件top k
  * @param params
  * @param type
  * @returns
  */
-export const getEventTopK = <P, T>(params: P, type = APIType.MONITOR): Promise<T> => {
+export const getEventTopK = (params: ITopKRequestParams, type = APIType.MONITOR): Promise<ITopKField[]> => {
   const apiFunc = type === APIType.APM ? eventTopK : eventTopK;
-  return apiFunc(params)
-    .then(res => {
-      const data = res?.[0] || {};
-      return {
-        count: +data?.distinct_count || 0,
-        list:
-          data?.list?.map(item => ({
-            id: item.value,
-            name: item.alias,
-          })) || [],
-      };
-    })
-    .catch(() => {
-      return {
-        count: 0,
-        list: [],
-      };
-    });
+  return apiFunc(params).catch(() => []);
 };
 
 export const getEventViewConfig = (params: any) => eventViewConfig(params).then((res: any) => res.data);
