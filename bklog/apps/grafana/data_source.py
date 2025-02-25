@@ -24,6 +24,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
+from django.conf import settings
+
 from apps.api import BkDataQueryApi
 from apps.constants import ApiTokenAuthType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -39,7 +41,6 @@ from apps.log_search.models import LogIndexSet, Scenario
 from apps.utils.thread import MultiExecuteFunc
 from bk_dataview.grafana.provisioning import Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
-from django.conf import settings
 
 
 @dataclass
@@ -215,6 +216,10 @@ class CustomESDataSourceTemplate:
         indexes = self.data.indexes
         if not indexes:
             return ""
+
+        if self.scenario_id == Scenario.ES:
+            return ",".join([index["result_table_id"] for index in indexes if index.get("result_table_id")])
+
         return ",".join(
             [
                 "{result_table_id}_*".format(result_table_id=index["result_table_id"])
