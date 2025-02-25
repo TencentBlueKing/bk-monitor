@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import logging
 import string
 from typing import Any, Dict, List, Tuple
 
@@ -37,6 +38,8 @@ from .mock_data import (
     API_TOTAL_RESPONSE,
     API_VIEW_CONFIG_RESPONSE,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class EventTimeSeriesResource(Resource):
@@ -199,16 +202,13 @@ class EventTotalResource(Resource):
             for config, alias in zip(query_configs, lowercase_alphabet)
         ]
 
-        # 构建表达式
-        expression = "+".join(lowercase_alphabet[: len(query_configs)])
-
         # 构建统一查询集
         query_set = (
             UnifyQuerySet()
             .scope(bk_biz_id=validated_request_data["bk_biz_id"])
             .start_time(start_time)
             .end_time(end_time)
-            .expression(expression)
+            .expression("+".join(lowercase_alphabet[: len(query_configs)]))
             .time_agg(False)
             .instant()
         )
@@ -217,5 +217,8 @@ class EventTotalResource(Resource):
         for query in queries:
             query_set = query_set.add_query(query)
 
-        total = query_set.original_data[0]["_result_"]
-        return {"total": total}
+        try:
+            return {"total": query_set.original_data[0]["_result_"]}
+        except (IndexError, KeyError) as exc:
+            logger.warning("[EventTotalResource] failed to get total, err -> %s", exc)
+            return {"total": 0}
