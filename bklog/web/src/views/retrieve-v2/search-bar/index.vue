@@ -1,11 +1,11 @@
 <script setup>
-  import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import PopInstanceUtil from './pop-instance-util';
+  // import PopInstanceUtil from './pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
