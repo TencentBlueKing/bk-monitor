@@ -137,11 +137,16 @@ export default defineComponent({
     });
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
-    const showAiAssistant = computed(
-      () =>
-        window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant?.includes(store.state.bkBizId) ||
-        window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant?.includes(store.state.spaceUid),
-    );
+    const showAiAssistant = computed(() => {
+      const ai_assistant = window.FEATURE_TOGGLE?.ai_assistant;
+      if (ai_assistant === 'debug') {
+        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant ?? []).map(id => `${id}`);
+        return whiteList.includes(store.state.bkBizId) || whiteList.includes(store.state.spaceUid);
+      }
+
+      return ai_assistant === 'on';
+    });
+
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
 
