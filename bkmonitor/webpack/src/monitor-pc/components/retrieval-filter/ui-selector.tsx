@@ -129,15 +129,20 @@ export default class UiSelector extends tsc<IProps> {
    * @description 点击弹层确认
    */
   handleConfirm(value: IFilterItem) {
+    const localValue = JSON.parse(JSON.stringify(this.localValue));
     if (value) {
       if (this.updateActive > -1) {
-        this.localValue.splice(this.updateActive, 1, value);
+        localValue.splice(this.updateActive, 1, value);
       } else {
-        this.localValue.push(value);
+        localValue.push(value);
       }
     }
+    this.localValue = localValue;
     this.destroyPopoverInstance();
     this.hideInput();
+    setTimeout(() => {
+      this.handleClickComponent();
+    }, 300);
   }
 
   /**
@@ -224,20 +229,22 @@ export default class UiSelector extends tsc<IProps> {
   }
 
   handleEnter() {
-    this.localValue.push({
-      key: {
-        id: '*',
-        name: this.$tc('全文'),
-      },
-      value: [{ id: this.inputValue, name: this.inputValue }],
-      method: { id: EMethod.include, name: this.$tc('包含') },
-      condition: { id: ECondition.and, name: 'AND' },
-    });
-    this.inputValue = '';
-    this.destroyPopoverInstance();
-    setTimeout(() => {
-      this.handleClickComponent();
-    }, 50);
+    if (this.inputValue) {
+      this.localValue.push({
+        key: {
+          id: '*',
+          name: this.$tc('全文'),
+        },
+        value: [{ id: this.inputValue, name: this.inputValue }],
+        method: { id: EMethod.include, name: this.$tc('包含') },
+        condition: { id: ECondition.and, name: 'AND' },
+      });
+      this.inputValue = '';
+      this.destroyPopoverInstance();
+      setTimeout(() => {
+        this.handleClickComponent();
+      }, 50);
+    }
   }
 
   render() {
@@ -303,6 +310,7 @@ export default class UiSelector extends tsc<IProps> {
                 ...this.fields,
               ]}
               getValueFn={this.getValueFn}
+              keyword={this.inputValue}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}
               onCancel={this.handleCancel}
