@@ -84,4 +84,15 @@
       }
     }
   }
+
+  .header-tools {
+    .dashboard-tools {
+      margin-right: 8px;
+
+      .dashboard-tools-interval::after {
+        display: none;
+      }
+      
+    }
+  }
 }

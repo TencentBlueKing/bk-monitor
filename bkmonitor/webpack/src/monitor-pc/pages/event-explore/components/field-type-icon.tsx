@@ -23,52 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IFormData {
-  data_source_label: string;
-  data_type_label: string;
-  table: string;
-  query_string: string;
-  where?: any[];
-  group_by?: any[];
-  filter_dict?: Record<string, any>;
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { fieldTypeMap } from '../utils';
+
+import './field-type-icon.scss';
+interface FieldTypeIconProps {
+  type: string;
 }
 
-export interface IDataIdItem {
-  name: string;
-  id: string;
-}
+@Component
+export default class FieldTypeIcon extends tsc<FieldTypeIconProps> {
+  @Prop({ type: String, required: true }) type: string;
 
-export type DimensionType = 'date' | 'interger' | 'keyword' | 'text';
+  get info() {
+    return fieldTypeMap[this.type];
+  }
 
-export interface IDimensionOperation {
-  alias: string;
-  value: string;
-  options: { label: string; name: string }[];
-}
-export interface IDimensionField {
-  name: string;
-  alias: string;
-  type: DimensionType;
-  is_option_enabled: boolean;
-  is_dimensions: boolean;
-  support_operations: IDimensionOperation[];
-}
-
-export interface ITopKRequestParams {
-  limit: number;
-  query_configs: IFormData[];
-  fields: string[];
-  start_time: number;
-  end_time: number;
-}
-
-export interface ITopKField {
-  distinct_count: number;
-  field: string;
-  list: {
-    alias: string;
-    count: number;
-    proportions: number;
-    value: string;
-  }[];
+  render() {
+    return (
+      <i
+        style={{ color: this.info.color, background: this.info.bgColor }}
+        class={[this.info.icon, 'field-type-icon']}
+      />
+    );
+  }
 }
