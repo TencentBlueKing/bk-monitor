@@ -189,7 +189,7 @@
 
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const { common_filter_addition } = store.getters.retrieveParams;
+    const { common_filter_addition } = store.getters;
     const param = {
       filterSetting: shadowVisible.value,
       filterAddition: common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),

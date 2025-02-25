@@ -219,6 +219,7 @@ const store = new Vuex.Store({
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
     isLimitExpandView: state => state.isLimitExpandView,
+    common_filter_addition: state => state.retrieve.catchFieldCustomConfig.filterAddition ?? [],
     // @ts-ignore
     retrieveParams: state => {
       const {
@@ -234,8 +235,6 @@ const store = new Vuex.Store({
         search_mode,
         sort_list,
       } = state.indexItem;
-
-      const common_filter_addition = state.retrieve.catchFieldCustomConfig.filterAddition ?? [];
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
@@ -273,7 +272,6 @@ const store = new Vuex.Store({
         sort_list,
         bk_biz_id: state.bkBizId,
         ...searchParams,
-        common_filter_addition,
       };
     },
     isNewRetrieveRoute: () => {
@@ -1193,7 +1191,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...otherPrams.addition, ...(otherPrams.common_filter_addition ?? [])],
+        addition: [...otherPrams.addition, ...(getters.common_filter_addition ?? [])],
       };
 
       // 更新联合查询的begin
@@ -1634,7 +1632,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
-              addition: [...getters.retrieveParams.addition, ...(getters.retrieveParams.common_filter_addition ?? [])],
+              addition: [...getters.retrieveParams.addition, ...(getters.common_filter_addition ?? [])],
             },
           },
           {
