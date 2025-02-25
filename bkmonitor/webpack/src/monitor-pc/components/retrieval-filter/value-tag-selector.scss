@@ -9,6 +9,10 @@
     margin-right: 4px;
   }
 
+  .h-16 {
+    height: 16px;
+  }
+
   .value-tag-selector-component-wrap {
     position: relative;
     display: flex;
@@ -44,6 +48,8 @@
     left: 0;
     z-index: 9999;
     width: 100%;
+    max-height: 131px;
+    overflow-y: scroll;
     background: #FFFFFF;
     border: 1px solid #DCDEE5;
     border-radius: 2px;
@@ -68,6 +74,20 @@
 
       .highlight {
         color: #3A84FF;
+      }
+
+      &.skeleton-item {
+        display: flex;
+        align-items: center;
+        background: #fff;
+      }
+    }
+
+    .bk-exception {
+      top: 10px;
+
+      .bk-exception-img {
+        height: 30px;
       }
     }
   }
