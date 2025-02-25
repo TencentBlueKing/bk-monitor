@@ -26,6 +26,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import EmptyStatus from '../empty-status/empty-status';
 import AutoWidthInput from './auto-width-input';
 import TextHighlighter from './text-highlighter';
 import { onClickOutside } from './utils';
@@ -42,6 +43,7 @@ interface IProps {
   options?: IValue[];
   loading?: boolean;
   value?: IValue[];
+  cursorActive?: boolean;
   onChange?: (v: IValue[]) => void;
   onSearch?: (v: string) => void;
 }
@@ -51,6 +53,9 @@ export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) options: IValue[];
   @Prop({ type: Boolean, default: false }) loading: boolean;
   @Prop({ type: Array, default: () => [] }) value: IValue[];
+  /* 是否启用上下键选择 */
+  @Prop({ type: Boolean, default: false }) cursorActive: boolean;
+
   /* tag列表 */
   localValue: IValue[] = [];
   /* 可选项 */
@@ -65,6 +70,10 @@ export default class ValueTagSelector extends tsc<IProps> {
   hoverActiveIndex = -1;
   /* 输入框是否聚焦 */
   isFocus = false;
+
+  get hasCustomOption() {
+    return !!this.inputValue;
+  }
 
   @Watch('options', { immediate: true })
   handleWatchOptions() {
@@ -90,12 +99,25 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.localValue = JSON.parse(JSON.stringify(this.value));
   }
 
+  @Watch('cursorActive', { immediate: true })
+  handleWatchWatchCursorActive() {
+    if (this.cursorActive) {
+      document.addEventListener('keydown', this.handleKeydownEvent);
+      setTimeout(() => {
+        this.handleClick();
+      }, 300);
+    } else {
+      document.removeEventListener('keydown', this.handleKeydownEvent);
+    }
+  }
+
   /**
    * @description 下拉选项点击事件
    * @param item
    */
   handleCheck(item: IValue) {
     this.localValue.push(item);
+    this.handleWatchOptions();
     this.handleChange();
   }
 
@@ -115,7 +137,9 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param event
    */
   handleInput(value) {
+    this.hoverActiveIndex = -1;
     this.inputValue = value;
+    this.$emit('search', value);
   }
   /**
    * @description 输入框失去焦点事件
@@ -123,18 +147,46 @@ export default class ValueTagSelector extends tsc<IProps> {
   handleBlur() {
     this.inputValue = '';
     this.isFocus = false;
+    this.activeIndex = -1;
   }
   /**
    * @description 输入框enter事件
    */
   handleEnter() {
+    if (!this.inputValue) {
+      return;
+    }
     if (this.hoverActiveIndex === -1) {
       this.handleShowShowDropDown(false);
-      this.localValue.push({ id: this.inputValue, name: this.inputValue });
+      if (this.activeIndex >= 0) {
+        this.localValue.splice(this.activeIndex + 1, 0, { id: this.inputValue, name: this.inputValue });
+      } else {
+        this.localValue.push({ id: this.inputValue, name: this.inputValue });
+      }
+
       this.activeIndex = this.localValue.length - 1;
       this.handleChange();
     }
     this.inputValue = '';
+  }
+
+  /**
+   * @description 监听删除键
+   */
+  handleBackspace() {
+    if (!this.inputValue) {
+      if (this.activeIndex > 0) {
+        this.activeIndex -= 1;
+      }
+      if (this.localValue.length > 1) {
+        this.localValue.splice(this.activeIndex + 1, 1);
+      } else {
+        this.localValue = [];
+        setTimeout(() => {
+          this.handleClick();
+        }, 300);
+      }
+    }
   }
 
   /**
@@ -172,6 +224,77 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.localValue.splice(index, 1, { id: v, name: v });
   }
 
+  handleKeydownEvent(event: KeyboardEvent) {
+    const min = this.hasCustomOption ? -1 : 0;
+    switch (event.key) {
+      case 'ArrowUp': {
+        event.preventDefault();
+        this.hoverActiveIndex -= 1;
+        if (this.hoverActiveIndex < min) {
+          this.hoverActiveIndex = min;
+        }
+        this.updateSelection();
+        break;
+      }
+      case 'ArrowDown': {
+        event.preventDefault();
+        this.hoverActiveIndex += 1;
+        if (this.hoverActiveIndex > this.localOptions.length - 1) {
+          this.hoverActiveIndex = this.localOptions.length - 1;
+        }
+        this.updateSelection();
+        break;
+      }
+      case 'ArrowLeft': {
+        event.preventDefault();
+        if (this.activeIndex > 0) {
+          this.activeIndex -= 1;
+        }
+        break;
+      }
+      case 'ArrowRight': {
+        event.preventDefault();
+        if (this.activeIndex < this.localValue.length - 1) {
+          this.activeIndex += 1;
+        }
+        break;
+      }
+      case 'Enter': {
+        event.preventDefault();
+        this.handleOptionsEnter();
+        break;
+      }
+    }
+  }
+
+  /**
+   * @description 聚焦光标选项
+   */
+  updateSelection() {
+    this.$nextTick(() => {
+      const listEl = this.$el.querySelector('.options-drop-down-wrap.main__wrap');
+      const el = this.hasCustomOption
+        ? listEl?.children?.[this.hoverActiveIndex + 1]
+        : listEl?.children?.[this.hoverActiveIndex];
+      if (el) {
+        el.scrollIntoView(false);
+      }
+    });
+  }
+  /**
+   * @description enter光标选项
+   */
+  handleOptionsEnter() {
+    if (this.hoverActiveIndex !== -1) {
+      const item = this.localOptions?.[this.hoverActiveIndex];
+      if (item) {
+        this.localValue.push(item);
+        this.handleChange();
+        this.handleWatchOptions();
+      }
+    }
+  }
+
   render() {
     const inputRender = () => (
       <AutoWidthInput
@@ -181,6 +304,7 @@ export default class ValueTagSelector extends tsc<IProps> {
         fontSize={12}
         isFocus={this.isFocus}
         value={this.inputValue}
+        onBackspace={this.handleBackspace}
         onBlur={this.handleBlur}
         onEnter={this.handleEnter}
         onInput={this.handleInput}
@@ -213,35 +337,53 @@ export default class ValueTagSelector extends tsc<IProps> {
                 ),
               ]}
         </div>
-        {this.isShowDropDown && (
-          <div class='options-drop-down-wrap'>
-            {!!this.inputValue && (
-              <div
-                key={'00'}
-                class={['options-item', { 'active-index': this.hoverActiveIndex === -1 }]}
-              >
-                <i18n path='生成"{0}"Tag'>
-                  <span class='highlight'>{this.inputValue}</span>
-                </i18n>
-              </div>
-            )}
-            {this.localOptions.map((item, index) => (
-              <div
-                key={index}
-                class={['options-item', { 'active-index': this.hoverActiveIndex === index }]}
-                onClick={e => {
-                  e.stopPropagation();
-                  this.handleCheck(item);
-                }}
-              >
-                <TextHighlighter
-                  content={item.name}
-                  keyword={this.inputValue}
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        {this.isShowDropDown &&
+          (this.loading ? (
+            <div class='options-drop-down-wrap'>
+              {new Array(4).fill(null).map(index => {
+                return (
+                  <div
+                    key={index}
+                    class='options-item skeleton-item'
+                  >
+                    <div class='skeleton-element h-16' />
+                  </div>
+                );
+              })}
+            </div>
+          ) : !this.localOptions.length && !this.inputValue ? (
+            <div class='options-drop-down-wrap'>
+              <EmptyStatus type={'empty'} />
+            </div>
+          ) : (
+            <div class='options-drop-down-wrap main__wrap'>
+              {!!this.inputValue && (
+                <div
+                  key={'00'}
+                  class={['options-item', { 'active-index': this.hoverActiveIndex === -1 }]}
+                >
+                  <i18n path='生成"{0}"Tag'>
+                    <span class='highlight'>{this.inputValue}</span>
+                  </i18n>
+                </div>
+              )}
+              {this.localOptions.map((item, index) => (
+                <div
+                  key={index}
+                  class={['options-item', { 'active-index': this.hoverActiveIndex === index }]}
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleCheck(item);
+                  }}
+                >
+                  <TextHighlighter
+                    content={item.name}
+                    keyword={this.inputValue}
+                  />
+                </div>
+              ))}
+            </div>
+          ))}
       </div>
     );
   }
