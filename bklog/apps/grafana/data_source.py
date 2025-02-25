@@ -237,7 +237,7 @@ class CustomESDataSourceTemplate:
         for index, value in mapping.items():
             mapping_dict: dict = value.get("mappings", {})
             # 日志接口返回的mapping结构中有一层是索引名,
-            if len(mapping_dict) == 1 and list(mapping_dict.keys())[0] in index:
+            if len(mapping_dict) == 1 and (list(mapping_dict.keys())[0] in index or "properties" not in mapping_dict):
                 result[index] = {"mappings": list(mapping_dict.values())[0]}
                 continue
             result[index] = value
