@@ -38,6 +38,7 @@ declare global {
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
+    $t: (key: string, params?: Record<string, any>) => string;
   }
 }
 

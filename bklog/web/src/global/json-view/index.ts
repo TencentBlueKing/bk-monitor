@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
+import { copyMessage } from '@/common/util';
 export type JsonViewConfig = {
   onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
   jsonValue?: any;
@@ -119,7 +119,11 @@ export default class JsonView {
       child.push(this.createObjectChildNode(target, depth + 1));
     }
 
-    node.append(...[nodeIconText, ...child]);
+    const copyItem = document.createElement('span');
+    copyItem.classList.add(...['bklog-json-view-copy', 'bklog-data-copy', 'bklog-icon']);
+    copyItem.setAttribute('title', window.$t('复制'));
+
+    node.append(nodeIconText, copyItem, ...child);
     return [node];
   }
 
@@ -184,6 +188,15 @@ export default class JsonView {
           targetElement: storeNode,
           rootElement: this.targetEl,
         });
+      }
+    }
+
+    if (targetNode.classList.contains('bklog-json-view-copy')) {
+      const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
+
+      if (this.jsonNodeMap.has(storeNode)) {
+        const { target } = this.jsonNodeMap.get(storeNode) ?? {};
+        copyMessage(JSON.stringify(target) || '', window.$t?.('复制成功'));
       }
     }
   }
