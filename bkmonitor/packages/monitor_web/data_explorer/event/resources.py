@@ -180,10 +180,6 @@ class EventTotalResource(Resource):
         if validated_request_data.get("is_mock"):
             return API_TOTAL_RESPONSE
 
-        start_time = validated_request_data["start_time"]
-        end_time = validated_request_data["end_time"]
-        start_time, end_time = 1000 * start_time, 1000 * end_time
-
         # 获取查询配置
         query_configs = validated_request_data["query_configs"]
         # 小写字母表
@@ -206,8 +202,8 @@ class EventTotalResource(Resource):
         query_set = (
             UnifyQuerySet()
             .scope(bk_biz_id=validated_request_data["bk_biz_id"])
-            .start_time(start_time)
-            .end_time(end_time)
+            .start_time(1000 * validated_request_data["start_time"])
+            .end_time(1000 * validated_request_data["end_time"])
             .expression("+".join(lowercase_alphabet[: len(query_configs)]))
             .time_agg(False)
             .instant()
