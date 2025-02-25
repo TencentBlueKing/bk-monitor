@@ -38,6 +38,7 @@ interface IProps {
   onBlur?: () => void;
   onInput?: (value: string) => void;
   onEnter?: () => void;
+  onBackspace?: () => void;
 }
 @Component
 export default class AutoWidthInput extends tsc<IProps> {
@@ -95,6 +96,9 @@ export default class AutoWidthInput extends tsc<IProps> {
     if (key === 'Enter' || key === 13) {
       event.preventDefault();
       this.$emit('enter');
+    }
+    if (key === 'Backspace' || key === 8) {
+      this.$emit('backspace');
     }
   }
 

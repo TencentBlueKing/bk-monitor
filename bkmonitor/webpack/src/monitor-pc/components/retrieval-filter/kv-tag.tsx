@@ -97,7 +97,7 @@ export default class KvTag extends tsc<IProps> {
         <div
           class='retrieval-filter__kv-tag-component-wrap'
           v-bk-tooltips={{
-            content: `<div style="max-width: 600px;">${this.localValue.key.id} ${this.localValue.method.name} ${this.localValue.value.map(v => v.id).join(' AND ')}<div>`,
+            content: `<div style="max-width: 600px;">${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' AND ')}<div>`,
             delay: [300, 0],
             allowHTML: true,
           }}
