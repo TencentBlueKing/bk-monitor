@@ -699,11 +699,9 @@ class CollectorBatchOperationType(ChoicesEnum):
     STOP = "stop"
     START = "start"
     MODIFY_STORAGE = "modify_storage"
-    QUERY_STORAGE = "query_storage"
 
     _choices_labels = (
         (STOP, _("停用")),
         (START, _("启用")),
         (MODIFY_STORAGE, _("修改存储配置")),
-        (QUERY_STORAGE, _("查询存储")),
     )
