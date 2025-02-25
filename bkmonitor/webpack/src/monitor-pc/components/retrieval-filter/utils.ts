@@ -108,6 +108,9 @@ export interface IFilterItem {
   condition: { id: ECondition; name: string };
   method: { id: EMethod; name: string };
   value: { id: string; name: string }[];
+  options?: {
+    is_wildcard: boolean;
+  };
   hide?: boolean;
 }
 export const MODE_LIST = [
