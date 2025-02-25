@@ -923,9 +923,7 @@ export default defineComponent({
           >
             <img src={aiBlueking} />
           </span>
-        ) : (
-          ''
-        ),
+        ) : null,
       ];
     };
 
