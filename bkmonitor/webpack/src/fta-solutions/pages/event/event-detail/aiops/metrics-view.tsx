@@ -76,7 +76,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   // 对比的时间
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
   // 指标布局列
-  @ProvideReactive('layoutActive') layoutActive = 2;
+  @ProvideReactive('layoutActive') layoutActive = 0;
 
   loading = false;
   /** 关联指标是否触发吸附 */
@@ -94,15 +94,15 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
     const len = this.panelMap?.dimensionPanels?.length || 3;
     return len > 3 ? 3 : len;
   }
-  @Watch('info')
-  handleChangePanelInfo() {
-    this.layoutActive = this.info.default_column > 1 ? 2 : 0;
-  }
+  // @Watch('info')
+  // handleChangePanelInfo() {
+  //   this.layoutActive = this.info.default_column > 1 ? 2 : 0;
+  // }
   /** 指标加载全部 */
   handleLoadPanels(panel) {
     panel.showMore = false;
     panel.panels = panel.totalPanels;
-    this.$nextTick(this.handleScroll);
+    // this.$nextTick(this.handleScroll);
   }
   /** 联动对应图表 */
   scrollToIdView(id: string) {
@@ -249,25 +249,27 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
         {this.panelMap.recommendedMetricPanels.length > 0 ? (
           [
             <div
+              key='wrap-panels'
+              class={['correlation-metric-panels']}
+              // class={['correlation-metric-panels', this.isFixed && 'correlation-metric-fixed-padding']}
+            >
+              {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))}
+            </div>,
+            <div
               key='wrap-bg'
               class='correlation-metric-nav-wrap-bg'
             />,
             <div
               key='wrap-nav'
               style={this.isFixed ? { top: this.isDetailRoute ? '52px' : '60px' } : {}}
-              class={['correlation-metric-nav-wrap', this.isFixed && 'correlation-metric-fixed']}
+              class={['correlation-metric-nav-wrap']}
+              // class={['correlation-metric-nav-wrap', this.isFixed && 'correlation-metric-fixed']}
             >
               <CorrelationNav
                 ref='correlationNav'
                 list={this.panelMap.recommendedMetricPanels}
                 onActive={this.handleActive}
               />
-            </div>,
-            <div
-              key='wrap-panels'
-              class={['correlation-metric-panels', this.isFixed && 'correlation-metric-fixed-padding']}
-            >
-              {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))}
             </div>,
           ]
         ) : (

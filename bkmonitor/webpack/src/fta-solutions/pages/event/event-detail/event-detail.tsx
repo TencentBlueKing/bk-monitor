@@ -40,7 +40,9 @@ import authorityStore from 'monitor-pc/store/modules/authority';
 import authorityMixinCreate from 'monitor-ui/mixins/authorityMixin';
 import { throttle } from 'throttle-debounce';
 
-// import AiopsContainer from './aiops/aiops-container-new';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+// import AiopsContainer from './aiops/aiops-container-test';
+import AiopsContainer from './aiops/aiops-container-new';
 import { createAutoTimerange } from './aiops-chart';
 import AlarmConfirm from './alarm-confirm';
 import AlarmDispatch from './alarm-dispatch';
@@ -58,16 +60,9 @@ import type { IDetail } from './type';
 import './event-detail.scss';
 
 const authMap = ['manage_rule_v2', 'manage_event_v2', 'manage_downtime_v2'];
-
-// interface IEventDeatil {
-//   id: string;
-//   activeTab?: string;
-//   bizId: number;
-// }
-// interface IEventDeatilEvent {
-//   onCloseSlider?: boolean;
-//   onInfo?: (v: IDetail) => void;
-// }
+interface IDataZoomTimeRange {
+  timeRange: [] | TimeRangeType;
+}
 Component.registerHooks(['beforeRouteLeave']);
 @Component({
   name: 'EventDetail',
@@ -82,6 +77,10 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   @ProvideReactive('bkBizId') bkBizId = null;
   // 时区
   @ProvideReactive('timezone') timezone: string = window.timezone || getDefaultTimezone();
+  /** aiops联动抛出的缩放时间范围 */
+  @ProvideReactive('dataZoomTimeRange') dataZoomTimeRange: IDataZoomTimeRange = {
+    timeRange: [],
+  };
 
   // public id = 0
   basicInfo: IDetail = {
@@ -617,27 +616,27 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
   /** 判断当前是否需要展示AI相关的内容，需要的话则左右布局，并支持拖拽拉伸 */
 
   renderLayoutContent() {
-    // if (this.isShowAiopsView) {
-    //   return (
-    //     <bk-resize-layout
-    //       class='detail-resize-view'
-    //       auto-minimize={true}
-    //       initial-divide={'62%'}
-    //       min={760}
-    //     >
-    //       <div slot='aside'>{this.renderDetailContainer()}</div>
-    //       <div
-    //         class='event-detail-aiops'
-    //         slot='main'
-    //       >
-    //         <AiopsContainer
-    //           detail={this.basicInfo}
-    //           show={true}
-    //         />
-    //       </div>
-    //     </bk-resize-layout>
-    //   );
-    // }
+    if (this.isShowAiopsView) {
+      return (
+        <bk-resize-layout
+          class='detail-resize-view'
+          auto-minimize={true}
+          initial-divide={'62%'}
+          min={760}
+        >
+          <div slot='aside'>{this.renderDetailContainer()}</div>
+          <div
+            class='event-detail-aiops'
+            slot='main'
+          >
+            <AiopsContainer
+              detail={this.basicInfo}
+              show={true}
+            />
+          </div>
+        </bk-resize-layout>
+      );
+    }
     return this.renderDetailContainer();
   }
 

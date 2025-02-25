@@ -69,9 +69,10 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
           <span class='classification-text'>{item.result_table_label_name}</span>
           <span class='classification-num'>
             {/* <i class='icon-monitor icon-mc-correlation-metrics'></i> */}
-            {this.$t('{slot0} 个指标', {
+            {/* {this.$t('{slot0} 个指标', {
               slot0: item.metrics.length,
-            })}
+            })} */}
+            {item.metrics.length}
           </span>
         </p>
         <ul class='classification-list'>
@@ -93,7 +94,7 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
                   },
                 }}
               >
-                <i class='icon-monitor icon-mc-dimension' />
+                {/* <i class='icon-monitor icon-mc-dimension' /> */}
                 {metric.totalPanels.length}
               </span>
             </li>

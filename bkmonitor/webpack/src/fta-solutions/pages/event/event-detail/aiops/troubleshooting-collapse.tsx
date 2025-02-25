@@ -49,16 +49,16 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
   infoConfig = {
     alert_name: {
       label: '故障名称',
-      // renderFn: severity => getSeverity(severity)
+      renderFn: alert_name => <span class='blue-txt'>{alert_name}</span>,
     },
     status: {
       label: '故障状态',
-      // renderFn: status => (
-      //   <span class={`info-status ${status}`}>
-      //     <i class={`icon-monitor icon-${TREE_SHOW_ICON_LIST.status[status]}`} />
-      //     {statusEnum.value[status]}
-      //   </span>
-      // ),
+      renderFn: status => (
+        <span class={`info-status ${status}`}>
+          <i class='icon-monitor icon-mind-fill' />
+          {status}
+        </span>
+      ),
     },
     time: { label: '持续时间' },
     bk_biz_name: { label: '影响业务' },
@@ -66,8 +66,8 @@ export default class AiopsTroubleshootingCollapse extends tsc<IProps> {
     assignee: { label: '处置指引' },
   };
   detail = {
-    alert_name: 'alert_name',
-    status: 'status',
+    alert_name: '故障名称',
+    status: '未恢复',
     time: 'time',
     bk_biz_name: 'bk_biz_name',
     metric: '根因和影响范围（结合图谱的实体回答：服务、模块），触发告警情况文本文本文本文本。',

@@ -37,6 +37,10 @@
         margin-top: 10px;
       }
     }
+    .bk-collapse-item-content {
+      width: 100%;
+      padding: 0;
+    }
     .aiops-container-menu-item {
       width: 100%;
       margin-bottom: 5px;
@@ -68,16 +72,24 @@
       }
     }
     .aiops-tab-title-message {
+      display: block;
       color: rgba(99, 101, 110, 1);
       font-size: 12px;
       line-height: 20px;
-      position: relative;
 
       font {
         color: rgba(234, 54, 54, 1);
         font-size: 12px;
         font-weight: 700;
       }
+    }
+    .aiops-tab-title-index-message {
+      font {
+        color: #3a84ff;
+      }
+    }
+    .aiops-container-menu-item-content {
+      padding: 0 10px;
     }
   }
 }

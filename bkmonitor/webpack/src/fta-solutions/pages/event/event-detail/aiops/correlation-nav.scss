@@ -1,7 +1,6 @@
 .correlation-nav-classification {
-  width: 259px;
+  width: 180px;
   // margin-right: 16px;
-  border-right: 1px solid #eaebf0;;
 
   .icon-mc-correlation-metrics {
     font-size: 12px;
@@ -14,7 +13,8 @@
     height: 40px;
     padding: 0px 12px;
     margin: 0;
-    background: #f0f1f5;
+    background: #f0f3fa;
+    // border-left: 1px solid #d1d9e8;
 
     i {
       color: #979ba5;
@@ -24,7 +24,7 @@
       flex: 1;
       margin-left: 8px;
       overflow: hidden;
-      font-size: 14px;
+      font-size: 12px;
       line-height: 22px;
       color: #313238;
       text-overflow: ellipsis;
@@ -35,15 +35,12 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      // padding: 0px 5px;
-      // height: 18px;
-      // background: #c4c6cc;
-      // border-radius: 9px;
-      // color: white;
+      padding: 0px 5px;
       font-size: 12px;
-      line-height: 20px;
-      color: #979ba5;
-      letter-spacing: 0;
+      font-weight: 700;
+      color: #ffffff;
+      background: #a3b1cc;
+      border-radius: 2px;
 
       i {
         margin-right: 2px;
@@ -54,28 +51,29 @@
 
   .classification-list {
     width: 100%;
-    background: #fafbfd;
+    background: #f0f3fa;
+    // border-left: 1px solid #d1d9e8;
 
     &-item {
       display: flex;
       align-items: center;
       width: 100%;
-      height: 40px;
+      height: 30px;
       padding-right: 12px;
-      padding-left: 32px;
+      padding-left: 16px;
       cursor: pointer;
 
       &:hover {
         border: none;
 
-        @extend %select;  
+        @extend %select;
       }
 
       &-text {
         flex: 1;
         overflow: hidden;
-        font-size: 14px;
-        color: #63656e;
+        font-size: 12px;
+        color: #4d4f56;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
@@ -84,11 +82,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 33px;
+        // min-width: 33px;
         height: 18px;
         padding: 0px 5px;
-        color: #979ba5;
-        background: #f0f1f5;
+        color: #a3b1cc;
+        // background: #f0f1f5;
         border-radius: 9px;
 
         i {
@@ -107,12 +105,13 @@
       }
 
       .classification-list-item-num {
-        color: white;
-        background: #3a84ff;
+        color: #3a84ff;
+        font-weight: 700;
+        // background: #3a84ff;
 
         i {
           color: white;
-        }  
+        }
       }
     }
 
@@ -123,7 +122,7 @@
 
       &:after {
         position: absolute;
-        right: 0px;
+        left: 0px;
         width: 2px;
         height: 100%;
         content: '';

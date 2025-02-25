@@ -112,6 +112,40 @@ export default class AiopsContainer extends tsc<IProps> {
   hasReportClick = false;
   hasReportTips = false;
   observer: IntersectionObserver = null;
+  /** 展示collapse的配置 */
+  get tabConfigs() {
+    return [
+      {
+        name: 'diagnosis',
+        icon: 'icon-mc-correlation-metrics',
+        titleKey: '故障诊断',
+        loading: this.metricRecommendationLoading,
+        error: this.metricRecommendationErr,
+        contentRenderer: () => <AiopsTroubleshootingCollapse />,
+        tipsRenderer: () => {},
+      },
+      {
+        name: 'dimension',
+        icon: 'icon-mc-drill-down',
+        titleKey: '维度下钻',
+        loading: this.dimensionDrillDownLoading,
+        isShow: this.showDimensionDrill,
+        error: this.dimensionDrillDownErr,
+        tipsRenderer: this.renderDimensionTips,
+        contentRenderer: this.renderDimensionAndIndexView,
+      },
+      {
+        name: 'index',
+        icon: 'icon-mc-correlation-metrics',
+        titleKey: '关联指标',
+        loading: this.metricRecommendationLoading,
+        isShow: this.showMetricRecommendation,
+        error: this.metricRecommendationErr,
+        contentRenderer: this.renderDimensionAndIndexView,
+        tipsRenderer: this.renderMetricTips,
+      },
+    ];
+  }
   /** 首次告警时间 */
   get firstAnomalyTime() {
     return this.detail?.first_anomaly_time;
@@ -129,20 +163,7 @@ export default class AiopsContainer extends tsc<IProps> {
   get displayConditions() {
     return this.isTimeSeries && this.detail.metric.length < 2;
   }
-  /** 获取数据 */
-  @Watch('show')
-  handleChangeShow(val) {
-    val && this.displayConditions && !this.isDataInit && this.getTabData();
-  }
-  /** tips点击联动 */
-  handleTipsClick(id) {
-    (this.$refs.metricsView as any)?.scrollToIdView?.(id);
-  }
-  setTabActive(active) {
-    this.tabActive = active;
-    this.isCorrelationMetrics = this.tabActive === ETabNames.index;
-    this.selectActive = this.tabActive;
-  }
+
   /** 指标数量信息 */
   get info() {
     return {
@@ -178,14 +199,10 @@ export default class AiopsContainer extends tsc<IProps> {
     }
     return anomalyDimensions;
   }
-  /** 前端排序 */
-  handleSortChange({ prop, order }) {
-    this.anomalyDimensionsSort.order = order;
-    this.anomalyDimensionsSort.prop = prop;
-  }
-  /** 根据表格勾选过滤图表 */
-  handleSelectionChange(selected) {
-    this.anomalyDimensionsSelected = selected;
+  /** 获取数据 */
+  @Watch('displayConditions')
+  handleChangeShow(val) {
+    val && !this.isDataInit && this.getTabData();
   }
   /** 挂载实例事件 */
   mounted() {
@@ -196,15 +213,33 @@ export default class AiopsContainer extends tsc<IProps> {
       }
     });
   }
-  handleScroll() {
-    (this.$refs?.dimensionTable as any)?.hideTooltip?.();
-    (this.$refs?.metricsView as any)?.handleScroll?.();
-  }
   beforeDestroy() {
     const detailWrapper = document.querySelector('.event-detail-container');
     if (detailWrapper) {
       detailWrapper.removeEventListener('scroll', this.handleScroll);
     }
+  }
+  /** tips点击联动 */
+  handleTipsClick(id) {
+    (this.$refs.metricsView as any)?.scrollToIdView?.(id);
+  }
+  setTabActive(active) {
+    this.tabActive = active[0];
+    this.isCorrelationMetrics = this.tabActive === ETabNames.index;
+    this.selectActive = this.tabActive;
+  }
+  /** 前端排序 */
+  handleSortChange({ prop, order }) {
+    this.anomalyDimensionsSort.order = order;
+    this.anomalyDimensionsSort.prop = prop;
+  }
+  /** 根据表格勾选过滤图表 */
+  handleSelectionChange(selected) {
+    this.anomalyDimensionsSelected = selected;
+  }
+  handleScroll() {
+    (this.$refs?.dimensionTable as any)?.hideTooltip?.();
+    (this.$refs?.metricsView as any)?.handleScroll?.();
   }
   /** 关联指标每个指标默认将图表数据只展示3条 点击加载更多时全部展示 */
   setMorePanels(panel, title) {
@@ -389,10 +424,123 @@ export default class AiopsContainer extends tsc<IProps> {
   handleFunctionalDepsGotoMore() {
     skipToDocsLink('bkDeploymentGuides');
   }
-  render() {
+  /** 维度下钻和关联指标视图 */
+  renderDimensionAndIndexView() {
+    return (!this.showDimensionDrill && this.tabActive === ETabNames.dimension) ||
+      (!this.showMetricRecommendation && this.tabActive === ETabNames.index) ? (
+      <FuctionalDependency
+        functionalDesc={this.$t('启用 AI 功能，将支持维度下钻、关联指标事件展示等功能。')}
+        guideDescList={[this.$t('1. 基础计算平台：将 AI 相关的模型导入到该环境运行')]}
+        guideTitle={this.$t('如需使用该功能，需要部署：')}
+        mode='partial'
+        title={this.$t('暂无 AI 功能')}
+        onGotoMore={this.handleFunctionalDepsGotoMore}
+      />
+    ) : (
+      [
+        // <DimensionTable
+        //   key='dimensionTable'
+        //   ref='dimensionTable'
+        //   class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
+        //   v-bkloading={{ isLoading: this.dimensionDrillDownLoading }}
+        //   dimensionDrillDownErr={this.dimensionDrillDownErr}
+        //   tableData={this.anomalyDimensions}
+        //   {...{
+        //     on: {
+        //       selectionChange: this.handleSelectionChange,
+        //       sortChange: this.handleSortChange,
+        //       tipsClick: this.handleTipsClick,
+        //     },
+        //   }}
+        // />,
+        <MetricsView
+          key='metricsView'
+          ref='metricsView'
+          info={this.tabData.index?.info || {}}
+          metricRecommendationErr={this.metricRecommendationErr}
+          metricRecommendationLoading={this.metricRecommendationLoading}
+          panelMap={this.panelMap}
+        />,
+      ]
+    );
+  }
+  /** 异常维度的信息提示 */
+  renderDimensionTips() {
     const isExitDimensionInfo = Object.keys(this.info?.dimensionInfo || {}).length > 0;
+    return [
+      <span
+        key='dimension-info-text'
+        class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
+      >
+        {this.$t('异常维度')}
+        <font> {this.info?.dimensionInfo.anomaly_dimension_count}</font>
+        {isExitDimensionInfo ? ',' : ''}
+      </span>,
+      <span
+        key='dimension-count-text'
+        style='marginLeft: 6px'
+        class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
+      >
+        {this.$t('异常维度值')}
+        <font> {this.info?.dimensionInfo.anomaly_dimension_value_count}</font>
+      </span>,
+    ];
+  }
+  /** 关联指标的信息提示 */
+  renderMetricTips() {
     const isExitIndexInfo = Object.keys(this.info?.indexInfo || {}).length > 0;
-    // if (!this.showDimensionDrill && !this.showMetricRecommendation) return <div />;
+    return [
+      <span class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}>
+        <i18n path='{0} 个指标'>
+          <font>{this.info?.indexInfo.recommended_metric || 0} </font>
+        </i18n>
+        {isExitIndexInfo ? ',' : ''}
+      </span>,
+      <span
+        style='marginLeft: 6px'
+        class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
+      >
+        <i18n path='{0} 个维度'>
+          <font>{this.info?.indexInfo.recommended_metric_count || 0} </font>
+        </i18n>
+      </span>,
+    ];
+  }
+  /** 绘制collapse头部需要展示的内容 */
+  renderStatusTips(config) {
+    const { isShow, loading, error, name } = config;
+    return isShow || loading ? (
+      <span
+        class={['aiops-tab-title-message', { 'aiops-tab-title-index-message': name === 'index' }]}
+        v-bkloading={{
+          isLoading: loading,
+          theme: 'primary',
+          size: 'mini',
+          extCls: 'metric_loading',
+        }}
+      >
+        {[
+          error ? (
+            <span
+              key='dimension-err-text'
+              class='err-text'
+            >
+              <span>
+                <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
+                {this.$t('模型输出异常')}
+              </span>
+            </span>
+          ) : undefined,
+          config.tipsRenderer(),
+        ]}
+      </span>
+    ) : (
+      <div class='aiops-tab-title-message aiops-tab-title-index-message'>
+        {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
+      </div>
+    );
+  }
+  render() {
     return (
       <div
         ref='aiopsContainer'
@@ -401,187 +549,33 @@ export default class AiopsContainer extends tsc<IProps> {
       >
         <bk-collapse
           class='aiops-container-menu'
+          v-model={this.tabActive}
           accordion={true}
+          on-item-click={this.setTabActive}
         >
-          <bk-collapse-item
-            class='aiops-container-menu-item'
-            name='1'
-          >
-            <div class='aiops-container-menu-item-head'>
-              <span class='aiops-tab-title-icon'>
-                <i class='aiops-tab-icon icon-monitor icon-mc-correlation-metrics' />
-              </span>
-              <span class='aiops-tab-title-text'>
-                <span class='aiops-tab-title-name'>{this.$t('故障诊断')}</span>
-                {this.showMetricRecommendation || this.metricRecommendationLoading ? (
-                  <span
-                    class={['aiops-tab-title-message aiops-tab-title-index-message']}
-                    v-bkloading={{
-                      isLoading: this.metricRecommendationLoading,
-                      theme: 'primary',
-                      size: 'mini',
-                      extCls: 'metric_loading',
-                    }}
-                  >
-                    {this.metricRecommendationErr && (
-                      <span class='err-text'>
-                        <span>
-                          <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
-                          {this.$t('模型输出异常')}
-                        </span>
-                      </span>
-                    )}
-                    <span class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}>
-                      <i18n path='{0} 个指标'>
-                        <font>{this.info?.indexInfo.recommended_metric || 0} </font>
-                      </i18n>
-                      {isExitIndexInfo ? ',' : ''}
-                    </span>
-                    <span
-                      style='marginLeft: 6px'
-                      class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
-                    >
-                      <i18n path='{0} 个维度'>
-                        <font>{this.info?.indexInfo.recommended_metric_count || 0} </font>
-                      </i18n>
-                    </span>
-                  </span>
-                ) : (
-                  <div class='aiops-tab-title-message aiops-tab-title-index-message'>
-                    {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-                  </div>
-                )}
-              </span>
-            </div>
-            <div slot='content'>
-              <AiopsTroubleshootingCollapse />
-            </div>
-          </bk-collapse-item>
-          <bk-collapse-item
-            class='aiops-container-menu-item'
-            name='2'
-          >
-            <div class='aiops-container-menu-item-head'>
-              <span class='aiops-tab-title-icon'>
-                <i class='aiops-tab-icon icon-monitor icon-mc-drill-down' />
-              </span>
-              <span class='aiops-tab-title-text'>
-                <span class='aiops-tab-title-name'>{this.$t('维度下钻')}</span>
-                {this.showDimensionDrill || this.dimensionDrillDownLoading ? (
-                  <span
-                    class={['aiops-tab-title-message']}
-                    v-bkloading={{
-                      isLoading: this.dimensionDrillDownLoading,
-                      theme: 'primary',
-                      size: 'mini',
-                      extCls: 'metric_loading',
-                    }}
-                  >
-                    {[
-                      this.dimensionDrillDownErr ? (
-                        <span
-                          key='dimension-err-text'
-                          class='err-text'
-                        >
-                          <span>
-                            <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
-                            {this.$t('模型输出异常')}
-                          </span>
-                        </span>
-                      ) : undefined,
-                      <span
-                        key='dimension-info-text'
-                        class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
-                      >
-                        {this.$t('异常维度')}
-                        <font> {this.info?.dimensionInfo.anomaly_dimension_count}</font>
-                        {isExitDimensionInfo ? ',' : ''}
-                      </span>,
-                      <span
-                        key='dimension-count-text'
-                        style='marginLeft: 6px'
-                        class={[isExitDimensionInfo ? 'vis-show' : 'vis-hide']}
-                      >
-                        {this.$t('异常维度值')}
-                        <font> {this.info?.dimensionInfo.anomaly_dimension_value_count}</font>
-                      </span>,
-                    ]}
-                  </span>
-                ) : (
-                  <div class='aiops-tab-title-message aiops-tab-title-index-message'>
-                    {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-                  </div>
-                )}
-              </span>
-            </div>
-            <div slot='content'>
-              <ul class='list'>
-                <li>生产环境</li>
-                <li>预发布环境</li>
-              </ul>
-            </div>
-          </bk-collapse-item>
-          <bk-collapse-item
-            class='aiops-container-menu-item'
-            name='3'
-          >
-            <div class='aiops-container-menu-item-head'>
-              <span class='aiops-tab-title-icon'>
-                <i class='aiops-tab-icon icon-monitor icon-mc-correlation-metrics' />
-              </span>
-              <span class='aiops-tab-title-text'>
-                <span class='aiops-tab-title-name'>{this.$t('关联指标')}</span>
-                {this.showMetricRecommendation || this.metricRecommendationLoading ? (
-                  <span
-                    class={['aiops-tab-title-message aiops-tab-title-index-message']}
-                    v-bkloading={{
-                      isLoading: this.metricRecommendationLoading,
-                      theme: 'primary',
-                      size: 'mini',
-                      extCls: 'metric_loading',
-                    }}
-                  >
-                    {this.metricRecommendationErr && (
-                      <span class='err-text'>
-                        <span>
-                          <i class='bk-icon icon-exclamation-circle-shape tooltips-icon' />
-                          {this.$t('模型输出异常')}
-                        </span>
-                      </span>
-                    )}
-                    <span class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}>
-                      <i18n path='{0} 个指标'>
-                        <font>{this.info?.indexInfo.recommended_metric || 0} </font>
-                      </i18n>
-                      {isExitIndexInfo ? ',' : ''}
-                    </span>
-                    <span
-                      style='marginLeft: 6px'
-                      class={[isExitIndexInfo ? 'vis-show' : 'vis-hide']}
-                    >
-                      <i18n path='{0} 个维度'>
-                        <font>{this.info?.indexInfo.recommended_metric_count || 0} </font>
-                      </i18n>
-                    </span>
-                  </span>
-                ) : (
-                  <div class='aiops-tab-title-message aiops-tab-title-index-message'>
-                    {this.$t('当前空间暂不支持该功能，如需使用请联系管理员')}
-                  </div>
-                )}
-              </span>
-            </div>
-            <div slot='content'>
-              <MetricsView
-                key='metricsView'
-                ref='metricsView'
-                info={this.tabData.index?.info || {}}
-                metricRecommendationErr={this.metricRecommendationErr}
-                metricRecommendationLoading={this.metricRecommendationLoading}
-                panelMap={this.panelMap}
-              />
-            </div>
-          </bk-collapse-item>
+          {this.tabConfigs.map(config => (
+            <bk-collapse-item
+              key={config.name}
+              class='aiops-container-menu-item'
+              name={config.name}
+            >
+              <div class='aiops-container-menu-item-head'>
+                <span class='aiops-tab-title-icon'>
+                  <i class={`aiops-tab-icon icon-monitor ${config.icon}`} />
+                </span>
+                <span class='aiops-tab-title-text'>
+                  <span class='aiops-tab-title-name'>{this.$t(config.titleKey)}</span>
+                  {this.renderStatusTips(config)}
+                </span>
+              </div>
+              <div
+                class='aiops-container-menu-item-content'
+                slot='content'
+              >
+                {this.tabActive === config.name && config.contentRenderer()}
+              </div>
+            </bk-collapse-item>
+          ))}
         </bk-collapse>
       </div>
     );

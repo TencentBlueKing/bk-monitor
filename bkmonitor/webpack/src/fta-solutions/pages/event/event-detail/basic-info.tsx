@@ -536,7 +536,6 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
 
   render() {
     const { is_shielded, is_ack, status } = this.basicInfo;
-    console.log(this.basicInfo, 'this.basicInfo');
     return (
       <div class='event-detail-basic'>
         {this.getHeaderBarComponent(status, is_shielded, is_ack)}
