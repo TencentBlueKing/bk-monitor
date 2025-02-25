@@ -8,8 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import string
 from typing import Any, Dict, List, Tuple
 
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
 from core.drf_resource import Resource
 from metadata.models import ResultTable
@@ -172,4 +174,48 @@ class EventTotalResource(Resource):
     RequestSerializer = serializers.EventTotalRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        return API_TOTAL_RESPONSE
+        if validated_request_data.get("is_mock"):
+            return API_TOTAL_RESPONSE
+
+        start_time = validated_request_data["start_time"]
+        end_time = validated_request_data["end_time"]
+        start_time, end_time = 1000 * start_time, 1000 * end_time
+
+        # 获取查询配置
+        query_configs = validated_request_data["query_configs"]
+        # 小写字母表
+        lowercase_alphabet = list(string.ascii_lowercase)
+
+        # 构建查询列表
+        queries = [
+            (
+                QueryConfigBuilder((config["data_type_label"], config["data_source_label"]))
+                .alias(alias)
+                .table(config["table"])
+                .metric(field="_index", method="COUNT", alias=alias)
+                .conditions(config["where"])
+                .time_field("time")
+            )
+            for config, alias in zip(query_configs, lowercase_alphabet)
+        ]
+
+        # 构建表达式
+        expression = "+".join(lowercase_alphabet[: len(query_configs)])
+
+        # 构建统一查询集
+        query_set = (
+            UnifyQuerySet()
+            .scope(bk_biz_id=validated_request_data["bk_biz_id"])
+            .start_time(start_time)
+            .end_time(end_time)
+            .expression(expression)
+            .time_agg(False)
+            .instant()
+        )
+
+        # 添加查询到查询集中
+        for query in queries:
+            query_set = query_set.add_query(query)
+
+        total = query_set.original_data[0]["_result_"]
+        return {"total": total}
