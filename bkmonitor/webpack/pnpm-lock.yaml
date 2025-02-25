@@ -339,8 +339,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 0.3.17
-        version: 0.3.17(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
+        specifier: 0.3.25-beta.0
+        version: 0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)
       '@blueking/bk-weweb':
         specifier: 0.0.29-beta.3
         version: 0.0.29-beta.3
@@ -602,8 +602,8 @@ importers:
         specifier: ^1.0.5
         version: 1.0.5
       '@blueking/monitor-trace-log':
-        specifier: 1.0.0-beta.7
-        version: 1.0.0-beta.7
+        specifier: 1.0.0-beta.9
+        version: 1.0.0-beta.9
       '@dagrejs/dagre':
         specifier: ^1.1.3
         version: 1.1.4
@@ -1396,8 +1396,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@0.3.17':
-    resolution: {integrity: sha512-kepg+5L/3LwUlbem5sChmNybSFI3wV3HiKDwOghDIfUN09zSA15OxVHNLAsb7W8GLQfKVvOSVDjnU+Ogfg78iA==}
+  '@blueking/ai-blueking@0.3.25-beta.0':
+    resolution: {integrity: sha512-7Gd5Rb7ORyWrqR48I2sMNIsby4HIQRkOLsOVDRZrYpPFi1LfOAgxAgV3EvDe4Is3VoDhgG4CzeQyNwWqpPHCmw==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
@@ -1453,8 +1453,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-log@1.0.0-beta.7':
-    resolution: {integrity: sha512-qseblFP5LQ5LLzImIZiSQIB/ocoXI5va4RhfH8P6sl2RAaoNePmL3Ga/Jf9LscpknFYZZdBTWvXBVgZJMjdIUg==}
+  '@blueking/monitor-trace-log@1.0.0-beta.9':
+    resolution: {integrity: sha512-gnSY6srzC9PO6Ee9hAQIwk4Z8YNE2K9Dq6+9vqZLDodOIPTaDwUiuoPSa9tnTNso7yUMt9rQfVdsBqNFmkxhYA==}
 
   '@blueking/notice-component-vue2@2.0.5':
     resolution: {integrity: sha512-yXlJF/NPWb4FNkzanVsNz99ibBy3WKC3K0vdZxCaNOscIBhjWpOJvPhcyD6FaUgX4hiqBHFJlag4FwWWpS6kBQ==}
@@ -9216,7 +9216,7 @@ snapshots:
   '@biomejs/cli-win32-x64@1.9.4':
     optional: true
 
-  '@blueking/ai-blueking@0.3.17(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)':
+  '@blueking/ai-blueking@0.3.25-beta.0(dayjs@1.11.13)(highlight.js@11.5.1)(markdown-it-code-copy@0.2.1)(markdown-it@13.0.2)':
     dependencies:
       dayjs: 1.11.13
       highlight.js: 11.5.1
@@ -9436,7 +9436,7 @@ snapshots:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-log@1.0.0-beta.7': {}
+  '@blueking/monitor-trace-log@1.0.0-beta.9': {}
 
   '@blueking/notice-component-vue2@2.0.5(dompurify@3.2.0)':
     dependencies:

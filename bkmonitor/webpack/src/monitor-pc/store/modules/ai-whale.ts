@@ -29,11 +29,14 @@ import { Action, Module, Mutation, VuexModule, getModule } from 'vuex-module-dec
 
 import GlobalConfigMixin from '../../mixins/globalConfig';
 import store from '../store';
+
+import type { AIQuickActionData } from '../../components/ai-whale/ai-whale';
 const AI_USER_LIST = 'AI_USER_LIST';
 
 // 定义模块
-@Module({ name: 'ai-whale', dynamic: true, namespaced: true, store })
+@Module({ name: 'aiWhale', dynamic: true, namespaced: true, store })
 class AiWhaleStore extends VuexModule {
+  aiQuickActionData: Partial<AIQuickActionData> = {}; // 储用于调用 AI 小鲸quickActions()的参数
   chartId = random(10); // 初始化 chartId，随机生成一个10位数
   chatHelper = null; // chatHelper 实例
   enableAiAssistant = false; // 初始化 enableAiAssistant 状态
@@ -54,6 +57,9 @@ class AiWhaleStore extends VuexModule {
   handleAiBluekingSend(message: ISendData) {
     // 记录当前消息记录
     // const chatHistory = [...this.messages];
+    if (this.loading) {
+      this.chatHelper.stop(this.chartId);
+    }
     // 添加一条消息
     this.messages.push({
       role: RoleType.User,
@@ -150,15 +156,16 @@ class AiWhaleStore extends VuexModule {
     this.context.commit('setChatHelper', chatHelper);
   }
 
+  // Mutation: 设置quickActions()所需数据
+  @Mutation
+  setAIQuickActionData(value: AIQuickActionData) {
+    this.aiQuickActionData = value;
+  }
+
   // Mutation: 设置 chatHelper 实例
   @Mutation
   setChatHelper(chatHelper: any) {
     this.chatHelper = chatHelper;
-  }
-
-  @Mutation
-  stopChatHelper() {
-    this.chatHelper.stop(this.chartId);
   }
 
   // Mutation: 设置默认消息
@@ -207,6 +214,11 @@ class AiWhaleStore extends VuexModule {
   @Mutation
   setShowAIBlueking(value: boolean) {
     this.showAIBlueking = value;
+  }
+
+  @Mutation
+  stopChatHelper() {
+    this.chatHelper.stop(this.chartId);
   }
 
   // Mutation: 更新最后一条消息的内容和状态

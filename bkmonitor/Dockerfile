@@ -1,4 +1,4 @@
-FROM python:3.7-bullseye as python-base
+FROM python:3.11-bullseye as python-base
 
 # variables
 ARG username=bkmonitor
