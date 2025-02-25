@@ -5,7 +5,7 @@ import time
 from typing import List, Optional
 
 import arrow
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.log_measure.models import MetricDataHistory
 from apps.log_measure.utils.metric import MetricUtils, get_metric_id_info

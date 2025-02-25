@@ -25,7 +25,7 @@ import re
 import time
 
 import arrow
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.exceptions import ValidationError
@@ -983,6 +983,7 @@ class UserCustomConfigSerializer(serializers.Serializer):
     """
     用户自定义配置
     """
+
     custom_config = serializers.JSONField(label=_("自定义配置"), required=True)
 
 
@@ -990,6 +991,7 @@ class UserSearchSerializer(serializers.Serializer):
     """
     用户最近查询的索引集
     """
+
     username = serializers.CharField(label=_("用户名"), required=True)
     space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
     start_time = serializers.IntegerField(label=_("开始时间"), required=False)
@@ -1001,6 +1003,16 @@ class UserFavoriteSerializer(serializers.Serializer):
     """
     用户收藏的索引集
     """
+
     username = serializers.CharField(label=_("用户名"), required=True)
     space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
     limit = serializers.IntegerField(label=_("限制条数"), required=False)
+
+
+class StorageUsageSerializer(serializers.Serializer):
+    """
+    索引集存储量
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())

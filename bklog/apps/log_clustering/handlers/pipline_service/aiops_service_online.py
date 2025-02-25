@@ -227,7 +227,7 @@ def operator_aiops_service_online(index_set_id):
 
     now_time = arrow.now()
     clustering_config.task_records.append(
-        {"operate": OperatorServiceEnum.CREATE, "task_id": pipeline.id, "time": now_time.timestamp}
+        {"operate": OperatorServiceEnum.CREATE, "task_id": pipeline.id, "time": int(now_time.timestamp())}
     )
     clustering_config.save(update_fields=["task_records"])
 

@@ -23,33 +23,30 @@ from typing import List
 
 import arrow
 
-from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
-from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
-from apps.log_clustering.handlers.aiops.sample_set.constants import (
-    TIMESTAMP_FIELD_TYPE,
-    TS_FILED_ATTR_TYPE,
-    FEATURE_ATTR_TYPE,
-)
-from apps.log_clustering.handlers.aiops.sample_set.data_cls import (
-    CreateSampleSetCls,
-    AddResultTableToSampleSetCls,
-    FieldsCls,
-    AutoCollectCls,
-    AutoCollectCollectConfigCls,
-    AutoCollectRemoveConfigCls,
-    AutoCollectCollectConfigConfigCls,
-    CommitApplyCls,
-    SubmitStatusCls,
-    DeleteSampleSetCls,
-    CollectConfigsCls,
-    SampleSetInfoCls,
-)
-from apps.log_clustering.constants import MAX_FAILED_REQUEST_RETRY
-from apps.log_clustering.models import ClusteringConfig
-from apps.log_clustering.exceptions import ClusteringConfigNotExistException
-
 from apps.api import BkDataAIOPSApi
 from apps.api.base import DataApiRetryClass, check_result_is_true
+from apps.log_clustering.constants import MAX_FAILED_REQUEST_RETRY
+from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
+from apps.log_clustering.handlers.aiops.sample_set.constants import (
+    FEATURE_ATTR_TYPE,
+    TIMESTAMP_FIELD_TYPE,
+    TS_FILED_ATTR_TYPE,
+)
+from apps.log_clustering.handlers.aiops.sample_set.data_cls import (
+    AddResultTableToSampleSetCls,
+    AutoCollectCls,
+    AutoCollectCollectConfigCls,
+    AutoCollectCollectConfigConfigCls,
+    AutoCollectRemoveConfigCls,
+    CollectConfigsCls,
+    CommitApplyCls,
+    CreateSampleSetCls,
+    DeleteSampleSetCls,
+    FieldsCls,
+    SampleSetInfoCls,
+    SubmitStatusCls,
+)
+from apps.log_clustering.handlers.data_access.data_access import DataAccessHandler
 
 
 class SampleSetHandler(BaseAiopsHandler):
@@ -115,7 +112,7 @@ class SampleSetHandler(BaseAiopsHandler):
         @param sample_set_id int 样本集id
         """
         collect_config_request = CollectConfigsCls(sample_set_id=sample_set_id, project_id=self.conf.get("project_id"))
-        target_time = int(arrow.now().timestamp)
+        target_time = int(arrow.now().timestamp())
         collect_config_request.collect_config["config"]["end_time"] = target_time
         collect_config_request.collect_config["config"]["start_time"] = target_time
         request_dict = self._set_username(collect_config_request)
@@ -166,7 +163,8 @@ class SampleSetHandler(BaseAiopsHandler):
         删除样本集
         """
         delete_sample_set_request = DeleteSampleSetCls(
-            sample_set_id=sample_set_id, project_id=self.conf.get("project_id"),
+            sample_set_id=sample_set_id,
+            project_id=self.conf.get("project_id"),
         )
         request_dict = self._set_username(delete_sample_set_request)
         return BkDataAIOPSApi.delete_sample_set(request_dict)
@@ -178,4 +176,3 @@ class SampleSetHandler(BaseAiopsHandler):
         sample_set_info_request = SampleSetInfoCls(sample_set_id=sample_set_id, project_id=self.conf.get("project_id"))
         request_dict = self._set_username(sample_set_info_request)
         return BkDataAIOPSApi.sample_set_info(request_dict)
-
