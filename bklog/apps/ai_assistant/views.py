@@ -37,7 +37,7 @@ class AIAssistantViewSet(APIViewSet):
         data = self.params_valid(ChatSerializer)
 
         # 如果没有配置 AIDEV 接口地址，则直接返回错误
-        if not FeatureToggleObject.switch(name=AI_ASSISTANT):
+        if not FeatureToggleObject.switch(name=AI_ASSISTANT, biz_id=data["bk_biz_id"]):
             return Response({"error": "assistant is not configured"}, status=status.HTTP_501_NOT_IMPLEMENTED)
 
         result_or_stream = ChatHandler().interpret_log(

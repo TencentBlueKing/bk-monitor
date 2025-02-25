@@ -16,6 +16,7 @@ class ChatSerializer(serializers.Serializer):
     """
 
     space_uid = SpaceUIDField(label=_("空间ID"), required=True)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     index_set_id = serializers.IntegerField(label=_("索引集ID"), required=True)
     log_data = serializers.DictField(label=_("日志内容"), required=True)
     query = serializers.CharField(label=_("当前聊天输入内容"), required=True)
