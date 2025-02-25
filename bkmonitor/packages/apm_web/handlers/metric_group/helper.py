@@ -234,7 +234,37 @@ class MetricHelper:
 
 
 class PreCalculateHelper:
-    """指标预计算工具类"""
+    """指标预计算工具类，配置示例：
+    {
+        "enabled": true,
+        # 数据延迟
+        "data_delay": "3m",
+        # 数据偏移，用于对齐原指标数据
+        "time_shift": "-1m"
+        # 最小查询时长
+        "min_duration": "1h",
+        "metrics": {
+            "rpc_client_handled_seconds_bucket": [
+                {
+                    # 屏蔽维度
+                    "drop_labels": [
+                        "callee_ip",
+                        "caller_ip",
+                        "instance"
+                    ],
+                    # 预计算指标名
+                    "metric": "sum_without_ip_rpc_client_handled_seconds_bucket",
+                    # 最小查询时长，优先级高于外层
+                    "min_duration": "30m"
+                }
+            ]
+        },
+        # 查询屏蔽时间，为空表示无穷远，比如 (start_time, nil) 表示屏蔽 >= start_time
+        "shield_time_ranges": [{"start_time": 1740405600}],
+        # 预计算结果表 ID
+        "table_id": "xxx"
+    }
+    """
 
     def __init__(self, config: Dict[str, Any]):
         self._config: Dict[str, Any] = config
@@ -244,6 +274,7 @@ class PreCalculateHelper:
         return self._config.get("enabled", True)
 
     def adjust_time_shift(self, origin_time_shift: Optional[str]) -> str:
+        """指标时间戳对齐"""
         time_shift: str = self._config.get("time_shift", "-1m")
         if origin_time_shift is None:
             return time_shift
@@ -253,7 +284,10 @@ class PreCalculateHelper:
         return f"{sec_time_shift + origin_sec_time_shift}s"
 
     def adjust_time_range(self, start_time: int, end_time: int) -> Tuple[int, int]:
-        data_delay_sec: int = self._config.get("data_delay_sec", 0)
+        """调整查询数据范围
+        背景：预计算存在一定的数据延迟，如果查询时间临近当前时间，按数据延迟进行截断，避免最后一个点数据存在较大误差影响观测
+        """
+        data_delay_sec: int = parse_duration(self._config.get("data_delay", "0s"))
         is_near_to_now: bool = abs(end_time - int(datetime.datetime.now().timestamp())) < 60
         if end_time - start_time > data_delay_sec and is_near_to_now:
             logger.info("[adjust_time_range] adjust end_time -> %s, data_delay_sec -> %s", end_time, data_delay_sec)
@@ -268,6 +302,10 @@ class PreCalculateHelper:
         end_time: Optional[int] = None,
         time_shift: Optional[str] = None,
     ) -> bool:
+        """判断是否屏蔽预计算
+        - 规则-1：查询时长 >= min_duration
+        - 规则-2: 查询时间范围不在屏蔽时间范围内
+        """
         min_duration: Optional[str] = metric_info.get("min_duration") or self._config.get("min_duration")
         start_time, end_time = self.shift_time_range(start_time, end_time, time_shift)
         duration: int = end_time - start_time

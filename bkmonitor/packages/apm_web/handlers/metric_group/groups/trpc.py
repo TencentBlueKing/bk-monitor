@@ -213,23 +213,24 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return list(self._request_total_qs(start_time, end_time))
 
     def _avg_duration_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
-        time_kwargs: Dict[str, Optional[int]] = {"start_time": start_time, "end_time": end_time}
         sum_q: QueryConfigBuilder = self._add_metric(
-            q=self.q(**time_kwargs),
+            q=self.q(start_time, end_time),
             metric=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_sum"],
             method="SUM",
             alias="a",
-            **time_kwargs,
+            start_time=start_time,
+            end_time=end_time,
         )
         count_q: QueryConfigBuilder = self._add_metric(
             q=self.q(start_time, end_time),
             metric=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_count"],
             method="SUM",
             alias="b",
-            **time_kwargs,
+            start_time=start_time,
+            end_time=end_time,
         )
         # b == 0：分母为 0 需短路返回
-        return self.qs(**time_kwargs).add_query(sum_q).add_query(count_q).expression("b == 0 or (a / b) * 1000")
+        return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("b == 0 or (a / b) * 1000")
 
     def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
         return list(self._avg_duration_qs(start_time, end_time))
@@ -237,14 +238,20 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _histogram_quantile_duration_qs(
         self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> UnifyQuerySet:
-        time_kwargs: Dict[str, Optional[int]] = {"start_time": start_time, "end_time": end_time}
         q: QueryConfigBuilder = (
-            self.q(**time_kwargs)
+            self.q(start_time, end_time)
             .group_by("le")
             .func(_id="histogram_quantile", params=[{"id": "scalar", "value": scalar}])
         )
-        q = self._add_metric(q, self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_bucket"], "SUM", "a", **time_kwargs)
-        return self.qs(**time_kwargs).add_query(q).expression("a * 1000")
+        q = self._add_metric(
+            q=q,
+            metric=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_bucket"],
+            method="SUM",
+            alias="a",
+            start_time=start_time,
+            end_time=end_time,
+        )
+        return self.qs(start_time, end_time).add_query(q).expression("a * 1000")
 
     def _histogram_quantile_duration(
         self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
@@ -265,21 +272,26 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     def _request_code_rate_qs(
         self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
     ) -> UnifyQuerySet:
-        time_kwargs: Dict[str, Optional[int]] = {"start_time": start_time, "end_time": end_time}
         code_q: QueryConfigBuilder = self._add_metric(
-            q=self.q(**time_kwargs),
+            q=self.q(start_time, end_time),
             metric=self.METRIC_FIELDS[self.kind]["rpc_handled_total"],
             method="SUM",
             alias="a",
-            **time_kwargs,
+            start_time=start_time,
+            end_time=end_time,
         )
         code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)
 
         total_q: QueryConfigBuilder = self._add_metric(
-            self.q(**time_kwargs), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "b", **time_kwargs
+            q=self.q(start_time, end_time),
+            metric=self.METRIC_FIELDS[self.kind]["rpc_handled_total"],
+            method="SUM",
+            alias="b",
+            start_time=start_time,
+            end_time=end_time,
         )
         return (
-            self.qs(**time_kwargs)
+            self.qs(start_time, end_time)
             .add_query(code_q)
             .add_query(total_q)
             # 单个错误码的占比为 100% or 0% 时，对时间序列来说，是某段时间内不出现这条线，即无数据。
