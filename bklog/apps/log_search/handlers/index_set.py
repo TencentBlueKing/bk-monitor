@@ -636,8 +636,8 @@ class IndexSetHandler(APIModel):
             params = {
                 "bk_biz_id": bk_biz_id,
                 "index_set_ids": [collector.index_set_id],
-                "start_time": current_time.shift(days=-1).timestamp,
-                "end_time": current_time.timestamp,
+                "start_time": int(current_time.shift(days=-1).timestamp()),
+                "end_time": int(current_time.timestamp()),
             }
             multi_execute_func.append(
                 result_key=f"daily_count_{index_set_id}", func=UnifyQueryHandler(params).get_total_count
