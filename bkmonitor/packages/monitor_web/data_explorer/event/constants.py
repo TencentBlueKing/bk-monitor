@@ -9,7 +9,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import sys
+from dataclasses import dataclass
 from enum import Enum, IntEnum
+from typing import Dict
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -63,6 +65,16 @@ class EventSource(CachedEnum):
         return default
 
 
+class EventType(Enum):
+    """
+    事件类型
+    """
+
+    Normal = "Normal"
+    Warning = "Warning"
+    Default = "Default"
+
+
 class EventCategory(Enum):
     """
     事件类别枚举
@@ -94,6 +106,44 @@ CATEGORY_WEIGHTS = {
     EventCategory.K8S_EVENT.value: CategoryWeight.K8S_EVENT.value,
     EventCategory.CICD_EVENT.value: CategoryWeight.CICD_EVENT.value,
 }
+
+
+@dataclass
+class EventOrigin:
+    domain: str
+    source: str
+
+
+EventLabelOriginMapping: Dict[EventCategory, EventOrigin] = {
+    EventCategory.SYSTEM_EVENT.value: EventOrigin(
+        domain=EventDomain.SYSTEM.value,
+        source=EventSource.HOST.value,
+    ),
+    EventCategory.K8S_EVENT.value: EventOrigin(
+        domain=EventDomain.K8S.value,
+        source=EventSource.BCS.value,
+    ),
+    EventCategory.CICD_EVENT.value: EventOrigin(
+        domain=EventDomain.CICD.value,
+        source=EventSource.BKCI.value,
+    ),
+}
+
+
+class DisplayFieldType(Enum):
+    ATTACH: str = "attach"
+    LINK: str = "link"
+    DESCRIPTIONS: str = "descriptions"
+    ICON: str = "icon"
+
+
+class EventOriginDefaultValue(Enum):
+    """
+    事件类型
+    """
+
+    DEFAULT_DOMAIN = "DEFAULT"
+    DEFAULT_SOURCE = "DEFAULT"
 
 
 class EventDimensionTypeEnum(Enum):
@@ -156,10 +206,10 @@ EVENT_FIELD_ALIAS = {
 
 DISPLAY_FIELDS = [
     {"name": "time", "alias": _("数据上报时间")},
-    {"name": "type", "alias": _("事件类型"), "type": "attach"},
+    {"name": "type", "alias": _("事件类型"), "type": DisplayFieldType.ATTACH.value},
     {"name": "event_name", "alias": _("事件名")},
-    {"name": "event.content", "alias": _("内容"), "type": "descriptions"},
-    {"name": "target", "alias": _("目标"), "type": "link"},
+    {"name": "event.content", "alias": _("内容"), "type": DisplayFieldType.DESCRIPTIONS.value},
+    {"name": "target", "alias": _("目标"), "type": DisplayFieldType.LINK.value},
 ]
 
 # 内置字段类型映射集
@@ -205,3 +255,36 @@ ENTITIES = [
 ]
 
 DEFAULT_DIMENSION_FIELDS = ["time", "event_name", "event.content", "target", "type"]
+
+DETAIL_MOCK_DATA = {
+    "bcs_cluster_id": {
+        "label": "集群",
+        "value": "BCS-K8S-90001",
+        "alias": "[共享集群] 蓝鲸公共-广州(BCS-K8S-90001)",
+        "type": "link",
+        # 带集群 ID 跳转到新版容器监控页面
+        "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001",
+    },
+    "namespace": {
+        "label": "NameSpace",
+        "value": "127.0.0.1",
+        "alias": "kube-system",
+        # 带 namespace & 集群 ID 跳转到新版容器监控页面
+        "type": "link",
+        "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",
+    },
+    "name": {
+        "label": "工作负载",
+        "value": "bk-log-collector-fx97q",
+        "alias": "Pod / bk-log-collector-fx97q",
+    },
+    "event.content": {
+        "label": "事件内容",
+        "value": "MountVolume.SetUp failed for volume bk-log-main-config: "
+        "failed to sync configmap cache: timed out waiting for the condition",
+        "alias": "MountVolume.SetUp failed for volume bk-log-main-config: "
+        "failed to sync configmap cache: timed out waiting for the condition",
+    },
+}
+
+URL_MOCK_DATA = ("https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",)
