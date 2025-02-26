@@ -8,11 +8,21 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from django.utils.translation import gettext_lazy as _
 
-from ...constants import EventDomain, EventSource
+from ...constants import (
+    DETAIL_MOCK_DATA,
+    DISPLAY_FIELDS,
+    URL_MOCK_DATA,
+    DisplayFieldType,
+    EventDomain,
+    EventLabelOriginMapping,
+    EventOriginDefaultValue,
+    EventSource,
+    EventType,
+)
 from .base import BaseEventProcessor
 
 
@@ -23,47 +33,67 @@ class OriginEventProcessor(BaseEventProcessor):
         super().__init__(*args, **kwargs)
 
     def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        # TODO 根据 source & domain 获取
-        # - 第一优先级：dimensions.source & dimensions.domain
-        # - 第二优先级：origin_event["_meta"]["data_label"] -> k8s_event、system_event、cicd_event
+        events = []
+        for origin_event in origin_events:
+            event = self.process_display_field(origin_event)
 
-        domain: str = "K8S"
-        source: str = "BCS"
-        source_alias: str = _("{domain}/{source}").format(
-            domain=EventDomain.from_value(domain).label, source=EventSource.from_value(source).label
+            # 提取并处理元数据
+            _meta = origin_event.pop("_meta", {})
+            data_label = _meta.get("__data_label")
+            domain, source = self.get_source_and_domain(origin_event, data_label)
+            _meta["__source"], _meta["__domain"] = source, domain
+
+            # 补充 source 字段
+            source_alias: str = _("{domain}/{source}").format(
+                domain=EventDomain.from_value(domain).label, source=EventSource.from_value(source).label
+            )
+            event["source"] = {"value": source, "alias": source_alias}
+
+            # 补充 type 字段
+            type = origin_event.get("dimensions.type")
+            if not type or type not in (EventType.Normal.value, EventType.Warning.value):
+                # 填充默认值
+                type = EventType.Default.value
+            event["type"] = {"value": type, "alias": type}
+
+            # 加入元数据和原始数据
+            event["_meta"] = _meta
+            event["origin_data"] = origin_event
+
+            events.append(event)
+
+        return events
+
+    @classmethod
+    def process_display_field(cls, origin_event: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        构建展示字段
+        """
+        event = {}
+        for field in DISPLAY_FIELDS:
+            field_name = field["name"]
+            field_value = origin_event.get(field_name)
+
+            # 初始化事件字段
+            event[field_name] = {"value": field_value, "alias": field_value}
+
+            # 添加类型相关的字段
+            if field.get("type") == DisplayFieldType.LINK.value:
+                event[field_name]["url"] = URL_MOCK_DATA
+            elif field.get("type") == DisplayFieldType.DESCRIPTIONS.value:
+                event[field_name]["detail"] = DETAIL_MOCK_DATA
+
+        return event
+
+    @classmethod
+    def get_source_and_domain(cls, origin_event, data_label) -> Tuple[str, str]:
+        # 根据 data_label获取
+        event_origin = EventLabelOriginMapping.get(data_label)
+        if event_origin:
+            return event_origin.domain, event_origin.source
+
+        # 从维度获取，获取不到返回默认值 DEFAULT
+        return (
+            origin_event.get("domain", EventOriginDefaultValue.DEFAULT_DOMAIN.value),
+            origin_event.get("source", EventOriginDefaultValue.DEFAULT_SOURCE.value),
         )
-
-        # 目标：
-        # - 输出统一事件前端格式，除 source 外其他展示字段的 alias 保持和 value 一致，等待 k8s、cicd、system 等事件处理器处理。
-        # - 为了控制样例篇幅 _meta & origin_data 省略部分字段，根据事件数据返回值补充即可。
-        return [
-            {
-                "time": {"value": 1736927543000, "alias": 1736927543000},
-                # 如果 dimensions.type 不存在，或者值不为 Normal / Warning，默认填充 Default。
-                "type": {"value": "Normal", "alias": "Normal"},
-                "source": {"value": "SYSTEM", "alias": source_alias},
-                "event_name": {"value": "oom", "alias": "oom"},
-                "event.content": {"value": "oom", "alias": "oom", "detail": {}},
-                "target": {"value": "127.0.0.1", "alias": "127.0.0.1", "url": ""},
-                "_meta": {
-                    # 记录 __domain & __source
-                    "__domain": domain,
-                    "__source": source,
-                    "__data_label": "system_event",
-                    "__doc_id": "6848190063902810938",
-                    "__index": "v2_gse_system_event_20250201_0",
-                    "__result_table": "gse_system_event.__default__",
-                    "_time_": 1740111073000,
-                },
-                "origin_data": {
-                    "time": 1737281113,
-                    "dimensions.ip": "127.0.0.1",
-                    "dimensions.bk_biz_id": "11",
-                    "dimensions.bk_cloud_id": "0",
-                    "event.content": "oom",
-                    "event.count": 1,
-                    "target": "0:127.0.0.1",
-                    "event_name": "OOM",
-                },
-            },
-        ]
