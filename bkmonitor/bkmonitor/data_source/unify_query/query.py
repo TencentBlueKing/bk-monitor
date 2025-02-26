@@ -181,12 +181,11 @@ class UnifyQuery:
     def process_unify_query_log(cls, params: Dict[str, Any], data: Dict[str, Any]) -> List[Dict[str, Any]]:
         records: List[Dict[str, Any]] = []
         for record in data.get("list") or []:
-            record["time"] = int(record.pop("_time", 0))
             record["_meta"] = {
                 meta_field: record.pop(meta_field, "")
                 for meta_field in ["__data_label", "__doc_id", "__index", "__result_table"]
             }
-            record["_meta"]["_time_"] = record["time"]
+            record["_meta"]["_time_"] = int(record.pop("_time", 0))
             records.append(record)
         return records
 
