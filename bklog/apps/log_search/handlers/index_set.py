@@ -648,10 +648,13 @@ class IndexSetHandler(APIModel):
         for key, result in multi_result.items():
             field_name, _index_set_id = key.rsplit("_", maxsplit=1)
             if field_name == "indices_info":
-                # 总条数
-                total_count = sum(int(idx["stat"]["docs.count"]) for idx in result["list"])
-                # 总用量
-                total_usage = sum(int(idx["stat"]["store.size"]) for idx in result["list"])
+                try:
+                    # 总条数
+                    total_count = sum(int(idx["stat"]["docs.count"]) for idx in result["list"])
+                    # 总用量
+                    total_usage = sum(int(idx["stat"]["store.size"]) for idx in result["list"])
+                except ValueError:
+                    total_count = total_usage = 0
                 indices_info_dict.update({_index_set_id: {"total_count": total_count, "total_usage": total_usage}})
             else:
                 daily_usage_dict.update({_index_set_id: result})

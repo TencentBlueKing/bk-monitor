@@ -2,8 +2,6 @@
 
 ## 快速开始
 
-> ⚠️ 不支持 MacOS
-
 ### Docker build
 
 ```shell
@@ -25,6 +23,11 @@ pip install --no-cache-dir -r requirements_test.txt
 ## Migrate
 
 ```shell
+mysql -uroot <<EOF
+FLUSH PRIVILEGES;
+ALTER USER 'root'@'localhost' IDENTIFIED BY '';
+FLUSH PRIVILEGES;
+EOF
 mysql -e 'CREATE DATABASE `bk_monitor_saas` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;'
 mysql -e 'CREATE DATABASE `bk_monitor_api` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;'
 

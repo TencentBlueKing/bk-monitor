@@ -2,7 +2,7 @@
 
 set -e
 
-/usr/sbin/mysqld --user=root &
+/usr/sbin/mysqld --user=mysql &
 
 redis-server &
 

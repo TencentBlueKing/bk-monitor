@@ -47,7 +47,7 @@ class BaseAnomalyConfig:
 class KpiAnomalyConfig(BaseAnomalyConfig):
     # 单指标异常检测
     default_plan_id: int = field(default_factory=lambda: settings.BK_DATA_PLAN_ID_INTELLIGENT_DETECTION)
-    is_sdk_enabled: bool = field(default=False)
+    is_sdk_enabled: bool = field(default=True)
 
 
 @dataclass
@@ -114,6 +114,7 @@ class ReadOnlyAiSetting:
         config = config or self.default_config
 
         kpi_anomaly_detection = KpiAnomalyConfig().from_dict(config[KPI_ANOMALY_DETECTION])
+        kpi_anomaly_detection.is_sdk_enabled = True if kpi_anomaly_detection.is_sdk_enabled is None else None
         multivariate_anomaly_detection = MultivariateAnomalyDetection.from_dict(config[MULTIVARIATE_ANOMALY_DETECTION])
         if DIMENSION_DRILL in config:
             dimension_drill = DimensionDrill.from_dict(config[DIMENSION_DRILL])

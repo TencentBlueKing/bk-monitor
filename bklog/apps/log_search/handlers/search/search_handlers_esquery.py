@@ -2046,7 +2046,7 @@ class SearchHandler(object):
         return aggs_dict
 
     def _init_highlight(self, can_highlight=True):
-        if not can_highlight:
+        if not can_highlight or self.index_set.max_analyzed_offset == -1:
             return {}
         # 避免多字段高亮
         if self.query_string and ":" in self.query_string:

@@ -1586,7 +1586,7 @@ class ResultTableField(models.Model):
     table_id = models.CharField("结果表名", max_length=128)
     field_name = models.CharField("字段名", max_length=255, db_collation="utf8_bin")
     field_type = models.CharField("字段类型", max_length=32, choices=FIELD_TYPE_CHOICES)
-    description = models.TextField("字段描述")
+    description = models.TextField("字段描述", blank=True, default="")
     # 单位存在默认值，默认为空
     unit = models.CharField("字段单位", max_length=32, default="")
     tag = models.CharField("字段标签", max_length=16, choices=TAG_CHOICES)

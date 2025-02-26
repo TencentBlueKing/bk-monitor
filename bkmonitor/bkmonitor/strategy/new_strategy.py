@@ -2509,7 +2509,8 @@ class Strategy(AbstractConfig):
             intelligent_detect.get("use_sdk", default_switch)
             and algorithm_name != AlgorithmModel.AlgorithmChoices.HostAnomalyDetection
         ):
-            intelligent_detect["use_sdk"] = True
+            # 不保留原来的配置（主要是为了清理dataflow的配置，后续dataflow的任务会统一清理）
+            intelligent_detect = {"use_sdk": True}
             if algorithm_name == AlgorithmModel.AlgorithmChoices.AbnormalCluster:
                 # 离群检测不需要历史依赖，因此如果使用SDK，默认可以直接进行检测
                 intelligent_detect["status"] = SDKDetectStatus.READY

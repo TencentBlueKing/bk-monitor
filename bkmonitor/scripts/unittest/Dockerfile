@@ -1,7 +1,7 @@
-ARG PYTHON_VERSION=3.7.12
+ARG PYTHON_VERSION=3.11
 
 
-FROM python:${PYTHON_VERSION}-slim-buster AS base
+FROM python:${PYTHON_VERSION}-bullseye AS base
 
 ENV LC_ALL=C.UTF-8 \
     LANG=C.UTF-8
@@ -22,10 +22,14 @@ ENV PATH="/venv/bin:$PATH"
 RUN set -ex && \
     chmod 1777 /tmp && \
     rm /etc/apt/sources.list && \
-    echo "deb https://mirrors.cloud.tencent.com/debian buster main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb https://mirrors.cloud.tencent.com/debian buster-updates main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb-src https://mirrors.cloud.tencent.com/debian buster main contrib non-free" >> /etc/apt/sources.list && \
-    echo "deb-src https://mirrors.cloud.tencent.com/debian buster-updates main contrib non-free" >> /etc/apt/sources.list
+    echo "deb https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
+    echo "deb-src https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
+    echo "deb https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
+    echo "deb-src https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
+    echo "deb https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
+    echo "deb-src https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
+    echo "deb https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list && \
+    echo "deb-src https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list;
 
 RUN set -ex && mkdir ~/.pip && printf '[global]\nindex-url = https://mirrors.tencent.com/pypi/simple/' > ~/.pip/pip.conf
 
@@ -35,9 +39,8 @@ RUN set -ex && mkdir ~/.pip && printf '[global]\nindex-url = https://mirrors.ten
 RUN set -ex &&  \
     apt-get update && \
     apt-get -f install && \
-    apt-get install -y --no-install-recommends zlib1g-dev libgnutls28-dev libtinfo6 libmariadb-dev libmariadb-dev-compat libncurses6 && \
     apt-get install -y --no-install-recommends \
-        gcc gettext mariadb-client libmariadbclient-dev default-libmysqlclient-dev && \
+        gcc gettext mariadb-client && \
     rm -rf /var/lib/apt/lists/*
 
 
@@ -59,27 +62,21 @@ USER root
 # 安装运行时依赖
 RUN set -ex &&  \
     apt-get update && \
-    apt-get install -y --no-install-recommends lsb-release gnupg wget curl vim git redis-server && \
+    apt-get install -y --no-install-recommends \
+        debconf-utils lsb-release gnupg wget curl vim git redis-server mariadb-server && \
     rm -rf /var/lib/apt/lists/*
 
-# Adding the MySQL APT Repository && Install
-# Refer: https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/#apt-repo-fresh-install
 RUN set -ex && \
-    wget https://dev.mysql.com/get/mysql-apt-config_0.8.26-1_all.deb && \
-    dpkg -i mysql-apt-config_0.8.26-1_all.deb && \
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C && \
-    rm /etc/apt/sources.list.d/mysql.list && \
-    echo "deb http://repo.mysql.com/apt/debian/ buster mysql-8.0" >> /etc/apt/sources.list.d/mysql.list && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends mysql-server && \
-    rm -rf /var/lib/apt/lists/*
+    mkdir -p /var/lib/mysql /run/mysqld /tmp/mysql && \
+    chown -R mysql:mysql /var/lib/mysql /run/mysqld /tmp/mysql && \
+    chmod 1777 /tmp/mysql && \
+    mysql_install_db --user=mysql --datadir=/var/lib/mysql --skip-test-db
 
 WORKDIR /app
 
 ADD ./ ./
 
 COPY scripts/unittest/local_settings.py ./
-
 
 # 拷贝构件
 COPY --from=builder /venv /venv
