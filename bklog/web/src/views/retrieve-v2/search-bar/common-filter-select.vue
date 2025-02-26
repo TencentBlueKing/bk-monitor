@@ -4,8 +4,9 @@
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
-  import { withoutValueConditionList } from './const.common';
-  import { getRegExp } from '@/common/util';
+  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+  import { getOperatorKey, getRegExp } from '@/common/util';
+  import { operatorMapping, translateKeys } from './const-values';
   const { $t } = useLocale();
   const store = useStore();
 
@@ -24,11 +25,10 @@
     get() {
       // 如果 filterAddition 存在且长度等于 filterSetting 的长度，直接返回 filterAddition。
       // 如果 filterAddition 存在但长度不等于 filterSetting 的长度，返回 filterAddition，并为缺少的字段补充空结构。
-      const filterAddition = store.getters.retrieveParams.common_filter_addition?.length;
+      const filterAddition = store.getters.common_filter_addition?.length;
       if (filterAddition &&  filterAddition == filterFieldsList.value.length) {
-        return store.getters.retrieveParams.common_filter_addition;
+        return store.getters.common_filter_addition;
       }
-      
       const existingFields = new Set(store.getters.retrieveParams.common_filter_addition?.map(item => item.field) || []);
       const additionalFields = filterFieldsList.value
         .filter(item => !existingFields.has(item?.field_name || ''))
@@ -63,6 +63,33 @@
   const filterKeyword = ref('');
   let requestTimer = null;
   const isRequesting = ref(false);
+
+  const operatorDictionary = computed(() => {
+    const defVal = {
+      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+    };
+    return {
+      ...defVal,
+      ...store.state.operatorDictionary,
+    };
+  });
+
+  /**
+   * 获取操作符展示文本
+   * @param {*} item
+   */
+  const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
+
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    if (translateKeys.includes(operatorMapping[item.operator])) {
+      return $t(operatorMapping[item.operator] ?? item.operator);
+    }
+
+    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  };
 
   const rquestFieldEgges = (() => {
     return (field, index, operator?, value?, callback?) => {
@@ -180,11 +207,11 @@
           @change="handleChange"
         >
           <template #trigger>
-            <span class="operator-label">{{ $t(commonFilterAddition[index].operator) }}</span>
+            <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"
-            :id="child.label"
+            :id="child.operator"
             :key="childIndex"
             :name="child.label"
           />
@@ -291,6 +318,9 @@
       .operator-label {
         padding: 4px;
         color: #3a84ff;
+        display: inline-block;
+        width: 100%;
+        white-space: nowrap;
       }
 
       &.bk-select.is-focus {

@@ -89,7 +89,7 @@ class TestSearchHandler(TestCase):
         lambda _, __, index_set_id: "dtEventTimeStamp",
     )
     def setUp(self) -> None:
-        self.search_handler = SearchHandler(index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False)
+        self.search_handler = SearchHandler(index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False, can_highlight=False)
         self.search_handler._index_set = Mock()
         self.search_handler._index_set.max_async_count = 2010000
         self.search_handler._index_set.result_window = 10000

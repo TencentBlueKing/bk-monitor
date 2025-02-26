@@ -78,7 +78,7 @@
   const originFieldList = () => totalFieldsNameList.value;
 
   const activeType: Ref<string[]> = ref([]);
-  const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
+  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
   const fieldList: Ref<string[]> = ref([]);
   const valueList: Ref<string[]> = ref([]);
 
@@ -201,10 +201,9 @@
     if (
       !trimValue ||
       trimValue === '*' ||
-      /\s+AND\s+$/.test(value) ||
-      /\s+OR\s+$/.test(value) ||
-      /\s+and\s+$/.test(value) ||
-      /\s+or\s+$/.test(value)
+      /\s+AND\s+$/i.test(value) ||
+      /\s+OR\s+$/i.test(value) ||
+      /\s+AND\s+NOT\s+$/i.test(value)
     ) {
       showWhichDropdown('Fields');
       fieldList.value.push(...originFieldList());
@@ -275,9 +274,8 @@
    * @param {string} field
    */
   const handleClickField = (field: string) => {
-    // valueList.value = getValueList(retrieveDropdownData.value[field]);
-    // setValueList(field, '');
     const currentValue = props.value;
+    debugger;
 
     const trimValue = currentValue.trim();
     if (!trimValue || trimValue === '*') {
@@ -321,7 +319,7 @@
     emits(
       'change',
       props.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
-        return `${matchOperator} ${value} `;
+        return `${matchOperator} "${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `;
       }),
     );
     showWhichDropdown(OptionItemType.Continue);
@@ -627,6 +625,23 @@
                 <span class="bklog-icon bklog-and"></span>
               </div>
               <div class="item-text">OR</div>
+              <div
+                class="item-description text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                <i18n path="需要{0}为真">
+                  <span class="item-callout">{{ $t('一个或多个参数') }}</span>
+                </i18n>
+              </div>
+            </li>
+            <li
+              class="list-item continue-list-item"
+              @click="handleClickContinue('AND NOT')"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-and"></span>
+              </div>
+              <div class="item-text">AND NOT</div>
               <div
                 class="item-description text-overflow-hidden"
                 v-bk-overflow-tips="{ placement: 'right' }"
