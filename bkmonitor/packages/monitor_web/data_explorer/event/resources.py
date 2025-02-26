@@ -54,12 +54,46 @@ class EventLogsResource(Resource):
     RequestSerializer = serializers.EventLogsRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        # Processor 使用样例
-        events: List[Dict[str, Any]] = []
+        if validated_request_data.get("is_mock"):
+            return API_LOGS_RESPONSE
+
+        queries = [
+            (
+                QueryConfigBuilder((config["data_type_label"], config["data_source_label"]))
+                .table(config["table"])
+                .conditions(config["where"])
+                .time_field("time")
+            )
+            for config in validated_request_data["query_configs"]
+        ]
+
+        # 构建统一查询集
+        query_set = (
+            UnifyQuerySet()
+            .scope(bk_biz_id=validated_request_data["bk_biz_id"])
+            .start_time(1000 * validated_request_data["start_time"])
+            .end_time(1000 * validated_request_data["end_time"])
+            .time_agg(False)
+            .instant()
+            .limit(validated_request_data["limit"])
+            .offset(validated_request_data["offset"])
+        )
+
+        # 添加查询到查询集中
+        for query in queries:
+            query_set = query_set.add_query(query)
+        try:
+            # unify-query 查询失败
+            events: List[Dict[str, Any]] = query_set.original_data
+        except Exception as exc:
+            logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
+            return {"list": []}
+
         processors: List[BaseEventProcessor] = [OriginEventProcessor()]
         for processor in processors:
             events = processor.process(events)
-        return API_LOGS_RESPONSE
+
+        return {"list": events}
 
 
 class EventViewConfigResource(Resource):
