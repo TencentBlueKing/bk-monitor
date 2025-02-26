@@ -28,7 +28,7 @@
   <div class="kv-list-wrapper">
     <div class="kv-content">
       <div
-        v-for="(field, index) in showFieldList"
+        v-for="(field, index) in renderList"
         class="log-item"
         :key="index"
       >
@@ -112,18 +112,10 @@
         type: Array,
         require: true,
       },
-      // apmRelation: {
-      //   type: Object,
-      //   default: () => {},
-      // },
       sortList: {
         type: Array,
         require: true,
       },
-      // retrieveParams: {
-      //   type: Object,
-      //   require: true,
-      // },
       listData: {
         type: Object,
         default: () => {},
@@ -152,6 +144,7 @@
           is: '=',
           'is not': '!=',
         },
+        renderList: [],
       };
     },
     computed: {
@@ -339,6 +332,21 @@
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
       },
+    },
+    mounted() {
+      const size = 40;
+      let startIndex = 0;
+
+      const setRenderList = () => {
+        if (startIndex < this.showFieldList.length) {
+          this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
+          startIndex = startIndex + size;
+
+          setTimeout(setRenderList);
+        }
+      };
+
+      setRenderList();
     },
   };
 </script>
