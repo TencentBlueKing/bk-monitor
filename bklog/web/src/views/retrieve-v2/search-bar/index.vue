@@ -487,33 +487,7 @@
             @saveCurrentActiveFavorite="saveCurrentActiveFavorite"
             @refresh="handleRefresh"
           ></BookmarkPop>
-          <!-- <template v-else> -->
-            <!-- <div
-              v-if="matchSQLStr"
-              class="bklog-icon bklog-star-line disabled"
-              v-bk-tooltips="$t('已收藏')"
-              :data-boolean="matchSQLStr"
-            ></div> -->
-            <!-- <bk-dropdown-menu :align="'center'">
-              <template slot="dropdown-trigger">
-                 <div
-                    style="color: #63656e"
-                    v-bk-tooltips="$t('收藏')"
-                    class="icon bk-icon icon-save"
-                  ></div>
-              </template>
-              <ul class="bk-dropdown-list" slot="dropdown-content">
-                  <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentActiveFavorite">覆盖当前收藏</a></li>
-                  <li><a href="javascript:;">另存为新收藏</a></li>
-              </ul>
-          </bk-dropdown-menu> -->
-            <!-- <div
-              style="color: #63656e"
-              v-bk-tooltips="$t('收藏')"
-              class="icon bk-icon icon-save"
-              @click="saveCurrentActiveFavorite"
-            ></div> -->
-          <!-- </template> -->
+
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
