@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
@@ -43,7 +43,9 @@ import './ui-selector.scss';
 
 interface IProps {
   fields: IFilterField[];
+  value?: IFilterItem[];
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onChange?: (v: IFilterItem[]) => void;
 }
 
 @Component
@@ -58,6 +60,7 @@ export default class UiSelector extends tsc<IProps> {
       }),
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  @Prop({ type: Array, default: () => [] }) value: IFilterItem[];
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -74,6 +77,15 @@ export default class UiSelector extends tsc<IProps> {
   inputValue = '';
   /* 是否聚焦 */
   inputFocus = false;
+
+  @Watch('value', { immediate: true })
+  handleWatchValue() {
+    const valueStr = JSON.stringify(this.value);
+    const localValueStr = JSON.stringify(this.localValue);
+    if (valueStr !== localValueStr) {
+      this.localValue = JSON.parse(valueStr);
+    }
+  }
 
   async handleShowSelect(event: MouseEvent) {
     if (this.popoverInstance) {
@@ -143,6 +155,7 @@ export default class UiSelector extends tsc<IProps> {
     setTimeout(() => {
       this.handleClickComponent();
     }, 300);
+    this.handleChange();
   }
 
   /**
@@ -151,6 +164,7 @@ export default class UiSelector extends tsc<IProps> {
    */
   handleDeleteTag(index: number) {
     this.localValue.splice(index, 1);
+    this.handleChange();
   }
 
   /**
@@ -184,6 +198,7 @@ export default class UiSelector extends tsc<IProps> {
       ...this.localValue[index],
       hide,
     });
+    this.handleChange();
   }
 
   /**
@@ -194,6 +209,7 @@ export default class UiSelector extends tsc<IProps> {
     this.localValue = [];
     this.updateActive = -1;
     this.hideInput();
+    this.handleChange();
   }
 
   /**
@@ -244,7 +260,12 @@ export default class UiSelector extends tsc<IProps> {
       setTimeout(() => {
         this.handleClickComponent();
       }, 50);
+      this.handleChange();
     }
+  }
+
+  handleChange() {
+    this.$emit('change', this.localValue);
   }
 
   render() {
