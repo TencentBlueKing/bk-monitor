@@ -327,9 +327,11 @@ export default defineComponent({
       return (
         <bk-exception
           style='flex: 1'
-          description={this.$t('暂无数据')}
+          scene='part'
           type='empty'
-        />
+        >
+          {this.$t('暂无数据')}
+        </bk-exception>
       );
     return (
       <div
