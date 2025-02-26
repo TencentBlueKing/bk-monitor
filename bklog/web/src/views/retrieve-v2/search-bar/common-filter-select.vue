@@ -26,16 +26,12 @@
       const filterAddition = store.getters.common_filter_addition || [];
       return filterFieldsList.value.map(item => {
         const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
-        if (matchingItem) {
-          return matchingItem;
-        } else {
-          return {
-            field: item.field_name || '',
-            operator: '=',
-            value: [],
-            list: [],
-          };
-        }
+        return matchingItem ?? {
+          field: item.field_name || '',
+          operator: '=',
+          value: [],
+          list: [],
+          }
       });
     },
     set(val) {
