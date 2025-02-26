@@ -49,7 +49,7 @@ locale.use(lang[i18nLocale]);
 const i18n = new VueI18n({
   locale: i18nLocale, // 当前语言
   fallbackLocale: 'zhCN', // 默认语言
-  silentTranslationWarn: false, // 是否警告翻译缺失
+  silentTranslationWarn: true, // 是否警告翻译缺失
   messages: {
     // 翻译文件
     ...mergeI18nJson(),
