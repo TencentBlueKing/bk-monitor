@@ -865,8 +865,8 @@ class CollectorHandler(object):
                     item["value"] = "{{cmdb_instance." + item["value"] + "." + item["key"] + "}}"
                     item["key"] = "host.{}".format(item["key"])
                 if item["value"] == CmdbFieldType.SCOPE.value and item["key"] in CC_SCOPE_FIELDS:
-                    # TODO: 支持集群信息注入
-                    continue
+                    item["value"] = "{{cmdb_instance.host.relations[0]." + item["key"] + "}}"
+                    item["key"] = "host.{}".format(item["key"])
 
         # 1. 创建CollectorConfig记录
         model_fields = {
@@ -4875,18 +4875,18 @@ class CollectorHandler(object):
                     "group_name": data["bk_property_group_name"],
                 }
                 return_data["host"].append(host_data)
-        return_data["host"].extend(
-            [
-                {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
-                {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
-                {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"},
-            ]
-        )
-        # scope_data = [
-        #     {"field": "bk_module_id", "name": "模型ID", "group_name": "基础信息"},
-        #     {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"}
-        # ]
-        # return_data["scope"] = scope_data
+        return_data["host"].extend([
+            {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
+            {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
+            {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"}
+        ])
+        scope_data = [
+            {"field": "bk_module_id", "name": "模块ID", "group_name": "基础信息"},
+            {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"},
+            {"field": "bk_module_name", "name": "模块名称", "group_name": "基础信息"},
+            {"field": "bk_set_name", "name": "集群名称", "group_name": "基础信息"},
+        ]
+        return_data["scope"] = scope_data
         return return_data
 
 
