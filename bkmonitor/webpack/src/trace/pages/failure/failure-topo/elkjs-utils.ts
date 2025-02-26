@@ -51,8 +51,10 @@ const getRootCombos = data => {
 };
 
 const defaultLayoutOptions = {
-  algorithm: 'layered',
+  algorithm: 'stress',
   'elk.direction': 'DOWN',
+  'elk.stress.desiredEdgeLength': 10,
+  'elk.radial.center': '0,0',
   // // 调节分布每行展示节点数量
   'org.eclipse.elk.aspectRatio': '3',
   separateConnectedComponents: 'true',

@@ -31,7 +31,7 @@ import arrow
 import yaml
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from kubernetes import client
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
@@ -62,6 +62,8 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
+    CC_HOST_FIELDS,
+    CC_SCOPE_FIELDS,
     CHECK_TASK_READY_NOTE_FOUND_EXCEPTION_CODE,
     CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS,
     DEFAULT_RETENTION,
@@ -71,6 +73,7 @@ from apps.log_databus.constants import (
     SEARCH_BIZ_INST_TOPO_LEVEL,
     STORAGE_CLUSTER_TYPE,
     ArchiveInstanceType,
+    CmdbFieldType,
     CollectStatus,
     ContainerCollectorType,
     ContainerCollectStatus,
@@ -83,9 +86,6 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     TopoType,
     WorkLoadType,
-    CC_HOST_FIELDS,
-    CC_SCOPE_FIELDS,
-    CmdbFieldType,
 )
 from apps.log_databus.exceptions import (
     AllNamespaceNotAllowedException,
@@ -456,10 +456,9 @@ class CollectorHandler(object):
         # 添加索引集相关信息
         log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
         if log_index_set_obj:
-            collector_config.update({
-                "sort_fields": log_index_set_obj.sort_fields,
-                "target_fields": log_index_set_obj.target_fields
-            })
+            collector_config.update(
+                {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
+            )
 
         return collector_config
 
@@ -866,8 +865,8 @@ class CollectorHandler(object):
                     item["value"] = "{{cmdb_instance." + item["value"] + "." + item["key"] + "}}"
                     item["key"] = "host.{}".format(item["key"])
                 if item["value"] == CmdbFieldType.SCOPE.value and item["key"] in CC_SCOPE_FIELDS:
-                    # TODO: 支持集群信息注入
-                    continue
+                    item["value"] = "{{cmdb_instance.host.relations[0]." + item["key"] + "}}"
+                    item["key"] = "host.{}".format(item["key"])
 
         # 1. 创建CollectorConfig记录
         model_fields = {
@@ -4873,7 +4872,7 @@ class CollectorHandler(object):
                 host_data = {
                     "field": data["bk_property_id"],
                     "name": data["bk_property_name"],
-                    "group_name": data["bk_property_group_name"]
+                    "group_name": data["bk_property_group_name"],
                 }
                 return_data["host"].append(host_data)
         return_data["host"].extend([
@@ -4881,11 +4880,13 @@ class CollectorHandler(object):
             {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
             {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"}
         ])
-        # scope_data = [
-        #     {"field": "bk_module_id", "name": "模型ID", "group_name": "基础信息"},
-        #     {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"}
-        # ]
-        # return_data["scope"] = scope_data
+        scope_data = [
+            {"field": "bk_module_id", "name": "模块ID", "group_name": "基础信息"},
+            {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"},
+            {"field": "bk_module_name", "name": "模块名称", "group_name": "基础信息"},
+            {"field": "bk_set_name", "name": "集群名称", "group_name": "基础信息"},
+        ]
+        return_data["scope"] = scope_data
         return return_data
 
 

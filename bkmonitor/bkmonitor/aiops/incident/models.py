@@ -35,6 +35,8 @@ class IncidentGraphCategory:
     category_id: int
     category_name: str
     category_alias: str
+    layer_name: str = None
+    layer_alias: str = None
 
     def to_src_dict(self):
         return asdict(self)

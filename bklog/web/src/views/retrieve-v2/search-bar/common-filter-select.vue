@@ -4,7 +4,9 @@
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
-  import { withoutValueConditionList } from './const.common';
+  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+  import { getOperatorKey } from '@/common/util';
+  import { operatorMapping, translateKeys } from './const-values';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -22,8 +24,8 @@
 
   const commonFilterAddition = computed({
     get() {
-      if (store.getters.retrieveParams.common_filter_addition?.length) {
-        return store.getters.retrieveParams.common_filter_addition;
+      if (store.getters.common_filter_addition?.length) {
+        return store.getters.common_filter_addition;
       }
 
       return filterFieldsList.value.map(item => ({
@@ -52,6 +54,33 @@
 
   let requestTimer = null;
   const isRequesting = ref(false);
+
+  const operatorDictionary = computed(() => {
+    const defVal = {
+      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+    };
+    return {
+      ...defVal,
+      ...store.state.operatorDictionary,
+    };
+  });
+
+  /**
+   * 获取操作符展示文本
+   * @param {*} item
+   */
+  const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
+
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    if (translateKeys.includes(operatorMapping[item.operator])) {
+      return $t(operatorMapping[item.operator] ?? item.operator);
+    }
+
+    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  };
 
   const rquestFieldEgges = (() => {
     return (field, index, operator?, value?, callback?) => {
@@ -124,6 +153,17 @@
     updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
+
+  const focusIndex = ref(null);
+  const handleRowFocus = (index, e) => {
+    if (document.activeElement === e.target) {
+      focusIndex.value = index;
+    }
+  };
+
+  const handleRowBlur = () => {
+    focusIndex.value = null;
+  };
 </script>
 
 <template>
@@ -137,7 +177,9 @@
     >
       <div
         v-for="(item, index) in filterFieldsList"
-        class="filter-select-wrap"
+        :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
+        @focus.capture="e => handleRowFocus(index, e)"
+        @blur.capture="handleRowBlur"
       >
         <div class="title">
           {{ item?.field_alias || item?.field_name || '' }}
@@ -151,11 +193,11 @@
           @change="handleChange"
         >
           <template #trigger>
-            <span class="operator-label">{{ $t(commonFilterAddition[index].operator) }}</span>
+            <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"
-            :id="child.label"
+            :id="child.operator"
             :key="childIndex"
             :name="child.label"
           />
@@ -195,17 +237,20 @@
       v-else
       class="empty-tips"
     >
-      （暂未设置常驻筛选，请点击左侧设置按钮）
+      （{{ $t('暂未设置常驻筛选，请点击左侧设置按钮') }}）
     </div>
   </div>
 </template>
-<style lang="scss">
+<style lang="scss" scoped>
   .filter-container-wrap {
     display: flex;
     max-height: 95px;
     padding: 0 10px 0px 10px;
     overflow: auto;
     background: #ffffff;
+    box-shadow:
+      0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
+      0 1px 0 0 #eaebf0;
 
     .filter-setting-btn {
       width: 83px;
@@ -232,15 +277,19 @@
   .filter-select-wrap {
     display: flex;
     align-items: center;
-    min-width: 250px;
-    max-width: 600px;
+    min-width: 120px;
+    max-width: 560px;
     margin: 4px 0;
     margin-right: 8px;
     border: 1px solid #dbdde1;
     border-radius: 3px;
 
+    &.is-focus {
+      border-color: #3a84ff;
+    }
+
     .title {
-      max-width: 125px;
+      max-width: 120px;
       margin-left: 8px;
       overflow: hidden;
       font-size: 12px;
@@ -253,7 +302,10 @@
 
       .operator-label {
         padding: 4px;
-        color: #ff9c01;
+        color: #3a84ff;
+        display: inline-block;
+        width: 100%;
+        white-space: nowrap;
       }
 
       &.bk-select.is-focus {
@@ -264,6 +316,18 @@
     .value-select {
       min-width: 200px;
       max-width: 460px;
+
+      :deep(.bk-select-dropdown .bk-select-tag-container) {
+        .bk-select-tag {
+          &.width-limit-tag {
+            max-width: 200px;
+
+            > span {
+              max-width: 180px;
+            }
+          }
+        }
+      }
 
       &.bk-select {
         border: none;

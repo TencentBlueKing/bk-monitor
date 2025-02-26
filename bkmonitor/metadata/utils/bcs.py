@@ -23,12 +23,13 @@ from metadata.models.space.constants import SpaceTypes
 logger = logging.getLogger("metadata")
 
 
-def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id):
+def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id, is_fed_cluster):
     """
     当集群发生迁移时，需要同步更新对应路由元信息
     :param cluster: 集群实例 BCSClusterInfo
     :param new_bk_biz_id: 新的bk_biz_id
     :param old_bk_biz_id: 旧的bk_biz_id
+    :param is_fed_cluster: 是否属于联邦集群
     :return:
     """
     from metadata.models import EventGroup
@@ -75,6 +76,9 @@ def change_cluster_router(cluster, new_bk_biz_id, old_bk_biz_id):
             # 针对K8S Event，单独处理
             k8s_event_data_id = cluster.K8sEventDataID
             EventGroup.objects.filter(bk_data_id=k8s_event_data_id).update(bk_biz_id=new_bk_biz_id)
+
+            # 再次下发DataId，进行Update
+            cluster.init_resource(is_fed_cluster=is_fed_cluster)
 
         logger.info(
             "change_cluster_router: Successfully updated cluster data router,cluster_id->[%s],"

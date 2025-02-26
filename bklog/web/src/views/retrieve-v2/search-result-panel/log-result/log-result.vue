@@ -61,6 +61,11 @@
         @toggle-screen-full="toggleScreenFull"
       />
     </bk-dialog>
+
+    <AiAssitant
+      ref="refAiAssitant"
+      @close="handleAiClose"
+    ></AiAssitant>
   </div>
 </template>
 
@@ -71,12 +76,14 @@
   import ContextLog from '../../result-comp/context-log';
   import RealTimeLog from '../../result-comp/real-time-log';
   import LogRows from './log-rows.tsx';
+  import AiAssitant from '@/global/ai-assitant.tsx';
 
   export default {
     components: {
       RetrieveLoader,
       ContextLog,
       RealTimeLog,
+      AiAssitant,
       LogRows,
     },
     props: {
@@ -105,6 +112,9 @@
     },
 
     methods: {
+      handleAiClose() {
+        this.$el.querySelector('.ai-active')?.classList.remove('ai-active');
+      },
       // 打开实时日志或上下文弹窗
       openLogDialog(row, type) {
         this.logDialog.data = row;
@@ -153,7 +163,16 @@
             console.warn(e);
           });
       },
-      handleClickTools(event, row, config) {
+      handleClickTools(event, row, config, index) {
+        if (event === 'ai') {
+          this.$refs.refAiAssitant.open(true, {
+            space_uid: this.$store.getters.spaceUid,
+            index_set_id: this.$store.getters.indexId,
+            log_data: row,
+            index,
+          });
+          return;
+        }
         if (['realTimeLog', 'contextLog'].includes(event)) {
           const contextFields = config.contextAndRealtime.extra?.context_fields;
           const timeField = this.$store.state.indexFieldInfo.time_field;

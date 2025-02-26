@@ -22,6 +22,9 @@ the project delivered to anyone in the future.
 import logging
 import time
 
+from django.utils.translation import gettext as _
+from iam.api.client import Client
+
 import settings
 from apps.api import (
     BkDataDatabusApi,
@@ -36,7 +39,6 @@ from apps.api import (
 from apps.exceptions import ApiResultError
 from apps.utils.local import activate_request
 from apps.utils.thread import generate_request
-from django.utils.translation import ugettext as _
 from home_application.constants import (
     DEFAULT_BK_DATA_ID,
     DEFAULT_BK_USERNAME,
@@ -44,7 +46,6 @@ from home_application.constants import (
     DEFAULT_PAGE_SIZE,
     DEFAULT_SUBSCRIPTION_ID,
 )
-from iam.api.client import Client
 
 logger = logging.getLogger()
 

@@ -25,7 +25,7 @@ from blueapps.account.decorators import login_exempt
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 # 开发框架中通过中间件默认是需要登录态的，如有不需要登录的，可添加装饰器login_exempt
 # 装饰器引入 from blueapps.account.decorators import login_exempt

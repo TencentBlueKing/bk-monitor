@@ -24,13 +24,13 @@ import abc
 from typing import List
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
-from django.utils.translation import ugettext_lazy as _lazy
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
+from iam import Resource
 
 from apps.api import TransferApi
 from apps.iam.exceptions import ResourceNotExistError
 from bkm_space.utils import space_uid_to_bk_biz_id
-from iam import Resource
 
 
 class ResourceMeta(metaclass=abc.ABCMeta):
@@ -128,7 +128,6 @@ class Business(ResourceMeta):
 
 
 class Collection(ResourceMeta):
-
     system_id = settings.BK_IAM_SYSTEM_ID
     id = "collection"
     name = _lazy("采集项")
@@ -158,7 +157,6 @@ class Collection(ResourceMeta):
 
 
 class EsSource(ResourceMeta):
-
     system_id = settings.BK_IAM_SYSTEM_ID
     id = "es_source"
     name = _lazy("ES源")
@@ -191,7 +189,6 @@ class EsSource(ResourceMeta):
 
 
 class Indices(ResourceMeta):
-
     system_id = settings.BK_IAM_SYSTEM_ID
     id = "indices"
     name = _lazy("索引集")

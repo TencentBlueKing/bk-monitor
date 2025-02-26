@@ -20,10 +20,10 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _lazy
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _lazy
 
-from apps.exceptions import ErrorCode, BaseException
+from apps.exceptions import BaseException, ErrorCode
 
 
 class BaseIAMError(BaseException):

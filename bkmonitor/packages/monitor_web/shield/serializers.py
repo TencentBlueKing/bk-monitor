@@ -77,11 +77,16 @@ class EventSerializer(BaseSerializer):
     dimension_keys = serializers.ListField(label="维度键名列表", child=serializers.CharField(), default=None)
 
 
-
 class AlertSerializer(BaseSerializer):
     class DimensionConfig(serializers.Serializer):
-        alert_ids = serializers.ListField(required=True, child=serializers.CharField(allow_blank=False))
+        alert_id = serializers.CharField(required=False)
+        alert_ids = serializers.ListField(required=False, child=serializers.CharField(allow_blank=False))
         dimensions = serializers.DictField(required=False)
+
+        def validate(self, attrs):
+            if not attrs.get("alert_id") and not attrs.get("alert_ids"):
+                raise serializers.ValidationError("alert_id or alert_ids is required")
+            return attrs
 
     dimension_config = DimensionConfig(required=True, label="维度配置")
     # 用于移动端，快捷屏蔽，动态删除维度
