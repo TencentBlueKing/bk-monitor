@@ -5,7 +5,7 @@
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
   import { withoutValueConditionList } from './const.common';
-
+  import { getRegExp } from '@/common/util';
   const { $t } = useLocale();
   const store = useStore();
 
@@ -49,7 +49,7 @@
   });
 
   const activeIndex = ref(-1);
-
+  const filterKeyword = ref('');
   let requestTimer = null;
   const isRequesting = ref(false);
 
@@ -100,7 +100,8 @@
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+    filterKeyword.value = value;
+    // rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
   };
 
   // 新建提交逻辑
@@ -135,6 +136,10 @@
   const handleRowBlur = () => {
     focusIndex.value = null;
   };
+  const filterOption = ( index )=>{
+    const regExp = getRegExp(filterKeyword.value.trim());
+    return  commonFilterAddition.value[index].list.filter(item => regExp.test(item));
+  }
 </script>
 
 <template>
@@ -152,7 +157,7 @@
         @focus.capture="e => handleRowFocus(index, e)"
         @blur.capture="handleRowBlur"
       >
-        <div class="title">
+        <div class="title" v-bk-overflow-tips>
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
         <bk-select
@@ -195,7 +200,7 @@
               ></bk-input>
             </template>
             <bk-option
-              v-for="option in commonFilterAddition[index].list"
+              v-for="option in filterOption(index)"
               :id="option"
               :key="option"
               :name="option"
@@ -219,6 +224,7 @@
     padding: 0 10px 0px 10px;
     overflow: auto;
     background: #ffffff;
+    align-items: center;
     box-shadow:
       0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
       0 1px 0 0 #eaebf0;
