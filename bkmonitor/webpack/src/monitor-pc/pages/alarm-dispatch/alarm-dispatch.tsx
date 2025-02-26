@@ -280,7 +280,6 @@ export default class AlarmDispatch extends tsc<object> {
     );
   }
   beforeDestroy() {
-    this.renderGroups = [];
     this.intersectionObserver?.unobserve(this.itemFooterRef);
   }
   /**
@@ -571,7 +570,6 @@ export default class AlarmDispatch extends tsc<object> {
 
   handleDelSucess() {
     this.delGroups = [];
-    this.renderGroups = [];
     this.handleShowChange(false);
     this.getAlarmDispatchGroupData();
   }
