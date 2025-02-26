@@ -735,6 +735,7 @@ class MigrateOldPanels(Resource):
                 org_id=org_id,
                 dashboard=dashboard,
                 folderId=dashboard_info.folder_id,
+                overwrite=False,
             )
 
             if not result["result"]:
@@ -757,6 +758,7 @@ class MigrateOldPanels(Resource):
                 org_id=org_id,
                 dashboard=dashboard,
                 folderId=dashboard_info.folder_id,
+                overwrite=False,
             )
             return {
                 "result": result["result"],
