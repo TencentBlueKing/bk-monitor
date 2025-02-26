@@ -370,7 +370,7 @@ class GrafanaQueryHandler:
             "keyword": query_dict.get("query_string", ""),
             "sort_list": query_dict.get("sort_list", []),
         }
-        search_handler = SearchHandler(query_dict["result_table_id"], search_dict)
+        search_handler = SearchHandler(query_dict["result_table_id"], search_dict, can_highlight=False)
         result = search_handler.search(search_type=None)
 
         # 前面的字段固定
