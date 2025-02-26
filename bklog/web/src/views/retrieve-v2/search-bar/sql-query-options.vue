@@ -319,7 +319,7 @@
     emits(
       'change',
       props.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
-        return `${matchOperator} "${value.replace(/^"|"$/g, '')}" `;
+        return `${matchOperator} "${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `;
       }),
     );
     showWhichDropdown(OptionItemType.Continue);
