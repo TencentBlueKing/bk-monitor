@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import typing
 
+from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
+
 from bkm_ipchooser import constants, exceptions
 from bkm_space.utils import space_uid_to_bk_biz_id
-from django.utils.translation import ugettext_lazy as _
-from rest_framework import serializers
 
 
 class PaginationSer(serializers.Serializer):

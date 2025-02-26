@@ -4,7 +4,9 @@
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
-  import { withoutValueConditionList } from './const.common';
+  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+  import { getOperatorKey } from '@/common/util';
+  import { operatorMapping, translateKeys } from './const-values';
 
   const { $t } = useLocale();
   const store = useStore();
@@ -22,8 +24,8 @@
 
   const commonFilterAddition = computed({
     get() {
-      if (store.getters.retrieveParams.common_filter_addition?.length) {
-        return store.getters.retrieveParams.common_filter_addition;
+      if (store.getters.common_filter_addition?.length) {
+        return store.getters.common_filter_addition;
       }
 
       return filterFieldsList.value.map(item => ({
@@ -52,6 +54,33 @@
 
   let requestTimer = null;
   const isRequesting = ref(false);
+
+  const operatorDictionary = computed(() => {
+    const defVal = {
+      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+    };
+    return {
+      ...defVal,
+      ...store.state.operatorDictionary,
+    };
+  });
+
+  /**
+   * 获取操作符展示文本
+   * @param {*} item
+   */
+  const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
+
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    if (translateKeys.includes(operatorMapping[item.operator])) {
+      return $t(operatorMapping[item.operator] ?? item.operator);
+    }
+
+    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  };
 
   const rquestFieldEgges = (() => {
     return (field, index, operator?, value?, callback?) => {
@@ -164,11 +193,11 @@
           @change="handleChange"
         >
           <template #trigger>
-            <span class="operator-label">{{ $t(commonFilterAddition[index].operator) }}</span>
+            <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"
-            :id="child.label"
+            :id="child.operator"
             :key="childIndex"
             :name="child.label"
           />
@@ -274,6 +303,9 @@
       .operator-label {
         padding: 4px;
         color: #3a84ff;
+        display: inline-block;
+        width: 100%;
+        white-space: nowrap;
       }
 
       &.bk-select.is-focus {

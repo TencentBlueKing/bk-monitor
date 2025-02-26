@@ -806,6 +806,7 @@ class TraceDetailResource(Resource):
         handled_data["topo_nodes"] = topo_data["nodes"]
         service_topo_data = trace_data_to_service_topo(handled_data["original_data"])
         handled_data.update(service_topo_data)
+        handled_data.update(data.get("options"))
         return handled_data
 
 

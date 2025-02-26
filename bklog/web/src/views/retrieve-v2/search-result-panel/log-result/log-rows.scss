@@ -341,6 +341,42 @@
         z-index: 1;
       }
     }
+
+    &:not(.row-header) {
+      position: relative;
+
+      .bklog-row-ai {
+        position: absolute;
+        top: 6px;
+        left: 32px;
+        display: none;
+        padding: 2px;
+        // background-color: rgba(255, 255, 255, 0.4);
+        // box-shadow:
+        //   0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
+        //   0 1px 0 0 #eaebf0;
+        opacity: 0;
+
+        img {
+          width: 24px;
+          height: 24px;
+        }
+      }
+
+      &:hover,
+      &.ai-active {
+        background-color: #fafbfd;
+
+        .bklog-row-ai {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          opacity: 1;
+          transition: opacity 0.3s;
+        }
+      }
+    }
   }
 
   .btn-scroll-top {

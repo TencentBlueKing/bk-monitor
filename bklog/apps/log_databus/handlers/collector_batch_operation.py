@@ -43,8 +43,6 @@ class CollectorBatchHandler(object):
             es_shards = params["operation_params"].get("es_shards", -1)
             allocation_min_days = params["operation_params"].get("allocation_min_days", -1)
             result = self.modify_storage(retention, storage_replies, es_shards, allocation_min_days)
-        elif self.operation == CollectorBatchOperationType.QUERY_STORAGE.value:
-            result = self.query_storage()
         else:
             result = self.stop_or_start()
         return result
@@ -146,38 +144,3 @@ class CollectorBatchHandler(object):
             results.append(collector_info)
 
         return results
-
-    def query_storage(self):
-        """
-        查询存储
-        """
-        storage_data = []
-        total_store_size = 0
-        for collector in self.collectors:
-            collector_info = {
-                "id": collector.collector_config_id,
-                "name": collector.collector_config_name,
-                "bk_biz_id": collector.bk_biz_id,
-                "status": "SUCCESS",
-                "store_size": 0,
-                "description": f"{self.operation} success",
-            }
-            try:
-                indices_info = CollectorHandler(collector.collector_config_id).indices_info()
-                total = sum(int(idx["store.size"]) for idx in indices_info)
-                total_store_size += total
-                collector_info.update({"store_size": total})
-            except Exception as e:
-                collector_info.update(
-                    {
-                        "status": "FAILED",
-                        "description": f"{self.operation} failed, reason: {e}",
-                    }
-                )
-
-            storage_data.append(collector_info)
-
-        return {
-            "storage_data": storage_data,
-            "total_store_size": total_store_size,
-        }

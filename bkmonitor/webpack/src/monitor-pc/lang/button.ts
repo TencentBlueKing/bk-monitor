@@ -59,6 +59,7 @@ export default {
   回滚: 'Rollback',
   清除: 'Clear',
   删除: 'Delete',
+  更新: 'Update',
   复位: 'Reset',
   复制链接: 'Copy Link',
   保存并匹配: 'Save & Match',

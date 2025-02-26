@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import base64
 import json
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request

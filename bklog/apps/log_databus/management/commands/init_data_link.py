@@ -20,12 +20,13 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.core.management.base import BaseCommand
+from django.db.models import Q
+from django.utils.translation import gettext as _
+
 from apps.api import TransferApi
 from apps.log_databus.constants import KAFKA_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
-from django.core.management.base import BaseCommand
-from django.db.models import Q
-from django.utils.translation import ugettext as _
 
 
 class Command(BaseCommand):

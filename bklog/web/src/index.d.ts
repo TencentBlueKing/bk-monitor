@@ -32,9 +32,13 @@ declare global {
     MONITOR_URL: string;
     BK_SHARED_RES_URL: string;
     VERSION: string;
+    AJAX_URL_PREFIX: string;
+    FEATURE_TOGGLE_WHITE_LIST: Record<string, (string | number)[]>;
+    FEATURE_TOGGLE: Record<string, 'on' | 'debug'>;
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
+    $t: (key: string, params?: Record<string, any>) => string;
   }
 }
 

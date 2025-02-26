@@ -1,11 +1,11 @@
 <script setup>
-  import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import PopInstanceUtil from './pop-instance-util';
+  // import PopInstanceUtil from './pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -394,7 +394,7 @@
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
-        const { common_filter_addition } = store.getters.retrieveParams;
+        const { common_filter_addition } = store.getters;
         if (common_filter_addition.length) {
           window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
