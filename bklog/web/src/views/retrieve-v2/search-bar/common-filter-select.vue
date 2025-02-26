@@ -22,16 +22,27 @@
 
   const commonFilterAddition = computed({
     get() {
-      if (store.getters.retrieveParams.common_filter_addition?.length) {
+      // 如果 filterAddition 存在且长度等于 filterSetting 的长度，直接返回 filterAddition。
+      // 如果 filterAddition 存在但长度不等于 filterSetting 的长度，返回 filterAddition，并为缺少的字段补充空结构。
+      const filterAddition = store.getters.retrieveParams.common_filter_addition?.length;
+      if (filterAddition &&  filterAddition == filterFieldsList.value.length) {
         return store.getters.retrieveParams.common_filter_addition;
       }
+      
+      const existingFields = new Set(store.getters.retrieveParams.common_filter_addition?.map(item => item.field) || []);
+      const additionalFields = filterFieldsList.value
+        .filter(item => !existingFields.has(item?.field_name || ''))
+        .map(item => ({
+          field: item?.field_name || '',
+          operator: '=',
+          value: [],
+          list: [],
+        }));
 
-      return filterFieldsList.value.map(item => ({
-        field: item?.field_name || '',
-        operator: '=',
-        value: [],
-        list: [],
-      }));
+      return [
+        ...(store.getters.retrieveParams.common_filter_addition || []),
+        ...additionalFields
+      ];
     },
     set(val) {
       const target = val.map(item => {
@@ -220,11 +231,11 @@
 <style lang="scss" scoped>
   .filter-container-wrap {
     display: flex;
+    align-items: center;
     max-height: 95px;
     padding: 0 10px 0px 10px;
     overflow: auto;
     background: #ffffff;
-    align-items: center;
     box-shadow:
       0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
       0 1px 0 0 #eaebf0;
