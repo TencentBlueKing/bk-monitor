@@ -428,7 +428,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
 /** 兼容动态combo数量 */
 const setRootComboStyle = (combos: Array<any>, width) => {
   const rootCombos = getRootCombos({ combos });
-  const maxWidth = Math.max(...rootCombos.map(combo => combo.width ?? 0), width, 1440);
+  const maxWidth = Math.max(...rootCombos.map(combo => combo.width ?? 0), width);
   rootCombos.forEach((combo, index) => {
     const prevCombo = rootCombos[index - 1];
     const y = index === 0 ? 0 : prevCombo.y + prevCombo.height + combo.height / 2 + 15 + 30;
