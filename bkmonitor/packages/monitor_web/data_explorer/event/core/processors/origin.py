@@ -48,10 +48,7 @@ class OriginEventProcessor(BaseEventProcessor):
             source_alias: str = _("{domain}/{source}").format(
                 domain=EventDomain.from_value(domain).label, source=EventSource.from_value(source).label
             )
-            event["source"] = {
-                "value": source,
-                "source_alias": source_alias,
-            }
+            event["source"] = {"value": source, "alias": source_alias}
 
             # 补充 type 字段
             type = origin_event.get("dimensions.type")
