@@ -374,8 +374,8 @@
             ></div>
         </template>
         <ul class="bk-dropdown-list" slot="dropdown-content">
-            <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentFavorite">覆盖当前收藏</a></li>
-            <li><a href="javascript:;" @click.stop="handleCollection">另存为新收藏</a></li>
+            <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentFavorite">{{ $t('覆盖当前收藏') }}</a></li>
+            <li><a href="javascript:;" @click.stop="handleCollection">{{ $t('另存为新收藏') }}</a></li>
         </ul>
     </bk-dropdown-menu>
     <template #content>

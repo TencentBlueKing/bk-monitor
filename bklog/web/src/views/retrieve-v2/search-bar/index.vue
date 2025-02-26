@@ -274,6 +274,7 @@
       return sqlQueryValue.value === sourceSQLStr.value;
     }
   });
+  const indexSetItem = computed(() => store.state.indexItem);
   const indexSetItemList = computed(() => store.state.indexItem.items);
   const indexSetName = computed(() => {
     return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
@@ -318,6 +319,13 @@
       index_set_names,
       ...searchParams,
     };
+    if (indexSetItem.value.isUnionIndex) {
+      Object.assign(data, {
+        index_set_ids: indexSetItem.value.ids,
+        index_set_names: indexSetItemList.value?.map(item => item?.index_set_name),
+        index_set_type: 'union'
+      });
+    }
     try {
       const res = await $http.request('favorite/updateFavorite', {
         params: { id: props.activeFavorite?.id },
