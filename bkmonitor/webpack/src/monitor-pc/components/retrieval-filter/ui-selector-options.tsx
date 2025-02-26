@@ -136,7 +136,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
   initData() {
     this.searchValue = '';
     this.localFields = [];
-    this.searchLocalFields = [];
+    // this.searchLocalFields = [];
     this.cursorIndex = 0;
     this.checkedItem = null;
     this.queryString = '';

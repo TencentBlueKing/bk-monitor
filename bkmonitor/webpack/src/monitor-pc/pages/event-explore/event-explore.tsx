@@ -290,6 +290,10 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     }
   }
 
+  handleWhereChange(where) {
+    this.formData.where = where;
+  }
+
   render() {
     return (
       <div class='event-explore'>
@@ -312,6 +316,8 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
             <RetrievalFilter
               fields={this.fieldList}
               getValueFn={this.getRetrievalFilterValueData}
+              where={this.formData.where}
+              onWhereChange={this.handleWhereChange}
             />
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
