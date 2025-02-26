@@ -4,9 +4,49 @@
     align-items: center;
     min-width: 180px;
     height: 32px;
+    padding: 0 6px;
+    font-size: 12px;
     background: #FFFFFF;
     border: 1px solid #DCDEE5;
     border-radius: 2px;
+
+    .key-wrap {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .method-wrap {
+      margin: 0 4px 0 2px;
+      color: #3A84FF;
+    }
+
+    .value-wrap {
+      display: flex;
+      align-items: center;
+      padding: 5px 0 0 0;
+
+      .tag-item {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 6px;
+        margin: 0 4px 5px 0;
+        background: #F0F1F5;
+
+        .tag-text {
+          max-width: 200px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .icon-mc-close {
+          cursor: pointer;
+        }
+      }
+    }
 
     &.hidden {
       position: fixed;
