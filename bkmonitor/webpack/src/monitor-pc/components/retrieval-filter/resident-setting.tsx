@@ -46,7 +46,16 @@ export default class ResidentSetting extends tsc<IProps> {
   @Ref('selector') selectorRef: HTMLDivElement;
   popoverInstance = null;
 
-  localValue: ILocalValue[] = [];
+  localValue: ILocalValue[] = [
+    {
+      field: null,
+      value: {
+        key: 'xxxasdfasdfadfasdfasfasdfasdf',
+        method: 'eq',
+        value: ['xsadfasd', 'asdfasdf', 'werqwerqwreqwerqwerqwr', 'asdfazxwerqwrrqwerqwerqwrqwreqwerqwerqwrqw'],
+      },
+    },
+  ];
 
   async handleShowSelect(event: MouseEvent) {
     if (this.popoverInstance) {
@@ -92,6 +101,7 @@ export default class ResidentSetting extends tsc<IProps> {
   handleCancel() {
     this.destroyPopoverInstance();
   }
+
   /**
    * @description 点击弹层确认
    */
@@ -133,6 +143,7 @@ export default class ResidentSetting extends tsc<IProps> {
           <div ref='selector'>
             <ResidentSettingTransfer
               fields={this.fields}
+              onCancel={this.handleCancel}
               onConfirm={this.handleConfirm}
             />
           </div>

@@ -45,6 +45,13 @@ export enum EFieldType {
   text = 'text',
 }
 
+export const METHOD_MAP = {
+  [EMethod.eq]: '=',
+  [EMethod.exclude]: window.i18n.tc('不包含'),
+  [EMethod.include]: window.i18n.tc('包含'),
+  [EMethod.ne]: '!=',
+};
+
 export const fieldTypeMap = {
   all: {
     name: window.i18n.tc('数字'),
@@ -118,6 +125,20 @@ export const MODE_LIST = [
   { id: EMode.ql, name: window.i18n.tc('语句模式') },
 ];
 
+export interface IWhereValueOptionsItem {
+  count: number;
+  list: {
+    id: string;
+    name: string;
+  }[];
+}
+export interface IGetValueFnParams {
+  limit?: number;
+  where?: IWhereItem[];
+  fields?: string[];
+  queryString?: string;
+}
+
 /**
  * 获取字符长度，汉字两个字节
  * @param str 需要计算长度的字符
@@ -155,18 +176,22 @@ export function defaultWhereItem(params = {}): IWhereItem {
   };
 }
 
-export interface IWhereValueOptionsItem {
-  count: number;
-  list: {
-    id: string;
-    name: string;
-  }[];
+export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
+/**
+ * @description 缓存ui数据
+ * @param v
+ */
+export function setCacheUIData(v: IFilterItem[]) {
+  localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
 }
-export interface IGetValueFnParams {
-  limit?: number;
-  where?: IWhereItem[];
-  fields?: string[];
-  queryString?: string;
+export function getCacheUIData(): IFilterItem[] {
+  const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY);
+  try {
+    return JSON.parse(uiDataSrt) || [];
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
 }
 
 /**
@@ -189,3 +214,33 @@ export function onClickOutside(element, callback, { once = false } = {}) {
 }
 // 单次触发示例
 // const removeListener = onClickOutside(targetElement, closeModal, { once: true });
+
+/**
+ * @description 合并where条件 （不相同的条件往后添加）
+ * @param source
+ * @param target
+ * @returns
+ */
+export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
+  let result: IWhereItem[] = [];
+  const sourceMap: Map<string, IWhereItem> = new Map();
+  for (const item of source) {
+    sourceMap.set(item.key, item);
+  }
+  const localTarget = [];
+  for (const item of target) {
+    const sourceItem = sourceMap.get(item.key);
+    if (
+      !(
+        sourceItem.key === item.key &&
+        sourceItem.method === item.method &&
+        JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
+        sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
+      )
+    ) {
+      localTarget.push(item);
+    }
+  }
+  result = [...source, ...localTarget];
+  return result;
+}
