@@ -298,7 +298,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     }
     if (this.metricQueryData.length > 1 && this.expression.trim().length) {
       const title = this.metricQueryData.reduce(
-        (pre, cur) => pre.replace(new RegExp(cur.alias, 'gm'), cur.metric_field_name),
+        (pre, cur) => pre.replace(new RegExp(`${cur.alias}\\b`, 'gm'), cur.metric_field_name),
         this.expression
       );
       if (this.expression === title) {
@@ -443,7 +443,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       const temp = deepClone(this.dimensions);
       const dimensions = {};
       keys.forEach(key => {
-        if (!!temp[key]) {
+        if (temp[key]) {
           dimensions[key] = temp[key];
         }
       });
@@ -501,7 +501,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     // 接口不支持批量，需要逐个发请求拿维度可选值信息
     this.dimensionList.forEach(item => {
       const queryConfigs = commonParams.query_configs.map(queryConfig => {
-        const filter_dict = !!this.dimensions?.[item.id] ? queryConfig.filter_dict : {};
+        const filter_dict = this.dimensions?.[item.id] ? queryConfig.filter_dict : {};
         return {
           ...queryConfig,
           filter_dict,
