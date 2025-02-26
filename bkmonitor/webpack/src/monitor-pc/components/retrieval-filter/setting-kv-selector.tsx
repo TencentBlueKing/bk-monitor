@@ -27,7 +27,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { IFilterField, IWhereItem } from './utils';
+import { METHOD_MAP, type IFilterField, type IWhereItem } from './utils';
 
 import './setting-kv-selector.scss';
 
@@ -43,8 +43,36 @@ export default class SettingKvSelector extends tsc<IProps> {
   render() {
     return (
       <div class='resident-setting__setting-kv-selector-component'>
-        <div class='component-main' />
-        <div class='component-main hidden' />
+        <div class='component-main'>
+          <span class='key-wrap'>{this.value.key}</span>
+          <span class='method-wrap'>{METHOD_MAP[this.value.method]}</span>
+          <div class='value-wrap'>
+            {this.value.value.map((item, index) => (
+              <span
+                key={index}
+                class='tag-item'
+              >
+                <span class='tag-text'>{item}</span>
+                <span class='icon-monitor icon-mc-close' />
+              </span>
+            ))}
+          </div>
+        </div>
+        <div class='component-main hidden'>
+          <span class='key-wrap'>{this.value.key}</span>
+          <span class='method-wrap'>{METHOD_MAP[this.value.method]}</span>
+          <div class='value-wrap'>
+            {this.value.value.map((item, index) => (
+              <span
+                key={index}
+                class='tag-item'
+              >
+                <span class='tag-text'>{item}</span>
+                <span class='icon-monitor icon-mc-close' />
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
