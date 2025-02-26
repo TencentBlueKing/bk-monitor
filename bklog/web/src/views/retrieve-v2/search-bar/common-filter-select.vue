@@ -29,7 +29,7 @@
       if (filterAddition &&  filterAddition == filterFieldsList.value.length) {
         return store.getters.common_filter_addition;
       }
-      const existingFields = new Set(store.getters.retrieveParams.common_filter_addition?.map(item => item.field) || []);
+      const existingFields = new Set(store.getters.common_filter_addition?.map(item => item.field) || []);
       const additionalFields = filterFieldsList.value
         .filter(item => !existingFields.has(item?.field_name || ''))
         .map(item => ({
@@ -40,7 +40,7 @@
         }));
 
       return [
-        ...(store.getters.retrieveParams.common_filter_addition || []),
+        ...(store.getters.common_filter_addition || []),
         ...additionalFields
       ];
     },
@@ -316,10 +316,10 @@
       border: none;
 
       .operator-label {
-        padding: 4px;
-        color: #3a84ff;
         display: inline-block;
         width: 100%;
+        padding: 4px;
+        color: #3a84ff;
         white-space: nowrap;
       }
 
