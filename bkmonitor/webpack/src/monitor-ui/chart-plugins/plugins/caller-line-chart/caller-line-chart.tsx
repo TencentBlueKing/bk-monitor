@@ -424,8 +424,6 @@ class CallerLineChart extends CommonSimpleChart {
         const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
         console.info(seriesList, this.legendData, '+++++');
-        const maxValue =
-          this.legendData?.reduce((pre: any, cur: any) => (pre > cur.maxSource ? pre : cur.maxSource), 0) || 0;
         const xList = seriesList[0].data;
         const xValue = xList[Math.ceil(xList.length / 2)]?.value[0];
         const x2Value = xList[Math.ceil(xList.length / 3)]?.value[0];
@@ -434,6 +432,13 @@ class CallerLineChart extends CommonSimpleChart {
             animation: hasShowSymbol,
             color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
+            grid: {
+              top: 30,
+              left: 6,
+              right: 6,
+              bottom: 0,
+              containLabel: true,
+            },
             yAxis: {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
@@ -468,7 +473,7 @@ class CallerLineChart extends CommonSimpleChart {
                   const eventCount = api.value(2);
                   const x = api.coord([api.value(0), 0])[0];
                   const y0 = api.coord([0, 0])[1];
-                  const y1 = api.coord([0, maxValue])[1];
+                  // const y1 = api.coord([0, maxValue])[1];
                   const rectangleHeight = 16 * window.devicePixelRatio; // 矩形的高度
                   const circleRadius = rectangleHeight / 2; // 圆的半径
                   const rectangleWidth = 18 * window.devicePixelRatio; // 矩形的宽度
@@ -489,7 +494,7 @@ class CallerLineChart extends CommonSimpleChart {
                       x1: x,
                       y1: y0,
                       x2: x,
-                      y2: y1,
+                      y2: 20,
                     },
                     style: {
                       stroke: '#2F567D',
