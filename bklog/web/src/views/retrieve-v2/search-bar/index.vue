@@ -1,11 +1,11 @@
 <script setup>
-  import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import PopInstanceUtil from './pop-instance-util';
+  // import PopInstanceUtil from './pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -256,9 +256,6 @@
   );
 
   const matchSQLStr = computed(() => {
-    if(props.activeFavorite.index_set_id !== store.getters.indexId ){
-      return false;
-    }
     if (activeIndex.value === 0) {
       if (sourceUISQLAddition.value.length !== uiQueryValue.value.length) {
         return false;
@@ -276,9 +273,6 @@
   });
 
   const saveCurrentActiveFavorite = async () => {
-    if (matchSQLStr.value) {
-      return;
-    }
     const {
       name,
       group_id,
@@ -384,7 +378,7 @@
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
-        const { common_filter_addition } = store.getters.retrieveParams;
+        const { common_filter_addition } = store.getters;
         if (common_filter_addition.length) {
           window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
@@ -468,42 +462,29 @@
           ></div>
 
           <BookmarkPop
-            :activeFavorite="!props.activeFavorite"
+            v-if="!props.activeFavorite"
+            v-bk-tooltips="$t('收藏当前查询')"
             :addition="uiQueryValue"
             :class="{ disabled: isInputLoading }"
             :search-mode="queryParams[activeIndex]"
             :sql="sqlQueryValue"
-            :matchSQLStr="matchSQLStr"
-            @saveCurrentActiveFavorite="saveCurrentActiveFavorite"
             @refresh="handleRefresh"
           ></BookmarkPop>
-          <!-- <template v-else> -->
-            <!-- <div
+          <template v-else>
+            <div
               v-if="matchSQLStr"
               class="bklog-icon bklog-star-line disabled"
               v-bk-tooltips="$t('已收藏')"
               :data-boolean="matchSQLStr"
-            ></div> -->
-            <!-- <bk-dropdown-menu :align="'center'">
-              <template slot="dropdown-trigger">
-                 <div
-                    style="color: #63656e"
-                    v-bk-tooltips="$t('收藏')"
-                    class="icon bk-icon icon-save"
-                  ></div>
-              </template>
-              <ul class="bk-dropdown-list" slot="dropdown-content">
-                  <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentActiveFavorite">覆盖当前收藏</a></li>
-                  <li><a href="javascript:;">另存为新收藏</a></li>
-              </ul>
-          </bk-dropdown-menu> -->
-            <!-- <div
+            ></div>
+            <div
+              v-else
               style="color: #63656e"
               v-bk-tooltips="$t('收藏')"
               class="icon bk-icon icon-save"
               @click="saveCurrentActiveFavorite"
-            ></div> -->
-          <!-- </template> -->
+            ></div>
+          </template>
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
@@ -565,23 +546,23 @@
 
   .bklog-search-input-poptool {
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     background: transparent;
 
     .bklog-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
       width: 28px;
       height: 28px;
-      margin-right: 4px;
-      color: #4d4f56;
-      cursor: pointer;
       background: #fafbfd;
       border: 1px solid #dcdee5;
-      border-radius: 2px;
       box-shadow: 0 1px 3px 1px #0000001f;
+      border-radius: 2px;
+      color: #4d4f56;
+      margin-right: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
 
       &:hover {
         color: #3a84ff;

@@ -4,7 +4,7 @@ from collections import Counter, deque
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from luqum.auto_head_tail import auto_head_tail
 from luqum.exceptions import IllegalCharacterError, ParseSyntaxError
 from luqum.parser import lexer, parser
@@ -380,7 +380,7 @@ class IllegalRangeSyntaxInspector(BaseInspector):
     syntax_error_message = _("非法RANGE语法")
 
     # RANGE语法正则
-    range_re = r":[\s]?[\[]?.*?(?i)TO.*"
+    range_re = r":[\s]?[\[]?.*?(?i:TO).*"
 
     def inspect(self):
         try:

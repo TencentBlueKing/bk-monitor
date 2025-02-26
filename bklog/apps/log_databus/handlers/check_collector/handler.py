@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import os
 from typing import Any, Dict, List, Optional
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.log_commons.job import JobHelper
 from apps.log_databus.constants import (

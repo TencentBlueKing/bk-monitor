@@ -25,7 +25,7 @@ from typing import List
 
 from django.conf import settings
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from pipeline.engine.exceptions import InvalidOperationException
 from pipeline.service import task_service
 from rest_framework.response import Response

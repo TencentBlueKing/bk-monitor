@@ -24,7 +24,8 @@ import time
 
 import requests
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+
 from home_application.handlers.metrics import (
     HealthzMetric,
     NamespaceData,

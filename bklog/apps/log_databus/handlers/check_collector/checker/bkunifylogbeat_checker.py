@@ -24,6 +24,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 import yaml
+from django.conf import settings
+from django.utils.translation import gettext as _
+from kubernetes.client.models import v1_pod
+
 from apps.api import CCApi
 from apps.log_commons.adapt_ipv6 import get_ip_field
 from apps.log_databus.constants import (
@@ -41,9 +45,6 @@ from apps.log_databus.handlers.check_collector.checker.base_checker import Check
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig
 from apps.utils.bcs import Bcs
-from django.conf import settings
-from django.utils.translation import ugettext as _
-from kubernetes.client.models import v1_pod
 
 
 @dataclass

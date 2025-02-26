@@ -19,13 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import url, include
+from django.conf.urls import include
+from django.urls import re_path
 from rest_framework import routers
 
-from apps.bk_log_admin.views import (
-    index_set,
-    audit_record_views,
-)
+from apps.bk_log_admin.views import audit_record_views, index_set
 
 router = routers.DefaultRouter(trailing_slash=True)
 
@@ -37,4 +35,4 @@ router.register(
 
 router.register(r"admin/audit", audit_record_views.AuditRecordViewSet, basename="audit_record")
 
-urlpatterns = [url(r"^", include(router.urls))]
+urlpatterns = [re_path(r"^", include(router.urls))]

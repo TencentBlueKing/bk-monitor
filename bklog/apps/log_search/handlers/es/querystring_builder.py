@@ -43,7 +43,7 @@ class QueryStringBuilder(object):
                 continue
 
             # 全文检索的情况
-            if condition["field"] in ["*", "querystring"]:
+            if condition["field"] in ["*", "__query_string__"]:
                 transform_result_list = []
                 for value in condition["value"]:
                     if condition["field"] == "*":

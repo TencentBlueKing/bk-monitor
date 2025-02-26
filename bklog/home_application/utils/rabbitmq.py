@@ -23,11 +23,12 @@ import logging
 import time
 
 import pika
-import settings
-from django.utils.translation import ugettext_lazy as _
-from home_application.constants import ALARM_QUEUE_LEN
+from django.utils.translation import gettext_lazy as _
 from kombu.utils.url import url_to_parts
 from pika.exceptions import ChannelClosedByBroker
+
+import settings
+from home_application.constants import ALARM_QUEUE_LEN
 
 logger = logging.getLogger()
 

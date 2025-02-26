@@ -23,7 +23,7 @@ the project delivered to anyone in the future.
 from typing import Dict, List, Union
 
 from django.conf import settings
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from iam import (
     MultiActionRequest,
     ObjectSet,
