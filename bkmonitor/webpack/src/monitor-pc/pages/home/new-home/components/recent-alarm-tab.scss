@@ -7,7 +7,9 @@
   .tabs {
     display: flex;
     align-items: flex-end;
-    margin-left: -4px;
+    &.has-space {
+      margin-left: -4px;
+    }
     .tab {
       position: relative;
       display: flex;

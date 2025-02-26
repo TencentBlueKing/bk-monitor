@@ -170,7 +170,7 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
     return (
       <div class='recent-alarm-tab'>
         {
-          <div class='tabs'>
+          <div class={{ tabs: true, 'has-space': this.tabs.length }}>
             {this.tabs.map(({ bk_biz_name: name, bk_biz_id: id }, index) => (
               <div
                 key={id}
