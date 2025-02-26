@@ -32,6 +32,7 @@ import { customTsGroupingRuleList, modifyCustomTimeSeriesDesc } from 'monitor-ap
 import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import { matchRuleFn } from '../group-manage-dialog';
+import TimeseriesDetailNew from './timeseries-detail';
 
 import type {
   IDetailData,
@@ -67,7 +68,9 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       id: 'delete',
     },
   ];
-
+  /** 当前拖拽id */
+  dragId = '';
+  dragoverId = '';
   groupListMock = [
     {
       title: '分组1',
@@ -813,6 +816,182 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     // TODO
     console.log(item);
   }
+
+  // 拖拽开始，记录当前拖拽的ID
+  handleDragstart(index: number, e) {
+    console.log('e', e.target.children);
+    this.dragId = index.toString();
+  }
+
+  // 拖拽经过事件，设置当前拖拽ID
+  handleDragover(index: number, e: DragEvent) {
+    e.preventDefault();
+    this.dragoverId = index.toString();
+  }
+
+  // 拖拽离开事件，清除当前拖拽的ID
+  handleDragleave() {
+    this.dragoverId = '';
+  }
+
+  // 拖拽完成时逻辑
+  handleDrop() {
+    if (this.dragId !== this.dragoverId) {
+      const tab = Object.assign([], this.groupListMock);
+      const dragIndex = Number.parseInt(this.dragId, 10);
+      const dragoverIndex = Number.parseInt(this.dragoverId, 10);
+
+      const draggedTab = this.groupListMock[dragIndex];
+      tab.splice(dragIndex, 1);
+      tab.splice(dragoverIndex, 0, draggedTab);
+      this.dragId = '';
+      this.dragoverId = '';
+      this.groupListMock = tab;
+    }
+    this.dragoverId = '';
+  }
+  // 拖拽 end
+  getBaseInfoCmp() {
+    return (
+      <div class='detail-information'>
+        <div class='detail-information-title'>{this.$t('基本信息')}</div>
+        <div class='detail-information-content'>
+          <div class='detail-information-row'>
+            <span class='row-label'>{this.$t('数据ID')} : </span>
+            <span
+              class='row-content'
+              v-bk-overflow-tips
+            >
+              {this.detailData.bk_data_id}
+            </span>
+          </div>
+          <div class='detail-information-row'>
+            <span class='row-label'>Token : </span>
+            <span
+              class='row-content'
+              v-bk-overflow-tips
+            >
+              {this.detailData.access_token}
+            </span>
+          </div>
+          <div class='detail-information-row'>
+            <span class='row-label'>{this.$t('监控对象')} : </span>
+            <span
+              class='row-content'
+              v-bk-overflow-tips
+            >
+              {'scenario'}
+            </span>
+          </div>
+          <div class='detail-information-row'>
+            <span class='row-label'>{this.$t('上报协议')} : </span>
+            {this.detailData.protocol ? (
+              <span
+                class='row-content'
+                v-bk-overflow-tips
+              >
+                {this.detailData.protocol === 'json' ? 'JSON' : 'Prometheus'}
+              </span>
+            ) : (
+              <span> -- </span>
+            )}
+          </div>
+          <div class={'detail-information-row'}>
+            <span class='row-label'>
+              {this.type === 'customEvent' ? this.$t('是否为平台事件') : this.$t('作用范围')} :{' '}
+            </span>
+            <span
+              class='row-content'
+              v-bk-overflow-tips
+            >
+              {this.copyIsPlatform === false ? this.$t('本业务') : this.$t('全平台')}
+            </span>
+          </div>{' '}
+          <div class='detail-information-row'>
+            <span class='row-label'>{this.$t('英文名')} : </span>
+            {!this.isShowEditDataLabel ? (
+              <div style='display: flex; min-width: 0'>
+                <span
+                  class='row-content'
+                  v-bk-overflow-tips
+                >
+                  {this.detailData.data_label || '--'}
+                </span>
+                {!this.isShowEditDataLabel && !this.isReadonly && (
+                  <i
+                    class='icon-monitor icon-bianji edit-name'
+                    onClick={() => 'handleShowEditDataLabel'}
+                  />
+                )}
+              </div>
+            ) : (
+              <bk-input
+                ref='dataLabelInput'
+                style='width: 240px'
+                v-model={this.copyDataLabel}
+                onBlur='handleEditDataLabel'
+              />
+            )}
+          </div>
+          <div class='detail-information-row'>
+            <span class='row-label'>{this.$t('名称')} : </span>
+            {!this.isShowEditName ? (
+              <div style='display: flex; min-width: 0'>
+                <span
+                  class='row-content'
+                  v-bk-overflow-tips
+                >
+                  {this.detailData.name}
+                </span>
+                {this.detailData.name && !this.isReadonly && (
+                  <i
+                    class='icon-monitor icon-bianji edit-name'
+                    onClick={() => 'handleShowEdit'}
+                  />
+                )}
+              </div>
+            ) : (
+              <bk-input
+                ref='nameInput'
+                style='width: 240px'
+                v-model={this.copyName}
+                onBlur='handleEditName'
+              />
+            )}
+          </div>
+          <div class='detail-information-row last-row'>
+            <span class='row-label'>{this.$t('描述')} : </span>
+            {!this.isShowEditDesc ? (
+              <div style='display: flex; min-width: 0'>
+                <span
+                  class='row-content'
+                  v-bk-overflow-tips
+                >
+                  {this.detailData.desc || '--'}
+                </span>
+                {!this.isReadonly && (
+                  <i
+                    class='icon-monitor icon-bianji edit-name'
+                    onClick={this.handleShowEditDes}
+                  />
+                )}
+              </div>
+            ) : (
+              <bk-input
+                ref='describeInput'
+                style='width: 440px'
+                class='form-content-textarea'
+                v-model={this.copyDescribe}
+                rows={3}
+                type='textarea'
+                onBlur={this.handleEditDescribe}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
   render() {
     return (
       <div
@@ -848,243 +1027,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         <div class='custom-detail-page'>
           <div class='custom-detail'>
             {/* 基本信息 */}
-            <div class='detail-information'>
-              <div class='detail-information-title'>{this.$t('基本信息')}</div>
-              <div class='detail-information-content'>
-                <div class='detail-information-row'>
-                  <span class='row-label'>{this.$t('数据ID')} : </span>
-                  <span
-                    class='row-content'
-                    v-bk-overflow-tips
-                  >
-                    {this.detailData.bk_data_id}
-                  </span>
-                </div>
-                <div class='detail-information-row'>
-                  <span class='row-label'>Token : </span>
-                  <span
-                    class='row-content'
-                    v-bk-overflow-tips
-                  >
-                    {this.detailData.access_token}
-                  </span>
-                </div>
-                <div class='detail-information-row'>
-                  <span class='row-label'>{this.$t('监控对象')} : </span>
-                  <span
-                    class='row-content'
-                    v-bk-overflow-tips
-                  >
-                    {'scenario'}
-                  </span>
-                </div>
-                <div class='detail-information-row'>
-                  <span class='row-label'>{this.$t('上报协议')} : </span>
-                  {this.detailData.protocol ? (
-                    <span
-                      class='row-content'
-                      v-bk-overflow-tips
-                    >
-                      {this.detailData.protocol === 'json' ? 'JSON' : 'Prometheus'}
-                    </span>
-                  ) : (
-                    <span> -- </span>
-                  )}
-                </div>
-                <div class={'detail-information-row'}>
-                  <span class='row-label'>
-                    {this.type === 'customEvent' ? this.$t('是否为平台事件') : this.$t('作用范围')} :{' '}
-                  </span>
-                  <span
-                    class='row-content'
-                    v-bk-overflow-tips
-                  >
-                    {this.copyIsPlatform === false ? this.$t('本业务') : this.$t('全平台')}
-                  </span>
-                </div>{' '}
-                <div class='detail-information-row'>
-                  <span class='row-label'>{this.$t('英文名')} : </span>
-                  {!this.isShowEditDataLabel ? (
-                    <div style='display: flex; min-width: 0'>
-                      <span
-                        class='row-content'
-                        v-bk-overflow-tips
-                      >
-                        {this.detailData.data_label || '--'}
-                      </span>
-                      {!this.isShowEditDataLabel && !this.isReadonly && (
-                        <i
-                          class='icon-monitor icon-bianji edit-name'
-                          onClick={() => 'handleShowEditDataLabel'}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <bk-input
-                      ref='dataLabelInput'
-                      style='width: 240px'
-                      v-model={this.copyDataLabel}
-                      onBlur='handleEditDataLabel'
-                    />
-                  )}
-                </div>
-                <div class='detail-information-row'>
-                  <span class='row-label'>{this.$t('名称')} : </span>
-                  {!this.isShowEditName ? (
-                    <div style='display: flex; min-width: 0'>
-                      <span
-                        class='row-content'
-                        v-bk-overflow-tips
-                      >
-                        {this.detailData.name}
-                      </span>
-                      {this.detailData.name && !this.isReadonly && (
-                        <i
-                          class='icon-monitor icon-bianji edit-name'
-                          onClick={() => 'handleShowEdit'}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <bk-input
-                      ref='nameInput'
-                      style='width: 240px'
-                      v-model={this.copyName}
-                      onBlur='handleEditName'
-                    />
-                  )}
-                </div>
-                <div class='detail-information-row last-row'>
-                  <span class='row-label'>{this.$t('描述')} : </span>
-                  {!this.isShowEditDesc ? (
-                    <div style='display: flex; min-width: 0'>
-                      <span
-                        class='row-content'
-                        v-bk-overflow-tips
-                      >
-                        {this.detailData.desc || '--'}
-                      </span>
-                      {!this.isReadonly && (
-                        <i
-                          class='icon-monitor icon-bianji edit-name'
-                          onClick={this.handleShowEditDes}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <bk-input
-                      ref='describeInput'
-                      style='width: 440px'
-                      class='form-content-textarea'
-                      v-model={this.copyDescribe}
-                      rows={3}
-                      type='textarea'
-                      onBlur={this.handleEditDescribe}
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
+            {this.getBaseInfoCmp()}
             {/* 指标/维度列表 */}
-            <div class='detail-information detail-list'>
-              <div class='list-header'>
-                <div class='detail-information-title'>{this.$t('指标与维度')}</div>
-                <div class='head'>
-                  <div class='tabs'>
-                    <span class='tab active'>维度</span>
-                    <span class='tab'>指标</span>
-                  </div>
-                  <div class='tools'>
-                    <span class='tool'>导入</span>
-                    <span class='tool'>导出</span>
-                  </div>
-                </div>
-              </div>
-              <div class='list-content'>
-                <div class={{ left: true, active: this.isShowRightWindow }}>
-                  <div
-                    class={'right-button'}
-                    onClick={() => (this.isShowRightWindow = !this.isShowRightWindow)}
-                  >
-                    {this.isShowRightWindow ? (
-                      <i class='icon-monitor icon-arrow-left icon' />
-                    ) : (
-                      <i class='icon-monitor icon-arrow-right icon' />
-                    )}
-                  </div>
-                  <div class='group-list'>
-                    <div class='top-group'>
-                      <div class={{ group: true, 'group-selected': true }}>
-                        <div class='group-name'>
-                          <i class='icon-monitor icon-mc-all' />
-                          所有指标
-                        </div>
-                        <div class='group-count'>23</div>
-                      </div>
-                      <div class='group'>
-                        <div class='group-name'>
-                          <i class='icon-monitor icon-mc-full-folder' />
-                          未分组
-                        </div>
-                        <div class='group-count'>23</div>
-                      </div>
-                    </div>
-                    <div class='custom-group'>
-                      {this.groupListMock.length ? (
-                        this.groupListMock.map(group => (
-                          <div
-                            key={group.title}
-                            class='group'
-                          >
-                            <i class='icon-monitor icon-mc-tuozhuai item-drag' />
-                            <div class='group-name'>
-                              <i class='icon-monitor icon-mc-full-folder' />
-                              {group.title}
-                            </div>
-                            <div class='group-count'>{group.count || 0}</div>
-                            <bk-popover
-                              ref='menuPopover'
-                              class='group-popover'
-                              tippy-options={{
-                                trigger: 'click',
-                              }}
-                              arrow={false}
-                              offset={'0, 0'}
-                              placement='bottom-start'
-                              theme='light common-monitor'
-                            >
-                              <span class='more-operation'>
-                                <i class='icon-monitor icon-mc-more' />
-                              </span>
-                              <div
-                                class='home-chart-more-list'
-                                slot='content'
-                              >
-                                {this.menuList.map(item => (
-                                  <span
-                                    key={item.id}
-                                    class={`more-list-item ${item.id}`}
-                                    on-click={() => this.handleMenuClick(item)}
-                                  >
-                                    {item.name}
-                                  </span>
-                                ))}
-                              </div>
-                            </bk-popover>
-                          </div>
-                        ))
-                      ) : (
-                        <div>
-                          {/* TODO 空态 */}
-                          空的
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div class='right'>table</div>
-              </div>
-            </div>
+            {this.type === 'customTimeSeries' ? (
+              <TimeseriesDetailNew class='detail-information detail-list' />
+            ) : (
+              <TimeseriesDetailNew class='detail-information detail-list' />
+            )}
           </div>
         </div>
       </div>
