@@ -1559,7 +1559,8 @@ export default defineComponent({
               <Input
                 v-model={queryString.value}
                 placeholder={t('输入')}
-                rows={3}
+                autosize
+                style='min-height: 70px;'
                 type='textarea'
                 onBlur={handleScopeQueryChange}
               />
