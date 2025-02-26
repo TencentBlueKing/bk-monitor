@@ -23,26 +23,20 @@
 
   const commonFilterAddition = computed({
     get() {
-      // 如果 filterAddition 存在且长度等于 filterSetting 的长度，直接返回 filterAddition。
-      // 如果 filterAddition 存在但长度不等于 filterSetting 的长度，返回 filterAddition，并为缺少的字段补充空结构。
-      const filterAddition = store.getters.common_filter_addition?.length;
-      if (filterAddition &&  filterAddition == filterFieldsList.value.length) {
-        return store.getters.common_filter_addition;
-      }
-      const existingFields = new Set(store.getters.common_filter_addition?.map(item => item.field) || []);
-      const additionalFields = filterFieldsList.value
-        .filter(item => !existingFields.has(item?.field_name || ''))
-        .map(item => ({
-          field: item?.field_name || '',
-          operator: '=',
-          value: [],
-          list: [],
-        }));
-
-      return [
-        ...(store.getters.common_filter_addition || []),
-        ...additionalFields
-      ];
+      const filterAddition = store.getters.common_filter_addition || [];
+      return filterFieldsList.value.map(item => {
+        const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
+        if (matchingItem) {
+          return matchingItem;
+        } else {
+          return {
+            field: item.field_name || '',
+            operator: '=',
+            value: [],
+            list: [],
+          };
+        }
+      });
     },
     set(val) {
       const target = val.map(item => {
