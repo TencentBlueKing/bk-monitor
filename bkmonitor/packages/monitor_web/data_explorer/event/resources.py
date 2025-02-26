@@ -12,6 +12,8 @@ import logging
 import string
 from typing import Any, Dict, List, Tuple
 
+from django.utils.translation import gettext_lazy as _
+
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
 from core.drf_resource import Resource
@@ -68,7 +70,7 @@ class EventLogsResource(Resource):
         ]
 
         # 构建统一查询集
-        query_set = (
+        queryset = (
             UnifyQuerySet()
             .scope(bk_biz_id=validated_request_data["bk_biz_id"])
             .start_time(1000 * validated_request_data["start_time"])
@@ -81,13 +83,13 @@ class EventLogsResource(Resource):
 
         # 添加查询到查询集中
         for query in queries:
-            query_set = query_set.add_query(query)
+            queryset = queryset.add_query(query)
         try:
             # unify-query 查询失败
-            events: List[Dict[str, Any]] = query_set.original_data
+            events: List[Dict[str, Any]] = list(queryset)
         except Exception as exc:
             logger.warning("[EventLogsResource] failed to get logs, err -> %s", exc)
-            return {"list": []}
+            raise ValueError(_("事件拉取失败"))
 
         processors: List[BaseEventProcessor] = [OriginEventProcessor()]
         for processor in processors:

@@ -34,7 +34,6 @@ class OriginEventProcessor(BaseEventProcessor):
 
     def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         events = []
-
         for origin_event in origin_events:
             event = self.process_display_field(origin_event)
 
