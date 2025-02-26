@@ -552,6 +552,26 @@ export default defineComponent({
         } else cacheFilterToolsValues.waterFallAndTopo = val;
       }
     };
+
+    /**
+     * @description: 判断checkbox是否禁用
+     * @param kindId 类型ID
+     * @returns { boolean }
+     */
+    const disabledSpanKindById = (kindId: string) => {
+      if (kindId === SOURCE_CATEGORY_EBPF && !traceData.value?.ebpf_enabled) {
+        return true;
+      }
+      return (
+        (state.activePanel === 'statistics' &&
+          traceViewFilters.value.length === 1 &&
+          traceViewFilters.value.includes(kindId)) ||
+        (state.activePanel === 'topo' &&
+          [SOURCE_CATEGORY_EBPF, VIRTUAL_SPAN].includes(kindId) &&
+          topoType.value === ETopoType.service)
+      );
+    };
+
     // 回到顶部操作
     const handleBackTop = () => {
       document.querySelector('.trace-detail-wrapper')?.scrollTo({ top: 0 });
@@ -829,6 +849,7 @@ export default defineComponent({
       handleTopoChangeType,
       handleServiceTopoClickItem,
       handleChangeEnableTimeALignment,
+      disabledSpanKindById,
     };
   },
 
@@ -1069,26 +1090,26 @@ export default defineComponent({
                   {this.filterToolList.map((kind, index) => (
                     <Checkbox
                       key={index}
-                      disabled={
-                        (this.activePanel === 'statistics' &&
-                          this.traceViewFilters.length === 1 &&
-                          this.traceViewFilters.includes(kind.id)) ||
-                        (this.activePanel === 'topo' &&
-                          [SOURCE_CATEGORY_EBPF, VIRTUAL_SPAN].includes(kind.id) &&
-                          this.topoType === ETopoType.service)
-                      }
+                      disabled={this.disabledSpanKindById(kind.id)}
                       label={kind.id}
                       size='small'
                     >
                       {/* 增加特殊过滤类型说明 */}
                       <Popover
                         key={kind.id}
-                        content={kind.desc}
                         disabled={!kind.desc}
                         placement='top'
-                        popoverDelay={[500, 0]}
+                        popoverDelay={[500, 50]}
                       >
-                        <span>{kind.label}</span>
+                        {{
+                          default: () => <span>{kind.label}</span>,
+                          content: () => {
+                            if (kind.id !== SOURCE_CATEGORY_EBPF) {
+                              return kind.desc;
+                            }
+                            return this.traceData?.ebpf_enabled ? kind.desc : kind.disabledDesc;
+                          },
+                        }}
                       </Popover>
                     </Checkbox>
                   ))}
