@@ -434,6 +434,13 @@ class _TransferApi(object):
             description=_("创建或更新es路由"),
             before_request=add_esb_info_before_request,
         )
+        self.list_kafka_tail = DataAPI(
+            method="GET",
+            url=MONITOR_APIGATEWAY_ROOT_NEW + "metadata_kafka_tail/",
+            module=self.MODULE,
+            description=_("查询结果表MQ的最新数据"),
+            before_request=add_esb_info_before_request,
+        )
 
 
 Transfer = _TransferApi()
