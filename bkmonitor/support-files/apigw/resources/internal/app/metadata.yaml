@@ -1,0 +1,1769 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /app/metadata/create_data_source/:
+    post:
+      operationId: metadata_create_data_source
+      description: 创建监控数据源
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_data_id/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata create data source
+  /app/metadata/create_result_table/:
+    post:
+      operationId: metadata_create_result_table
+      description: 创建监控结果表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/result_table/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata create result table
+  /app/metadata/list_result_table/:
+    get:
+      operationId: metadata_list_result_table
+      description: 查询监控结果表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/result_table/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata list result table
+  /app/metadata/modify_result_table/:
+    post:
+      operationId: metadata_modify_result_table
+      description: 修改监控结果表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_result_table/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata modify result table
+  /app/metadata/is_data_label_exist/:
+    get:
+      operationId: metadata_is_data_label_exist
+      description: 判断结果表中是否存在指定data_label
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/is_data_label_exist/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: whether data_label exist
+  /app/metadata/get_data_source/:
+    get:
+      operationId: metadata_get_data_source
+      description: 获取监控数据源具体信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_data_id/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata get data source
+  /app/metadata/query_data_source_by_space_uid/:
+    post:
+      operationId: metadata_query_data_source_by_space_uid
+      description: 根据space_uid查询data_source
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/query_data_source_by_space_uid/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata query data source by space_uid
+  /app/metadata/get_result_table/:
+    get:
+      operationId: metadata_get_result_table
+      description: 获取监控结果表具体信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_result_table/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata get result table
+  /app/metadata/upgrade_result_table/:
+    post:
+      operationId: metadata_upgrade_result_table
+      description: 将指定的监控单业务结果表升级为全业务结果表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/upgrade_result_table/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata upgrade result table
+  /app/metadata/modify_data_source/:
+    post:
+      operationId: metadata_modify_data_source
+      description: 修改指定数据源的配置信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_data_id/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata modify data source
+  /app/metadata/modify_datasource_result_table/:
+    post:
+      operationId: metadata_modify_datasource_result_table
+      description: 修改数据源与结果表的关系
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_datasource_result_table/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: modify datasource result table
+  /app/metadata/create_result_table_metric_split/:
+    post:
+      operationId: metadata_create_result_table_metric_split
+      description: 创建结果表的维度拆分配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_result_table_metric_split/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata create result table metric split
+  /app/metadata/list_label/:
+    get:
+      operationId: metadata_list_label
+      description: 查询当前已有的标签信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/label/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata list label
+  /app/metadata/metadata_get_result_table_storage/:
+    get:
+      operationId: metadata_get_result_table_storage
+      description: 查询指定结果表的指定存储信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_result_table_storage/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata get result table storage
+  /app/metadata/get_cluster_info/:
+    get:
+      operationId: metadata_get_cluster_info
+      description: 查询指定存储集群信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_cluster_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata get cluster info
+  /app/metadata/create_cluster_info/:
+    post:
+      operationId: metadata_create_cluster_info
+      description: 创建存储集群信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_cluster_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata create cluster info
+  /app/metadata/modify_cluster_info/:
+    post:
+      operationId: metadata_modify_cluster_info
+      description: 修改存储集群信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_cluster_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata modify cluster info
+  /app/metadata/get_log_group/:
+    get:
+      operationId: metadata_get_log_group
+      description: 查询日志分组具体内容
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_log_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata get log group
+  /app/metadata/delete_log_group/:
+    post:
+      operationId: metadata_delete_log_group
+      description: 删除日志分组
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/delete_log_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata delete log group
+  /app/metadata/modify_log_group/:
+    post:
+      operationId: metadata_modify_log_group
+      description: 修改日志分组
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_log_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata modify log group
+  /app/metadata/create_log_group/:
+    post:
+      operationId: metadata_create_log_group
+      description: 创建日志分组
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_log_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata create log group
+  /app/metadata/query_log_group/:
+    get:
+      operationId: metadata_query_log_group
+      description: 查询日志分组
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_log_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata query log group
+  /app/metadata/access_bk_data_by_result_table/:
+    post:
+      operationId: access_bk_data_by_result_table
+      description: 将结果表接入到计算平台
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/access_bk_data_by_result_table/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: access_bk_data_by_result_table
+  /app/metadata/create_time_series_group/:
+    post:
+      operationId: metadata_create_time_series_group
+      description: 创建自定义时序分组
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_time_series_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create time series group
+  /app/metadata/modify_time_series_group/:
+    post:
+      operationId: metadata_modify_time_series_group
+      description: 修改自定义时序分组
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_time_series_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: modify time series group
+  /app/metadata/delete_time_series_group/:
+    post:
+      operationId: metadata_delete_time_series_group
+      description: 删除自定义时序分组
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/delete_time_series_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete time series group
+  /app/metadata/get_time_series_metrics/:
+    get:
+      operationId: metadata_get_time_series_metrics
+      description: 获取自定义时序结果表的metrics信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_time_series_metrics/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get metrics info for time series event result table
+  /app/metadata/get_time_series_group/:
+    get:
+      operationId: metadata_get_time_series_group
+      description: 获取自定义时序分组具体内容
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_time_series_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get time series group
+  /app/metadata/query_time_series_group/:
+    get:
+      operationId: metadata_query_time_series_group
+      description: 批量查询自定义时序分组信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_time_series_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query time series group
+  /app/metadata/query_tag_values/:
+    get:
+      operationId: metadata_query_tag_values
+      description: 查询数据源指定指定tag/dimension的可选值
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_tag_values/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get time series group values
+  /app/metadata/list_transfer_cluster/:
+    get:
+      operationId: metadata_list_transfer_cluster
+      description: 获取所有transfer集群信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/list_transfer_cluster/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list transfer cluster
+  /app/metadata/create_es_snapshot_repository/:
+    post:
+      operationId: metadata_create_es_snapshot_repository
+      description: 创建ES快照仓库
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_es_snapshot_repository/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create es snapshot repository
+  /app/metadata/modify_es_snapshot_repository/:
+    post:
+      operationId: metadata_modify_es_snapshot_repository
+      description: 修改ES快照仓库
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_es_snapshot_repository/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: modify es snapshot repository
+  /app/metadata/delete_es_snapshot_repository/:
+    post:
+      operationId: metadata_delete_es_snapshot_repository
+      description: 删除ES快照仓库
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/delete_es_snapshot_repository/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete es snapshot repository
+  /app/metadata/verify_es_snapshot_repository/:
+    get:
+      operationId: metadata_verify_es_snapshot_repository
+      description: 验证ES快照仓库
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/verify_es_snapshot_repository/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: verify es snapshot repository
+  /app/metadata/es_snapshot_repository/:
+    get:
+      operationId: es_snapshot_repository
+      description: 查询指定集群ES快照仓库
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/es_snapshot_repository/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query es snapshot repository
+  /app/metadata/list_es_snapshot_repository/:
+    post:
+      operationId: list_es_snapshot_repository
+      description: 快照仓库列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/list_es_snapshot_repository/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list es snapshot repository
+  /app/metadata/create_result_table_snapshot/:
+    post:
+      operationId: create_result_table_snapshot
+      description: 创建结果表快照配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_result_table_snapshot/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create result table snapshot
+  /app/metadata/modify_result_table_snapshot/:
+    post:
+      operationId: modify_result_table_snapshot
+      description: 修改结果表快照配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_result_table_snapshot/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: modify result table snapshot
+  /app/metadata/delete_result_table_snapshot/:
+    post:
+      operationId: delete_result_table_snapshot
+      description: 删除结果表快照配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/delete_result_table_snapshot/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete result table snapshot
+  /app/metadata/list_result_table_snapshot/:
+    post:
+      operationId: list_result_table_snapshot
+      description: 结果表快照配置列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/list_result_table_snapshot/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list result table snapshot
+  /app/metadata/list_result_table_snapshot_indices/:
+    post:
+      operationId: list_result_table_snapshot_indices
+      description: 结果表快照配置列表含物理索引
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/list_result_table_snapshot_indices/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list result table snapshot indices
+  /app/metadata/get_result_table_snapshot_state/:
+    post:
+      operationId: get_result_table_snapshot_state
+      description: 验证ES快照仓库
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/get_result_table_snapshot_state/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: verify es snapshot repository
+  /app/metadata/restore_result_table_snapshot/:
+    post:
+      operationId: restore_result_table_snapshot
+      description: 快照回溯
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/restore_result_table_snapshot/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: restore result table snapshot
+  /app/metadata/modify_restore_result_table_snapshot/:
+    post:
+      operationId: modify_restore_result_table_snapshot
+      description: 修改快照回溯配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_restore_result_table_snapshot/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: modify restore result table snapshot
+  /app/metadata/delete_restore_result_table_snapshot/:
+    post:
+      operationId: delete_restore_result_table_snapshot
+      description: 删除快照回溯配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/delete_restore_result_table_snapshot/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete restore result table snapshot
+  /app/metadata/list_restore_result_table_snapshot/:
+    post:
+      operationId: list_restore_result_table_snapshot
+      description: 快照回溯列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/list_restore_result_table_snapshot/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list restore result table snapshot
+  /app/metadata/get_restore_result_table_snapshot_state/:
+    post:
+      operationId: get_restore_result_table_snapshot_state
+      description: 快照回溯状态
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/get_restore_result_table_snapshot_state/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: restore result table snapshot state
+  /app/metadata/check_or_create_kafka_storage/:
+    post:
+      operationId: check_or_create_kafka_storage
+      description: 检查对应结果表的kafka存储是否存在，不存在则创建
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/check_or_create_kafka_storage/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: check or create kafka storage
+  /app/metadata/register_bcs_cluster/:
+    post:
+      operationId: register_bcs_cluster
+      description: 注册bcs集群到metadata
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/register_bcs_cluster/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: register bcs cluster
+  /app/metadata/modify_bcs_resource_info/:
+    post:
+      operationId: modify_bcs_resource_info
+      description: 修改metadata的bcs_resouce信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_bcs_resource_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: modify bcs monitor info
+  /app/metadata/list_bcs_resource_info/:
+    post:
+      operationId: list_bcs_resource_info
+      description: 查询metadata的bcs_resouce信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/list_bcs_resource_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list bcs monitor info
+  /app/metadata/apply_yaml_to_bcs_cluster/:
+    post:
+      operationId: apply_yaml_to_bcs_cluster
+      description: 应用yaml配置到指定集群
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/apply_yaml_to_bcs_cluster/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: apply yaml to bcs cluster
+  /app/metadata/list_bcs_cluster_info/:
+    get:
+      operationId: list_bcs_cluster_info
+      description: 查询metadata的bcs_cluster信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/list_bcs_cluster_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list bcs cluster info
+  /app/metadata/query_bcs_metrics/:
+    get:
+      operationId: query_bcs_metrics
+      description: 查询metadata的bcs指标信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_bcs_metrics/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query bcs metrics info
+  /app/metadata/metadata_delete_cluster_info/:
+    post:
+      operationId: metadata_delete_cluster_info
+      description: 删除存储集群信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/delete_cluster_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete cluster info
+  /app/metadata/es_route/:
+    post:
+      operationId: metadata_es_route
+      description: 转发 es get 请求
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/es_route/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: es route request
+  /app/metadata/kafka_tail/:
+    get:
+      operationId: metadata_kafka_tail
+      description: 查询结果表MQ的最新数据
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/kafka_tail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query result_table kafka tail data
+  /app/metadata/list_space_types/:
+    get:
+      operationId: metadata_list_space_types
+      description: 查询空间类型列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/list_space_types/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list space types
+  /app/metadata/list_spaces/:
+    get:
+      operationId: metadata_list_spaces
+      description: 查询空间实例列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/list_spaces/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list spaces
+  /app/metadata/get_space_detail/:
+    get:
+      operationId: metadata_get_space_detail
+      description: 查询空间实例详情
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_space_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get space detail
+  /app/metadata/list_sticky_spaces/:
+    get:
+      operationId: metadata_list_sticky_spaces
+      description: 查询置顶空间列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/list_sticky_spaces/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list sticky spaces
+  /app/metadata/stick_space/:
+    post:
+      operationId: metadata_stick_space
+      description: 取消置顶/置顶空间
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/stick_space/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: stick space
+  /app/metadata/get_clusters_by_space_uid/:
+    get:
+      operationId: metadata_get_clusters_by_space_uid
+      description: 查询空间下的集群信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_clusters_by_space_uid/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get cluster by space uid
+  /app/metadata/create_space/:
+    post:
+      operationId: metadata_create_space
+      description: 创建空间
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_space/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create space
+  /app/metadata/update_space/:
+    post:
+      operationId: metadata_update_space
+      description: 更新空间
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/update_space/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: update space
+  /app/metadata/list_data_pipeline/:
+    get:
+      operationId: metadata_list_data_pipeline
+      description: 查询链路管道
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/list_data_pipeline/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list_data_pipeline
+  /app/metadata/create_data_pipeline/:
+    post:
+      operationId: metadata_create_data_pipeline
+      description: 创建链路管道
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_data_pipeline/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create_data_pipeline
+  /app/metadata/update_data_pipeline/:
+    post:
+      operationId: metadata_update_data_pipeline
+      description: 更新链路管道
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/update_data_pipeline/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: update_data_pipeline
+  /app/metadata/get_storage_cluster_info/:
+    get:
+      operationId: metadata_get_storage_cluster_info
+      description: 查询集群信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_storage_cluster_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get_storage_cluster_info
+  /app/metadata/get_etl_config/:
+    get:
+      operationId: metadata_get_etl_config
+      description: 查询场景类型
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_etl_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get_etl_config
+  /app/metadata/get_transfer_list/:
+    get:
+      operationId: metadata_get_transfer_list
+      description: 查询 transfer 集群列表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_transfer_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get_transfer_list
+  /app/metadata/check_cluster_health/:
+    get:
+      operationId: metadata_check_cluster_health
+      description: 检测集群连通性
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/check_cluster_health/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: check_cluster_health
+  /app/metadata/list_data_source_by_data_pipeline/:
+    get:
+      operationId: metadata_list_data_source_by_data_pipeline
+      description: 查询使用管道的数据源信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/list_data_source_by_data_pipeline/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list_data_source_by_data_pipeline
+  /app/metadata/list_clusters/:
+    get:
+      operationId: metadata_list_clusters
+      description: 查询已经注册的集群
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/list_clusters/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list_clusters
+  /app/metadata/get_storage_cluster_detail/:
+    get:
+      operationId: metadata_get_storage_cluster_detail
+      description: 查询集群详情
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/get_storage_cluster_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get_storage_cluster_detail
+  /app/metadata/register_cluster/:
+    post:
+      operationId: metadata_register_cluster
+      description: 注册集群
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/register_cluster/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: register_cluster
+  /app/metadata/update_registered_cluster/:
+    post:
+      operationId: metadata_update_registered_cluster
+      description: 注册集群
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/update_registered_cluster/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: update_registered_cluster
+  /app/metadata/query_data_source/:
+    get:
+      operationId: metadata_query_data_source
+      description: 查询数据源
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_data_source/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query_data_source
+  /app/metadata/query_result_table_storage_detail/:
+    get:
+      operationId: metadata_query_result_table_storage_detail
+      description: 查询结果表的存储信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_result_table_storage_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query result table storage detail
+  /app/metadata/stop_or_enable_datasource/:
+    post:
+      operationId: metadata_stop_or_enable_datasource
+      description: 修改指定数据源的配置信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/stop_or_enable_datasource/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata stop or enable data source
+  /app/metadata/create_vm_cluster/:
+    post:
+      operationId: metadata_create_vm_cluster
+      description: 创建 vm 集群
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_vm_cluster/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create vm cluster
+  /app/metadata/query_vm_datalink/:
+    get:
+      operationId: metadata_query_vm_datalink
+      description: 查询接入 vm 的链路
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_vm_datalink/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query vm datalink
+  /app/metadata/query_bcs_cluster_vm_table_ids/:
+    get:
+      operationId: metadata_query_bcs_cluster_vm_table_ids
+      description: 查询 bcs 集群 ID 接入 vm 的结果表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_bcs_cluster_vm_table_ids/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query bcs cluster vm table id
+  /app/metadata/query_vm_rt_by_space/:
+    get:
+      operationId: metadata_query_vm_rt_by_space
+      description: 通过空间获取接入 vm 的指标结果表
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/meta/query_vm_rt_by_space/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query vm rt by space
+  /app/metadata/create_es_router/:
+    post:
+      operationId: metadata_create_es_router
+      description: 创建 es 路由配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/create_es_router/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create es route config
+  /app/metadata/update_es_router/:
+    post:
+      operationId: metadata_update_es_router
+      description: 更新 es 路由配置
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/update_es_router/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: update es route config
+  /app/metadata/modify_data_id_source/:
+    post:
+      operationId: metadata_modify_data_id_source
+      description: 修改指定数据源的配置信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/meta/modify_data_id_source/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: metadata modify data id source
