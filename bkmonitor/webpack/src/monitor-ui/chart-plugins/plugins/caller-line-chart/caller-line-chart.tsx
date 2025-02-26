@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/index';
+import svg from 'monitor-common/svg/base64';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
@@ -422,6 +423,12 @@ class CallerLineChart extends CommonSimpleChart {
         const isBar = this.panel.options?.time_series?.type === 'bar';
         const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
+        console.info(seriesList, this.legendData, '+++++');
+        const maxValue =
+          this.legendData?.reduce((pre: any, cur: any) => (pre > cur.maxSource ? pre : cur.maxSource), 0) || 0;
+        const xList = seriesList[0].data;
+        const xValue = xList[Math.ceil(xList.length / 2)]?.value[0];
+        const x2Value = xList[Math.ceil(xList.length / 3)]?.value[0];
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -452,7 +459,103 @@ class CallerLineChart extends CommonSimpleChart {
               ...xInterval,
               splitNumber: 4,
             },
-            series: seriesList,
+            series: [
+              ...seriesList,
+              {
+                type: 'custom',
+                name: 'xx',
+                renderItem: (params: any, api: any) => {
+                  const eventCount = api.value(2);
+                  const x = api.coord([api.value(0), 0])[0];
+                  const y0 = api.coord([0, 0])[1];
+                  const y1 = api.coord([0, maxValue])[1];
+                  const rectangleHeight = 16 * window.devicePixelRatio; // 矩形的高度
+                  const circleRadius = rectangleHeight / 2; // 圆的半径
+                  const rectangleWidth = 18 * window.devicePixelRatio; // 矩形的宽度
+                  const totalHeight = Math.max(rectangleHeight, 2 * circleRadius);
+                  const pathData = `
+                M ${circleRadius},${totalHeight / 2}
+                a ${circleRadius},${circleRadius} 0 0,1 ${circleRadius},-${circleRadius}
+                h ${rectangleWidth}
+                a ${circleRadius},${circleRadius} 0 0,1 ${circleRadius},${circleRadius}
+                a ${circleRadius},${circleRadius} 0 0,1 -${circleRadius},${circleRadius}
+                h -${rectangleWidth}
+                a ${circleRadius},${circleRadius} 0 0,1 -${circleRadius},-${circleRadius}
+                Z
+            `;
+                  const line = {
+                    type: 'line',
+                    shape: {
+                      x1: x,
+                      y1: y0,
+                      x2: x,
+                      y2: y1,
+                    },
+                    style: {
+                      stroke: '#2F567D',
+                      lineWidth: 1.2,
+                      lineDash: 'dashed',
+                    },
+                  };
+
+                  const image = {
+                    type: 'image',
+                    z2: 100000,
+                    style: {
+                      image: svg.landun,
+                      x: eventCount > 1 ? x - 16 : x - 8,
+                      y: 2,
+                      width: circleRadius,
+                      height: circleRadius,
+                    },
+                  };
+                  const path = {
+                    type: 'path',
+                    x: x - 17,
+                    y: -6,
+                    shape: {
+                      pathData,
+                      width: rectangleWidth,
+                      height: rectangleHeight,
+                    },
+                    style: api.style({
+                      stroke: '#2F567D',
+                      fill: '#2F567D',
+                    }),
+                  };
+                  const text = {
+                    type: 'text',
+                    z2: 100000,
+                    style: {
+                      text: eventCount,
+                      fill: '#fff',
+                      font: `bolder ${5.5 * window.devicePixelRatio}px  sans-serif`,
+                      width: width,
+                      overflow: 'truncate',
+                      ellipsis: '',
+                      truncateMinChar: 1,
+                      x: x + 2,
+                      y: 4,
+                    },
+                    textConfig: {
+                      position: 'insideRight',
+                      inside: true,
+                      outsideFill: 'transparent',
+                    },
+                  };
+                  return {
+                    type: 'group',
+                    children: eventCount > 1 ? [path, line, image, text] : [line, image],
+                  };
+                },
+                data: [
+                  [x2Value, 0, 24],
+                  [xValue, 0, 1],
+                ],
+                silent: false,
+                z: 100000,
+              },
+            ],
             tooltip: {
               extraCssText: 'max-width: 50%',
             },
@@ -1019,7 +1122,11 @@ class CallerLineChart extends CommonSimpleChart {
       }
     }
   }
-
+  handleClick(event) {
+    if (event.seriesType === 'custom') {
+      console.info(e, '+++++');
+    }
+  }
   render() {
     return (
       <div class='apm-caller-line-chart'>
@@ -1082,6 +1189,7 @@ class CallerLineChart extends CommonSimpleChart {
                   needZrClick={this.panel?.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
+                  onClick={this.handleClick}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                   onZrClick={this.handleZrClick}
