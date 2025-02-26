@@ -663,6 +663,13 @@ class UpdateFavoriteSerializer(serializers.Serializer):
     search_fields = serializers.ListField(required=False, child=serializers.CharField(), default=[])
     is_enable_display_fields = serializers.BooleanField(required=False, default=False)
     display_fields = serializers.ListField(required=False, child=serializers.CharField(), default=[])
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=False, child=serializers.IntegerField(), default=[]
+    )
+    index_set_type = serializers.ChoiceField(
+        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
 
 class BatchUpdateFavoriteChildSerializer(UpdateFavoriteSerializer):
