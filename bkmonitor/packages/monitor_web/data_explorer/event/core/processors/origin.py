@@ -36,11 +36,6 @@ class OriginEventProcessor(BaseEventProcessor):
         events = []
 
         for origin_event in origin_events:
-            type = origin_event.get("type")
-            if not type or type not in (EventType.Normal.value, EventType.Warning.value):
-                # 填充默认值
-                origin_event["type"] = EventType.Default.value
-
             event = self.process_display_field(origin_event)
 
             # 提取并处理元数据
@@ -57,6 +52,13 @@ class OriginEventProcessor(BaseEventProcessor):
                 "value": source,
                 "source_alias": source_alias,
             }
+
+            # 补充 type 字段
+            type = origin_event.get("dimensions.type")
+            if not type or type not in (EventType.Normal.value, EventType.Warning.value):
+                # 填充默认值
+                type = EventType.Default.value
+            event["type"] = {"value": type, "alias": type}
 
             # 加入元数据和原始数据
             event["_meta"] = _meta
