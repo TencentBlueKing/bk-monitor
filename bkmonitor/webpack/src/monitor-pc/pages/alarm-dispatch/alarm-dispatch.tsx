@@ -280,6 +280,7 @@ export default class AlarmDispatch extends tsc<object> {
     );
   }
   beforeDestroy() {
+    this.renderGroups = [];
     this.intersectionObserver?.unobserve(this.itemFooterRef);
   }
   /**
@@ -550,7 +551,12 @@ export default class AlarmDispatch extends tsc<object> {
       this.ruleGroups = this.cacheRuleGroups;
     }
     this.renderGroups = [];
-    this.handleTriggerObserver();
+    this.$nextTick(() => {
+      if (this.itemFooterRef) {
+        this.intersectionObserver.observe(this.itemFooterRef);
+        this.handleTriggerObserver();
+      }
+    })
   }
 
   handleShowChange(v: boolean) {
@@ -565,6 +571,7 @@ export default class AlarmDispatch extends tsc<object> {
 
   handleDelSucess() {
     this.delGroups = [];
+    this.renderGroups = [];
     this.handleShowChange(false);
     this.getAlarmDispatchGroupData();
   }
