@@ -1,0 +1,213 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { eventTotal } from 'monitor-api/modules/data_explorer';
+import { random } from 'monitor-common/utils';
+import ExploreCustomGraph, {
+  type IntervalType,
+} from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
+import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+
+import './event-explore-view.scss';
+
+interface IEventExploreViewProps {
+  /** 请求接口公共请求参数 */
+  commonParams: Record<string, any>;
+}
+
+/**
+ * @description 维度信息数据类型
+ */
+enum DimensionsTypeEnum {
+  DEFAULT = 'Default',
+  NORMAL = 'Normal',
+  WARNING = 'Warning',
+}
+
+@Component
+export default class EventExploreView extends tsc<IEventExploreViewProps> {
+  /** 请求接口公共请求参数 */
+  @Prop({ type: Object, default: () => ({}) }) commonParams: Record<string, any>;
+  /** 是否立即刷新 */
+  @InjectReactive('refleshImmediate') refreshImmediate: string;
+  // 视图变量
+  @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
+  /** 时间对比值 */
+  @ProvideReactive('timeOffset') timeOffset: string[] = [];
+  /** 图表汇聚周期 */
+  chartInterval: IntervalType = 'auto';
+  /** 数据总数 */
+  total = 0;
+  /** 当前显示的图例 */
+  showLegendList: DimensionsTypeEnum[] = [];
+  /** 图表配置实例 */
+  panel: PanelModel = new PanelModel({
+    id: 'event-explore-chart',
+    title: this.$tc('总趋势'),
+    options: {
+      time_series: {
+        type: 'bar',
+      },
+    },
+    targets: [],
+  });
+
+  @Watch('commonParams', { deep: true })
+  commonParamsChange() {
+    this.getEventTotal();
+    this.updatePanelConfig();
+  }
+
+  @Watch('refreshImmediate')
+  refreshImmediateChange() {
+    this.getEventTotal();
+    this.updatePanelConfig();
+  }
+
+  /**
+   * @description 获取数据总数
+   */
+  async getEventTotal() {
+    const {
+      start_time: commonStartTime,
+      end_time: commonEndTime,
+      query_configs: [commonQueryConfig],
+    } = this.commonParams;
+    if (!commonQueryConfig?.table || !commonStartTime || !commonEndTime) {
+      return;
+    }
+    const { total } = await eventTotal(this.commonParams).catch(() => ({ total: 0 }));
+    this.total = total;
+  }
+
+  /** 更新 图表配置实例 */
+  updatePanelConfig() {
+    const {
+      query_configs: [commonQueryConfig],
+    } = this.commonParams;
+
+    if (!commonQueryConfig.table) {
+      return;
+    }
+
+    const queryConfigs: Record<string, any> = [
+      {
+        ...commonQueryConfig,
+        metrics: [
+          {
+            field: '_index',
+            method: 'SUM',
+            alias: 'a',
+          },
+        ],
+      },
+    ];
+    if (typeof this.chartInterval === 'number') {
+      queryConfigs[0].interval = this.chartInterval;
+    }
+
+    this.panel = new PanelModel({
+      id: 'event-explore-chart',
+      title: this.$tc('总趋势'),
+      // @ts-ignore
+      externalData: {
+        total: this.total,
+      },
+      options: {
+        time_series: {
+          type: 'bar',
+        },
+      },
+      targets: [
+        {
+          datasource: 'time_series',
+          dataType: 'time_series',
+          api: 'data_explorer.eventTimeSeries',
+          data: {
+            expression: 'a',
+            query_configs: queryConfigs,
+          },
+        },
+      ],
+    });
+  }
+
+  /**
+   * @description 对图表接口响应数据进行个性处理--添加图表堆叠（stack）功能
+   * @param seriesData
+   */
+  handleChartApiResponseTransform(seriesData: Record<string, any>) {
+    if (!seriesData?.series?.length) {
+      return;
+    }
+    const { series } = seriesData;
+    const stack = `event-explore-chart-${random(8)}`;
+    for (const seriesItem of series) {
+      seriesItem.stack = stack;
+    }
+  }
+
+  /**
+   * @description: 切换汇聚周期
+   */
+  handleIntervalChange(interval: IntervalType) {
+    if (this.chartInterval === interval) {
+      return;
+    }
+    this.chartInterval = interval;
+    this.updatePanelConfig();
+  }
+
+  /**
+   * @description: 图表显示图例改变后回调
+   */
+  handleShowLegendChange(legends: ILegendItem[]) {
+    this.showLegendList = legends.filter(v => v.show).map(v => v.name) as DimensionsTypeEnum[];
+  }
+
+  render() {
+    return (
+      <div class='event-explore-view-wrapper'>
+        <div class='event-explore-chart-wrapper'>
+          {!!this.panel && (
+            <ExploreCustomGraph
+              ref='chartRef'
+              chartInterval={this.chartInterval}
+              panel={this.panel}
+              showChartHeader={true}
+              onIntervalChange={this.handleIntervalChange}
+              onSelectLegend={this.handleShowLegendChange}
+              onSeriesData={this.handleChartApiResponseTransform}
+            />
+          )}
+        </div>
+        <div class='event-explore-table'>table</div>
+      </div>
+    );
+  }
+}

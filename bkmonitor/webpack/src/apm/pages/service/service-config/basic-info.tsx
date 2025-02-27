@@ -38,6 +38,7 @@ import ChangeRcord from 'monitor-pc/components/change-record/change-record';
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
+import RelationSelectPanel from './components/relation-select-panel';
 import DebuggerDialog from './debugger-dialog';
 import { languageIconBase64 } from './utils';
 
@@ -969,6 +970,73 @@ export default class BasicInfo extends tsc<object> {
       </div>
     );
   }
+  /** 事件关联 */
+  renderEventLink() {
+    const mock = [
+      {
+        id: '集群',
+        name: '集群',
+        children: [
+          {
+            name: 'a',
+            id: 'a',
+            children: [
+              { name: 'a1', id: 'a1' },
+              { name: 'a2', id: 'a2' },
+              { name: '加载更多', id: 'more', type: 'more' },
+            ],
+          },
+          {
+            name: 'b',
+            id: 'b',
+            children: [
+              { name: 'b1', id: 'b1' },
+              { name: 'b2', id: 'b2' },
+            ],
+          },
+          {
+            name: 'c',
+            id: 'c',
+            children: [
+              { name: 'c1', id: 'c1' },
+              { name: 'c2', id: 'c2' },
+            ],
+          },
+        ],
+      },
+    ];
+
+    return (
+      <div class={['form-content', 'event-link', { 'is-editing': this.isEditing }]}>
+        <div class='event-link-item container-event'>
+          <div class='title'>{this.$t('容器事件')}</div>
+          <p class='desc'>{this.$t('关联后，会自动获取相关观测数据，包括事件等。')}</p>
+          <div class='tips'>
+            <i class='icon-monitor icon-tishi' />
+            <i18n
+              class='text'
+              path='当前空间「{0}项目」 使用了 BCS 集群，已自动关联；如需精确，用户可 {1}'
+            >
+              <span>xx</span>
+              <span class='link'>{this.$t('手动关联具体 Workload')}</span>
+            </i18n>
+          </div>
+
+          <div class='manual-relation'>
+            <div class='label'>{this.$t('关联 Workload')}</div>
+            <div class='content'>
+              <div class='auto-relation-btn'>
+                <i class='icon-monitor icon-a-3yuan-bohui' />
+                <span>{this.$t('恢复自动关联')}</span>
+              </div>
+
+              <RelationSelectPanel data={mock} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   /** appdex信息 */
   renderApdex() {
     return [
@@ -1199,6 +1267,7 @@ export default class BasicInfo extends tsc<object> {
         <PanelItem title={this.$t('基础信息')}>{this.renderBaseInfo()}</PanelItem>
         {/* <PanelItem title={this.$t('代码关联')}>{this.renderCodeLink()}</PanelItem> */}
         <PanelItem title={this.$t('数据关联')}>{this.renderDataLink()}</PanelItem>
+        <PanelItem title={this.$t('事件关联')}>{this.renderEventLink()}</PanelItem>
         <PanelItem
           class='tips-panel-item'
           flexDirection='column'

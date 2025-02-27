@@ -311,4 +311,6 @@ export default {
   '最大为{n}天': 'Up to {n} days',
   '搜不到想要的？': "Can't find what you want?",
   '试试。': 'and try.',
+
+  '搜索 维度字段': 'Search Dimension Field',
 };
