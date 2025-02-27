@@ -300,7 +300,7 @@ class QuerySeriesResource(UnifyQueryAPIResource):
 
     class RequestSerializer(serializers.Serializer):
         metric_name = serializers.CharField(default="")
-        is_regexp = serializers.BooleanField(default=False)
+        is_regexp = serializers.BooleanField(default=True)
         table_id = serializers.CharField()
         keys = serializers.ListField(child=serializers.CharField())
         start_time = serializers.CharField()

@@ -118,7 +118,7 @@ class GetCustomTsGraphConfig(Resource):
     class RequestSerializer(serializers.Serializer):
         class CompareSerializer(serializers.Serializer):
             type = serializers.ChoiceField(choices=["time", "metric"], label="对比模式", required=False)
-            offsets = serializers.ListField(label="时间对比偏移量", default=list)
+            offset = serializers.ListField(label="时间对比偏移量", default=list)
 
         class LimitSerializer(serializers.Serializer):
             function = serializers.ChoiceField(choices=["top", "bottom"], label="限制函数", default="")
@@ -137,24 +137,27 @@ class GetCustomTsGraphConfig(Resource):
         bk_biz_id = serializers.IntegerField(label="业务")
         time_series_group_id = serializers.IntegerField(label="自定义时序ID")
         metrics = serializers.ListField(label="查询的指标", allow_empty=False)
-        condition = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
+        conditions = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
         group_by = GroupBySerializer(label="聚合维度", many=True, allow_empty=True, default=list)
-        filter_dict = serializers.DictField(label="过滤条件", default=dict)
+        common_conditions = serializers.ListField(label="常用维度过滤", default=list)
         limit = LimitSerializer(label="限制返回的series数量", allow_null=True, default=None)
-        compare = CompareSerializer(label="对比配置", default=None)
+        compare = CompareSerializer(label="对比配置", default={})
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
 
     class ResponseSerializer(serializers.Serializer):
         class GroupSerializer(serializers.Serializer):
             name = serializers.CharField(label="分组名称", allow_blank=True)
 
             class PanelSerializer(serializers.Serializer):
-                title = serializers.CharField(label="图表标题")
+                title = serializers.CharField(label="图表标题", allow_blank=True)
                 sub_title = serializers.CharField(label="子标题", allow_blank=True)
 
                 class TargetSerializer(serializers.Serializer):
                     expression = serializers.CharField(label="表达式")
                     alias = serializers.CharField(label="别名", allow_blank=True)
                     query_configs = serializers.ListField(label="查询配置")
+                    function = serializers.DictField(label="图表函数", allow_null=True, default=None)
 
                 targets = TargetSerializer(label="目标", many=True)
 
@@ -162,112 +165,255 @@ class GetCustomTsGraphConfig(Resource):
 
         groups = GroupSerializer(label="分组", many=True)
 
-    @classmethod
-    def create_query_config(
-        self,
-        table: CustomTSTable,
-        metric: CustomTSField,
-        group_by: list[dict],
-        condition: list[dict],
-        filter_dict: dict,
-        limit: dict,
-    ) -> dict:
-        if limit and limit.get("limit", 0) > 0:
-            functions = [{"id": "top", "params": [{"id": "n", "value": limit.get("limit", 10)}]}]
-        else:
-            functions = []
-
-        group_by_fields = {x["field"] for x in group_by}
-
-        query_config = {
-            "metrics": [{"field": metric.name, "method": metric.config.get("aggregate_method", "AVG"), "alias": "a"}],
-            "interval": "auto",
-            "table": table.table_id,
-            "data_label": table.data_label,
-            "data_source_label": DataSourceLabel.CUSTOM,
-            "data_type_label": DataTypeLabel.TIME_SERIES,
-            # 只使用指标的维度
-            "group_by": list(group_by_fields & set(metric.config.get("dimensions", []))),
-            # TODO: 考虑也按指标的维度过滤
-            "where": condition,
-            "functions": functions,
-            # 只使用指标的维度
-            "filter_dict": {
-                key: value for key, value in filter_dict.items() if key in metric.config.get("dimensions", [])
-            },
-        }
-
-        return query_config
+    UNITY_QUERY_OPERATOR_MAPPING = {
+        "reg": "req",
+        "nreg": "nreq",
+        "include": "req",
+        "exclude": "nreq",
+        "eq": "contains",
+        "neq": "ncontains",
+    }
 
     @classmethod
-    def no_compare(cls, table: CustomTSTable, metrics: List[CustomTSField], params: Dict) -> Dict:
-        panels = []
-        for metric in metrics:
-            panels.append(
-                {
-                    "title": metric.description or metric.name,
-                    "sub_title": f"custom:{table.data_label}:{metric.name}",
-                    "targets": [
-                        {
-                            "function": {},
-                            "expression": "a",
-                            "alias": "",
-                            "query_configs": [
-                                cls.create_query_config(
-                                    table=table,
-                                    metric=metric,
-                                    group_by=params.get("group_by", []),
-                                    condition=params.get("condition", []),
-                                    filter_dict=params.get("filter_dict", {}),
-                                    limit=params.get("limit"),
-                                )
-                            ],
-                        }
+    def time_or_no_compare(cls, table: CustomTSTable, metrics: list[CustomTSField], params: dict) -> list[dict]:
+        """
+        时间对比或无对比
+        """
+        # 查询拆图维度组合
+        split_dimensions = [x["field"] for x in params.get("group_by", []) if x["split"]]
+        series_metrics = cls.query_metric_series(
+            table=table, metrics=metrics, dimensions=split_dimensions, params=params
+        )
+        print(f"series_metrics: {series_metrics}")
+
+        # 计算限制函数
+        functions = []
+        limit = params.get("limit", {})
+        if limit.get("limit", 0) > 0 and limit.get("function", ""):
+            limit_number = limit.get("limit", 10)
+            functions = [{"id": limit["function"].lower(), "params": [{"id": "n", "value": limit_number}]}]
+
+        # 时间对比函数
+        function = {}
+        compare_config = params.get("compare", {})
+        if compare_config and compare_config.get("type") == "time" and compare_config.get("offset"):
+            function = {"time_compare": compare_config["offset"]}
+
+        # 非拆图维度
+        non_split_dimensions = [x["field"] for x in params.get("group_by", []) if not x["split"]]
+
+        # 根据拆图维度分组
+        groups: list[dict] = []
+
+        for series_tuple, metric_list in series_metrics.items():
+            # 生成分组名称
+            group_name = ""
+            if not series_tuple:
+                if len(series_metrics) > 1:
+                    group_name = "-"
+            else:
+                group_name = "|".join([f"{key}={value}" for key, value in series_tuple])
+
+            panels = []
+            for metric in metric_list:
+                all_metric_dimensions = set(metric.config.get("dimensions", []))
+                query_config = {
+                    "metrics": [
+                        {"field": metric.name, "method": metric.config.get("aggregate_method", "AVG"), "alias": "a"}
                     ],
+                    "interval": "auto",
+                    "table": table.table_id,
+                    "data_label": table.data_label,
+                    "data_source_label": DataSourceLabel.CUSTOM,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    # 只使用指标的维度
+                    "group_by": list(set(non_split_dimensions) & all_metric_dimensions),
+                    # TODO: 考虑也按指标的维度过滤
+                    "where": params.get("conditions", []),
+                    "functions": functions,
+                    # 只使用指标的维度
+                    "filter_dict": {
+                        # 分组过滤条件
+                        "group_filter": {x[0]: x[1] for x in series_tuple},
+                        # 常用维度过滤
+                        "common_filter": {
+                            f"{condition['key']}__{condition['method']}": condition["value"]
+                            for condition in params.get("common_conditions", [])
+                            if condition["key"] in all_metric_dimensions
+                        },
+                    },
+                }
+                panels.append(
+                    {
+                        "title": metric.description or metric.name,
+                        "sub_title": f"custom:{table.data_label}:{metric.name}",
+                        "targets": [
+                            {"expression": "a", "alias": "", "query_configs": [query_config], "function": function}
+                        ],
+                    }
+                )
+
+            groups.append({"name": group_name, "panels": panels})
+        return groups
+
+    @classmethod
+    def metric_compare(cls, table: CustomTSTable, metrics: list[CustomTSField], params: Dict) -> List[Dict]:
+        """
+        指标对比
+        """
+        # 查询全维度组合
+        all_dimensions = [d["field"] for d in params.get("group_by", [])]
+        series_metrics = cls.query_metric_series(table=table, metrics=metrics, dimensions=all_dimensions, params=params)
+
+        # 按照拆图维度分组
+        split_dimensions = {d["field"] for d in params.get("group_by", []) if d["split"]}
+        series_groups = defaultdict(dict)
+        for series_tuple, metric_list in series_metrics.items():
+            # 计算拆图维度
+            group_series = tuple((k, v) for k, v in series_tuple if k in split_dimensions)
+            panel_series = tuple((k, v) for k, v in series_tuple if k not in split_dimensions)
+            series_groups[group_series][panel_series] = metric_list
+
+        # 计算限制函数
+        functions = []
+        limit = params.get("limit", {})
+        if limit.get("limit", 0) > 0 and limit.get("function", ""):
+            limit_number = limit.get("limit", 10)
+            functions = [{"id": limit["function"].lower(), "params": [{"id": "n", "value": limit_number}]}]
+
+        groups = []
+        for group_series, series_dict in series_groups.items():
+            group_name = ""
+            if not group_series:
+                if len(series_groups) > 1:
+                    group_name = "-"
+            else:
+                group_name = "|".join([f"{key}={value}" for key, value in group_series])
+
+            panels = []
+            for panel_series, metric_list in series_dict.items():
+                targets = []
+                for metric in metric_list:
+                    query_config = {
+                        "metrics": [
+                            {"field": metric.name, "method": metric.config.get("aggregate_method", "AVG"), "alias": "a"}
+                        ],
+                        "interval": "auto",
+                        "table": table.table_id,
+                        "data_label": table.data_label,
+                        "data_source_label": DataSourceLabel.CUSTOM,
+                        "data_type_label": DataTypeLabel.TIME_SERIES,
+                        # 只使用指标的维度
+                        "group_by": [],
+                        # TODO: 考虑也按指标的维度过滤
+                        "where": params.get("conditions", []),
+                        "functions": functions,
+                        # 只使用指标的维度
+                        "filter_dict": {
+                            # 分组过滤条件
+                            "group_filter": {x[0]: x[1] for x in group_series},
+                            "panel_filter": {x[0]: x[1] for x in panel_series},
+                            # 常用维度过滤
+                            "common_filter": {
+                                f"{condition['key']}__{condition['method']}": condition["value"]
+                                for condition in params.get("common_conditions", [])
+                                if condition["key"] in metric.config.get("dimensions", [])
+                            },
+                        },
+                    }
+                    targets.append({"expression": "a", "alias": "", "query_configs": [query_config]})
+
+                # 计算图表标题
+                panel_title = "-"
+                if series_tuple:
+                    panel_title = "|".join([f"{key}={value}" for key, value in series_tuple])
+
+                panels.append({"title": panel_title, "sub_title": "", "targets": targets})
+
+            groups.append({"name": group_name, "panels": panels})
+
+        return groups
+
+    @classmethod
+    def query_metric_series(
+        cls, table: CustomTSTable, metrics: list[CustomTSField], dimensions: list[str], params: dict
+    ) -> dict[tuple[tuple[str, str]], list[CustomTSField]]:
+        """
+        查询指标系列
+        """
+        # 如果维度为空，则返回所有指标
+        if not dimensions:
+            return {(): metrics}
+
+        # 指标字典
+        metrics_dict = {x.name: x for x in metrics}
+
+        # 转换条件格式为 unify_query.query_series 所需的格式
+        conditions = {"field_list": [], "condition_list": []}
+        for i, condition in enumerate(params.get("condition", [])):
+            if i > 0:
+                conditions["condition_list"].append(condition.get("condition", "and"))
+
+            value = condition["value"] if isinstance(condition["value"], list) else [condition["value"]]
+            conditions["field_list"].append(
+                {
+                    "field_name": condition["key"],
+                    "value": value,
+                    "op": cls.UNITY_QUERY_OPERATOR_MAPPING.get(condition["method"], condition["method"]),
                 }
             )
 
-        return [{"name": "", "panels": panels}]
+        # 维度排序
+        dimensions = sorted(dimensions)
 
-    @classmethod
-    def time_compare(cls, groups: List[Dict], params: Dict) -> List[Dict]:
-        """
-        时间对比
-        """
-        for group in groups:
-            for panel in group.get("panels", []):
-                for target in panel.get("targets", []):
-                    target["function"]["time_compare"] = [params["compare"]["offsets"]]
-        return groups
+        # 根据metrics的维度与待查询维度的交集，确定查询的维度
+        dimensions_to_metrics = defaultdict(list)
+        for metric in metrics:
+            metric_dimensions = tuple(d for d in dimensions if d in metric.config.get("dimensions", []))
+            dimensions_to_metrics[metric_dimensions].append(metric.name)
 
-    @classmethod
-    def metric_compare(cls, groups: List[Dict], params: Dict) -> List[Dict]:
-        """
-        TODO: 指标对比
-        """
-        # 维度查询
+        series_metrics = defaultdict(set)
+        for dimension_tuple, metric_list in dimensions_to_metrics.items():
+            # 如果维度为空，则不需要查询维度组合，直接使用空元组
+            if not dimension_tuple:
+                series_metrics[()].update(metric_list)
+                continue
 
-        return groups
+            result = api.unify_query.query_series(
+                {
+                    "bk_biz_ids": [params["bk_biz_id"]],
+                    "start_time": params["start_time"],
+                    "end_time": params["end_time"],
+                    "metric_name": f"({'|'.join(metric_list)})",
+                    "table_id": table.table_id,
+                    "keys": list(dimension_tuple),
+                    "conditions": conditions,
+                }
+            )
+            for series in result.get("series", []):
+                # 生成一个元组，用于唯一标识一个series，需要使用key进行排序
+                series_tuple: tuple[tuple[str, str]] = tuple(sorted(list(zip(result.get("keys", []), series))))
+                series_metrics[series_tuple].update(metric_list)
 
-    def perform_request(self, params: Dict) -> Dict:
+        return {key: [metrics_dict[x] for x in sorted(list(value))] for key, value in series_metrics.items()}
+
+    def perform_request(self, params: dict) -> dict:
         table = CustomTSTable.objects.get(
             models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
         )
-
         metrics = CustomTSField.objects.filter(
             time_series_group_id=params["time_series_group_id"],
             type=CustomTSField.MetricType.METRIC,
             name__in=params["metrics"],
         )
-        # 指标顺序与请求参数一致
-        metrics = sorted(list(metrics), key=lambda x: params["metrics"].index(x.name))
 
-        groups = self.no_compare(table, metrics, params)
-        if params.get("compare"):
-            compare_config = params["compare"]
-            if compare_config.get("type") == "time" and compare_config.get("offsets"):
-                groups = self.time_compare(groups, params)
-            elif compare_config.get("type") == "metric":
-                groups = self.metric_compare(groups, params)
+        compare_config = params.get("compare", {})
+        if not compare_config or compare_config.get("type") == "time":
+            print(f"time_or_no_compare: {params}")
+            groups = self.time_or_no_compare(table, metrics, params)
+        elif compare_config.get("type") == "metric":
+            groups = self.metric_compare(table, metrics, params)
+        else:
+            raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
 
         return {"groups": groups}
