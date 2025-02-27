@@ -325,7 +325,7 @@ class BCSClusterInfo(models.Model):
                 register_info["datasource_name"].lower(), is_fed_cluster=is_fed_cluster
             )
 
-            dataid_config = self.make_config(register_info, is_fed_cluster)
+            dataid_config = self.make_config(register_info, usage=usage, is_fed_cluster=is_fed_cluster)
             # 检查k8s集群里是否已经存在对应resource
             if datasource_name_lower not in resource_items.keys():
                 # 如果k8s_resource不存在，则增加
@@ -354,7 +354,7 @@ class BCSClusterInfo(models.Model):
         self.server_address_path = server_address_path
         self.save()
 
-    def make_config(self, item, is_fed_cluster: bool = False) -> dict:
+    def make_config(self, item, usage, is_fed_cluster: bool = False) -> dict:
         # 获取全局的replace配置
         replace_config = ReplaceConfig.get_common_replace_config()
         cluster_replace_config = ReplaceConfig.get_cluster_replace_config(cluster_id=self.cluster_id)
@@ -366,9 +366,10 @@ class BCSClusterInfo(models.Model):
         )
 
         """在k8s集群里建立的dataid资源配置"""
+        # 联邦集群的自定义指标的isCommon配置为false
         labels = {
             "usage": item["usage"],
-            "isCommon": "true",
+            "isCommon": "false" if usage == self.DATA_TYPE_CUSTOM_METRIC and is_fed_cluster else "true",
             "isSystem": "true" if item["is_system"] else "false",
         }
         result = {
@@ -394,7 +395,7 @@ class BCSClusterInfo(models.Model):
             # 针对联邦集群，跳过 k8s 内置指标的 data_id 下发
             if is_fed_cluster and usage != self.DATA_TYPE_CUSTOM_METRIC:
                 continue
-            dataid_config = self.make_config(register_info, is_fed_cluster=is_fed_cluster)
+            dataid_config = self.make_config(register_info, usage=usage, is_fed_cluster=is_fed_cluster)
             name = self.compose_dataid_resource_name(
                 register_info["datasource_name"].lower(), is_fed_cluster=is_fed_cluster
             )
