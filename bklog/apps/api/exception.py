@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 
 class DataBaseException(Exception):
@@ -31,7 +31,7 @@ class DataAPIException(DataBaseException):
 
     def __init__(self, api_obj, error_message, response=None):
         self.api_obj = api_obj
-        self.error_message = force_text(error_message)
+        self.error_message = force_str(error_message)
         self.response = response
 
         if self.response is not None:

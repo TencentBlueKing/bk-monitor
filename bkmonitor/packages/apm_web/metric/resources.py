@@ -196,7 +196,6 @@ class ProcessorHookType(Enum):
 
 
 class PreCalculateHelperMixin:
-
     DEFAULT_APP_CONFIG_KEY: str = "APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG"
 
     @classmethod
@@ -480,6 +479,8 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
         validate_data["backup_query_params"] = copy.deepcopy(query_params)
 
         used_labels: List[str] = []
+        is_pre_cal_hit: bool = False
+        is_time_shift_exists: bool = False
         for query_config in query_params["query_configs"]:
             used_labels.extend(query_config.get("group_by") or [])
             for cond in query_config.get("where") or []:
@@ -487,21 +488,56 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
 
             table_id: str = query_config["table"]
             metric: str = query_config["metrics"][0]["field"]
-            result: Dict[str, Any] = helper.router(table_id, metric, used_labels)
 
+            functions: List[Dict[str, Any]] = []
+            increase_function: Optional[Dict[str, Any]] = None
+            time_shift_function: Dict[str, Any] = {"id": "time_shift", "params": [{"id": "n", "value": None}]}
+            for func in query_config.get("functions") or []:
+                if func["id"] == "increase":
+                    increase_function = func
+                    continue
+
+                if func["id"] == "time_shift":
+                    time_shift_function = func
+                    continue
+
+                functions.append(func)
+
+            query_config["functions"] = functions
+
+            origin_time_shift: Optional[str] = None
+            try:
+                origin_time_shift = time_shift_function["params"][0]["value"]
+                if origin_time_shift:
+                    is_time_shift_exists = True
+            except (KeyError, IndexError):
+                time_shift_function["params"] = [{"id": "n", "value": None}]
+
+            result: Dict[str, Any] = helper.router(
+                table_id, metric, used_labels, query_params["start_time"], query_params["end_time"], origin_time_shift
+            )
             if not result["is_hit"]:
+                if increase_function:
+                    query_config["functions"].append(increase_function)
+                if time_shift_function["params"][0]["value"] is not None:
+                    query_config["functions"].append(time_shift_function)
                 continue
 
-            # 预计算是聚合后的 Gauge 指标，需要去掉 increase
-            query_config["functions"] = [
-                func for func in query_config.get("functions") or [] if func["id"] != "increase"
-            ]
+            is_pre_cal_hit = True
+            query_config["functions"].append(time_shift_function)
+            time_shift_function["params"][0]["value"] = helper.adjust_time_shift(origin_time_shift)
+
             # 更换 rt 及 metric
             validate_data["table_map"][result["table_id"]] = query_config["table"]
             validate_data["metric_map"][result["metric"]] = query_config["metrics"][0]["field"]
 
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
+
+        if is_pre_cal_hit and not is_time_shift_exists:
+            query_params["start_time"], query_params["end_time"] = helper.adjust_time_range(
+                query_params["start_time"], query_params["end_time"]
+            )
 
     @classmethod
     def fill_empty_dimensions(cls, query_params, response, validate_data, **kwargs):

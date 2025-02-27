@@ -23,10 +23,11 @@ import logging
 import time
 from socket import gaierror
 
+from django.utils.translation import gettext as _
+
 from apps.log_databus.constants import VisibleEnum
 from apps.log_measure.exceptions import EsConnectFailException
 from apps.log_measure.utils.metric import MetricUtils
-from django.utils.translation import ugettext as _
 from home_application.handlers.metrics import (
     HealthzMetric,
     NamespaceData,

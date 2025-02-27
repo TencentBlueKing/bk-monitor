@@ -60,9 +60,18 @@
 
   .bklog-json-view-object {
     .bklog-json-view-icon-text,
-    .bklog-json-view-icon-expand {
+    .bklog-json-view-icon-expand,
+    .bklog-json-view-copy {
       padding: 2px;
       cursor: pointer;
+      font-size: 0.75em;
+      line-height: 1.1em;
+    }
+
+    .bklog-json-view-copy {
+      font-size: 14px;
+      padding: 4px;
+      margin-bottom: -4px;
     }
 
     .bklog-json-view-icon-expand {

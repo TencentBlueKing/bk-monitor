@@ -32,7 +32,7 @@ import pytz
 import ujson
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
@@ -1401,8 +1401,12 @@ class SearchHandler(object):
                     index_set_id_all.extend(index_set_ids)
                 index_set_id_all = list(set(index_set_id_all))
 
+            from apps.log_search.handlers.index_set import IndexSetHandler
+
+            # 获取当前空间关联空间的索引集
+            space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
             effect_index_set_ids = list(
-                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
+                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid__in=space_uids).values_list(
                     "index_set_id", flat=True
                 )
             )
@@ -2042,7 +2046,7 @@ class SearchHandler(object):
         return aggs_dict
 
     def _init_highlight(self, can_highlight=True):
-        if not can_highlight:
+        if not can_highlight or self.index_set.max_analyzed_offset == -1:
             return {}
         # 避免多字段高亮
         if self.query_string and ":" in self.query_string:

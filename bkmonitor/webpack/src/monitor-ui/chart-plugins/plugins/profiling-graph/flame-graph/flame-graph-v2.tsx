@@ -146,6 +146,8 @@ export default defineComponent({
       debounce(16, async () => {
         emit('updateLoading', true);
         showException.value = false;
+        chartInstance?.clear();
+        chartInstance?.dispose();
         try {
           const { bizId, appName, serviceName, start, end, profileId } = props;
           const data: IFlameGraphDataItem = props.data
@@ -166,7 +168,6 @@ export default defineComponent({
                   }
                 ).catch(() => false)
               )?.flame_data ?? false);
-
           if (data) {
             if (props.diffTraceId) {
               emit('diffTraceSuccess');
@@ -326,9 +327,11 @@ export default defineComponent({
       return (
         <bk-exception
           style='flex: 1'
-          description={this.$t('暂无数据')}
+          scene='part'
           type='empty'
-        />
+        >
+          {this.$t('暂无数据')}
+        </bk-exception>
       );
     return (
       <div

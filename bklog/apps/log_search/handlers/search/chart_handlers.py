@@ -20,13 +20,14 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
-import time
 import re
+import time
 
 import pytz
 from django.conf import settings
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+
 from apps.api import BkDataQueryApi
 from apps.log_search import metrics
 from apps.log_search.constants import (
