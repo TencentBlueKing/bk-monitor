@@ -750,8 +750,6 @@ const store = new Vuex.Store({
      *
      */
     resetVisibleFields(state, payload) {
-      console.log(2333);
-
       const isVersion2Payload = payload?.version === 'v2';
       const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
       const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
