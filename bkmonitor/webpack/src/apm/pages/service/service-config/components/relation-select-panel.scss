@@ -1,0 +1,55 @@
+.relation-select-panel-comp {
+  display: flex;
+
+  .relation-workload-tree {
+    .bk-big-tree-node {
+      &:hover {
+        background: #F0F5FF;
+      }
+
+      
+      &.is-selected {
+        background-color: #e1ecff;
+      }
+    }
+
+  }
+  
+
+  .show-more {
+    font-size: 12px;
+    line-height: 32px;
+    color: #979ba5;
+
+    .content {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      cursor: pointer;
+      
+      &:hover {
+        .text {
+          display: block;
+          margin-left: 6px;
+        }
+      }
+
+      .dot {
+        width: 3px;
+        height: 3px;
+        background: #3A84FF;
+        border-radius: 50%;
+
+        & + .dot {
+          margin-left: 3px;
+        }
+      }
+      
+      .text {
+        display: none;
+        color: #3A84FF;
+      }
+
+    }
+  } 
+}
