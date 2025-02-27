@@ -213,6 +213,7 @@ export default class RetrievalFilter extends tsc<IProps> {
               <UiSelector
                 fields={this.fields}
                 getValueFn={this.getValueFn}
+                value={this.uiValue}
                 onChange={this.handleUiValueChange}
               />
             ) : undefined}
