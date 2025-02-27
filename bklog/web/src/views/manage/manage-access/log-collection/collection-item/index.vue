@@ -1075,6 +1075,7 @@
               });
           });
       },
+      // 请求用量数据
       requestStorageUsage() {
         const index_set_ids = this.collectShowList.filter(item => {
           return item.index_set_id && item.is_active && !('total_usage' in item)
@@ -1100,7 +1101,6 @@
           this.collectList.forEach(item => {
             const existingItem = map.get(String(item.index_set_id));
             if (existingItem) {
-              // 只在必要时使用 Vue 的 $set 方法
               ['daily_usage', 'total_usage'].forEach(key => {
                 if (item[key] !== existingItem[key]) {
                   this.$set(item, key, existingItem[key]);
