@@ -250,6 +250,12 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
           .bk-checkbox {
             margin-left: 16px;
 
+            &.is-disabled {
+              .bk-checkbox-label {
+                color: #c4c6cc;
+              }
+            }
+
             &:first-child {
               margin-left: 10px;
             }
