@@ -31,6 +31,7 @@ import { random } from 'monitor-common/utils/utils';
 import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
+import reportLogStore from '../../../../store/modules/report-log';
 import { highLightContent, ESearchType, ESearchPopoverType, flattenRoute } from '../utils';
 
 import type { ISearchListItem, ISearchItem, IRouteItem, IDataItem } from '../type';
@@ -268,12 +269,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   handleMousedown() {
     this.showPopover = true;
     this.textareaRow = this.limitRows();
-    this.localHistoryList = JSON.parse(localStorage.getItem(storageKey)).slice(0, 10) || [];
+    this.localHistoryList = JSON.parse(localStorage.getItem(storageKey))?.slice(0, 10) || [];
   }
   /** 关联的屏蔽策略/关联的告警  */
-  handleOperator(e: Event, item: ISearchItem, key: string) {
+  handleOperator(e: Event, item: ISearchItem, key: string, parentIndex: number) {
     e.stopPropagation();
-    this.handleSearchJumpPage(item, key);
+    this.handleSearchJumpPage(item, key, parentIndex);
   }
 
   /**
@@ -295,11 +296,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             active: this.highlightedIndex[0] === parentInd && this.highlightedIndex[1] === ind,
           },
         ]}
-        onClick={() => this.handleItemClick(item, type)}
+        onClick={() => this.handleItemClick(item, type, parentInd)}
       >
         {isHost && <span class='ip-tag'>{item.bk_cloud_id}:</span>}
         <span class='item-label'>
-          <span domPropsInnerHTML={item.nameSearch}></span>
+          <span domPropsInnerHTML={item.nameSearch} />
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
           {isBcsCluster && <span class='ip-sub'>（{item.bcs_cluster_id}）</span>}
           {isHost && item.compare_hosts.length > 0 && (
@@ -311,13 +312,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             </span>
           )}
         </span>
-        {!item.compare_hosts && hasOperatorKeys.includes(type) && (
+        {(item.compare_hosts || []).length === 0 && hasOperatorKeys.includes(type) && (
           <span class='item-operator'>
             {this.operatorList[type].map(operator => (
               <span
                 key={operator.key}
                 class='item-operator-item'
-                onClick={e => this.handleOperator(e, item, operator.key)}
+                onClick={e => this.handleOperator(e, item, operator.key, parentInd)}
               >
                 {operator.name}
               </span>
@@ -352,7 +353,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         ]}
         onClick={e => this.handleClickHistoryItem(e, item)}
       >
-        <i class='icon-monitor icon-History item-icon'></i>
+        <i class='icon-monitor icon-History item-icon' />
         <span class='history-item-name'>{item.name}</span>
       </div>
     );
@@ -427,11 +428,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     }
   }
   /** 选中搜索结果 */
-  handleItemClick(item: ISearchItem, type: string) {
+  handleItemClick(item: ISearchItem, type: string, parentIndex: number) {
     this.searchType = type;
     this.showPopover = false;
     this.highlightedItem = item;
-    this.handleSearchJumpPage(item, type);
+    this.handleSearchJumpPage(item, type, parentIndex);
   }
   /** 渲染历史搜索列表 */
   renderHistoryList() {
@@ -483,8 +484,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 溢出动态展示输入框高度 */
   calculateRows() {
     const styles = window.getComputedStyle(this.textareaInputRef);
-    const width = parseInt(styles.width, 10);
-    const fontSize = parseInt(styles.fontSize, 10);
+    const width = Number.parseInt(styles.width, 10);
+    const fontSize = Number.parseInt(styles.fontSize, 10);
     // 计算每行能容纳的字符数
     const charsPerLine = Math.floor(width / fontSize);
     // 获取文本内容
@@ -494,13 +495,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       const lines = text.split('\n');
       let totalLines = 0;
       lines.map(line => {
-        totalLines += Math.ceil(line.length / charsPerLine);
+        /** 连续有多个换行符的话，则默认每一个为一行 */
+        totalLines += Math.ceil((line.length === 0 ? charsPerLine : line.length) / charsPerLine);
       });
       return totalLines;
-    } else {
-      // 无换行符的情况
-      return Math.ceil(text.length / charsPerLine);
     }
+    // 无换行符的情况
+    return Math.ceil(text.length / charsPerLine);
   }
   /** 根据设置的最大最小值，计算出最终要展示的row值 */
   limitRows() {
@@ -624,7 +625,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     }
   }
   /** 跳转到具体的页面 */
-  handleSearchJumpPage(item: ISearchItem, type: string) {
+  handleSearchJumpPage(item: ISearchItem, type: string, parentIndex: number) {
     /** 回车跳转了则存入到历史搜索中 */
     if (this.searchValue) {
       this.setLocalHistory(this.searchValue);
@@ -708,16 +709,30 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
     this.handleShowChange(false);
     const option = routeOptions[type];
+    const groupName = this.searchList[parentIndex]?.name || this.searchList[this.highlightedIndex[0]]?.name || '其他';
     /** 如果不在指定的url跳转对象里，item中存在url字段的话，则默认使用该字段的url链接打开新页面 */
     if (!option) {
       item.url && window.open(item.url, '_blank');
+      reportLogStore.reportHomeSearchLog({
+        type: 'others',
+        name: groupName,
+      });
       return;
     }
     /** 是否调整到其他系统 */
     if (option.isOtherWeb) {
       window.open(option.url, '_blank');
+      reportLogStore.reportHomeSearchLog({
+        type: 'others',
+        name: groupName,
+      });
       return;
     }
+    console.info(item, this.searchList[parentIndex], this.highlightedIndex, '+++++++');
+    reportLogStore.reportHomeSearchLog({
+      type,
+      name: groupName,
+    });
     const routeData = this.$router.resolve(option);
     const extraParams = option.extraParams ? `&${new URLSearchParams(option.extraParams).toString()}` : '';
     const baseUrl = `${location.origin}/?${new URLSearchParams(baseParams).toString()}${extraParams}`;
@@ -745,7 +760,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               class='item-list-clear'
               onClick={this.clearHistory}
             >
-              <i class='icon-monitor icon-a-Clearqingkong history-clear-icon'></i>
+              <i class='icon-monitor icon-a-Clearqingkong history-clear-icon' />
               {this.$t('清空历史')}
             </span>
           </div>
@@ -815,7 +830,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
           style={{ width: `${this.computedWidth}px` }}
           class='new-home-select-input'
         >
-          {!this.isBarToolShow && <span class='icon-monitor new-home-select-icon icon-mc-search'></span>}
+          {!this.isBarToolShow && <span class='icon-monitor new-home-select-icon icon-mc-search' />}
           <textarea
             ref='textareaInput'
             class={['home-select-input', { 'is-hidden': this.textareaRow === 1 }]}
@@ -828,8 +843,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             onFocus={this.handleMousedown}
             onInput={this.autoResize}
             onKeydown={this.handleKeydown}
-          ></textarea>
-          {this.isBarToolShow && <span class='bk-icon icon-search'></span>}
+          />
+          {this.isBarToolShow && <span class='bk-icon icon-search' />}
           {this.searchValue && (
             <span
               class='icon-monitor clear-btn icon-mc-close-fill'

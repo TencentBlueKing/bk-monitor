@@ -806,7 +806,9 @@ class KubernetesIngressJsonParser(KubernetesV1ObjectJsonParser):
         for rule in self.spec.get("rules", []):
             http_paths = rule.get("http", {}).get("paths", [])
             for path in http_paths:
-                service_name = path.get("backend", {}).get("service", {}).get("name")
+                service_name = path.get("backend", {}).get("service", {}).get("name") or path.get("backend", {}).get(
+                    "serviceName"
+                )
                 if service_name:
                     services.add(service_name)
 

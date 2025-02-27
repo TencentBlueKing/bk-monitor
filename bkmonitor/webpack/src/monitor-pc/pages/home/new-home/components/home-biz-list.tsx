@@ -383,7 +383,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
           }}
           animation='slide-toggle'
           arrow={false}
-          offset={'158, 6'}
+          offset={'158, -6'}
           theme={`${this.theme} common-popover list-${this.theme}`}
           trigger='click'
         >

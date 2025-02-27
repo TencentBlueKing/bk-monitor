@@ -19,12 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 import arrow
 from django.conf import settings
 from django.db import transaction
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -278,11 +277,16 @@ class EtlHandler(object):
 
         if fmt.get("is_custom"):
             # 自定义格式跳过校验
-            return {"epoch_millis": f"{arrow.now().timestamp}000"}
+            return {"epoch_millis": f"{int(arrow.now().timestamp())}000"}
 
         if fmt["name"] in [ISO_8601_TIME_FORMAT_NAME, "ISO8601"]:
             try:
-                epoch_second = arrow.get(data, tzinfo=f"GMT{time_zone}").timestamp
+                epoch_second = int(
+                    arrow.get(
+                        data,
+                        tzinfo=f"GMT{time_zone}",
+                    ).timestamp()
+                )
             except Exception:  # pylint: disable=broad-except
                 raise EtlParseTimeFormatException()
         else:
@@ -293,20 +297,20 @@ class EtlHandler(object):
                 epoch_second = str(data)[0:10]
             else:
                 try:
-                    epoch_second = arrow.get(data, fmt["name"], tzinfo=f"GMT{time_zone}").timestamp
+                    epoch_second = int(arrow.get(data, fmt["name"], tzinfo=f"GMT{time_zone}").timestamp())
                 except Exception:  # pylint: disable=broad-except
                     raise EtlParseTimeFormatException()
         return {"epoch_millis": f"{epoch_second}000"}
 
     @transaction.atomic()
     def _update_or_create_index_set(
-            self,
-            etl_config,
-            storage_cluster_id,
-            view_roles=None,
-            username="",
-            sort_fields=None,
-            target_fields=None,
+        self,
+        etl_config,
+        storage_cluster_id,
+        view_roles=None,
+        username="",
+        sort_fields=None,
+        target_fields=None,
     ):
         """
         创建索引集

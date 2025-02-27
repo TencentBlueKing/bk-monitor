@@ -26,57 +26,36 @@
 
     .cancel-drill-down {
       display: flex;
-      width: 120px;
-      height: 32px;
-      padding: 4px;
-      margin: 0 auto;
+      align-items: center;
+      min-width: 88px;
+      height: 28px;
+      padding: 3px 8px 3px 3px;
+      margin: 0 auto 0 0;
       cursor: pointer;
       background: #e1ecff;
       border-radius: 16px;
 
       .back-icon {
-        width: 24px;
-        height: 24px;
-        margin-right: 12px;
-        line-height: 24px;
+        width: 22px;
+        height: 22px;
+        margin-right: 7px;
+        line-height: 22px;
         text-align: center;
         background: #3a84ff;
         border-radius: 50%;
       }
 
-      .icon-back-left {
-        font-size: 24px;
+      .icon-undo {
+        font-size: 10px;
         color: #fff;
       }
 
       .text {
-        font-size: 14px;
-        line-height: 24px;
-        color: #4d4f56;
+        font-size: 12px;
+        color: #4D4F56;
       }
     }
 
-    .goto-old {
-      display: flex;
-      align-items: center;
-      margin-left: auto;
-      color: #f59500;
-
-      .icon-remind {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 4px;
-        font-size: 16px;
-      }
-
-      .change-version {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 4px;
-      }
-    }
   }
 
   .monitor-k8s-new-header {
@@ -92,7 +71,7 @@
       width: 321px;
       min-height: 50px;
       line-height: 48px;
-      background: #f0f1f5;
+      background: #F5F7FA;
       border: 1px solid #dcdee5;
 
       &.is-unselected::before {
@@ -112,11 +91,29 @@
     }
 
     .cluster-select-trigger {
+      display: flex;
+      justify-content: space-between;
       width: 320px;
       min-height: 48px;
+      padding: 0 10px 0 16px;
+      font-size: 13px;
       line-height: 48px;
-      background: #fdf4e8;
-      border: 1px solid #dcdee5;
+      color: #313238;
+
+      .cluster-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .icon-mc-arrow-down {
+        font-size: 10px;
+        transition: transform 0.1s;
+
+        &.expand {
+          transform: rotateZ(-180deg);
+        }
+      }
     }
 
     .filter-header-wrap {
@@ -145,10 +142,10 @@
           height: 100%;
           min-height: 48px;
           padding: 0 24px;
-          font-weight: 700;
           color: #313238;
           white-space: nowrap;
-          background: #fafbfd;
+          background: #EBEEF5;
+          
         }
 
         .filter-by-content {
@@ -162,6 +159,7 @@
           max-width: calc(100% - 350px);
 
           .filter-by-title {
+            padding: 0 12px;
             border-right: 1px solid #dcdee5;
           }
 
@@ -206,7 +204,7 @@
 
           .bk-tab-label-item {
             min-width: 120px;
-            color: #63656e;
+            color: #4d4f56;
             background-color: #eaebf0;
             border-radius: 4px 4px 0 0;
 
@@ -244,8 +242,14 @@
           }
 
           .k8s-tab-panel {
+            line-height: 22px;
+
             .icon-monitor {
               margin-right: 6px;
+
+              &.icon-mc-list {
+                font-size: 12px;
+              }
             }
           }
         }

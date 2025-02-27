@@ -383,3 +383,27 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-arrow-down-filled:before {
 	content: "\e1a8";
 }
+.bklog-*:before {
+	content: "\e1ad";
+}
+.bklog-buer:before {
+	content: "\e1af";
+}
+.bklog-number-2:before {
+	content: "\e1aa";
+}
+.bklog-ext-2:before {
+	content: "\e1ac";
+}
+.bklog-object:before {
+	content: "\e1b1";
+}
+.bklog-str-2:before {
+	content: "\e1ab";
+}
+.bklog-text-2:before {
+	content: "\e1ae";
+}
+.bklog-time-2:before {
+	content: "\e1b0";
+}

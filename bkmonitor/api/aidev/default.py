@@ -23,6 +23,20 @@ class AidevAPIGWResource(APIResource):
     # 模块名
     module_name = "aidev"
 
+    def get_headers(self):
+        headers = super().get_headers()
+        authorization = json.loads(headers["x-bkapi-authorization"])
+
+        authorization.update(
+            {
+                "bk_app_code": settings.BK_PLUGIN_APP_INFO.get("bk_app_code", settings.APP_CODE),
+                "bk_app_secret": settings.BK_PLUGIN_APP_INFO.get("bk_app_secret", settings.SECRET_KEY),
+            }
+        )
+        headers["x-bkapi-authorization"] = json.dumps(authorization)
+
+        return headers
+
 
 class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
     """
@@ -36,6 +50,7 @@ class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
         polish = serializers.BooleanField(required=False, default=True)
         stream = serializers.BooleanField(required=False, default=True)
         topk = serializers.IntegerField(required=False, default=20)
+        index_query_kwargs = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
 
     action = "/aidev/resource/knowledgebase/query/"
     method = "POST"

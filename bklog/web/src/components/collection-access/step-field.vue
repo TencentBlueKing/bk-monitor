@@ -1548,15 +1548,17 @@
           // 判断是否有设置字段清洗，如果没有则把etl_params设置成 bk_log_text
           data.clean_type = !fieldTableData.length ? 'bk_log_text' : etlConfig;
           data.etl_fields = fieldTableData;
-          if(!this.builtFieldShow){
-            this.copyBuiltField.forEach(field => {
+          // 添加内置字段
+          if(!this.builtFieldShow){                                
+            const copyBuiltField = deepClone(this.copyBuiltField);                  
+            copyBuiltField.forEach(field => {
               if (field.hasOwnProperty('expand')) {
                 if (field.expand === false) {
-                  this.copyBuiltField.push(...field.children)
+                  copyBuiltField.push(...field.children)
                 } 
               }
             })
-            data.etl_fields.push(...this.copyBuiltField)
+            data.etl_fields.push(...copyBuiltField)
           }else{
             delete data.etl_params['separator_regexp'];
             delete data.etl_params['separator'];
@@ -2596,7 +2598,8 @@
           return
         }
         const typeConversion= {
-          keyword : 'string'
+          keyword: 'string',
+          long: 'string'
         }
         try {
           const res = await this.$http.request('retrieve/getLogTableHead', {

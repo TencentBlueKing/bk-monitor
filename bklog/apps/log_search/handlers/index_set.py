@@ -29,7 +29,7 @@ import pytz
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -85,6 +85,7 @@ from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.models import (
     IndexSetFieldsConfig,
     IndexSetTag,
+    IndexSetUserFavorite,
     LogIndexSet,
     LogIndexSetData,
     Scenario,
@@ -93,7 +94,6 @@ from apps.log_search.models import (
     UserIndexSetCustomConfig,
     UserIndexSetFieldsConfig,
     UserIndexSetSearchHistory,
-    IndexSetUserFavorite,
 )
 from apps.log_search.tasks.mapping import sync_single_index_set_mapping_snapshot
 from apps.log_search.tasks.sync_index_set_archive import sync_index_set_archive
@@ -104,10 +104,10 @@ from apps.utils import APIModel
 from apps.utils.bk_data_auth import BkDataAuthHandler
 from apps.utils.db import array_hash
 from apps.utils.local import (
+    get_local_param,
     get_request_app_code,
     get_request_external_username,
     get_request_username,
-    get_local_param,
 )
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
@@ -612,6 +612,70 @@ class IndexSetHandler(APIModel):
                     ret[index_name].append(index_es_info)
                     break
         return self._indices_result(ret, index_list)
+
+    @staticmethod
+    def get_storage_usage_info(bk_biz_id, index_set_ids):
+        """
+        查询索引集存储的日用量和总用量
+        """
+        from apps.log_unifyquery.handler import UnifyQueryHandler
+
+        multi_execute_func = MultiExecuteFunc(max_workers=5)
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
+
+        for index_set_obj in index_set_objs:
+            index_set_id = index_set_obj.index_set_id
+            multi_execute_func.append(
+                result_key=f"indices_info_{index_set_id}",
+                func=IndexSetHandler(index_set_id).indices,
+            )
+
+            # 获取24小时的日志条数
+            current_time = arrow.now()
+            params = {
+                "bk_biz_id": bk_biz_id,
+                "index_set_ids": [index_set_id],
+                "start_time": int(current_time.shift(days=-1).timestamp()),
+                "end_time": int(current_time.timestamp()),
+            }
+            multi_execute_func.append(
+                result_key=f"daily_count_{index_set_id}", func=UnifyQueryHandler(params).get_total_count
+            )
+
+        indices_info_dict = {}
+        daily_usage_dict = {}
+        multi_result = multi_execute_func.run()
+        for key, result in multi_result.items():
+            field_name, _index_set_id = key.rsplit("_", maxsplit=1)
+            if field_name == "indices_info":
+                try:
+                    # 总条数
+                    total_count = sum(int(idx["stat"]["docs.count"]) for idx in result["list"])
+                    # 总用量
+                    total_usage = sum(int(idx["stat"]["store.size"]) for idx in result["list"])
+                except ValueError:
+                    total_count = total_usage = 0
+                indices_info_dict.update({_index_set_id: {"total_count": total_count, "total_usage": total_usage}})
+            else:
+                daily_usage_dict.update({_index_set_id: result})
+        result_data = []
+        # 返回索引集,日用量和总用量
+        for _index_set_id, item in indices_info_dict.items():
+            total_count = item["total_count"]
+            total_usage = item["total_usage"]
+            daily_count = daily_usage_dict.get(_index_set_id, 0)
+            # 计算日用量
+            daily_usage = int(daily_count * (total_usage / total_count)) if total_count != 0 else 0
+            result_data.append(
+                {
+                    "index_set_id": _index_set_id,
+                    "daily_count": daily_count,
+                    "total_count": total_count,
+                    "daily_usage": daily_usage,
+                    "total_usage": total_usage,
+                }
+            )
+        return result_data
 
     def _match_rt_for_index(self, index_es_name: str, index_name: str, scenario_id: str) -> bool:
         index_re = re.compile(COMMON_LOG_INDEX_RE.format(index_name))
@@ -1186,35 +1250,22 @@ class IndexSetHandler(APIModel):
         end_time = params.get("end_time")
         limit = params["limit"]
         if not start_time:
-            history_obj = (
-                UserIndexSetSearchHistory.objects.filter(
-                    is_deleted=False,
-                    search_type="default",
-                    created_by=username
-                )
-                .order_by("-created_at")
-            )
+            history_obj = UserIndexSetSearchHistory.objects.filter(
+                is_deleted=False, search_type="default", created_by=username
+            ).order_by("-created_at")
         else:
             tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
             start_time = arrow.get(start_time).to(tz=tz_info).datetime
             end_time = arrow.get(end_time).to(tz=tz_info).datetime
-            history_obj = (
-                UserIndexSetSearchHistory.objects.filter(
-                    is_deleted=False,
-                    search_type="default",
-                    created_at__range=[start_time, end_time],
-                    created_by=username
-                )
-                .order_by("-created_at")
-            )
+            history_obj = UserIndexSetSearchHistory.objects.filter(
+                is_deleted=False, search_type="default", created_at__range=[start_time, end_time], created_by=username
+            ).order_by("-created_at")
         history_data = list(history_obj.values("index_set_id", "created_at", "params", "duration"))
         index_set_ids = list(history_obj.values_list("index_set_id", flat=True))
         detail_data = list(
-            LogIndexSet.objects.filter(
-                index_set_id__in=index_set_ids,
-                is_active=True
+            LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True).values(
+                "index_set_id", "index_set_name", "space_uid"
             )
-            .values("index_set_id", "index_set_name", "space_uid")
         )
         return_data = []
         for history in history_data:
@@ -1228,10 +1279,10 @@ class IndexSetHandler(APIModel):
                         "params": history["params"],
                         "duration": history["duration"],
                         "index_set_name": detail["index_set_name"],
-                        "space_uid": detail["space_uid"]
+                        "space_uid": detail["space_uid"],
                     }
                     return_data.append(search_data)
-        return_data = return_data[:int(limit)]
+        return_data = return_data[: int(limit)]
         return return_data
 
     @staticmethod
@@ -1243,17 +1294,12 @@ class IndexSetHandler(APIModel):
         space_uid = params.get("space_uid")
         limit = params.get("limit")
         index_set_ids = list(IndexSetUserFavorite.fetch_user_favorite_index_set(username=username))
-        index_set_obj = (
-            LogIndexSet.objects.filter(
-                index_set_id__in=index_set_ids,
-                is_active=True
-            )
-        )
+        index_set_obj = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, is_active=True)
         if space_uid:
             index_set_obj = index_set_obj.filter(space_uid=space_uid)
         index_set_data = list(index_set_obj.values("index_set_id", "index_set_name", "created_at", "space_uid"))
         if limit:
-            index_set_data = index_set_data[:int(limit)]
+            index_set_data = index_set_data[: int(limit)]
         return index_set_data
 
 

@@ -23,7 +23,7 @@ import datetime
 import re
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import ListField
@@ -104,8 +104,7 @@ class ExplorerStrategiesSerializer(serializers.Serializer):
 
 class ListTaskSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    keyword = serializers.CharField(label=_("搜索关键字"), max_length=255, allow_blank=True, allow_null=True,
-                                    default=None)
+    keyword = serializers.CharField(label=_("搜索关键字"), max_length=255, allow_blank=True, allow_null=True, default=None)
 
 
 class CreateTaskSerializer(serializers.Serializer):
@@ -141,8 +140,7 @@ class CreateTaskSerializer(serializers.Serializer):
 
     def validate_file_path(self, value):
         if len(value) > settings.CSTONE_DOWNLOAD_FILES_LIMIT:
-            raise serializers.ValidationError(
-                _("同时下载的文件数不能超过{}".format(settings.CSTONE_DOWNLOAD_FILES_LIMIT)))
+            raise serializers.ValidationError(_("同时下载的文件数不能超过{}".format(settings.CSTONE_DOWNLOAD_FILES_LIMIT)))
 
         for file_path in value:
             # 创建任务时对路径前缀做校验
@@ -336,9 +334,9 @@ class ListStrategiesSerializer(serializers.Serializer):
 
 
 class TasksSerializer(serializers.ModelSerializer):
-    ip_list = ListField(_("业务机器ip"))
-    preview_ip_list = ListField(_("预览地址ip列表"))
-    file_path = ListField(_("文件列表"))
+    ip_list = ListField(label=_("业务机器ip"))
+    preview_ip_list = ListField(label=_("预览地址ip列表"))
+    file_path = ListField(label=_("文件列表"))
 
     class Meta:
         model = models.Tasks
@@ -347,8 +345,8 @@ class TasksSerializer(serializers.ModelSerializer):
 
 class TaskListSerializer(GeneralSerializer):
     task_id = serializers.IntegerField(label=_("下载任务ID"))
-    ip_list = ListField(_("业务机器ip"))
-    file_path = ListField(_("文件列表"))
+    ip_list = ListField(label=_("业务机器ip"))
+    file_path = ListField(label=_("文件列表"))
     download_status = serializers.CharField(label=_("任务状态"), max_length=16)
     filter_type = serializers.CharField(label=_("过滤类型"))
     filter_content = serializers.JSONField(label=_("过滤内容"))
@@ -439,14 +437,11 @@ class ExtractLinkAndHostsSerializer(serializers.Serializer):
     link_type = serializers.CharField(label=_("链路类型"), required=True, max_length=20)
     operator = serializers.CharField(label=_("执行人"), required=True, max_length=255)
     op_bk_biz_id = serializers.IntegerField(label=_("执行bk_biz_id"), required=True)
-    qcloud_secret_id = serializers.CharField(label=_("腾讯云SecretId"), required=False, allow_null=True,
-                                             allow_blank=True)
+    qcloud_secret_id = serializers.CharField(label=_("腾讯云SecretId"), required=False, allow_null=True, allow_blank=True)
     qcloud_secret_key = serializers.CharField(
         label=_("腾讯云SecretKey"), required=False, allow_null=True, allow_blank=True
     )
-    qcloud_cos_bucket = serializers.CharField(label=_("腾讯云Cos桶名称"), required=False, allow_null=True,
-                                              allow_blank=True)
-    qcloud_cos_region = serializers.CharField(label=_("腾讯云Cos区域"), required=False, allow_null=True,
-                                              allow_blank=True)
+    qcloud_cos_bucket = serializers.CharField(label=_("腾讯云Cos桶名称"), required=False, allow_null=True, allow_blank=True)
+    qcloud_cos_region = serializers.CharField(label=_("腾讯云Cos区域"), required=False, allow_null=True, allow_blank=True)
     is_enable = serializers.BooleanField(label=_("是否启用"), required=True)
     hosts = serializers.ListField(label=_("中转机列表"), child=LinkHostsSerializer(), required=True)

@@ -759,6 +759,7 @@ export default class App extends tsc<object> {
         )}
         <bk-navigation
           class={{
+            'bk-monitor-navigation': true,
             'no-need-menu': !this.needMenu || this.isFullScreen || this.$route.name === 'share',
           }}
           default-open={this.menuToggle}
@@ -766,7 +767,7 @@ export default class App extends tsc<object> {
           navigation-type='top-bottom'
           need-menu={!!this.menuList?.length && this.needMenu && !this.isFullScreen && this.$route.name !== 'share'}
           side-title={this.platformData.name}
-          themeColor='#2c354d'
+          themeColor='#242b3b'
           on-toggle={this.handleToggle}
           on-toggle-click={this.handleToggleClick}
         >

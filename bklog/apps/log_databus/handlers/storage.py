@@ -29,7 +29,7 @@ from typing import List, Union
 import arrow
 from django.conf import settings
 from django.db.models import Q, Sum
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import BkDataResourceCenterApi, BkLogApi, TransferApi
 from apps.constants import (

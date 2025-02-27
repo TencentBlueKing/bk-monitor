@@ -33,6 +33,7 @@ import emptyImageSrc from '../../../../static/images/png/empty.png';
 import dashboardSrc from '../../../../static/images/png/new-page/dashboard.png';
 import retrievalSrc from '../../../../static/images/png/new-page/retrieval.png';
 import serviceSrc from '../../../../static/images/png/new-page/service.png';
+import reportLogStore from '../../../../store/modules/report-log';
 import { EFunctionNameType } from '../utils';
 
 import type { IRecentList } from '../type';
@@ -140,15 +141,18 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
       /** 仪表盘 */
       dashboard: () => {
         const url = `${baseUrl}#/grafana/d/${item.dashboard_uid}`;
+        reportLogStore.reportHomeSearchNavLog({ type: 'dashboard', name: '仪表盘' });
         window.open(url, '_blank');
       },
       /** APM */
       apm_service: () => {
         const url = `${baseUrl}#/apm/service?filter-app_name=${item.app_name}&filter-service_name=${item.service_name}`;
+        reportLogStore.reportHomeSearchNavLog({ type: 'apm_service', name: '服务' });
         window.open(url, '_blank');
       },
       /** 日志检索 */
       log_retrieve: () => {
+        reportLogStore.reportHomeSearchNavLog({ type: 'log_retrieve', name: '日志检索' });
         const url = `${baseUrl}#/log-retrieval?indexId=${item.index_set_id}&spaceUid=${item.space_uid}`;
         window.open(url, '_blank');
       },
@@ -170,7 +174,10 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
         class='recent-item'
         onClick={() => this.handleRecentList(type, item)}
       >
-        <div class='detail'>
+        <div
+          class='detail'
+          v-bk-overflow-tips
+        >
           {!this.isRecentView && <i class='icon-mc-collect icon-monitor favorite' />}
           {tag && (
             <span class='tag'>
@@ -181,14 +188,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
         </div>
         <span
           class='desc'
-          v-bk-tooltips={{
-            content: item.bk_biz_name,
-            trigger: 'mouseenter',
-            zIndex: 9999,
-            boundary: document.body,
-            allowHTML: false,
-            delay: [500, 0],
-          }}
+          v-bk-overflow-tips
         >
           {item.bk_biz_name}
         </span>
@@ -275,7 +275,7 @@ export default class RecentFavoritesList extends tsc<IRecentFavoritesListProps> 
                 this.renderList(functionName)
               ) : (
                 <div class='skeleton-list'>
-                  {Array(5)
+                  {Array(7)
                     .fill(null)
                     .map((_, index) => (
                       <div

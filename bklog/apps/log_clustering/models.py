@@ -25,7 +25,7 @@ import json
 import arrow
 from django.db import models
 from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.log_clustering.constants import (
     LogColShowTypeEnum,
@@ -171,16 +171,13 @@ class ClusteringConfig(SoftDeleteModel):
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":
-        try:
-            return ClusteringConfig.objects.get(index_set_id=index_set_id)
-        except ClusteringConfig.DoesNotExist:
-            try:
-                return ClusteringConfig.objects.get(new_cls_index_set_id=index_set_id)
-            except ClusteringConfig.DoesNotExist:
-                if raise_exception:
-                    raise ClusteringConfigNotExistException()
-                else:
-                    return None
+        obj = ClusteringConfig.objects.filter(
+            Q(index_set_id=index_set_id) | Q(new_cls_index_set_id=index_set_id)
+        ).first()
+        if obj:
+            return obj
+        if raise_exception:
+            raise ClusteringConfigNotExistException()
 
     @classmethod
     def get_by_flow_id(cls, flow_id: int, raise_exception: bool = True):

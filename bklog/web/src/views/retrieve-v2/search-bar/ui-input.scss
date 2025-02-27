@@ -25,8 +25,30 @@ ul.search-items {
         padding-right: 48px;
         outline: none;
       }
+
+      &.is-common-fixed {
+        animation: changeBackgroundColor 1.5s forwards;
+        transition: background-color 1s ease-in-out;
+      }
     }
 
+    @keyframes changeBackgroundColor {
+      0% {
+        background-color: #e1ecff;
+      }
+      10% {
+        background-color: #fdf4e8;
+      }
+      50% {
+        background-color: #e1ecff;
+      }
+      90% {
+        background-color: #fdf4e8;
+      }
+      100% {
+        background-color: #e1ecff;
+      }
+    }
     .tag-option-focus-input {
       width: 8px;
       height: 38px;
@@ -134,7 +156,7 @@ ul.search-items {
 
           .symbol {
             padding: 0 4px;
-            color: #ff9c01;
+            color: #3a84ff;
 
             &[data-operator^='not contains'] {
               color: #ea3636;

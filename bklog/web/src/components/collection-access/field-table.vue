@@ -555,7 +555,7 @@
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
           :key="index"
-          :title="row.value"
+          v-bk-tooltips.top="row.value || $t('暂无数据')"
         >
           {{ row.value }}
         </div>
@@ -566,7 +566,7 @@
           :style="!isPreviewMode ? { height: '51px', 'line-height': '51px' } : ''"
           class="preview-item"
           :key="index"
-          :title="row.value"
+          v-bk-tooltips.top="row.value || $t('暂无数据')"
         >
           {{ row.value }}
         </div>
@@ -942,6 +942,15 @@
           if (item.hasOwnProperty('typeErr')) {
             delete item.typeErr;
           }
+
+          if (item.hasOwnProperty('fieldAliasErr')) {
+            delete item.fieldAliasErr;
+          }
+
+          if (item.hasOwnProperty('alias_name_show')) {
+            delete item.alias_name_show;
+          }
+          
         });
         return data;
       },
@@ -959,6 +968,14 @@
 
           if (item.hasOwnProperty('typeErr')) {
             delete item.typeErr;
+          }
+          
+          if (item.hasOwnProperty('fieldAliasErr')) {
+            delete item.fieldAliasErr;
+          }
+
+          if (item.hasOwnProperty('alias_name_show')) {
+            delete item.alias_name_show;
           }
         });
         return data;

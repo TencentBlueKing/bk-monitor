@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.models import SoftDeleteModel
 

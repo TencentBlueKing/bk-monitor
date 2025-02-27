@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import NodeApi, TransferApi
 from apps.exceptions import ApiResultError
@@ -306,9 +306,9 @@ class CollectorScenario(object):
         port = cluster_config.get("extranet_port") or cluster_config["port"]
 
         kafka_output_params = {
-            "hosts": [f"{host}:{port}"],
+            "hosts": [f"{host}:{port}"],  # noqa: IP_CHECK_ERROR_CODE
             "topic": "0bkmonitor_%{[dataid]}0",
-            "version": cluster_config.get("version") or "0.10.2.1",
+            "version": cluster_config.get("version") or "0.10.2.1",  # noqa: IP_CHECK_ERROR_CODE
         }
 
         if kafka_cluster_info["auth_info"]["username"]:

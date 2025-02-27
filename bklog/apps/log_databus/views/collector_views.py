@@ -23,7 +23,7 @@ import base64
 
 from django.conf import settings
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -108,7 +108,7 @@ class CollectorViewSet(ModelViewSet):
             if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 return []
 
-        if self.action in ["list_scenarios", "batch_subscription_status"]:
+        if self.action in ["list_scenarios", "batch_subscription_status", "search_object_attribute"]:
             return []
         if self.action in ["create", "only_create", "custom_create"]:
             return [BusinessActionPermission([ActionEnum.CREATE_COLLECTION])]
@@ -2457,3 +2457,7 @@ class CollectorViewSet(ModelViewSet):
         collector_config_ids = params["collector_config_ids"]
         operation_type = params["operation_type"]
         return Response(CollectorBatchHandler(collector_config_ids, operation_type).batch_operation(params))
+
+    @list_route(methods=["GET"], url_path="search_object_attribute")
+    def search_object_attribute(self, request):
+        return Response(CollectorHandler.search_object_attribute())

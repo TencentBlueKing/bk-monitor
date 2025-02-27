@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import base64
 import json
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
@@ -432,6 +432,13 @@ class _TransferApi(object):
             url=(MONITOR_APIGATEWAY_ROOT_NEW or MONITOR_APIGATEWAY_ROOT) + "metadata_create_or_update_es_router/",
             module=self.MODULE,
             description=_("创建或更新es路由"),
+            before_request=add_esb_info_before_request,
+        )
+        self.list_kafka_tail = DataAPI(
+            method="GET",
+            url=MONITOR_APIGATEWAY_ROOT_NEW + "metadata_kafka_tail/",
+            module=self.MODULE,
+            description=_("查询结果表MQ的最新数据"),
             before_request=add_esb_info_before_request,
         )
 

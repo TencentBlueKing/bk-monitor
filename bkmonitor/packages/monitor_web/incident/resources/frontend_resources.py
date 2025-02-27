@@ -8,9 +8,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import copy
 import time
 from collections import Counter, defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import arrow
 from django.conf import settings
@@ -60,6 +61,13 @@ class IncidentBaseResource(Resource):
 
     def get_snapshot_alerts(self, snapshot: IncidentSnapshot, **kwargs) -> List[Dict]:
         alert_ids = snapshot.get_related_alert_ids()
+        start_time, end_time = self.generate_time_range_from_alerts(alert_ids)
+
+        if "start_time" not in kwargs:
+            kwargs["start_time"] = start_time
+        if "end_time" not in kwargs:
+            kwargs["end_time"] = int(time.time()) if start_time == end_time else end_time
+
         if "conditions" in kwargs:
             kwargs["conditions"].append({'key': 'id', 'value': alert_ids, 'method': 'eq'})
         else:
@@ -70,6 +78,17 @@ class IncidentBaseResource(Resource):
             )
         alerts = IncidentAlertQueryHandler(**kwargs).search()["alerts"]
         return alerts
+
+    def generate_time_range_from_alerts(self, alert_ids: List[int]) -> Tuple[int, int]:
+        start_time, end_time = None, None
+        for alert_id in alert_ids:
+            timestamp = int(str(alert_id)[:10])
+            if start_time is None or timestamp < start_time:
+                start_time = timestamp
+            if end_time is None or timestamp > end_time:
+                end_time = timestamp
+
+        return start_time, end_time
 
     def get_item_by_chain_key(self, data: Dict, chain_key: str) -> Any:
         keys = chain_key.split(".")
@@ -166,8 +185,8 @@ class IncidentBaseResource(Resource):
         for incident_key, incident_value in incident_info.items():
             if (
                 hasattr(incident_document, incident_key)
-                and (getattr(incident_document, incident_key) or incident_key == "incident_reason")
-                and (incident_value or incident_key == "incident_reason")
+                and (getattr(incident_document, incident_key) or incident_key in ("incident_reason", "assignees"))
+                and (incident_value or incident_key in ("incident_reason", "assignees"))
                 and str(getattr(incident_document, incident_key)) != str(incident_value)
             ):
                 if incident_key == "status":
@@ -175,8 +194,6 @@ class IncidentBaseResource(Resource):
                         IncidentOperationManager.record_close_incident(
                             incident_info["incident_id"], update_time.timestamp
                         )
-                    elif incident_value == IncidentStatus.RECOVERING.value:
-                        incident_document.end_time = int(time.time())
 
                     incident_document.status_order = IncidentStatus(incident_value).order
                 elif incident_key == "feedback":
@@ -229,6 +246,12 @@ class IncidentListResource(IncidentBaseResource):
             enabled=record_history and validated_request_data.get("query_string"),
         ):
             result = handler.search(show_overview=False, show_aggs=True)
+
+        result["greyed_spaces"] = settings.AIOPS_INCIDENT_BIZ_WHITE_LIST
+        result["wx_cs_link"] = ""
+        for item in settings.BK_DATA_ROBOT_LINK_LIST:
+            if item["icon_name"] == "icon-kefu":
+                result["wx_cs_link"] = item["link"]
 
         return result
 
@@ -307,13 +330,15 @@ class IncidentDetailResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: Dict) -> Dict:
         id = validated_request_data["id"]
 
-        incident = IncidentDocument.get(id).to_dict()
-        incident = IncidentQueryHandler.handle_hit(incident)
+        incident_doc = IncidentDocument.get(id)
+        snapshot = IncidentSnapshot(copy.deepcopy(incident_doc.snapshot.content.to_dict()))
+        incident = IncidentQueryHandler.handle_hit(incident_doc.to_dict())
         incident["snapshots"] = [item.to_dict() for item in self.get_incident_snapshots(incident)]
         incident["bk_biz_name"] = resource.cc.get_app_by_id(incident["bk_biz_id"]).name
         if len(incident["snapshots"]) > 0:
             incident["current_snapshot"] = incident["snapshots"][-1]
             incident["alert_count"] = len(incident["snapshot"]["alerts"])
+            incident["incident_root"] = self.get_incident_root_info(snapshot)
 
         return incident
 
@@ -333,6 +358,16 @@ class IncidentDetailResource(IncidentBaseResource):
                 for bk_biz_id in snapshot["bk_biz_ids"]
             ]
         return snapshots
+
+    def get_incident_root_info(self, snapshot: IncidentSnapshot) -> Dict:
+        """根据快照详情获取故障根因节点的信息
+
+        :param snapshot: 快照详情
+        :return: 故障根因信息
+        """
+        for entity_info in snapshot.incident_graph_entities.values():
+            if entity_info.is_root:
+                return entity_info.to_src_dict()
 
 
 class IncidentTopologyResource(IncidentBaseResource):
@@ -551,7 +586,7 @@ class IncidentTopologyResource(IncidentBaseResource):
             "combos": [
                 {
                     "id": str(category.category_id),
-                    "label": category.category_alias,
+                    "label": category.layer_alias,
                     "dataType": category.category_name,
                 }
                 for category in snapshot.incident_graph_categories.values()

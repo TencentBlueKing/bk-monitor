@@ -59,16 +59,16 @@
     .recent-list {
       height: 224px;
 
-      &-empty {
+      .recent-list-empty {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         width: 100%;
         height: 100%;
         font-size: 12px;
         text-align: center;
         color: #979BA5;
+        padding-top: 30px;
         .empty-img {
           width: 220px;
           height: 100px;
@@ -101,6 +101,7 @@
           overflow: hidden;
           letter-spacing: 0;
           width: 80%;
+          @include ellipsis;
           .favorite {
             margin-right: 3px;
             font-size: 14px;
@@ -154,7 +155,7 @@
       .skeleton-list {
         .skeleton-element {
           margin-bottom: 13px;
-          height: 23px;
+          height: 20px;
         }
       }
     }

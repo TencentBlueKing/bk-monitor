@@ -19,20 +19,21 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import re_path
 from rest_framework import routers
 
 from apps.log_databus.views import (
     archive_views,
+    check_collector_views,
     clean_views,
     collector_plugin_views,
     collector_views,
     itsm_views,
+    link_views,
     restore_views,
-    check_collector_views,
+    storage_views,
 )
-from apps.log_databus.views import link_views
-from apps.log_databus.views import storage_views
 
 router = routers.DefaultRouter(trailing_slash=True)
 
@@ -50,5 +51,5 @@ router.register(r"check_collector", check_collector_views.CheckCollectorViewSet,
 
 
 urlpatterns = [
-    url(r"^", include(router.urls)),
+    re_path(r"^", include(router.urls)),
 ]

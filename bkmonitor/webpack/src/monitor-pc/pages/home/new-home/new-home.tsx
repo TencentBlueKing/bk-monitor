@@ -36,13 +36,19 @@ import './new-home.scss';
   name: 'NewHome',
 })
 export default class NewHome extends tsc<object> {
+  get computedWidth() {
+    return window.innerWidth < 2560 ? 1200 : 1360;
+  }
   render() {
     return (
       <div class='monitor-new-home'>
         <div class='new-home-bg'>
-          <div class='new-home-bg-img'></div>
+          <div class='new-home-bg-img' />
         </div>
-        <div class='new-home-content'>
+        <div
+          style={{ minWidth: `${this.computedWidth}px` }}
+          class='new-home-content'
+        >
           <HomeSelect />
           <div class='new-home-tool'>
             <RecentFavoritesTab />
