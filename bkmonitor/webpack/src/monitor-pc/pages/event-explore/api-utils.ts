@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { eventTopK, eventViewConfig } from 'monitor-api/modules/data_explorer';
+import { eventDownloadTopK, eventTopK, eventViewConfig } from 'monitor-api/modules/data_explorer';
 
 import type { ITopKField, ITopKRequestParams } from './typing';
 export enum APIType {
@@ -43,3 +43,8 @@ export const getEventTopK = (params: ITopKRequestParams, type = APIType.MONITOR)
 };
 
 export const getEventViewConfig = (params: any) => eventViewConfig(params).then((res: any) => res.data);
+
+export const getDownloadTopK = (params, type = APIType.MONITOR) => {
+  const apiFunc = type === APIType.APM ? eventDownloadTopK : eventDownloadTopK;
+  return apiFunc(params).catch(() => []);
+};

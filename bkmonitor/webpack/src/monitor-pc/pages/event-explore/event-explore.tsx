@@ -39,7 +39,7 @@ import EventExploreView from './components/event-explore-view';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
-import type { IGetValueFnParams } from '../../components/retrieval-filter/utils';
+import type { IWhereItem, IGetValueFnParams } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFormData } from './typing';
 
@@ -294,6 +294,28 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     this.formData.where = where;
   }
 
+  handleConditionChange(condition: IWhereItem[]) {
+    const sourceMap: Map<string, IWhereItem> = new Map();
+    for (const item of this.formData.where) {
+      sourceMap.set(item.key, item);
+    }
+    for (const item of condition) {
+      const sourceItem = sourceMap.get(item.key);
+      if (
+        !(
+          sourceItem &&
+          sourceItem.key === item.key &&
+          sourceItem.method === item.method &&
+          JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
+          sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
+        )
+      ) {
+        this.formData.where.push(item);
+      }
+    }
+    this.formData.where = [...this.formData.where];
+  }
+
   render() {
     return (
       <div class='event-explore'>
@@ -328,9 +350,11 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
                 slot='aside'
               >
                 <DimensionFilterPanel
+                  condition={this.formData.where}
                   list={this.fieldList}
                   listLoading={this.loading}
                   onClose={this.handleCloseDimensionPanel}
+                  onConditionChange={this.handleConditionChange}
                 />
               </div>
               <div class='result-content-panel'>
