@@ -118,7 +118,7 @@
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-              {{ props.row.table_id ? `${props.row.daily_usage} / ${props.row.total_usage}` : '--' }}
+              {{ props.row.table_id ? `${formatBytes(props.row.daily_usage)} / ${formatBytes(props.row.total_usage)}` : '--' }}
             </span>
           </template>
         </bk-table-column>
@@ -859,6 +859,15 @@
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
     },
+    watch:{
+      collectShowList:{
+        handler(val) {
+          if (val) {
+            this.requestStorageUsage()
+          }
+        },
+      }
+    },
     methods: {
       async stopCollectHandler(row) {
         if (this.getOperatorCanClick(row, 'stop')) {
@@ -1056,7 +1065,7 @@
             this.emptyType = '500';
           })
           .finally(() => {
-            this.requestStorageUsage()
+            this.isTableLoading = false;
             // 如果有ids 重置路由
             if (ids)
               this.$router.replace({
@@ -1067,8 +1076,13 @@
           });
       },
       requestStorageUsage() {
-        const index_set_ids = this.collectShowList.filter(item => item.index_set_id && item.is_active).map(item => item.index_set_id);
-
+        const index_set_ids = this.collectShowList.filter(item => {
+          return item.index_set_id && item.is_active && !('total_usage' in item)
+        }).map(item => item.index_set_id);
+        if(!index_set_ids.length){
+          return
+        }
+        this.isTableLoading = true;
         this.$http
           .request('collect/getStorageUsage', {
           data: {
@@ -1082,24 +1096,21 @@
           data.forEach(item => {
             map.set(item.index_set_id, { ...item });
           });
-          console.log(map);
           
           this.collectList.forEach(item => {
-            if (map.has(item.index_set_id)) {
-              const existingItem = map.get(item.index_set_id);
-              // this.$set(existingItem, 'daily_usage', item.daily_usage);
-              // this.$set(existingItem, 'daily_usage', item.daily_usage);
-              this.$set(item, 'daily_usage', existingItem.daily_usage);
-              this.$set(item, 'total_usage', existingItem.total_usage);
-            } else {
-              // map.set(item.index_set_id, { ...item });
+            const existingItem = map.get(String(item.index_set_id));
+            if (existingItem) {
+              // 只在必要时使用 Vue 的 $set 方法
+              ['daily_usage', 'total_usage'].forEach(key => {
+                if (item[key] !== existingItem[key]) {
+                  this.$set(item, key, existingItem[key]);
+                }
+              });
             }
           });
-          // console.log(Array.from(map.values()));
-          console.log(this.collectList);
-          
         })
-        .catch(() => {
+        .catch((error) => {
+          console.log(error);
         })
         .finally(() => {
           this.isTableLoading = false;
@@ -1121,6 +1132,25 @@
           return;
         }
       },
+      formatBytes(size) {
+        if (size === undefined) {
+            return '--'; 
+        }
+        if (typeof size !== 'number' || size < 0) {
+            return 'Invalid input'; 
+        }
+        if (size === 0) {
+            return '0';
+        }
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let index = 0;
+        while (size >= 1024 && index < units.length - 1) {
+            size /= 1024;
+            index++;
+        }
+        const formattedSize = size % 1 === 0 ? size.toFixed(0) : size.toFixed(2);
+        return `${formattedSize}${units[index]}`;
+    },
       requestCollectStatus(isPrivate) {
         this.$http
           .request('collect/getCollectStatus', {
@@ -1249,8 +1279,6 @@
         this.changePagination({ limit, current: 1 });
       },
       changePagination(pagination = {}) {
-        console.log(this.pagination, pagination);
-        
         Object.assign(this.pagination, pagination);
       },
       filterIsNotCompared(val) {
