@@ -22,6 +22,17 @@ the project delivered to anyone in the future.
 import copy
 import json
 
+from blueapps.middleware.xss.decorators import escape_exempt
+from django.conf import settings
+from django.http import HttpResponse
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import serializers
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.response import Response
+
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.grafana.authentication import NoCsrfSessionAuthentication
 from apps.grafana.data_source import CustomESDataSourceHandler
@@ -46,14 +57,6 @@ from apps.log_trace.handlers.trace_handlers import TraceHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.log import logger
 from bk_dataview.grafana.views import ProxyView, SwitchOrgView
-from blueapps.middleware.xss.decorators import escape_exempt
-from django.conf import settings
-from django.http import HttpResponse
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework import serializers
-from rest_framework.authentication import SessionAuthentication
-from rest_framework.response import Response
 
 
 class GrafanaProxyView(ProxyView):
@@ -215,7 +218,10 @@ class GrafanaViewSet(APIViewSet):
         }
         """
         params = self.get_validated_data()
-        data = GrafanaQueryHandler(params["bk_biz_id"]).query(params)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, params["bk_biz_id"]):
+            data = GrafanaQueryHandler(params["bk_biz_id"]).unify_query(params)
+        else:
+            data = GrafanaQueryHandler(params["bk_biz_id"]).query(params)
         return Response(data)
 
     @list_route(methods=["post"])

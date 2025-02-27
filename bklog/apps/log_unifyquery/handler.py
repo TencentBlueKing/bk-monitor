@@ -15,6 +15,9 @@ from django.conf import settings
 
 from apps.api import UnifyQueryApi
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
+from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
+from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
 from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
 from apps.log_esquery.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
@@ -22,34 +25,38 @@ from apps.log_esquery.exceptions import (
 )
 from apps.log_search.constants import (
     MAX_FIELD_VALUE_LIST_NUM,
+    MAX_RESULT_WINDOW,
     OperatorEnum,
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
-    MAX_RESULT_WINDOW,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, UserIndexSetSearchHistory, UserIndexSetFieldsConfig
+from apps.log_search.models import (
+    LogIndexSet,
+    LogIndexSetData,
+    Scenario,
+    UserIndexSetFieldsConfig,
+    UserIndexSetSearchHistory,
+)
 from apps.log_unifyquery.constants import (
     BASE_OP_MAP,
     FLOATING_NUMERIC_FIELD_TYPES,
     REFERENCE_ALIAS,
 )
 from apps.log_unifyquery.utils import transform_advanced_addition
-from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
-from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
-from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
-from apps.utils.ipchooser import IPChooser
-from apps.utils.local import get_local_param, get_request_username, get_request_external_username
-from apps.utils.log import logger
-from apps.utils.lucene import EnhanceLuceneAdapter
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
+from apps.utils.ipchooser import IPChooser
+from apps.utils.local import get_request_external_username, get_request_username
+from apps.utils.log import logger
+from apps.utils.lucene import EnhanceLuceneAdapter
 from bkm_ipchooser.constants import CommonEnum
 
 max_len_dict = Dict[str, int]  # pylint: disable=invalid-name
+
 
 class UnifyQueryHandler(object):
     def __init__(self, params):
@@ -125,8 +132,6 @@ class UnifyQueryHandler(object):
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
         self.export_fields = self.search_params.get("export_fields")
-
-        self.only_for_agg = self.search_params.get("only_for_agg", False)
 
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
@@ -549,7 +554,12 @@ class UnifyQueryHandler(object):
         series = data["series"]
         total_count = self.get_total_count()
         return sorted(
-            [[s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)] for s in series[:limit]], key=lambda x: x[1], reverse=True
+            [
+                [s["group_values"][0], s["values"][0][1], round(s["values"][0][1] / total_count, 4)]
+                for s in series[:limit]
+            ],
+            key=lambda x: x[1],
+            reverse=True,
         )
 
     def get_bucket_data(self, min_value: int, max_value: int, bucket_range: int = 10):
@@ -567,8 +577,6 @@ class UnifyQueryHandler(object):
         return bucket_data
 
     def _init_sort(self) -> list:
-        if self.only_for_agg:
-            return []
         index_set_id = self.search_params.get("index_set_ids", [])[0]
         # 获取用户对sort的排序需求
         sort_list: List = self.search_params.get("sort_list", [])
@@ -616,8 +624,6 @@ class UnifyQueryHandler(object):
         @return:
         """
         search_dict = copy.deepcopy(self.base_dict)
-        if self.only_for_agg:
-            pass
         # 校验是否超出最大查询数量
         if self.search_params["size"] > MAX_RESULT_WINDOW:
             self.search_params["size"] = MAX_RESULT_WINDOW
@@ -655,8 +661,55 @@ class UnifyQueryHandler(object):
 
         return result
 
+    def agg_search(self, desensitize_configs):
+        params = copy.deepcopy(self.base_dict)
+        method = self.search_params["method"]
+        function = f"{method}_over_time"
+        interval = self.search_params["interval"]
+        group_by = self.search_params["group_by"]
+        # 去重聚合 特殊处理
+        if method == "cardinality":
+            for q in params["query_list"]:
+                q["function"] = [{"method": method, "dimensions": group_by, "window": interval}]
+                q["time_aggregation"] = {}
+            params["step"] = interval
+            params["order_by"] = []
+            response = UnifyQueryApi.query_ts_reference(params)
+        else:
+            # count聚合 特殊处理
+            if method == "value_count":
+                method = "sum"
+                function = "count_over_time"
+            for q in params["query_list"]:
+                q["function"] = [{"method": method, "dimensions": group_by}]
+                q["time_aggregation"] = {"function": function, "window": interval}
+            params["step"] = interval
+            params["order_by"] = []
+            response = UnifyQueryApi.query_ts(params)
+
+        # count聚合 特殊处理
+        current_method = method if method == self.search_params["method"] else self.search_params["method"]
+        agg_field = self.agg_field
+        return_data = []
+        desensitize_configs = desensitize_configs or []
+        desensitize_handler = DesensitizeHandler(desensitize_configs)
+        for i in range(len(response["series"])):
+            datapoints = [[v[1], v[0]] for v in response["series"][i]["values"] if v[1] != 0]
+            dimensions = dict(zip(response["series"][i]["group_keys"], response["series"][i]["group_values"]))
+            # 字段脱敏处理
+            if desensitize_configs:
+                dimensions = desensitize_handler.transform_dict(dimensions)
+            target = f"{current_method}({agg_field})"
+            dimension_string = ", ".join("{}={}".format(k, v) for k, v in dimensions.items())
+            if dimension_string:
+                target += "{{{}}}".format(dimension_string)
+            one_data = {"dimensions": dimensions, "target": target, "datapoints": datapoints}
+            return_data.append(one_data)
+        return return_data
+
     def _analyze_field_length(self, log_list: List[Dict[str, Any]]):
         for item in log_list:
+
             def get_field_and_get_length(_item: dict, father: str = ""):
                 for key in _item:
                     _key: str = ""
@@ -672,6 +725,7 @@ class UnifyQueryHandler(object):
                             _key = "%s" % key
                     if _key:
                         self._update_result_fields(_key, _item[key])
+
             get_field_and_get_length(item)
         return self.field
 
@@ -848,10 +902,12 @@ class UnifyQueryHandler(object):
         params = {
             "keyword": self.origin_query_string,
             "ip_chooser": self.search_params.get("ip_chooser", {}),
-            "addition": self.search_params.get("addition", [])
+            "addition": self.search_params.get("addition", []),
         }
         # 全局查询不记录
-        if (not self.origin_query_string or self.origin_query_string == "*") and not self.search_params.get("addition", []):
+        if (not self.origin_query_string or self.origin_query_string == "*") and not self.search_params.get(
+            "addition", []
+        ):
             return
         self._cache_history(
             username=self.request_username,
@@ -865,7 +921,13 @@ class UnifyQueryHandler(object):
     @cache_five_minute("search_history_{username}_{index_set_id}_{search_type}_{params}_{search_mode}", need_md5=True)
     def _cache_history(self, *, username, index_set_id, params, search_type, search_mode, result):  # noqa
         history_params = copy.deepcopy(params)
-        history_params.update({"start_time": self.start_time, "end_time": self.end_time, "time_range": self.search_params.get("time_range")})
+        history_params.update(
+            {
+                "start_time": self.start_time,
+                "end_time": self.end_time,
+                "time_range": self.search_params.get("time_range"),
+            }
+        )
 
         # 首页检索历史在decorator记录
         if search_type == "default":
