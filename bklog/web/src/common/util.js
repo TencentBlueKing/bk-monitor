@@ -664,14 +664,16 @@ export const base64Decode = str => {
 };
 
 export const makeMessage = (message, traceId) => {
+  const id = (traceId ?? '').split('-')[1] ?? '';
+
   const resMsg = `
-    ${traceId || '--'} ：
+    ${id || '--'} ：
     ${message}
   `;
   message &&
     console.log(`
   ------------------【日志】------------------
-  【TraceID】：${traceId}
+  【TraceID】：${id}
   【Message】：${message}
   ----------------------------------------------
   `);
