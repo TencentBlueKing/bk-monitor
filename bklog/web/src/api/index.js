@@ -222,7 +222,7 @@ function handleReject(error, config, reject) {
     return reject(error);
   }
 
-  const traceparent = config?.headers?.traceparent;
+  const traceparent = config?.headers?.Traceparent;
   http.queue.delete(config.requestId);
 
   // 捕获 http status 错误
