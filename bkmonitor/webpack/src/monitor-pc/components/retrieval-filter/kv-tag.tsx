@@ -51,6 +51,10 @@ export default class KvTag extends tsc<IProps> {
     return false;
   }
 
+  get tipContent() {
+    return `<div style="max-width: 600px;">${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' AND ')}<div>`;
+  }
+
   @Watch('value', { immediate: true })
   handleWatchValue() {
     if (this.value && JSON.stringify(this.localValue || {}) !== JSON.stringify(this.value)) {
@@ -95,9 +99,10 @@ export default class KvTag extends tsc<IProps> {
         onClick={this.handleClickComponent}
       >
         <div
+          key={this.tipContent}
           class='retrieval-filter__kv-tag-component-wrap'
           v-bk-tooltips={{
-            content: `<div style="max-width: 600px;">${this.value.key.id} ${this.value.method.name} ${this.value.value.map(v => v.id).join(' AND ')}<div>`,
+            content: this.tipContent,
             delay: [300, 0],
             allowHTML: true,
           }}

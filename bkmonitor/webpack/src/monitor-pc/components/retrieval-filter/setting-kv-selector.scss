@@ -1,5 +1,6 @@
 .resident-setting__setting-kv-selector-component {
   .component-main {
+    position: relative;
     display: flex;
     align-items: center;
     min-width: 180px;
@@ -25,7 +26,10 @@
     .value-wrap {
       display: flex;
       align-items: center;
+      min-width: 64px;
+      min-height: 30px;
       padding: 5px 0 0 0;
+      cursor: pointer;
 
       .tag-item {
         display: inline-flex;
@@ -45,13 +49,60 @@
         .icon-mc-close {
           cursor: pointer;
         }
+
+        &.hide-count {
+          width: 32px;
+        }
+      }
+
+      .placeholder-text {
+        color: #C4C6CC;
+      }
+    }
+
+    .expand-btn,
+    .delete-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      width: 22px;
+      height: 22px;
+      color: #979BA5;
+
+      .icon-arrow-down {
+        font-size: 20px;
+      }
+
+      .icon-mc-close-fill {
+        font-size: 16px;
+      }
+    }
+    
+    &.show {
+      max-width: 560px;
+      padding-right: 32px;
+
+      &.expand {
+        height: auto;
+
+        .value-wrap {
+          flex-wrap: wrap;
+        }
+
+        .expand-btn {
+          transition: all .3s;
+          transform: rotate(180deg)
+        }
       }
     }
 
     &.hidden {
       position: fixed;
       top: 9999px;
-      visibility: hidden;
     }
   }
 }

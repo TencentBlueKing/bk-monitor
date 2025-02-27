@@ -28,7 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import ResidentSettingTransfer from './resident-setting-transfer';
 import SettingKvSelector from './setting-kv-selector';
-import { defaultWhereItem, type IFilterField, type IWhereItem } from './utils';
+import {
+  defaultWhereItem,
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+  type IFilterField,
+  type IWhereItem,
+} from './utils';
 
 import './resident-setting.scss';
 interface IProps {
@@ -43,19 +49,20 @@ interface ILocalValue {
 @Component
 export default class ResidentSetting extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
+  @Prop({
+    type: Function,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  })
+  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Ref('selector') selectorRef: HTMLDivElement;
+
   popoverInstance = null;
 
-  localValue: ILocalValue[] = [
-    {
-      field: null,
-      value: {
-        key: 'xxxasdfasdfadfasdfasfasdfasdf',
-        method: 'eq',
-        value: ['xsadfasd', 'asdfasdf', 'werqwerqwreqwerqwerqwr', 'asdfazxwerqwrrqwerqwerqwrqwreqwerqwerqwrqw'],
-      },
-    },
-  ];
+  localValue: ILocalValue[] = [];
 
   async handleShowSelect(event: MouseEvent) {
     if (this.popoverInstance) {
