@@ -91,7 +91,12 @@ class GetCustomTsDimensionValues(Resource):
         table = CustomTSTable.objects.get(
             models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["time_series_group_id"]
         )
-        match = f'{{__name__=~"bkmonitor:{table.table_id.replace(".", ":")}:({"|".join(params["metrics"])})"}}'
+
+        # 如果指标只有一个，则使用精确匹配
+        if len(params["metrics"]) == 1:
+            match = f'{{__name__="bkmonitor:{table.data_label}:{params["metrics"][0]}"}}'
+        else:
+            match = f'{{__name__=~"bkmonitor:{table.data_label}:({"|".join(params["metrics"])})"}}'
 
         request_params = {
             "match": [match],
