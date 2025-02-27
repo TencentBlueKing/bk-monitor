@@ -1,0 +1,45 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /app/action/get_action_params_by_config/:
+    post:
+      operationId: get_action_params_by_config
+      description: 根据套餐ID获取当前告警处理参数
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/action_instance/get_action_params_by_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: null
+  /app/action/batch_create_action/:
+    post:
+      operationId: batch_create_action
+      description: 批量创建处理事件
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/action_instance/batch_create_action/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: batch_create_action

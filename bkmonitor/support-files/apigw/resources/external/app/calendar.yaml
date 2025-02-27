@@ -1,0 +1,189 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /app/calendar/save_calendar/:
+    post:
+      operationId: save_calendar
+      description: 保存日历
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/calendars/save_calendar/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save calendar
+  /app/calendar/edit_calendar/:
+    post:
+      operationId: edit_calendar
+      description: 修改日历
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/calendars/edit_calendar/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: edit calendar
+  /app/calendar/delete_calendar/:
+    post:
+      operationId: delete_calendar
+      description: 删除日历
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/calendars/delete_calendar/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete calendar
+  /app/calendar/get_calendar/:
+    get:
+      operationId: get_calendar
+      description: 获取日历详情
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/calendars/get_calendar/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get calendar
+  /app/calendar/list_calendar/:
+    get:
+      operationId: list_calendar
+      description: 获取日历列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/calendars/list_calendar/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list calendar
+  /app/calendar/save_item/:
+    post:
+      operationId: save_item
+      description: 保存日历事项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/calendars/save_item/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save item
+  /app/calendar/edit_item/:
+    post:
+      operationId: edit_item
+      description: 修改日历事项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/calendars/edit_item/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: edit item
+  /app/calendar/delete_item/:
+    post:
+      operationId: delete_item
+      description: 删除日历事项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/calendars/delete_item/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete item
+  /app/calendar/item_detail/:
+    get:
+      operationId: item_detail
+      description: 获取某些日历下某个时间点的所有事项
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/calendars/item_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: item detail
+  /app/calendar/item_list/:
+    get:
+      operationId: item_list
+      description: 查询规定日期内的所有日历事项列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/calendars/item_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: item list
