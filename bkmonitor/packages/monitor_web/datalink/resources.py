@@ -533,33 +533,41 @@ class TransferLatestMsgResource(BaseStatusResource):
         queue = deque([series])
 
         def _is_valid_time_value(value, iso_pattern) -> bool:
-            """验证时间值有效性（支持数字/字符串时间戳及ISO格式）"""
-            # 处理整数类型
+            """
+            校验时间值是否符合以下格式
+            ```python
+            [
+                # int类型 时间戳
+                1640995200,
+                1640995200000,
+                # str类型 时间戳
+                "1640995200",
+                "1640995200000",
+                # str类型 ISO 8601格式
+                "2023-01-01T00:00:00Z",
+                "2023-01-01 00:00:00",
+                '2025-02-26T09:59:39.407Z',
+            ]
+            ```
+            """
             if isinstance(value, int):
                 return 1_000_000_000 <= value < 10_000_000_000_000  # 10位 ~ 13位
-
-            # 处理字符串类型
             if isinstance(value, str):
-                # 情况1：字符串是纯数字（如 "1640995200"）
                 if value.isdigit():
                     length = len(value)
-                    # 仅允许10位（秒）或13位（毫秒）
                     if length not in (10, 13):
                         return False
-                    # 转换为整数验证范围
                     try:
                         num = int(value)
                         return 1_000_000_000 <= num < 10_000_000_000_000
                     except ValueError:
                         return False
-
-                # 情况2：符合ISO 8601格式（如 "2023-01-01T00:00:00Z"）
                 return bool(iso_pattern.match(value))
 
             return False
 
         def _add_unique_value(value: str | int, result: list, seen: set):
-            """去重并保持顺序的添加值"""
+            """去重并保持顺序"""
             if isinstance(value, int):
                 key = ("int", value)
             else:
@@ -569,6 +577,10 @@ class TransferLatestMsgResource(BaseStatusResource):
                 result.append(value)
 
         def convert_to_string(ts):
+            """
+            格式化时间戳
+            示例: 2022-01-01 00:00:00
+            """
             if isinstance(ts, str):
                 if len(ts) == 10:  # 10位字符串时间戳（秒）
                     dt = datetime.fromtimestamp(int(ts), tz=timezone.utc)
@@ -589,21 +601,27 @@ class TransferLatestMsgResource(BaseStatusResource):
 
             return dt.strftime("%Y-%m-%d %H:%M:%S")
 
+        """
+        广度优先搜索，遍历数据结构，找出符合以下时间戳格式的值, 并保存到 result 中
+        ```
+        [
+            1640995200, 1640995200000,
+            "1640995200","1640995200000",
+            "2023-01-01T00:00:00Z","2023-01-01 00:00:00", "2025-02-26T09:59:39.407Z"
+        ]
+        ```
+        """
         while queue:
             current = queue.popleft()
 
             if isinstance(current, dict):
                 for k, v in current.items():
-                    # 发现目标键则检查值
                     if k in target_keys:
                         if _is_valid_time_value(v, iso8601_pattern):
                             _add_unique_value(v, result, seen)
-                    # 无论是否目标键，继续遍历子值
                     queue.append(v)
             elif isinstance(current, (list, tuple)):
-                # 扁平化处理序列
                 queue.extend(current)
-            # 其他类型（如int/str）无需处理
 
         logger.info(f"find_timestamps: {result}")
         return convert_to_string(result[0]) if result else ""
