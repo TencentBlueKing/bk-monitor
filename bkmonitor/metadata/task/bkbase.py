@@ -16,8 +16,15 @@ from datetime import datetime, timedelta
 
 import redis
 from django.conf import settings
+from django.db import transaction
 
+from alarm_backends.core.lock.service_lock import share_lock
+from core.drf_resource import api
+from core.prometheus import metrics
+from metadata import models
+from metadata.models.data_link.constants import DataLinkKind
 from metadata.task.tasks import sync_bkbase_v4_metadata
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.tools.redis_lock import DistributedLock
 from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 
@@ -158,3 +165,83 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
                 logger.warning("watch_bkbase_meta_redis: Failed to close pubsub->[%s]", close_error)
 
     logger.info("watch_bkbase_meta_redis: Task completed after reaching runtime limit.")
+
+
+@share_lock(ttl=3600, identify="metadata_sync_bkbase_cluster_info")
+def sync_bkbase_cluster_info():
+    """
+    同步计算平台存储资源信息(VM+ES)
+    """
+
+    logger.info("sync_bkbase_cluster_info: Start syncing cluster info from bkbase.")
+    start_time = time.time()
+    # 统计&上报 任务状态指标
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_cluster_info", status=TASK_STARTED, process_target=None
+    ).inc()
+
+    # 调用BkBase接口,拉取ES/VM 集群信息列表
+    es_clusters = api.bkdata.list_data_bus_raw_data(
+        namespace='bklog', kind=DataLinkKind.get_choice_value(DataLinkKind.ELASTICSEARCH.value)
+    )
+    vm_clusters = api.bkdata.list_data_bus_raw_data(
+        namespace='bkmonitor', kind=DataLinkKind.get_choice_value(DataLinkKind.VMSTORAGE.value)
+    )
+
+    # 处理ES集群信息
+    for es_cluster in es_clusters:
+        try:
+            cluster_auth_info = es_cluster.get('spec')
+            cluster_metadata = es_cluster.get('metadata')
+            if not models.ClusterInfo.objects.filter(domain_name=cluster_auth_info.get('host')).exists():
+                # 若集群信息不存在，创建
+                logger.info(
+                    "sync_bkbase_cluster_info: create es cluster,domain_name->[%s]", cluster_auth_info.get('host')
+                )
+                with transaction.atomic():
+                    models.ClusterInfo.objects.create(
+                        domain_name=cluster_auth_info.get('host'),
+                        port=cluster_auth_info.get('port'),
+                        username=cluster_auth_info.get('user'),
+                        password=cluster_auth_info.get('password'),
+                        cluster_name=cluster_metadata.get('name'),
+                        is_default_cluster=False,
+                        cluster_type=models.ClusterInfo.TYPE_ES,
+                    )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("sync_bkbase_cluster_info: failed to sync es cluster info,error->[%s]", e)
+            continue
+
+    # 处理VM集群信息
+    for vm_cluster in vm_clusters:
+        try:
+            cluster_auth_info = vm_cluster.get('spec')
+            cluster_metadata = vm_cluster.get('metadata')
+            if not models.ClusterInfo.objects.filter(domain_name=cluster_auth_info.get('insertHost')).exists():
+                # 若集群信息不存在，创建
+                logger.info(
+                    "sync_bkbase_cluster_info: create vm cluster,domain_name->[%s]", cluster_auth_info.get('insertHost')
+                )
+                with transaction.atomic():
+                    models.ClusterInfo.objects.create(
+                        cluster_name=cluster_metadata.get('name'),
+                        domain_name=cluster_auth_info.get('insertHost'),
+                        port=cluster_auth_info.get('insertPort'),
+                        username=cluster_auth_info.get('user'),
+                        password=cluster_auth_info.get('password'),
+                        is_default_cluster=False,
+                        cluster_type=models.ClusterInfo.TYPE_VM,
+                    )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("sync_bkbase_cluster_info: failed to sync vm cluster info,error->[%s]", e)
+            continue
+
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_cluster_info", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bkbase_cluster_info", process_target=None).observe(
+        cost_time
+    )
+
+    logger.info("sync_bkbase_cluster_info: Finished syncing cluster info from bkbase, cost time->[%s]", cost_time)

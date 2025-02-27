@@ -21,6 +21,8 @@ class DataLinkKind(Enum):
     DATABUS = "Databus"
     CONDITIONALSINK = "ConditionalSink"
     SINK = "Sink"
+    VMSTORAGE = "VmStorage"
+    ELASTICSEARCH = "ElasticSearch"
 
     choices_labels = (
         (DATAID, "dataids"),
@@ -29,6 +31,8 @@ class DataLinkKind(Enum):
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
         (SINK, "sinks"),
+        (VMSTORAGE, "vmstorages"),
+        (ELASTICSEARCH, "elasticsearchs"),
     )
 
     @classmethod
