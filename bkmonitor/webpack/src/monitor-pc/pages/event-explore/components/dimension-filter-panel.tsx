@@ -28,10 +28,11 @@ import { Component, Emit, Ref, InjectReactive, Prop, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { getEventTopK } from '../api-utils';
+import { getDownloadTopK, getEventTopK } from '../api-utils';
 import FieldTypeIcon from './field-type-icon';
 
 import type { EmptyStatusType } from '../../../components/empty-status/types';
+import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 import type { IDimensionField, ITopKField } from '../typing';
 
 import './dimension-filter-panel.scss';
@@ -39,6 +40,7 @@ import './dimension-filter-panel.scss';
 interface DimensionFilterPanelProps {
   list: IDimensionField[];
   listLoading: boolean;
+  condition: IWhereItem[];
 }
 
 interface DimensionFilterPanelEvents {
@@ -49,6 +51,7 @@ interface DimensionFilterPanelEvents {
 @Component
 export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps, DimensionFilterPanelEvents> {
   @Prop({ default: () => [] }) list!: IDimensionField[];
+  @Prop({ default: () => [] }) condition!: IWhereItem[];
   @Prop({ default: false }) listLoading!: boolean;
 
   @Ref('dimensionPopover') dimensionPopoverRef!: HTMLDivElement;
@@ -76,24 +79,20 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   sliderLoading = false;
   sliderDimensionList: ITopKField[] = [];
 
+  downloadLoading = false;
+
+  @Watch('condition')
+  async watchConditionChange() {
+    console.log(123);
+    await this.getFieldCount();
+  }
+
   @Watch('list')
-  async handleListChange() {
+  async watchListChange() {
     this.searchVal = '';
     this.emptyStatus = 'search-empty';
     this.searchResultList = this.list;
-    const fields = this.list.reduce((pre, cur) => {
-      if (cur.is_option_enabled) pre.push(cur.name);
-      return pre;
-    }, []);
-    if (!fields.length) return;
-    const list = await this.getFieldTopK({
-      limit: 0,
-      fields,
-    });
-    this.fieldListCount = list.reduce((pre, cur) => {
-      pre[cur.field] = cur.distinct_count;
-      return pre;
-    }, {});
+    await this.getFieldCount();
   }
 
   /** 关键字搜索 */
@@ -143,9 +142,25 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Emit('conditionChange')
   handleConditionChange(type, item: ITopKField['list'][0]) {
     if (type === 'eq') {
-      return { condition: 'and', key: this.selectField, method: 'eq', value: [item.value] };
+      return [{ condition: 'and', key: this.selectField, method: 'eq', value: [item.value] }];
     }
-    return { condition: 'and', key: this.selectField, method: 'ne', value: [item.value] };
+    return [{ condition: 'and', key: this.selectField, method: 'ne', value: [item.value] }];
+  }
+
+  async getFieldCount() {
+    const fields = this.list.reduce((pre, cur) => {
+      if (cur.is_option_enabled) pre.push(cur.name);
+      return pre;
+    }, []);
+    if (!fields.length) return;
+    const list = await this.getFieldTopK({
+      limit: 0,
+      fields,
+    });
+    this.fieldListCount = list.reduce((pre, cur) => {
+      pre[cur.field] = cur.distinct_count;
+      return pre;
+    }, {});
   }
 
   getFieldTopK(params) {
@@ -230,15 +245,25 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     this.sliderLoading = true;
     this.destroyPopover();
     this.sliderDimensionList = await this.getFieldTopK({
-      limit: this.fieldListCount[this.selectField],
+      limit: this.statisticsList[0].distinct_count,
       fields: [this.selectField],
     }).catch(() => []);
     this.sliderLoading = false;
   }
 
   handleSliderShowChange(show: boolean) {
-    console.log('sliderHidden', show);
-    this.sliderShow = false;
+    this.sliderShow = show;
+  }
+
+  async handleDownload() {
+    this.downloadLoading = true;
+    await getDownloadTopK({
+      limit: this.statisticsList[0].distinct_count,
+      fields: [this.selectField],
+      ...this.commonParams,
+    }).finally(() => {
+      this.downloadLoading = false;
+    });
   }
 
   render() {
@@ -337,10 +362,17 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
                 {this.$t('去重后的字段统计')}({this.sliderDimensionList[0]?.distinct_count || 0})
               </span>
             </div>
-            <div class='download-tool'>
-              <i class='icon-monitor icon-xiazai1' />
-              <span class='text'>{this.$t('下载')}</span>
-            </div>
+            {this.downloadLoading ? (
+              <bk-spin size='mini' />
+            ) : (
+              <div
+                class='download-tool'
+                onClick={this.handleDownload}
+              >
+                <i class='icon-monitor icon-xiazai1' />
+                <span class='text'>{this.$t('下载')}</span>
+              </div>
+            )}
           </div>
           <div
             class='dimension-slider-content'

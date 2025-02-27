@@ -232,6 +232,7 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
     const sourceItem = sourceMap.get(item.key);
     if (
       !(
+        sourceItem &&
         sourceItem.key === item.key &&
         sourceItem.method === item.method &&
         JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&

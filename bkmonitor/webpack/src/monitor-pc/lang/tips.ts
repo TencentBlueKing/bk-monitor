@@ -325,4 +325,6 @@ export default {
   添加为筛选项: 'Add as filter',
   移除该筛选项: 'Remove this filter',
   点击加载更多: 'Click to load more',
+  '当前空间「{0}项目」 使用了 BCS 集群，已自动关联；如需精确，用户可 {1}':
+    'Current space " {0} project " uses BCS cluster, has been automatically associated; if you need to be accurate, users can {1}',
 };
