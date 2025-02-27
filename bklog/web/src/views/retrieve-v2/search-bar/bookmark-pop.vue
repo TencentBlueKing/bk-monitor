@@ -254,7 +254,6 @@
     if (indexSetItem.value.isUnionIndex) {
       Object.assign(data, {
         index_set_ids: indexSetItem.value.ids,
-        index_set_id: indexSetItem.value.ids[0],
         index_set_type: 'union',
       });
     }else{
