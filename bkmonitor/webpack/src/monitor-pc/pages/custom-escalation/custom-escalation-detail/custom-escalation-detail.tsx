@@ -54,6 +54,8 @@ interface IGroupListItem {
 
 @Component
 export default class CustomEscalationDetailNew extends tsc<any, any> {
+  @Ref('nameInput') readonly nameInput!: HTMLInputElement;
+  @Ref() readonly dataLabelInput!: HTMLInputElement;
   @Ref() readonly describeInput!: HTMLInputElement;
 
   menuList = [
@@ -857,7 +859,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         <div class='detail-information-title'>{this.$t('基本信息')}</div>
         <div class='detail-information-content'>
           <div class='detail-information-row'>
-            <span class='row-label'>{this.$t('数据ID')} : </span>
+            <span class='row-label'>{this.$t('数据ID')}: </span>
             <span
               class='row-content'
               v-bk-overflow-tips
@@ -866,7 +868,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </span>
           </div>
           <div class='detail-information-row'>
-            <span class='row-label'>Token : </span>
+            <span class='row-label'>Token: </span>
             <span
               class='row-content'
               v-bk-overflow-tips
@@ -875,7 +877,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </span>
           </div>
           <div class='detail-information-row'>
-            <span class='row-label'>{this.$t('监控对象')} : </span>
+            <span class='row-label'>{this.$t('监控对象')}: </span>
             <span
               class='row-content'
               v-bk-overflow-tips
@@ -884,7 +886,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </span>
           </div>
           <div class='detail-information-row'>
-            <span class='row-label'>{this.$t('上报协议')} : </span>
+            <span class='row-label'>{this.$t('上报协议')}: </span>
             {this.detailData.protocol ? (
               <span
                 class='row-content'
@@ -898,7 +900,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
           </div>
           <div class={'detail-information-row'}>
             <span class='row-label'>
-              {this.type === 'customEvent' ? this.$t('是否为平台事件') : this.$t('作用范围')} :{' '}
+              {this.type === 'customEvent' ? this.$t('是否为平台事件') : this.$t('作用范围')}:{' '}
             </span>
             <span
               class='row-content'
@@ -908,7 +910,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </span>
           </div>{' '}
           <div class='detail-information-row'>
-            <span class='row-label'>{this.$t('英文名')} : </span>
+            <span class='row-label'>{this.$t('别名')}: </span>
             {!this.isShowEditDataLabel ? (
               <div style='display: flex; min-width: 0'>
                 <span
@@ -920,7 +922,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 {!this.isShowEditDataLabel && !this.isReadonly && (
                   <i
                     class='icon-monitor icon-bianji edit-name'
-                    onClick={() => 'handleShowEditDataLabel'}
+                    onClick={this.handleShowEditDataLabel}
                   />
                 )}
               </div>
@@ -929,12 +931,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 ref='dataLabelInput'
                 style='width: 240px'
                 v-model={this.copyDataLabel}
-                onBlur='handleEditDataLabel'
+                onBlur={this.handleEditDataLabel}
               />
             )}
           </div>
           <div class='detail-information-row'>
-            <span class='row-label'>{this.$t('名称')} : </span>
+            <span class='row-label'>{this.$t('名称')}: </span>
             {!this.isShowEditName ? (
               <div style='display: flex; min-width: 0'>
                 <span
@@ -946,7 +948,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 {this.detailData.name && !this.isReadonly && (
                   <i
                     class='icon-monitor icon-bianji edit-name'
-                    onClick={() => 'handleShowEdit'}
+                    onClick={this.handleShowEdit}
                   />
                 )}
               </div>
@@ -955,12 +957,12 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 ref='nameInput'
                 style='width: 240px'
                 v-model={this.copyName}
-                onBlur='handleEditName'
+                onBlur={this.handleEditName}
               />
             )}
           </div>
           <div class='detail-information-row last-row'>
-            <span class='row-label'>{this.$t('描述')} : </span>
+            <span class='row-label'>{this.$t('描述')}: </span>
             {!this.isShowEditDesc ? (
               <div style='display: flex; min-width: 0'>
                 <span
@@ -1034,6 +1036,22 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             ) : (
               <TimeseriesDetailNew class='detail-information detail-list' />
             )}
+          </div>
+          {/* <!-- 展开内容 --> */}
+          <div class={['right-window', this.isShowRightWindow ? 'active' : '']}>
+            {/* <!-- 右边展开收起按钮 --> */}
+            <div
+              class={['right-button', this.isShowRightWindow ? 'active-buttom' : '']}
+              onClick={() => (this.isShowRightWindow = !this.isShowRightWindow)}
+            >
+              {this.isShowRightWindow ? (
+                <i class='icon-monitor icon-arrow-right icon' />
+              ) : (
+                <i class='icon-monitor icon-arrow-left icon' />
+              )}
+            </div>
+            <div class='right-window-title' />
+            <div class='right-window-content' />
           </div>
         </div>
       </div>

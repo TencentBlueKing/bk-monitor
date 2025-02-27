@@ -59,6 +59,9 @@
     max-height: 100%;
     padding: 0 24px;
     overflow-y: auto;
+    overflow: -moz-scrollbars-none;    /* Firefox */
+    scrollbar-width: none;             /* Firefox 64+ */
+    -ms-overflow-style: none;          /* IE/Edge */
     flex: 1;
     .detail-information {
       padding: 12px 16px;
@@ -76,7 +79,7 @@
       }
       .detail-information-content {
         display: flex;
-        width: 50%;
+        width: 720px;
         height: 160px;
         flex-wrap: wrap;
         flex-direction: column;
@@ -114,6 +117,148 @@
     .detail-list {
       padding: 0;
       margin-bottom: 24px;
+    }
+    .form-content-textarea {
+      position: relative;
+      bottom: -30px;
+    }
+  }
+  .right-window {
+    background: $whiteColor;
+    z-index: 10;
+    position: relative;
+    height: calc(100vh - 104px);
+    border: 0;
+    width: 0px;
+    overflow: visible;
+    &.active {
+      width: 400px;
+      min-width: 400px;
+      @include border-1px($color: $defaultBorderColor);
+    }
+    &-title {
+      height: 40px;
+      width: 100%;
+      font-size: 14px;
+      color: #313238;
+      line-height: 40px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      .title-right {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        &:hover {
+          background: #eaebf0;
+          cursor: pointer;
+        }
+        .line {
+          width: 9px;
+          height: 2px;
+          background: #63656e;
+        }
+      }
+    }
+    &-content {
+      height: calc(100% - 40px);
+      padding: 16px 23px 0;
+      color: $defaultFontColor;
+      overflow-x: hidden;
+      overflow-y: scroll;
+      .content-title {
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .content-interval {
+        margin-top: 25px;
+      }
+      .content-row {
+        position: relative;
+        margin-bottom: 16px;
+        .content-example {
+          overflow-x: auto;
+          margin-top: 6px;
+          padding: 10px 14px;
+          background: #f4f4f7;
+          overflow-x: auto;
+        }
+        .content-copy {
+          position: absolute;
+          top: 30px;
+          right: 10px;
+          width: 20px;
+          height: 20px;
+          text-align: center;
+          line-height: 20px;
+          background: #ffffff;
+          box-shadow: 0 2px 4px 0 #1919290d;
+          border-radius: 2px;
+          @include hover($cursor: pointer);
+
+          .icon-mc-copy {
+            font-size: 12px;
+            color: #3a84ff;
+          }
+        }
+        .content-prometheus {
+          position: relative;
+          .content-copy-prometheus {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            background: #ffffff;
+            box-shadow: 0 2px 4px 0 #1919290d;
+            border-radius: 2px;
+            @include hover($cursor: pointer);
+
+            .icon-mc-copy {
+              font-size: 12px;
+              color: #3a84ff;
+            }
+          }
+        }
+
+        .copy-textarea {
+          height: 0px;
+          opacity: 0;
+        }
+      }
+      pre {
+        margin: 0;
+        line-height: 20px;
+      }
+    }
+    .right-button {
+      position: absolute;
+      left: -16px;
+      top: calc(50% - 72px);
+      z-index: 2;
+      width: 16px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eaebf0;
+      border: 1px solid #dcdee5;
+      border-radius: 4px 0 0 4px;
+
+      @include hover($cursor: pointer);
+      .icon {
+        font-size: 24px;
+        color: #979ba5;
+      }
+      div {
+        margin: -4px 0 0 6px;
+      }
     }
   }
 }

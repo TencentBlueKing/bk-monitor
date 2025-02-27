@@ -26,49 +26,37 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './timeseries-detail.scss';
+import AddGroupDialog from './add-group-dialog';
+import CustomGroupingList from './custom-grouping-list';
 import IndicatorTable from './indicator-table';
 
-interface IMenuItem {
-  name: string;
-  id: string;
-  checked: boolean;
-}
+import './timeseries-detail.scss';
 
 interface IGroup {
-  title: string;
-  count: number;
+  name: string;
+  metric_count: number;
+  manual_list?: string[];
+  auto_rules?: string[];
 }
 
 @Component
 export default class TimeseriesDetailNew extends tsc<any, any> {
-  menuList: IMenuItem[] = [
-    {
-      name: window.i18n.tc('编辑'),
-      checked: false,
-      id: 'edit',
-    },
-    {
-      name: window.i18n.tc('删除'),
-      checked: false,
-      id: 'delete',
-    },
-  ];
+  showAddGroupDialog = false;
   /** 当前拖拽id */
   dragId = '';
   dragoverId = '';
-  groupListMock: IGroup[] = [
+  groupList: IGroup[] = [
     {
-      title: '分组1',
-      count: 23,
+      name: '分组1',
+      metric_count: 23,
     },
     {
-      title: '分组2',
-      count: 2,
+      name: '分组2',
+      metric_count: 2,
     },
     {
-      title: '分组放大哈第三方和',
-      count: 3,
+      name: '分组放大哈第三方和',
+      metric_count: 3,
     },
   ];
   isShowRightWindow = true; // 是否显示右侧帮助栏
@@ -91,41 +79,6 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
     console.log(item);
   }
 
-  // 拖拽开始，记录当前拖拽的ID
-  handleDragstart(index: number, e) {
-    console.log('e', e.target.children);
-    this.dragId = index.toString();
-  }
-
-  // 拖拽经过事件，设置当前拖拽ID
-  handleDragover(index: number, e: DragEvent) {
-    e.preventDefault();
-    this.dragoverId = index.toString();
-  }
-
-  // 拖拽离开事件，清除当前拖拽的ID
-  handleDragleave() {
-    this.dragoverId = '';
-  }
-
-  // 拖拽完成时逻辑
-  handleDrop() {
-    if (this.dragId !== this.dragoverId) {
-      const tab = Object.assign([], this.groupListMock);
-      const dragIndex = Number.parseInt(this.dragId, 10);
-      const dragoverIndex = Number.parseInt(this.dragoverId, 10);
-
-      const draggedTab = this.groupListMock[dragIndex];
-      tab.splice(dragIndex, 1);
-      tab.splice(dragoverIndex, 0, draggedTab);
-      this.dragId = '';
-      this.dragoverId = '';
-      this.groupListMock = tab;
-    }
-    this.dragoverId = '';
-  }
-  // 拖拽 end
-
   getCmpByActiveTab(activeTab: string) {
     const cmpMap = {
       /** 指标 */
@@ -147,6 +100,11 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
 
   getDimensionCmp() {
     return <div>{/* TOOD */}</div>;
+  }
+
+  handleAddGroup() {
+    // TODO
+    this.showAddGroupDialog = true;
   }
 
   getIndicatorGroupList() {
@@ -179,62 +137,19 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
               <div class='group-count'>23</div>
             </div>
           </div>
-          <div class='custom-group'>
-            {this.groupListMock.length ? (
-              this.groupListMock.map((group, index) => (
-                <div
-                  key={group.title}
-                  class={['group', this.dragoverId === index.toString() ? 'is-dragover' : '']}
-                  draggable={true}
-                  onDragleave={this.handleDragleave}
-                  onDragover={e => this.handleDragover(index, e)}
-                  onDragstart={e => this.handleDragstart(index, e)}
-                  onDrop={this.handleDrop}
-                >
-                  <i class='icon-monitor icon-mc-tuozhuai item-drag' />
-                  <div class='group-name'>
-                    <i class='icon-monitor icon-mc-full-folder' />
-                    {group.title}
-                  </div>
-                  <div class='group-count'>{group.count || 0}</div>
-                  <bk-popover
-                    ref='menuPopover'
-                    class='group-popover'
-                    tippy-options={{
-                      trigger: 'click',
-                    }}
-                    arrow={false}
-                    offset={'0, 0'}
-                    placement='bottom-start'
-                    theme='light common-monitor'
-                  >
-                    <span class='more-operation'>
-                      <i class='icon-monitor icon-mc-more' />
-                    </span>
-                    <div
-                      class='home-chart-more-list'
-                      slot='content'
-                    >
-                      {this.menuList.map(item => (
-                        <span
-                          key={item.id}
-                          class={`more-list-item ${item.id}`}
-                          on-click={() => this.handleMenuClick(item)}
-                        >
-                          {item.name}
-                        </span>
-                      ))}
-                    </div>
-                  </bk-popover>
-                </div>
-              ))
-            ) : (
-              <div>
-                {/* TODO 空态 */}
-                空的
-              </div>
-            )}
+          <div class='custom-group-set'>
+            <div
+              class='add-group icon-monitor icon-a-1jiahao icon-arrow-left'
+              onClick={this.handleAddGroup}
+            />
+            <bk-input
+              ext-cls='search-group'
+              placeholder={window.i18n.tc('搜索 自定义分组名称')}
+              right-icon='icon-monitor icon-mc-search'
+            />
           </div>
+          {<CustomGroupingList />}
+          {<AddGroupDialog show={this.showAddGroupDialog} />}
         </div>
       </div>
     );

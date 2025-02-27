@@ -115,8 +115,29 @@
         padding: 16px 0 4px;
         border-bottom: 1px solid #DCDEE5;
       }
+      .custom-group-set {
+        display: flex;
+        justify-content: center;
+        padding: 8px;
+        .add-group {
+          width: 32px;
+          height: 32px;
+          background: #CDDFFE;
+          border-radius: 2px;
+          color: #3A84FF;
+          text-align: center;
+          line-height: 32px;
+          font-size: 24px;
+          margin-right: 8px;
+          &:hover {
+            cursor: pointer;
+          }
+        }
+        .search-group {
+          flex: 1;
+        }
+      }
       .custom-group {
-        padding-top: 8px;
         .group-popover {
           display: none;
           .icon-mc-more {

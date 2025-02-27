@@ -51,7 +51,7 @@ export default class IndicatorTable extends tsc<any, any> {
   loading = false;
 
   fieldSettingData: any = {};
-
+  flag = false;
   tableInstance = {
     total: 0,
     data: [],
@@ -250,7 +250,7 @@ export default class IndicatorTable extends tsc<any, any> {
 
   getTableComponent() {
     const idSlot = {
-      default: props => props.row.id,
+      default: props => <span onClick={() => (this.flag = !this.flag)}>{props.row.id}</span>,
     };
     const strategyNameSlot = {
       /* 策略名称 */
@@ -759,7 +759,7 @@ export default class IndicatorTable extends tsc<any, any> {
   render() {
     return (
       <div class='content-right'>
-        <div class='strategy-config-header'>
+        <div class='indicator-table-header'>
           {/* <bk-badge
             class='badge'
             // v-show={!this.showFilterPanel}
@@ -820,6 +820,7 @@ export default class IndicatorTable extends tsc<any, any> {
               ))}
             </ul>
           </bk-dropdown-menu>
+          自动发现
         </div>
         <div class='strategy-config-wrap'>
           <div class='config-wrap-setting'>
@@ -892,6 +893,7 @@ export default class IndicatorTable extends tsc<any, any> {
               ) : undefined,
             ]
           )}
+          <div class={['detail', this.flag ? 'detail-active' : '']}>{/* TODO */}</div>
         </div>
       </div>
     );
