@@ -66,4 +66,6 @@ class IncidentViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.incident.incident_alert_list, endpoint="incident_alert_list"),
         # 故障告警视图接口
         ResourceRoute("POST", resource.incident.incident_alert_view, endpoint="incident_alert_view"),
+        # 告警所属故障接口
+        ResourceRoute("GET", resource.incident.alert_incident_detail, endpoint="alert_incident_detail"),
     ]
