@@ -93,15 +93,14 @@ class GetCustomTsDimensionValues(Resource):
         )
         match = f'{{__name__=~"bkmonitor:{table.table_id.replace(".", ":")}:({"|".join(params["metrics"])})"}}'
 
-        params = {
+        request_params = {
             "match": [match],
             "label": params["dimension"],
             "bk_biz_ids": [params["bk_biz_id"]],
             "start_time": params["start_time"],
             "end_time": params["end_time"],
         }
-        logger.info(params)
-        result = api.unify_query.get_promql_label_values(params)
+        result = api.unify_query.get_promql_label_values(request_params)
         values = result.get("values", {}).get(params["dimension"], [])
         return [{"name": value, "alias": value} for value in values]
 
