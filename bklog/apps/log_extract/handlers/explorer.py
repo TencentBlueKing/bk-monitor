@@ -25,7 +25,7 @@ import time
 from itertools import product
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.api import CCApi
 from apps.constants import ExternalPermissionActionEnum

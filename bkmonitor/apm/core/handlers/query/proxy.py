@@ -31,6 +31,7 @@ from apm.core.handlers.query.span_query import SpanQuery
 from apm.core.handlers.query.statistics_query import StatisticsQuery
 from apm.core.handlers.query.trace_query import TraceQuery
 from apm.models import ApmApplication, ApmDataSourceConfigBase
+from apm_ebpf.models import DeepflowWorkload
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from constants.apm import OtlpKey, TraceWaterFallDisplayKey
 
@@ -130,7 +131,7 @@ class QueryProxy:
         """Trace详情"""
         # query otel data
         spans = self.span_query.query_by_trace_id(trace_id)
-
+        options = {"ebpf_enabled": DeepflowWorkload.is_exist_ebpf(bk_biz_id)}
         # query ebpf data
         if TraceWaterFallDisplayKey.SOURCE_CATEGORY_EBPF in displays:
             ebpf_spans = DeepFlowQuery.get_ebpf(trace_id, bk_biz_id)
@@ -139,10 +140,10 @@ class QueryProxy:
 
         relation_mapping = {}
         if not self.is_trace_query_valid:
-            return spans, relation_mapping
+            return spans, relation_mapping, options
 
         if not query_trace_relation_app:
-            return spans, relation_mapping
+            return spans, relation_mapping, options
 
         trace_relation = self._get_trace_relation(trace_id)
         if trace_relation:
@@ -172,8 +173,7 @@ class QueryProxy:
                     }
                     for i in relation_spans
                 }
-
-        return spans, relation_mapping
+        return spans, relation_mapping, options
 
     def query_span_detail(self, span_id):
         return self.span_query.query_by_span_id(span_id)

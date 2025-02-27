@@ -20,7 +20,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 from django.db.models import Count
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_measure.utils.metric import MetricUtils

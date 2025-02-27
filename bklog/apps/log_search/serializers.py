@@ -25,7 +25,7 @@ import re
 import time
 
 import arrow
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.exceptions import ValidationError
@@ -663,6 +663,13 @@ class UpdateFavoriteSerializer(serializers.Serializer):
     search_fields = serializers.ListField(required=False, child=serializers.CharField(), default=[])
     is_enable_display_fields = serializers.BooleanField(required=False, default=False)
     display_fields = serializers.ListField(required=False, child=serializers.CharField(), default=[])
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=False, child=serializers.IntegerField(), default=[]
+    )
+    index_set_type = serializers.ChoiceField(
+        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
 
 class BatchUpdateFavoriteChildSerializer(UpdateFavoriteSerializer):
@@ -922,8 +929,8 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     """
 
     field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
-    max = serializers.IntegerField(label=_("最大值"), required=False)
-    min = serializers.IntegerField(label=_("最小值"), required=False)
+    max = serializers.FloatField(label=_("最大值"), required=False)
+    min = serializers.FloatField(label=_("最小值"), required=False)
     threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)
     limit = serializers.IntegerField(label=_("top条数"), required=False, default=5)
     distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)

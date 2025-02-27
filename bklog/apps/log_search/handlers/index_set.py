@@ -29,7 +29,7 @@ import pytz
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import BkLogApi, TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
@@ -618,26 +618,25 @@ class IndexSetHandler(APIModel):
         """
         查询索引集存储的日用量和总用量
         """
-        from apps.log_databus.handlers.collector import CollectorHandler
         from apps.log_unifyquery.handler import UnifyQueryHandler
 
         multi_execute_func = MultiExecuteFunc(max_workers=5)
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
 
-        collectors = CollectorConfig.objects.filter(index_set_id__in=index_set_ids)
-        for collector in collectors:
-            index_set_id = collector.index_set_id
+        for index_set_obj in index_set_objs:
+            index_set_id = index_set_obj.index_set_id
             multi_execute_func.append(
                 result_key=f"indices_info_{index_set_id}",
-                func=CollectorHandler(collector.collector_config_id).indices_info,
+                func=IndexSetHandler(index_set_id).indices,
             )
 
             # 获取24小时的日志条数
             current_time = arrow.now()
             params = {
                 "bk_biz_id": bk_biz_id,
-                "index_set_ids": [collector.index_set_id],
-                "start_time": current_time.shift(days=-1).timestamp,
-                "end_time": current_time.timestamp,
+                "index_set_ids": [index_set_id],
+                "start_time": int(current_time.shift(days=-1).timestamp()),
+                "end_time": int(current_time.timestamp()),
             }
             multi_execute_func.append(
                 result_key=f"daily_count_{index_set_id}", func=UnifyQueryHandler(params).get_total_count
@@ -649,10 +648,13 @@ class IndexSetHandler(APIModel):
         for key, result in multi_result.items():
             field_name, _index_set_id = key.rsplit("_", maxsplit=1)
             if field_name == "indices_info":
-                # 总条数
-                total_count = sum(int(idx["docs.count"]) for idx in result)
-                # 总用量
-                total_usage = sum(int(idx["store.size"]) for idx in result)
+                try:
+                    # 总条数
+                    total_count = sum(int(idx["stat"]["docs.count"]) for idx in result["list"])
+                    # 总用量
+                    total_usage = sum(int(idx["stat"]["store.size"]) for idx in result["list"])
+                except ValueError:
+                    total_count = total_usage = 0
                 indices_info_dict.update({_index_set_id: {"total_count": total_count, "total_usage": total_usage}})
             else:
                 daily_usage_dict.update({_index_set_id: result})

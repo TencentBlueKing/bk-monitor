@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import markdown
 from django.conf import settings
 from django.db.models import TextChoices
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.utils import ChoicesEnum
 
@@ -74,7 +74,7 @@ CC_HOST_FIELDS = [
 ]
 
 # 节点管理支持的cmdb 集群信息
-CC_SCOPE_FIELDS = ["bk_set_id", "bk_module_id"]
+CC_SCOPE_FIELDS = ["bk_set_id", "bk_module_id", "bk_set_name", "bk_module_name"]
 
 
 class CmdbFieldType(ChoicesEnum):

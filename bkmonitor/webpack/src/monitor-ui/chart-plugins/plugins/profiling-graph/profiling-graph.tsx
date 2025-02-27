@@ -275,12 +275,13 @@ class ProfilingChart extends CommonSimpleChart {
         if (data && Object.keys(data)?.length) {
           this.unit = data.unit || '';
           this.tableData = data.table_data?.items ?? [];
-          this.flameData = data.flame_data;
+          this.flameData = data.flame_data || [];
           this.empty = false;
           this.emptyText = '';
-        } else {
+        }
+        if (!this.tableData?.length && !this.flameData?.length) {
           this.empty = true;
-          this.emptyText = window.i18n.t('查无数据');
+          this.emptyText = window.i18n.t('暂无数据');
         }
         this.isGraphLoading = false;
       })
@@ -289,6 +290,7 @@ class ProfilingChart extends CommonSimpleChart {
           this.emptyText = '';
           this.isGraphLoading = false;
         }
+        this.empty = true;
       });
   }
   /** 获取拓扑图 */

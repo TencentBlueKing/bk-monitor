@@ -12,10 +12,9 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
-
-from version_log.utils import is_later_version
+from django.utils.translation import gettext_lazy as _
 from version_log.config import NO_VERSION_CONSTANT
+from version_log.utils import is_later_version
 
 
 class VersionLogVisitedManager(models.Manager):

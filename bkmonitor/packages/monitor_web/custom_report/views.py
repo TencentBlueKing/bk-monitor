@@ -56,37 +56,54 @@ class CustomMetricReportViewSet(ResourceViewSet):
         return [BusinessActionPermission([ActionEnum.MANAGE_CUSTOM_METRIC])]
 
     resource_routes = [
-        ResourceRoute(
-            "POST",
-            resource.custom_report.get_custom_time_series_latest_data_by_fields,
-            endpoint="get_custom_time_series_latest_data_by_fields",
-        ),
         ResourceRoute("GET", resource.custom_report.custom_time_series_list, endpoint="custom_time_series"),
+        # 自定义指标详情
         ResourceRoute("GET", resource.custom_report.custom_time_series_detail, endpoint="custom_time_series_detail"),
-        ResourceRoute(
-            "GET", resource.custom_report.custom_ts_grouping_rule_list, endpoint="custom_ts_grouping_rule_list"
-        ),
+        # 校验自定义指标名称是否合法
         ResourceRoute(
             "GET", resource.custom_report.validate_custom_ts_group_name, endpoint="validate_custom_ts_group_name"
         ),
+        # 校验自定义指标数据名称是否合法
         ResourceRoute(
             "GET", resource.custom_report.validate_custom_ts_group_label, endpoint="validate_custom_ts_group_label"
         ),
+        # 创建自定义指标
         ResourceRoute("POST", resource.custom_report.create_custom_time_series, endpoint="create_custom_time_series"),
+        # 修改自定义指标
         ResourceRoute("POST", resource.custom_report.modify_custom_time_series, endpoint="modify_custom_time_series"),
-        ResourceRoute(
-            "POST", resource.custom_report.modify_custom_time_series_desc, endpoint="modify_custom_time_series_desc"
-        ),
+        # 删除自定义指标
+        ResourceRoute("POST", resource.custom_report.delete_custom_time_series, endpoint="delete_custom_time_series"),
+        # 添加自定义指标
+        ResourceRoute("POST", resource.custom_report.add_custom_metric, endpoint="add_custom_metric"),
+        # 指标字段 API
+        ResourceRoute("GET", resource.custom_report.get_custom_ts_fields, endpoint="get_custom_ts_fields"),
+        ResourceRoute("POST", resource.custom_report.modify_custom_ts_fields, endpoint="modify_custom_ts_fields"),
+        # 分组规则 API
+        # 创建或更新分组规则
         ResourceRoute(
             "POST", resource.custom_report.create_or_update_grouping_rule, endpoint="create_or_update_grouping_rule"
         ),
-        ResourceRoute("POST", resource.custom_report.group_custom_ts_item, endpoint="group_custom_ts_item"),
+        # 全量更新分组规则
+        # 自定义指标分组规则列表
+        ResourceRoute(
+            "GET", resource.custom_report.custom_ts_grouping_rule_list, endpoint="custom_ts_grouping_rule_list"
+        ),
+        # 预览分组规则
+        ResourceRoute("POST", resource.custom_report.preview_grouping_rule, endpoint="preview_grouping_rule"),
+        # 删除分组规则
+        ResourceRoute("POST", resource.custom_report.delete_grouping_rule, endpoint="delete_grouping_rule"),
+        # 待删除API
         ResourceRoute(
             "POST",
             resource.custom_report.modify_custom_ts_grouping_rule_list,
             endpoint="modify_custom_ts_grouping_rule_list",
         ),
-        ResourceRoute("POST", resource.custom_report.delete_custom_time_series, endpoint="delete_custom_time_series"),
-        # 添加自定义指标
-        ResourceRoute("POST", resource.custom_report.add_custom_metric, endpoint="add_custom_metric"),
+        ResourceRoute(
+            "POST",
+            resource.custom_report.get_custom_time_series_latest_data_by_fields,
+            endpoint="get_custom_time_series_latest_data_by_fields",
+        ),
+        ResourceRoute(
+            "POST", resource.custom_report.modify_custom_time_series_desc, endpoint="modify_custom_time_series_desc"
+        ),
     ]

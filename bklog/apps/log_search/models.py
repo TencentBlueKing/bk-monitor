@@ -32,7 +32,7 @@ from django.db import connection, models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.html import format_html
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from jinja2 import Environment, FileSystemLoader
 
 from apps.api import TransferApi

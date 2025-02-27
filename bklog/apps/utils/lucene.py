@@ -4,7 +4,7 @@ from collections import Counter, deque
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from luqum.auto_head_tail import auto_head_tail
 from luqum.exceptions import IllegalCharacterError, ParseSyntaxError
 from luqum.parser import lexer, parser
@@ -68,10 +68,11 @@ class LuceneParser(object):
 
     def __init__(self, keyword: str) -> None:
         self.keyword = keyword
+        self.lexer = lexer.clone()
 
     def parsing(self) -> List[LuceneField]:
         """解析lucene语法入口函数"""
-        tree = parser.parse(self.keyword, lexer=lexer)
+        tree = parser.parse(self.keyword, lexer=self.lexer)
         fields = self._get_method(tree)
         if isinstance(fields, list):
             # 以下逻辑为同名字段增加额外标识符
@@ -249,6 +250,10 @@ class LuceneParser(object):
 class LuceneTransformer(TreeTransformer):
     """Lucene语句转换器"""
 
+    def __init__(self, track_new_parents=False, **kwargs):
+        self.lexer = lexer.clone()
+        super().__init__(track_new_parents, **kwargs)
+
     def visit_search_field(self, node, context):
         """SEARCH_FIELD 类型转换"""
         if node.pos == context["pos"]:
@@ -256,11 +261,11 @@ class LuceneTransformer(TreeTransformer):
             if get_node_lucene_syntax(node.expr) == LuceneSyntaxEnum.WORD:
                 operator = LuceneParser(keyword=str(node)).parsing()[0].operator
                 if operator in WORD_RANGE_OPERATORS:
-                    node = parser.parse(f"{name}: {operator}{value}", lexer=lexer)
+                    node = parser.parse(f"{name}: {operator}{value}", lexer=self.lexer)
                 else:
-                    node = parser.parse(f"{name}: {value}", lexer=lexer)
+                    node = parser.parse(f"{name}: {value}", lexer=self.lexer)
             else:
-                node = parser.parse(f"{name}: {value}", lexer=lexer)
+                node = parser.parse(f"{name}: {value}", lexer=self.lexer)
 
         yield from self.generic_visit(node, context)
 
@@ -272,7 +277,7 @@ class LuceneTransformer(TreeTransformer):
 
     def transform(self, keyword: str, params: list) -> str:
         """转换Lucene语句"""
-        query_tree = parser.parse(keyword, lexer=lexer)
+        query_tree = parser.parse(keyword, lexer=self.lexer)
         for param in params:
             query_tree = self.visit(query_tree, param)
         return re.sub(r'\s{2,}', ' ', str(auto_head_tail(query_tree)))
@@ -292,6 +297,7 @@ class BaseInspector(object):
     def __init__(self, keyword: str):
         self.keyword = keyword
         self.result = InspectResult()
+        self.lexer = lexer.clone()
 
     def get_result(self):
         return self.result
@@ -359,7 +365,7 @@ class IllegalCharacterInspector(BaseInspector):
 
     def inspect(self):
         try:
-            parser.parse(self.keyword, lexer=lexer)
+            parser.parse(self.keyword, lexer=self.lexer)
         except IllegalCharacterError as e:
             match = re.search(self.illegal_character_re, str(e))
             if match:
@@ -380,11 +386,11 @@ class IllegalRangeSyntaxInspector(BaseInspector):
     syntax_error_message = _("非法RANGE语法")
 
     # RANGE语法正则
-    range_re = r":[\s]?[\[]?.*?(?i)TO.*"
+    range_re = r":[\s]?[\[]?.*?(?i:TO).*"
 
     def inspect(self):
         try:
-            parser.parse(self.keyword, lexer=lexer)
+            parser.parse(self.keyword, lexer=self.lexer)
         except Exception:  # pylint: disable=broad-except
             new_keyword = self.keyword
             for i in self.keyword.split("AND"):
@@ -424,7 +430,7 @@ class IllegalBracketInspector(BaseInspector):
 
     def inspect(self):
         try:
-            parser.parse(self.keyword, lexer=lexer)
+            parser.parse(self.keyword, lexer=self.lexer)
         except ParseSyntaxError as e:
             if str(e) == self.unexpect_unmatched_re:
                 s = deque()
@@ -467,7 +473,7 @@ class IllegalColonInspector(BaseInspector):
 
     def inspect(self):
         try:
-            parser.parse(self.keyword, lexer=lexer)
+            parser.parse(self.keyword, lexer=self.lexer)
         except ParseSyntaxError as e:
             if str(e) == self.unexpect_unmatched_re:
                 if self.keyword.find(":") == len(self.keyword) - 1:
@@ -489,7 +495,7 @@ class IllegalOperatorInspector(BaseInspector):
 
     def inspect(self):
         try:
-            parser.parse(self.keyword, lexer=lexer)
+            parser.parse(self.keyword, lexer=self.lexer)
         except ParseSyntaxError as e:
             if str(e) != self.unexpect_unmatched_re:
                 return
@@ -513,10 +519,10 @@ class UnknownOperatorInspector(BaseInspector):
 
     def inspect(self):
         try:
-            parser.parse(self.keyword, lexer=lexer)
+            parser.parse(self.keyword, lexer=self.lexer)
         except UnknownLuceneOperatorException:
             resolver = UnknownOperationResolver()
-            self.keyword = str(resolver(parser.parse(self.keyword, lexer=lexer)))
+            self.keyword = str(resolver(parser.parse(self.keyword, lexer=self.lexer)))
             self.set_illegal()
         except Exception:  # pylint: disable=broad-except
             return
@@ -529,13 +535,13 @@ class DefaultInspector(BaseInspector):
 
     def inspect(self):
         try:
-            parser.parse(self.keyword, lexer=lexer)
+            parser.parse(self.keyword, lexer=self.lexer)
             LuceneParser(keyword=self.keyword).parsing()
         # "aaa bbb ccc"语法在parser.parse阶段不会解析报错
         # 但是在LuceneParser中会走到parsing_unknownoperation, 人为raise UnknownLuceneOperatorException
         except UnknownLuceneOperatorException:
             resolver = UnknownOperationResolver()
-            self.keyword = str(resolver(parser.parse(self.keyword, lexer=lexer)))
+            self.keyword = str(resolver(parser.parse(self.keyword, lexer=self.lexer)))
             self.set_illegal()
         except Exception:  # pylint: disable=broad-except
             self.set_illegal()
