@@ -43,7 +43,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=/app/requirements.txt \
     python -m venv /app/venv \
     && /app/venv/bin/pip install --upgrade pip \
-    && /app/venv/bin/pip install -r /app/requirements.txt -i "${pypi_index_url}"
+    && /app/venv/bin/pip install -r /app/requirements.txt -i "${pypi_index_url}" \
+    && /app/venv/bin/pip install -r /app/requirements_aidev.txt -i "${pypi_index_url}"
 
 
 
