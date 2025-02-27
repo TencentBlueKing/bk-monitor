@@ -362,6 +362,53 @@
     }
   }
 
+  .event-link {
+    padding-left: 44px;
+
+    .event-link-item {
+      .title {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 22px;
+        color: #313238;
+      }
+      
+      .desc {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #979BA5;
+      }
+
+      .tips {
+        height: 32px;
+        padding: 0 10px;
+        margin-left: 82px;
+        font-size: 12px;
+        line-height: 32px;
+        background: #F0F1F5;
+        border-radius: 2px;
+
+        .icon-tishi {
+          margin-right: 5px;
+          font-size: 14px;
+          color: #4D4F56;
+          vertical-align: middle;
+        }
+
+        .text {
+          vertical-align: middle;
+        }
+
+        .link {
+          color: #3A84FF;
+          cursor: pointer;
+        }
+      }
+
+    }
+  }
+
   .form-content {
     padding-bottom: 24px !important;
   }

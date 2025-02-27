@@ -23,12 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { IWhereItem } from '../../components/retrieval-filter/utils';
+
 export interface IFormData {
   data_source_label: string;
   data_type_label: string;
   table: string;
   query_string: string;
-  where?: any[];
+  where?: IWhereItem[];
   group_by?: any[];
   filter_dict?: Record<string, any>;
 }
