@@ -97,6 +97,9 @@ class AlertDocument(BaseDocument):
     next_status = field.Keyword()
     next_status_time = Date(format=BaseDocument.DATE_FORMAT)
 
+    # 某个告警只会属于某一个故障，不可能同属于多个故障（否则这多个故障也应该属于一个故障）
+    incident_id = field.Keyword()
+
     dedupe_md5 = field.Keyword()
 
     class Dimension(InnerDoc):
