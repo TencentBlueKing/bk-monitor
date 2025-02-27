@@ -169,6 +169,10 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
 
 @share_lock(ttl=3600, identify="metadata_sync_bkbase_cluster_info")
 def sync_bkbase_cluster_info():
+    """
+    同步 bkbase 集群信息
+    VM / ES /Doris ...
+    """
     logger.info("sync_bkbase_cluster_info: Start syncing cluster info from bkbase.")
     start_time = time.time()
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
