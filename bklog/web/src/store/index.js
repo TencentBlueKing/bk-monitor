@@ -41,8 +41,6 @@ import {
   getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-// import axios from 'axios';
-import { axiosInstance } from '@/api';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -60,6 +58,8 @@ import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
+// import axios from 'axios';
+import { axiosInstance } from '@/api';
 import http from '@/api';
 
 Vue.use(Vuex);
@@ -288,7 +288,6 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
-
     updatetableJsonFormatDepth(state, val) {
       state.tableJsonFormatDepth = val;
     },
@@ -747,7 +746,7 @@ const store = new Vuex.Store({
      *   - 当为数组时，表示字段名称列表。
      *   - 当为对象时，应包含以下属性：
      *     - {Array} displayFieldNames - 字段名称数组。
-     *     - {string} version - 版本信息，包含 v2时，表示是新版本设计，目前包含了object字段层级展示的添加功能，后续如果需要区别于之前的逻辑处理，可以参照此逻辑处理
+     *     - {string} version - 版本信息，包含 v2时，表示是新版本设计，目前包含了object字段层级展示的添加功能，后续如果需要区别于之前的逻辑处理，可以参照此逻辑处理(暂不生效)
      *
      */
     resetVisibleFields(state, payload) {
@@ -763,25 +762,23 @@ const store = new Vuex.Store({
           .map(displayName => {
             const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
             if (field) return field;
-            if (isVersion2Payload) {
-              return {
-                field_type: 'object',
-                field_name: displayName,
-                field_alias: '',
-                is_display: false,
-                is_editable: true,
-                tag: '',
-                origin_field: '',
-                es_doc_values: true,
-                is_analyzed: false,
-                field_operator: [],
-                is_built_in: true,
-                is_case_sensitive: false,
-                tokenize_on_chars: '',
-                description: '',
-                filterVisible: true,
-              };
-            }
+            return {
+              field_type: 'object',
+              field_name: displayName,
+              field_alias: '',
+              is_display: false,
+              is_editable: true,
+              tag: '',
+              origin_field: '',
+              es_doc_values: true,
+              is_analyzed: false,
+              field_operator: [],
+              is_built_in: true,
+              is_case_sensitive: false,
+              tokenize_on_chars: '',
+              description: '',
+              filterVisible: true,
+            };
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);

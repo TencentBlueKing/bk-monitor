@@ -378,7 +378,7 @@ class GrafanaQueryHandler:
             query_handler = UnifyQueryHandler(search_dict)
             result = query_handler.search(search_type=None)
         else:
-            search_handler = SearchHandler(query_dict["result_table_id"], search_dict)
+            search_handler = SearchHandler(query_dict["result_table_id"], search_dict, can_highlight=False)
             result = search_handler.search(search_type=None)
 
         # 前面的字段固定

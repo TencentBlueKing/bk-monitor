@@ -274,7 +274,9 @@ class AIOPSManager(abc.ABC):
                     if algorithm["level"] == alert.severity and algorithm["type"] in AlgorithmModel.AIOPS_ALGORITHMS
                 ]
 
-                intelligent_detect_accessed = bool(query_config.get("intelligent_detect", {}).get("result_table_id"))
+                intelligent_detect_accessed = bool(
+                    query_config.get("intelligent_detect", {}).get("result_table_id")
+                ) and not query_config.get("intelligent_detect", {}).get("use_sdk", False)
 
                 extra_metrics = []
                 if not use_raw_query_config and intelligent_algorithm_list and intelligent_detect_accessed:

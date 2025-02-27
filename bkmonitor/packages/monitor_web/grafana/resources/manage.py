@@ -731,21 +731,38 @@ class MigrateOldPanels(Resource):
         # 3. 更新仪表盘
         if migrated_panels_details["failed_total"]:
             # 3.1 如果仪表盘内的面板迁移有失败的情况
-            dashboard_info.data = json.dumps(dashboard)
-            dashboard_info.save()
-            return {
-                "result": True,
-                "message": "Migration completed. Some panels may have failed to migrate.",
-                "code": 200,
-                "data": migrated_panels_details,
-            }
+            result = api.grafana.create_or_update_dashboard_by_uid(
+                org_id=org_id,
+                dashboard=dashboard,
+                folderId=dashboard_info.folder_id,
+                overwrite=False,
+            )
+
+            if not result["result"]:
+                return {
+                    "result": False,
+                    "message": result["message"],
+                    "code": 500,
+                    "data": {},
+                }
+            else:
+                return {
+                    "result": True,
+                    "message": "Migration completed. Some panels may have failed to migrate.",
+                    "code": 200,
+                    "data": migrated_panels_details,
+                }
         elif is_migrate:
             # 3.1 仪表盘内的面板都成功迁移的情况
-            dashboard_info.data = json.dumps(dashboard)
-            dashboard_info.save()
+            result = api.grafana.create_or_update_dashboard_by_uid(
+                org_id=org_id,
+                dashboard=dashboard,
+                folderId=dashboard_info.folder_id,
+                overwrite=False,
+            )
             return {
-                "result": True,
-                "message": "Migrate success.",
+                "result": result["result"],
+                "message": "Migrate success." if result["result"] else result["message"],
                 "code": 200,
                 "data": migrated_panels_details,
             }

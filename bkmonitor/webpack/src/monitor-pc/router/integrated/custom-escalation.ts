@@ -36,6 +36,11 @@ const CustomEscalationView = () =>
   import(/* webpackChunkName: 'CustomEscalationView' */ '../../pages/custom-escalation/view-detail/metric-view');
 const CustomEscalationEventView = () =>
   import(/* webpackChunkName: 'CustomEscalationEventView' */ '../../pages/custom-escalation/view-detail/event-view');
+// 新版自定义指标页面
+const NewCustomEscalationView = () =>
+  import(
+    /* webpackChunkName: 'NewCustomEscalationView' */ '../../pages/custom-escalation/new-metric-view/new-metric-view'
+  );
 export default [
   {
     path: '/custom-escalation-set/event',
@@ -174,6 +179,31 @@ export default [
       },
       route: {
         parent: 'custom-event',
+      },
+    },
+  },
+  /** 新版自定义指标页面 */
+  {
+    path: '/new-custom-escalation-view/:id',
+    name: 'new-custom-escalation-view',
+    props: {
+      noCache: true,
+    },
+    components: {
+      noCache: NewCustomEscalationView,
+    },
+    meta: {
+      title: '新版自定义指标页面',
+      navId: 'custom-metric',
+      needBack: true,
+      customTitle: true,
+      noNavBar: true,
+      authority: {
+        map: customAuth,
+        page: customAuth.VIEW_CUSTOM_METRIC,
+      },
+      route: {
+        parent: 'custom-metric',
       },
     },
   },
