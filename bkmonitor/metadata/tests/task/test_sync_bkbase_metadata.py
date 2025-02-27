@@ -339,7 +339,9 @@ def test_sync_bkbase_clusters(create_or_delete_records):
         es_cluster = models.ClusterInfo.objects.get(domain_name='es.example.com')
         assert es_cluster.username == 'es_user'
         assert es_cluster.password == 'es_password'
+        assert es_cluster.cluster_type == models.ClusterInfo.TYPE_ES
 
         vm_cluster = models.ClusterInfo.objects.get(domain_name='vm.example.com')
         assert vm_cluster.username == 'vm_user'
         assert vm_cluster.password == 'vm_password'
+        assert vm_cluster.cluster_type == models.ClusterInfo.TYPE_VM
