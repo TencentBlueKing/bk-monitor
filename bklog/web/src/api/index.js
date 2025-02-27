@@ -89,8 +89,7 @@ axiosInstance.interceptors.response.use(
     if (response.data instanceof Blob) {
       return response;
     }
-    const traceparent = response.config.headers.Traceparent || response.config.headers.traceparent;
-    const config = initConfig('', '', { headers: { traceparent } });
+    const config = response.config;
     return new Promise(async (resolve, reject) => {
       try {
         handleResponse({ config, response: response.data, resolve, reject, status: response.status });
