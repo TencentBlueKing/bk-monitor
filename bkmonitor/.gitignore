@@ -227,3 +227,6 @@ static/external/
 # develop config
 conf/platform/ieod.py
 .vscode
+
+# ai_agent link
+ai_agent
