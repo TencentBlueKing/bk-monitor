@@ -15,6 +15,7 @@ from unittest.mock import patch
 import pytest
 
 from metadata import models
+from metadata.task.bkbase import sync_bkbase_cluster_info
 from metadata.task.tasks import sync_bkbase_v4_metadata
 from metadata.tests.common_utils import consul_client
 
@@ -301,3 +302,46 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
 
         deleted_record = models.StorageClusterRecord.objects.get(cluster_id=1000)
         assert deleted_record.is_deleted
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_sync_bkbase_clusters(create_or_delete_records):
+    mock_es_data = [
+        {
+            "kind": "ElasticSearch",
+            "metadata": {
+                "namespace": "bklog",
+                "name": "test_es_cluster",
+            },
+            "spec": {
+                "host": "es.example.com",
+                "port": 9200,
+                "user": "es_user",  # 注意这里键名是 user
+                "password": "es_password",
+            },
+        }
+    ]
+
+    mock_vm_data = [
+        {
+            "kind": "VmStorage",
+            "metadata": {
+                "namespace": "bkmonitor",
+                "name": "test_vm_cluster",
+            },
+            "spec": {"insertHost": "vm.example.com", "insertPort": 8480, "user": "vm_user", "password": "vm_password"},
+        }
+    ]
+    with patch("core.drf_resource.api.bkdata.list_data_bus_raw_data") as mock_api:
+        mock_api.side_effect = [mock_es_data, mock_vm_data]
+        sync_bkbase_cluster_info()
+
+        es_cluster = models.ClusterInfo.objects.get(domain_name='es.example.com')
+        assert es_cluster.username == 'es_user'
+        assert es_cluster.password == 'es_password'
+        assert es_cluster.cluster_type == models.ClusterInfo.TYPE_ES
+
+        vm_cluster = models.ClusterInfo.objects.get(domain_name='vm.example.com')
+        assert vm_cluster.username == 'vm_user'
+        assert vm_cluster.password == 'vm_password'
+        assert vm_cluster.cluster_type == models.ClusterInfo.TYPE_VM
