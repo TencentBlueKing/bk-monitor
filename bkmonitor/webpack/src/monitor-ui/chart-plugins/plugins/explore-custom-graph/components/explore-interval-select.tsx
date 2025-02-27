@@ -26,9 +26,9 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { CHART_INTERVAL } from '../../../constant/constant';
+import { CHART_INTERVAL } from 'monitor-pc/constant/constant';
 
-import type { IOption, EventRetrievalViewType } from '../../data-retrieval/typings';
+import type { IOption, EventRetrievalViewType } from 'monitor-pc/pages/data-retrieval/typings';
 
 import './explore-interval-select.scss';
 
