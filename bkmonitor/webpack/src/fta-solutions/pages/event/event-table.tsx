@@ -1110,9 +1110,13 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     if (scrollWidth > clientWidth) {
       this.metricPopoverIns = this.$bkPopover(e.target, {
         content: `${data.map(item => `<div>${item.name || item.id}</div>`).join('')}`,
+        maxWidth: 320,
+        placement: 'top',
+        boundary: 'window',
         interactive: true,
-        distance: 0,
-        duration: [200, 0],
+        distance: 7,
+        duration: [0, 0],
+        arrow: true,
       });
       this.metricPopoverIns?.show?.(100);
     }
