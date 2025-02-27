@@ -1,0 +1,43 @@
+.monitor-cross-drag {
+  position: relative;
+  height: 9px;
+  pointer-events: all;
+  cursor: row-resize;
+
+  &::before {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    content: '';
+    border-top: 1px solid transparent;
+    transition: border-color 0.3s ease-in-out 0s;
+    transform: translateY(-50%);
+  }
+
+  &::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 26px;
+    height: 3px;
+    content: '';
+    background-color: transparent;
+    background-image: repeating-linear-gradient(to right, #979ba5 0px, #979ba5 2px, transparent 2px, transparent 5px);
+    background-position-x: 1px;
+    background-size: 5px 2px;
+    border: 0;
+    border-radius: 2px;
+    transition: border-color 0.3s ease-in-out 0s;
+    transform: translate(-50%, -50%);
+  }
+
+  &:hover {
+    &::before {
+      border-color: #5794f2;
+    }
+
+    &::after {
+      background: #3a84ff;
+    }
+  }
+}
