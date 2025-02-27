@@ -59,6 +59,10 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   @ProvideReactive('refleshInterval') refreshInterval = -1;
   // 是否立即刷新
   @ProvideReactive('refleshImmediate') refreshImmediate = '';
+  /** 图表框选范围事件所需参数 -- 开启框选功能 */
+  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
+  /** 图表框选范围事件所需参数 -- 是否展示复位按钮 */
+  @ProvideReactive('showRestore') showRestore = false;
 
   @ProvideReactive('formatTimeRange')
   get formatTimeRange() {
@@ -84,6 +88,8 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
   fieldList = [];
 
+  cacheTimeRange = [];
+
   /** 公共参数 */
   @ProvideReactive('commonParams')
   get commonParams() {
@@ -98,10 +104,32 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     };
   }
 
-  @Provide('handleTimeRangeChange')
   handleTimeRangeChange(timeRange: TimeRangeType) {
+    this.showRestore = false;
     this.timeRange = timeRange;
     this.getViewConfig();
+  }
+
+  /**
+   * @description 更改数据时间间隔（其中 Provide 主要提供图表组件框选事件需要）
+   */
+  @Provide('handleChartDataZoom')
+  handleTimeRangeChangeForChart(timeRange: TimeRangeType) {
+    if (JSON.stringify(this.timeRange) === JSON.stringify(timeRange)) {
+      return;
+    }
+    this.showRestore = true;
+    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
+    this.timeRange = timeRange;
+    this.getViewConfig();
+  }
+
+  /**
+   * @description 恢复数据时间间隔
+   */
+  @Provide('handleRestoreEvent')
+  handleRestoreEventForChart() {
+    this.handleTimeRangeChange(JSON.parse(JSON.stringify(this.cacheTimeRange)));
   }
 
   handleDataIdChange(dataId: string) {
@@ -359,7 +387,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
                 />
               </div>
               <div class='result-content-panel'>
-                <EventExploreView commonParams={this.commonParams} />
+                <EventExploreView queryConfig={this.formData} />
               </div>
             </EventRetrievalLayout>
           </div>
