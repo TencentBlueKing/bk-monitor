@@ -241,6 +241,7 @@ export default class AlarmDispatch extends tsc<object> {
     this.loading = false;
     this.getAlarmAssignGroupsRules(list?.map(item => item.id));
     this.$nextTick(() => {
+      this.renderGroups = [];
       this.observerTableGroup();
     });
   }
