@@ -233,6 +233,7 @@ export const commonPageSizeGet = () => {
   return 10;
 };
 
+export * from './colorHelpers';
 export * from './constant';
 export * from './utils';
 export * from './xss';

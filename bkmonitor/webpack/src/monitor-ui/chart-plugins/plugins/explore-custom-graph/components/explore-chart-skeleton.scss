@@ -1,0 +1,14 @@
+.explore-chart-skeleton {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  padding-bottom: 14px;
+
+  .explore-chart-skeleton-item {
+    flex: 1;
+
+    &:nth-child(odd) {
+      background: none;
+    }
+  }
+}

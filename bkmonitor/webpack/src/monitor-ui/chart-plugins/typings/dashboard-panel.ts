@@ -439,8 +439,8 @@ export type PanelOption = {
   legend?: ILegendOption;
   unit?: string; // 单位
   precision?: number; // 单位精度
-  is_support_compare: boolean;
-  is_support_group_by: boolean;
+  is_support_compare?: boolean;
+  is_support_group_by?: boolean;
   enable_panels_selector?: boolean;
   child_panels_selector_variables?: {
     id?: string;

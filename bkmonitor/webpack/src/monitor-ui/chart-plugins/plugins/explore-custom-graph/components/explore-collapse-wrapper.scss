@@ -1,0 +1,80 @@
+// 容器切换折叠状态时动画持续时长
+$expand-animation-duration: 0.6s;
+
+.explore-collapse-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  grid-template-columns: 100%;
+  overflow-y: hidden;
+  transition: grid-template-rows $expand-animation-duration;
+  transition-timing-function: ease;
+
+  &.is-expand {
+    grid-template-rows: 1fr;
+
+    .explore-collapse-header {
+      .explore-collapse-header-trigger {
+        .header-trigger-default {
+          .icon-mc-triangle-down {
+            transform: rotate(0deg);
+          }
+        }
+      }
+    }
+  }
+
+  .explore-collapse-wrapper-collapse {
+    width: 100%;
+    min-height: var(--header-height, 36px);
+  }
+
+  .explore-collapse-wrapper-container {
+    display: flex;
+    flex-direction: column;
+    height: var(--container-height);
+  }
+
+  .explore-collapse-header {
+    display: flex;
+    width: 100%;
+    padding: var(--header-intersect-padding, 7px) 0;
+
+    .explore-collapse-header-trigger {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      height: calc(var(--header-height, 36px) - var(--header-intersect-padding, 7px) * 2);
+      cursor: pointer;
+
+      .header-trigger-default {
+        display: flex;
+        align-items: center;
+        color: #4d4f56;
+
+        .icon-mc-triangle-down {
+          font-size: 18px;
+          transition: transform 0.3s ease;
+          transform: rotate(-90deg);
+        }
+
+        .chart-trigger-title {
+          margin-right: 8px;
+          font-weight: 700;
+          color: #313238;
+        }
+      }
+    }
+
+    .explore-collapse-header-custom {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .explore-collapse-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+}
