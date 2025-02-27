@@ -39,7 +39,8 @@ import EventExploreView from './components/event-explore-view';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
-import type { IWhereItem, IGetValueFnParams } from '../../components/retrieval-filter/utils';
+import type { IGetValueFnParams } from '../../components/retrieval-filter/utils';
+import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFormData } from './typing';
 
