@@ -27,7 +27,7 @@ from typing import List
 from bkcrypto.contrib.django.fields import SymmetricTextField
 from django.db import models
 from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from pipeline.service import task_service
 
 from apps.log_extract.constants import PIPELINE_TIME_FORMAT, ExtractLinkType

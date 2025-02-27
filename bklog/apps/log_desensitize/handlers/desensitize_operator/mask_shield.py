@@ -19,10 +19,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
-from django.utils.translation import ugettext_lazy as _
 
-from apps.log_desensitize.handlers.desensitize_operator.base import DesensitizeMethodBase
+from apps.log_desensitize.handlers.desensitize_operator.base import (
+    DesensitizeMethodBase,
+)
 
 
 class DesensitizeMaskShield(DesensitizeMethodBase):
@@ -34,6 +36,7 @@ class DesensitizeMaskShield(DesensitizeMethodBase):
         """
         脱敏配置参数
         """
+
         preserve_head = serializers.IntegerField(label=_("保留前几位"), required=False, min_value=0)
         preserve_tail = serializers.IntegerField(label=_("保留后几位"), required=False, min_value=0)
         replace_mark = serializers.CharField(label=_("替换符号"), required=False)
@@ -65,6 +68,10 @@ class DesensitizeMaskShield(DesensitizeMethodBase):
             # 不进行掩码屏蔽
             return target_text
 
-        tail_text = target_text[-self.preserve_tail:] if self.preserve_tail > 0 else ''
+        tail_text = target_text[-self.preserve_tail :] if self.preserve_tail > 0 else ''
 
-        return target_text[:self.preserve_head] + self.replace_mark * (len(target_text) - self.preserve_head - self.preserve_tail) + tail_text  # noqa
+        return (
+            target_text[: self.preserve_head]
+            + self.replace_mark * (len(target_text) - self.preserve_head - self.preserve_tail)
+            + tail_text
+        )  # noqa

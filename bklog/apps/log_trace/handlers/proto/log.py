@@ -23,12 +23,14 @@ from collections import defaultdict
 from typing import List
 
 import arrow
+from django.utils.translation import gettext_lazy as _
 
-from django.utils.translation import ugettext_lazy as _
+from apps.log_search.handlers.search.search_handlers_esquery import (
+    SearchHandler as SearchHandlerEsquery,
+)
 from apps.log_trace.constants import TraceProto
 from apps.log_trace.exceptions import TraceIDNotExistsException
 from apps.log_trace.handlers.proto.proto import Proto
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler as SearchHandlerEsquery
 from apps.utils.local import get_local_param
 
 SCATTER_TEMPLATE = [

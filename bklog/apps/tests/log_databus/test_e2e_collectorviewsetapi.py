@@ -28,12 +28,12 @@ from unittest.mock import patch
 import arrow
 from django.conf import settings
 from django.test import TestCase, override_settings
-from django.utils.translation import ugettext_lazy as _
-from django_fakeredis import FakeRedis
+from django.utils.translation import gettext_lazy as _
 
 from apps.iam.handlers import permission
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.views import collector_views
+from apps.tests.utils import FakeRedis
 
 logging.basicConfig(level=logging.NOTSET)
 logger = logging.getLogger()

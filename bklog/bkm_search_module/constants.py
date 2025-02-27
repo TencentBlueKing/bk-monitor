@@ -4,7 +4,7 @@ from collections import namedtuple
 from enum import Enum
 from typing import Any, Dict, List, Tuple
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
 
 

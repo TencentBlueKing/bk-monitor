@@ -4,8 +4,9 @@
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
-  import { withoutValueConditionList } from './const.common';
-
+  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+  import { getOperatorKey, getRegExp } from '@/common/util';
+  import { operatorMapping, translateKeys } from './const-values';
   const { $t } = useLocale();
   const store = useStore();
 
@@ -22,16 +23,16 @@
 
   const commonFilterAddition = computed({
     get() {
-      if (store.getters.retrieveParams.common_filter_addition?.length) {
-        return store.getters.retrieveParams.common_filter_addition;
-      }
-
-      return filterFieldsList.value.map(item => ({
-        field: item?.field_name || '',
-        operator: '=',
-        value: [],
-        list: [],
-      }));
+      const filterAddition = store.getters.common_filter_addition || [];
+      return filterFieldsList.value.map(item => {
+        const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
+        return matchingItem ?? {
+          field: item.field_name || '',
+          operator: '=',
+          value: [],
+          list: [],
+          }
+      });
     },
     set(val) {
       const target = val.map(item => {
@@ -49,9 +50,36 @@
   });
 
   const activeIndex = ref(-1);
-
+  const filterKeyword = ref('');
   let requestTimer = null;
   const isRequesting = ref(false);
+
+  const operatorDictionary = computed(() => {
+    const defVal = {
+      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+    };
+    return {
+      ...defVal,
+      ...store.state.operatorDictionary,
+    };
+  });
+
+  /**
+   * 获取操作符展示文本
+   * @param {*} item
+   */
+  const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
+
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    if (translateKeys.includes(operatorMapping[item.operator])) {
+      return $t(operatorMapping[item.operator] ?? item.operator);
+    }
+
+    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  };
 
   const rquestFieldEgges = (() => {
     return (field, index, operator?, value?, callback?) => {
@@ -100,7 +128,8 @@
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+    filterKeyword.value = value;
+    // rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
   };
 
   // 新建提交逻辑
@@ -135,6 +164,10 @@
   const handleRowBlur = () => {
     focusIndex.value = null;
   };
+  const filterOption = ( index )=>{
+    const regExp = getRegExp(filterKeyword.value.trim());
+    return  commonFilterAddition.value[index].list.filter(item => regExp.test(item));
+  }
 </script>
 
 <template>
@@ -152,7 +185,7 @@
         @focus.capture="e => handleRowFocus(index, e)"
         @blur.capture="handleRowBlur"
       >
-        <div class="title">
+        <div class="title" v-bk-overflow-tips>
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
         <bk-select
@@ -164,11 +197,11 @@
           @change="handleChange"
         >
           <template #trigger>
-            <span class="operator-label">{{ $t(commonFilterAddition[index].operator) }}</span>
+            <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"
-            :id="child.label"
+            :id="child.operator"
             :key="childIndex"
             :name="child.label"
           />
@@ -195,7 +228,7 @@
               ></bk-input>
             </template>
             <bk-option
-              v-for="option in commonFilterAddition[index].list"
+              v-for="option in filterOption(index)"
               :id="option"
               :key="option"
               :name="option"
@@ -215,6 +248,7 @@
 <style lang="scss" scoped>
   .filter-container-wrap {
     display: flex;
+    align-items: center;
     max-height: 95px;
     padding: 0 10px 0px 10px;
     overflow: auto;
@@ -272,8 +306,11 @@
       border: none;
 
       .operator-label {
+        display: inline-block;
+        width: 100%;
         padding: 4px;
         color: #3a84ff;
+        white-space: nowrap;
       }
 
       &.bk-select.is-focus {
