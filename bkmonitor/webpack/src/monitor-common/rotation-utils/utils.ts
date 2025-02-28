@@ -24,32 +24,11 @@
  * IN THE SOFTWARE.
  */
 import dayjs from 'dayjs';
-import { random } from 'lodash';
 
-import { RotationSelectTextMap, RotationSelectTypeEnum } from './typings/common';
+import { random } from '../utils/utils';
+import { RotationSelectTextMap, RotationSelectTypeEnum } from './common';
 
-import type { FixedDataModel } from './components/fixed-rotation-tab';
-import type { ReplaceDataModel } from './components/replace-rotation-tab';
-import type { ReplaceItemDataModel } from './components/replace-rotation-table-item';
-
-/**
- * 以15分钟为间隔生成一天的时间段
- * @returns 时间段
- */
-export function generateTimeSlots(): string[] {
-  const timeSlots = [];
-  let currentTime = dayjs().startOf('day');
-  const endTime = dayjs().endOf('day');
-
-  // 循环生成时间段，直到到达第二天的 00:00:00
-  while (currentTime.isSameOrBefore(endTime)) {
-    const formattedTime = currentTime.format('HH:mm');
-    timeSlots.push(formattedTime);
-    // 增加15分钟
-    currentTime = currentTime.add(15, 'minutes');
-  }
-  return timeSlots;
-}
+import type { FixedDataModel, ReplaceDataModel, ReplaceItemDataModel } from './typings';
 
 export const colorList = [
   '#3A84FF',
@@ -73,7 +52,6 @@ export const colorList = [
   '#6EDAC1',
   '#E787CB',
 ];
-
 export const randomColor = (index: number) => {
   if (index <= colorList.length - 1) {
     return colorList[index];
@@ -83,6 +61,25 @@ export const randomColor = (index: number) => {
   const b = Math.floor(Math.random() * 255);
   return `rgba(${r},${g},${b},0.8)`;
 };
+
+/**
+ * 以15分钟为间隔生成一天的时间段
+ * @returns 时间段
+ */
+export function generateTimeSlots(): string[] {
+  const timeSlots = [];
+  let currentTime = dayjs().startOf('day');
+  const endTime = dayjs().endOf('day');
+
+  // 循环生成时间段，直到到达第二天的 00:00:00
+  while (currentTime.isSameOrBefore(endTime)) {
+    const formattedTime = currentTime.format('HH:mm');
+    timeSlots.push(formattedTime);
+    // 增加15分钟
+    currentTime = currentTime.add(15, 'minutes');
+  }
+  return timeSlots;
+}
 
 export function createColorList(num = 100) {
   const colors = [...colorList];
@@ -176,20 +173,20 @@ export function replaceRotationTransform(originData, type) {
             case RotationSelectTypeEnum.Daily:
             case RotationSelectTypeEnum.WorkDay:
             case RotationSelectTypeEnum.Weekend: {
-              pre.value.push({ key: random(8, true), workTime: time, workDays: cur.work_days });
+              pre.value.push({ key: random(8), workTime: time, workDays: cur.work_days });
               break;
             }
             case RotationSelectTypeEnum.Weekly:
             case RotationSelectTypeEnum.Monthly: {
               if (pre.workTimeType === 'time_range') {
                 pre.value.push({
-                  key: random(8, true),
+                  key: random(8),
                   workDays: cur.work_days,
                   workTime: time,
                 });
               } else {
                 pre.value.push({
-                  key: random(8, true),
+                  key: random(8),
                   workTime: cur.work_time.map(item => item.split('--').map(item => item.split(' ')))[0] || [],
                 });
               }
@@ -197,7 +194,7 @@ export function replaceRotationTransform(originData, type) {
             }
             case RotationSelectTypeEnum.Custom: {
               pre.value.push({
-                key: random(8, true),
+                key: random(8),
                 workTime: time,
               });
             }
@@ -220,7 +217,7 @@ export function replaceRotationTransform(originData, type) {
           groupNumber: data.group_number,
           groupType: data.group_type,
           value: data.duty_users.map(item => ({
-            key: random(8, true),
+            key: random(8),
             value: item,
             orderIndex: 0,
           })),
@@ -319,7 +316,7 @@ export function fixedRotationTransform(data, type) {
     return data.map(item => {
       const obj: FixedDataModel = {
         id: item.id,
-        key: random(8, true),
+        key: random(8),
         type: item.duty_time?.[0]?.work_type || RotationSelectTypeEnum.Weekly,
         workDays: item.duty_time?.[0]?.work_days || [],
         workDateRange: [],
@@ -395,6 +392,7 @@ export function transformWeeklyName(data: number[]) {
 }
 
 export interface RuleDetailModel {
+  id: string;
   ruleTime: {
     day: string;
     timer: string[];
@@ -434,6 +432,7 @@ export function transformRulesDetail(data: any[], type: 'handoff' | 'regular'): 
       };
     });
     return {
+      id: random(8),
       ruleTime,
       ruleUser: rule.duty_users.map(item => {
         const res = { users: item, orderIndex };
