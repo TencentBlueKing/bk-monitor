@@ -251,4 +251,19 @@ class SceneViewViewSet(ResourceViewSet):
             resource.scene_view.list_index_set_log,
             endpoint="list_index_set_log",
         ),
+        ResourceRoute(
+            "GET",
+            resource.scene_view.get_custom_ts_metric_groups,
+            endpoint="get_custom_ts_metric_groups",
+        ),
+        ResourceRoute(
+            "POST",
+            resource.scene_view.get_custom_ts_dimension_values,
+            endpoint="get_custom_ts_dimension_values",
+        ),
+        ResourceRoute(
+            "POST",
+            resource.scene_view.get_custom_ts_graph_config,
+            endpoint="get_custom_ts_graph_config",
+        ),
     ]

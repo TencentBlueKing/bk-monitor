@@ -1228,10 +1228,9 @@ export default defineComponent({
       return false;
     };
 
-    const fixLayoutPosition = graphWidth => {
+    const fixLayoutPosition = () => {
       let top = Number.POSITIVE_INFINITY;
       let left = Number.POSITIVE_INFINITY;
-      let diffWidth = 0;
       let comboLen = 0;
       // biome-ignore lint/complexity/noForEach: <explanation>
       graph.getCombos().forEach(combo => {
@@ -1240,17 +1239,19 @@ export default defineComponent({
           comboLen += 1;
           const { x, y, width, height } = model as { [key: string]: number };
           // const [width, height] = model.fixSize as [number, number];
-          diffWidth = graphWidth - width;
           top = Math.min(top, y - height / 2);
           left = Math.min(left, x - width / 2);
         }
       });
       // 视图宽度与容器宽度不一致，容器还有margin等需要修复
-      if (left < 0 && diffWidth < 0) {
-        left = left + diffWidth / 2;
-      }
+      // if (left < 0 && diffWidth < 0) {
+      //   left = left + diffWidth / 2;
+      // }
       // 只有一个combo时，combo上下没有间距所以需要修复40px 修正combo顶部的间距及算法导致的差异
-      return { left: left < 0 ? Math.abs(left) : 0, top: top < 0 ? Math.abs(top) + (comboLen === 1 ? 40 : 0) : 0 };
+      return {
+        left: left < 0 ? Math.abs(left) + 20 : 20,
+        top: top < 0 ? Math.abs(top) + (comboLen === 1 ? 40 : 0) : 0,
+      };
     };
     /** 移动根因节点到画布中心 */
     const moveRootNodeCenter = (isRecordMatrix = false) => {
@@ -1269,7 +1270,7 @@ export default defineComponent({
         let dy = 0;
         let dx = 0;
         if (!isNodeOutOfCanvas(node)) {
-          const { left, top } = fixLayoutPosition(graphWidth);
+          const { left, top } = fixLayoutPosition();
           graph.translate(dx + left, dy + top);
           return;
         }
@@ -1284,7 +1285,7 @@ export default defineComponent({
         } else if (y > graphHeight - h) {
           dy = graphHeight - h - y; // 节点超过下边界
         }
-        const { left, top } = fixLayoutPosition(graphWidth);
+        const { left, top } = fixLayoutPosition();
         graph.translate(dx + left, dy + top);
       }
     };

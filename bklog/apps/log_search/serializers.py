@@ -929,8 +929,8 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     """
 
     field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
-    max = serializers.IntegerField(label=_("最大值"), required=False)
-    min = serializers.IntegerField(label=_("最小值"), required=False)
+    max = serializers.FloatField(label=_("最大值"), required=False)
+    min = serializers.FloatField(label=_("最小值"), required=False)
     threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)
     limit = serializers.IntegerField(label=_("top条数"), required=False, default=5)
     distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)

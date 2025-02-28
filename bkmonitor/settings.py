@@ -16,9 +16,10 @@ import monkey
 from config.tools.environment import ENVIRONMENT, ROLE
 
 try:
-    import MySQLdb
+    import MySQLdb  # noqa
 except ImportError:
     import pymysql
+
     pymysql.install_as_MySQLdb()
 
 
@@ -34,6 +35,8 @@ monkey.patch_all(patch_target)
 
 # append packages to sys.path
 sys.path.append(os.path.join(os.getcwd(), "packages"))
+# append ai agent sdk to sys.path
+sys.path.append(os.path.join(os.getcwd(), "ai_agent", "sdk"))
 
 DJANGO_CONF_MODULE = "config.{env}".format(
     env={"development": "dev", "testing": "stag", "production": "prod"}.get(ENVIRONMENT)
@@ -62,7 +65,7 @@ for key, value in list(os.environ.items()):
 
 # 多人开发时，无法共享的本地配置可以放到新建的 local_settings.py 文件中
 # 并且把 local_settings.py 加入版本管理忽略文件中
-if RUN_MODE == "DEVELOP":
+if RUN_MODE == "DEVELOP":  # noqa
     try:
         from local_settings import *  # noqa
     except ImportError:

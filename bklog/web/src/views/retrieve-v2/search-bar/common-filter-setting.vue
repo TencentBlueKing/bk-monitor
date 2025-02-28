@@ -27,7 +27,7 @@
                 >{{ $t('全部添加') }}</span
               >
             </div>
-            <div style="padding: 4px 8px; height: 40px">
+            <div style=" height: 40px;padding: 4px 8px">
               <bk-input
                 behavior="simplicity"
                 left-icon="bk-icon icon-search"
@@ -157,10 +157,11 @@
   const shadowTotal = computed(() => {
     const reg = getRegExp(searchKeyword.value);
     const filterFn = field =>
-      !shadowVisible.value.includes(field) &&
+      !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
       (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
+
     return fieldList.value.filter(filterFn);
   });
 
@@ -278,9 +279,9 @@
           padding: 0 16px;
           line-height: 40px;
           color: #313238;
-          border-bottom: 1px solid #dcdee5;
-          border-top: 1px solid #dcdee5;
           background: #fafbfd;
+          border-top: 1px solid #dcdee5;
+          border-bottom: 1px solid #dcdee5;
 
           .bklog-info-fill {
             margin-left: 8px;
@@ -305,13 +306,13 @@
           @include scroller;
 
           .select-item {
-            overflow: hidden;
             display: inline-block;
             align-items: center;
             width: 100%;
             height: 32px;
-            line-height: 32px;
             padding: 0 12px;
+            overflow: hidden;
+            line-height: 32px;
             text-overflow: ellipsis;
             white-space: nowrap;
             cursor: pointer;
@@ -388,18 +389,23 @@
       }
 
       .visible-fields-list {
-        border-left: none;
         width: 380px;
+        border-left: none;
       }
 
       /* stylelint-disable-next-line no-descending-specificity */
       .total-fields-list .select-list .select-item {
         position: relative;
+
         .field-name {
           display: inline;
         }
 
         .bklog-filled-right-arrow {
+          position: absolute;
+          top: 8px;
+          right: 4px;
+          z-index: 10;
           width: 24px;
           font-size: 16px;
           color: #3a84ff;
@@ -409,40 +415,11 @@
           transition: opacity 0.2s linear;
           transform: scale(0.5);
           transform-origin: right center;
-          position: absolute;
-          right: 4px;
-          top: 8px;
-          z-index: 10;
         }
 
         &:hover .bklog-filled-right-arrow {
           opacity: 1;
           transition: opacity 0.2s linear;
-        }
-      }
-
-      /* stylelint-disable-next-line no-descending-specificity */
-      .visible-fields-list .select-list .select-item {
-        position: relative;
-
-        .field-name {
-          display: inline;
-        }
-
-        .delete {
-          font-size: 16px;
-          color: #c4c6cc;
-          text-align: right;
-          cursor: pointer;
-          display: none;
-
-          position: absolute;
-          right: 12px;
-          top: 8px;
-        }
-
-        &:hover .delete {
-          display: block;
         }
       }
 
@@ -496,6 +473,31 @@
         }
       }
 
+      /* stylelint-disable-next-line no-descending-specificity */
+      .visible-fields-list .select-list .select-item {
+        position: relative;
+
+        .field-name {
+          display: inline;
+        }
+        
+        .delete {
+
+          position: absolute;
+          top: 8px;
+          right: 12px;
+          display: none;
+          font-size: 16px;
+          color: #c4c6cc;
+          text-align: right;
+          cursor: pointer;
+          }
+
+        &:hover .delete {
+          display: block;
+        }
+      }
+
       .sort-icon {
         display: flex;
         flex-shrink: 0;
@@ -505,27 +507,25 @@
         background-color: #dcdee5;
 
         .bklog-double-arrow {
-          font-size: 12px;
-          color: #989ca5;
+
+          position: absolute;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
 
           width: 33px;
           height: 33px;
-          background: #fafbfd;
-
-          display: flex;
-          justify-content: center;
-          align-items: center;
-
-          position: absolute;
-          border-radius: 50%;
+          font-size: 12px;
+          color: #989ca5;
 
           pointer-events: none;
+          background: #fafbfd;
+          border-radius: 50%;
         }
       }
     }
-  }
 
-  .bklog-common-field-filter {
     &.fields-button-container {
       display: flex;
       align-items: center;
@@ -538,4 +538,5 @@
       border-radius: 0 0 2px 2px;
     }
   }
+
 </style>
