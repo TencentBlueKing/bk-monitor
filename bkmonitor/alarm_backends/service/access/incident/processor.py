@@ -205,7 +205,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 IncidentSnapshotDocument.bulk_create([snapshot], action=BulkActionType.CREATE)
 
                 # 补充快照记录并写入ES
-                self.generate_alert_operations(incident_document.snapshot, snapshot, snapshot_alerts)
+                self.generate_alert_operations(incident_document.snapshot, snapshot_alerts)
                 incident_document.snapshot = snapshot
                 incident_document.alert_count = len(snapshot.alerts)
                 snapshot_model = IncidentSnapshot(copy.deepcopy(snapshot.content.to_dict()))
