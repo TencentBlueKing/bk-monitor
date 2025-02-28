@@ -119,6 +119,7 @@ export interface ITraceListItem {
 
 export interface ITraceData extends ITraceListItem {
   [key: string]: any;
+  ebpf_enabled?: boolean;
   original_data: any[];
   span_classify: ISpanClassifyItem[];
   topo_nodes: ITopoNode[];
