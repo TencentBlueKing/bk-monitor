@@ -119,6 +119,7 @@ export interface IFilterItem {
     is_wildcard: boolean;
   };
   hide?: boolean;
+  isSetting?: boolean; // 是否是设置项
 }
 export const MODE_LIST = [
   { id: EMode.ui, name: window.i18n.tc('UI 模式') },
@@ -186,6 +187,24 @@ export function setCacheUIData(v: IFilterItem[]) {
 }
 export function getCacheUIData(): IFilterItem[] {
   const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY);
+  try {
+    return JSON.parse(uiDataSrt) || [];
+  } catch (err) {
+    console.log(err);
+    return [];
+  }
+}
+
+interface IResidentSetting {
+  field: IFilterField;
+  value: IWhereItem;
+}
+export const RETRIEVAL_FILTER_RESIDENT_SETTING_KEY = 'RETRIEVAL_FILTER_RESIDENT_SETTING_KEY';
+export function setResidentSettingData(v: IResidentSetting[]) {
+  localStorage.setItem(RETRIEVAL_FILTER_RESIDENT_SETTING_KEY, JSON.stringify(v));
+}
+export function getResidentSettingData(): IResidentSetting[] {
+  const uiDataSrt = localStorage.getItem(RETRIEVAL_FILTER_RESIDENT_SETTING_KEY);
   try {
     return JSON.parse(uiDataSrt) || [];
   } catch (err) {

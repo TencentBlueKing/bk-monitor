@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ResidentSettingTransfer from './resident-setting-transfer';
@@ -37,13 +37,16 @@ import {
 } from './utils';
 
 import './resident-setting.scss';
-interface IProps {
-  fields: IFilterField[];
-}
 
-interface ILocalValue {
+export interface IResidentSetting {
   field: IFilterField;
   value: IWhereItem;
+}
+interface IProps {
+  fields: IFilterField[];
+  value?: IResidentSetting[];
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onChange?: (v: IResidentSetting[]) => void;
 }
 
 @Component
@@ -58,11 +61,20 @@ export default class ResidentSetting extends tsc<IProps> {
       }),
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  @Prop({ default: () => [], type: Array }) value: IResidentSetting[];
   @Ref('selector') selectorRef: HTMLDivElement;
 
   popoverInstance = null;
 
-  localValue: ILocalValue[] = [];
+  localValue: IResidentSetting[] = [];
+
+  @Watch('value', { immediate: true })
+  handleWatchValue() {
+    const str = JSON.stringify(this.value);
+    if (str !== JSON.stringify(this.localValue)) {
+      this.localValue = JSON.parse(str);
+    }
+  }
 
   async handleShowSelect(event: MouseEvent) {
     if (this.popoverInstance) {
@@ -113,13 +125,33 @@ export default class ResidentSetting extends tsc<IProps> {
    * @description 点击弹层确认
    */
   handleConfirm(fields: IFilterField[]) {
+    const valueMap: Map<string, string[]> = new Map();
+    for (const item of this.localValue) {
+      valueMap.set(item.field.name, item.value.value);
+    }
     this.localValue = fields.map(item => ({
       field: item,
       value: defaultWhereItem({
         key: item.name,
+        value: valueMap.get(item.name) || [],
       }),
     }));
+    this.handleChange();
     this.destroyPopoverInstance();
+  }
+
+  /**
+   * @description 选择值改变
+   * @param value
+   * @param index
+   */
+  handleValueChange(value: IWhereItem, index: number) {
+    this.localValue[index].value = value;
+    this.handleChange();
+  }
+
+  handleChange() {
+    this.$emit('change', this.localValue);
   }
 
   render() {
@@ -139,7 +171,9 @@ export default class ResidentSetting extends tsc<IProps> {
                 key={index}
                 class='mb-4 mr-4'
                 field={item.field}
+                getValueFn={this.getValueFn}
                 value={item.value}
+                onChange={v => this.handleValueChange(v, index)}
               />
             ))
           ) : (
@@ -150,6 +184,7 @@ export default class ResidentSetting extends tsc<IProps> {
           <div ref='selector'>
             <ResidentSettingTransfer
               fields={this.fields}
+              value={this.localValue.map(item => item.field.name)}
               onCancel={this.handleCancel}
               onConfirm={this.handleConfirm}
             />

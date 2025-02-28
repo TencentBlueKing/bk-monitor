@@ -44,6 +44,9 @@ export default class KvTag extends tsc<IProps> {
   localValue: IFilterItem = null;
   hideCount = 0;
 
+  /* 是否来源于常驻设置 */
+  isSetting = false;
+
   get isHide() {
     if (typeof this.localValue?.hide === 'boolean') {
       return this.localValue.hide;
@@ -76,6 +79,7 @@ export default class KvTag extends tsc<IProps> {
         value,
       };
       this.hideCount = this.value.value.length - 3;
+      this.flickerTag(!!this.value?.isSetting);
     }
   }
 
@@ -92,6 +96,26 @@ export default class KvTag extends tsc<IProps> {
     this.$emit('hide');
   }
 
+  async flickerTag(isSetting: boolean) {
+    if (isSetting) {
+      this.isSetting = true;
+      await this.delay(200);
+      this.isSetting = false;
+      await this.delay(200);
+      this.isSetting = true;
+      await this.delay(200);
+      this.isSetting = false;
+      await this.delay(200);
+      this.isSetting = true;
+    } else {
+      this.isSetting = false;
+    }
+  }
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   render() {
     return this.localValue ? (
       <div
@@ -100,7 +124,7 @@ export default class KvTag extends tsc<IProps> {
       >
         <div
           key={this.tipContent}
-          class='retrieval-filter__kv-tag-component-wrap'
+          class={['retrieval-filter__kv-tag-component-wrap', { 'yellow-bg': this.isSetting }]}
           v-bk-tooltips={{
             content: this.tipContent,
             delay: [300, 0],

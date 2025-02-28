@@ -26,13 +26,14 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import ResidentSetting from './resident-setting';
+import ResidentSetting, { type IResidentSetting } from './resident-setting';
 import UiSelector from './ui-selector';
 import {
   ECondition,
   type EMethod,
   EMode,
   getCacheUIData,
+  getResidentSettingData,
   type IFilterField,
   type IFilterItem,
   type IGetValueFnParams,
@@ -41,6 +42,7 @@ import {
   METHOD_MAP,
   MODE_LIST,
   setCacheUIData,
+  setResidentSettingData,
 } from './utils';
 
 import './retrieval-filter.scss';
@@ -75,21 +77,36 @@ export default class RetrievalFilter extends tsc<IProps> {
   showResidentSetting = false;
   /* 当前查询模式 */
   mode = EMode.ui;
-  /* 是否展开常驻设置 */
-  residentSettingActive = false;
   uiValue: IFilterItem[] = [];
   cacheWhereStr = '';
+  residentSettingValue: IResidentSetting[] = [];
+
+  created() {
+    this.residentSettingValue = getResidentSettingData();
+  }
 
   handleChangeMode() {
     this.mode = this.mode === EMode.ui ? EMode.ql : EMode.ui;
   }
   handleShowResidentSetting() {
-    this.residentSettingActive = !this.residentSettingActive;
+    this.showResidentSetting = !this.showResidentSetting;
+    if (!this.showResidentSetting) {
+      this.uiValue = this.residentSettingToUiValue();
+      this.handleChange();
+      this.$bkMessage({
+        message: this.$tc('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'),
+        theme: 'success',
+      });
+    }
   }
 
   @Watch('where', { immediate: true })
   handleWatchValue() {
-    const whereStr = JSON.stringify(this.where);
+    this.handleWatchValueFn(this.where);
+  }
+
+  handleWatchValueFn(where: IWhereItem[]) {
+    const whereStr = JSON.stringify(where);
     if (this.cacheWhereStr === whereStr) {
       /* 避免重复渲染 */
       return;
@@ -114,7 +131,7 @@ export default class RetrievalFilter extends tsc<IProps> {
         });
       }
     }
-    for (const w of this.where) {
+    for (const w of where) {
       const cacheItem = uiCacheDataMap.get(w.key);
       if (cacheItem) {
         const methodName = cacheItem.method.id === w.method ? cacheItem.method.name : METHOD_MAP[w.method];
@@ -168,10 +185,14 @@ export default class RetrievalFilter extends tsc<IProps> {
    * @param value
    */
   handleUiValueChange(value: IFilterItem[]) {
-    this.uiValue = value;
+    this.uiValue = this.setResidentSettingStatus(value);
+    this.handleChange();
+  }
+
+  handleChange() {
     const where = [];
-    setCacheUIData(value);
-    for (const item of value) {
+    setCacheUIData(this.uiValue);
+    for (const item of this.uiValue) {
       if (!item?.hide) {
         where.push({
           key: item.key.id,
@@ -182,7 +203,75 @@ export default class RetrievalFilter extends tsc<IProps> {
         });
       }
     }
+    const whereStr = JSON.stringify(where);
+    this.cacheWhereStr = whereStr;
     this.$emit('whereChange', where);
+  }
+
+  /**
+   * @description 常驻设置值变化
+   * @param value
+   */
+  handleResidentSettingChange(value: IResidentSetting[]) {
+    this.residentSettingValue = value;
+    setResidentSettingData(this.residentSettingValue);
+  }
+
+  /**
+   * @description 将常驻选项添加ui模式中
+   */
+  residentSettingToUiValue(): IFilterItem[] {
+    const uiValueAdd = [];
+    const uiValueAddSet = new Set();
+    // 收回常驻设置是需要把常驻设置的值带到ui模式中
+    for (const item of this.residentSettingValue) {
+      if (item.value?.value?.length) {
+        const methodName =
+          item.field.supported_operations?.find(v => v.value === item.value.method)?.alias ||
+          METHOD_MAP[item.value.method];
+        uiValueAdd.push({
+          key: { id: item.value.key, name: item.field.name },
+          method: { id: item.value.method, name: methodName },
+          condition: { id: ECondition.and, name: 'AND' },
+          value: item.value.value.map(v => ({
+            id: v,
+            name: v,
+          })),
+        });
+        uiValueAddSet.add(`${item.value.key}____${item.value.method}____${item.value.value.join('____')}`);
+      }
+    }
+    const uiValue = [...this.uiValue, ...uiValueAdd];
+    // 去重并且配置常驻
+    const result = [];
+    const tempSet = new Set();
+    for (const item of uiValue) {
+      const str = `${item.key.id}____${item.method.id}____${item.value.map(v => v.id).join('____')}`;
+      if (!tempSet.has(str)) {
+        result.push({
+          ...item,
+          isSetting: uiValueAddSet.has(str),
+        });
+      }
+      tempSet.add(str);
+    }
+    return result;
+  }
+
+  setResidentSettingStatus(uiValue: IFilterItem[]) {
+    const tempSet = new Set();
+    for (const item of this.residentSettingValue) {
+      tempSet.add(`${item.value.key}____${item.value.method}____${item.value.value.join('____')}`);
+    }
+    const result = [];
+    for (const item of uiValue) {
+      const str = `${item.key.id}____${item.method.id}____${item.value.map(v => v.id).join('____')}`;
+      result.push({
+        ...item,
+        isSetting: tempSet.has(str),
+      });
+    }
+    return result;
   }
 
   render() {
@@ -221,7 +310,7 @@ export default class RetrievalFilter extends tsc<IProps> {
           <div class='component-right'>
             {this.mode === EMode.ui && (
               <div
-                class={['setting-btn', { 'btn-active': this.residentSettingActive }]}
+                class={['setting-btn', { 'btn-active': this.showResidentSetting }]}
                 v-bk-tooltips={{
                   content: window.i18n.tc('常驻筛选'),
                   delay: 300,
@@ -241,7 +330,14 @@ export default class RetrievalFilter extends tsc<IProps> {
             </div>
           </div>
         </div>
-        {this.residentSettingActive && <ResidentSetting fields={this.fields} />}
+        {this.showResidentSetting && (
+          <ResidentSetting
+            fields={this.fields}
+            getValueFn={this.getValueFn}
+            value={this.residentSettingValue}
+            onChange={this.handleResidentSettingChange}
+          />
+        )}
       </div>
     );
   }

@@ -29,14 +29,25 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
 
+import EmptyStatus from '../empty-status/empty-status';
 import AutoWidthInput from './auto-width-input';
-import { METHOD_MAP, type IFilterField, type IWhereItem } from './utils';
+import {
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+  METHOD_MAP,
+  type IFilterField,
+  type IWhereItem,
+  ECondition,
+  EMethod,
+} from './utils';
 
 import './setting-kv-selector.scss';
 
 interface IProps {
   field?: IFilterField;
   value?: IWhereItem;
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onChange?: (value: IWhereItem) => void;
 }
 
 @Component
@@ -44,11 +55,22 @@ export default class SettingKvSelector extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) field: IFilterField;
   @Prop({ type: Object, default: () => null }) value: IWhereItem;
   @Prop({ type: Number, default: 560 }) maxWidth: number;
+  @Prop({
+    type: Function,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  })
+  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 
   @Ref('selector') selectorRef: HTMLDivElement;
 
   localValue: string[] = [];
   localMethod = '';
+  valueOptions: { id: string; name: string }[] = [];
+  optionsLoading = false;
   resizeObserver = null;
   /* 隐藏了N个元素 */
   hideCount = 0;
@@ -59,9 +81,18 @@ export default class SettingKvSelector extends tsc<IProps> {
   isHover = false;
   inputValue = '';
   isFocus = false;
+  methodMap = {};
 
   get tagList() {
     return this.expand ? this.localValue : this.localValue.slice(0, this.localValue.length - this.hideCount);
+  }
+
+  get localValueSet() {
+    return new Set(this.localValue);
+  }
+
+  created() {
+    this.methodMap = JSON.parse(JSON.stringify(METHOD_MAP));
   }
 
   @Watch('value', { immediate: true })
@@ -73,6 +104,9 @@ export default class SettingKvSelector extends tsc<IProps> {
       if (valueStr !== localValueStr) {
         this.localValue = this.value.value;
       }
+      if (this.value.method !== this.localMethod) {
+        this.localMethod = this.value.method;
+      }
     }
   }
 
@@ -80,7 +114,6 @@ export default class SettingKvSelector extends tsc<IProps> {
     const wrapEl = this.$el.querySelector('.component-main.hidden');
     this.resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
-        console.log('xxxx');
         // 获取元素的新宽度（content-box 尺寸）
         const width = entry.contentRect.width;
         this.setHideCount(width, wrapEl);
@@ -92,14 +125,14 @@ export default class SettingKvSelector extends tsc<IProps> {
   @Debounce(300)
   setHideCount(width: number, wrapEl: Element) {
     let hideCount = 0;
-    const maxWidth = this.maxWidth + 68;
+    const maxWidth = this.maxWidth - 68;
     if (width > maxWidth) {
       const elList = wrapEl.querySelector('.value-wrap');
       const wrapRect = wrapEl.getBoundingClientRect();
       let i = 0;
       for (const el of Array.from(elList.children)) {
         const elRect = el.getBoundingClientRect();
-        const elLeft = elRect.left + elRect.width - wrapRect.left;
+        const elLeft = elRect.left + elRect.width + 4 - wrapRect.left;
         if (elLeft > maxWidth) {
           hideCount = elList.children.length - i;
           break;
@@ -117,6 +150,7 @@ export default class SettingKvSelector extends tsc<IProps> {
       const targetEvent = {
         target: this.$el.querySelector('.component-main.show > .value-wrap'),
       };
+      this.getValueData();
       this.handleShowSelect(targetEvent as any);
       this.isFocus = true;
     }
@@ -124,7 +158,7 @@ export default class SettingKvSelector extends tsc<IProps> {
 
   @Debounce(300)
   handleSearchChange() {
-    //
+    this.getValueData();
   }
 
   async handleShowSelect(event: MouseEvent) {
@@ -144,6 +178,7 @@ export default class SettingKvSelector extends tsc<IProps> {
       zIndex: 998,
       animation: 'slide-toggle',
       followCursor: false,
+      sticky: true,
       onHidden: () => {
         this.destroyPopoverInstance();
       },
@@ -157,6 +192,8 @@ export default class SettingKvSelector extends tsc<IProps> {
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
     this.expand = false;
+    this.inputValue = '';
+    this.searchValue = '';
   }
 
   handleMouseenter() {
@@ -171,6 +208,7 @@ export default class SettingKvSelector extends tsc<IProps> {
   handleEnter() {
     this.localValue.push(this.inputValue);
     this.inputValue = '';
+    this.handleChange();
   }
 
   /**
@@ -192,6 +230,75 @@ export default class SettingKvSelector extends tsc<IProps> {
   handleClear(event: MouseEvent) {
     event.stopPropagation();
     this.localValue = [];
+    this.handleChange();
+  }
+
+  /**
+   * @description 获取可选项
+   */
+  async getValueData() {
+    this.valueOptions = [];
+    this.optionsLoading = true;
+    if (this.field.name !== '*') {
+      const data = await this.getValueFn({
+        where: [
+          {
+            key: this.field.name,
+            method: EMethod.eq,
+            value: [this.searchValue],
+            condition: ECondition.and,
+          },
+        ],
+        fields: [this.field.name],
+        limit: 5,
+      });
+      this.valueOptions = data.list;
+      this.optionsLoading = false;
+    }
+  }
+
+  /**
+   * @description 删除值
+   * @param e
+   * @param index
+   */
+  handleDeleteTag(e: MouseEvent, index: number) {
+    e.stopPropagation();
+    this.localValue.splice(index, 1);
+    this.handleChange();
+  }
+
+  /**
+   * @description 选择值
+   * @param item
+   */
+  handleSelectOption(item: { id: string; name: string }) {
+    if (this.localValueSet.has(item.id)) {
+      const delIndex = this.localValue.findIndex(v => v === item.id);
+      this.localValue.splice(delIndex, 1);
+    } else {
+      this.localValue.push(item.id);
+    }
+    this.handleChange();
+  }
+
+  /**
+   * @description 切换method
+   * @param item
+   */
+  handleMethodChange(item: { value: string; alias: string }) {
+    this.methodMap[item.value] = item.alias;
+    this.localMethod = item.value;
+    this.handleChange();
+  }
+
+  handleChange() {
+    this.$emit('change', {
+      ...this.value,
+      key: this.field.name,
+      method: this.localMethod,
+      value: this.localValue,
+    });
   }
 
   render() {
@@ -203,7 +310,25 @@ export default class SettingKvSelector extends tsc<IProps> {
           onMouseleave={this.handleMouseleave}
         >
           <span class='key-wrap'>{this.value?.key}</span>
-          <span class='method-wrap'>{METHOD_MAP[this.localMethod]}</span>
+          <span class='method-wrap'>
+            <bk-dropdown-menu trigger='click'>
+              <span slot='dropdown-trigger'>{METHOD_MAP[this.localMethod]}</span>
+              <ul
+                class='method-list-wrap'
+                slot='dropdown-content'
+              >
+                {this.field.supported_operations.map(item => (
+                  <li
+                    key={item.value}
+                    class='method-list-wrap-item'
+                    onClick={() => this.handleMethodChange(item)}
+                  >
+                    {item.alias}
+                  </li>
+                ))}
+              </ul>
+            </bk-dropdown-menu>
+          </span>
           <div
             class='value-wrap'
             onClick={this.handleClickValueWrap}
@@ -215,13 +340,17 @@ export default class SettingKvSelector extends tsc<IProps> {
                     class='tag-item'
                   >
                     <span class='tag-text'>{item}</span>
-                    <span class='icon-monitor icon-mc-close' />
+                    <span
+                      class='icon-monitor icon-mc-close'
+                      onClick={e => this.handleDeleteTag(e, index)}
+                    />
                   </span>
                 ))
               : !this.isFocus && <span class='placeholder-text'>{this.$t('请选择')}</span>}
             {this.expand && (
               <AutoWidthInput
                 height={22}
+                class='mb-5'
                 isFocus={this.isFocus}
                 value={this.inputValue}
                 onBlur={this.handleBlur}
@@ -275,6 +404,37 @@ export default class SettingKvSelector extends tsc<IProps> {
                 onChange={this.handleSearchChange}
               />
             </div>
+            {this.optionsLoading ? (
+              <div class='options-wrap'>
+                {new Array(4).fill(null).map(index => {
+                  return (
+                    <div
+                      key={index}
+                      class='options-item skeleton-item'
+                    >
+                      <div class='skeleton-element h-16' />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : this.valueOptions.length ? (
+              <div class='options-wrap'>
+                {this.valueOptions.map((item, index) => (
+                  <div
+                    key={index}
+                    class={['options-item', { checked: this.localValueSet.has(item.id) }]}
+                    onClick={() => this.handleSelectOption(item)}
+                  >
+                    <span class='options-item-text'>{item.name}</span>
+                    <span class='icon-monitor icon-mc-check-small' />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div class='options-wrap'>
+                <EmptyStatus type={'empty'} />
+              </div>
+            )}
           </div>
         </div>
       </div>
