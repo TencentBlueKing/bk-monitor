@@ -198,7 +198,12 @@ def get_clustering_log(
             {
                 "index_set_id": index_set_id,
                 "result_table_id": "",
-                "agg_condition": [{"key": sensitivity, "method": "eq", "value": signatures}],
+                "agg_condition": [{"key": sensitivity, "method": "eq", "value": signatures}]
+                + [
+                    {"key": dimension_field, "method": "eq", "value": [dimension_value]}
+                    for dimension_field, dimension_value in dimensions.items()
+                    if dimension_field not in ["sensitivity", "signature"]
+                ],
             }
         )
         logs, log_total = log_data_source.query_log(start_time=start_time * 1000, end_time=end_time * 1000, limit=1)
