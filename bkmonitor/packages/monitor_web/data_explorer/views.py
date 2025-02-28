@@ -8,11 +8,28 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
+from io import StringIO
+from typing import Any, Dict, List
+from urllib import parse
 
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.utils.translation import gettext as _
+from pypinyin import lazy_pinyin
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
+
+from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.utils.request import get_request
+from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.data_explorer.event import resources as event_resources
+from monitor_web.data_explorer.event.mock_data import API_TOPK_RESPONSE
+from monitor_web.data_explorer.event.serializers import EventTopKRequestSerializer
 from monitor_web.data_explorer.serializers import (
     BulkDeleteFavoriteSerializer,
     BulkUpdateFavoriteSerializer,
@@ -30,18 +47,6 @@ from monitor_web.data_explorer.serializers import (
     UpdateFavoriteSerializer,
 )
 from monitor_web.models import FavoriteGroup, QueryHistory
-from pypinyin import lazy_pinyin
-from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
-
-from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.utils.request import get_request
-from core.drf_resource import resource
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
 def order_records_by_config(records: List[Dict], order: List) -> List[Dict]:
@@ -357,7 +362,6 @@ class FavoriteViewSet(ModelViewSet):
 
 
 class QueryHistoryViewSet(ModelViewSet):
-
     queryset = QueryHistory.objects.all().order_by("-id")
     serializer_class = QueryHistorySerializer
 
@@ -385,4 +389,29 @@ class DataExplorerViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.data_explorer.get_promql_query_config, endpoint="get_promql_query_config"),
         ResourceRoute("POST", resource.data_explorer.get_event_view_config, endpoint="get_event_view_config"),
         ResourceRoute("POST", resource.data_explorer.get_group_by_count, endpoint="get_group_by_count"),
+        ResourceRoute("POST", event_resources.EventLogsResource, endpoint="event/logs"),
+        ResourceRoute("POST", event_resources.EventTopKResource, endpoint="event/topk"),
+        ResourceRoute("POST", event_resources.EventTotalResource, endpoint="event/total"),
+        ResourceRoute("POST", event_resources.EventViewConfigResource, endpoint="event/view_config"),
+        ResourceRoute("POST", event_resources.EventTimeSeriesResource, endpoint="event/time_series"),
     ]
+
+    @action(methods=["POST"], detail=False, url_path="event/download_topk")
+    def download_topk(self, request, *args, **kwargs):
+        s = EventTopKRequestSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        validated_data: Dict[str, Any] = s.validated_data
+
+        output = StringIO()
+        for item in API_TOPK_RESPONSE[0]["list"]:
+            output.write(f"{item['value']},{item['count']},{item['proportions']:.2f}%\n")
+
+        table: str = validated_data["query_configs"][0]["table"]
+        file_name = f"{table}_{validated_data['fields'][0]}.txt"
+        file_name = parse.quote(file_name, encoding="utf8")
+        file_name = parse.unquote(file_name, encoding="ISO8859_1")
+
+        response = HttpResponse(output.getvalue())
+        response["Content-Type"] = "application/x-msdownload"
+        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
+        return response

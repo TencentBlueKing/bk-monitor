@@ -1,0 +1,108 @@
+.resident-setting__setting-kv-selector-component {
+  .component-main {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 180px;
+    height: 32px;
+    padding: 0 6px;
+    font-size: 12px;
+    background: #FFFFFF;
+    border: 1px solid #DCDEE5;
+    border-radius: 2px;
+
+    .key-wrap {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .method-wrap {
+      margin: 0 4px 0 2px;
+      color: #3A84FF;
+    }
+
+    .value-wrap {
+      display: flex;
+      align-items: center;
+      min-width: 64px;
+      min-height: 30px;
+      padding: 5px 0 0 0;
+      cursor: pointer;
+
+      .tag-item {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 6px;
+        margin: 0 4px 5px 0;
+        background: #F0F1F5;
+
+        .tag-text {
+          max-width: 200px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .icon-mc-close {
+          cursor: pointer;
+        }
+
+        &.hide-count {
+          width: 32px;
+        }
+      }
+
+      .placeholder-text {
+        color: #C4C6CC;
+      }
+    }
+
+    .expand-btn,
+    .delete-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      width: 22px;
+      height: 22px;
+      color: #979BA5;
+
+      .icon-arrow-down {
+        font-size: 20px;
+      }
+
+      .icon-mc-close-fill {
+        font-size: 16px;
+      }
+    }
+    
+    &.show {
+      max-width: 560px;
+      padding-right: 32px;
+
+      &.expand {
+        height: auto;
+
+        .value-wrap {
+          flex-wrap: wrap;
+        }
+
+        .expand-btn {
+          transition: all .3s;
+          transform: rotate(180deg)
+        }
+      }
+    }
+
+    &.hidden {
+      position: fixed;
+      top: 9999px;
+    }
+  }
+}
