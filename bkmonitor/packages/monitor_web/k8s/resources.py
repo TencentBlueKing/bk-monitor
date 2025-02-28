@@ -17,6 +17,7 @@ from django.db.models import Count
 from rest_framework import serializers
 
 from apm_web.utils import get_interval_number
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -24,9 +25,15 @@ from monitor_web.k8s.core.meta import K8sResourceMeta, load_resource_meta
 from monitor_web.k8s.scenario import get_metrics
 
 
+class SpaceRelatedSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    def validate_bk_biz_id(self, bk_biz_id):
+        return validate_bk_biz_id(bk_biz_id)
+
+
 class ListBCSCluster(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+    RequestSerializer = SpaceRelatedSerializer
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -34,8 +41,7 @@ class ListBCSCluster(Resource):
 
 
 class WorkloadOverview(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+    class RequestSerializer(SpaceRelatedSerializer):
         bcs_cluster_id = serializers.CharField(required=True, label="集群id")
         namespace = serializers.CharField(required=False, label="命名空间")
         query_string = serializers.CharField(required=False, label="名字过滤")
@@ -91,7 +97,7 @@ class ScenarioMetricList(Resource):
        {'id': 'kube_pod_memory_limits_ratio', 'name': '内存 limit使用率'}]}]
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(SpaceRelatedSerializer):
         scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance"])
 
     def perform_request(self, validated_request_data):
@@ -104,7 +110,7 @@ class GetScenarioMetric(Resource):
     获取场景下指标详情
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(SpaceRelatedSerializer):
         scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance"])
         metric_id = serializers.CharField(required=True, label="指标id")
 
@@ -129,10 +135,9 @@ class MetricGraphQueryConfig(Resource):
 
 
 class GetResourceDetail(Resource):
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(SpaceRelatedSerializer):
         # 公共参数
         bcs_cluster_id: str = serializers.CharField(required=True)
-        bk_biz_id: int = serializers.IntegerField(required=True)
         namespace: str = serializers.CharField(required=True)
         resource_type: str = serializers.ChoiceField(
             required=True, choices=["pod", "workload", "container", "cluster"], label="资源类型"
@@ -205,7 +210,7 @@ class GetResourceDetail(Resource):
         return items
 
 
-class FilterDictSerializer(serializers.Serializer):
+class FilterDictSerializer(SpaceRelatedSerializer):
     # 用于精确过滤查询
     filter_dict = serializers.DictField(required=False, allow_null=True)
 
@@ -226,7 +231,6 @@ class ListK8SResources(Resource):
 
     class RequestSerializer(FilterDictSerializer):
         bcs_cluster_id = serializers.CharField(required=True)
-        bk_biz_id = serializers.IntegerField(required=True)
         resource_type = serializers.ChoiceField(
             required=True,
             choices=["pod", "workload", "namespace", "container"],
@@ -375,7 +379,6 @@ class ResourceTrendResource(Resource):
 
     class RequestSerializer(FilterDictSerializer):
         bcs_cluster_id = serializers.CharField(required=True)
-        bk_biz_id = serializers.IntegerField(required=True)
         column = serializers.ChoiceField(
             required=True,
             choices=[
