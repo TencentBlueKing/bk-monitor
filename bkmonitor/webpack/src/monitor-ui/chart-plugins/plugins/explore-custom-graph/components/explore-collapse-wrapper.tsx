@@ -52,7 +52,7 @@ export default class ExploreCollapseWrapper extends tsc<ExploreCollapseWrapperPr
   /** 是否需要 resize 功能 */
   @Prop({ type: Boolean, default: true }) hasResize: boolean;
   /** 折叠收起时需要展示内容的高度 */
-  @Prop({ type: Number, default: 36 }) collapseShowHeight: boolean;
+  @Prop({ type: Number, default: 36 }) collapseShowHeight: number;
 
   /** 显示内容区域高度 -- 主要用于配合 resize 操作时使用 */
   containerHeight = 0;
@@ -101,7 +101,7 @@ export default class ExploreCollapseWrapper extends tsc<ExploreCollapseWrapperPr
    * @description 拖拽 resize 操作后回调
    * @param {number} height  拖拽操作后的新高度
    * */
-  handleCrossResize(height) {
+  handleCrossResize(height: number) {
     this.containerHeight = height;
   }
 

@@ -53,7 +53,7 @@ $expand-animation-duration: 0.6s;
 
         .icon-mc-triangle-down {
           font-size: 18px;
-          transition: transform 0.3s ease;
+          transition: transform $expand-animation-duration ease;
           transform: rotate(-90deg);
         }
 
@@ -76,5 +76,6 @@ $expand-animation-duration: 0.6s;
     flex: 1;
     flex-direction: column;
     min-height: 0;
+    padding-top: 4px;
   }
 }

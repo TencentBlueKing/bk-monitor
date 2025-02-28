@@ -43,8 +43,40 @@ export default class ExploreChartSkeleton extends tsc<object> {
   render() {
     return (
       <div class='explore-chart-skeleton'>
-        {this.itemPercentList.map(v => [this.skeletonItemRender(1, false), this.skeletonItemRender(v)])}
-        {this.skeletonItemRender(1, false)}
+        <div class='explore-chart-skeleton-header'>
+          <div class='skeleton-header-container'>
+            <div class='header-trigger'>
+              <div
+                style={{ width: '16px', height: '100%' }}
+                class='skeleton-element'
+              />
+              <div
+                style={{ width: '220px', height: '100%' }}
+                class='skeleton-element'
+              />
+            </div>
+            <div class='header-custom'>
+              <div
+                style={{ width: '200px', height: '100%' }}
+                class='skeleton-element'
+              />
+              <div
+                style={{ width: '110px', height: '100%' }}
+                class='skeleton-element'
+              />
+            </div>
+          </div>
+        </div>
+        <div class='explore-chart-skeleton-content'>
+          {this.itemPercentList.map(v => [this.skeletonItemRender(1, false), this.skeletonItemRender(v)])}
+          {this.skeletonItemRender(1, false)}
+        </div>
+        <div class='explore-chart-skeleton-bottom'>
+          <div
+            style={{ width: '26px', height: '100%' }}
+            class='skeleton-element'
+          />
+        </div>
       </div>
     );
   }
