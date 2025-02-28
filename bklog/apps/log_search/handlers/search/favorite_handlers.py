@@ -240,10 +240,16 @@ class FavoriteHandler(object):
                 "search_mode": search_mode,
                 "is_enable_display_fields": is_enable_display_fields,
                 "display_fields": display_fields,
-                "index_set_id": index_set_id,
-                "index_set_ids": index_set_ids,
-                "index_set_type": index_set_type,
             }
+            # 单索引
+            if index_set_id:
+                update_model_fields.update({"index_set_id": index_set_id})
+                update_model_fields.update({"index_set_type": index_set_type})
+            # 聚合
+            if index_set_ids:
+                update_model_fields.update({"index_set_ids": index_set_ids})
+                update_model_fields.update({"index_set_type": index_set_type})
+
             for key, value in update_model_fields.items():
                 setattr(self.data, key, value)
             self.data.save()
