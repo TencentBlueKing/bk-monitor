@@ -297,7 +297,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   }
 
   handleConditionChange(condition: IWhereItem[]) {
-    mergeWhereList(this.formData.where, condition);
+    this.formData.where = mergeWhereList(this.formData.where, condition);
   }
 
   render() {
