@@ -1925,7 +1925,8 @@ class KafkaTailResource(Resource):
             try:
                 table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
             except models.DataSourceResultTable.DoesNotExist:
-                raise ValidationError(_("数据源关联的结果表不存在"))
+                logger.error("KafkaTailResource: bk_data_id->[%s] not found table_id,try to tail kafka", bk_data_id)
+                table_id = None
         else:
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
