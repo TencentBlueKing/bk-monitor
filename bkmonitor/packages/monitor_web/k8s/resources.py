@@ -421,7 +421,7 @@ class ResourceTrendResource(Resource):
         ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
         column = validated_request_data["column"]
         series_map = {}
-        metric = resource.k8s.get_scenario_metric(metric_id=column, scenario="performance")
+        metric = resource.k8s.get_scenario_metric(metric_id=column, scenario="performance", bk_biz_id=bk_biz_id)
         unit = metric["unit"]
         if resource_type == "workload":
             # workload 单独处理
