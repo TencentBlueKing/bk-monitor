@@ -46,6 +46,7 @@ import { Checkbox, Loading, Popover, Radio, Table, Sideslider } from 'bkui-vue';
 import { CancelToken } from 'monitor-api/index';
 import { listOptionValues, spanDetail, traceDetail } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils/utils';
+import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants';
 import { echartsDisconnect } from 'monitor-ui/monitor-echarts/utils';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -59,6 +60,7 @@ import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constan
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
+import StackedBarChartPopover from './stacked-bar-chart-popover';
 // import SimpleList from './simple-list/simple-list';
 import TraceDetail from './trace-detail';
 import TraceDetailHeader from './trace-detail-header';
@@ -176,6 +178,7 @@ export default defineComponent({
     const columnFilters = ref<Record<string, string[]>>({});
     const selectedTraceType = ref([]);
     const selectedSpanType = ref([]);
+    const serviceColorMap = ref<{ [key: string]: string }>({});
 
     const timeRange = useTimeRanceInject();
     provide('isFullscreen', isFullscreen);
@@ -698,12 +701,29 @@ export default defineComponent({
         ),
         width: 120,
         settingsLabel: `${t('服务数量')}`,
-        field: 'service_count',
+        field: 'service_distribution',
         sort: isPreCalculationMode.value
           ? {
               sortFn: () => false,
             }
           : false,
+        render: ({ data }: { data: ITraceListItem }) => {
+          // 获取服务分布对象
+          const serviceDistribution = data?.service_distribution;
+          // 检查服务分布是否存在且不为空
+          const hasServiceDistribution = serviceDistribution && Object.keys(serviceDistribution).length > 0;
+          // 根据条件渲染组件
+          return hasServiceDistribution ? (
+            // 如果有服务分布数据，渲染 StackedBarChartPopover 组件
+            <StackedBarChartPopover
+              data={data}
+              serviceColorMap={serviceColorMap.value}
+            />
+          ) : (
+            // 如果没有服务分布数据，展示服务计数
+            <div>{data?.service_count}</div>
+          );
+        },
       },
     ]);
     const chartList = computed<PanelModel[]>(() => searchStore.chartPanelList);
@@ -742,6 +762,26 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    // 获取服务的颜色列表
+    const getColorForService = val => {
+      // 将当前已有的服务键存储在一个集合中，以快速判断是否已有颜色分配;
+      const existingKeys = new Set(Object.keys(serviceColorMap.value));
+      // 颜色列表的长度，用于循环分配颜色
+      const colorListLength = COLOR_LIST_BAR.length;
+
+      // 遍历传入的服务数据
+      for (const item of val) {
+        const distribution = item.service_distribution || {};
+        for (const key in distribution) {
+          // 如果该服务还没有分配颜色 则分配一个新的颜色，并添加到服务颜色映射中
+          if (!existingKeys.has(key)) {
+            serviceColorMap.value[key] = COLOR_LIST_BAR[existingKeys.size % colorListLength];
+            existingKeys.add(key);
+          }
+        }
+      }
+    };
 
     // 当在 table header 上选择筛选并确定后执行的回调方法。
     const handleSpanFilter = (options: any) => {
@@ -976,7 +1016,10 @@ export default defineComponent({
     );
     watch(
       () => localTableData.value,
-      () => handleClientResize(),
+      val => {
+        handleClientResize();
+        getColorForService(val);
+      },
       { immediate: true }
     );
     watch([() => props.appName, () => timeRange?.value], () => {
