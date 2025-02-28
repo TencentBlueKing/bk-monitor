@@ -1083,7 +1083,7 @@
         if(!index_set_ids.length){
           return
         }
-        this.isTableLoading = true;
+        this.isTableLoading = true; 
         this.$http
           .request('collect/getStorageUsage', {
           data: {
@@ -1091,23 +1091,17 @@
             index_set_ids,
           },
         })
-        .then(res => {
-          const { data } = res;
-          const map = new Map();
-          data.forEach(item => {
-            map.set(item.index_set_id, { ...item });
-          });
-          
+        .then(resp => {
+          const { data } = resp;
           this.collectList.forEach(item => {
-            const existingItem = map.get(String(item.index_set_id));
-            if (existingItem) {
-              ['daily_usage', 'total_usage'].forEach(key => {
-                if (item[key] !== existingItem[key]) {
-                  this.$set(item, key, existingItem[key]);
-                }
-              });
-            }
-          });
+            ['daily_usage', 'total_usage'].forEach(key => {
+              const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id));
+              if (matchedItem) {
+                const value = matchedItem[key];
+                this.$set(item, key, value);
+              }
+            });
+          })
         })
         .catch((error) => {
           console.log(error);
