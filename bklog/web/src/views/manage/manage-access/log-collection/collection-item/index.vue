@@ -1095,10 +1095,9 @@
           const { data } = resp;
           this.collectList.forEach(item => {
             ['daily_usage', 'total_usage'].forEach(key => {
-              const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id));
-              if (matchedItem) {
-                const value = matchedItem[key];
-                this.$set(item, key, value);
+              const matchedItem = data.find(dataItem => String(dataItem.index_set_id) === String(item.index_set_id)) || {};
+              if (matchedItem?.[key] !== undefined) {
+                this.$set(item, key, matchedItem[key]);
               }
             });
           })
