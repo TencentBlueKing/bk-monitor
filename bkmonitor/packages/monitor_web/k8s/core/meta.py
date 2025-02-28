@@ -259,8 +259,8 @@ class K8sResourceMeta(object):
         raise NotImplementedError(f"metric: {order_field} not supported")
 
     @property
-    def meta_prom_with_container_memory_rss(self):
-        return self.tpl_prom_with_nothing("container_memory_rss")
+    def meta_prom_with_container_memory_working_set_bytes(self):
+        return self.tpl_prom_with_nothing("container_memory_working_set_bytes")
 
     @property
     def meta_prom_with_container_cpu_usage_seconds_total(self):
@@ -392,11 +392,11 @@ class K8sPodMeta(K8sResourceMeta):
     @property
     def meta_prom_with_kube_pod_memory_requests_ratio(self):
         promql = (
-            self.meta_prom_with_container_memory_rss
+            self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace,pod_name)
     (count by (workload_kind, workload_name, pod_name, namespace) (
-        container_memory_rss{{{self.filter.filter_string()}}}
+        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
     ) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
@@ -409,11 +409,11 @@ class K8sPodMeta(K8sResourceMeta):
     @property
     def meta_prom_with_kube_pod_memory_limits_ratio(self):
         promql = (
-            self.meta_prom_with_container_memory_rss
+            self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace,pod_name)
     (count by (workload_kind, workload_name, pod_name, namespace) (
-        container_memory_rss{{{self.filter.filter_string()}}}
+        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
     ) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
@@ -624,11 +624,11 @@ class K8sWorkloadMeta(K8sResourceMeta):
     @property
     def meta_prom_with_kube_pod_memory_requests_ratio(self):
         promql = (
-            self.meta_prom_with_container_memory_rss
+            self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace)
     (count by (workload_kind, workload_name, pod_name, namespace) (
-        container_memory_rss{{{self.filter.filter_string()}}}
+        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
     ) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
@@ -641,11 +641,11 @@ class K8sWorkloadMeta(K8sResourceMeta):
     @property
     def meta_prom_with_kube_pod_memory_limits_ratio(self):
         promql = (
-            self.meta_prom_with_container_memory_rss
+            self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace)
     (count by (workload_kind, workload_name, pod_name, namespace) (
-        container_memory_rss{{{self.filter.filter_string()}}}
+        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
     ) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
@@ -768,11 +768,11 @@ class K8sContainerMeta(K8sResourceMeta):
     @property
     def meta_prom_with_kube_pod_memory_requests_ratio(self):
         promql = (
-            self.meta_prom_with_container_memory_rss
+            self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
     (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
-        container_memory_rss{{{self.filter.filter_string()}}}
+        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
     ) *
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
@@ -785,11 +785,11 @@ class K8sContainerMeta(K8sResourceMeta):
     @property
     def meta_prom_with_kube_pod_memory_limits_ratio(self):
         promql = (
-            self.meta_prom_with_container_memory_rss
+            self.meta_prom_with_container_memory_working_set_bytes
             + '/ '
             + f"""(sum by (workload_kind, workload_name, namespace, pod_name, container_name)
     (count by (workload_kind, workload_name, pod_name, namespace, container_name) (
-        container_memory_rss{{{self.filter.filter_string()}}}
+        container_memory_working_set_bytes{{{self.filter.filter_string()}}}
     ) *
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
