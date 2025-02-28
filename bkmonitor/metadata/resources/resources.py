@@ -1920,23 +1920,22 @@ class KafkaTailResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_data_id = validated_request_data.get("bk_data_id")
+
         if bk_data_id:
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
+            datasource = models.DataSource.objects.get(bk_data_id=bk_data_id)
             try:
                 table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+                result_table = models.ResultTable.objects.get(table_id=table_id)
             except models.DataSourceResultTable.DoesNotExist:
                 logger.error("KafkaTailResource: bk_data_id->[%s] not found table_id,try to tail kafka", bk_data_id)
-                table_id = None
+
         else:
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
-
-        try:
             result_table = models.ResultTable.objects.get(table_id=table_id)
-        except models.ResultTable.DoesNotExist:
-            raise ValidationError(_("结果表不存在"))
+            datasource = result_table.data_source
 
-        datasource = result_table.data_source
         size = validated_request_data["size"]
         mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
 
