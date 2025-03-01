@@ -19,6 +19,6 @@ class ChatViewSet(QAViewSet):
     @action(methods=['post'], detail=False, url_path='chat_v2')
     def chat_dispatch(self, request, *args, **kwargs):
         if os.getenv("BK_AI_AGENT_ENABLE"):
-            return super().ask_v2(self, request, *args, **kwargs)
+            return super().ask_v2(request, *args, **kwargs)
         else:
-            return super().ask(self, request, *args, **kwargs)
+            return super().ask(request, *args, **kwargs)
