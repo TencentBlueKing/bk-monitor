@@ -49,7 +49,7 @@ class QAViewSet(viewsets.GenericViewSet):
         config.save()
         return Response({"result": "joined!"})
 
-    @action(methods=['post'], detail=False, url_path='chat')
+    # @action(methods=['post'], detail=False, url_path='chat')
     def ask(self, request, *args, **kwargs):
         # 如果没有配置 AIDEV 接口地址，则直接返回错误
         if not settings.AIDEV_API_BASE_URL:
@@ -86,7 +86,7 @@ class QAViewSet(viewsets.GenericViewSet):
 
         return results
 
-    @action(methods=['post'], detail=False, url_path='chat_v2')
+    # @action(methods=['post'], detail=False, url_path='chat_v2')
     def ask_v2(self, request, *args, **kwargs):
         # 带场景的对话
         # 如果没有配置 AIDEV 接口地址，则直接返回错误
