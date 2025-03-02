@@ -1,0 +1,76 @@
+.drill-analysis-view {
+  width: 100%;
+  height: 100%;
+  background: #f5f7fa;
+  position: fixed;
+  left: 0;
+  top: 52px;
+  z-index: 1000;
+  .drill-analysis-head {
+    width: 100%;
+    height: 48px;
+    line-height: 48px;
+    background: #ffffff;
+    box-shadow: 0 2px 4px 0 #1919290d;
+    border-radius: 2px;
+    font-size: 16px;
+    color: #313238;
+    text-align: center;
+    position: relative;
+    .close-btn {
+      color: #979ba5;
+      font-size: 32px;
+      position: absolute;
+      right: 10px;
+      cursor: pointer;
+    }
+  }
+  .drill-analysis-filter {
+    width: 100%;
+    height: 52px;
+    border-bottom: 1px solid #dcdee5;
+    display: flex;
+    .filter-left {
+      flex: 1;
+    }
+    .filter-right {
+      width: 250px;
+      display: flex;
+      align-items: center;
+      border-left: 1px solid #dcdee5;
+      .right-line {
+        display: inline-block;
+        width: 1px;
+        height: 14px;
+        background: #dcdee5;
+      }
+    }
+    .filter-tools-interval {
+      width: 84px !important;
+    }
+  }
+  .drill-analysis-main {
+    width: calc(100% - 24px);
+    height: calc(100% - 154px);
+    overflow-y: auto;
+    box-shadow: 0 2px 4px 0 #1919290d;
+    border-radius: 2px;
+    margin: 12px 12px 0;
+    background: #ffffff;
+    .drill-analysis-main-layout {
+      width: 100%;
+      .bk-resize-layout-aside {
+        border: none;
+      }
+    }
+    .main-chart {
+      width: 100%;
+      padding: 12px;
+    }
+    .main-table {
+      width: 100%;
+      height: 100%;
+      padding: 12px 12px 0;
+    }
+  }
+}

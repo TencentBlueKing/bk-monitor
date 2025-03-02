@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-duplicate-enum-values */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,23 +24,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import DrillAnalysisView from './metric-chart-view/drill-analysis-view';
-import PanelChartView from './metric-chart-view/panel-chart-view';
-
-import './new-metric-view.scss';
-
-@Component
-export default class NewMetricView extends tsc<object> {
-  render() {
-    return (
-      <div class='bk-monitor-new-metric-view'>
-        {/* bk-monitor-new-metric-view */}
-        {/* <DrillAnalysisView /> */}
-        <PanelChartView />
-      </div>
-    );
-  }
-}
+export const refreshList = [
+  // 刷新间隔列表
+  {
+    name: 'off',
+    id: -1,
+  },
+  {
+    name: '1m',
+    id: 60 * 1000,
+  },
+  {
+    name: '5m',
+    id: 5 * 60 * 1000,
+  },
+  {
+    name: '15m',
+    id: 15 * 60 * 1000,
+  },
+  {
+    name: '30m',
+    id: 30 * 60 * 1000,
+  },
+  {
+    name: '1h',
+    id: 60 * 60 * 1000,
+  },
+  {
+    name: '2h',
+    id: 60 * 2 * 60 * 1000,
+  },
+  {
+    name: '1d',
+    id: 60 * 24 * 60 * 1000,
+  },
+];

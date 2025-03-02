@@ -80,6 +80,8 @@ export interface IChartTitleProps {
   rawInterval?: string;
   // 是否展示更多菜单
   needMoreMenu?: boolean;
+  /** title的内容是否需要hover才展示 */
+  isHoverShow?: boolean;
 }
 
 interface IChartTitleEvent {
@@ -119,6 +121,8 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
   @Prop({ type: Boolean, default: false }) isInstant: boolean;
   @Prop({ type: Boolean, default: true }) inited: boolean;
   @Prop({ type: String, default: '' }) collectIntervalDisplay: string;
+  /** title的内容是否需要hover才展示 */
+  @Prop({ type: Boolean, default: false }) isHoverShow: boolean;
 
   @Ref('chartTitle') chartTitleRef: HTMLDivElement;
   // 是否只读模式
@@ -214,7 +218,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
     const params = {
       metric_ids: [ids],
       ...otherParams,
-      bk_biz_id: this.viewOptions.filters?.bk_biz_id || this.$store.getters.bizId,
+      bk_biz_id: this.viewOptions?.filters?.bk_biz_id || this.$store.getters.bizId,
     };
     const data = await fetchItemStatus(params).catch(() => ({ [ids]: 0 }));
     this.alarmStatus = data?.[ids];
@@ -350,9 +354,9 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
                   'icon-monitor',
                   'alarm-icon',
                   'icon-btn',
-                  this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-mc-strategy status-strategy',
+                  this.alarmStatus.status === AlarmStatus.already_config_strategy && 'icon-Strategy status-strategy',
                   this.alarmStatus.status === AlarmStatus.not_confit_strategy &&
-                    'icon-mc-strategy status-strategy-not-config',
+                    'icon-Strategy status-strategy-not-config',
                   this.alarmStatus.status === AlarmStatus.on_warning && 'icon-mc-chart-alert status-3',
                 ]}
                 v-bk-tooltips={this.alarmTips}
@@ -408,17 +412,18 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               ),
               <span
                 key={'title-center'}
-                class='title-center'
+                class={['title-center', { 'hover-show': this.isHoverShow }]}
               >
                 {this.inited && this.$slots?.default}
               </span>,
+              <span class='title-icon-list'>{(this.$scopedSlots as any)?.iconList?.()}</span>,
               this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
                 <i
                   key={'添加策略'}
                   style={{
                     display: this.showMore && this.showAddMetric ? 'flex' : 'none',
                   }}
-                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
+                  class={['icon-monitor icon-a-celve strategy-icon icon-btn', { 'hover-show': this.isHoverShow }]}
                   v-bk-tooltips={{
                     content: this.$t('添加策略'),
                     delay: 200,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-duplicate-enum-values */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,23 +24,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+export interface IDimensionItem {
+  name: string;
+  key: string;
+  checked?: boolean;
+  value?: number | string;
+}
 
-import DrillAnalysisView from './metric-chart-view/drill-analysis-view';
-import PanelChartView from './metric-chart-view/panel-chart-view';
+export interface IColumnItem {
+  label: string;
+  prop: string;
+  width?: number | undefined;
+  sortable?: boolean | undefined;
+  renderFn?: (row) => void;
+}
+export interface IDataItem {
+  value?: number;
+  proportion?: number;
+  fluctuation?: number;
+  color?: string;
+  environment?: number;
+}
 
-import './new-metric-view.scss';
-
-@Component
-export default class NewMetricView extends tsc<object> {
-  render() {
-    return (
-      <div class='bk-monitor-new-metric-view'>
-        {/* bk-monitor-new-metric-view */}
-        {/* <DrillAnalysisView /> */}
-        <PanelChartView />
-      </div>
-    );
-  }
+export interface IRefreshItem {
+  // 刷新间隔名称
+  name: string;
+  // 自动刷新间隔值
+  id: number | string;
 }
