@@ -1,0 +1,373 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /app/uptime_check/tasks/:
+    get:
+      operationId: get_uptime_check_tasks
+      description: 获取拨测任务列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/models/uptime_check_task/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get uptime check task list
+  /app/uptime_check/nodes/:
+    get:
+      operationId: get_uptime_check_nodes
+      description: 获取拨测节点列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/models/uptime_check_node/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get uptime check node list
+  /app/uptime_check/node/:
+    get:
+      operationId: uptime_check_node_info
+      description: 获取指定拨测节点的详细信息
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/models/uptime_check_node/{node_id}/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: uptime check node info
+  /app/uptime_check/edit_node/:
+    post:
+      operationId: edit_uptime_check_node
+      description: 编辑拨测节点信息
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_node/edit/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: edit uptime check node info
+  /app/uptime_check/delete_node/:
+    post:
+      operationId: delete_uptime_check_node
+      description: 删除拨测节点
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_node/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete uptime check node
+  /app/uptime_check/create_node/:
+    post:
+      operationId: create_uptime_check_node
+      description: 创建拨测节点
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_node/add/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create uptime check node
+  /app/uptime_check/task/:
+    get:
+      operationId: uptime_check_task_info
+      description: 获取指定拨测任务信息
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/models/uptime_check_task/{task_id}/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: uptime check task info
+  /app/uptime_check/create_task/:
+    post:
+      operationId: create_uptime_check_task
+      description: 创建拨测任务
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_task/add/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create uptime check task
+  /app/uptime_check/edit_task/:
+    post:
+      operationId: edit_uptime_check_task
+      description: 编辑拨测任务信息
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_task/edit/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: edit uptime check task info
+  /app/uptime_check/delete_task/:
+    post:
+      operationId: delete_uptime_check_task
+      description: 删除拨测任务
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_task/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete uptime check task
+  /app/uptime_check/test_uptime_check_task/:
+    post:
+      operationId: test_uptime_check_task
+      description: 测试连通性
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_task/test/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: test uptime check task
+  /app/uptime_check/deploy_uptime_check_task/:
+    post:
+      operationId: deploy_uptime_check_task
+      description: 下发拨测任务
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_task/deploy/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: deploy uptime check task
+  /app/uptime_check/change_uptime_check_task_status/:
+    post:
+      operationId: change_uptime_check_task_status
+      description: 启停拨测任务
+      tags:
+      - uptime_check
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_task/change_status/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: change uptime check task status
+  /app/uptime_check/create_group/:
+    post:
+      operationId: create_uptime_check_group
+      description: 创建拨测任务组
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_group/add/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create uptime check group
+  /app/uptime_check/delete_group/:
+    post:
+      operationId: delete_uptime_check_group
+      description: 删除拨测任务组
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_group/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete uptime check group
+  /app/uptime_check/edit_group/:
+    post:
+      operationId: edit_uptime_check_group
+      description: 编辑拨测任务组信息
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_group/edit/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: edit uptime check group info
+  /app/uptime_check/group/:
+    get:
+      operationId: uptime_check_group_info
+      description: 获取指定拨测任务组信息
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/models/uptime_check_group/{group_id}/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: uptime check group info
+  /app/uptime_check/groups/:
+    get:
+      operationId: get_uptime_check_groups
+      description: 获取拨测任务组列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/models/uptime_check_group/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get uptime check group list
+  /app/uptime_check/group_add_task/:
+    post:
+      operationId: uptime_check_group_add_task
+      description: 拨测任务组新增拨测任务
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_group/add_task/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: uptime check group add task
+  /app/uptime_check/group_remove_task/:
+    post:
+      operationId: uptime_check_group_remove_task
+      description: 拨测任务组移除拨测任务
+      tags:
+      - uptime_check
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/models/uptime_check_group/remove_task/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: uptime check group remove task

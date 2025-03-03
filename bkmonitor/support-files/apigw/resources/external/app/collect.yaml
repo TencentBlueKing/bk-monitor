@@ -1,0 +1,387 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /app/collector/import_uptime_check_node/:
+    post:
+      operationId: import_uptime_check_node
+      description: 导入拨测节点配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/collector/uptime_check_node/import/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: import uptime check node
+  /app/collector/export_uptime_check_task/:
+    get:
+      operationId: export_uptime_check_task
+      description: 导出拨测任务配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/collector/uptime_check_task/export/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: export uptime check task
+  /app/collector/import_uptime_check_task/:
+    post:
+      operationId: import_uptime_check_task
+      description: 导入拨测任务配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/collector/uptime_check_task/import/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: import uptime check task
+  /app/collector/get_collect_config_list/:
+    get:
+      operationId: get_collect_config_list
+      description: 采集配置列表
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v3/models/collect_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get collect config list
+  /app/collector/save_collect_config/:
+    post:
+      operationId: save_collect_config
+      description: 创建/保存采集配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/save/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save collect config
+  /app/collector/query_collect_config_detail/:
+    post:
+      operationId: query_collect_config_detail
+      description: 查询采集配置详情
+      x-bk-apigateway-resource:
+        isPublic: ture
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/config_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query collect config detail
+  /app/collector/query_collect_config/:
+    post:
+      operationId: query_collect_config
+      description: 查询采集配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/config_list/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query collect config
+  /app/collector/get_collect_status/:
+    get:
+      operationId: get_collect_status
+      description: 查询采集配置节点状态
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/collect/collect_instance_status/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get collect status
+  /app/collector/toggle_collect_config_status/:
+    post:
+      operationId: toggle_collect_config_status
+      description: 启停采集配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/toggle/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: toggle collect config status
+  /app/collector/delete_collect_config/:
+    post:
+      operationId: delete_collect_config
+      description: 删除采集配置
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete collect config
+  /app/collector/retry_target_nodes/:
+    post:
+      operationId: retry_target_nodes
+      description: 重试部分实例或主机
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/retry/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: retry target nodes
+  /app/collector/run_collect_config/:
+    post:
+      operationId: run_collect_config
+      description: 重试部分实例或主机
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/run/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: run collect config
+  /app/collector/batch_retry_config/:
+    post:
+      operationId: batch_retry_config
+      description: 批量重试采集配置的失败实例
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/batch_retry/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: batch retry config
+  /app/collector/upgrade_collect_plugin/:
+    post:
+      operationId: upgrade_collect_plugin
+      description: 采集配置插件升级
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/upgrade/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: upgrade collect plugin
+  /app/collector/rollback_deployment_config/:
+    post:
+      operationId: rollback_deployment_config
+      description: 采集配置回滚
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/rollback/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: rollback deployment config
+  /app/collector/collect_running_status/:
+    get:
+      operationId: collect_running_status
+      description: 获取采集配置主机的运行状态
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/collect/running_status/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: collect running status
+  /app/collector/get_collect_log_detail/:
+    get:
+      operationId: get_collect_log_detail
+      description: 获取采集下发详细日志
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/collect/get_collect_log_detail/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get collect log detail
+  /app/collector/batch_retry_instance_step/:
+    post:
+      operationId: batch_retry_instance_step
+      description: 重试失败的节点步骤
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collect/batch_retry_detailed/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: batch retry instance step
+  /app/collector/collector_plugin_list/:
+    get:
+      operationId: collector_plugin_list
+      description: 采集插件列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/collector_plugin/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: collector_plugin_list
+  /app/collector/collector_plugin_detail/:
+    get:
+      operationId: collector_plugin_detail
+      description: 获取采集插件详情
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: get
+          path: /api/v4/collector_plugin/{plugin_id}/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: collector_plugin_detail
+  /app/collector/collector_plugin_delete/:
+    post:
+      operationId: collector_plugin_delete
+      description: 删除插件
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/collector_plugin/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: collector_plugin_delete
