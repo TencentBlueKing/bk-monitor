@@ -139,6 +139,13 @@ class DateTimeFieldWithEpoch(serializers.DateTimeField):
 
     def to_internal_value(self, value):
         try:
+            if str(value).isdigit():
+                if len(str(value)) == 16:
+                    value = int(value) / 10**6
+                elif len(str(value)) == 13:
+                    value = int(value) / 10**3
+                else:
+                    value = int(value)
             value = datetime.datetime.fromtimestamp(
                 value, pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
             ).strftime(self.format)
