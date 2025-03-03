@@ -245,7 +245,7 @@ class FavoriteHandler(object):
             if index_set_id:
                 update_model_fields.update({"index_set_id": index_set_id})
                 update_model_fields.update({"index_set_type": index_set_type})
-            # 聚合
+            # 联合索引
             if index_set_ids:
                 update_model_fields.update({"index_set_ids": index_set_ids})
                 update_model_fields.update({"index_set_type": index_set_type})
