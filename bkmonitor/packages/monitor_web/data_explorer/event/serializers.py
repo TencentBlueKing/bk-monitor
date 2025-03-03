@@ -79,8 +79,7 @@ class EventTotalRequestSerializer(BaseEventRequestSerializer):
 
 class EventDownloadTopKRequestSerializer(EventTopKRequestSerializer):
     def validate(self, attrs):
-        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
-        attrs = super(EventTopKRequestSerializer, self).validate(attrs)
+        attrs = super().validate(attrs)
         if len(attrs["fields"]) > 1:
             raise ValueError(_("限制单次只能下载一个字段的数据，当前选择了多个字段。"))
         return attrs
