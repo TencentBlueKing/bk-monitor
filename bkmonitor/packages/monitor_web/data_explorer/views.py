@@ -10,10 +10,9 @@ specific language governing permissions and limitations under the License.
 """
 from io import StringIO
 from typing import Any, Dict, List
-from urllib import parse
 
 from django.db.models import Q
-from django.http import Http404, HttpResponse
+from django.http import Http404
 from django.utils.translation import gettext as _
 from pypinyin import lazy_pinyin
 from rest_framework.decorators import action
@@ -28,8 +27,6 @@ from bkmonitor.utils.request import get_request
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_web.data_explorer.event import resources as event_resources
-from monitor_web.data_explorer.event.mock_data import API_TOPK_RESPONSE
-from monitor_web.data_explorer.event.serializers import EventTopKRequestSerializer
 from monitor_web.data_explorer.serializers import (
     BulkDeleteFavoriteSerializer,
     BulkUpdateFavoriteSerializer,
@@ -47,6 +44,13 @@ from monitor_web.data_explorer.serializers import (
     UpdateFavoriteSerializer,
 )
 from monitor_web.models import FavoriteGroup, QueryHistory
+from packages.monitor_web.data_explorer.event.resources import EventTopKResource
+from packages.monitor_web.data_explorer.event.serializers import (
+    EventDownloadTopKRequestSerializer,
+)
+from packages.monitor_web.data_explorer.event.utils import (
+    generate_file_download_response,
+)
 
 
 def order_records_by_config(records: List[Dict], order: List) -> List[Dict]:
@@ -398,20 +402,25 @@ class DataExplorerViewSet(ResourceViewSet):
 
     @action(methods=["POST"], detail=False, url_path="event/download_topk")
     def download_topk(self, request, *args, **kwargs):
-        s = EventTopKRequestSerializer(data=request.data)
-        s.is_valid(raise_exception=True)
-        validated_data: Dict[str, Any] = s.validated_data
+        serializer = EventDownloadTopKRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data: Dict[str, Any] = serializer.validated_data
 
+        # 获取 topk 数据并生成文件内容
+        output_content = self.generate_topk_file_content(validated_data)
+
+        table_name = validated_data["query_configs"][0]["table"]
+        file_name = f"{table_name}_{validated_data['fields'][0]}.txt"
+
+        return generate_file_download_response(output_content, file_name)
+
+    def generate_topk_file_content(self, validated_data: Dict[str, Any]) -> str:
         output = StringIO()
-        for item in API_TOPK_RESPONSE[0]["list"]:
-            output.write(f"{item['value']},{item['count']},{item['proportions']:.2f}%\n")
-
-        table: str = validated_data["query_configs"][0]["table"]
-        file_name = f"{table}_{validated_data['fields'][0]}.txt"
-        file_name = parse.quote(file_name, encoding="utf8")
-        file_name = parse.unquote(file_name, encoding="ISO8859_1")
-
-        response = HttpResponse(output.getvalue())
-        response["Content-Type"] = "application/x-msdownload"
-        response["Content-Disposition"] = 'attachment;filename="{}"'.format(file_name)
-        return response
+        try:
+            api_topk_response = EventTopKResource().perform_request(validated_data)
+            for item in api_topk_response[0]["list"]:
+                output.write(f"{item['value']},{item['count']},{item['proportions']:.2f}%\n")
+            return output.getvalue()
+        finally:
+            # 确保资源被释放
+            output.close()
