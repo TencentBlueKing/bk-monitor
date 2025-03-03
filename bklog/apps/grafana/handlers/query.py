@@ -30,6 +30,8 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api import CCApi
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.grafana.constants import (
     CMDB_EXTEND_FIELDS,
     LOG_SEARCH_DIMENSION_LIST,
@@ -44,6 +46,7 @@ from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsViewAdapter
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.utils.log import logger
 from bk_dataview.grafana import client
 from bkm_ipchooser.constants import ObjectType
@@ -369,9 +372,14 @@ class GrafanaQueryHandler:
             "bk_biz_id": self.bk_biz_id,
             "keyword": query_dict.get("query_string", ""),
             "sort_list": query_dict.get("sort_list", []),
+            "index_set_ids": [query_dict["result_table_id"]],
         }
-        search_handler = SearchHandler(query_dict["result_table_id"], search_dict, can_highlight=False)
-        result = search_handler.search(search_type=None)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.bk_biz_id):
+            query_handler = UnifyQueryHandler(search_dict)
+            result = query_handler.search(search_type=None)
+        else:
+            search_handler = SearchHandler(query_dict["result_table_id"], search_dict, can_highlight=False)
+            result = search_handler.search(search_type=None)
 
         # 前面的字段固定
         fields = [time_field, "log"] if "log" in result["fields"] else [time_field]
@@ -393,6 +401,64 @@ class GrafanaQueryHandler:
         }
 
         return table
+
+    def unify_query(self, query_dict: dict):
+        """
+        数据查询
+        """
+        self.check_panel_permission(query_dict["dashboard_id"], query_dict["panel_id"], query_dict["result_table_id"])
+
+        # 初始化DB脱敏配置
+        desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(
+            index_set_id=query_dict["result_table_id"]
+        )
+
+        desensitize_configs = [
+            {
+                "field_name": field_config_obj.field_name or "",
+                "rule_id": field_config_obj.rule_id or 0,
+                "operator": field_config_obj.operator,
+                "params": field_config_obj.params,
+                "match_pattern": field_config_obj.match_pattern,
+                "sort_index": field_config_obj.sort_index,
+            }
+            for field_config_obj in desensitize_field_config_objs
+        ]
+
+        # 如果是统计数量，则无需提供指标字段，用 _id 字段统计即可
+        if query_dict["method"] == "value_count":
+            query_dict["metric_field"] = "_index"
+
+        interval = self._parse_interval(query_dict["interval"])
+        search_dict = {
+            "start_time": query_dict["start_time"],
+            "end_time": query_dict["end_time"],
+            "ip_chooser": self.build_ipchooser_params(query_dict),
+            "addition": [
+                {
+                    "field": cond["key"],
+                    "operator": cond["method"],
+                    "value": cond["value"],
+                    "condition": cond.get("condition", "and"),
+                }
+                for cond in query_dict.get("where", [])
+            ],
+            "begin": 0,
+            "size": 1,
+            # "time_range": f"1m",
+            "bk_biz_id": self.bk_biz_id,
+            "keyword": query_dict.get("query_string", ""),
+            "is_desensitize": False,
+            "index_set_ids": [query_dict["result_table_id"]],
+            "agg_field": query_dict["metric_field"],
+            "method": query_dict["method"],
+            "group_by": query_dict.get("group_by", []),
+            "interval": interval,
+        }
+        query_handler = UnifyQueryHandler(search_dict)
+        result = query_handler.agg_search(desensitize_configs)
+
+        return result
 
     def _flat_row(self, row: dict):
         new_value = {}
