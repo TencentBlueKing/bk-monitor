@@ -327,8 +327,6 @@ class SearchViewSet(APIViewSet):
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
-            data["start_time"] = request.data.get("start_time")
-            data["end_time"] = request.data.get("end_time")
             query_handler = UnifyQueryHandler(data)
             return Response(query_handler.search())
         else:
@@ -571,8 +569,6 @@ class SearchViewSet(APIViewSet):
         output = StringIO()
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
-            data["start_time"] = request.data.get("start_time")
-            data["end_time"] = request.data.get("end_time")
             query_handler = UnifyQueryHandler(data)
             result = query_handler.search(is_export=True)
         else:

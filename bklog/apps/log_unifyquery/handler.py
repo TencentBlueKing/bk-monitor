@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import copy
+from datetime import datetime
 from typing import Any, Dict, List, Union
 
 from django.conf import settings
@@ -93,8 +94,7 @@ class UnifyQueryHandler(object):
         self.is_multi_rt: bool = len(self.index_set_ids) > 1
 
         # 查询时间范围
-        self.start_time = self.search_params["start_time"]
-        self.end_time = self.search_params["end_time"]
+        self.start_time, self.end_time = self.deal_time_format(self.search_params)
 
         # result fields
         self.field: Dict[str, max_len_dict] = {}
@@ -603,6 +603,17 @@ class UnifyQueryHandler(object):
             scope=scope,
             default_sort_tag=self.search_params.get("default_sort_tag", False),
         )
+
+    def deal_time_format(self, params):
+        if isinstance(params["start_time"], int) and isinstance(params["end_time"], int):
+            return params["start_time"], params["end_time"]
+
+        date_format = '%Y-%m-%d %H:%M:%S'
+        dt1 = datetime.strptime(params["start_time"], date_format)
+        dt2 = datetime.strptime(params["end_time"], date_format)
+        params["start_time"] = dt1.timestamp()
+        params["end_time"] = dt2.timestamp()
+        return params["start_time"], params["end_time"]
 
     @staticmethod
     def query_ts_raw(search_dict, raise_exception=False):
