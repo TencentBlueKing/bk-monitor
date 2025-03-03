@@ -308,8 +308,7 @@
           .select-item {
             display: inline-block;
             align-items: center;
-            width: 80%;
-            min-width: 100%;
+            width: 100%;
             height: 32px;
             padding: 0 12px;
             overflow: hidden;
