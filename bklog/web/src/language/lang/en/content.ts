@@ -1022,4 +1022,5 @@ export default {
   暂未匹配到符合条件的收藏项: 'No matching favorites have been found yet',
   '暂未设置常驻筛选，请点击左侧设置按钮':
     'No permanent filtering has been set, please click the settings button on the left',
+  展示空字段: 'Display empty fields',
 };
