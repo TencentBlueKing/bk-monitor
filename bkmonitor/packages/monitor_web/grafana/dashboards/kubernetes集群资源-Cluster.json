@@ -6049,7 +6049,7 @@
             "data_source_label":"bk_monitor",
             "data_type_label":"time_series",
             "group_by":"bcs_cluster_id",
-            "metric_field":"node_load15",
+            "metric_field":"kube_pod_owner",
             "result_table_id":"",
             "result_table_label":"kubernetes",
             "where":[
