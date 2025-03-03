@@ -8,29 +8,26 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import json
 
-from bkmonitor.utils.request import get_request
+from django.db import models
+from rest_framework import serializers
+
 from core.drf_resource import Resource
-from monitor.models import GlobalConfig
+from monitor_web.models import CustomTSTable
 
 
-class ApplyForBetaResource(Resource):
+class GetCustomMetricTargetListResource(Resource):
     """
-    获取事件插件token
+    获取自定义指标目标列表
     """
 
-    def perform_request(self, validated_data):
-        request = get_request(peaceful=True)
-        username = request.user.username
-        config, is_new = GlobalConfig.objects.get_or_create(key="AI_USER_LIST")
-        if is_new:
-            config.value = json.dumps([username])
-        else:
-            ul = json.loads(config.value)
-            if username in ul:
-                return {"result": "already joined!"}
-            ul.append(username)
-            config.value = json.dumps(ul)
-        config.save()
-        return {"result": "joined!"}
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务")
+        id = serializers.IntegerField(label="自定义指标分组ID")
+
+    def perform_request(self, params):
+        config = CustomTSTable.objects.get(
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["id"]
+        )
+        targets = set(config.query_target(bk_biz_id=params["bk_biz_id"]))
+        return [{"id": target, "name": target} for target in targets]

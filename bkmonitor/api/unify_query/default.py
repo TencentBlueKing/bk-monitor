@@ -294,6 +294,21 @@ class QueryDataByTableResource(UnifyQueryAPIResource):
         conditions = serializers.DictField(default={"field_list": [], "condition_list": []})
 
 
+class QuerySeriesResource(UnifyQueryAPIResource):
+    method = "POST"
+    path = "query/ts/info/series"
+
+    class RequestSerializer(serializers.Serializer):
+        metric_name = serializers.CharField(default="")
+        is_regexp = serializers.BooleanField(default=False)
+        table_id = serializers.CharField()
+        keys = serializers.ListField(child=serializers.CharField())
+        start_time = serializers.CharField()
+        end_time = serializers.CharField()
+        conditions = serializers.DictField(default={"field_list": [], "condition_list": []})
+        bk_biz_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=True, default=list)
+
+
 class GetKubernetesRelationResource(UnifyQueryAPIResource):
     method = "POST"
     path = "/api/v1/relation/multi_resource"
