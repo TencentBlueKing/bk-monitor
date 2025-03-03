@@ -31,6 +31,7 @@ import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
+import { mergeWhereList, type IGetValueFnParams } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import { APIType, getEventTopK } from './api-utils';
@@ -39,7 +40,6 @@ import EventExploreView from './components/event-explore-view';
 import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
-import type { IGetValueFnParams } from '../../components/retrieval-filter/utils';
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFormData } from './typing';
@@ -293,28 +293,11 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
   handleWhereChange(where) {
     this.formData.where = where;
+    this.setRouteParams();
   }
 
   handleConditionChange(condition: IWhereItem[]) {
-    const sourceMap: Map<string, IWhereItem> = new Map();
-    for (const item of this.formData.where) {
-      sourceMap.set(item.key, item);
-    }
-    for (const item of condition) {
-      const sourceItem = sourceMap.get(item.key);
-      if (
-        !(
-          sourceItem &&
-          sourceItem.key === item.key &&
-          sourceItem.method === item.method &&
-          JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
-          sourceItem?.options?.is_wildcard === item?.options?.is_wildcard
-        )
-      ) {
-        this.formData.where.push(item);
-      }
-    }
-    this.formData.where = [...this.formData.where];
+    this.formData.where = mergeWhereList(this.formData.where, condition);
   }
 
   render() {
