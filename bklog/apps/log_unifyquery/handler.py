@@ -611,8 +611,8 @@ class UnifyQueryHandler(object):
         date_format = '%Y-%m-%d %H:%M:%S'
         dt1 = datetime.strptime(params["start_time"], date_format)
         dt2 = datetime.strptime(params["end_time"], date_format)
-        params["start_time"] = dt1.timestamp()
-        params["end_time"] = dt2.timestamp()
+        params["start_time"] = int(dt1.timestamp())
+        params["end_time"] = int(dt2.timestamp())
         return params["start_time"], params["end_time"]
 
     @staticmethod
