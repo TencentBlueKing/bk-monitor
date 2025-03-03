@@ -92,7 +92,7 @@ class ScenarioMetricList(Resource):
        {'id': 'kube_pod_cpu_limits_ratio', 'name': 'CPU limit使用率'}]},
      {'id': 'memory',
       'name': '内存',
-      'children': [{'id': 'container_memory_rss', 'name': '内存使用量(rss)'},
+      'children': [{'id': 'container_memory_working_set_bytes', 'name': '内存使用量(Working Set)'},
        {'id': 'kube_pod_memory_requests_ratio', 'name': '内存 request使用率'},
        {'id': 'kube_pod_memory_limits_ratio', 'name': '内存 limit使用率'}]}]
     """
@@ -265,7 +265,7 @@ class ListK8SResources(Resource):
                 'container_cpu_usage_seconds_total',
                 'kube_pod_cpu_requests_ratio',
                 'kube_pod_cpu_limits_ratio',
-                'container_memory_rss',
+                'container_memory_working_set_bytes',
                 'kube_pod_memory_requests_ratio',
                 'kube_pod_memory_limits_ratio',
                 'container_cpu_cfs_throttled_ratio',
@@ -385,7 +385,7 @@ class ResourceTrendResource(Resource):
                 'container_cpu_usage_seconds_total',
                 'kube_pod_cpu_requests_ratio',
                 'kube_pod_cpu_limits_ratio',
-                'container_memory_rss',
+                'container_memory_working_set_bytes',
                 'kube_pod_memory_requests_ratio',
                 'kube_pod_memory_limits_ratio',
                 'container_cpu_cfs_throttled_ratio',
