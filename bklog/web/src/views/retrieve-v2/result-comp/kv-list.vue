@@ -165,7 +165,7 @@
         return this.$store.state.bkBizId;
       },
       showFieldList() {
-        const results = this.isAllowEmptyFieldData();
+        const results = this.getAllowEmptyFieldData();
         return results;
       },
       fieldKeyMap() {
@@ -193,26 +193,22 @@
     },
     watch: {
       isAllowEmptyField() {
-        const results = this.isAllowEmptyFieldData();
-        this.renderList = [...results];
+        this.renderList = [];
+        setTimeout(this.setRenderList);
       },
     },
     mounted() {
-      const size = 40;
-      let startIndex = 0;
-
-      const setRenderList = () => {
+      setTimeout(this.setRenderList);
+    },
+    methods: {
+      setRenderList() {
+        const size = 40;
+        let startIndex = 0;
         if (startIndex < this.showFieldList.length) {
           this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
           startIndex = startIndex + size;
-
-          setTimeout(setRenderList);
         }
-      };
-
-      setRenderList();
-    },
-    methods: {
+      },
       isJsonFormat(content) {
         return this.formatJson && /^\[|\{/.test(content);
       },
@@ -357,7 +353,7 @@
         return getFieldNameByField(field, this.$store);
       },
       // 展示空字段数据格式化
-      isAllowEmptyFieldData() {
+      getAllowEmptyFieldData() {
         let results = this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name));
         if (!this.isAllowEmptyField) {
           results = results.filter(item => !['--', '{}', '[]'].includes(this.formatterStr(this.data, item.field_name)));

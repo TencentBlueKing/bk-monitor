@@ -1,6 +1,7 @@
 <script setup>
   import { ref, computed } from 'vue';
 
+  import { bus } from '@/common/bus';
   import FieldSetting from '@/global/field-setting.vue';
   import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
