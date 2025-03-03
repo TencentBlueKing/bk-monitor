@@ -23,12 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { eventDownloadTopK, eventTopK, eventViewConfig } from 'monitor-api/modules/data_explorer';
+import { eventDownloadTopK, eventTopK, eventTotal, eventViewConfig } from 'monitor-api/modules/data_explorer';
 
 import type { ITopKField, ITopKRequestParams } from './typing';
 export enum APIType {
   APM = 'apm', // apm
   MONITOR = 'monitor', // monitor default
+}
+
+/**
+ * @description: 获取事件图表配置数据接口枚举
+ */
+export enum EventTimeSeries {
+  /** TODO: APM 获取事件图表配置接口，待补充 */
+  APM = 'xxx',
+  /** 事件检索获取事件图表配置数据接口 */
+  MONITOR = 'data_explorer.eventTimeSeries', // monitor default
 }
 
 /**
@@ -47,4 +57,26 @@ export const getEventViewConfig = (params: any) => eventViewConfig(params).then(
 export const getDownloadTopK = (params, type = APIType.MONITOR) => {
   const apiFunc = type === APIType.APM ? eventDownloadTopK : eventDownloadTopK;
   return apiFunc(params).catch(() => []);
+};
+
+/**
+ * @description: 获取事件总数
+ * @param params
+ * @param {APIType} type
+ */
+export const getEventTotal = (params: any, type = APIType.MONITOR) => {
+  const apiFunc = type === APIType.APM ? eventTotal : eventTotal;
+  return apiFunc(params).catch(() => ({
+    total: 0,
+  }));
+};
+
+/**
+ * @description: 获取图表配置数据使用的接口
+ * @param {APIType} type
+ * @returns {EventTimeSeries} 请求接口地址
+ */
+export const getEventTimeSeries = (type = APIType.MONITOR) => {
+  const api = type === APIType.APM ? EventTimeSeries.APM : EventTimeSeries.MONITOR;
+  return api;
 };

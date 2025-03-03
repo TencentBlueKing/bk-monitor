@@ -26,12 +26,13 @@
 import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { eventTotal } from 'monitor-api/modules/data_explorer';
 import { random } from 'monitor-common/utils';
 import ExploreCustomGraph, {
   type IntervalType,
 } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
+
+import { APIType, getEventTimeSeries, getEventTotal } from '../api-utils';
 
 import type { IFormData } from '../typing';
 
@@ -39,6 +40,7 @@ import './event-explore-view.scss';
 
 interface IEventExploreViewProps {
   queryConfig: IFormData;
+  source: APIType;
 }
 
 /**
@@ -63,6 +65,8 @@ const eventChartColors = ['#F5C78E', '#92BEF1', '#DCDEE5'];
 export default class EventExploreView extends tsc<IEventExploreViewProps> {
   /** 请求接口公共请求参数中的 query_configs 参数 */
   @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
+  /** 来源 */
+  @Prop({ default: APIType.MONITOR }) source: APIType;
   /** 是否立即刷新 */
   @InjectReactive('refleshImmediate') refreshImmediate: string;
   /** 请求接口公共请求参数 */
@@ -108,7 +112,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     if (!commonQueryConfig?.table || !commonStartTime || !commonEndTime) {
       return;
     }
-    const { total } = await eventTotal(this.commonParams).catch(() => ({ total: 0 }));
+    const { total } = await getEventTotal(this.commonParams, this.source).catch(() => ({ total: 0 }));
     this.total = total;
   }
 
@@ -139,6 +143,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
       queryConfigs[0].interval = this.chartInterval;
     }
 
+    const api = getEventTimeSeries(this.source);
+
     this.panel = new PanelModel({
       id: 'event-explore-chart',
       title: this.$tc('总趋势'),
@@ -164,7 +170,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
         {
           datasource: 'time_series',
           dataType: 'time_series',
-          api: 'data_explorer.eventTimeSeries',
+          api,
           data: {
             expression: 'a',
             query_configs: queryConfigs,
