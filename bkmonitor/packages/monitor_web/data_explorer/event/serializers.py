@@ -78,10 +78,6 @@ class EventTotalRequestSerializer(BaseEventRequestSerializer):
 
 
 class EventDownloadTopKRequestSerializer(EventTopKRequestSerializer):
-    limit = serializers.IntegerField(label="数量限制", required=False, default=0)
-    fields = serializers.ListField(label="维度字段列表", child=serializers.CharField(label="维度字段"), allow_empty=False)
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
-
     def validate(self, attrs):
         attrs = super(BaseEventRequestSerializer, self).validate(attrs)
         attrs = super(EventTopKRequestSerializer, self).validate(attrs)
