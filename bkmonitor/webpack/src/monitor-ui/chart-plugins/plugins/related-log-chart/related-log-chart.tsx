@@ -191,7 +191,7 @@ class RelatedLogChart extends CommonSimpleChart {
   /** 处理关联信息展示 */
   handleRealtionData(info, start_time = '', end_time = '') {
     const { log_type: logType, index_set_id: indexSetId, related_bk_biz_id: relatedBkBizId } = info;
-    if (logType === 'bk_log') {
+    if (logType === 'bk_log' || this.isSimpleChart) {
       this.relatedBkBizId = relatedBkBizId;
       this.updateBarChartData(start_time, end_time);
       this.updateTableData(start_time, end_time);
@@ -520,21 +520,32 @@ class RelatedLogChart extends CommonSimpleChart {
       return (
         <div class='log-chart-simple'>
           <div class='chart-simple-header'>
-            <div
-              class='left'
-              /*               v-bk-tooltips={{
+            {this.relatedBkBizId ? (
+              <div
+                class='left link-type'
+                /*               v-bk-tooltips={{
                 content: this.$tc('跳转查看详情'),
               }} */
-              onClick={() => this.goLink()}
-            >
-              <span
-                class='name-text'
-                title={this.selectedOptionAlias}
+                onClick={() => this.goLink()}
               >
-                {this.selectedOptionAlias}
-              </span>
-              <span class='icon-monitor icon-fenxiang' />
-            </div>
+                <span
+                  class='name-text'
+                  title={this.selectedOptionAlias}
+                >
+                  {this.selectedOptionAlias}
+                </span>
+                <span class='icon-monitor icon-fenxiang' />
+              </div>
+            ) : (
+              <div class='left'>
+                <span
+                  class='name-text'
+                  title={this.selectedOptionAlias}
+                >
+                  {this.selectedOptionAlias}
+                </span>
+              </div>
+            )}
             <div class='right'>
               {/* <bk-checkbox
                 v-model={this.isFilterError}
