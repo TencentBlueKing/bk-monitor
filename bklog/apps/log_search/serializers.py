@@ -285,8 +285,8 @@ class SearchAttrSerializer(serializers.Serializer):
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
 
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default=None)
     from_favorite_id = serializers.IntegerField(required=False, default=0)
 
@@ -351,8 +351,8 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
 
 
 class UnionSearchFieldsSerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     index_set_ids = serializers.ListField(
         label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
     )
@@ -365,8 +365,8 @@ class UnionSearchFieldsSerializer(serializers.Serializer):
 
 
 class UserSearchHistorySerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -482,8 +482,8 @@ class SearchExportSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
-    start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("起始时间"), required=True)
-    end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("结束时间"), required=True)
+    start_time = DateTimeFieldWithEpoch(label=_("起始时间"), required=True)
+    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=True)
     ip_chooser = serializers.DictField(label=_("检索IP条件"), required=False, default={})
     addition = serializers.ListField(label=_("搜索条件"), required=False)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=True)
