@@ -12,6 +12,10 @@
     background: #F0F1F5;
     border-radius: 2px;
 
+    &.yellow-bg {
+      background: #FDF4E8;
+    }
+
     .key-wrap {
       display: flex;
       align-items: center;
