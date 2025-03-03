@@ -161,6 +161,14 @@ class GrafanaSwitchOrgView(SwitchOrgView):
 
         return super(GrafanaSwitchOrgView, self).dispatch(request, *args, **kwargs)
 
+    def update_response(self, response, content):
+        content = super(GrafanaSwitchOrgView, self).update_response(response, content)
+        if isinstance(content, bytes):
+            content = content.decode("utf-8")
+        return content.replace(
+            "<script>", f"<script>\nvar graphWatermark={'true' if settings.GRAPH_WATERMARK else 'false'};"
+        )
+
 
 class GrafanaProxyView(ProxyView):
     # 单仪表盘权限豁免API
