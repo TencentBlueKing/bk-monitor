@@ -1,14 +1,56 @@
 .explore-chart-skeleton {
+  position: absolute;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  width: 100%;
   height: 100%;
-  padding-bottom: 14px;
+  background-color: #fff;
 
-  .explore-chart-skeleton-item {
-    flex: 1;
+  &-header {
+    padding: 7px 0;
+    padding-right: 14px;
+    padding-left: 8px;
 
-    &:nth-child(odd) {
-      background: none;
+    .skeleton-header-container {
+      display: flex;
+      height: 22px;
+
+      .header-trigger {
+        display: flex;
+        column-gap: 8px;
+      }
+
+      .header-custom {
+        display: flex;
+        flex: 1;
+        justify-content: space-between;
+        min-width: 0;
+        margin-left: 14px;
+      }
     }
+  }
+
+  &-content {
+    display: flex;
+    flex: 1;
+    align-items: flex-end;
+    width: 100%;
+    min-height: 0;
+    padding-bottom: 14px;
+
+    .explore-chart-skeleton-item {
+      flex: 1;
+
+      &:nth-child(odd) {
+        background: none;
+      }
+    }
+  }
+
+  &-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 4px;
   }
 }

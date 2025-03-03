@@ -33,11 +33,12 @@ import ExploreCustomGraph, {
 } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
+import type { IFormData } from '../typing';
+
 import './event-explore-view.scss';
 
 interface IEventExploreViewProps {
-  /** 请求接口公共请求参数 */
-  commonParams: Record<string, any>;
+  queryConfig: IFormData;
 }
 
 /**
@@ -48,13 +49,24 @@ enum DimensionsTypeEnum {
   NORMAL = 'Normal',
   WARNING = 'Warning',
 }
+/**
+ * @description 固定维度信息数据类型显示排序顺序及固定类型与图表颜色的映射顺序
+ */
+const eventChartMap = {
+  [DimensionsTypeEnum.WARNING]: 0,
+  [DimensionsTypeEnum.NORMAL]: 1,
+  [DimensionsTypeEnum.DEFAULT]: 2,
+};
+const eventChartColors = ['#F5C78E', '#92BEF1', '#DCDEE5'];
 
 @Component
 export default class EventExploreView extends tsc<IEventExploreViewProps> {
-  /** 请求接口公共请求参数 */
-  @Prop({ type: Object, default: () => ({}) }) commonParams: Record<string, any>;
+  /** 请求接口公共请求参数中的 query_configs 参数 */
+  @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
   /** 是否立即刷新 */
   @InjectReactive('refleshImmediate') refreshImmediate: string;
+  /** 请求接口公共请求参数 */
+  @InjectReactive('commonParams') commonParams;
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {};
   /** 时间对比值 */
@@ -66,20 +78,15 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   /** 当前显示的图例 */
   showLegendList: DimensionsTypeEnum[] = [];
   /** 图表配置实例 */
-  panel: PanelModel = new PanelModel({
-    id: 'event-explore-chart',
-    title: this.$tc('总趋势'),
-    options: {
-      time_series: {
-        type: 'bar',
-      },
-    },
-    targets: [],
-  });
+  panel: PanelModel = null;
 
   @Watch('commonParams', { deep: true })
   commonParamsChange() {
     this.getEventTotal();
+  }
+
+  @Watch('queryConfig', { deep: true })
+  queryParamsChange() {
     this.updatePanelConfig();
   }
 
@@ -127,6 +134,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
         ],
       },
     ];
+
     if (typeof this.chartInterval === 'number') {
       queryConfigs[0].interval = this.chartInterval;
     }
@@ -141,6 +149,15 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
       options: {
         time_series: {
           type: 'bar',
+          echart_option: {
+            yAxis: {
+              splitLine: {
+                lineStyle: {
+                  type: 'solid',
+                },
+              },
+            },
+          },
         },
       },
       targets: [
@@ -167,9 +184,13 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     }
     const { series } = seriesData;
     const stack = `event-explore-chart-${random(8)}`;
-    for (const seriesItem of series) {
-      seriesItem.stack = stack;
-    }
+    seriesData.series = series
+      .sort((a, b) => eventChartMap[a.dimensions.type] - eventChartMap[b.dimensions.type])
+      .map((item, index) => ({
+        ...item,
+        stack,
+        color: eventChartColors[index],
+      }));
   }
 
   /**
