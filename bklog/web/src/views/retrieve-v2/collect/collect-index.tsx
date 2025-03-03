@@ -686,7 +686,10 @@ export default class CollectIndex extends tsc<IProps> {
 
   /** 更新收藏 */
   async handleUpdateFavorite(favoriteData) {
-    const { params, name, group_id, display_fields, visible_type, id } = favoriteData;
+    console.log(favoriteData);
+
+    const { params, name, group_id, display_fields, visible_type, id, index_set_id, index_set_ids, index_set_type } =
+      favoriteData;
     const { ip_chooser, addition, keyword, search_fields } = params;
     const data = {
       name,
@@ -697,7 +700,17 @@ export default class CollectIndex extends tsc<IProps> {
       addition,
       keyword,
       search_fields,
+      index_set_type,
     };
+    if (index_set_type === 'union') {
+      Object.assign(data, {
+        index_set_ids,
+      });
+    } else {
+      Object.assign(data, {
+        index_set_id,
+      });
+    }
     await $http
       .request('favorite/updateFavorite', {
         params: { id },
