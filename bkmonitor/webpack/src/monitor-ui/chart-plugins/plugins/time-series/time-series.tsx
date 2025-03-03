@@ -510,6 +510,7 @@ export class LineChart
             z: 1,
             traceData: item.trace_data ?? '',
             dimensions: item.dimensions ?? {},
+            color: item?.color,
           })) as any
         );
         const boundarySeries = seriesResult
