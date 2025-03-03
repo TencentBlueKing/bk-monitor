@@ -2,7 +2,6 @@
   position: relative;
   display: flex;
   align-items: center;
-  height: 20px;
 
   .explore-interval-label {
     margin-right: 6px;
@@ -12,16 +11,13 @@
   .popover-trigger {
     display: flex;
     align-items: center;
-    height: 20px;
     cursor: pointer;
 
     .trigger-value {
       display: inline-flex;
       justify-content: center;
       width: 30px;
-      height: 20px;
       font-size: 12px;
-      line-height: 20px;
       color: #313238;
       user-select: none;
     }
