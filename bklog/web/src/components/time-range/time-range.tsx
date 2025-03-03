@@ -59,9 +59,19 @@ export default class TimeRange extends tsc<IProps, IEvents> {
     if (v.every(item => typeof item === 'string')) {
       localStorage.setItem('SEARCH_DEFAULT_TIME', JSON.stringify(v));
     }
+
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
     return v;
   }
+
+  formatStr = this.$store.getters.retrieveParams.format;
+
+  @Emit('format-change')
+  handleFormatChange(v: string) {
+    localStorage.setItem('SEARCH_DEFAULT_TIME_FORMAT', v);
+    return v;
+  }
+
   @Emit('timezone-change')
   handleTimezoneChange(timezone: string) {
     timezone && updateTimezone(timezone);
@@ -78,8 +88,11 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           behavior={this.type}
           modelValue={this.value}
           needTimezone={this.needTimezone}
+          enableFormatClick={true}
           timezone={this.timezone}
+          format={this.formatStr}
           onChange={this.handleModelValueChange}
+          onFormatChange={this.handleFormatChange}
           onTimezoneChange={this.handleTimezoneChange}
         />
       </div>

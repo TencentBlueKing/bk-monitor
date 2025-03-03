@@ -959,7 +959,7 @@
         //     addition: []
         // })
         // 过滤相关
-        const tempList = handleTransformToTimestamp(this.datePickerValue);
+        const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
         this.retrieveParams = {
           bk_biz_id: this.$store.state.bkBizId,
           ...DEFAULT_RETRIEVE_PARAMS,
@@ -987,7 +987,7 @@
        * @desc 时间选择组件返回时间戳格式转换
        */
       formatTimeRange() {
-        const tempList = handleTransformToTimestamp(this.datePickerValue);
+        const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
         Object.assign(this.retrieveParams, {
           start_time: tempList[0],
           end_time: tempList[1],

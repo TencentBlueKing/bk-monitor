@@ -15,9 +15,11 @@
     return store.state.indexItem.datePickerValue;
   });
 
+  const formatValue = computed(() => store.getters.retrieveParams.format);
+
   const setRouteParams = () => {
     const query = { ...route.query };
-    const { start_time, end_time, interval, begin, size } = store.getters.retrieveParams;
+    const { start_time, end_time, interval, begin, size, format } = store.getters.retrieveParams;
     const timezone = store.state.indexItem.timezone;
 
     const resolver = new RetrieveUrlResolver({
@@ -27,6 +29,7 @@
       timezone,
       begin,
       size,
+      format,
       datePickerValue: store.state.indexItem.datePickerValue,
     });
     Object.assign(query, resolver.resolveParamsToUrl());
@@ -50,12 +53,17 @@
 
   // 日期变化
   const handleTimeRangeChange = async val => {
+    debugger;
     store.commit('updateIsSetDefaultTableColumn', false);
-    const result = handleTransformToTimestamp(val);
+    const result = handleTransformToTimestamp(val, formatValue.value);
     store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
     await store.dispatch('requestIndexSetFieldInfo');
     store.dispatch('requestIndexSetQuery');
     setRouteParams();
+  };
+
+  const handleFormatChange = value => {
+    store.commit('updateIndexItemParams', { format: value });
   };
 
   /** 刷新 */
@@ -70,6 +78,7 @@
       :value="timeRangValue"
       @change="handleTimeRangeChange"
       @timezone-change="handleTimezoneChange"
+      @format-change="handleFormatChange"
     ></TimeRange>
     <!-- 自动刷新 -->
     <!-- <bk-popover
