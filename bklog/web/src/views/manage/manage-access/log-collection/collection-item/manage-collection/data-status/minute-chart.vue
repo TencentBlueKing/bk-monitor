@@ -246,7 +246,7 @@
         this.handleRefreshChange();
       },
       handleRefreshChange() {
-        const tempList = handleTransformToTimestamp(this.datePickerValue);
+        const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
         Object.assign(this.retrieveParams, {
           start_time: tempList[0],
           end_time: tempList[1],

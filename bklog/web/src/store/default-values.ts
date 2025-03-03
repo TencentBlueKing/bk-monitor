@@ -42,9 +42,10 @@ export const getDefaultRetrieveParams = () => {
 
 export const getDefaultDatePickerValue = () => {
   const datePickerValue = ['now-15m', 'now'];
-  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue);
+  const format = localStorage.getItem('SEARCH_DEFAULT_TIME_FORMAT') ?? 'YYYY-MM-DD HH:mm:ss';
+  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue, format);
 
-  return { datePickerValue, start_time, end_time };
+  return { datePickerValue, start_time, end_time, format };
 };
 
 export const DEFAULT_RETRIEVE_PARAMS = getDefaultRetrieveParams();
@@ -83,8 +84,8 @@ export const IndexFieldInfo = {
     filterSetting: [],
     displayFields: [],
     fieldsWidth: {},
-    filterAddition: []
-  }
+    filterAddition: [],
+  },
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
