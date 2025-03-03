@@ -251,7 +251,6 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             <div
               key='wrap-panels'
               class={['correlation-metric-panels']}
-              // class={['correlation-metric-panels', this.isFixed && 'correlation-metric-fixed-padding']}
             >
               {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))}
             </div>,
@@ -263,7 +262,6 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
               key='wrap-nav'
               style={this.isFixed ? { top: this.isDetailRoute ? '52px' : '60px' } : {}}
               class={['correlation-metric-nav-wrap']}
-              // class={['correlation-metric-nav-wrap', this.isFixed && 'correlation-metric-fixed']}
             >
               <CorrelationNav
                 ref='correlationNav'
@@ -280,10 +278,6 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             >
               {this.metricRecommendationErr ? this.metricRecommendationErr : this.$t('暂无数据')}
             </bk-exception>
-            {/* <div class="bk-table-empty-text">
-              <i class="bk-table-empty-icon bk-icon icon-empty"></i>
-              <div>{this.$t('暂无数据')}</div>
-            </div> */}
           </div>
         )}
       </div>
@@ -291,6 +285,52 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   }
   /** 纬度下钻图表渲染 */
   renderDimensionPanels() {
+    console.log(this.panelMap.recommendedMetricPanels, this.panelMap?.dimensionPanels, this.panelMap);
+    return (
+      <div
+        class={[
+          'correlation-metric-wrap',
+          // !this.isCorrelationMetrics ? 'aiops-metrics-view-hide' : '',
+          // this.metricRecommendationErr ? 'metrics-err' : '',
+        ]}
+        // v-bkloading={{ isLoading: this.metricRecommendationLoading }}
+      >
+        {this.panelMap?.dimensionPanels?.length > 0 ? (
+          [
+            <div
+              key='wrap-panels'
+              class={['correlation-metric-panels']}
+            >
+              {/* {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))} */}
+            </div>,
+            <div
+              key='wrap-bg'
+              class='correlation-metric-nav-wrap-bg'
+            />,
+            <div
+              key='wrap-nav'
+              style={this.isFixed ? { top: this.isDetailRoute ? '52px' : '60px' } : {}}
+              class={['correlation-metric-nav-wrap']}
+            >
+              {/* <CorrelationNav
+                ref='correlationNav'
+                list={this.panelMap.recommendedMetricPanels}
+                onActive={this.handleActive}
+              /> */}
+            </div>,
+          ]
+        ) : (
+          <div class={`bk-table-empty-block aiops-metrics-view-${!this.isCorrelationMetrics ? 'hide' : 'show'}`}>
+            <bk-exception
+              scene='part'
+              type={this.metricRecommendationErr ? '500' : 'empty'}
+            >
+              {this.metricRecommendationErr ? this.metricRecommendationErr : this.$t('暂无数据')}
+            </bk-exception>
+          </div>
+        )}
+      </div>
+    );
     return this.panelMap?.dimensionPanels?.length > 0 ? (
       <DashboardPanel
         id={this.dashboardPanelId}

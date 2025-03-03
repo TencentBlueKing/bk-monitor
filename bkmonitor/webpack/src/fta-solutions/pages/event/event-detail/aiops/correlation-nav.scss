@@ -11,13 +11,14 @@
     display: flex;
     align-items: center;
     height: 40px;
-    padding: 0px 12px;
+    padding: 0px 5px;
     margin: 0;
     background: #f0f3fa;
     // border-left: 1px solid #d1d9e8;
-
-    i {
-      color: #979ba5;
+    .collapse-icon {
+      font-size: 12px;
+      cursor: pointer;
+      color: #4d4f56;
     }
 
     .classification-text {
@@ -59,7 +60,7 @@
       align-items: center;
       width: 100%;
       height: 30px;
-      padding-right: 12px;
+      // padding-right: 12px;
       padding-left: 16px;
       cursor: pointer;
 
@@ -98,7 +99,7 @@
 
     .select,
     %select {
-      background: #e1ecff;
+      // background: #e1ecff;
 
       .classification-list-item-text {
         color: #3a84ff;

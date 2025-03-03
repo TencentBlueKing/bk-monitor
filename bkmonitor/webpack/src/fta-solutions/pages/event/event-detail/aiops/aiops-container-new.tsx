@@ -117,7 +117,7 @@ export default class AiopsContainer extends tsc<IProps> {
     return [
       {
         name: 'diagnosis',
-        icon: 'icon-mc-correlation-metrics',
+        icon: 'icon-guzhang',
         titleKey: '故障诊断',
         loading: this.metricRecommendationLoading,
         error: this.metricRecommendationErr,
@@ -126,8 +126,8 @@ export default class AiopsContainer extends tsc<IProps> {
       },
       {
         name: 'dimension',
-        icon: 'icon-mc-drill-down',
-        titleKey: '维度下钻',
+        icon: 'icon-yichangweidu',
+        titleKey: '异常维度',
         loading: this.dimensionDrillDownLoading,
         isShow: this.showDimensionDrill,
         error: this.dimensionDrillDownErr,
