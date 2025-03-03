@@ -291,7 +291,7 @@
         queueStatus: state => !state.retrieve.isTrendDataLoading,
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
-        showFieldAlias: state => state.showFieldAlias ?? false
+        showFieldAlias: state => state.showFieldAlias ?? false,
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',
@@ -384,13 +384,16 @@
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
-            }else{
+            } else {
               this.$bkMessage({
                 theme: 'error',
                 ellipsisLine: 2,
                 message: res.message,
               });
             }
+          })
+          .catch(err => {
+            console.log(err);
           })
           .finally(() => {
             this.isShowExportDialog = false;
@@ -460,6 +463,9 @@
               });
             }
           })
+          .catch(err => {
+            console.log(err);
+          })
           .finally(() => {
             this.exportLoading = false;
             this.isShowExportDialog = false;
@@ -477,10 +483,10 @@
       handleCloseDialog() {
         this.showHistoryExport = false;
       },
-      getFieldName(field){
+      getFieldName(field) {
         const { getQueryAlias } = useFieldNameHook({ store: this.$store });
         return getQueryAlias(field);
-      }
+      },
     },
   };
 </script>

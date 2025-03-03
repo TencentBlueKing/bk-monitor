@@ -82,7 +82,7 @@ class IncidentBaseResource(Resource):
     def generate_time_range_from_alerts(self, alert_ids: List[int]) -> Tuple[int, int]:
         start_time, end_time = None, None
         for alert_id in alert_ids:
-            timestamp = str(alert_id)[:10]
+            timestamp = int(str(alert_id)[:10])
             if start_time is None or timestamp < start_time:
                 start_time = timestamp
             if end_time is None or timestamp > end_time:

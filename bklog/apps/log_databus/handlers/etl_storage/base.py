@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Union
 from django.conf import settings
 from django.core.cache import cache
 from django.utils.module_loading import import_string
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.api import TransferApi
 from apps.exceptions import ApiResultError, ValidationError

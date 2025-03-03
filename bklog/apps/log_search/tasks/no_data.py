@@ -1,8 +1,8 @@
 import time
 from datetime import datetime, timedelta
 
+from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
-from celery.task import periodic_task
 from django.core.cache import cache
 
 from apps.log_search.constants import (

@@ -41,7 +41,7 @@ databus
 from django.db import models, transaction  # noqa
 from django.utils import timezone  # noqa
 from django.utils.functional import cached_property  # noqa
-from django.utils.translation import ugettext_lazy as _  # noqa
+from django.utils.translation import gettext_lazy as _  # noqa
 from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-import
     JSONField,
 )

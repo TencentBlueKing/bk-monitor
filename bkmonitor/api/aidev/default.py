@@ -38,9 +38,26 @@ class AidevAPIGWResource(APIResource):
         return headers
 
 
-class CreateKnowledgebaseQueryResource(AidevAPIGWResource):
+class OnlyKnowledgebaseQueryResource(AidevAPIGWResource):
     """
-    创建知识库查询
+    仅知识库检索
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        query = serializers.CharField(required=True, allow_blank=False)
+        type = serializers.ChoiceField(required=True, allow_blank=False, choices=["nature", "index_specific"])
+        polish = serializers.BooleanField(required=False, default=False)
+        stream = serializers.BooleanField(required=False, default=False)
+        topk = serializers.IntegerField(required=False, default=20)
+        index_query_kwargs = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=True)
+
+    action = "/aidev/resource/knowledgebase/query/"
+    method = "POST"
+
+
+class CreateKnowledgebaseQueryResource(OnlyKnowledgebaseQueryResource):
+    """
+    创建知识库查询，检索并回答
     """
 
     class RequestSerializer(serializers.Serializer):

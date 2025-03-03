@@ -246,8 +246,8 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     // 字符串分隔成多个单词
     const metricName = this.getExpression().replace(/\b\w+\b/g, alias => {
       // 单词分隔成多个关键字
-      return alias.replace(/and|or|\w/g, keyword => {
-        if (keyword === 'and' || keyword === 'or') return keyword;
+      return alias.replace(/bool|and|or|\w/gi, keyword => {
+        if (['bool', 'or', 'and'].includes(keyword.toLocaleLowerCase())) return keyword;
         const metric = this.metricData.find(item => item.alias === keyword);
         if (metric) return metric.metric_field_name || alias;
         return keyword || '';

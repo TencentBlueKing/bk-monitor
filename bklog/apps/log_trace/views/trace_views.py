@@ -19,22 +19,27 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
-from apps.utils.drf import detail_route
+
+from apps.exceptions import ValidationError
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import InstanceActionPermission, ViewBusinessPermission, insert_permission_field
+from apps.iam.handlers.drf import (
+    InstanceActionPermission,
+    ViewBusinessPermission,
+    insert_permission_field,
+)
 from apps.log_trace.constants import FIELDS_SCOPE_VALUE
-from apps.exceptions import ValidationError
+from apps.log_trace.handlers.trace_config_handlers import TraceConfigHandlers
+from apps.log_trace.handlers.trace_handlers import TraceHandler
 from apps.log_trace.serializers import (
     TraceIndexSetScopeSerializer,
     TraceSearchAttrSerializer,
     TraceSearchTraceIdAttrSerializer,
 )
-from apps.log_trace.handlers.trace_handlers import TraceHandler
-from apps.log_trace.handlers.trace_config_handlers import TraceConfigHandlers
+from apps.utils.drf import detail_route
 
 
 class TraceViewSet(APIViewSet):

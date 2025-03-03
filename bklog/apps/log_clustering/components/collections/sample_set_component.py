@@ -19,6 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django.utils.translation import gettext_lazy as _
+from pipeline.builder import ServiceActivity, Var
+from pipeline.component_framework.component import Component
+from pipeline.core.flow.activity import Service, StaticIntervalGenerator
+
 from apps.log_clustering.handlers.aiops.sample_set.sample_set_handler import (
     SampleSetHandler,
 )
@@ -28,10 +33,6 @@ from apps.log_clustering.handlers.dataflow.constants import (
 )
 from apps.log_clustering.models import ClusteringConfig, SampleSet
 from apps.utils.pipline import BaseService
-from django.utils.translation import ugettext_lazy as _
-from pipeline.builder import ServiceActivity, Var
-from pipeline.component_framework.component import Component
-from pipeline.core.flow.activity import Service, StaticIntervalGenerator
 
 
 class CreateSampleSetService(BaseService):

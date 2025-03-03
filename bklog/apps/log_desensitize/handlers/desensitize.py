@@ -24,19 +24,19 @@ import re
 from typing import List
 
 from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import ValidationError
 from apps.log_databus.models import CollectorConfig
-from apps.log_desensitize.constants import ScenarioEnum, DesensitizeRuleTypeEnum
+from apps.log_desensitize.constants import DesensitizeRuleTypeEnum, ScenarioEnum
 from apps.log_desensitize.exceptions import (
-    DesensitizeRuleNotExistException,
+    DesensitizeRegexDebugNoMatchException,
     DesensitizeRuleNameExistException,
+    DesensitizeRuleNotExistException,
     DesensitizeRuleRegexCompileException,
-    DesensitizeRegexDebugNoMatchException
 )
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
-from apps.log_desensitize.models import DesensitizeRule, DesensitizeFieldConfig
+from apps.log_desensitize.models import DesensitizeFieldConfig, DesensitizeRule
 from apps.log_desensitize.utils import expand_nested_data
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet, Scenario
@@ -50,7 +50,6 @@ class DesensitizeHandler(object):
     """
 
     def __init__(self, desensitize_config_info):
-
         # 构建字段绑定的规则mapping
         self.field_rule_mapping = dict()
         self.rules = list()
@@ -62,7 +61,6 @@ class DesensitizeHandler(object):
         effective_rule_mapping = {_obj.id: model_to_dict(_obj) for _obj in effective_rule_objs}
 
         for _config in desensitize_config_info:
-
             # 如果绑定了脱敏规则  判断绑定的规则当前是否启用
             rule_id = _config.get("rule_id")
 
@@ -92,12 +90,13 @@ class DesensitizeHandler(object):
 
             # 编译正则表达式
             try:
-                _config["__regex__"] = None if not _config.get("match_pattern") else re.compile(_config["match_pattern"])
+                _config["__regex__"] = (
+                    None if not _config.get("match_pattern") else re.compile(_config["match_pattern"])
+                )
             except re.error:
                 raise DesensitizeRuleRegexCompileException(
                     DesensitizeRuleRegexCompileException.MESSAGE.format(
-                        rule_id=rule_id,
-                        pattern=_config["match_pattern"]
+                        rule_id=rule_id, pattern=_config["match_pattern"]
                     )
                 )
 
@@ -172,15 +171,7 @@ class DesensitizeHandler(object):
         # 匹配表达式未指定的情况下 默认整个字段全部处理
         regex = rule.get("__regex__")
         if not regex:
-            return [
-                {
-                    "src": log,
-                    "start": 0,
-                    "end": len(str(log)),
-                    "group_dict": dict(),
-                    "rule": rule
-                }
-            ]
+            return [{"src": log, "start": 0, "end": len(str(log)), "group_dict": dict(), "rule": rule}]
 
         # 使用finditer()函数找到所有匹配的子串
         matches = regex.finditer(log)
@@ -188,13 +179,15 @@ class DesensitizeHandler(object):
         results = []
         # 输出匹配的子串及其起止位置
         for match in matches:
-            results.append({
-                "src": match.group(),
-                "start": match.start(),
-                "end": match.end(),
-                "group_dict": match.groupdict(),
-                "rule": rule
-            })
+            results.append(
+                {
+                    "src": match.group(),
+                    "start": match.start(),
+                    "end": match.end(),
+                    "group_dict": match.groupdict(),
+                    "rule": rule,
+                }
+            )
         return results
 
     @staticmethod
@@ -231,19 +224,19 @@ class DesensitizeHandler(object):
         last_end = 0
         outputs = []
         for substring in substrings:
-            outputs.append(log[last_end:substring["start"]])
+            outputs.append(log[last_end : substring["start"]])
             # 文本处理
             _text = self._match_transform(
                 rule=substring["rule"],
                 text=str(substring["src"]),
                 context=substring["group_dict"],
-                is_highlight=is_highlight
+                is_highlight=is_highlight,
             )
             outputs.append(_text)
             last_end = substring["end"]
 
         # 末尾补充
-        outputs.append(log[last_end:len(log)])
+        outputs.append(log[last_end : len(log)])
         return "".join(outputs)
 
 
@@ -259,9 +252,7 @@ class DesensitizeRuleHandler(object):
             try:
                 self.data = DesensitizeRule.objects.get(id=self.rule_id)
             except DesensitizeRule.DoesNotExist:
-                raise DesensitizeRuleNotExistException(
-                    DesensitizeRuleNotExistException.MESSAGE.format(id=self.rule_id)
-                )
+                raise DesensitizeRuleNotExistException(DesensitizeRuleNotExistException.MESSAGE.format(id=self.rule_id))
 
     def create_or_update(self, params: dict):
         """
@@ -391,10 +382,7 @@ class DesensitizeRuleHandler(object):
             _rule_id = relation_obj.rule_id
             _index_set_id = relation_obj.index_set_id
             if _rule_id not in relation_mapping:
-                relation_mapping[_rule_id] = {
-                    "index_set_ids": set(),
-                    "access_info_mapping": dict()
-                }
+                relation_mapping[_rule_id] = {"index_set_ids": set(), "access_info_mapping": dict()}
 
             if _index_set_id not in scenario_mapping:
                 # 过滤排除已删除索引集的信息
@@ -421,11 +409,8 @@ class DesensitizeRuleHandler(object):
                 _access_info = relation_mapping[rule_id]["access_info_mapping"]
                 _info["access_num"] = len(_index_set_ids)
                 _info["access_info"] = [
-                    {
-                        "scenario_id": _k,
-                        "scenario_name": ScenarioEnum.get_choice_label(_k),
-                        "ids": list(_v["ids"])
-                    } for _k, _v in _access_info.items()
+                    {"scenario_id": _k, "scenario_name": ScenarioEnum.get_choice_label(_k), "ids": list(_v["ids"])}
+                    for _k, _v in _access_info.items()
                 ]
             result.append(_info)
 
@@ -456,7 +441,8 @@ class DesensitizeRuleHandler(object):
                 "src": match.group(),
                 "start": match.start(),
                 "end": match.end(),
-            } for match in matches
+            }
+            for match in matches
         ]
 
         return match_info
@@ -478,7 +464,7 @@ class DesensitizeRuleHandler(object):
                 "operator": params["operator"],
                 "params": params["params"],
                 "match_pattern": match_pattern,
-                "sort_index": 1
+                "sort_index": 1,
             }
         ]
 
@@ -501,11 +487,11 @@ class DesensitizeRuleHandler(object):
         outputs = []
         # 遍历所有匹配项，并将它们用<mark>标签高亮显示
         for _m in match_info:
-            outputs.append(log_sample[last_end:_m["start"]])
+            outputs.append(log_sample[last_end : _m["start"]])
             outputs.append(f"<mark>{_m['src']}</mark>")
             last_end = _m["end"]
 
-        outputs.append(log_sample[last_end:len(log_sample)])
+        outputs.append(log_sample[last_end : len(log_sample)])
 
         return {"log": "".join(outputs)}
 
@@ -530,8 +516,7 @@ class DesensitizeRuleHandler(object):
         """
         # 找出当前业务下和公共的规则
         desensitize_rule_objs = DesensitizeRule.objects.filter(
-            Q(Q(space_uid=space_uid) | Q(is_public=True)),
-            is_active=True
+            Q(Q(space_uid=space_uid) | Q(is_public=True)), is_active=True
         ).order_by("-is_public")
 
         desensitize_rule_info = [model_to_dict(_obj) for _obj in desensitize_rule_objs]

@@ -19,10 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from apps.log_commons import views
-from django.conf.urls import include, url
+from django.conf.urls import include
+from django.urls import re_path
 from rest_framework import routers
 
+from apps.log_commons import views
 from apps.log_commons.views import FrontendEventViewSet
 
 router = routers.DefaultRouter(trailing_slash=True)
@@ -31,7 +32,7 @@ router.register(r"frontend_event", FrontendEventViewSet, basename="frontend_even
 
 urlpatterns = [
     # 获取文档链接地址
-    url(r"^get_docs_link/$", views.get_docs_link),
+    re_path(r"^get_docs_link/$", views.get_docs_link),
     # 获取外部系统权限
-    url(r"^", include(router.urls)),
+    re_path(r"^", include(router.urls)),
 ]

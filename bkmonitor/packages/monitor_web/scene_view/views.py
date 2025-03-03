@@ -44,9 +44,6 @@ class SceneViewViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.scene_view.get_host_process_uptime, endpoint="get_host_process_uptime"),
         ResourceRoute("POST", resource.scene_view.get_host_process_list, endpoint="get_host_process_list"),
         ResourceRoute(
-            "POST", resource.scene_view.get_custom_metric_target_list, endpoint="get_custom_metric_target_list"
-        ),
-        ResourceRoute(
             "POST", resource.scene_view.get_custom_event_target_list, endpoint="get_custom_event_target_list"
         ),
         ResourceRoute("POST", resource.scene_view.get_uptime_check_task_list, endpoint="get_uptime_check_task_list"),
@@ -252,13 +249,18 @@ class SceneViewViewSet(ResourceViewSet):
             endpoint="list_index_set_log",
         ),
         ResourceRoute(
-            "POST",
-            resource.scene_view.get_custom_metric_graph_config,
-            endpoint="get_custom_metric_graph_config",
+            "GET",
+            resource.scene_view.get_custom_ts_metric_groups,
+            endpoint="get_custom_ts_metric_groups",
         ),
         ResourceRoute(
             "POST",
-            resource.scene_view.get_custom_metric_info,
-            endpoint="get_custom_metric_info",
+            resource.scene_view.get_custom_ts_dimension_values,
+            endpoint="get_custom_ts_dimension_values",
+        ),
+        ResourceRoute(
+            "POST",
+            resource.scene_view.get_custom_ts_graph_config,
+            endpoint="get_custom_ts_graph_config",
         ),
     ]

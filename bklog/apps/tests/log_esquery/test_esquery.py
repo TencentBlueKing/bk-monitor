@@ -23,7 +23,6 @@ import copy
 from unittest.mock import patch
 
 from django.test import TestCase
-from django_fakeredis import FakeRedis
 
 from apps.log_databus.models import CollectorConfig
 from apps.log_esquery.esquery.dsl_builder.query_builder.query_builder_logic import (
@@ -37,6 +36,7 @@ from apps.log_search.exceptions import (
     ScenarioQueryIndexFailException,
 )
 from apps.log_search.models import Scenario
+from apps.tests.utils import FakeRedis
 from apps.utils.drf import custom_params_valid
 
 BK_BIZ_ID = 2

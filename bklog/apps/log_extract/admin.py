@@ -19,16 +19,16 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
 from django.forms import TextInput
-from django import forms
+from django.utils.translation import gettext_lazy as _
 
-from apps.utils.admin import AppModelAdmin
 from apps.log_extract.constants import ExtractLinkType
-from apps.log_extract.models import Strategies, Tasks, ExtractLink, ExtractLinkHost
+from apps.log_extract.models import ExtractLink, ExtractLinkHost, Strategies, Tasks
+from apps.utils.admin import AppModelAdmin
 
 
 @admin.register(Strategies)

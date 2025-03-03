@@ -118,13 +118,13 @@ class PartitionNumberConfigCls(object):
 @dataclass
 class ChunkPolicyCls(object):
     type: str = "partition"
-    config: PartitionNumberConfigCls = PartitionNumberConfigCls()
+    config: PartitionNumberConfigCls = field(default_factory=PartitionNumberConfigCls)
 
 
 @dataclass
 class ChunkedReadSampleSet(object):
     window: str
-    chunk_policy: ChunkPolicyCls = ChunkPolicyCls()
+    chunk_policy: ChunkPolicyCls = field(default_factory=ChunkPolicyCls)
 
 
 @dataclass
@@ -146,8 +146,8 @@ class SessionWorkspaceCls(object):
 @dataclass
 class PipelineResourcesCls(object):
     python_backend: PythonBackendCls
-    spark_session: SparkSessionCls = SparkSessionCls()
-    session_workspace: SessionWorkspaceCls = SessionWorkspaceCls()
+    spark_session: SparkSessionCls = field(default_factory=SparkSessionCls)
+    session_workspace: SessionWorkspaceCls = field(default_factory=SessionWorkspaceCls)
 
 
 @dataclass
@@ -439,7 +439,7 @@ class ContentCls(object):
         ModelTrainContentAlgorithmConfigCls,
         ModelEvaluationContentAlgorithmConfigCls,
     ]
-    output_config: OutputConfigCls = OutputConfigCls()
+    output_config: OutputConfigCls = field(default_factory=OutputConfigCls)
     input_config: Dict = field(default_factory=dict)
     prediction_algorithm_config: Dict = field(default_factory=dict)
 

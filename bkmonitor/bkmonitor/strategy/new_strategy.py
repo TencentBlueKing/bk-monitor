@@ -2460,9 +2460,11 @@ class Strategy(AbstractConfig):
 
         # 2. 获取配置的智能检测算法(AIOPS)
         intelligent_algorithm = None
+        algorithm_plan_id = None
         for algorithm in chain(*(item.algorithms for item in self.items)):
             if algorithm.type in AlgorithmModel.AIOPS_ALGORITHMS:
                 intelligent_algorithm = algorithm.type
+                algorithm_plan_id = algorithm.config.get("plan_id", 0)
                 break
 
         # 3. 未找到配置的智能检测算法(AIOPS)，则直接返回
@@ -2471,12 +2473,19 @@ class Strategy(AbstractConfig):
 
         # 4. 遍历每个监控项的查询配置，以判断数据来源并执行相应处理逻辑
         need_access = False
-        for query_config in chain(*(item.query_configs for item in self.items)):
-            need_access = need_access or self.check_aiops_query_config(query_config, intelligent_algorithm)
+        for item in self.items:
+            for query_config in item.query_configs:
+                need_access = need_access or self.check_aiops_query_config(
+                    query_config, intelligent_algorithm, algorithm_plan_id
+                )
+                if getattr(query_config, "intelligent_detect", {}).get("use_sdk", False):
+                    item.time_delay = 60
 
         return need_access, intelligent_algorithm
 
-    def check_aiops_query_config(self, query_config: QueryConfig, algorithm_name: str = None):
+    def check_aiops_query_config(
+        self, query_config: QueryConfig, algorithm_name: str = None, algorithm_plan_id: int = None
+    ):
         # 4.1 如果数据类型不是时序数据，则跳过不处理
         if query_config.data_type_label != DataTypeLabel.TIME_SERIES:
             return False
@@ -2494,12 +2503,14 @@ class Strategy(AbstractConfig):
 
         # 4.4 如果不需要走bkbase接入流程或者配置使用SDK进行检测，则更新query_config中关于使用sdk的配置
         intelligent_detect = getattr(query_config, "intelligent_detect", {})
+        default_switch = True if algorithm_plan_id == settings.BK_DATA_PLAN_ID_INTELLIGENT_DETECTION else False
         # 如果已经配置了使用SDK，则不再走bkbase接入的方式，默认使用SDK的方式进行检测
         if (
-            intelligent_detect.get("use_sdk", True)
+            intelligent_detect.get("use_sdk", default_switch)
             and algorithm_name != AlgorithmModel.AlgorithmChoices.HostAnomalyDetection
         ):
-            intelligent_detect["use_sdk"] = True
+            # 不保留原来的配置（主要是为了清理dataflow的配置，后续dataflow的任务会统一清理）
+            intelligent_detect = {"use_sdk": True}
             if algorithm_name == AlgorithmModel.AlgorithmChoices.AbnormalCluster:
                 # 离群检测不需要历史依赖，因此如果使用SDK，默认可以直接进行检测
                 intelligent_detect["status"] = SDKDetectStatus.READY

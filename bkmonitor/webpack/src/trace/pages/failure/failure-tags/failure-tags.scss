@@ -234,6 +234,8 @@
   }
 
   &.failure-tags-positions-absolute {
+    z-index: 1;
+
     .failure-tags-container {
       position: absolute;
       top: 0;

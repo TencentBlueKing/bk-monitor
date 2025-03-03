@@ -19,10 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf import settings
-from django.conf.urls import url, include
-from rest_framework import routers
 from blueapps.account.decorators import login_exempt
+from django.conf import settings
+from django.conf.urls import include
+from django.urls import re_path
+from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
+from rest_framework import routers
+
 from apps.iam import Permission
 from apps.iam.views import meta
 from apps.iam.views.resources import (
@@ -30,7 +33,6 @@ from apps.iam.views.resources import (
     EsSourceResourceProvider,
     IndicesResourceProvider,
 )
-from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
 
 dispatcher = DjangoBasicResourceApiDispatcher(Permission.get_iam_client(), settings.BK_IAM_SYSTEM_ID)
 dispatcher.register("collection", CollectionResourceProvider())
@@ -43,4 +45,4 @@ router = routers.DefaultRouter(trailing_slash=True)
 router.register(r"meta", meta.MetaViewSet, basename="meta")
 
 
-urlpatterns = [url(r"^", include(router.urls)), url(r"^resource/$", dispatcher.as_view([login_exempt]))]
+urlpatterns = [re_path(r"^", include(router.urls)), re_path(r"^resource/$", dispatcher.as_view([login_exempt]))]

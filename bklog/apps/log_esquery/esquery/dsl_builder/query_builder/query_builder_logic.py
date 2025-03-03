@@ -86,7 +86,7 @@ class EsQueryBuilder(object):
         search = Search()
 
         try:
-            query_tree = parser.parse(search_string, lexer=lexer)
+            query_tree = parser.parse(search_string, lexer=lexer.clone())
         except ParseError:
             raise BaseSearchDslException(BaseSearchDslException.MESSAGE.format(dsl=search_string))
 

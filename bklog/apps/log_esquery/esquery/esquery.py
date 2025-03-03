@@ -397,6 +397,6 @@ class EsQuery(object):
         logger.info(
             f"[time_start_end_builder] start_time=>{start_time}, end_time=>{end_time}, "
             f"time_zone=>{time_zone}, local_time_zone=>{local_time_zone}, "
-            f"output: {start_time.timestamp} {end_time.timestamp}"
+            f"output: {int(start_time.timestamp())} {int(end_time.timestamp())}"
         )
         return start_time, end_time

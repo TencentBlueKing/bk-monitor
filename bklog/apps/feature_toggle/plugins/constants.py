@@ -52,3 +52,6 @@ DIRECT_ESQUERY_SEARCH = "direct_esquery_search"
 
 # 日志脱敏开关
 LOG_DESENSITIZE = "log_desensitize"
+
+# AI 助手
+AI_ASSISTANT = 'ai_assistant'

@@ -26,15 +26,15 @@ the project delivered to anyone in the future.
 2. 更新项目信息
 3. 更新用户组信息
 """
+from blueapps.contrib.celery_tools.periodic import periodic_task  # noqa
 from celery.schedules import crontab  # noqa
-from celery.task import periodic_task  # noqa
 from django.conf import settings  # noqa
 
-from apps.utils.log import logger  # noqa
 from apps.log_search.handlers.biz import BizHandler  # noqa
-from apps.log_search.models import ProjectInfo, BizProperty  # noqa
+from apps.log_search.models import BizProperty, ProjectInfo  # noqa
 from apps.utils.db import array_chunk  # noqa
 from apps.utils.lock import share_lock  # noqa
+from apps.utils.log import logger  # noqa
 
 
 @periodic_task(run_every=crontab(minute="*/1"))

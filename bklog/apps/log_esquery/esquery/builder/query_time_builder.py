@@ -93,7 +93,7 @@ class QueryTimeBuilder(object):
 
     def time_serilizer(self, start_time: Any, end_time: Any) -> Tuple[Union[Any, int], Union[Any, int]]:
         # 序列化接口能够识别的时间格式
-        return start_time.timestamp, end_time.timestamp
+        return int(start_time.timestamp()), int(end_time.timestamp())
 
     def _start_time_filter(self, include_start_time):
         if include_start_time:

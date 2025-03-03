@@ -21,7 +21,7 @@
 
   const refDataTrendCanvas = ref(null);
 
-  const handleChartDataZoom = inject('handleChartDataZoom', () => { });
+  const handleChartDataZoom = inject('handleChartDataZoom', () => {});
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
     handleChartDataZoom,
@@ -97,7 +97,7 @@
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
         ...retrieveParams.value,
-        addition: [...retrieveParams.value.addition, ...retrieveParams.value.common_filter_addition],
+        addition: [...retrieveParams.value.addition, ...store.getters.common_filter_addition],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间
@@ -200,8 +200,14 @@
   };
 </script>
 <template>
-  <div v-bkloading="{ isLoading: isRenderLoading }" class="monitor-echart-wrap">
-    <div ref="refDataTrendCanvas" style="height: 110px"></div>
+  <div
+    v-bkloading="{ isLoading: isRenderLoading }"
+    class="monitor-echart-wrap"
+  >
+    <div
+      ref="refDataTrendCanvas"
+      style="height: 110px"
+    ></div>
   </div>
 </template>
 <style lang="scss" scoped>

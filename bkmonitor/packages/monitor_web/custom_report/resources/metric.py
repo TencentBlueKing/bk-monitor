@@ -589,16 +589,16 @@ class ModifyCustomTsFields(Resource):
         class FieldSerializer(serializers.Serializer):
             name = serializers.CharField(required=True, label="字段名")
             type = serializers.CharField(required=True, label="字段类型")
-            description = serializers.CharField(required=False, label="字段描述")
+            description = serializers.CharField(required=False, label="字段描述", allow_blank=True)
             disabled = serializers.BooleanField(required=False, label="是否禁用")
 
             # 维度属性
             common = serializers.BooleanField(required=False, label="是否常用字段")
 
             # 指标属性
-            unit = serializers.CharField(required=False, label="字段单位")
+            unit = serializers.CharField(required=False, label="字段单位", allow_blank=True)
             hidden = serializers.BooleanField(required=False, label="是否隐藏")
-            aggregate_method = serializers.CharField(required=False, label="聚合方法")
+            aggregate_method = serializers.CharField(required=False, label="聚合方法", allow_blank=True)
             function = serializers.JSONField(required=False, label="指标函数")
             interval = serializers.IntegerField(required=False, label="指标周期")
 

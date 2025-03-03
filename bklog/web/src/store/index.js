@@ -41,8 +41,6 @@ import {
   getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-// import axios from 'axios';
-import { axiosInstance } from '@/api';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -60,6 +58,8 @@ import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
+// import axios from 'axios';
+import { axiosInstance } from '@/api';
 import http from '@/api';
 
 Vue.use(Vuex);
@@ -219,6 +219,7 @@ const store = new Vuex.Store({
     isShowMaskingTemplate: state =>
       state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
     isLimitExpandView: state => state.isLimitExpandView,
+    common_filter_addition: state => state.retrieve.catchFieldCustomConfig.filterAddition ?? [],
     // @ts-ignore
     retrieveParams: state => {
       const {
@@ -234,8 +235,6 @@ const store = new Vuex.Store({
         search_mode,
         sort_list,
       } = state.indexItem;
-
-      const common_filter_addition = state.retrieve.catchFieldCustomConfig.filterAddition ?? [];
 
       const filterAddition = addition
         .filter(item => !item.disabled && item.field !== '_ip-select_')
@@ -273,7 +272,6 @@ const store = new Vuex.Store({
         sort_list,
         bk_biz_id: state.bkBizId,
         ...searchParams,
-        common_filter_addition,
       };
     },
     isNewRetrieveRoute: () => {
@@ -290,7 +288,6 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
-
     updatetableJsonFormatDepth(state, val) {
       state.tableJsonFormatDepth = val;
     },
@@ -740,19 +737,48 @@ const store = new Vuex.Store({
       }
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
+    /**
+     * @desc: 用于更新可见field
+     * 根据传入的 `payload` 参数更新当前可见的字段。`payload` 可以是一个字段名称的数组，
+     * 或者是包含字段名称数组和版本信息的对象。
+     *
+     * @param {Array | Object} payload  - 可传入字段名称数组或包含字段数组以及版本信息的对象。
+     *   - 当为数组时，表示字段名称列表。
+     *   - 当为对象时，应包含以下属性：
+     *     - {Array} displayFieldNames - 字段名称数组。
+     *     - {string} version - 版本信息，包含 v2时，表示是新版本设计，目前包含了object字段层级展示的添加功能，后续如果需要区别于之前的逻辑处理，可以参照此逻辑处理(暂不生效)
+     *
+     */
     resetVisibleFields(state, payload) {
+      const isVersion2Payload = payload?.version === 'v2';
       const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
       const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-      const filterList = (payload || displayFields) ?? state.indexFieldInfo.display_fields;
+      const filterList =
+        (isVersion2Payload ? payload.displayFieldNames : payload || displayFields) ??
+        state.indexFieldInfo.display_fields;
       const visibleFields =
         filterList
           .map(displayName => {
-            for (const field of state.indexFieldInfo.fields) {
-              if (field.field_name === displayName) {
-                return field;
-              }
-            }
+            const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
+            if (field) return field;
+            return {
+              field_type: 'object',
+              field_name: displayName,
+              field_alias: '',
+              is_display: false,
+              is_editable: true,
+              tag: '',
+              origin_field: '',
+              es_doc_values: true,
+              is_analyzed: false,
+              field_operator: [],
+              is_built_in: true,
+              is_case_sensitive: false,
+              tokenize_on_chars: '',
+              description: '',
+              filterVisible: true,
+            };
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
@@ -1118,7 +1144,7 @@ const store = new Vuex.Store({
         state.searchTotal = 0;
         commit('updateSqlQueryFieldList', []);
         commit('updateIndexSetQueryResult', { is_error: false, exception_msg: '' });
-        return Promise.reject({ message: `index_set_id is undefined` });
+        return; // Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
       const { size, ...otherPrams } = getters.retrieveParams;
@@ -1162,7 +1188,7 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [...otherPrams.addition, ...(otherPrams.common_filter_addition ?? [])],
+        addition: [...otherPrams.addition, ...(getters.common_filter_addition ?? [])],
       };
 
       // 更新联合查询的begin
@@ -1603,7 +1629,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time,
               end_time,
-              addition: [...getters.retrieveParams.addition, ...(getters.retrieveParams.common_filter_addition ?? [])],
+              addition: [...getters.retrieveParams.addition, ...(getters.common_filter_addition ?? [])],
             },
           },
           {
