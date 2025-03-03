@@ -37,6 +37,7 @@ import { tableData } from './mock-data';
 import { refreshList } from './utils';
 
 import type { IDimensionItem, IRefreshItem } from '../type';
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
 
@@ -59,6 +60,8 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     ],
   })
   dimensionsList: IDimensionItem[];
+  // 图表panel实例
+  @Prop({ default: false }) panel: PanelModel;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
 
   /* 主动刷新图表 */
@@ -74,6 +77,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   drag = { height: 550, minHeight: 300, maxHeight: 550 };
   divHeight = 0;
   resizeObserver = null;
+
   mounted() {
     this.refreshList = refreshList;
     this.$nextTick(() => {
@@ -120,7 +124,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   handleTimezoneChange(timezone: string) {
     this.timezone = timezone;
   }
-  //  支持上下拖拽
+  /** 支持上下拖拽 */
   handleResizing(height: number) {
     this.drag.height = height;
     this.chartKey = random(8);
@@ -187,6 +191,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
                 style={{ height: `${this.drag.height - 30}px` }}
                 chartHeight={this.drag.height}
                 isToolIconShow={false}
+                panel={this.panel}
               />
             </div>
             <div

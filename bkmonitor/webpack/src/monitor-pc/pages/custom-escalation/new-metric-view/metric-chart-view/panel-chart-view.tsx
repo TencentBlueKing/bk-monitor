@@ -23,15 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch } from 'vue-property-decorator';
+import { Component, Watch, Provide } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { type IPanelModel } from 'monitor-ui/chart-plugins/typings';
+
+import { api } from './api';
+import DrillAnalysisView from './drill-analysis-view';
 import LayoutChartTable from './layout-chart-table';
 import NewMetricChart from './metric-chart';
-import DrillAnalysisView from './drill-analysis-view';
 import { tableData, panelData } from './mock-data';
 
-import type { IDimensionItem, IColumnItem, IDataItem } from '../type';
+import type { IColumnItem, IDataItem } from '../type';
 
 import './panel-chart-view.scss';
 
@@ -40,9 +43,10 @@ const DEFAULT_HEIGHT = 600;
 
 @Component
 export default class PanelChartView extends tsc<object> {
-  activeName = ['1', '2', '0'];
-  panel = panelData;
-  collapseRefsHeight: number[] = [];
+  @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
+  activeName = ['12.31.342.12', '2', '0'];
+  groupList = api.data.groups;
+  collapseRefsHeight: number[][] = [];
   columnList = [
     { label: '', prop: 'max', renderFn: (row: IDataItem) => this.renderLegend(row) },
     { label: '最大值', prop: 'environment' },
@@ -54,13 +58,20 @@ export default class PanelChartView extends tsc<object> {
   /** 是否展示维度下钻view */
   showDrillDown = false;
   tableList = tableData;
+
+  currentChart = {};
   /** 拉伸的时候图表重新渲染 */
-  @Watch('panel.length', { immediate: true })
+  @Watch('groupList', { immediate: true })
   handlePanelChange(val) {
+    if (val.length === 0) return;
     this.collapseRefsHeight = [];
-    Array(val)
-      .fill(0)
-      .map((_, index) => (this.collapseRefsHeight[index] = DEFAULT_HEIGHT));
+    val.map((item, ind) => {
+      const len = item.panels.length;
+      this.collapseRefsHeight[ind] = [];
+      Array(len)
+        .fill(0)
+        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / 2)] = DEFAULT_HEIGHT));
+    });
   }
   renderLegend(row: IDataItem) {
     return (
@@ -104,12 +115,12 @@ export default class PanelChartView extends tsc<object> {
     );
   }
   /** 渲染panel的内容 */
-  renderPanelMain(item, chart, ind) {
-    if (item.list.length === 1) {
+  renderPanelMain(item, chart, ind, chartInd) {
+    if (item.panels.length === 1) {
       return (
         <div class='chart-view-item single-item'>
           <div class='indicator-chart-view'>
-            <NewMetricChart />
+            <NewMetricChart panel={chart} />
           </div>
           <div class='indicator-table-view'>{this.renderIndicatorTable()}</div>
         </div>
@@ -118,9 +129,10 @@ export default class PanelChartView extends tsc<object> {
     return (
       <div class='chart-view-item'>
         <LayoutChartTable
-          height={this.collapseRefsHeight[ind]}
-          onDrillDown={this.handelDrillDown}
-          onResize={height => this.handleResize(height, ind)}
+          height={this.collapseRefsHeight[ind][Math.floor(chartInd / 2)]}
+          panel={chart}
+          onDrillDown={() => this.handelDrillDown(chart)}
+          onResize={height => this.handleResize(height, ind, chartInd)}
         >
           {this.renderIndicatorTable()}
         </LayoutChartTable>
@@ -128,13 +140,14 @@ export default class PanelChartView extends tsc<object> {
     );
   }
   /** 拉伸 */
-  handleResize(height: number, ind: number) {
-    this.$set(this.collapseRefsHeight, ind, height);
+  handleResize(height: number, ind: number, chartInd: number) {
+    this.collapseRefsHeight[ind][Math.floor(chartInd / 2)] = height;
+    this.collapseRefsHeight = [...this.collapseRefsHeight];
   }
   /** 维度下钻 */
-  handelDrillDown() {
-    console.log('维度下钻');
+  handelDrillDown(chart: IPanelModel) {
     this.showDrillDown = true;
+    this.currentChart = chart;
   }
 
   render() {
@@ -144,29 +157,34 @@ export default class PanelChartView extends tsc<object> {
           class='chart-view-collapse'
           v-model={this.activeName}
         >
-          {this.panel.map((item, ind) => (
+          {this.groupList.map((item, ind) => (
             <bk-collapse-item
-              key={item.id}
+              key={item.name}
               class='chart-view-collapse-item'
               content-hidden-type='hidden'
               hide-arrow={true}
-              name={item.id}
+              name={item.name}
             >
               <span
-                class={`icon-monitor item-icon icon-mc-arrow-${this.activeName.includes(item.id) ? 'down' : 'right'}`}
+                class={`icon-monitor item-icon icon-mc-arrow-${this.activeName.includes(item.name) ? 'down' : 'right'}`}
                 slot='icon'
               ></span>
-              {item.title}
+              {item.name}
               <div
                 class='chart-view-collapse-item-content'
                 slot='content'
               >
-                {item.list.map(chart => this.renderPanelMain(item, chart, ind))}
+                {item.panels.map((chart, chartInd) => this.renderPanelMain(item, chart, ind, chartInd))}
               </div>
             </bk-collapse-item>
           ))}
         </bk-collapse>
-        {this.showDrillDown && <DrillAnalysisView onClose={() => (this.showDrillDown = false)} />}
+        {this.showDrillDown && (
+          <DrillAnalysisView
+            panel={this.currentChart}
+            onClose={() => (this.showDrillDown = false)}
+          />
+        )}
       </div>
     );
   }

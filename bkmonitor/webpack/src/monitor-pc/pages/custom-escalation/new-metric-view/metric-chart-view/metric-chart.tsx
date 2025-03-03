@@ -23,24 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Prop, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Watch, Provide } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
+import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
+import { CancelToken } from 'monitor-api/index';
+import { alertDateHistogram } from 'monitor-api/modules/alert';
+import { dimensionUnifyQuery, graphUnifyQuery, logQuery } from 'monitor-api/modules/grafana';
+import { Debounce } from 'monitor-common/utils/utils';
+import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
-import {
-  ChartLoadingMixin,
-  ErrorMsgMixins,
-  IntersectionMixin,
-  ResizeMixin,
-  ToolsMxin,
-} from 'monitor-ui/chart-plugins/mixins';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-tab';
+import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import { downFile, handleRelateAlert, reviewInterval } from 'monitor-ui/chart-plugins/utils';
+import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import { mockChart } from './data';
 import { metricData } from './mock-data';
+
+import type { ICommonCharts, IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './metric-chart.scss';
 const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'INC'];
@@ -48,6 +52,7 @@ const APM_CUSTOM_METHODS = ['SUM', 'AVG', 'MAX', 'MIN', 'INC'];
 interface INewMetricChartProps {
   chartHeight?: number;
   isToolIconShow?: boolean;
+  panel?: PanelModel;
 }
 interface INewMetricChartEvents {
   onMenuClick?: any;
@@ -55,13 +60,9 @@ interface INewMetricChartEvents {
 }
 /** 图表 - 曲线图 */
 @Component
-class NewMetricChart extends Mixins<ChartLoadingMixin & IntersectionMixin & ToolsMxin & ResizeMixin & ErrorMsgMixins>(
-  IntersectionMixin,
-  ChartLoadingMixin,
-  ToolsMxin,
-  ResizeMixin,
-  ErrorMsgMixins
-) {
+class NewMetricChart extends CommonSimpleChart {
+  // 图表panel实例
+  // @Prop({ default: false }) readonly panel: PanelModel;
   @Prop({ default: 300 }) chartHeight: number;
   @Prop({ default: true }) isToolIconShow: boolean;
   methodList = APM_CUSTOM_METHODS.map(method => ({
@@ -69,9 +70,10 @@ class NewMetricChart extends Mixins<ChartLoadingMixin & IntersectionMixin & Tool
     name: method,
   }));
   width = 300;
-  inited = true;
+  init = true;
   metrics = metricData;
   collectIntervalDisplay = '1m';
+  cancelTokens = [];
   options = {
     tooltip: {
       className: 'new-metric-chart-tooltips',
@@ -113,16 +115,10 @@ class NewMetricChart extends Mixins<ChartLoadingMixin & IntersectionMixin & Tool
   };
   empty = false;
   emptyText = window.i18n.tc('暂无数据');
-  panel = {
-    title: '磁盘空间使用率',
-    descrition: '2',
-    draging: false,
-    instant: false,
-    subTitle: 'system.mem.pct_used',
-    dashboardId: 'new-metric-chart',
-  };
+  // x轴格式化函数
+  formatterFunc = null;
   method = 'SUM';
-  timeRange = ['', ''];
+  loading = false;
 
   /** 操作的icon列表 */
   get handleIconList() {
@@ -147,6 +143,61 @@ class NewMetricChart extends Mixins<ChartLoadingMixin & IntersectionMixin & Tool
     //   method,
     // };
     // this.getPanelData();
+  }
+  /**
+   * @description: 获取图表数据
+   */
+  @Debounce(100)
+  async getPanelData() {
+    this.cancelTokens.forEach(cb => cb?.());
+    this.cancelTokens = [];
+    if (!this.isInViewPort()) {
+      if (this.intersectionObserver) {
+        this.unregisterOberver();
+      }
+      this.registerObserver();
+      return;
+    }
+    this.formatterFunc = generateFormatterFunc(this.timeRange);
+    if (this.init) this.handleLoadingChange(true);
+    this.emptyText = window.i18n.tc('加载中...');
+    this.loading = true;
+    try {
+      this.unregisterOberver();
+      // const [start, end] = handleTransformToTimestamp(this.timeRange);
+      // const params = {
+      //   bk_biz_id: 105,
+      //   start_time: 1740996743,
+      //   end_time: 1741000343,
+      //   expression: 'A',
+      //   down_sample_range: '9s',
+      //   query_configs: this.panel.targets[0]?.query_configs,
+      // };
+      // const { series } = await graphUnifyQuery(params, {
+      //   cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+      //   needMessage: false,
+      // });
+      // console.log(series, params, 'variablesService', this.panel.targets);
+      // if (series?.length) {
+      //   this.empty = false;
+      //   this.updateChartData(this.options);
+      // } else {
+      //   this.empty = true;
+      //   this.emptyText = window.i18n.tc('暂无数据');
+      // }
+      this.updateChartData(this.options);
+    } catch {
+      this.empty = true;
+      this.emptyText = window.i18n.tc('出错了');
+    } finally {
+      this.cancelTokens = [];
+      this.loading = false;
+    }
+    this.handleLoadingChange(false);
+  }
+
+  updateChartData(srcData) {
+    this.options = srcData;
   }
   /**
    * @description: 下载图表为png图片
@@ -216,19 +267,20 @@ class NewMetricChart extends Mixins<ChartLoadingMixin & IntersectionMixin & Tool
     }
   }
   render() {
+    console.log(this.panel, 'this.panel');
     return (
       <div class='new-metric-chart'>
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
-          draging={this.panel.draging}
+          // draging={this.panel.draging}
           isHoverShow={true}
-          isInstant={this.panel.instant}
+          // isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics}
           needMoreMenu={true}
           showMore={true}
-          subtitle={this.panel.subTitle || ''}
+          subtitle={this.panel.sub_title || ''}
           title={this.panel.title}
           onMenuClick={this.handleIconClick}
         >
@@ -265,7 +317,7 @@ class NewMetricChart extends Mixins<ChartLoadingMixin & IntersectionMixin & Tool
               ref='chart'
               class='chart-instance'
             >
-              {this.inited && (
+              {this.init && (
                 <BaseEchart
                   ref='baseChart'
                   width={this.width}

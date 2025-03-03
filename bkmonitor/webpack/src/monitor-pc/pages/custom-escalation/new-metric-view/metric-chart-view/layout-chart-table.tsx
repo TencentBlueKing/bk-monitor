@@ -30,6 +30,8 @@ import { random } from 'monitor-common/utils';
 
 import NewMetricChart from './metric-chart';
 
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
+
 import './layout-chart-table.scss';
 interface IDragInfo {
   height: number;
@@ -42,6 +44,7 @@ interface ILayoutChartTableProps {
   isToolIconShow?: boolean;
   height?: number;
   minHeight?: number;
+  panel?: PanelModel;
 }
 interface ILayoutChartTableEvents {
   onResize?: number;
@@ -49,6 +52,8 @@ interface ILayoutChartTableEvents {
 }
 @Component
 export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayoutChartTableEvents> {
+  // 图表panel实例
+  @Prop({ default: false }) readonly panel: PanelModel;
   /* 拖拽数据 */
   @Prop({ default: () => ({ height: 300, minHeight: 180, maxHeight: 400 }) }) drag: IDragInfo;
   @Prop({ default: true }) isToolIconShow: boolean;
@@ -144,6 +149,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
               style={{ height: `${this.drag.height - 30}px` }}
               chartHeight={this.drag.height}
               isToolIconShow={this.isToolIconShow}
+              panel={this.panel}
               onDrillDown={this.handelDrillDown}
             />
           </div>

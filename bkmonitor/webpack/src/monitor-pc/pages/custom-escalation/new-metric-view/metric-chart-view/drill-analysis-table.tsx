@@ -27,6 +27,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
+import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import type { IDimensionItem, IColumnItem, IDataItem } from '../type';
 
@@ -41,6 +42,7 @@ interface IDrillAnalysisTableProps {
 
 interface IDrillAnalysisTableEvent {
   onUpdateDimensions: (v: IDimensionItem[]) => void;
+  onShowDetail?: (v: IDataItem, item: IDimensionItem) => void;
 }
 
 @Component
@@ -58,6 +60,10 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   drillList = [];
   /** 已经下钻了的维度值 */
   drillValue = '';
+  /** 显示维度趋势图 */
+  isShowDetail = false;
+  /** 显示维度趋势图 维度id */
+  filterDimensionValue = '';
 
   /** 需要展示的维度列 */
   get dimensionsColumn() {
@@ -74,6 +80,28 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       }
     });
     return list;
+  }
+  get dimensionOptions() {
+    if (!this.tableList?.length) return [];
+    const options = new Map();
+    for (const item of this.tableList) {
+      const dimensions = item?.dimensions;
+      const name = this.getDimensionId(dimensions || {});
+      if (!options.has(name)) {
+        options.set(name, { name, id: name, dimensions });
+      }
+    }
+    return Array.from(options.values());
+  }
+
+  getDimensionId(dimensions: Record<string, string>) {
+    let name = '';
+    for (const [key, val] of Object.entries(dimensions || {})) {
+      if (key === 'time') continue;
+      const tag = this.dimensionsList.find(item => item.value === key);
+      name += ` ${tag?.text}:${val || '--'} `;
+    }
+    return name;
   }
 
   /** 维度选择侧栏 start */
@@ -178,10 +206,16 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     );
   }
   /** 绘制维度列 */
-  renderDimensionRow(row, item: IDimensionItem) {
+  renderDimensionRow(row: IDataItem, item: IDimensionItem) {
     return (
       <span class='dimensions-value'>
-        {row[item.key]}
+        <span
+          class='dimensions-value-text'
+          v-bk-overflow-tips
+          onClick={() => this.handleShowDetail(row, item)}
+        >
+          {row[item.key]}
+        </span>
         <i
           class='icon-monitor icon-mc-copy tab-row-icon'
           onClick={() => this.copyValue(row[item.key])}
@@ -232,6 +266,16 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       );
     });
   }
+  /** 修改维度趋势图下拉 */
+  handleFilterChange(id: string) {
+    this.filterDimensionValue = id;
+    // this.handleRawCallOptionsChange();
+  }
+  /** 展示维度趋势侧滑抽屉 */
+  handleShowDetail(row: IDataItem, item: IDimensionItem) {
+    this.isShowDetail = true;
+    this.$emit('showDetail', row, item);
+  }
 
   /** 复制内容 */
   copyValue(text: string) {
@@ -263,6 +307,28 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   /**  清空下钻过滤条件  */
   clearDrillFilter(item: IDimensionItem) {
     this.drillList = this.drillList.filter(drill => item.key !== drill.key);
+  }
+  createOption(dimensions: Record<string, string>) {
+    return (
+      <div class='options-wrapper'>
+        {Object.entries(dimensions || {})
+          .map(([key, value]) => {
+            if (key === 'time') return undefined;
+            const tag = this.dimensionsList.find(item => item.value === key);
+            return (
+              <div
+                key={key}
+                class='options-wrapper-item'
+              >
+                <span>
+                  {tag.text}:{value || '--'}
+                </span>
+              </div>
+            );
+          })
+          .filter(Boolean)}
+      </div>
+    );
   }
   /** 维度表格 end */
 
@@ -314,6 +380,52 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
             {this.renderTableColumn()}
           </bk-table>
         </div>
+        {/* 维度趋势图侧栏 */}
+        <bk-sideslider
+          width={640}
+          ext-cls='drill-multi-detail-slider'
+          isShow={this.isShowDetail}
+          quick-close={true}
+          title={this.$t('维度趋势图')}
+          transfer={true}
+          {...{ on: { 'update:isShow': v => (this.isShowDetail = v) } }}
+        >
+          {this.isShowDetail && (
+            <div
+              class='content-wrap'
+              slot='content'
+            >
+              <div class='drill-multi-slider-filter'>
+                <span class='filter-title'>{this.$t('维度')} ：</span>
+                <bk-select
+                  class='filter-select'
+                  behavior='simplicity'
+                  clearable={false}
+                  value={this.filterDimensionValue}
+                  searchable
+                  onChange={this.handleFilterChange}
+                >
+                  {this.dimensionOptions.map(option => (
+                    <bk-option
+                      id={option.id}
+                      key={option.id}
+                      name={option.name}
+                    >
+                      {this.createOption(option.dimensions)}
+                    </bk-option>
+                  ))}
+                </bk-select>
+              </div>
+              <div class='drill-multi-slider-chart'>
+                <DashboardPanel
+                  id={'drill-table-extra_panels'}
+                  column={1}
+                  panels={this.panel.extra_panels}
+                />
+              </div>
+            </div>
+          )}
+        </bk-sideslider>
       </div>
     );
   }
