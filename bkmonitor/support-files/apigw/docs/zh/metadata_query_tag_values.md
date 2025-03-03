@@ -4,9 +4,6 @@
 
 查询数据源指定指定tag/dimension的可选值
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 

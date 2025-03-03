@@ -2,9 +2,6 @@
 
 查询告警策略
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 
@@ -198,7 +195,7 @@
                         "method": "eq",
                         "value": [
                             {
-                                "bk_target_ip": "10.0.0.1",
+                                "bk_target_ip": "127.0.0.1",
                                 "bk_target_cloud_id": 0
                             }
                         ]

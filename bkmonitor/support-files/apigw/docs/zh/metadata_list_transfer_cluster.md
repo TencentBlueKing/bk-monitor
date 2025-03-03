@@ -2,9 +2,6 @@
 
 获取所有transfer集群信息
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 
