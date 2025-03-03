@@ -7,7 +7,7 @@ info:
 schemes:
 - http
 paths:
-  /app/calendar/save_calendar/:
+  /app/calendar/save/:
     post:
       operationId: save_calendar
       description: 保存日历
@@ -25,7 +25,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: save calendar
-  /app/calendar/edit_calendar/:
+  /app/calendar/edit/:
     post:
       operationId: edit_calendar
       description: 修改日历
@@ -43,7 +43,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: edit calendar
-  /app/calendar/delete_calendar/:
+  /app/calendar/delete/:
     post:
       operationId: delete_calendar
       description: 删除日历
@@ -61,7 +61,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: delete calendar
-  /app/calendar/get_calendar/:
+  /app/calendar/get/:
     get:
       operationId: get_calendar
       description: 获取日历详情
@@ -79,7 +79,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: get calendar
-  /app/calendar/list_calendar/:
+  /app/calendar/list/:
     get:
       operationId: list_calendar
       description: 获取日历列表
@@ -97,7 +97,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: list calendar
-  /app/calendar/save_item/:
+  /app/calendar/item/save/:
     post:
       operationId: save_item
       description: 保存日历事项
@@ -115,7 +115,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: save item
-  /app/calendar/edit_item/:
+  /app/calendar/item/edit/:
     post:
       operationId: edit_item
       description: 修改日历事项
@@ -133,7 +133,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: edit item
-  /app/calendar/delete_item/:
+  /app/calendar/item/delete/:
     post:
       operationId: delete_item
       description: 删除日历事项
@@ -151,7 +151,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: delete item
-  /app/calendar/item_detail/:
+  /app/calendar/item/detail/:
     get:
       operationId: item_detail
       description: 获取某些日历下某个时间点的所有事项
@@ -169,7 +169,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: item detail
-  /app/calendar/item_list/:
+  /app/calendar/item/list/:
     get:
       operationId: item_list
       description: 查询规定日期内的所有日历事项列表

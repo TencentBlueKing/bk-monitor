@@ -25,7 +25,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: search user group latest
-  /app/user_group/search_detail/:
+  /app/user_group/detail/:
     post:
       operationId: search_user_group_detail
       description: 查询单个用户组详情
