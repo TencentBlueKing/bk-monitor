@@ -233,7 +233,7 @@ class ListK8SResources(Resource):
         bcs_cluster_id = serializers.CharField(required=True)
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
             label="资源类型",
         )
         # 用于模糊查询

@@ -15,7 +15,7 @@ from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
-from bkmonitor.models import BCSContainer, BCSPod, BCSWorkload
+from bkmonitor.models import BCSContainer, BCSIngress, BCSPod, BCSWorkload
 from bkmonitor.utils.time_tools import hms_string
 from core.drf_resource import resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -538,6 +538,12 @@ class K8sNamespaceMeta(K8sResourceMeta):
         )
 
 
+class K8sIngressMeta(K8sResourceMeta):
+    resource_field = "ingress"
+    resource_class = BCSIngress
+    column_mapping = {"ingress_name": "name"}
+
+
 class K8sWorkloadMeta(K8sResourceMeta):
     # todo 支持多workload
     resource_field = "workload_name"
@@ -809,6 +815,8 @@ def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: str) 
         'pod_name': K8sPodMeta,
         'workload': K8sWorkloadMeta,
         'namespace': K8sNamespaceMeta,
+        'ingress': K8sIngressMeta,
+        'service': None,
     }
     if resource_type not in resource_meta_map:
         return None
