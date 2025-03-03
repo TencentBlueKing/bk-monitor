@@ -37,18 +37,18 @@
           class="field-label"
         >
           <span
+            :style="{ backgroundColor: getFieldIconColor(field.field_name) }"
             class="field-type-icon mr5"
             v-bk-tooltips="fieldTypePopover(field.field_name)"
             :class="getFieldIcon(field.field_name)"
-            :style="{ backgroundColor: getFieldIconColor(field.field_name) }"
           ></span>
           <span class="field-text">{{ getFieldName(field) }}</span>
         </div>
         <div class="field-value">
           <template v-if="isJsonFormat(formatterStr(data, field.field_name))">
             <JsonFormatter
-              :jsonValue="formatterStr(data, field.field_name)"
               :fields="getFieldItem(field.field_name)"
+              :json-value="formatterStr(data, field.field_name)"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </template>
@@ -63,10 +63,10 @@
           </span>
           <template v-if="!isJsonFormat(formatterStr(data, field.field_name))">
             <text-segmentation
+              :auto-width="true"
               :content="formatterStr(data, field.field_name)"
               :field="getFieldItem(field.field_name)"
-              :forceAll="true"
-              :autoWidth="true"
+              :force-all="true"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             />
           </template>
@@ -78,12 +78,13 @@
 
 <script>
   import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
+  import JsonFormatter from '@/global/json-formatter.vue';
+  import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
-  import JsonFormatter from '@/global/json-formatter.vue';
+
   import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
-  import { getFieldNameByField } from '@/hooks/use-field-name';
   export default {
     components: {
       TextSegmentation,
@@ -155,6 +156,7 @@
       ...mapState({
         formatJson: state => state.tableJsonFormat,
         showFieldAlias: state => state.showFieldAlias ?? false,
+        isAllowEmptyField: state => state.tableAllowEmptyField,
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -163,7 +165,8 @@
         return this.$store.state.bkBizId;
       },
       showFieldList() {
-        return this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name));
+        const results = this.isAllowEmptyFieldData();
+        return results;
       },
       fieldKeyMap() {
         return this.totalFields
@@ -187,6 +190,27 @@
         // 当前是否有bk_host_id字段且有值
         return !!this.data?.bk_host_id;
       },
+    },
+    watch: {
+      isAllowEmptyField() {
+        const results = this.isAllowEmptyFieldData();
+        this.renderList = [...results];
+      },
+    },
+    mounted() {
+      const size = 40;
+      let startIndex = 0;
+
+      const setRenderList = () => {
+        if (startIndex < this.showFieldList.length) {
+          this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
+          startIndex = startIndex + size;
+
+          setTimeout(setRenderList);
+        }
+      };
+
+      setRenderList();
     },
     methods: {
       isJsonFormat(content) {
@@ -332,21 +356,14 @@
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
       },
-    },
-    mounted() {
-      const size = 40;
-      let startIndex = 0;
-
-      const setRenderList = () => {
-        if (startIndex < this.showFieldList.length) {
-          this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
-          startIndex = startIndex + size;
-
-          setTimeout(setRenderList);
+      // 展示空字段数据格式化
+      isAllowEmptyFieldData() {
+        let results = this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name));
+        if (!this.isAllowEmptyField) {
+          results = results.filter(item => !['--', '{}', '[]'].includes(this.formatterStr(this.data, item.field_name)));
         }
-      };
-
-      setRenderList();
+        return results;
+      },
     },
   };
 </script>

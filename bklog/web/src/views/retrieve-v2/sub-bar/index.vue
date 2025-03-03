@@ -5,17 +5,16 @@
   import VersionSwitch from '@/global/version-switch.vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import { RetrieveUrlResolver } from '@/store/url-resolver';
 
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from '../search-bar/query-history';
-  import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
-  import { bus } from '@/common/bus';
+  import TimeSetting from './time-setting.vue';
 
   const props = defineProps({
     showFavorites: {
@@ -150,8 +149,8 @@
       <TimeSetting></TimeSetting>
       <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
       <div
-        class="more-setting"
         v-if="!isExternal"
+        class="more-setting"
       >
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div>

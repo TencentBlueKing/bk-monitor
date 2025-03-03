@@ -1,11 +1,11 @@
 <script setup>
   import { computed } from 'vue';
-  import { RetrieveUrlResolver } from '@/store/url-resolver';
 
   import TimeRange from '@/components/time-range/time-range';
   import { handleTransformToTimestamp } from '@/components/time-range/utils';
   import useStore from '@/hooks/use-store';
   import { updateTimezone } from '@/language/dayjs';
+  import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { useRoute, useRouter } from 'vue-router/composables';
   const store = useStore();
   const route = useRoute();
