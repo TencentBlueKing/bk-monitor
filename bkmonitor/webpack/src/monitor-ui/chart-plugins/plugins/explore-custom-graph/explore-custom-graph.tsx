@@ -36,8 +36,6 @@ import ExploreChartSkeleton from './components/explore-chart-skeleton';
 import ExploreCollapseWrapper from './components/explore-collapse-wrapper';
 import ExploreIntervalSelect from './components/explore-interval-select';
 
-import type { ILegendOption } from '../../typings';
-
 import './explore-custom-graph.scss';
 
 export type IntervalType = 'auto' | number;
@@ -61,10 +59,10 @@ export class ExploreCustomChart extends TimeSeries {
   duration = 0;
   requestConfig = {
     /** 图表loading */
-    loading: false,
+    loading: true,
     /** 图表数据接口请求耗时 */
     duration: 0,
-    lastTime: 0,
+    lastTime: +new Date(),
   };
 
   get showLegendTags() {
@@ -80,8 +78,8 @@ export class ExploreCustomChart extends TimeSeries {
   handleLoadingChange(loading: boolean) {
     const now = +new Date();
     this.requestConfig.duration = loading ? 0 : now - this.requestConfig.lastTime;
-    this.requestConfig.loading = loading;
     this.requestConfig.lastTime = now;
+    this.requestConfig.loading = loading;
     return loading;
   }
 
@@ -108,20 +106,6 @@ export class ExploreCustomChart extends TimeSeries {
    * @description 图表头部右侧区域渲染
    */
   wrapperHeaderCustomSlotRender() {
-    if (this.requestConfig.loading) {
-      return (
-        <div class='graph-header-custom'>
-          <div
-            style={{ width: '240px', height: '100%' }}
-            class='skeleton-element'
-          />
-          <div
-            style={{ width: '120px', height: '100%' }}
-            class='skeleton-element'
-          />
-        </div>
-      );
-    }
     return (
       <div class='graph-header-custom'>
         <div class='graph-header-custom-tags'>
@@ -173,9 +157,10 @@ export class ExploreCustomChart extends TimeSeries {
 
   /**
    * @description 请求完成后 content 区域内容的渲染
-   * @param {ILegendOption} legend
    */
-  requestSuccessContentRender(legend: ILegendOption) {
+  requestSuccessContentRender() {
+    const { legend } = this.panel?.options || { legend: {} };
+
     if (this.empty) {
       return <div class='empty-chart'>{this.emptyText}</div>;
     }
@@ -222,27 +207,19 @@ export class ExploreCustomChart extends TimeSeries {
   }
 
   render() {
-    const { legend } = this.panel?.options || { legend: {} };
     return (
       <div class='time-series explore-custom-graph'>
         <ExploreCollapseWrapper
           scopedSlots={{
-            headerTrigger: () => {
-              return this.requestConfig.loading ? (
-                <div
-                  style={{ width: '260px', height: '100%' }}
-                  class='skeleton-element'
-                />
-              ) : null;
-            },
             triggerDescription: this.wrapperHeaderDescriptionSlotRender,
             headerCustom: this.wrapperHeaderCustomSlotRender,
           }}
           description={this.panel?.descrition}
           title={this.panel?.title}
         >
-          {this.requestConfig.loading ? <ExploreChartSkeleton /> : this.requestSuccessContentRender(legend)}
+          {this.requestSuccessContentRender()}
         </ExploreCollapseWrapper>
+        <ExploreChartSkeleton style={{ visibility: this.requestConfig.loading ? 'visible' : 'hidden' }} />
       </div>
     );
   }
