@@ -146,6 +146,18 @@ class SpaceFilter(ResourceFilter):
     filter_field = "bk_biz_id"
 
 
+@register_filter
+class IngressFilter(ResourceFilter):
+    resource_type = "ingress"
+    filter_field = "ingress"
+
+
+@register_filter
+class ServiceFilter(ResourceFilter):
+    resource_type = "service"
+    filter_field = "service"
+
+
 def load_resource_filter(resource_type, filter_value, fuzzy=False) -> ResourceFilter:
     if resource_type not in filter_options:
         # 兼容xxx_name字段
