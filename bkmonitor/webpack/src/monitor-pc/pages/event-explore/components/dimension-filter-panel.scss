@@ -17,8 +17,9 @@
       color: #313238;
     }
 
-    .icon-monitor {
-      font-size: 12px;
+    .icon-gongneng-shouqi {
+      font-size: 13px;
+      font-weight: 700;
       cursor: pointer;
     }
   }
@@ -86,6 +87,7 @@
       .dimension-count {
         height: 14px;
         padding:  0 3.5px;
+        font-weight: 700;
         line-height: 14px;
         color: #979BA5;
         text-align: center;
@@ -180,10 +182,15 @@
       }
 
       .count {
+        min-width: 21px;
         height: 14px;
         padding: 0 3.5px;
         margin: 4px 0;
+        font-size: 12px;
+        font-weight: 700;
         line-height: 14px;
+        color: #979BA5;
+        text-align: center;
         background: #F0F1F5;
         border-radius: 7px;
       }
@@ -211,6 +218,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding-right: 24px;
+
+    .title {
+      display: flex;
+      align-items: center;
+    }
 
     .field-name {
       font-size: 16px;
@@ -234,7 +247,7 @@
       cursor: pointer;
 
       .icon-xiazai1 {
-        font-size: 12px;
+        font-size: 14px;
         color: #4D4F56;
       }
 
