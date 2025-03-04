@@ -9,16 +9,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(
-            model_name='customtsitem',
-            name='metric_name',
-            field=models.CharField(db_column='metric_name', max_length=128, verbose_name='字段名称'),
-        ),
-        migrations.RenameField(
-            model_name='customtsitem',
-            old_name='metric_name',
-            new_name='field_name',
-        ),
         migrations.AddField(
             model_name='customtsgroupingrule',
             name='index',
