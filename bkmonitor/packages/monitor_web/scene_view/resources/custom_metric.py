@@ -453,12 +453,11 @@ class DrillDownResource(Resource):
             data_label = serializers.CharField(label="数据标签", allow_blank=True, default="")
             metrics = serializers.ListField(label="查询指标", allow_empty=True, child=MetricSerializer(), default=[])
             where = serializers.ListField(label="过滤条件", default=[])
-            group_by = serializers.ListField(label="聚合字段", default=[])
+            # group_by = serializers.ListField(label="聚合字段", default=[])
             interval_unit = serializers.ChoiceField(label="聚合周期单位", choices=("s", "m"), default="s")
             interval = serializers.CharField(label="时间间隔", default="auto")
             filter_dict = serializers.DictField(default={}, label="过滤条件")
             time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, required=False)
-            promql = serializers.CharField(label="PromQL", allow_blank=True, required=False)
 
             # 日志平台配置
             query_string = serializers.CharField(default="", allow_blank=True, label="日志查询语句")
