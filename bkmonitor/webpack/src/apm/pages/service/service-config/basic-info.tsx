@@ -132,6 +132,7 @@ export default class BasicInfo extends tsc<object> {
       icon: '',
     },
   };
+
   /** 所属应用列表 */
   applicationLoading = false;
   applicationList: IApplicationItem[] = [];
@@ -190,6 +191,12 @@ export default class BasicInfo extends tsc<object> {
         trigger: 'blur',
       },
     ],
+  };
+
+  /** 事件关联 */
+  eventRelation = {
+    relationWorkload: [],
+    isAutoRelation: true,
   };
 
   get bizSelectList() {
@@ -268,6 +275,7 @@ export default class BasicInfo extends tsc<object> {
     const data = await logList(this.params).catch(() => []);
     this.logsInfoList = data;
   }
+
   /**
    * @desc: 切换关联日志
    */
@@ -541,6 +549,9 @@ export default class BasicInfo extends tsc<object> {
       params.uri_relation = this.uriList.filter(val => val?.trim() !== '');
     }
     return params;
+  }
+  handleRelationTypeChange() {
+    this.eventRelation.isAutoRelation = !this.eventRelation.isAutoRelation;
   }
   /** 提交保存 */
   async handleSubmit() {
@@ -972,67 +983,40 @@ export default class BasicInfo extends tsc<object> {
   }
   /** 事件关联 */
   renderEventLink() {
-    const mock = [
-      {
-        id: '集群',
-        name: '集群',
-        children: [
-          {
-            name: 'a',
-            id: 'a',
-            children: [
-              { name: 'a1', id: 'a1' },
-              { name: 'a2', id: 'a2' },
-              { name: '加载更多', id: 'more', type: 'more' },
-            ],
-          },
-          {
-            name: 'b',
-            id: 'b',
-            children: [
-              { name: 'b1', id: 'b1' },
-              { name: 'b2', id: 'b2' },
-            ],
-          },
-          {
-            name: 'c',
-            id: 'c',
-            children: [
-              { name: 'c1', id: 'c1' },
-              { name: 'c2', id: 'c2' },
-            ],
-          },
-        ],
-      },
-    ];
-
     return (
       <div class={['form-content', 'event-link', { 'is-editing': this.isEditing }]}>
         <div class='event-link-item container-event'>
           <div class='title'>{this.$t('容器事件')}</div>
           <p class='desc'>{this.$t('关联后，会自动获取相关观测数据，包括事件等。')}</p>
-          <div class='tips'>
-            <i class='icon-monitor icon-tishi' />
-            <i18n
-              class='text'
-              path='当前空间「{0}项目」 使用了 BCS 集群，已自动关联；如需精确，用户可 {1}'
-            >
-              <span>xx</span>
-              <span class='link'>{this.$t('手动关联具体 Workload')}</span>
-            </i18n>
-          </div>
-
-          <div class='manual-relation'>
-            <div class='label'>{this.$t('关联 Workload')}</div>
-            <div class='content'>
-              <div class='auto-relation-btn'>
-                <i class='icon-monitor icon-a-3yuan-bohui' />
-                <span>{this.$t('恢复自动关联')}</span>
-              </div>
-
-              <RelationSelectPanel data={mock} />
+          {this.eventRelation.isAutoRelation ? (
+            <div class='tips'>
+              <i class='icon-monitor icon-tishi' />
+              <i18n
+                class='text'
+                path='当前空间「{0}项目」 使用了 BCS 集群，已自动关联；如需精确，用户可 {1}'
+              >
+                <span>xx</span>
+                <span
+                  class='link'
+                  onClick={this.handleRelationTypeChange}
+                >
+                  {this.$t('手动关联具体 Workload')}
+                </span>
+              </i18n>
             </div>
-          </div>
+          ) : (
+            <div class='manual-relation'>
+              <div class='label'>{this.$t('关联 Workload')}</div>
+              <div class='content'>
+                <div class='auto-relation-btn'>
+                  <i class='icon-monitor icon-a-3yuan-bohui' />
+                  <span onClick={this.handleRelationTypeChange}>{this.$t('恢复自动关联')}</span>
+                </div>
+
+                <RelationSelectPanel value={this.eventRelation.relationWorkload} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
