@@ -144,6 +144,11 @@ class ClusterInfo(models.Model):
     ssl_certificate_key = models.TextField("SSL/TLS 证书私钥内容", null=True, default="")
     ssl_insecure_skip_verify = models.BooleanField("是否跳过服务器校验", default=False)
 
+    # 是否开启鉴权
+    is_auth = models.BooleanField("是否开启鉴权", default=False)
+    sasl_mechanisms = models.CharField("SASL认证机制", max_length=64, null=True, default=None)
+    security_protocol = models.CharField("安全协议", max_length=64, null=True, default=None)
+
     # 描述该存储集群被何系统使用
     registered_system = models.CharField("注册来源系统", default=DEFAULT_REGISTERED_SYSTEM, max_length=128)
 
