@@ -259,6 +259,161 @@ export const getCustomEventTagDetails = async (params: Record<string, any>, mock
                 },
               },
             },
+            {
+              time: {
+                value: 1736927543000,
+                alias: 1736927543000,
+              },
+              domain: {
+                value: 'SYSTEM',
+                alias: '系统',
+              },
+              source: {
+                value: 'HOST',
+                alias: '系统/主机',
+              },
+              event_name: {
+                value: 'oom',
+                alias: '进程 OOM',
+              },
+              target: {
+                value: '127.0.0.1',
+                alias: '127.0.0.1',
+                url: 'https://xxx/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1',
+              },
+              'event.content': {
+                value: 'oom',
+                alias: '发现主机（0-127.0.0.1）存在进程（chrome）OOM 异常事件',
+                detail: {
+                  target: {
+                    label: '主机',
+                    value: '127.0.0.1',
+                    alias: '直连区域[0] / 127.0.0.1',
+                    type: 'link',
+                    url: 'https://xxxx/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1',
+                  },
+                  process: {
+                    label: '进程',
+                    value: 'chrome',
+                  },
+                  task_memcg: {
+                    label: '任务（进程）所属的内存 cgroup',
+                    value: '/pods.slice/pods-burstable.slice/pods-burstable-pod1',
+                  },
+                  time: {
+                    label: '开始时间',
+                    value: 1736927543000,
+                  },
+                },
+              },
+            },
+            {
+              time: {
+                value: 1736927543000,
+                alias: 1736927543000,
+              },
+              domain: {
+                value: 'K8S',
+                alias: 'Kubernetes',
+              },
+              source: {
+                value: 'BCS',
+                alias: 'Kubernetes/BCS',
+              },
+              event_name: {
+                value: 'FailedMount',
+                alias: '卷挂载失效（FailedMount）',
+              },
+              target: {
+                value: '127.0.0.1',
+                alias: 'BCS-K8S-90001 / kube-system / Pod / bk-log-collector-fx97q',
+                url: 'https://xxxx/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx',
+              },
+              'event.content': {
+                value: 'xxx',
+                alias: 'xxxxx',
+                detail: {
+                  bcs_cluster_id: {
+                    label: '集群',
+                    value: 'BCS-K8S-90001',
+                    alias: '[共享集群] 蓝鲸公共-广州(BCS-K8S-90001)',
+                    type: 'link',
+                    detail: 'https://xxxx/k8s-new/?=bcs_cluster_id=BCS-K8S-90001',
+                  },
+                  namespace: {
+                    label: 'NameSpace',
+                    value: 'kube-system',
+                    alias: 'kube-system',
+                    type: 'link',
+                    url: 'https://xxxx/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx',
+                  },
+                  name: {
+                    label: '工作负载',
+                    value: 'bk-log-collector-fx97q',
+                    alias: 'Pod / bk-log-collector-fx97q',
+                    type: 'link',
+                    url: 'https://xxxx/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx',
+                  },
+                  time: {
+                    label: '开始时间',
+                    value: 1736927543000,
+                  },
+                  duration: {
+                    label: '持续时间',
+                    value: 61,
+                    alias: '1m1s',
+                  },
+                },
+              },
+            },
+            {
+              time: {
+                value: 1736927543000,
+                alias: 1736927543000,
+              },
+              domain: {
+                value: 'SYSTEM',
+                alias: '系统',
+              },
+              source: {
+                value: 'HOST',
+                alias: '系统/主机',
+              },
+              event_name: {
+                value: 'oom',
+                alias: '进程 OOM',
+              },
+              target: {
+                value: '127.0.0.1',
+                alias: '127.0.0.1',
+                url: 'https://xxx/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1',
+              },
+              'event.content': {
+                value: 'oom',
+                alias: '发现主机（0-127.0.0.1）存在进程（chrome）OOM 异常事件',
+                detail: {
+                  target: {
+                    label: '主机',
+                    value: '127.0.0.1',
+                    alias: '直连区域[0] / 127.0.0.1',
+                    type: 'link',
+                    url: 'https://xxxx/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1',
+                  },
+                  process: {
+                    label: '进程',
+                    value: 'chrome',
+                  },
+                  task_memcg: {
+                    label: '任务（进程）所属的内存 cgroup',
+                    value: '/pods.slice/pods-burstable.slice/pods-burstable-pod1',
+                  },
+                  time: {
+                    label: '开始时间',
+                    value: 1736927543000,
+                  },
+                },
+              },
+            },
           ],
           topk: [
             {
