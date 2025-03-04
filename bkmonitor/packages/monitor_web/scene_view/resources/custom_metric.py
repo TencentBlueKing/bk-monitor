@@ -424,7 +424,7 @@ class GetCustomTsGraphConfig(Resource):
         return {"groups": groups}
 
 
-class DrillDownResource(Resource):
+class GraphDrillDownResource(Resource):
     """
     维度下钻
     """
@@ -486,12 +486,12 @@ class DrillDownResource(Resource):
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
 
-        # 聚合维度
-        group_by = serializers.ListField(label="聚合维度", allow_empty=False)
+        # 下钻维度
+        group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
 
     class ResponseSerializer(serializers.Serializer):
         # 维度组合
-        series = serializers.DictField(label="维度值")
+        dimensions = serializers.DictField(label="维度值")
 
         # 值
         value = serializers.IntegerField(label="当前值")

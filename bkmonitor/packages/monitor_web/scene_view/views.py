@@ -263,4 +263,9 @@ class SceneViewViewSet(ResourceViewSet):
             resource.scene_view.get_custom_ts_graph_config,
             endpoint="get_custom_ts_graph_config",
         ),
+        ResourceRoute(
+            "POST",
+            resource.scene_view.graph_drill_down,
+            endpoint="graph_drill_down",
+        ),
     ]
