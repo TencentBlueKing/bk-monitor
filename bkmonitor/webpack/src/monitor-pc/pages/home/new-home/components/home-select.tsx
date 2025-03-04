@@ -267,7 +267,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   }
   /* 显示弹出层 */
   handleMousedown() {
-    this.showPopover = true;
+    if (this.textareaInputRef.autofocus) {
+      // 初始化自动聚焦时，不打开搜索历史
+      this.textareaInputRef.attributes.removeNamedItem('autofocus');
+    } else {
+      this.showPopover = true;
+    }
     this.textareaRow = this.limitRows();
     this.localHistoryList = JSON.parse(localStorage.getItem(storageKey))?.slice(0, 10) || [];
   }
@@ -512,6 +517,10 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     !this.isComposing && setTimeout(this.handleGetSearchData, 500);
     this.isInput = !!event?.target?.value;
     this.textareaRow = this.limitRows();
+    // 初始化搜索框自动聚焦后，输入搜索内容后打开下拉框
+    if (!this.isBarToolShow && !this.showPopover && this.searchValue.trim()) {
+      this.showPopover = true;
+    }
   }
   /** 弹性布局适应输入长度变化的实现 --- end */
   /** 清空历史 */
@@ -747,6 +756,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   handleBlur() {
     this.showPopover = false;
   }
+  handleClick() {
+    // 初始化搜索框自动聚焦后，再次点击了搜索框，打开下拉框
+    if (!this.isBarToolShow && !this.showPopover && !this.searchValue.trim()) {
+      this.showPopover = true;
+    }
+  }
   /** 渲染历史搜索View */
   renderHistoryView() {
     if (this.localHistoryList.length > 0) {
@@ -838,11 +853,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
             rows={this.textareaRow}
             spellcheck={false}
+            autofocus={!this.isBarToolShow}
             onCompositionend={this.handleCompositionend}
             onCompositionstart={this.handleCompositionstart}
             onFocus={this.handleMousedown}
             onInput={this.autoResize}
             onKeydown={this.handleKeydown}
+            onClick={this.handleClick}
           />
           {this.isBarToolShow && <span class='bk-icon icon-search' />}
           {this.searchValue && (
