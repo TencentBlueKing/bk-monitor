@@ -88,6 +88,10 @@ export default class CustomEventMenu extends tsc<IProps> {
           <div class='event-name'>{eventContent.alias}</div>
           <bk-button
             class='detail-btn'
+            v-bk-tooltips={{
+              content: this.$t('查看事件详情'),
+              allowHTML: false,
+            }}
             text
           >
             <i class='icon-monitor icon-xiangqing1 detail-icon' />
@@ -97,17 +101,13 @@ export default class CustomEventMenu extends tsc<IProps> {
       );
     }
     if (data?.length > 1) {
-      const { source } = data[0];
+      // const { source } = data[0];
       return (
         <div class='custom-event-menu-title'>
-          <span
-            style={{ backgroundImage: `url(${base64Svg[source.value?.toLowerCase() || 'bcs']})` }}
-            class='event-icon'
-          />
           <div class='event-name'>
             <i18n path={'共 {0} 个事件，展示 Top{1}'}>
-              <span style='font-weight: bold;color:white;'> {12} </span>
-              <span style='font-weight: bold;color:white;'> {5} </span>
+              <span style='font-weight: bold;color:#313238;'> {12} </span>
+              <span style='font-weight: bold;color:#313238;'> {5} </span>
             </i18n>
           </div>
           <span
@@ -157,9 +157,23 @@ export default class CustomEventMenu extends tsc<IProps> {
                 />
                 <div class='content-item-content'>
                   {item.event_name.alias}
-                  <bk-link theme='primary'>（{item.target.alias}）</bk-link>
+                  <bk-link
+                    v-bk-tooltips={{
+                      content: this.$t('查看资源'),
+                      allowHTML: false,
+                    }}
+                    theme='primary'
+                  >
+                    （{item.target.alias}）
+                  </bk-link>
                 </div>
-                <i class='icon-monitor icon-xiangqing1 link-icon' />
+                <i
+                  class='icon-monitor icon-xiangqing1 link-icon'
+                  v-bk-tooltips={{
+                    content: this.$t('查看事件详情'),
+                    allowHTML: false,
+                  }}
+                />
               </div>
             );
           })}
@@ -182,11 +196,17 @@ export default class CustomEventMenu extends tsc<IProps> {
                     class='event-icon'
                   />
                   {item.event_name.alias}
-                  <i class='icon-monitor icon-xiangqing1 link-icon' />
+                  <i
+                    class='icon-monitor icon-xiangqing1 link-icon'
+                    v-bk-tooltips={{
+                      content: this.$t('查看事件详情'),
+                      allowHTML: false,
+                    }}
+                  />
                 </div>
                 <bk-progress
-                  color={this.activeTab === EventTab.Warning ? '#F59500' : '#699DF4'}
-                  percent={(item.proportions / 100).toFixed(4)}
+                  color={this.activeTab === EventTab.Warning ? '#F59500' : '#3A84FF'}
+                  percent={+(item.proportions / 100).toFixed(2)}
                   show-text={false}
                 />
               </div>
@@ -207,7 +227,7 @@ export default class CustomEventMenu extends tsc<IProps> {
     );
   }
   createHeaderRender() {
-    if (!this.eventItem.statistics.Warning || !this.loading || !this.menuData?.total) return undefined;
+    if (!this.eventItem.statistics.Warning || this.loading || !this.menuData?.total) return undefined;
     return (
       <div class='custom-event-menu-header'>
         {[EventTab.Warning, EventTab.All].map(level => {
@@ -216,8 +236,8 @@ export default class CustomEventMenu extends tsc<IProps> {
               key={level}
               style={{
                 borderTopColor:
-                  level !== this.activeTab ? 'rgba(0, 0, 0, 0.4)' : level === EventTab.Warning ? '#F59500' : '#699DF4',
-                backgroundColor: level === this.activeTab ? 'transparent' : 'rgba(0, 0, 0, 0.4)',
+                  level !== this.activeTab ? '#F0F1F5' : level === EventTab.Warning ? '#F59500' : '#3A84FF',
+                backgroundColor: level === this.activeTab ? 'transparent' : '#F0F1F5',
               }}
               class='header-tab'
               onClick={() => this.handleTabChange(level)}
