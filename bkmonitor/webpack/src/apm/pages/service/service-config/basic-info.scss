@@ -374,7 +374,7 @@
       }
       
       .desc {
-        margin-top: 4px;
+        margin: 4px 0 8px;
         font-size: 12px;
         line-height: 20px;
         color: #979BA5;
@@ -404,6 +404,32 @@
           color: #3A84FF;
           cursor: pointer;
         }
+      }
+
+      .manual-relation {
+        display: flex;
+
+        .label {
+          margin-right: 8px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #4D4F56;
+        }
+
+        .content {
+          .auto-relation-btn {
+            margin-bottom: 8px;
+            color: #3A84FF;
+            cursor: pointer;
+            
+            .icon-a-3yuan-bohui {
+              margin-right: 5px;
+              font-size: 12px;
+            }
+          }
+
+        }
+
       }
 
     }
