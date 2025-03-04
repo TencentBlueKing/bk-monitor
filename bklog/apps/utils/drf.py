@@ -138,6 +138,8 @@ class DateTimeFieldWithEpoch(serializers.DateTimeField):
         super().__init__(format=format, input_formats=input_formats, default_timezone=default_timezone, **kwargs)
 
     def to_internal_value(self, value):
+        if isinstance(value, str):
+            value = value.replace("&nbsp;", " ")
         try:
             if str(value).isdigit():
                 if len(str(value)) == 16:
