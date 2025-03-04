@@ -1498,7 +1498,8 @@ const store = new Vuex.Store({
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
 
-        if (textType === 'text' || isVirtualObjNode) {
+
+        if (textType === 'text') {
           mappingKey = textMappingKey;
         }
 
@@ -1570,14 +1571,24 @@ const store = new Vuex.Store({
           const isNewSearchPage = item.operator === 'new-search-page-is';
           item.operator = isNewSearchPage ? 'is' : item.operator;
           const { field, operator, value } = item;
+          const targetField = getTargetField(field);
+
 
           let newSearchValue = null;
           if (searchMode === 'ui') {
-            const mapOperator = getAdditionMappingOperator({ field, operator, value });
-            newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
+            if (targetField?.is_virtual_obj_node) {
+              newSearchValue = Object.assign({ field: '*', value }, { operator: 'contains match phrase' });
+            } else {
+              const mapOperator = getAdditionMappingOperator({ field, operator, value });
+              newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
+            }
           }
           if (searchMode === 'sql') {
-            newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
+            if (targetField?.is_virtual_obj_node) { 
+              newSearchValue = [value];
+            } else{
+              newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
+            }
           }
           const isExist = searchValueIsExist(newSearchValue, searchMode);
           return !isExist || isNewSearchPage ? newSearchValue : null;
