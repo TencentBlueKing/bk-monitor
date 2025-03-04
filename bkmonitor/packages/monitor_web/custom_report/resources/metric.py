@@ -8,7 +8,7 @@ from typing import Dict, Optional
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import models
-from django.db.models import Q
+from django.db.models import Max, Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -914,11 +914,14 @@ class CreateOrUpdateGroupingRule(Resource):
         )
 
         if not group_rules:
-            # 获取当前分组规则数量
-            current_group_rule_count = CustomTSGroupingRule.objects.filter(
-                time_series_group_id=params["time_series_group_id"]
-            ).count()
-            params["index"] = current_group_rule_count
+            # 获取当前分组规则index最大值
+            max_index = (
+                CustomTSGroupingRule.objects.filter(time_series_group_id=params["time_series_group_id"]).aggregate(
+                    Max("index")
+                )["index__max"]
+                or 0
+            )
+            params["index"] = max_index + 1
             # 创建分组规则
             grouping_rule = CustomTSGroupingRule.objects.create(**params)
         else:
