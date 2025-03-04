@@ -200,21 +200,25 @@
     },
     watch: {
       isAllowEmptyField() {
-        this.renderList = [];
-        this.setRenderList();
+        this.onMountedRender();
       },
     },
     mounted() {
-      setTimeout(this.setRenderList);
+      this.onMountedRender();
     },
     methods: {
-      setRenderList() {
+      onMountedRender() {
         const size = 40;
         let startIndex = 0;
-        if (startIndex < this.showFieldList.length) {
-          this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
-          startIndex = startIndex + size;
-        }
+        this.renderList = [];
+        const setRenderList = () => {
+          if (startIndex < this.showFieldList.length) {
+            this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
+            startIndex = startIndex + size;
+            setTimeout(setRenderList);
+          }
+        };
+        setRenderList();
       },
       isJsonFormat(content) {
         return this.formatJson && /^\[|\{/.test(content);
