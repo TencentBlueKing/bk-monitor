@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref, Prop } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { eventViewConfig } from 'monitor-api/modules/data_explorer';
@@ -104,6 +104,12 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     };
   }
 
+  @Watch('commonParams')
+  watchCommonParams() {
+    this.setRouteParams();
+  }
+
+  @Provide('handleTimeRangeChange')
   handleTimeRangeChange(timeRange: TimeRangeType) {
     this.showRestore = false;
     this.timeRange = timeRange;
@@ -151,6 +157,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
   handleRefreshChange(value: number) {
     this.refreshInterval = value;
+    this.setRouteParams();
     this.timer && clearInterval(this.timer);
     if (value > -1) {
       this.timer = setInterval(() => {
@@ -193,7 +200,6 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
     this.loading = false;
     this.fieldList = data.fields || data.field;
-    this.setRouteParams();
   }
 
   handleCloseDimensionPanel() {
@@ -321,7 +327,6 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
   handleWhereChange(where) {
     this.formData.where = where;
-    this.setRouteParams();
   }
 
   handleConditionChange(condition: IWhereItem[]) {
