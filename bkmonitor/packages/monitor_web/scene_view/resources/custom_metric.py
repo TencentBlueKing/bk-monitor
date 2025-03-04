@@ -13,6 +13,7 @@ from typing import Dict, List
 
 from django.db import models
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api
@@ -137,7 +138,7 @@ class GetCustomTsGraphConfig(Resource):
         bk_biz_id = serializers.IntegerField(label="业务")
         time_series_group_id = serializers.IntegerField(label="自定义时序ID")
         metrics = serializers.ListField(label="查询的指标", allow_empty=False)
-        conditions = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
+        where = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
         group_by = GroupBySerializer(label="聚合维度", many=True, allow_empty=True, default=list)
         common_conditions = serializers.ListField(label="常用维度过滤", default=list)
         limit = LimitSerializer(label="限制返回的series数量", allow_null=True, default=None)
@@ -229,7 +230,7 @@ class GetCustomTsGraphConfig(Resource):
                     # 只使用指标的维度
                     "group_by": list(set(non_split_dimensions) & all_metric_dimensions),
                     # TODO: 考虑也按指标的维度过滤
-                    "where": params.get("conditions", []),
+                    "where": params.get("where", []),
                     "functions": functions,
                     # 只使用指标的维度
                     "filter_dict": {
@@ -281,6 +282,7 @@ class GetCustomTsGraphConfig(Resource):
             limit_number = limit.get("limit", 10)
             functions = [{"id": limit["function"].lower(), "params": [{"id": "n", "value": limit_number}]}]
 
+        # 根据拆图维度分组
         groups = []
         for group_series, series_dict in series_groups.items():
             group_name = ""
@@ -290,9 +292,12 @@ class GetCustomTsGraphConfig(Resource):
             else:
                 group_name = "|".join([f"{key}={value}" for key, value in group_series])
 
+            # 根据非拆图维度分图
             panels = []
             for panel_series, metric_list in series_dict.items():
                 targets = []
+
+                # 一张图里包含多个指标查询
                 for metric in metric_list:
                     query_config = {
                         "metrics": [
@@ -306,7 +311,7 @@ class GetCustomTsGraphConfig(Resource):
                         # 只使用指标的维度
                         "group_by": [],
                         # TODO: 考虑也按指标的维度过滤
-                        "where": params.get("conditions", []),
+                        "where": params.get("where", []),
                         "functions": functions,
                         # 只使用指标的维度
                         "filter_dict": {
@@ -350,7 +355,7 @@ class GetCustomTsGraphConfig(Resource):
 
         # 转换条件格式为 unify_query.query_series 所需的格式
         conditions = {"field_list": [], "condition_list": []}
-        for i, condition in enumerate(params.get("condition", [])):
+        for i, condition in enumerate(params.get("where", [])):
             if i > 0:
                 conditions["condition_list"].append(condition.get("condition", "and"))
 
@@ -417,3 +422,93 @@ class GetCustomTsGraphConfig(Resource):
             raise ValueError(f"Invalid compare config type: {compare_config.get('type')}")
 
         return {"groups": groups}
+
+
+class DrillDownResource(Resource):
+    """
+    维度下钻
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        class QueryConfigSerializer(serializers.Serializer):
+            class MetricSerializer(serializers.Serializer):
+                method = serializers.CharField(default="", allow_blank=True)
+                field = serializers.CharField(default="")
+                alias = serializers.CharField(required=False)
+                display = serializers.BooleanField(default=False)
+
+            class FunctionSerializer(serializers.Serializer):
+                class FunctionParamsSerializer(serializers.Serializer):
+                    value = serializers.CharField()
+                    id = serializers.CharField()
+
+                id = serializers.CharField()
+                params = serializers.ListField(child=serializers.DictField(), allow_empty=True)
+
+            data_type_label = serializers.CharField(
+                label="数据类型", default="time_series", allow_null=True, allow_blank=True
+            )
+            data_source_label = serializers.CharField(label="数据来源")
+            table = serializers.CharField(label="结果表名", allow_blank=True, default="")
+            data_label = serializers.CharField(label="数据标签", allow_blank=True, default="")
+            metrics = serializers.ListField(label="查询指标", allow_empty=True, child=MetricSerializer(), default=[])
+            where = serializers.ListField(label="过滤条件", default=[])
+            group_by = serializers.ListField(label="聚合字段", default=[])
+            interval_unit = serializers.ChoiceField(label="聚合周期单位", choices=("s", "m"), default="s")
+            interval = serializers.CharField(label="时间间隔", default="auto")
+            filter_dict = serializers.DictField(default={}, label="过滤条件")
+            time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, required=False)
+            promql = serializers.CharField(label="PromQL", allow_blank=True, required=False)
+
+            # 日志平台配置
+            query_string = serializers.CharField(default="", allow_blank=True, label="日志查询语句")
+            index_set_id = serializers.IntegerField(required=False, label="索引集ID", allow_null=True)
+
+            # 计算函数参数
+            functions = serializers.ListField(label="计算函数参数", default=[], child=FunctionSerializer())
+
+            def validate(self, attrs):
+                # 索引集和结果表参数校验
+                if attrs["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and not attrs.get("index_set_id"):
+                    raise ValidationError("index_set_id can not be empty.")
+
+                # 聚合周期单位处理
+                if attrs.get("interval") and attrs["interval_unit"] == "m":
+                    # 分钟级别，interval 应该是int
+                    try:
+                        attrs["interval"] = int(attrs["interval"]) * 60
+                    except ValueError:
+                        pass
+                return attrs
+
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        query_configs = serializers.ListField(label="查询配置列表", allow_empty=False, child=QueryConfigSerializer())
+        expression = serializers.CharField(label="查询表达式", allow_blank=True)
+        start_time = serializers.IntegerField(label="开始时间")
+        end_time = serializers.IntegerField(label="结束时间")
+
+        # 聚合维度
+        group_by = serializers.ListField(label="聚合维度", allow_empty=False)
+
+    class ResponseSerializer(serializers.Serializer):
+        # 维度组合
+        series = serializers.DictField(label="维度值")
+
+        # 值
+        value = serializers.IntegerField(label="当前值")
+
+        class CompareValueSerializer(serializers.Serializer):
+            # 对比值
+            value = serializers.IntegerField(label="对比值")
+            # 对比值的维度
+            offset = serializers.CharField(label="偏移量")
+            # 波动值
+            fluctuation = serializers.IntegerField(label="波动值")
+
+        # 对比
+        compare_values = serializers.ListField(label="对比", default=[], child=CompareValueSerializer())
+
+    many_response_data = True
+
+    def perform_request(self, params: dict) -> dict:
+        pass
