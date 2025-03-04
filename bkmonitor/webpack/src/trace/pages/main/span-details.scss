@@ -54,19 +54,16 @@
     padding-right: 40px;
 
     .arrow-wrap {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       width: 26px;
       height: 26px;
       font-size: 24px;
-      line-height: 24px;
-      text-align: center;
+      cursor: pointer;
       background-color: transparent;
       border: 1px solid #c4c6cc;
       border-radius: 2px;
-
-      &:hover {
-        cursor: pointer;
-      }
 
       &:first-of-type {
         margin-right: 8px;
