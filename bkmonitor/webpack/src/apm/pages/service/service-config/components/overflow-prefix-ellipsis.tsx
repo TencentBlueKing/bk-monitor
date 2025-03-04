@@ -23,64 +23,60 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import MonitorDrag from 'fta-solutions/pages/event/monitor-drag';
+import './overflow-prefix-ellipsis.scss';
 
-import './event-retrieval-layout.scss';
+interface OverflowPrefixEllipsisProps {
+  text: string;
+}
 
 @Component
-export default class EventRetrievalLayout extends tsc<object> {
-  isShow = true;
-  maxWidth = 400;
-  minWidth = 120;
-  width = 200;
+export default class OverflowPrefixEllipsis extends tsc<OverflowPrefixEllipsisProps> {
+  @Prop({ default: '' }) text: string;
 
-  handleDragChange(width: number) {
-    if (width < this.minWidth) {
-      this.handleClickShrink(false);
-    } else {
-      this.width = width;
+  @Ref('text') textRef: HTMLSpanElement;
+
+  isOverflow = false;
+
+  @Watch('text')
+  onTextChange() {
+    this.$nextTick(() => {
+      this.adjustText();
+    });
+  }
+
+  adjustText() {
+    const containerWidth = (this.$el as HTMLDivElement).offsetWidth; // 获取容器宽度
+    const textWidth = this.textRef.offsetWidth; // 获取文本实际宽度
+    // 如果文本超出容器宽度
+    if (textWidth > containerWidth) {
+      let visibleText = this.text;
+      this.isOverflow = true;
+
+      // 从文本的末尾开始截断
+      while (this.textRef.offsetWidth > containerWidth) {
+        visibleText = visibleText.slice(1); // 删除第一个字符
+        this.textRef.innerText = `...${visibleText}`; // 在前面添加省略号
+      }
     }
   }
 
-  handleClickShrink(val?: boolean) {
-    this.isShow = val ?? !this.isShow;
-    this.width = this.isShow ? 200 : 0;
+  mounted() {
+    this.adjustText();
   }
 
   render() {
     return (
-      <div class='event-retrieval-layout-comp'>
-        <div class='layout-aside'>
-          <div
-            style={{ width: `${this.width}px` }}
-            class='layout-aside-content'
-          >
-            {this.$slots.aside}
-          </div>
-
-          {this.isShow ? (
-            <MonitorDrag
-              isShow={this.isShow}
-              lineText=''
-              maxWidth={this.maxWidth}
-              minWidth={this.minWidth}
-              startPlacement='right'
-              theme='simple-line-round'
-              onMove={this.handleDragChange}
-            />
-          ) : (
-            <div
-              class='expand-trigger'
-              onClick={() => this.handleClickShrink(true)}
-            >
-              <i class='icon-monitor icon-gongneng-shouqi' />
-            </div>
-          )}
-        </div>
-        <div class='layout-main'>{this.$slots.default}</div>
+      <div class='overflow-prefix-ellipsis'>
+        <span
+          ref='text'
+          class='overflow-prefix-ellipsis-text'
+          v-bk-tooltips={{ content: this.text, disabled: !this.isOverflow, placements: ['top'] }}
+        >
+          {this.text}
+        </span>
       </div>
     );
   }
