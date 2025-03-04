@@ -283,8 +283,11 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
             v-model={this.searchVal}
             placeholder={this.$t('搜索 维度字段')}
             right-icon='bk-icon icon-search'
+            clearable
+            show-clear-only-hover
             on-right-icon-click={this.handleSearch}
             onBlur={this.handleSearch}
+            onClear={this.handleSearch}
             onEnter={this.handleSearch}
           />
         </div>
@@ -359,7 +362,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
               <span class='field-name'>{this.selectField}</span>
               <span class='divider' />
               <span class='desc'>
-                {this.$t('去重后的字段统计')}({this.sliderDimensionList[0]?.distinct_count || 0})
+                {this.$t('去重后的字段统计')} ({this.sliderDimensionList[0]?.distinct_count || 0})
               </span>
             </div>
             {this.downloadLoading ? (
