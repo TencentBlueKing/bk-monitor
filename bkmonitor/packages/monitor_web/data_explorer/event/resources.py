@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.models import MetricListCache
-from core.drf_resource import Resource
+from core.drf_resource import Resource, resource
 from metadata.models import ResultTable
 
 from . import serializers
@@ -31,6 +31,7 @@ from .constants import (
     CategoryWeight,
     EventCategory,
     EventDimensionTypeEnum,
+    EventType,
 )
 from .core.processors import BaseEventProcessor, OriginEventProcessor
 from .mock_data import (
@@ -48,8 +49,21 @@ class EventTimeSeriesResource(Resource):
     RequestSerializer = serializers.EventTimeSeriesRequestSerializer
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
-        # result: Dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
-        return API_TIME_SERIES_RESPONSE
+        if validated_request_data["is_mock"]:
+            return API_TIME_SERIES_RESPONSE
+
+        try:
+            result: Dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
+        except Exception as exc:
+            logger.warning("[EventTimeSeriesResource] failed to get series, err -> %s", exc)
+            raise ValueError(_("time_series 获取失败"))
+
+        for series in result["series"]:
+            dimensions = series["dimensions"]
+            if "type" in dimensions and not dimensions["type"].strip():
+                dimensions["type"] = EventType.Default.value
+        result["query_config"] = validated_request_data
+        return result
 
 
 class EventLogsResource(Resource):
