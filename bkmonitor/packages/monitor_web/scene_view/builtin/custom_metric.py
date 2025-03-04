@@ -41,7 +41,7 @@ def get_order_config(view: SceneViewModel) -> List:
 
     label_fields = defaultdict(list)
     for field in fields:
-        for label in field.label:
+        for label in field.config.get("label", []):
             match_type = set()
             match_rules = []
             group = group_map[label]

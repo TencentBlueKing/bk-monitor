@@ -22,6 +22,23 @@ from monitor_web.models import CustomTSField, CustomTSTable
 logger = logging.getLogger("monitor_web")
 
 
+class GetCustomMetricTargetListResource(Resource):
+    """
+    获取自定义指标目标列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务")
+        id = serializers.IntegerField(label="自定义指标分组ID")
+
+    def perform_request(self, params):
+        config = CustomTSTable.objects.get(
+            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True), pk=params["id"]
+        )
+        targets = set(config.query_target(bk_biz_id=params["bk_biz_id"]))
+        return [{"id": target, "name": target} for target in targets]
+
+
 class GetCustomTsMetricGroups(Resource):
     """
     获取自定义时序指标分组
