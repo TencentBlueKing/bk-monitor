@@ -155,6 +155,7 @@
       ...mapState({
         formatJson: state => state.tableJsonFormat,
         showFieldAlias: state => state.showFieldAlias ?? false,
+        isAllowEmptyField: state => state.tableAllowEmptyField,
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -163,7 +164,16 @@
         return this.$store.state.bkBizId;
       },
       showFieldList() {
-        return this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name));
+        return this.totalFields.filter(item => {
+          if (this.isAllowEmptyField) {
+            return this.kvShowFieldsList.includes(item.field_name);
+          }
+
+          return (
+            this.kvShowFieldsList.includes(item.field_name) &&
+            !['--', '{}', '[]'].includes(this.formatterStr(this.data, item.field_name))
+          );
+        });
       },
       fieldKeyMap() {
         return this.totalFields
@@ -188,7 +198,28 @@
         return !!this.data?.bk_host_id;
       },
     },
+    watch: {
+      isAllowEmptyField() {
+        this.onMountedRender();
+      },
+    },
+    mounted() {
+      this.onMountedRender();
+    },
     methods: {
+      onMountedRender() {
+        const size = 40;
+        let startIndex = 0;
+        this.renderList = [];
+        const setRenderList = () => {
+          if (startIndex < this.showFieldList.length) {
+            this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
+            startIndex = startIndex + size;
+            setTimeout(setRenderList);
+          }
+        };
+        setRenderList();
+      },
       isJsonFormat(content) {
         return this.formatJson && /^\[|\{/.test(content);
       },
@@ -332,21 +363,6 @@
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
       },
-    },
-    mounted() {
-      const size = 40;
-      let startIndex = 0;
-
-      const setRenderList = () => {
-        if (startIndex < this.showFieldList.length) {
-          this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
-          startIndex = startIndex + size;
-
-          setTimeout(setRenderList);
-        }
-      };
-
-      setRenderList();
     },
   };
 </script>

@@ -159,6 +159,8 @@ const stateTpl = {
   tableJsonFormat: false,
   tableJsonFormatDepth: 1,
   tableShowRowIndex: false,
+  // 是否展示空字段
+  tableAllowEmptyField: false,
   isSetDefaultTableColumn: false,
   tookTime: 0,
   searchTotal: 0,
@@ -298,6 +300,10 @@ const store = new Vuex.Store({
     },
     updateTableShowRowIndex(state, val) {
       state.tableShowRowIndex = val;
+    },
+    // 更新是否展示空字段
+    updateTableEmptyFieldFormat(state, val) {
+      state.tableAllowEmptyField = val;
     },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
