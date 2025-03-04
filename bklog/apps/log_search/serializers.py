@@ -958,6 +958,8 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
 
 class ChartSerializer(serializers.Serializer):
     sql = serializers.CharField(label=_("sql语句"), required=True)
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
     query_mode = serializers.ChoiceField(
         label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
     )
@@ -970,13 +972,12 @@ class SearchConditionSerializer(serializers.Serializer):
 
 
 class UISearchSerializer(serializers.Serializer):
+    sql = serializers.CharField(label=_("sql"), required=False)
     addition = serializers.ListField(
         required=False,
         default=list,
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
-    start_time = serializers.IntegerField(label=_("开始时间"), required=True)
-    end_time = serializers.IntegerField(label=_("结束时间"), required=True)
 
 
 class QueryStringSerializer(serializers.Serializer):
