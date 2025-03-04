@@ -328,12 +328,24 @@ class K8sResourceMeta(object):
         return self.tpl_prom_with_rate("nw_container_network_transmit_packets_total", exclude="container_exclude")
 
     @property
-    def meta_prom_with_nw_container_network_receive_drop_total(self):
-        return self.tpl_prom_with_rate("nw_container_network_receive_drop_total", exclude="container_exclude")
+    def meta_prom_with_nw_container_network_receive_errors_total(self):
+        return self.tpl_prom_with_rate("nw_container_network_receive_errors_total", exclude="container_exclude")
 
     @property
-    def meta_prom_with_nw_container_network_transmit_drop_total(self):
-        return self.tpl_prom_with_rate("nw_container_network_transmit_drop_total", exclude="container_exclude")
+    def meta_prom_with_nw_container_network_transmit_errors_total(self):
+        return self.tpl_prom_with_rate("nw_container_network_transmit_errors_total", exclude="container_exclude")
+
+    @property
+    def meta_prom_with_nw_container_network_receive_errors_ratio(self):
+        return f"""{self.meta_prom_with_nw_container_network_receive_errors_total}
+        /
+        {self.meta_prom_with_nw_container_network_receive_packets_total}"""
+
+    @property
+    def meta_prom_with_nw_container_network_transmit_errors_ratio(self):
+        return f"""{self.meta_prom_with_nw_container_network_transmit_errors_total}
+        /
+        {self.meta_prom_with_nw_container_network_transmit_packets_total}"""
 
     @property
     def meta_prom_with_container_cpu_cfs_throttled_ratio(self):
