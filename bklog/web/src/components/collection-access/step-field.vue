@@ -352,12 +352,10 @@
                 :is-temp-field="isTempField"
                 :key="renderKey"
                 :original-text-tokenize-on-chars="defaultParticipleStr"
-                :retain-extra-json="formData.etl_params.retain_extra_json"
                 :built-field-show = "builtFieldShow"
                 :select-etl-config="params.etl_config"
                 @delete-visible="visibleHandle"
                 @delete-field="deleteField"
-                @handle-keep-field="handleKeepField"
                 @handle-table-data="handleTableData"
                 @handle-built-field="handleBuiltField"
                 @reset="getDetail"
@@ -515,6 +513,25 @@
                   {{ $t('丢弃') }}
                 </bk-radio>
               </bk-radio-group>
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            v-if="params.etl_config === 'bk_log_json'"
+            ext-cls="en-bk-form"
+            :icon-offset="120"
+            :label="$t('JSON 字段动态新增')"
+          >
+            <div class="origin-log-config">
+              <bk-switcher
+                v-model="formData.etl_params.retain_extra_json"
+                theme="primary"
+              ></bk-switcher>
+              <div class="switcher-tips">
+                <i class="bk-icon icon-info-circle" />
+                <span>
+                  {{ this.$t('在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据') }}
+                </span>
+              </div>
             </div>
           </bk-form-item>
           <bk-form-item
@@ -1208,7 +1225,7 @@
         return ['clean-template-create', 'clean-template-edit'].includes(this.$route.name);
       },
       labelWidth() {
-        return this.$store.state.isEnLanguage ? this.enLabelWidth : 125;
+        return this.$store.state.isEnLanguage ? this.enLabelWidth : 130;
       },
       renderFieldNameList() {
         return this.fieldNameList.filter((item,index) => {
@@ -2227,9 +2244,6 @@
       visibleHandle(val) {
         this.deletedVisible = val;
       },
-      handleKeepField(value) {
-        this.formData.etl_params.retain_extra_json = value;
-      },
       judgeNumber(val) {
         const { value } = val;
         if (value === 0) return false;
@@ -2745,6 +2759,13 @@
       font-weight: 600;
       color: #63656e;
       border-bottom: 1px solid #dcdee5;
+    }
+
+    .switcher-tips{
+      color: #979BA5;
+      font-size: 12px;
+      position: absolute;
+      top: 20px;
     }
 
     .text-nav {

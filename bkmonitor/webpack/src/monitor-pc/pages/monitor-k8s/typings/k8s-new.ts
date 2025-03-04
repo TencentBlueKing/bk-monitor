@@ -94,9 +94,9 @@ export enum K8sTableColumnKeysEnum {
    */
   CPU_THROTTLED = 'container_cpu_cfs_throttled_ratio',
   /**
-   * @description: container_memory_rss - 内存使用量(rss)
+   * @description: container_memory_working_set_bytes - 内存使用量(rss)
    */
-  MEMORY_RSS = 'container_memory_rss',
+  MEMORY_RSS = 'container_memory_working_set_bytes',
   /**
    * @description: kube_pod_memory_requests_ratio - 内存 request使用率
    */
@@ -181,5 +181,5 @@ export const K8SPerformanceMetricUnitMap = {
   kube_pod_cpu_requests_ratio: 'percentunit',
   kube_pod_memory_limits_ratio: 'percentunit',
   kube_pod_memory_requests_ratio: 'percentunit',
-  container_memory_rss: 'bytes',
+  container_memory_working_set_bytes: 'bytes',
 };
