@@ -16,6 +16,7 @@ from typing import Any, Dict, Generator, Optional
 from langchain.agents import AgentExecutor, Tool
 from langchain.agents.chat.base import ChatAgent
 from langchain_core.prompts import ChatPromptTemplate
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from ai_agent.llm import LLMConfig, LLMModel, LLMProvider, get_llm
 from metadata.resources.bkdata_link import QueryDataLinkInfoResource
@@ -31,10 +32,15 @@ class MetadataDiagnosisAgent:
         ]
 
     def get_metadata_info(self, bk_data_id: int) -> dict:
-        """获取元数据信息"""
+        """
+        调用接口获取元数据信息
+        """
         return QueryDataLinkInfoResource().request(bk_data_id=bk_data_id)
 
     def _build_diagnosis_prompt(self, metadata: dict) -> str:
+        """
+        构造诊断引擎提示词
+        """
         structured_prompt = """
         # ROLE
             监控平台元数据诊断分析专家
@@ -66,7 +72,7 @@ class MetadataDiagnosisAgent:
             
         ## DecisionTree
             Step1. 数据源是否禁用：if ds_infos.是否启用 == False → 数据源未启用,无数据
-            Step2. 计算平台接入: (注意，仅当存储方案为InfluxDB/VM时进行此检验) if bkbase_infos.接入计算平台记录不存在 → 计算平台接入异常,兜底任务5min一次
+            Step2. 计算平台接入: (注意，仅当存储方案为InfluxDB/VM时进行此检验) 如果出现【接入计算平台记录不存在】字样 → 计算平台接入异常,兜底任务5min一次
             Step3. 清洗配置获取: if etl_infos.status == '集群配置获取异常'  → 清洗配置获取异常,整体链路接入异常,需联系管理员
             Step4. 日志链路关联检验： (注意，仅当存储方案为ES时进行5&6&7&8步骤检验)
             Step5. 日志链路-- ES集群状态: if es_storage_infos.当前索引详情信息.index_status != "green" → ES集群状态异常
@@ -84,6 +90,7 @@ class MetadataDiagnosisAgent:
                 "result_table_id": 结果表ID,
                 "storage_type": 存储方案，InfluxDB/VM/ES,
                 "datalink_version": 链路版本,
+                "metadata_status": "诊断结果,分为正常和异常两种",
                 "diagnosis_steps": [
                     {
                         "step": "决策步骤",
@@ -133,7 +140,10 @@ class MetadataDiagnosisAgent:
             4. 严格按照 `OUTPUT` 定义的格式进行输出,禁止进行发散
             5. 输出报告时,必须罗列出关联的具体证据,比如当你发现索引切分阈值异常时,你应该指出当前数据中实际的值
             5. 输出报告时,不需要输出检验正常的部分,只需要输出异常部分
-            6. 当你发现你的输出违背了以上规则中的任意一条时,重新开始WORKFLOW,重新组织输出
+            6. 当你进行诊断时,务必按照DecisionTree进行决策，且要仔细思考,不允许出现误诊断情况
+            7. 当你发现你的诊断结果与实际结果不符时,重新开始WORKFLOW,重新组织输出
+            8. 你需要按照WORKFLOW进行两次诊断,且需要两次诊断结果一致,否则重新开始WORKFLOW,重新组织输出
+            9. 当你发现你的输出违背了以上规则中的任意一条时,重新开始WORKFLOW,重新组织输出
         
         请你务必严格遵守上述定义的各项规则执行！
         """
@@ -178,16 +188,18 @@ class MetadataDiagnosisAgent:
                 raise ValueError("bk_data_id必须是整数类型")
 
             # 阶段1：元数据获取
-            yield ("status", {"stage": "metadata", "progress": 20, "message": "获取元数据中..."})
-            metadata = json.loads(self.get_metadata_info(bk_data_id))
+            yield "status", {"stage": "metadata", "progress": 20, "message": "获取元数据中..."}
 
-            yield ("status", {"stage": "metadata", "progress": 40, "message": type(metadata)})
+            metadata = self.get_metadata_info(bk_data_id)
+            if not isinstance(metadata, dict):
+                metadata = json.loads(metadata)  # 兼容类型转换
+
             if not metadata.get("ds_infos"):
-                yield ("error", {"stage": "metadata", "message": "元数据获取失败，数据源不存在"})
+                yield "error", {"stage": "metadata", "message": "元数据获取失败，数据源不存在"}
                 return
 
             # 阶段2：分析过程
-            yield ("status", {"stage": "analysis", "progress": 50, "message": "启动动态决策分析"})
+            yield "status", {"stage": "analysis", "progress": 50, "message": "启动动态决策分析"}
             analysis_result = self.llm_analysis_engine(metadata)
 
             if "error" in analysis_result:
@@ -202,7 +214,7 @@ class MetadataDiagnosisAgent:
                 return
 
             # 阶段3：生成报告
-            yield ("status", {"stage": "reporting", "progress": 90, "message": "生成诊断报告"})
+            yield "status", {"stage": "reporting", "progress": 90, "message": "生成诊断报告"}
 
             # 标准化输出格式
             formatted_report = {
@@ -212,16 +224,17 @@ class MetadataDiagnosisAgent:
                 "metadata_snapshot": {  # 包含关键元数据用于交叉验证
                     "is_enabled": metadata["ds_infos"].get("是否启用"),
                     "storage_type": next(iter(metadata["rt_infos"].values()), {}).get("存储方案"),
-                    "etl_status": metadata["etl_infos"].get("status"),
+                    "etl_config": metadata["ds_infos"].get("清洗配置(etl_config)"),
                 },
             }
-            yield ("report", formatted_report)
+            yield "report", formatted_report
 
         except Exception as e:
             logger.exception("诊断流程异常")
-            yield ("error", {"stage": "unknown", "message": f"诊断流程异常: {str(e)}", "details": str(e)})
+            yield "error", {"stage": "unknown", "message": f"诊断流程异常: {str(e)}", "details": str(e)}
 
     @classmethod
+    @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
     def diagnose(cls, bk_data_id: int) -> dict:
         """
         同步执行诊断流程并返回最终报告

@@ -451,3 +451,24 @@ class QueryDataIdsByBizIdResource(Resource):
             for item in data_source_mappings
         ]
         return result
+
+
+class IntelligentDiagnosisMetadataResource(Resource):
+    """
+    元数据智能诊断接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_data_id = serializers.CharField(label="数据源ID", required=True)
+
+    def perform_request(self, validated_request_data):
+        from ai_agent.core.diagnostic.metadata_diagnostic_agent import (
+            MetadataDiagnosisAgent,
+        )
+
+        bk_data_id = validated_request_data["bk_data_id"]
+        try:
+            report = MetadataDiagnosisAgent.diagnose(bk_data_id=bk_data_id)
+            return report
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("metadata diagnose error, bk_data_id->[%s], error->[%s]", bk_data_id, e)
