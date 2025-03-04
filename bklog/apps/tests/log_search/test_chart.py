@@ -3,9 +3,7 @@ from django.test import TestCase
 from apps.log_search.constants import SQL_PREFIX, SQL_SUFFIX
 from apps.log_search.handlers.search.chart_handlers import ChartHandler
 
-SEARCH_PARAMS = {
-    "start_time": 1732220441,
-    "end_time": 1732820443,
+SEARCH_PARAMS = [{
     "addition": [
         {"field": "bk_host_id", "operator": "=", "value": ["1", "2"]},
         {"field": "service", "operator": "!=", "value": ["php"]},
@@ -33,13 +31,20 @@ SEARCH_PARAMS = {
         {"field": "__ext.label.component", "operator": "contains", "value": ["ds", "py"]},
         {"field": "__ext.label.component", "operator": "not contains", "value": ["a"]},
     ],
+    },
+    {
+        "sql": "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time WHERE a=1 or b=2 LIMIT 10",
+        "addition": [
+            {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
+            {"field": "is_deleted", "operator": "is true", "value": []
+        }
+    ]
 }
+]
 
-SQL_RESULT = (
+SQL_RESULT = [(
     f"{SQL_PREFIX} "
-    "WHERE thedate >= 20241122 AND thedate <= 20241129"
-    " AND "
-    "(bk_host_id = '1' OR bk_host_id = '2')"
+    "WHERE (bk_host_id = '1' OR bk_host_id = '2')"
     " AND "
     "service != 'php'"
     " AND "
@@ -85,10 +90,15 @@ SQL_RESULT = (
     " AND "
     "JSON_EXTRACT(__ext,'$.label.component') NOT LIKE '%a%'"
     f" {SQL_SUFFIX}"
-)
+),
+    "SELECT thedate, dtEventTimeStamp, iterationIndex, log, `time`"
+    " WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+]
 
 
 class TestChart(TestCase):
     def test_generate_sql(self):
-        sql = ChartHandler.generate_sql(SEARCH_PARAMS)
-        self.assertEqual(sql, SQL_RESULT)
+        sql = ChartHandler.generate_sql(SEARCH_PARAMS[0])
+        self.assertEqual(sql, SQL_RESULT[0])
+        sql = ChartHandler.generate_sql(SEARCH_PARAMS[1])
+        self.assertEqual(sql, SQL_RESULT[1])
