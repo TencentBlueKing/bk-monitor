@@ -227,7 +227,7 @@
               ></bk-input>
             </template>
             <bk-option
-              v-for="option in commonFilterAddition.value[index].list"
+              v-for="option in commonFilterAddition[index].list"
               :id="option"
               :key="option"
               :name="option"
