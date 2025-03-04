@@ -485,6 +485,7 @@ class GraphDrillDownResource(Resource):
         expression = serializers.CharField(label="查询表达式", allow_blank=True)
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
+        function = serializers.DictField(label="图表函数", required=False, default=dict)
 
         # 下钻维度
         group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
