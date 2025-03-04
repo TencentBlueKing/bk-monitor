@@ -518,7 +518,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.isInput = !!event?.target?.value;
     this.textareaRow = this.limitRows();
     // 初始化搜索框自动聚焦后，输入搜索内容后打开下拉框
-    if (!this.showPopover && this.searchValue.trim()) {
+    if (!this.isBarToolShow && !this.showPopover && this.searchValue.trim()) {
       this.showPopover = true;
     }
   }
@@ -758,7 +758,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   }
   handleClick() {
     // 初始化搜索框自动聚焦后，再次点击了搜索框，打开下拉框
-    if (!this.showPopover && !this.searchValue.trim()) {
+    if (!this.isBarToolShow && !this.showPopover && !this.searchValue.trim()) {
       this.showPopover = true;
     }
   }
@@ -853,7 +853,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
             rows={this.textareaRow}
             spellcheck={false}
-            autofocus
+            autofocus={!this.isBarToolShow}
             onCompositionend={this.handleCompositionend}
             onCompositionstart={this.handleCompositionstart}
             onFocus={this.handleMousedown}
