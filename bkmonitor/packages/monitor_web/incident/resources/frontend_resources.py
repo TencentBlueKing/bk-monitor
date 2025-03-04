@@ -259,6 +259,57 @@ class IncidentBaseResource(Resource):
         }
         return topology_data
 
+    def filter_one_hop_snapshot(self, snapshot_content: Dict) -> Dict:
+        """过滤故障根因拓扑图中超过一跳的节点.
+
+        :param snapshot_content: 故障快照内容
+        :return: 只有一跳的故障快照拓扑图内容
+        """
+        root_entity_id = None
+        now_entities = {}
+        for entity_config in snapshot_content["incident_propagation_graph"]["entities"]:
+            if entity_config["is_root"]:
+                root_entity_id = entity_config["entity_id"]
+            now_entities[entity_config["entity_id"]] = entity_config
+
+        new_edges = []
+        new_entities = {}
+        new_rank_set = set()
+        for edge_config in snapshot_content["incident_propagation_graph"]["edges"]:
+            if edge_config["source_id"] != root_entity_id and edge_config["target_id"] != root_entity_id:
+                continue
+
+            new_edges.append(edge_config)
+            new_entities[edge_config["source_id"]] = now_entities[edge_config["source_id"]]
+            new_entities[edge_config["target_id"]] = now_entities[edge_config["target_id"]]
+            new_rank_set.add(now_entities[edge_config["source_id"]]["rank_name"])
+            new_rank_set.add(now_entities[edge_config["target_id"]]["rank_name"])
+
+        new_ranks = {}
+        new_category_set = set()
+        for rank_key, rank_info in snapshot_content["product_hierarchy_rank"].items():
+            if rank_info["rank_name"] in new_rank_set:
+                new_ranks[rank_key] = rank_info
+                new_category_set.add(rank_info["rank_category"])
+
+        new_categories = {}
+        for category_key, category_info in snapshot_content["product_hierarchy_category"].items():
+            if category_info["category_name"] in new_category_set:
+                new_categories[category_key] = category_info
+
+        new_incident_alerts = []
+        for incident_alert_info in snapshot_content["incident_alerts"]:
+            if incident_alert_info["entity_id"] in new_entities:
+                new_incident_alerts.append(incident_alert_info)
+
+        snapshot_content["product_hierarchy_category"] = new_categories
+        snapshot_content["product_hierarchy_rank"] = new_ranks
+        snapshot_content["incident_propagation_graph"]["entities"] = list(new_entities.values())
+        snapshot_content["incident_propagation_graph"]["edges"] = new_edges
+        snapshot_content["incident_alerts"] = new_incident_alerts
+
+        return snapshot_content
+
 
 class IncidentListResource(IncidentBaseResource):
     """
@@ -1224,7 +1275,7 @@ class AlertIncidentDetailResource(IncidentDetailResource):
 
     class RequestSerializer(serializers.Serializer):
         alert_id = serializers.IntegerField(required=True, label="故障ID")
-        filter_single_hop = serializers.BooleanField(required=False, default=True)
+        filter_one_hop = serializers.BooleanField(required=False, default=True, label="保留根因关联跳数")
 
     def perform_request(self, validated_request_data: Dict) -> Dict:
         alert_id = validated_request_data["alert_id"]
@@ -1238,7 +1289,10 @@ class AlertIncidentDetailResource(IncidentDetailResource):
 
         incident_doc = IncidentDocument.get(alert_doc.incident_id)
 
-        snapshot = IncidentSnapshot(copy.deepcopy(incident_doc.snapshot.content.to_dict()))
+        snapshot_content = incident_doc.snapshot.content.to_dict()
+        if validated_request_data["filter_one_hop"]:
+            snapshot_content = self.filter_one_hop_snapshot(snapshot_content)
+        snapshot = IncidentSnapshot(copy.deepcopy(snapshot_content))
         snapshot.aggregate_graph(incident_doc)
 
         incident = IncidentQueryHandler.handle_hit(incident_doc.to_dict())
@@ -1246,5 +1300,6 @@ class AlertIncidentDetailResource(IncidentDetailResource):
         incident["alert_count"] = len(incident["snapshot"]["alerts"])
         incident["incident_root"] = self.get_incident_root_info(snapshot)
         incident["current_topology"] = self.generate_topology_data_from_snapshot(incident_doc, snapshot)
+        incident["snapshot"] = snapshot_content
 
         return incident
