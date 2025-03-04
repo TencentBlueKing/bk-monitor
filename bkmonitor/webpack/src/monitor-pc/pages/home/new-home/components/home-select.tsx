@@ -601,6 +601,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
   /** 键盘操作 */
   handleKeydown(event: KeyboardEvent) {
+    event.stopPropagation(); // 父组件会监听'/'按键 自动聚焦输入框
     switch (event.key) {
       case 'ArrowUp':
         this.handleHighlightUp();
@@ -850,6 +851,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               class='icon-monitor clear-btn icon-mc-close-fill'
               onClick={this.clearInput}
             />
+          )}
+          {(!this.isBarToolShow && !this.showPopover && !this.searchValue) && (
+            <div class='search-keyboard'>
+              {this.$tc('快捷键')} /
+            </div>
           )}
           {(this.isBarToolShow || this.showPopover) && (
             <div class='new-home-select-popover'>
