@@ -25,7 +25,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: get uptime check node list
-  /app/uptime_check/node/detail/:
+  /app/uptime_check/node/{node_id}/:
     get:
       operationId: uptime_check_node_info
       description: 获取指定拨测节点的详细信息
@@ -115,7 +115,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: get uptime check task list
-  /app/uptime_check/task/detail/:
+  /app/uptime_check/task/{task_id}/:
     get:
       operationId: uptime_check_task_info
       description: 获取指定拨测任务信息
@@ -297,7 +297,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: edit uptime check group info
-  /app/uptime_check/group/detail/:
+  /app/uptime_check/group/{group_id}/:
     get:
       operationId: uptime_check_group_info
       description: 获取指定拨测任务组信息

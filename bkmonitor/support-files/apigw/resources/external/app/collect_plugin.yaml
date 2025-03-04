@@ -25,7 +25,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: collector_plugin_list
-  /app/collect_plugin/detail/:
+  /app/collect_plugin/{plugin_id}/:
     get:
       operationId: collector_plugin_detail
       description: 获取采集插件详情
