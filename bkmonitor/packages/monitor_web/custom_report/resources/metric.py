@@ -1077,3 +1077,84 @@ class UpdateGroupingRuleOrder(Resource):
             fields=["index"],
             batch_size=200,
         )
+
+
+class ImportCustomTimeSeriesFields(Resource):
+    """
+    导入自定义时序字段信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+
+        group_rules = CustomTSGroupingRuleSerializer(required=True, label="分组列表", many=True, allow_empty=True)
+        dimensions = ModifyCustomTsFields.RequestSerializer.FieldSerializer(
+            required=True, label="维度列表", many=True, allow_empty=True
+        )
+        metrics = ModifyCustomTsFields.RequestSerializer.FieldSerializer(
+            required=True, label="指标列表", many=True, allow_empty=True
+        )
+
+    def perform_request(self, params: Dict):
+        # 获取自定义时序表
+        table = CustomTSTable.objects.get(
+            time_series_group_id=params["time_series_group_id"],
+            bk_biz_id=params["bk_biz_id"],
+        )
+        if not table:
+            raise ValidationError(
+                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+            )
+
+        # 导入字段信息
+        resource.custom_report.modify_custom_ts_fields(
+            bk_biz_id=params["bk_biz_id"],
+            time_series_group_id=params["time_series_group_id"],
+            update_fields=[*params["dimensions"], *params["metrics"]],
+        )
+
+        # 导入分组规则
+        for group_rule in params["group_rules"]:
+            resource.custom_report.create_or_update_grouping_rule(
+                bk_biz_id=params["bk_biz_id"],
+                time_series_group_id=params["time_series_group_id"],
+                name=group_rule["name"],
+                manual_list=group_rule["manual_list"],
+                auto_rules=group_rule["auto_rules"],
+            )
+
+
+class ExportCustomTimeSeriesFields(Resource):
+    """
+    导出自定义时序字段信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+
+    def perform_request(self, params: Dict):
+        # 获取自定义时序表
+        table = CustomTSTable.objects.get(
+            time_series_group_id=params["time_series_group_id"],
+            bk_biz_id=params["bk_biz_id"],
+        )
+        if not table:
+            raise ValidationError(
+                "custom time series table not found, " f"time_series_group_id: {params['time_series_group_id']}"
+            )
+
+        # 导出字段信息
+        result = resource.custom_report.get_custom_ts_fields(
+            bk_biz_id=params["bk_biz_id"],
+            time_series_group_id=params["time_series_group_id"],
+        )
+
+        # 导出分组规则
+        group_rules = CustomTSGroupingRule.objects.filter(
+            time_series_group_id=params["time_series_group_id"],
+        )
+
+        result["group_rules"] = CustomTSGroupingRuleSerializer(group_rules, many=True).data
+        return result
