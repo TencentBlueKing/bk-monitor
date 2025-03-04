@@ -213,6 +213,7 @@ class K8sResourceMeta(object):
             "slimit": 10001,
             "down_sample_range": "",
         }
+        print(query_params["query_configs"][0]["promql"])
         series = resource.grafana.graph_unify_query(query_params)["series"]
         # 这里需要排序
         # 1. 得到最新时间点
