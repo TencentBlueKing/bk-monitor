@@ -1,0 +1,243 @@
+.custom-event-menu {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  min-height: fit-content;
+  padding: 2px 12px;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 2px;
+
+  .no-data {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100px;
+    margin: 16px 0;
+    color: white;
+  }
+  // opacity: 0.8;
+  &-header {
+    display: flex;
+    flex: 0 0 36px;
+    width: 100%;
+    margin-top: -2px;
+    color: white;
+    border-top-left-radius: 2px;
+    border-top-right-radius: 2px;
+
+    .header-tab {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      height: 36px;
+      cursor: pointer;
+      border-top: 4px solid transparent;
+
+      &:first-child {
+        margin-left: -12px;
+      }
+
+      &:last-child {
+        margin-right: -12px;
+      }
+    }
+  }
+
+  &-title {
+    display: flex;
+    align-items: center;
+
+    width: 100%;
+    height: 28px;
+    line-height: 20px;
+    color: #fff;
+    border-bottom: 1px solid #4d4f56;
+
+    .event-name {
+      display: inline;
+      flex: 1;
+      flex-wrap: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bk-button-text.detail-btn {
+      display: inline-flex;
+      flex: 0 0 40px;
+      align-items: center;
+      margin: 0;
+      margin-left: auto;
+      font-size: 12px;
+
+      * {
+        display: flex;
+        align-items: center;
+      }
+
+      .detail-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 4px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  &-content {
+    display: flex;
+    flex-direction: column;
+    margin: 8px 0;
+  }
+
+  .content-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 22px;
+    // padding-left: 8px;
+    line-height: 22px;
+    color: #c4c6cc;
+    border-radius: 2px;
+
+    &:nth-child(odd) {
+      background-color: #3c3c3d;
+    }
+
+    &-label {
+      display: flex;
+      flex: 0 0 100px;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100px;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    &-value {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      margin-left: 6px;
+      color: #fff;
+      word-break: break-all;
+
+      &.is-url {
+        color: #699df4;
+        cursor: pointer;
+      }
+    }
+
+    &-content {
+      display: inline;
+      align-items: center;
+      margin-right: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      .bk-link {
+        display: inline;
+        vertical-align: baseline;
+
+        &-text {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+
+  .event-icon {
+    display: inline-flex;
+    flex: 0 0 16px;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    background-position: center;
+    background-size: contain;
+  }
+
+  .link-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    font-size: 12px;
+    color: #699df4;
+    cursor: pointer;
+  }
+
+  .content-progress {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+    height: 28px;
+    margin-bottom: 8px;
+    color: #eaebf0;
+
+    .progress-title {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+
+    .bk-progress {
+      margin-left: 20px;
+    }
+  }
+
+  .common-more {
+    display: flex;
+    flex: 0 0 20px;
+    align-items: center;
+    height: 20px;
+    padding-left: 20px;
+    margin-top: 5px;
+    color: #fff;
+
+    .bk-button-small {
+      /* stylelint-disable-next-line declaration-no-important */
+      padding-left: 5px !important;
+    }
+
+    i {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 14px;
+      margin-left: 4px;
+      font-size: 14px;
+
+      &::before {
+        position: absolute;
+        top: 3px;
+        left: -2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 14px;
+      }
+    }
+  }
+
+  .custom-menu-skeleton {
+    height: 18px;
+    margin: 6px;
+    border-radius: 2px;
+
+    &::after {
+      background: linear-gradient(90deg, #3d3d3d 25%, #3d3d3d 37%, #515152 63%);
+    }
+  }
+}
