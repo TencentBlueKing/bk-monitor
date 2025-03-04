@@ -31,7 +31,6 @@ import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/index';
-import svg from 'monitor-common/svg/base64';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import {
@@ -45,13 +44,15 @@ import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/va
 import ListLegend from '../../components/chart-legend/common-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
+import { downFile, fitPosition, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
 import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
+import CustomEventMenu from './custom-event-menu/custom-event-menu';
+import { createCustomEventSeries, getCustomEventTags, type ICustomEventTagsItem } from './use-custom';
 
 import type {
   DataQuery,
@@ -67,6 +68,7 @@ import type {
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
 import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee/type';
+import type { IPosition } from 'CustomEventMenu';
 
 import './caller-line-chart.scss';
 
@@ -139,6 +141,14 @@ class CallerLineChart extends CommonSimpleChart {
 
   // 图例排序
   legendSorts: { name: string; timeShift: string }[] = [];
+  // 自定义事件menu位置信息
+  customMenuPosition: IPosition = {
+    left: 0,
+    top: 0,
+  };
+  clickEventItem: ICustomEventTagsItem['items'][number] = null;
+  // 自定义事件menu数据
+  customMenuData: object = {};
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -256,6 +266,7 @@ class CallerLineChart extends CommonSimpleChart {
         ...callOptions,
         ...selectPanelParams,
       });
+      let newParams: Record<string, any> = {};
       for (const timeShift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
@@ -266,7 +277,7 @@ class CallerLineChart extends CommonSimpleChart {
           return paramsResult;
         };
         const list = this.panel.targets.map(item => {
-          const newParams = structuredClone({
+          newParams = structuredClone({
             ...variablesService.transformVariables(
               dataFormat({ ...item.data }),
               {
@@ -348,7 +359,13 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      await Promise.all(promiseList).catch(() => false);
+      let customEventList = [];
+      await Promise.all([
+        ...promiseList,
+        getCustomEventTags({ ...newParams }).then(list => {
+          customEventList = list;
+        }),
+      ]).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
@@ -423,10 +440,6 @@ class CallerLineChart extends CommonSimpleChart {
         const isBar = this.panel.options?.time_series?.type === 'bar';
         const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
-        console.info(seriesList, this.legendData, '+++++');
-        const xList = seriesList[0].data;
-        const xValue = xList[Math.ceil(xList.length / 2)]?.value[0];
-        const x2Value = xList[Math.ceil(xList.length / 3)]?.value[0];
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -434,8 +447,8 @@ class CallerLineChart extends CommonSimpleChart {
             animationThreshold: 1,
             grid: {
               top: 30,
-              left: 6,
-              right: 6,
+              left: 20,
+              right: 20,
               bottom: 0,
               containLabel: true,
             },
@@ -464,103 +477,7 @@ class CallerLineChart extends CommonSimpleChart {
               ...xInterval,
               splitNumber: 4,
             },
-            series: [
-              ...seriesList,
-              {
-                type: 'custom',
-                name: 'xx',
-                renderItem: (params: any, api: any) => {
-                  const eventCount = api.value(2);
-                  const x = api.coord([api.value(0), 0])[0];
-                  const y0 = api.coord([0, 0])[1];
-                  // const y1 = api.coord([0, maxValue])[1];
-                  const rectangleHeight = 16 * window.devicePixelRatio; // 矩形的高度
-                  const circleRadius = rectangleHeight / 2; // 圆的半径
-                  const rectangleWidth = 18 * window.devicePixelRatio; // 矩形的宽度
-                  const totalHeight = Math.max(rectangleHeight, 2 * circleRadius);
-                  const pathData = `
-                M ${circleRadius},${totalHeight / 2}
-                a ${circleRadius},${circleRadius} 0 0,1 ${circleRadius},-${circleRadius}
-                h ${rectangleWidth}
-                a ${circleRadius},${circleRadius} 0 0,1 ${circleRadius},${circleRadius}
-                a ${circleRadius},${circleRadius} 0 0,1 -${circleRadius},${circleRadius}
-                h -${rectangleWidth}
-                a ${circleRadius},${circleRadius} 0 0,1 -${circleRadius},-${circleRadius}
-                Z
-            `;
-                  const line = {
-                    type: 'line',
-                    shape: {
-                      x1: x,
-                      y1: y0,
-                      x2: x,
-                      y2: 20,
-                    },
-                    style: {
-                      stroke: '#2F567D',
-                      lineWidth: 1.2,
-                      lineDash: 'dashed',
-                    },
-                  };
-
-                  const image = {
-                    type: 'image',
-                    z2: 100000,
-                    style: {
-                      image: svg.landun,
-                      x: eventCount > 1 ? x - 16 : x - 8,
-                      y: 2,
-                      width: circleRadius,
-                      height: circleRadius,
-                    },
-                  };
-                  const path = {
-                    type: 'path',
-                    x: x - 17,
-                    y: -6,
-                    shape: {
-                      pathData,
-                      width: rectangleWidth,
-                      height: rectangleHeight,
-                    },
-                    style: api.style({
-                      stroke: '#2F567D',
-                      fill: '#2F567D',
-                    }),
-                  };
-                  const text = {
-                    type: 'text',
-                    z2: 100000,
-                    style: {
-                      text: eventCount,
-                      fill: '#fff',
-                      font: `bolder ${5.5 * window.devicePixelRatio}px  sans-serif`,
-                      width: width,
-                      overflow: 'truncate',
-                      ellipsis: '',
-                      truncateMinChar: 1,
-                      x: x + 2,
-                      y: 4,
-                    },
-                    textConfig: {
-                      position: 'insideRight',
-                      inside: true,
-                      outsideFill: 'transparent',
-                    },
-                  };
-                  return {
-                    type: 'group',
-                    children: eventCount > 1 ? [path, line, image, text] : [line, image],
-                  };
-                },
-                data: [
-                  [x2Value, 0, 24],
-                  [xValue, 0, 1],
-                ],
-                silent: false,
-                z: 100000,
-              },
-            ],
+            series: [...seriesList, createCustomEventSeries(customEventList)],
             tooltip: {
               extraCssText: 'max-width: 50%',
             },
@@ -1129,12 +1046,41 @@ class CallerLineChart extends CommonSimpleChart {
   }
   handleClick(event) {
     if (event.seriesType === 'custom') {
-      console.info(e, '+++++');
+      this.$el.focus?.();
+      const {
+        info,
+        event: {
+          event: { clientX, clientY },
+        },
+      } = event;
+      const position = fitPosition(
+        {
+          left: clientX + 12,
+          top: clientY + 12,
+        },
+        400,
+        300
+      );
+      this.customMenuPosition = {
+        left: position.left,
+        top: position.top,
+      };
+      this.clickEventItem = info;
     }
+  }
+  handleChartBlur() {
+    this.customMenuPosition = {
+      left: 0,
+      top: 0,
+    };
   }
   render() {
     return (
-      <div class='apm-caller-line-chart'>
+      <div
+        class='apm-caller-line-chart'
+        tabindex={22}
+        onBlur={this.handleChartBlur}
+      >
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
@@ -1210,6 +1156,12 @@ class CallerLineChart extends CommonSimpleChart {
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
+        )}
+        {this.customMenuPosition?.left > 0 && (
+          <CustomEventMenu
+            eventItem={this.clickEventItem}
+            position={this.customMenuPosition}
+          />
         )}
       </div>
     );
