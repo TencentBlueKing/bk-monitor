@@ -54,6 +54,12 @@ class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
     expression = serializers.CharField(label="查询表达式", allow_blank=True)
     query_configs = serializers.ListField(label="查询配置列表", child=EventQueryConfigSerializer(), allow_empty=False)
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if any("type" not in query_config["group_by"] for query_config in attrs["query_configs"]):
+            raise ValueError(_("type 分组字段是必须的"))
+        return attrs
+
 
 class EventLogsRequestSerializer(BaseEventRequestSerializer):
     # 聚合查询场景，limit 是每个数据源的数量限制，例如传 limit=5, offset=5，分别查询每个数据源的结果并聚合返回。
