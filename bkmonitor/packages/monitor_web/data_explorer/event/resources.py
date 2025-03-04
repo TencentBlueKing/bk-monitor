@@ -60,7 +60,7 @@ class EventTimeSeriesResource(Resource):
 
         for series in result["series"]:
             dimensions = series["dimensions"]
-            if not dimensions["type"].strip():
+            if "type" in dimensions and not dimensions["type"].strip():
                 dimensions["type"] = EventType.Default.value
         result["query_config"] = validated_request_data
         return result
