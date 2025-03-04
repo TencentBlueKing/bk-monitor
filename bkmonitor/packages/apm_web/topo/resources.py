@@ -42,8 +42,8 @@ class DataTypeBarQueryResource(Resource):
 
     def perform_request(self, validated_request_data):
         response = BarQuery(
-            **validated_request_data,
             endpoint_name=validated_request_data.pop("endpoint_name", None),
+            **validated_request_data,
         ).execute()
 
         return {
