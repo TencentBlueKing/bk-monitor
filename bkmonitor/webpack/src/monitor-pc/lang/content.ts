@@ -297,4 +297,5 @@ export default {
   '点击前往：主机详情页': 'Click to go to: Host details page/Host details page',
   '点击前往：服务详情页': 'Click to go to: Host details page/Service details page',
   '点击前往：pod详情页': 'Click to go to: Host details page/Pod details page',
+  '共 {0} 个事件，展示 Top{1}': '{0} events in total, display Top{1}',
 };
