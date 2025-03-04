@@ -779,7 +779,8 @@ const store = new Vuex.Store({
               tag: '',
               origin_field: '',
               es_doc_values: true,
-              is_analyzed: false,
+              is_analyzed: true,
+              is_virtual_obj_node: true,
               field_operator: [],
               is_built_in: true,
               is_case_sensitive: false,
@@ -1459,10 +1460,15 @@ const store = new Vuex.Store({
       const depth = Number(payload.depth ?? '0');
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
-      const getFieldType = field => {
-        const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
-        return target ? target.field_type : '';
+
+      const getTargetField = field => {
+        return state.visibleFields?.find(item => item.field_name === field);
       };
+
+      const getFieldType = field => {        
+        return getTargetField(field)?.field_type ?? '';
+      };
+
       const getAdditionMappingOperator = ({ operator, field, value }) => {
         let mappingKey = {
           // is is not 值映射
@@ -1487,8 +1493,12 @@ const store = new Vuex.Store({
           'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
         };
 
-        const textType = getFieldType(field);
-        if (textType === 'text') {
+        const targetField = getTargetField(field);
+
+        const textType = targetField?.field_type ?? '';
+        const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
+
+        if (textType === 'text' || isVirtualObjNode) {
           mappingKey = textMappingKey;
         }
 
