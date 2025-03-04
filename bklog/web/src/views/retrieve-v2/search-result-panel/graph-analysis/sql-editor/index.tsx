@@ -96,6 +96,7 @@ export default defineComponent({
 
       const requestCancelToken = RequestPool.getCancelToken(requestId);
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
+      const { start_time, end_time } = retrieveParams.value;
       const params = {
         method: 'post',
         url: `/search/index_set/${indexSetId.value}/chart/`,
@@ -103,6 +104,8 @@ export default defineComponent({
         withCredentials: true,
         baseURL: baseUrl,
         data: {
+          start_time,
+          end_time,
           query_mode: 'sql',
           sql, // 使用获取到的内容
         },
