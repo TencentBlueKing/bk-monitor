@@ -133,5 +133,8 @@ apigw-manager==3.0.2
 # 日志聚类
 jieba-fast==0.53
 
+# sql
+sqlglot==26.7.0
+
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到
 -r requirements_env.txt

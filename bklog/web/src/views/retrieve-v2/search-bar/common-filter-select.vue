@@ -5,7 +5,7 @@
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey, getRegExp } from '@/common/util';
+  import { getOperatorKey } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   const { $t } = useLocale();
   const store = useStore();
@@ -26,12 +26,14 @@
       const filterAddition = store.getters.common_filter_addition || [];
       return filterFieldsList.value.map(item => {
         const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
-        return matchingItem ?? {
-          field: item.field_name || '',
-          operator: '=',
-          value: [],
-          list: [],
+        return (
+          matchingItem ?? {
+            field: item.field_name || '',
+            operator: '=',
+            value: [],
+            list: [],
           }
+        );
       });
     },
     set(val) {
@@ -50,7 +52,6 @@
   });
 
   const activeIndex = ref(-1);
-  const filterKeyword = ref('');
   let requestTimer = null;
   const isRequesting = ref(false);
 
@@ -128,8 +129,7 @@
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    filterKeyword.value = value;
-    // rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+    rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
   };
 
   // 新建提交逻辑
@@ -164,10 +164,6 @@
   const handleRowBlur = () => {
     focusIndex.value = null;
   };
-  const filterOption = ( index )=>{
-    const regExp = getRegExp(filterKeyword.value.trim());
-    return  commonFilterAddition.value[index].list.filter(item => regExp.test(item));
-  }
 </script>
 
 <template>
@@ -185,7 +181,10 @@
         @focus.capture="e => handleRowFocus(index, e)"
         @blur.capture="handleRowBlur"
       >
-        <div class="title" v-bk-overflow-tips>
+        <div
+          class="title"
+          v-bk-overflow-tips
+        >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
         <bk-select
@@ -228,7 +227,7 @@
               ></bk-input>
             </template>
             <bk-option
-              v-for="option in filterOption(index)"
+              v-for="option in commonFilterAddition.value[index].list"
               :id="option"
               :key="option"
               :name="option"

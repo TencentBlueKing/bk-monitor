@@ -429,6 +429,8 @@ DEFAULT_APM_ATTRIBUTE_CONFIG = {"name": "attribute_filter/common"}
 
 DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG = {"name": "attribute_filter/app"}
 
+DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG = {"name": "attribute_filter/logs"}
+
 DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG = {"name": "db_filter/common"}
 
 DEFAULT_PLATFORM_API_NAME_CONFIG = {
@@ -533,6 +535,7 @@ class ConfigTypes:
     QUEUE_LOGS_BATCH_SIZE = "logs_batch_size"
     DB_SLOW_COMMAND_CONFIG = "db_slow_command_config"
     DB_CONFIG = "db_config"
+    ATTRIBUTES_CONFIG_LOGS = "attributes_config_logs"
 
     @classmethod
     def choices(cls):
@@ -542,6 +545,7 @@ class ConfigTypes:
             (cls.QUEUE_LOGS_BATCH_SIZE, _("每批Log发送大小")),
             (cls.DB_SLOW_COMMAND_CONFIG, _("db慢命令配置")),
             (cls.DB_CONFIG, _("db配置")),
+            (cls.ATTRIBUTES_CONFIG_LOGS, _("attributes 配置(logs)")),
         ]
 
 

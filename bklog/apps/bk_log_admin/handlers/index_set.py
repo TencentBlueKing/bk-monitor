@@ -61,8 +61,8 @@ class IndexSetHandler(object):
         """
         user_index_set_history_objs = self.get_user_index_set_history_objs(
             index_set_id,
-            arrow.get(int(user_search_history_operation_time["start_time"])),
-            arrow.get(int(user_search_history_operation_time["end_time"])),
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
         user_index_set_history = (
             user_index_set_history_objs.annotate(
@@ -89,8 +89,8 @@ class IndexSetHandler(object):
         """
         user_index_set_history_objs = self.get_user_index_set_history_objs(
             index_set_id,
-            arrow.get(int(user_search_history_operation_time["start_time"])),
-            arrow.get(int(user_search_history_operation_time["end_time"])),
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
         user_index_set_history = user_index_set_history_objs.values("created_by").annotate(count=Count("id"))
         created_by_label_list = []
@@ -109,8 +109,8 @@ class IndexSetHandler(object):
         """
         user_index_set_history_objs = self.get_user_index_set_history_objs(
             index_set_id,
-            arrow.get(int(user_search_history_operation_time["start_time"])),
-            arrow.get(int(user_search_history_operation_time["end_time"])),
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
 
         # 根据分组范围和对应的标签构建Case表达式

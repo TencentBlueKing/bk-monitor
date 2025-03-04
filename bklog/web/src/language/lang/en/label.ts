@@ -731,4 +731,5 @@ export default {
   字段映射: 'field mapping',
   覆盖当前收藏: 'Cover current favorites',
   另存为新收藏: 'Save as a new favorite',
+  'JSON 字段动态新增': 'JSON field dynamically added',
 };

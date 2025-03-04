@@ -134,8 +134,20 @@ class DateTimeFieldWithEpoch(serializers.DateTimeField):
     接受10位时间戳的 DateTimeField
     """
 
+    def __init__(self, format="%Y-%m-%d %H:%M:%S.%f", input_formats=None, default_timezone=None, **kwargs):
+        super().__init__(format=format, input_formats=input_formats, default_timezone=default_timezone, **kwargs)
+
     def to_internal_value(self, value):
+        if isinstance(value, str):
+            value = value.replace("&nbsp;", " ")
         try:
+            if str(value).isdigit():
+                if len(str(value)) == 16:
+                    value = int(value) / 10**6
+                elif len(str(value)) == 13:
+                    value = int(value) / 10**3
+                else:
+                    value = int(value)
             value = datetime.datetime.fromtimestamp(
                 value, pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
             ).strftime(self.format)

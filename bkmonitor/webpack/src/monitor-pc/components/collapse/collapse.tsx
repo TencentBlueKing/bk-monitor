@@ -74,7 +74,7 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
   height = 0;
 
   /** 最大高度 */
-  loacalMaxHeight = 0;
+  localMaxHeight = 0;
 
   /** 是否渲染content */
   showContent = false;
@@ -86,7 +86,7 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
 
   created() {
     // this.height = null;
-    this.defaultHeight && (this.loacalMaxHeight = this.defaultHeight);
+    this.defaultHeight && (this.localMaxHeight = this.defaultHeight);
     if (this.renderAnimation) {
       this.openAnimation = true;
     } else {
@@ -134,11 +134,10 @@ export default class Collapse extends tsc<ICollapseProps, ICollapseEvents> {
    * @param {boolean} val 展开状态
    */
   updateHeight(val: boolean) {
-    this.loacalMaxHeight = this.maxHeight;
+    this.localMaxHeight = this.maxHeight;
     const contentHeight = this.collapseContentRef?.scrollHeight;
-    console.log(contentHeight);
     this.height = val ? contentHeight : contentHeight < this.defaultHeight ? contentHeight : this.defaultHeight;
-    !!this.loacalMaxHeight && val && this.height > this.loacalMaxHeight && (this.height = this.loacalMaxHeight);
+    !!this.localMaxHeight && val && this.height > this.localMaxHeight && (this.height = this.localMaxHeight);
   }
 
   /** 对外暴露更新内容区域高度的方法 */

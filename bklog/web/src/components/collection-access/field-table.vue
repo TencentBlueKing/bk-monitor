@@ -52,21 +52,6 @@
               <span style="margin-right: 20px; line-height: 30px">{{ $t('显示内置字段') }}</span>
             </bk-checkbox>
 
-            <bk-checkbox
-              v-if="!isPreviewMode && selectEtlConfig === 'bk_log_json' && retainExtraJsonIsOpen"
-              v-model="retainExtraText"
-              :checked="false"
-              :false-value="false"
-              :true-value="true"
-              @change="handleKeepField"
-            >
-              <span
-                style="margin-right: 20px; line-height: 30px"
-                class="bk-label"
-                >{{ $t('保留未定义字段') }}</span
-              >
-            </bk-checkbox>
-            <!-- <bk-switcher size="small" theme="primary" v-model="retainOriginalText"></bk-switcher> -->
           </div>
         </div>
         <!-- <bk-switcher
@@ -684,7 +669,6 @@
         // timeCheckResult: false,
         checkLoading: false,
         retainOriginalText: true, // 保留原始日志
-        retainExtraText: false,
         builtFieldVisible: false,
         currentIsAnalyzed: false,
         currentParticipleState: '',
@@ -792,15 +776,11 @@
           this.reset();
         },
       },
-      retainExtraJson(newVal) {
-        this.retainExtraText = newVal;
-      },
       builtFieldShow(newVal) {
         this.builtFieldVisible = newVal;
       },
     },
     async mounted() {
-      this.retainExtraText = this.retainExtraJson;
       this.builtFieldVisible = this.builtFieldShow;
       this.reset();
       this.$emit('handle-table-data', this.changeTableList);
@@ -1232,9 +1212,6 @@
       },
       handleKeepLog(value) {
         this.$emit('handle-keep-log', value);
-      },
-      handleKeepField(value) {
-        this.$emit('handle-keep-field', value);
       },
       // 表格展示内置字段
       handleBuiltField(value) {
