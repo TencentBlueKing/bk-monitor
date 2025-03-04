@@ -55,7 +55,7 @@ def get_order_config(view: SceneViewModel) -> List:
                 {
                     "match_type": list(match_type),
                     "metric_name": field.name,
-                    "hidden": field.disabled or field.get("hidden", False),
+                    "hidden": field.disabled or field.config.get("hidden", False),
                     "match_rules": match_rules,
                 }
             )

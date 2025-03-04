@@ -133,6 +133,7 @@ class ModifyCustomTsGroupingRuleList(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=[])
 
@@ -172,7 +173,8 @@ class ModifyCustomTsGroupingRuleList(Resource):
             batch_size=200,
         )
         return resource.custom_report.group_custom_ts_item(
-            time_series_group_id=validated_request_data["time_series_group_id"]
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            time_series_group_id=validated_request_data["time_series_group_id"],
         )
 
 
