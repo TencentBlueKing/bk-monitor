@@ -384,7 +384,7 @@ class CustomTSTable(OperateRecordModelBase):
 
 class CustomTSItem(models.Model):
     """
-    自定义时序指标（弃用）
+    自定义时序指标
     """
 
     table = models.ForeignKey(
@@ -410,6 +410,7 @@ class CustomTSGroupingRule(models.Model):
     自定义时序指标分组规则
     """
 
+    index = models.IntegerField("排序", default=0)
     name = models.CharField("分组名称", max_length=128)
     time_series_group_id = models.IntegerField("时序分组ID")
     manual_list = JsonField("手动分组的指标列表", default=[])
