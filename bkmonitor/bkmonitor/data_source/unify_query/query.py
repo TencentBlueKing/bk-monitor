@@ -345,8 +345,9 @@ class UnifyQuery:
             span.set_attribute("bk.system", "unify_query")
             span.set_attribute("bk.unify_query.statement", json.dumps(params))
             data = api.unify_query.query_data(**params)
-            data = self.process_unify_query_data(params, data, end_time=end_time)
-        return data
+            records: List[Dict[str, Any]] = self.process_unify_query_data(params, data, end_time=end_time)
+            records = self.process_data_by_datasource(records)
+        return records
 
     def _query_reference_using_unify_query(
         self,
