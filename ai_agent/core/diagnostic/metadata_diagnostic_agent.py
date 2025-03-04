@@ -150,7 +150,9 @@ class MetadataDiagnosisAgent:
         return structured_prompt.replace("{metadata_json}", json.dumps(metadata, ensure_ascii=False))
 
     def llm_analysis_engine(self, metadata: dict) -> Dict[str, Any]:
-        """优化后的LLM决策分析核心"""
+        """
+        LLM决策分析引擎
+        """
         try:
             # 构造带格式约束的prompt
             structured_prompt = self._build_diagnosis_prompt(metadata)
@@ -181,7 +183,9 @@ class MetadataDiagnosisAgent:
             return {"error": "分析引擎异常", "details": str(e)}
 
     def diagnosis_flow(self, bk_data_id: int) -> Generator:
-        """优化后的诊断流程"""
+        """
+        诊断工作流
+        """
         try:
             # 参数校验
             if not isinstance(bk_data_id, int):
@@ -229,7 +233,7 @@ class MetadataDiagnosisAgent:
             }
             yield "report", formatted_report
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logger.exception("诊断流程异常")
             yield "error", {"stage": "unknown", "message": f"诊断流程异常: {str(e)}", "details": str(e)}
 
@@ -238,8 +242,6 @@ class MetadataDiagnosisAgent:
     def diagnose(cls, bk_data_id: int) -> dict:
         """
         同步执行诊断流程并返回最终报告
-        用法示例：
-        report = MetadataDiagnosisAgent.diagnose(bk_data_id=12345)
         """
         agent = cls()
         generator = agent.diagnosis_flow(bk_data_id)
