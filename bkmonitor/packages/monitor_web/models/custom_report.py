@@ -390,7 +390,7 @@ class CustomTSItem(models.Model):
     table = models.ForeignKey(
         CustomTSTable, verbose_name="自定义时序ID", related_name="metric_list", default=0, on_delete=models.CASCADE
     )
-    field_name = models.CharField("字段名称", max_length=128, db_column="metric_name")
+    metric_name = models.CharField("指标名称", max_length=128)
     type = models.CharField("类型", max_length=16, default="")
     label = JsonField("分组标签", default=list, blank=False)
 
