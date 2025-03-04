@@ -134,7 +134,7 @@ export default class QuickOpenCluster extends tsc<IProps> {
   }
   async queryValueList(fields = []) {
     if (!fields.length) return;
-    const tempList = handleTransformToTimestamp(this.datePickerValue);
+    const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
     try {
       const res = await $http.request('retrieve/getAggsTerms', {
         params: {
@@ -143,8 +143,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
         data: {
           keyword: this.retrieveParams?.keyword ?? '*',
           fields,
-          start_time: formatDate(tempList[0] * 1000),
-          end_time: formatDate(tempList[1] * 1000),
+          start_time: formatDate(tempList[0]),
+          end_time: formatDate(tempList[1]),
         },
       });
       this.formData.filter_rules.forEach(item => {

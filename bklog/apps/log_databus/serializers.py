@@ -1074,14 +1074,14 @@ class RestoreArchiveSerlalizer(serializers.Serializer):
     archive_config_id = serializers.IntegerField(label=_("业务ID"), required=True)
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
     index_set_name = serializers.CharField(label=_("索引集名称"), required=True)
-    start_time = DateTimeFieldWithEpoch(required=True, label=_("数据开始时间"), format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=True, label=_("数据结束时间"), format="%Y-%m-%d %H:%M:%S")
-    expired_time = DateTimeFieldWithEpoch(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=True, label=_("数据开始时间"))
+    end_time = DateTimeFieldWithEpoch(required=True, label=_("数据结束时间"))
+    expired_time = DateTimeFieldWithEpoch(required=True, label=_("指定过期时间"))
     notice_user = serializers.ListField(required=True, label=_("通知人"))
 
 
 class UpdateRestoreArchiveSerlalizer(serializers.Serializer):
-    expired_time = DateTimeFieldWithEpoch(required=True, label=_("指定过期时间"), format="%Y-%m-%d %H:%M:%S")
+    expired_time = DateTimeFieldWithEpoch(required=True, label=_("指定过期时间"))
 
 
 class DeleteRestoreArchiveSerlalizer(serializers.Serializer):
