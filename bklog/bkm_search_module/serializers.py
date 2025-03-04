@@ -34,8 +34,8 @@ class SearchAttrSerializer(serializers.Serializer):
     query_string = serializers.CharField(
         help_text=_("查询语句"), required=False, default="", allow_null=True, allow_blank=True
     )
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     begin = serializers.IntegerField(required=False, default=0)
     size = serializers.IntegerField(required=False, default=10)
     condition = serializers.DictField(allow_empty=True, required=False, default=dict)
@@ -43,8 +43,8 @@ class SearchAttrSerializer(serializers.Serializer):
 
 
 class SearchFieldsSerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S", default="")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S", default="")
+    start_time = DateTimeFieldWithEpoch(required=False, default="")
+    end_time = DateTimeFieldWithEpoch(required=False, default="")
 
 
 class CreateIndexSetFieldsConfigSerializer(serializers.Serializer):
@@ -113,8 +113,8 @@ class DownLoadUrlSeaializer(serializers.Serializer):
     query_string = serializers.CharField(
         help_text=_("查询语句"), required=False, default="", allow_null=True, allow_blank=True
     )
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     begin = serializers.IntegerField(required=False, default=0)
     size = serializers.IntegerField(required=False, default=10)
     condition = serializers.DictField(allow_empty=True, required=False, default=dict)
