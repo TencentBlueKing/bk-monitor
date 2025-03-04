@@ -7,10 +7,10 @@ info:
 schemes:
 - http
 paths:
-  /app/dashboard/time_series_unify_query_raw/:
+  /app/event_plugin/deploy_event_plugin/:
     post:
-      operationId: time_series_unify_query_raw
-      description: 视图数据查询(原始数据)
+      operationId: deploy_event_plugin
+      description: 部署告警源插件
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: true
@@ -18,10 +18,10 @@ paths:
         backend:
           type: HTTP
           method: post
-          path: /api/v4/grafana/time_series/unify_query_raw/
+          path: /api/v4/event_plugin/deploy_event_plugin/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: time series unify raw query
+        descriptionEn: deploy event plugin

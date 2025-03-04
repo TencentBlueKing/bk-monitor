@@ -27,13 +27,13 @@ def get_metrics() -> List:
             name=_lazy("流量"),
             children=[
                 Metric(
-                    id="container_network_receive_bytes_total",
+                    id="nw_container_network_receive_bytes_total",
                     name=_lazy("网络入带宽"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
                 Metric(
-                    id="container_network_transmit_bytes_total",
+                    id="nw_container_network_transmit_bytes_total",
                     name=_lazy("网络出带宽"),
                     unit="Bps",
                     unsupported_resource=[],
@@ -45,37 +45,37 @@ def get_metrics() -> List:
             name=_lazy("包量"),
             children=[
                 Metric(
-                    id="container_network_receive_bytes_total",
+                    id="nw_container_network_receive_packets_total",
                     name=_lazy("网络入包量"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
                 Metric(
-                    id="container_network_transmit_bytes_total",
+                    id="nw_container_network_transmit_packets_total",
                     name=_lazy("网络出包量"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
                 Metric(
-                    id="container_network_receive_packets_dropped_total",
+                    id="nw_container_network_receive_packets_dropped_total",
                     name=_lazy("网络入丢包量"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
                 Metric(
-                    id="container_network_transmit_packets_dropped_total",
+                    id="nw_container_network_transmit_packets_dropped_total",
                     name=_lazy("网络出丢包量"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
                 Metric(
-                    id="container_network_receive_packets_dropped_ratio",
+                    id="nw_container_network_receive_packets_dropped_ratio",
                     name=_lazy("网络入丢包率"),
                     unit="Bps",
                     unsupported_resource=[],
                 ),
                 Metric(
-                    id="container_network_transmit_packets_dropped_ratio",
+                    id="nw_container_network_transmit_packets_dropped_ratio",
                     name=_lazy("网络出丢包率"),
                     unit="Bps",
                     unsupported_resource=[],

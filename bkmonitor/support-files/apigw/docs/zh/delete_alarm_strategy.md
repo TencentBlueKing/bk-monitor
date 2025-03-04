@@ -1,46 +1,43 @@
 ### 功能描述
 
-删除告警策略
+删除监控策略以及会删除相关联的屏蔽
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 
-| 字段      | 类型 | 必选 | 描述       |
-| :-------- | ---- | ---- | ---------- |
-| bk_biz_id | int  | 是   | 业务ID     |
-| id        | int  | 是   | 告警策略ID |
+| 字段        | 类型          | 必选  | 描述     |
+| --------- | ----------- | --- | ------ |
+| bk_biz_id | int         | 是   | 业务 ID  |
+| id        | int         | 否   | 策略 ID   |
+| ids       | List\[int\] | 否   | 策略 ID 列表 |
 
-#### 示例数据
+`id` 和 `ids` 必须要有其中一个
+
+#### 请求示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
-    "bk_biz_id": 2,
-    "id": 1
+  "bk_biz_id": 2,
+  "id": 64414
 }
 ```
 
-### 响应参数
+### 返回结果
 
-| 字段    | 类型   | 描述         |
-| ------- | ------ | ------------ |
-| result  | bool   | 请求是否成功 |
-| code    | int    | 返回的状态码 |
-| message | string | 描述信息     |
-| data    | null   | 返回数据     |
+| 字段      | 类型          | 描述       |
+| ------- | ----------- | -------- |
+| result  | bool        | 请求是否成功   |
+| code    | int         | 返回的状态码   |
+| message | string      | 描述信息     |
+| data    | List\[int\] | 策略 ID 列表 |
 
-##### 示例数据
+#### 结果示例
 
 ```json
 {
-    "message": "OK",
-    "code": 200,
-    "data": null,
-    "result": true
+  "result": true,
+  "code": 200,
+  "message": "OK",
+  "data": [64414]
 }
 ```

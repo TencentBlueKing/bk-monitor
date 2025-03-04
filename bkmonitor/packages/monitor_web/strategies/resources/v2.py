@@ -6,11 +6,11 @@ import re
 import time
 import typing
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
 from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
-from concurrent.futures import ThreadPoolExecutor
 
 import arrow
 import pytz
@@ -1081,7 +1081,7 @@ class GetStrategyListV2Resource(Resource):
             )
 
         if not queries:
-            return
+            return {}
 
         metrics = MetricListCache.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).filter(
             reduce(lambda x, y: x | y, queries)
@@ -1103,23 +1103,23 @@ class GetStrategyListV2Resource(Resource):
                 query_config["name"] = metric_info[metric_id].metric_field_name
             else:
                 query_config["name"] = (
-                            query_config.get("metric_field")
-                            or query_config.get("custom_event_name")
-                            or query_config.get("bkmonitor_strategy_id")
-                            or query_config.get("alert_name")
-                            or query_config.get("result_table_id", "")
+                    query_config.get("metric_field")
+                    or query_config.get("custom_event_name")
+                    or query_config.get("bkmonitor_strategy_id")
+                    or query_config.get("alert_name")
+                    or query_config.get("result_table_id", "")
                 )
 
     @staticmethod
     def fill_allow_target(strategy: Dict, target_strategy_mapping):
         """
-         补充是否允许增删目标
+        补充是否允许增删目标
         """
         target = target_strategy_mapping.get(strategy["id"])
         algorithms = strategy["items"][0]["algorithms"]
         algorithm = algorithms[0] if algorithms else {}
         strategy["add_allowed"] = (target != DataTarget.NONE_TARGET) or (
-                algorithm.get("type") == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection
+            algorithm.get("type") == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection
         )
 
     @staticmethod
@@ -1219,7 +1219,7 @@ class GetStrategyListV2Resource(Resource):
         strategy_ids = [strategy_config["id"] for strategy_config in strategy_configs]
 
         # 查询ES，统计策略告警数量
-        search_result_future = executor.submit(self.get_alert_search_result,bk_biz_id, strategy_ids)
+        search_result_future = executor.submit(self.get_alert_search_result, bk_biz_id, strategy_ids)
         metric_info_future = executor.submit(self.get_metric_info, bk_biz_id, strategy_configs)
         target_strategy_mapping_future = executor.submit(self.get_target_strategy_mapping, strategy_configs)
         strategy_shield_info_future = executor.submit(self.get_shield_info, strategy_ids, bk_biz_id)

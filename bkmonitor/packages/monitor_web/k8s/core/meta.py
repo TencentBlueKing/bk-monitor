@@ -15,7 +15,7 @@ from django.db.models.functions import Concat
 from django.utils.functional import cached_property
 
 from apm_web.utils import get_interval_number
-from bkmonitor.models import BCSContainer, BCSPod, BCSWorkload
+from bkmonitor.models import BCSContainer, BCSIngress, BCSPod, BCSService, BCSWorkload
 from bkmonitor.utils.time_tools import hms_string
 from core.drf_resource import resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -93,6 +93,22 @@ class FilterCollection(object):
             self.filters[workload_filter.filter_uid] = workload_filter
             yield self.filter_string()
             self.filters.pop(workload_filter.filter_uid, None)
+
+
+class NetworkWithRelation:
+    """网络场景，层级关联支持"""
+
+    def label_join(self, filter_exclude=""):
+        return f"""(count by (bk_biz_id, bcs_cluster_id, namespace, ingress, service, pod)
+            (ingress_with_service_relation{{{self.filter.filter_string(exclude=filter_exclude)}}})
+            * on (namespace, service) group_left(pod)
+            (count by (service, namespace, pod) (pod_with_service_relation))
+            * on (namespace, pod) group_left(ingress)"""
+
+    def clean_metric_name(self, metric_name):
+        if metric_name.startswith("nw_"):
+            return metric_name[3:]
+        return metric_name
 
 
 class K8sResourceMeta(object):
@@ -197,6 +213,7 @@ class K8sResourceMeta(object):
             "slimit": 10001,
             "down_sample_range": "",
         }
+        print(query_params["query_configs"][0]["promql"])
         series = resource.grafana.graph_unify_query(query_params)["series"]
         # 这里需要排序
         # 1. 得到最新时间点
@@ -284,11 +301,39 @@ class K8sResourceMeta(object):
 
     @property
     def meta_prom_with_container_network_receive_bytes_total(self):
+        # 网络入流量（性能场景）维度层级: pod_name -> workload -> namespace -> cluster
         return self.tpl_prom_with_rate("container_network_receive_bytes_total", exclude="container_exclude")
 
     @property
     def meta_prom_with_container_network_transmit_bytes_total(self):
+        # 网络出流量（性能场景）维度层级: pod_name -> workload -> namespace -> cluster
         return self.tpl_prom_with_rate("container_network_transmit_bytes_total", exclude="container_exclude")
+
+    @property
+    def meta_prom_with_nw_container_network_receive_bytes_total(self):
+        # 网络入流量（网络场景）维度层级: pod_name -> service -> ingress -> namespace -> cluster
+        return self.tpl_prom_with_rate("nw_container_network_receive_bytes_total", exclude="container_exclude")
+
+    @property
+    def meta_prom_with_nw_container_network_transmit_bytes_total(self):
+        # 网络出流量（网络场景）维度层级: pod_name -> service -> ingress -> namespace -> cluster
+        return self.tpl_prom_with_rate("nw_container_network_transmit_bytes_total", exclude="container_exclude")
+
+    @property
+    def meta_prom_with_nw_container_network_receive_packets_total(self):
+        return self.tpl_prom_with_rate("nw_container_network_receive_packets_total", exclude="container_exclude")
+
+    @property
+    def meta_prom_with_nw_container_network_transmit_packets_total(self):
+        return self.tpl_prom_with_rate("nw_container_network_transmit_packets_total", exclude="container_exclude")
+
+    @property
+    def meta_prom_with_nw_container_network_receive_drop_total(self):
+        return self.tpl_prom_with_rate("nw_container_network_receive_drop_total", exclude="container_exclude")
+
+    @property
+    def meta_prom_with_nw_container_network_transmit_drop_total(self):
+        return self.tpl_prom_with_rate("nw_container_network_transmit_drop_total", exclude="container_exclude")
 
     @property
     def meta_prom_with_container_cpu_cfs_throttled_ratio(self):
@@ -308,13 +353,28 @@ class K8sResourceMeta(object):
         self.filter.add(filter_obj)
 
 
-class K8sPodMeta(K8sResourceMeta):
+class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     resource_field = "pod_name"
     resource_class = BCSPod
     column_mapping = {"workload_kind": "workload_type", "pod_name": "name"}
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
+    def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
+        metric_name = self.clean_metric_name(metric_name)
+        if self.agg_interval:
+            return f"""sum by (ingress, namespace, service) {self.label_join(exclude)}
+            sum by (namespace, pod)
+            ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:])))"""
+
+        return f"""{self.agg_method} by (ingress, namespace, service) {self.label_join(exclude)}
+                    sum by (namespace, pod)
+                    (rate({metric_name}[1m])))"""
+
     def tpl_prom_with_rate(self, metric_name, exclude=""):
+        if metric_name.startswith("nw_"):
+            # 网络场景下的pod数据，需要关联service 和 ingress
+            return self.nw_tpl_prom_with_rate(metric_name, exclude)
+
         if self.agg_interval:
             return (
                 f"sum by (workload_kind, workload_name, namespace, pod_name) "
@@ -491,6 +551,10 @@ class K8sNamespaceMeta(K8sResourceMeta):
         return self.distinct(self.filter.filter_queryset)
 
     def tpl_prom_with_rate(self, metric_name, exclude=""):
+        # 网络场景下的网络指标，默认代了前缀，需要去掉
+        if metric_name.startswith("nw_"):
+            metric_name = metric_name[3:]
+
         if self.agg_interval:
             return (
                 f"sum by (namespace) ({self.agg_method}_over_time(rate("
@@ -536,6 +600,50 @@ class K8sNamespaceMeta(K8sResourceMeta):
         return NameSpaceQuerySet(
             [NameSpace(zip(NameSpace.columns, ns)) for ns in sorted(unique_ns_query_set, key=lambda x: x[2])]
         )
+
+
+class K8sIngressMeta(K8sResourceMeta, NetworkWithRelation):
+    resource_field = "ingress"
+    resource_class = BCSIngress
+    column_mapping = {"ingress": "name"}
+
+    def tpl_prom_with_rate(self, metric_name, exclude=""):
+        """
+                promql示例:
+                sum by (ingress, namespace) (count by (ingress, namespace, service, pod)
+                (ingress_with_service_relation{ingress="bkunifyquery-test"})
+                * on (namespace, service) group_left(pod)
+                 (count by (service, namespace, pod)(pod_with_service_relation))
+                * on (namespace, pod) group_left(ingress)
+                sum by (namespace, pod) (last_over_time(rate(container_network_receive_bytes_total[1m])[1m:]))
+        )
+        """
+        metric_name = self.clean_metric_name(metric_name)
+        if self.agg_interval:
+            return f"""sum by (ingress, namespace) {self.label_join(exclude)}
+            sum by (namespace, pod)
+            ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:])))"""
+
+        return f"""{self.agg_method} by (ingress, namespace) {self.label_join(exclude)}
+                    sum by (namespace, pod)
+                    (rate({metric_name}[1m])))"""
+
+
+class K8sServiceMeta(K8sResourceMeta, NetworkWithRelation):
+    resource_field = "service"
+    resource_class = BCSService
+    column_mapping = {"service": "name"}
+
+    def tpl_prom_with_rate(self, metric_name, exclude=""):
+        metric_name = self.clean_metric_name(metric_name)
+        if self.agg_interval:
+            return f"""sum by (ingress, namespace, service) {self.label_join(exclude)}
+            sum by (namespace, pod)
+            ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:])))"""
+
+        return f"""{self.agg_method} by (ingress, namespace, service) {self.label_join(exclude)}
+                    sum by (namespace, pod)
+                    (rate({metric_name}[1m])))"""
 
 
 class K8sWorkloadMeta(K8sResourceMeta):
@@ -809,6 +917,8 @@ def load_resource_meta(resource_type: str, bk_biz_id: int, bcs_cluster_id: str) 
         'pod_name': K8sPodMeta,
         'workload': K8sWorkloadMeta,
         'namespace': K8sNamespaceMeta,
+        'ingress': K8sIngressMeta,
+        'service': K8sServiceMeta,
     }
     if resource_type not in resource_meta_map:
         return None

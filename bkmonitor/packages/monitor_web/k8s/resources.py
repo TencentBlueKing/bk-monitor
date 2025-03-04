@@ -233,7 +233,7 @@ class ListK8SResources(Resource):
         bcs_cluster_id = serializers.CharField(required=True)
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
             label="资源类型",
         )
         # 用于模糊查询
@@ -271,6 +271,14 @@ class ListK8SResources(Resource):
                 'container_cpu_cfs_throttled_ratio',
                 'container_network_transmit_bytes_total',
                 'container_network_receive_bytes_total',
+                'nw_container_network_transmit_bytes_total',
+                'nw_container_network_receive_bytes_total',
+                'nw_container_network_receive_packets_dropped_ratio',
+                'nw_container_network_transmit_packets_dropped_ratio',
+                'nw_container_network_transmit_packets_dropped_total',
+                'nw_container_network_receive_packets_dropped_total',
+                'nw_container_network_receive_packets_total',
+                'nw_container_network_transmit_packets_total',
             ],
             default="container_cpu_usage_seconds_total",
         )
@@ -391,6 +399,14 @@ class ResourceTrendResource(Resource):
                 'container_cpu_cfs_throttled_ratio',
                 'container_network_transmit_bytes_total',
                 'container_network_receive_bytes_total',
+                'nw_container_network_transmit_bytes_total',
+                'nw_container_network_receive_bytes_total',
+                'nw_container_network_receive_packets_dropped_ratio',
+                'nw_container_network_transmit_packets_dropped_ratio',
+                'nw_container_network_transmit_packets_dropped_total',
+                'nw_container_network_receive_packets_dropped_total',
+                'nw_container_network_receive_packets_total',
+                'nw_container_network_transmit_packets_total',
             ],
         )
         resource_type = serializers.ChoiceField(

@@ -7,7 +7,7 @@ info:
 schemes:
 - http
 paths:
-  /app/custom_metric/validate_custom_ts_group_name/:
+  /app/custom_metric/validate_name/:
     get:
       operationId: validate_custom_ts_group_name
       description: 校验自定义指标名称是否合法
@@ -25,7 +25,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: validate_custom_ts_group_name
-  /app/custom_metric/custom_time_series/:
+  /app/custom_metric/list/:
     get:
       operationId: custom_time_series
       description: 获取自定义指标列表
@@ -43,7 +43,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: custom_time_series
-  /app/custom_metric/custom_time_series_detail/:
+  /app/custom_metric/detail/:
     get:
       operationId: custom_time_series_detail
       description: 获取自定义指标详情
@@ -61,7 +61,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: custom_time_series_detail
-  /app/custom_metric/create_custom_time_series/:
+  /app/custom_metric/create/:
     post:
       operationId: create_custom_time_series
       description: 创建自定义指标
@@ -79,7 +79,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: create_custom_time_series
-  /app/custom_metric/modify_custom_time_series/:
+  /app/custom_metric/modify/:
     post:
       operationId: modify_custom_time_series
       description: 修改自定义指标
@@ -97,7 +97,7 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: modify_custom_time_series
-  /app/custom_metric/delete_custom_time_series/:
+  /app/custom_metric/delete/:
     post:
       operationId: delete_custom_time_series
       description: 删除自定义指标

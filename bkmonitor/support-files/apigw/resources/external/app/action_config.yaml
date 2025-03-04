@@ -7,103 +7,93 @@ info:
 schemes:
 - http
 paths:
-  /v2/monitor_v3/custom_time_series/:
-    get:
-      operationId: custom_time_series
-      description: 自定义指标列表
-      tags:
-      - custom_time_series
+  /app/action_config/save/:
+    post:
+      operationId: save_action_config
+      description: 保存处理套餐
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/action_config/save/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save_action_config
+  /app/action_config/get/:
+    get:
+      operationId: get_action_config
+      description: 获取单个处理套餐
+      x-bk-apigateway-resource:
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
           type: HTTP
           method: get
-          path: /api/v4/custom_metric/custom_time_series/
+          path: /api/v4/action_config/detail/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: custom_time_series
-  /v2/monitor_v3/custom_time_series_detail/:
+        descriptionEn: get_action_config
+  /app/action_config/search/:
     get:
-      operationId: custom_time_series_detail
-      description: 自定义指标详情
-      tags:
-      - custom_time_series
+      operationId: search_action_config
+      description: 批量获取处理套餐
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
           type: HTTP
           method: get
-          path: /api/v4/custom_metric/custom_time_series_detail/
+          path: /api/v4/action_config/search/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: custom_time_series_detail
-  /v2/monitor_v3/create_custom_time_series/:
+        descriptionEn: search_action_config
+  /app/action_config/edit/:
     post:
-      operationId: create_custom_time_series
-      description: 创建自定义指标
-      tags:
-      - custom_time_series
+      operationId: edit_action_config
+      description: 编辑处理套餐
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
           type: HTTP
           method: post
-          path: /api/v4/custom_metric/create_custom_time_series/
+          path: /api/v4/action_config/edit/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: create_custom_time_series
-  /v2/monitor_v3/modify_custom_time_series/:
+        descriptionEn: edit_action_config
+  /app/action_config/delete/:
     post:
-      operationId: modify_custom_time_series
-      description: 修改自定义指标
-      tags:
-      - custom_time_series
+      operationId: delete_action_config
+      description: 删除处理套餐
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
           type: HTTP
           method: post
-          path: /api/v4/custom_metric/modify_custom_time_series/
+          path: /api/v4/action_config/delete/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: modify_custom_time_series
-  /v2/monitor_v3/delete_custom_time_series/:
-    post:
-      operationId: delete_custom_time_series
-      description: 删除自定义指标
-      tags:
-      - custom_time_series
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: post
-          path: /api/v4/custom_metric/delete_custom_time_series/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: delete_custom_time_series
+        descriptionEn: delete_action_config
