@@ -56,7 +56,7 @@ class EventTimeSeriesResource(Resource):
             result: Dict[str, Any] = resource.grafana.graph_unify_query(validated_request_data)
         except Exception as exc:
             logger.warning("[EventTimeSeriesResource] failed to get series, err -> %s", exc)
-            raise ValueError("time_series 获取失败")
+            raise ValueError(_("time_series 获取失败"))
 
         for series in result["series"]:
             dimensions = series["dimensions"]
