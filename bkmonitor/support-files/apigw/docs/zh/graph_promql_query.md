@@ -2,9 +2,6 @@
 
 通过PromQL查询图表数据
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 

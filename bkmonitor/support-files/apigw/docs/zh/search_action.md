@@ -2,9 +2,6 @@
 
 查询处理记录列表
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 
@@ -183,13 +180,13 @@
                     "execute_notify_result": {},
                     "target_info": {
                         "bk_biz_name": "demo",
-                        "bk_target_display": "10.0.0.1|0",
+                        "bk_target_display": "127.0.0.1|0",
                         "dimensions": [
                             {
                                 "key": "ip",
-                                "value": "10.0.0.1",
+                                "value": "127.0.0.1",
                                 "display_key": "目标IP",
-                                "display_value": "10.0.0.1"
+                                "display_value": "127.0.0.1"
                             },
                             {
                                 "key": "bk_cloud_id",
@@ -279,7 +276,7 @@
                 "create_time": 1642487631,
                 "update_time": 1642487631,
                 "end_time": 1642487631,
-                "bk_target_display": "10.0.0.1|0",
+                "bk_target_display": "127.0.0.1|0",
                 "bk_biz_id": "5000140",
                 "bk_biz_name": "demo",
                 "bk_set_ids": [
@@ -301,9 +298,9 @@
                 "dimensions": [
                     {
                         "key": "ip",
-                        "value": "10.0.0.1",
+                        "value": "127.0.0.1",
                         "display_key": "目标IP",
-                        "display_value": "10.0.0.1"
+                        "display_value": "127.0.0.1"
                     },
                     {
                         "key": "bk_cloud_id",
@@ -312,7 +309,7 @@
                         "display_value": 0
                     }
                 ],
-                "dimension_string": "目标IP(10.0.0.1) - 云区域ID(0)",
+                "dimension_string": "目标IP(127.0.0.1) - 云区域ID(0)",
                 "status_tips": "执行任务成功",
                 "converge_count": 0,
                 "action_plugin_type_display": "通知",

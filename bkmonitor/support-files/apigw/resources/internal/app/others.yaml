@@ -7,111 +7,21 @@ info:
 schemes:
 - http
 paths:
-  /app/query/get_es_data/:
+  /app/metric/get_metric_list/:
     post:
-      operationId: get_es_data
-      description: 获取监控链路时序数据
+      operationId: get_metric_list
+      description: 指标通用查询
       x-bk-apigateway-resource:
-        isPublic: false
+        isPublic: true
         allowApplyPermission: true
         matchSubpath: false
         backend:
           type: HTTP
           method: post
-          path: /api/v3/query/get_es_data/
+          path: /api/v4/metrics/get_metric_list/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: get es data
-  /app/query/business_list_by_actions/:
-    post:
-      operationId: business_list_by_actions
-      description: 获取用户拥有给定权限的业务列表
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: post
-          path: /api/v3/query/permission/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: business_list_by_actions
-  /app/query/collector_plugin_upgrade_info/:
-    get:
-      operationId: plugin_upgrade_info
-      description: 获取插件升级日志
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: get
-          path: /api/v4/plugin_upgrade_info/search/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: plugin_upgrade_info
-  /app/base/remote_call/:
-    post:
-      operationId: remote_call
-      description: 远程调用
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: post
-          path: /api/v4/base/remote_call/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: remote_call
-  /app/bcs/get_bcs_gray_cluster_list/:
-    get:
-      operationId: get_bcs_gray_cluster_list
-      description: 获取BCS集群灰度ID名单
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: get
-          path: /api/v4/bcs/get_bcs_gray_cluster_list/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: null
-  /app/bcs/register_cluster/:
-    post:
-      operationId: register_cluster_from_bcs
-      description: BCS集群接入监控
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: post
-          path: /api/v4/bcs/register_cluster/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: null
+        descriptionEn: get metric list

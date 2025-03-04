@@ -7,12 +7,46 @@ info:
 schemes:
 - http
 paths:
-  /v2/monitor_v3/search_notice_group/:
+  /app/data_query/time_series_unify_query_raw/:
     post:
-      operationId: search_notice_group
-      description: 查询通知组
-      tags:
-      - notice_group
+      operationId: time_series_unify_query_raw
+      description: 视图数据查询(原始数据)
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/grafana/time_series/unify_query_raw/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: time series unify raw query
+  /app/data_query/get_es_data/:
+    post:
+      operationId: get_es_data
+      description: 获取监控链路时序数据
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v3/query/get_es_data/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get es data
+  /app/data_query/get_ts_data/:
+    post:
+      operationId: get_ts_data
+      description: 获取时序数据
       x-bk-apigateway-resource:
         isPublic: true
         allowApplyPermission: true
@@ -20,50 +54,10 @@ paths:
         backend:
           type: HTTP
           method: post
-          path: /api/v4/notice_group/search/
+          path: /api/v3/query/get_ts_data/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: search notice group
-  /v2/monitor_v3/delete_notice_group/:
-    post:
-      operationId: delete_notice_group
-      description: 删除通知组
-      tags:
-      - notice_group
-      x-bk-apigateway-resource:
-        isPublic: true
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: post
-          path: /api/v4/notice_group/delete/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: delete notice group
-  /v2/monitor_v3/save_notice_group/:
-    post:
-      operationId: save_notice_group
-      description: 保存通知组
-      tags:
-      - notice_group
-      x-bk-apigateway-resource:
-        isPublic: true
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: post
-          path: /api/v4/notice_group/save/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: save notice group
+        descriptionEn: get ts data
