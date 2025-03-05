@@ -26,6 +26,10 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // 转义特殊字符
+}
+
 interface IProps {
   content: string;
   keyword: string;
@@ -42,9 +46,10 @@ export default class TextHighlighter extends tsc<IProps> {
   }
 
   splitHighlightFragments(content: string, keyword: string) {
+    const escapedKeyword = escapeRegExp(keyword);
     if (!keyword) return [{ text: content, highlight: false }];
 
-    const regex = new RegExp(`(${keyword})`, 'gi');
+    const regex = new RegExp(`(${escapedKeyword})`, 'gi');
     const tokens = content.split(regex);
 
     return tokens.filter(Boolean).map(token => ({
