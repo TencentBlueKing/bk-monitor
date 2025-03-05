@@ -37,7 +37,8 @@ class GetDataSourceConfigResource(Resource):
         data_type_label = params["data_type_label"]
         metrics = MetricListCache.objects.filter(
             bk_biz_id__in=[0, params["bk_biz_id"]], data_source_label=data_source_label, data_type_label=data_type_label
-        ).only(
+        ).values(
+            "bk_biz_id",
             "result_table_id",
             "result_table_name",
             "related_name",
@@ -49,39 +50,34 @@ class GetDataSourceConfigResource(Resource):
 
         metric_dict = {}
         for metric in metrics:
-            if metric.result_table_id not in metric_dict:
+            table_id = metric["result_table_id"]
+            if table_id not in metric_dict:
                 name = bk_data_id = ""
-                table_id = metric.result_table_id
                 if (data_source_label, data_type_label) == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG):
-                    name = metric.related_name
+                    name = metric["related_name"]
                     bk_data_id = metric.result_table_id.split("_", -1)[-1]
                 elif (data_source_label, data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
-                    name = metric.result_table_name
-                    bk_data_id = metric.extend_fields.get("bk_data_id", "")
+                    name = metric["result_table_name"]
+                    bk_data_id = metric["extend_fields"].get("bk_data_id", "")
 
-                if metric.result_table_id not in metric_dict:
-                    metric_dict[metric.result_table_id] = {
-                        "id": table_id,
-                        "bk_data_id": bk_data_id,
-                        "name": name,
-                        "metrics": [],
-                        "dimensions": metric.dimensions,
-                        "time_field": "time",
-                        "is_platform": metric.bk_biz_id == 0,
-                    }
-                else:
-                    # 补全所有字段
-                    exists_dimension_fields = {
-                        dimension["id"] for dimension in metric_dict[metric.result_table_id]["dimensions"]
-                    }
-                    for dimension in metric.dimensions:
-                        if dimension["id"] in exists_dimension_fields:
-                            continue
-                        metric_dict[metric.result_table_id]["dimensions"].append(dimension)
+                metric_dict[table_id] = {
+                    "id": table_id,
+                    "bk_data_id": bk_data_id,
+                    "name": name,
+                    "metrics": [],
+                    "dimensions": metric["dimensions"],
+                    "time_field": "time",
+                    "is_platform": metric["bk_biz_id"] == 0,
+                }
+            else:
+                # 补全所有字段
+                exists_dimension_fields = {dimension["id"] for dimension in metric_dict[table_id]["dimensions"]}
+                for dimension in metric["dimensions"]:
+                    if dimension["id"] in exists_dimension_fields:
+                        continue
+                    metric_dict[table_id]["dimensions"].append(dimension)
 
-            metric_dict[metric.result_table_id]["metrics"].append(
-                {"id": metric.metric_field, "name": metric.metric_field_name}
-            )
+            metric_dict[table_id]["metrics"].append({"id": metric["metric_field"], "name": metric["metric_field_name"]})
         return list(metric_dict.values())
 
 

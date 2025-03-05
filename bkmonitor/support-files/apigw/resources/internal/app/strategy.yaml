@@ -18,10 +18,10 @@ paths:
         backend:
           type: HTTP
           method: get
-          path: /api/v4/strategy/alarm_strategy_v3/qos_check/
+          path: /api/v4/alarm_strategy_v3/qos_check/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: get_experience
+        descriptionEn: get_strategy_qos_status
