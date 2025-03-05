@@ -373,13 +373,15 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
-            return f"""sum by (ingress, namespace, service) {self.label_join(exclude)}
+            return f"""label_replace(sum by (namespace, ingress, service, pod) {self.label_join(exclude)}
             sum by (namespace, pod)
-            ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:])))"""
+            ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:]))),
+            "pod_name", "$1", "pod", "(.*)")"""
 
-        return f"""{self.agg_method} by (ingress, namespace, service) {self.label_join(exclude)}
+        return f"""label_replace({self.agg_method} by (namespace, ingress, service,  pod) {self.label_join(exclude)}
                     sum by (namespace, pod)
-                    (rate({metric_name}[1m])))"""
+                    (rate({metric_name}[1m]))),
+            "pod_name", "$1", "pod", "(.*)")"""
 
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         if metric_name.startswith("nw_"):
@@ -648,11 +650,11 @@ class K8sServiceMeta(K8sResourceMeta, NetworkWithRelation):
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
-            return f"""sum by (ingress, namespace, service) {self.label_join(exclude)}
+            return f"""sum by (namespace, ingress, service) {self.label_join(exclude)}
             sum by (namespace, pod)
             ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:])))"""
 
-        return f"""{self.agg_method} by (ingress, namespace, service) {self.label_join(exclude)}
+        return f"""{self.agg_method} by (namespace, ingress, service) {self.label_join(exclude)}
                     sum by (namespace, pod)
                     (rate({metric_name}[1m])))"""
 
