@@ -24,4 +24,4 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: get_experience
+        descriptionEn: get_strategy_qos_status
