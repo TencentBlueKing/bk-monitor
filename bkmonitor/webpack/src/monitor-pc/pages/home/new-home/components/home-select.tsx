@@ -132,10 +132,19 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     this.routeList = flattenRoute(COMMON_ROUTE_LIST).filter(item => item.icon);
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.updateWidth);
+    window.addEventListener('keydown', this.handleWindowKeydown);
   }
   beforeDestroy() {
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
+    window.removeEventListener('keydown', this.handleWindowKeydown);
+  }
+  /** 按下'/'，搜索框自动聚焦 */
+  handleWindowKeydown(e: KeyboardEvent) {
+    if (e.key === '/') {
+      e.preventDefault();
+      this.handleInputFocus();
+    }
   }
   /** 隐藏/展示发生变化的时候的changeHandle */
   handleShowChange(v) {
@@ -610,7 +619,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
   /** 键盘操作 */
   handleKeydown(event: KeyboardEvent) {
-    event.stopPropagation(); // 父组件会监听'/'按键 自动聚焦输入框
+    event.stopPropagation(); // window会监听'/'按键 自动聚焦输入框
     switch (event.key) {
       case 'ArrowUp':
         this.handleHighlightUp();
