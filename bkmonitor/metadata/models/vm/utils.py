@@ -399,60 +399,65 @@ def get_vm_cluster_id_name(
     return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
 
 
-def get_vm_cluster_id_name_for_space(
-    space_type: Optional[str] = "", space_id: Optional[str] = "", vm_cluster_name: Optional[str] = ""
+def get_storage_cluster_id_name_for_space(
+    storage_type=ClusterInfo.TYPE_VM,
+    space_type: Optional[str] = "",
+    space_id: Optional[str] = "",
+    cluster_name: Optional[str] = "",
 ) -> Dict:
     """
     TODO 待数据与SpaceVMInfo打平后,将原先选择逻辑切换至SpaceRelatedStorageInfo
-    获取指定空间关联的VM集群ID和名称
+    获取指定空间关联的指定存储类型的集群ID和名称
+    @param storage_type: 存储类型,默认VM
     @param space_type: 空间类型
     @param space_id: 空间ID
-    @param vm_cluster_name: VM集群名称
+    @param cluster_name: 集群名称
     @return: {集群ID,集群名称}
-    1. 如果传递了指定VM集群名称,则查询是否存在指定名称的VM集群,返回其ID和名称
-    2. 如果传递了空间类型和空间ID,查询该空间是否有配置的指定存储VM集群记录,如有记录,则返回记录的集群ID和名称
-    3. 如果传递了空间类型和空间ID,查询该空间是否有配置的指定存储VM集群记录,如没有记录,则返回默认集群ID和名称
+    1. 如果传递了指定集群名称,则查询是否存在指定名称的集群,返回其ID和名称
+    2. 如果传递了空间类型和空间ID,查询该空间是否有配置的指定存储集群记录,如有记录,则返回记录的集群ID和名称
+    3. 如果传递了空间类型和空间ID,查询该空间是否有配置的指定存储集群记录,如没有记录,则返回默认集群ID和名称
     4. 如果没有传递空间类型和空间ID,则返回默认集群ID和名称
     """
     from metadata.models import ClusterInfo, SpaceRelatedStorageInfo
 
-    if vm_cluster_name:  # 指定了VM集群名称,查询并返回其信息
-        vm_clusters = ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_VM, cluster_name=vm_cluster_name)
-        if not vm_clusters.exists():
+    if cluster_name:  # 指定了集群名称,查询并返回其信息
+        clusters = ClusterInfo.objects.filter(cluster_type=storage_type, cluster_name=cluster_name)
+        if not clusters.exists():
             logger.error(
-                "get_vm_cluster_id_name_for_space:query vm cluster error, vm_cluster_name: %s not found, "
-                "please register to clusterinfo",
-                vm_cluster_name,
+                "get_storage_cluster_id_name_for_space:query cluster error, cluster_name->%s not found, "
+                "please register to clusterinfo,storage_type->[%s]",
+                cluster_name,
+                storage_type,
             )
-            raise ValueError(f"vm_cluster_name: {vm_cluster_name} not found")
-        vm_cluster = vm_clusters.first()
+            raise ValueError(f"cluster_name: {cluster_name} not found")
+        cluster = clusters.last()
     elif space_type and space_id:  # 指定了空间,查询空间关联记录 / 创建记录
         space_related_storage_records = SpaceRelatedStorageInfo.objects.filter(
-            space_type_id=space_type, space_id=space_id, storage_type=ClusterInfo.TYPE_VM
+            space_type_id=space_type, space_id=space_id, storage_type=storage_type
         )
         if not space_related_storage_records.exists():  # 如果没有关联记录,使用默认集群并创建记录
             logger.info(
-                "get_vm_cluster_id_name_for_space:space_type->[%s], space_id->[%s] does not have "
-                "vm_storage_record,use default,and will create record later",
+                "get_storage_cluster_id_name_for_space:space_type->[%s], space_id->[%s] does not have "
+                "storage_record,use default,and will create record later",
                 space_type,
                 space_id,
             )
-            vm_cluster = ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_VM, is_default_cluster=True).first()
+            cluster = ClusterInfo.objects.filter(cluster_type=storage_type, is_default_cluster=True).last()
 
             # 使用默认集群,创建关联记录
             SpaceRelatedStorageInfo.create_space_related_storage_record(
                 space_type_id=space_type,
                 space_id=space_id,
-                storage_type=ClusterInfo.TYPE_VM,
-                cluster_id=vm_cluster.cluster_id,
+                storage_type=storage_type,
+                cluster_id=cluster.cluster_id,
             )
         else:  # 如果有关联记录,则直接返回记录的集群ID和名称
-            vm_cluster = ClusterInfo.objects.get(cluster_id=space_related_storage_records.first().cluster_id)
+            cluster = ClusterInfo.objects.get(cluster_id=space_related_storage_records.last().cluster_id)
     else:
         # 没有传递任何参数,则返回默认集群ID和名称
-        vm_cluster = ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_VM, is_default_cluster=True).first()
+        cluster = ClusterInfo.objects.filter(cluster_type=storage_type, is_default_cluster=True).last()
 
-    return {"cluster_id": vm_cluster.cluster_id, "cluster_name": vm_cluster.cluster_name}
+    return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
 
 
 def get_bkbase_data_name_and_topic(table_id: str) -> Dict:
