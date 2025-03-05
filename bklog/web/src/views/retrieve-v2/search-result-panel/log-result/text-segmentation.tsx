@@ -138,6 +138,12 @@ export default defineComponent({
       });
     };
 
+    const appendLastTag = () => {
+      const child = document.createElement('span');
+      child.classList.add('last-placeholder');
+      refSegmentContent.value?.append?.(child);
+    };
+
     let textSegmentIndex = 0;
     const textSegmentPageSize = 50;
     const maxWordLength = 500;
@@ -156,6 +162,7 @@ export default defineComponent({
           child.innerText = text;
           fragment.appendChild(child);
           refSegmentContent.value.append(fragment);
+          appendLastTag();
           return;
         }
 
@@ -175,8 +182,11 @@ export default defineComponent({
               textLineCount.value = Math.ceil(refContent.value.scrollHeight / 20);
               if (textLineCount.value < maxLength && !isDispose) {
                 stepRun(textLineCount.value > 3 ? 500 : undefined);
+                return;
               }
             }
+
+            appendLastTag();
           });
         }
       };

@@ -19,14 +19,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import datetime
-import re
 import time
 
-import pytz
-from django.conf import settings
+import arrow
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
+from sqlglot import expressions, parse_one
+from sqlglot.errors import ParseError
 
 from apps.api import BkDataQueryApi
 from apps.log_search import metrics
@@ -42,7 +41,7 @@ from apps.log_search.exceptions import (
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
-from apps.utils.local import get_local_param, get_request_app_code, get_request_username
+from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
 
 
@@ -84,19 +83,8 @@ class ChartHandler(object):
         根据过滤条件生成sql
         :param params: 过滤条件
         """
-        # 获取时区
-        local_timezone = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-        # 把时间戳转化为字符串格式
-        start_time_object = datetime.datetime.fromtimestamp(params["start_time"], tz=local_timezone)
-        end_time_object = datetime.datetime.fromtimestamp(params["end_time"], tz=local_timezone)
-        start_time_string = start_time_object.strftime("%Y%m%d")
-        end_time_string = end_time_object.strftime("%Y%m%d")
-
-        if start_time_string == end_time_string:
-            # 开始和结束时间相同时,直接用等于
-            sql = f"WHERE thedate = {start_time_string}"
-        else:
-            sql = f"WHERE thedate >= {start_time_string} AND thedate <= {end_time_string}"
+        sql_param = params.get("sql")
+        sql = ""
         addition = params["addition"]
 
         for condition in addition:
@@ -108,7 +96,10 @@ class ChartHandler(object):
             # 异常情况,跳过
             if not sql_operator or field_name in ["*", "query_string"]:
                 continue
-            sql += " AND "
+
+            if sql:
+                sql += " AND "
+
             # IS TRUE和IS FALSE的逻辑
             if operator in ["is true", "is false"]:
                 sql += f"{field_name} {sql_operator}"
@@ -120,8 +111,8 @@ class ChartHandler(object):
 
             # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
             if "." in field_name:
-                field_list = field_name.split(".", 1)
-                field_name = f"JSON_EXTRACT({field_list[0]},'$.{field_list[-1]}')"
+                field_list = field_name.split(".")
+                field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
 
             # 组内条件的与或关系
             condition_type = "OR"
@@ -145,12 +136,21 @@ class ChartHandler(object):
                     tmp_sql += f" {condition_type} "
                 if isinstance(value, str):
                     value = value.replace("'", "''")
-                    value = f"\'\"{value}\"\'" if "." in field_name and operator in ["=", "!="] else f"\'{value}\'"
+                    value = f"\'{value}\'"
                 tmp_sql += f"{field_name} {sql_operator} {value}"
 
             # 有两个以上的值时加括号
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
-        return f"{SQL_PREFIX} {sql} {SQL_SUFFIX}"
+        if sql_param:
+            try:
+                tree = parse_one(sql_param)
+            except ParseError as e:
+                raise SQLQueryException(SQLQueryException.MESSAGE.format(name=e))
+            tree.set("where", expressions.Where(this=parse_one(sql)))
+            final_sql = tree.sql(pretty=False)
+        else:
+            final_sql = f"{SQL_PREFIX} WHERE {sql} {SQL_SUFFIX}" if sql else f"{SQL_PREFIX} {SQL_SUFFIX}"
+        return final_sql
 
 
 class UIChartHandler(ChartHandler):
@@ -173,28 +173,48 @@ class SQLChartHandler(ChartHandler):
         """
         if not self.data.support_doris:
             raise IndexSetDorisQueryException()
-        parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params["sql"])
+        parsed_sql = self.parse_sql_syntax(self.data.doris_table_id, params)
         data = self.fetch_query_data(parsed_sql)
         return data
 
     @staticmethod
-    def parse_sql_syntax(doris_table_id: str, raw_sql: str):
+    def parse_sql_syntax(doris_table_id: str, params: dict):
         """
         解析sql语法
         """
-        # 如果不存在FROM则添加,存在则覆盖
-        pattern = (
-            r"^\s*?(SELECT\s+?.+?)"
-            r"(?:\bFROM\b.+?)?"
-            r"(\bWHERE\b.*|\bGROUP\s+?BY\b.*|\bHAVING\b.*|\bORDER\s+?BY\b.*|\bLIMIT\b.*|\bINTO\s+?OUTFILE\b.*)?$"
+        raw_sql = params["sql"]
+        start_time = params["start_time"]
+        end_time = params["end_time"]
+        start_date = arrow.get(start_time).format("YYYYMMDD")
+        end_date = arrow.get(end_time).format("YYYYMMDD")
+        try:
+            tree = parse_one(raw_sql)
+        except ParseError as e:
+            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=e))
+
+        # 覆盖 FROM 的子语句
+        tree.set(
+            "from",
+            expressions.From(this=expressions.Table(this=expressions.Identifier(this=doris_table_id, quoted=False))),
         )
-        matches = re.match(pattern, raw_sql, re.DOTALL | re.IGNORECASE)
-        if not matches:
-            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=_("缺少SQL查询的关键字")))
-        parsed_sql = matches.group(1) + f" FROM {doris_table_id} "
-        if matches.group(2):
-            parsed_sql += matches.group(2)
-        return parsed_sql
+        # 获取 WHERE 子句
+        where_clause = tree.args.get("where")
+
+        # 自定义条件
+        custom_condition = parse_one(
+            f"(dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
+            f"AND thedate >= {start_date} and thedate <= {end_date})"
+        )
+
+        # 将自定义条件添加到 WHERE 子句中
+        if where_clause:
+            # 如果已有 WHERE 子句，使用 AND 连接新条件
+            new_where = expressions.And(this=where_clause, expression=custom_condition)
+            tree.set("where", new_where)
+        else:
+            # 如果没有 WHERE 子句，直接添加 WHERE 条件
+            tree.set("where", expressions.Where(this=custom_condition))
+        return tree.sql(pretty=False)
 
     def fetch_query_data(self, sql: str) -> dict:
         """
@@ -214,7 +234,12 @@ class SQLChartHandler(ChartHandler):
                 if errors:
                     errors_message = errors_message + ":" + errors
                 exc = errors_message
-                logger.info("SQL query exception [%s]", errors_message)
+                logger.info(
+                    "[doris query] username: %s, execute sql: \"%s\", query exception: %s",
+                    get_request_username(),
+                    sql.replace("\n", " "),
+                    errors_message,
+                )
                 raise SQLQueryException(
                     SQLQueryException.MESSAGE.format(name=errors_message),
                     errors={"sql": sql},

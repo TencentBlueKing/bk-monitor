@@ -24,7 +24,7 @@ from apm.constants import (
     DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG,
     DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG,
     GLOBAL_CONFIG_BK_BIZ_ID,
-    ConfigTypes,
+    ConfigTypes, DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
 )
 from apm.core.bk_collector_config import BkCollectorConfig
 from apm.core.cluster_config import ClusterConfig
@@ -117,6 +117,7 @@ class ApplicationConfig(BkCollectorConfig):
         config.update(self.get_bk_data_id_config())
         config["bk_data_token"] = self._application.get_bk_data_token()
         config["resource_filter_config"] = self.get_resource_filter_config()
+        config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
@@ -127,6 +128,10 @@ class ApplicationConfig(BkCollectorConfig):
         license_config = self.get_license_config()
         queue_config = self.get_queue_config()
         attribute_config = self.get_config(ConfigTypes.DB_CONFIG, DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG)
+        attribute_config_logs = self.get_config(
+            ConfigTypes.ATTRIBUTES_CONFIG_LOGS,
+            DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG
+        )
         sdk_config, sdk_config_scope = self.get_probe_config()
         db_slow_command_config = self.get_config(
             ConfigTypes.DB_SLOW_COMMAND_CONFIG, DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG
@@ -155,6 +160,9 @@ class ApplicationConfig(BkCollectorConfig):
 
         if attribute_config:
             config["attribute_config"] = attribute_config
+
+        if attribute_config_logs:
+            config["attribute_config_logs"] = attribute_config_logs
 
         if sdk_config and sdk_config_scope:
             config["sdk_config"] = sdk_config
@@ -306,6 +314,16 @@ class ApplicationConfig(BkCollectorConfig):
         return {
             "name": "resource_filter/instance_id",
             "assemble": [{"destination": "bk.instance.id", "separator": ":", "keys": instance_id_assemble_keys}],
+            "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
+        }
+
+    @staticmethod
+    def get_resource_filter_config_logs():
+        """
+        针对日志数据源 resource 字段处理逻辑
+        """
+        return {
+            "name": "resource_filter/logs",
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
 

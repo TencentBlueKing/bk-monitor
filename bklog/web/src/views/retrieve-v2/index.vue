@@ -40,6 +40,7 @@
   import GraphAnalysis from './search-result-panel/graph-analysis';
   import SubBar from './sub-bar/index.vue';
   import useScroll from '../../hooks/use-scroll';
+  import $http from '@/api';
 
   import { GLOBAL_SCROLL_SELECTOR } from './search-result-panel/log-result/log-row-attributes';
   import useResizeObserve from '../../hooks/use-resize-observe';
@@ -54,6 +55,37 @@
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
+
+  const { search_mode, addition, keyword } = route.query;
+
+  // 此时说明来自旧版URL，同时带有 addition 和 keyword
+  // 这种情况下需要将 addition 转换为 keyword 进行查询合并
+  // 同时设置 search_mode 为 sql
+  if (!search_mode && addition?.length > 4 && keyword?.length > 0) {
+    // 这里不好做同步请求，所以直接设置 search_mode 为 sql
+    router.push({ query: { ...route.query, search_mode: 'sql', addition: '[]' } });
+    const resolver = new RouteUrlResolver({ route, resolveFieldList: ['addition'] });
+    const target = resolver.convertQueryToStore();
+
+    if (target.addition?.length) {
+      $http
+        .request('retrieve/generateQueryString', {
+          data: {
+            addition: target.addition,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            const newKeyword = `${keyword} AND ${res.data?.querystring}`;
+            router.replace({ query: { ...route.query, keyword: newKeyword, addition: [] } });
+            store.commit('updateIndexItemParams', { keyword: newKeyword });
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    }
+  }
 
   // 解析默认URL为前端参数
   // 这里逻辑不要动，不做解析会导致后续前端查询相关参数的混乱
@@ -255,30 +287,59 @@
 <template>
   <div
     :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
-    :style="stickyStyle">
+    :style="stickyStyle"
+  >
     <div class="sub-head">
-      <div :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }" class="box-favorites"
-        @click="handleFavoritesClick">
-        <div v-if="showFavorites" class="collet-label">
+      <div
+        :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }"
+        class="box-favorites"
+        @click="handleFavoritesClick"
+      >
+        <div
+          v-if="showFavorites"
+          class="collet-label"
+        >
           <div class="left-info">
             <span class="collect-title">{{ $t('收藏夹') }}</span>
             <span class="collect-count">{{ favoriteRef?.allFavoriteNumber }}</span>
-            <span class="collect-edit bklog-icon bklog-wholesale-editor" @click="handleEditFavoriteGroup"></span>
+            <span
+              class="collect-edit bklog-icon bklog-wholesale-editor"
+              @click="handleEditFavoriteGroup"
+            ></span>
           </div>
-          <span class="bklog-icon bklog-collapse-small" @click="handleFavoritesClose"></span>
+          <span
+            class="bklog-icon bklog-collapse-small"
+            @click="handleFavoritesClose"
+          ></span>
         </div>
         <template v-else>
           <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
         </template>
       </div>
-      <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }" show-favorites />
+      <SubBar
+        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }"
+        show-favorites
+      />
     </div>
-    <div :class="['retrieve-v2-body']" :style="contentStyle">
-      <CollectFavorites ref="favoriteRef" class="collect-favorites" :is-refresh.sync="isRefreshList"
-        :is-show.sync="showFavorites" :width.sync="favoriteWidth" :style="favoritesStlye"
-        @update-active-favorite="updateActiveFavorite"></CollectFavorites>
+    <div
+      :class="['retrieve-v2-body']"
+      :style="contentStyle"
+    >
+      <CollectFavorites
+        ref="favoriteRef"
+        class="collect-favorites"
+        :is-refresh.sync="isRefreshList"
+        :is-show.sync="showFavorites"
+        :width.sync="favoriteWidth"
+        :style="favoritesStlye"
+        @update-active-favorite="updateActiveFavorite"
+      ></CollectFavorites>
       <div class="retrieve-v2-content">
-        <SearchBar :active-favorite="activeFavorite" @height-change="handleHeightChange" @refresh="handleRefresh">
+        <SearchBar
+          :active-favorite="activeFavorite"
+          @height-change="handleHeightChange"
+          @refresh="handleRefresh"
+        >
         </SearchBar>
         <SearchResultTab v-model="activeTab"></SearchResultTab>
         <template v-if="showAnalysisTab">

@@ -52,8 +52,8 @@ class TraceSearchAttrSerializer(serializers.Serializer):
     ip_chooser = serializers.DictField(default={}, required=False)
 
     # 时间选择器字段
-    start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch()
+    end_time = DateTimeFieldWithEpoch()
     time_range = serializers.CharField(required=False, default=None)
 
     # 关键字填充条
@@ -74,8 +74,8 @@ class TraceSearchTraceIdAttrSerializer(serializers.Serializer):
 
 class AggsTermsSerializer(serializers.Serializer):
     # 时间选择器字段
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default=None)
 
     addition = serializers.ListField(allow_empty=True, required=False, default="")

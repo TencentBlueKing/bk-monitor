@@ -36,16 +36,18 @@
   let logChartCancel = null;
 
   const handleRequestSplit = (startTime, endTime) => {
-    const duration = (endTime - startTime) / 3600;
+    const duration = (endTime - startTime) / 3600000;
     if (duration <= 6) {
       // 小于6小时 一次性请求
       return 0;
     }
     if (duration < 48) {
       // 小于24小时 6小时间隔
-      return 21600;
-    } // 大于1天 按0.5天请求
-    return 86400 / 2;
+      return 21600 * 1000;
+    }
+
+    // 大于1天 按0.5天请求
+    return (86400 * 1000) / 2;
   };
 
   let runningInterval = 'auto';

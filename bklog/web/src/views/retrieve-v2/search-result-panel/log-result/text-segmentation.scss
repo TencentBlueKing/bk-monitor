@@ -73,6 +73,13 @@
           'Microsoft Yahei',
           monospace;
       }
+
+      .last-placeholder {
+        &:last-child {
+          display: inline-block;
+          min-width: 120px;
+        }
+      }
     }
   }
 
