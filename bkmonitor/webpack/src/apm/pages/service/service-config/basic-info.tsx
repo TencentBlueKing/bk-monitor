@@ -579,6 +579,9 @@ export default class BasicInfo extends tsc<object> {
   }
   /** 授权按钮 */
   handleAuthorization() {}
+  handleRelationWorkloadChange(workloads: string[]) {
+    this.eventRelation.relationWorkload = workloads || [];
+  }
   /** 渲染基础信息 */
   renderBaseInfo() {
     const renderText = () => {
@@ -1013,7 +1016,10 @@ export default class BasicInfo extends tsc<object> {
                   <span onClick={this.handleRelationTypeChange}>{this.$t('恢复自动关联')}</span>
                 </div>
 
-                <RelationSelectPanel value={this.eventRelation.relationWorkload} />
+                <RelationSelectPanel
+                  value={this.eventRelation.relationWorkload}
+                  onChange={this.handleRelationWorkloadChange}
+                />
               </div>
             </div>
           )}
