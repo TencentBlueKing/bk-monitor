@@ -30,6 +30,7 @@ import { eventViewConfig } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
+import FavoriteContainer from '../../components/favorite-container/favorite-container';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { mergeWhereList, type IGetValueFnParams } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
@@ -89,6 +90,8 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   fieldList = [];
 
   cacheTimeRange = [];
+
+  isShowFavorite = true;
 
   /** 公共参数 */
   @ProvideReactive('commonParams')
@@ -207,6 +210,9 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   }
 
   async mounted() {
+    const isShowFavorite =
+      JSON.parse(localStorage.getItem('bk_monitor_data_favorite_show') || 'false') || !!this.$route.query?.favorite_id;
+    this.isShowFavorite = isShowFavorite;
     this.getRouteParams();
     await this.getDataIdList(!this.formData.table);
     await this.getViewConfig();
@@ -333,19 +339,41 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     this.formData.where = mergeWhereList(this.formData.where, condition);
   }
 
+  handleSelectFavorite(data) {
+    console.log(data);
+  }
+
+  favoriteShowChange(show: boolean) {
+    this.isShowFavorite = show;
+    localStorage.setItem('bk_monitor_data_favorite_show', `${show}`);
+  }
+
   render() {
     return (
       <div class='event-explore'>
-        <div class='left-favorite-panel' />
+        <div
+          style={{ display: this.isShowFavorite ? 'block' : 'none' }}
+          class='left-favorite-panel'
+        >
+          <FavoriteContainer
+            favoriteSearchType='event'
+            isShowFavorite={this.isShowFavorite}
+            onSelectFavorite={this.handleSelectFavorite}
+            onShowChange={this.favoriteShowChange}
+          />
+        </div>
+
         <div class='right-main-panel'>
           <EventRetrievalHeader
             dataIdList={this.dataIdList}
             formData={this.formData}
+            isShowFavorite={this.isShowFavorite}
             refreshInterval={this.refreshInterval}
             timeRange={this.timeRange}
             timezone={this.timezone}
             onDataIdChange={this.handleDataIdChange}
             onEventTypeChange={this.handleEventTypeChange}
+            onFavoriteShowChange={this.favoriteShowChange}
             onImmediateRefresh={this.handleImmediateRefresh}
             onRefreshChange={this.handleRefreshChange}
             onTimeRangeChange={this.handleTimeRangeChange}
