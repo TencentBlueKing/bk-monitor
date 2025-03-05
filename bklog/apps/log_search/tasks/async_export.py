@@ -347,7 +347,7 @@ class AsyncExportUtils(object):
         with open(summary_file_path, "a+", encoding="utf-8") as summary_file:
             for result_key, result in multi_result.items():
                 if isinstance(result, Exception):
-                    logger.error(f"{self.file_name}_cluster_{result_key}_error: {result}\n")
+                    logger.exception("async export error: %s -- %s, reason: %s", self.file_name, result_key, result)
                 else:
                     self.file_path_list.append(result)
                     # 读取文件内容并写入汇总文件
@@ -364,9 +364,7 @@ class AsyncExportUtils(object):
         )
         for idx, result in multi_result.items():
             if isinstance(result, Exception):
-                logger.error(
-                    f"{self.file_name}_slice_{idx}_cluster_{search_handler.storage_cluster_id}error: {result}\n"
-                )
+                logger.exception("quick export error: %s -- %s, reason: %s", self.file_name, idx, result)
             else:
                 self.file_path_list.append(result)
 
@@ -470,7 +468,7 @@ class AsyncExportUtils(object):
         """
         获取文件大小 单位：m，保留小数2位
         """
-        return round(os.path.getsize(self.tar_file_path) / float(1024 * 1024), 2)
+        return max(round(os.path.getsize(self.tar_file_path) / float(1024 * 1024), 2), 0.01)
 
     @classmethod
     def init_notify_type(cls):
