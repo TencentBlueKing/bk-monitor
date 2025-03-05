@@ -380,7 +380,34 @@ export default class RelationSelectPanel extends tsc<
       items: data,
     };
   }
-
+  /**
+   * @description: 查询字符传匹配
+   * @param {string} str
+   * @return {*}
+   */
+  getSearchNode = (str: string, search: string) => {
+    if (!str || !search) return str;
+    let keyword = search.trim();
+    const len = keyword.length;
+    if (!keyword?.trim().length || !str.toLocaleLowerCase().includes(keyword.toLocaleLowerCase())) return str;
+    const list = [];
+    let lastIndex = -1;
+    keyword = keyword.replace(/([.*/]{1})/gim, '\\$1');
+    str.replace(new RegExp(`${keyword}`, 'igm'), (key, index) => {
+      if (list.length === 0 && index !== 0) {
+        list.push(str.slice(0, index));
+      } else if (lastIndex >= 0) {
+        list.push(str.slice(lastIndex + key.length, index));
+      }
+      list.push(<span class='is-keyword'>{key}</span>);
+      lastIndex = index;
+      return key;
+    });
+    if (lastIndex >= 0) {
+      list.push(str.slice(lastIndex + len));
+    }
+    return list.length ? list : str;
+  };
   renderLoadMore(item: TreeNodeData) {
     return (
       <div class='show-more'>
@@ -407,6 +434,7 @@ export default class RelationSelectPanel extends tsc<
       <div class='relation-select-panel-comp'>
         <div class='tree-panel'>
           <bk-input
+            clearable={true}
             left-icon='bk-icon icon-search'
             placeholder={this.$t('请输入关键字')}
             value={this.searchVal}
@@ -428,7 +456,7 @@ export default class RelationSelectPanel extends tsc<
                           class='item-name'
                           v-bk-overflow-tips
                         >
-                          {data.name}
+                          {this.getSearchNode(data.name, this.searchVal)}
                         </span>
                         {data.count !== undefined && <span class='item-count'>{data.count}</span>}
                       </span>
