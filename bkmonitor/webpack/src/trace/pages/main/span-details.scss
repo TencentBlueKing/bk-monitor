@@ -53,13 +53,28 @@
     width: 100%;
     padding-right: 40px;
 
+    .sideslider-hd {
+      display: flex;
+      align-items: center;
+      
+      &.show-flip-button {
+        .sideslider-title {
+          width: 230px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }    
+      }
+    }
+
+    
+
     .arrow-wrap {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       width: 26px;
       height: 26px;
-      font-size: 24px;
       cursor: pointer;
       background-color: transparent;
       border: 1px solid #c4c6cc;
@@ -79,6 +94,11 @@
         .icon-monitor {
           color: #c4c6cc;
         }
+      }
+
+      .icon-monitor {
+        font-size: 24px;
+        color: #4d4f56;
       }
     }
 
