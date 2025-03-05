@@ -32,9 +32,11 @@ import ExploreCustomGraph, {
 } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { APIType, getEventTimeSeries, getEventTotal } from '../api-utils';
+import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api-utils';
+import { eventChartMap, getEventLegendColorByType } from '../utils';
+import EventExploreTable from './event-explore-table';
 
-import type { IFormData } from '../typing';
+import type { DimensionsTypeEnum, EventExploreTableRequestConfigs, IFormData } from '../typing';
 
 import './event-explore-view.scss';
 
@@ -42,24 +44,6 @@ interface IEventExploreViewProps {
   queryConfig: IFormData;
   source: APIType;
 }
-
-/**
- * @description 维度信息数据类型
- */
-enum DimensionsTypeEnum {
-  DEFAULT = 'Default',
-  NORMAL = 'Normal',
-  WARNING = 'Warning',
-}
-/**
- * @description 固定维度信息数据类型显示排序顺序及固定类型与图表颜色的映射顺序
- */
-const eventChartMap = {
-  [DimensionsTypeEnum.WARNING]: 0,
-  [DimensionsTypeEnum.NORMAL]: 1,
-  [DimensionsTypeEnum.DEFAULT]: 2,
-};
-const eventChartColors = ['#F5C78E', '#92BEF1', '#DCDEE5'];
 
 @Component
 export default class EventExploreView extends tsc<IEventExploreViewProps> {
@@ -83,10 +67,15 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   showLegendList: DimensionsTypeEnum[] = [];
   /** 图表配置实例 */
   panel: PanelModel = null;
+  /** table表格请求配置 */
+  tableRequestConfigs = {};
+  /** 表格分页页码 */
+  limit = 1;
 
   @Watch('commonParams', { deep: true })
   commonParamsChange() {
     this.getEventTotal();
+    this.updateTableRequestConfigs();
   }
 
   @Watch('queryConfig', { deep: true })
@@ -98,6 +87,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   refreshImmediateChange() {
     this.getEventTotal();
     this.updatePanelConfig();
+    this.updateTableRequestConfigs();
   }
 
   /**
@@ -112,8 +102,47 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     if (!commonQueryConfig?.table || !commonStartTime || !commonEndTime) {
       return;
     }
-    const { total } = await getEventTotal(this.commonParams, this.source).catch(() => ({ total: 0 }));
+    const queryConfigs: Record<string, any> = [
+      {
+        ...commonQueryConfig,
+        group_by: ['type'],
+      },
+    ];
+    const { total } = await getEventTotal({ ...this.commonParams, query_configs: queryConfigs }, this.source).catch(
+      () => ({
+        total: 0,
+      })
+    );
     this.total = total;
+  }
+
+  /** 更新 表格请求配置 */
+  updateTableRequestConfigs() {
+    const {
+      query_configs: [commonQueryConfig],
+    } = this.commonParams;
+
+    if (!commonQueryConfig.table) {
+      return {};
+    }
+    const queryConfigs: Record<string, any> = [
+      {
+        ...commonQueryConfig,
+        group_by: ['type'],
+      },
+    ];
+    const api = getEventLogs(this.source);
+    const [apiModule, apiFunc] = api.split('.');
+    this.tableRequestConfigs = {
+      apiModule,
+      apiFunc,
+      data: {
+        ...this.commonParams,
+        query_configs: queryConfigs,
+        limit: this.limit,
+        offset: 20,
+      },
+    };
   }
 
   /** 更新 图表配置实例 */
@@ -129,6 +158,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     const queryConfigs: Record<string, any> = [
       {
         ...commonQueryConfig,
+        group_by: ['type'],
         metrics: [
           {
             field: '_index',
@@ -192,10 +222,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     const stack = `event-explore-chart-${random(8)}`;
     seriesData.series = series
       .sort((a, b) => eventChartMap[a.dimensions.type] - eventChartMap[b.dimensions.type])
-      .map((item, index) => ({
+      .map(item => ({
         ...item,
         stack,
-        color: eventChartColors[index],
+        color: getEventLegendColorByType(item.dimensions.type),
       }));
   }
 
@@ -233,7 +263,9 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
             />
           )}
         </div>
-        <div class='event-explore-table'>table</div>
+        <div class='event-explore-table-wrapper'>
+          <EventExploreTable requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs} />
+        </div>
       </div>
     );
   }

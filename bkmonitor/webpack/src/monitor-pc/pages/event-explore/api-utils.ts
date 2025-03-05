@@ -34,11 +34,21 @@ export enum APIType {
 /**
  * @description: 获取事件图表配置数据接口枚举
  */
-export enum EventTimeSeries {
+export enum EventTimeSeriesApiEnum {
   /** TODO: APM 获取事件图表配置接口，待补充 */
   APM = 'xxx',
   /** 事件检索获取事件图表配置数据接口 */
   MONITOR = 'data_explorer.eventTimeSeries', // monitor default
+}
+
+/**
+ * @description: 获取事件表格配置数据接口枚举
+ */
+export enum EventTableApiEnum {
+  /** TODO: APM 获取事件表格配置接口，待补充 */
+  APM = 'xxx',
+  /** 事件检索获取事件表格配置数据接口 */
+  MONITOR = 'data_explorer.eventLogs', // monitor default
 }
 
 /**
@@ -77,6 +87,11 @@ export const getEventTotal = (params: any, type = APIType.MONITOR) => {
  * @returns {EventTimeSeries} 请求接口地址
  */
 export const getEventTimeSeries = (type = APIType.MONITOR) => {
-  const api = type === APIType.APM ? EventTimeSeries.APM : EventTimeSeries.MONITOR;
+  const api = type === APIType.APM ? EventTimeSeriesApiEnum.APM : EventTimeSeriesApiEnum.MONITOR;
+  return api;
+};
+
+export const getEventLogs = (type = APIType.MONITOR) => {
+  const api = type === APIType.APM ? EventTableApiEnum.APM : EventTableApiEnum.MONITOR;
   return api;
 };
