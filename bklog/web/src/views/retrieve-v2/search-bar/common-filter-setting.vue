@@ -50,7 +50,7 @@
                   :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                 >
                 </span>
-                <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
+                <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
                 <span class="field-name">({{ item.field_name }})</span>
                 <span class="icon bklog-icon bklog-filled-right-arrow"></span>
               </li>
@@ -366,6 +366,7 @@
             }
 
             .field-alias {
+              display: inline;
               padding: 0 4px;
               font-size: 12px;
               line-height: 20px;
