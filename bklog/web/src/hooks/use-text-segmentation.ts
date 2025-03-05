@@ -347,7 +347,6 @@ export default class UseTextSegmentation {
   }
 
   private getSplitList(field: any, content: any, forceSplit = false) {
-    debugger;
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);

@@ -110,7 +110,6 @@
   import Echarts, { EChartOption } from 'echarts';
   import { toPng, toBlob } from 'html-to-image';
   import { addListener, removeListener, ResizeCallback } from 'resize-detector';
-  import { debounce } from 'throttle-debounce';
 
   import { Debounce } from '../../common/util';
   import ChartAnnotation from './components/chart-annotation.vue';
@@ -134,6 +133,7 @@
   import watermarkMaker from './utils/watermark-maker';
   import { getValueFormat } from './value-formats-package';
   import { lineColor } from '../../store/constant';
+  import { debounce } from 'lodash';
   interface ICurValue {
     xAxis: number | string;
     yAxis: number | string;
@@ -544,6 +544,7 @@
         }),
       };
     }
+
     // 设置chart配置
     async handleSetChartData(data) {
       return new Promise(resolve => {
@@ -566,6 +567,7 @@
           optionData.options.xAxis.axisLine.show = false;
           optionData.options.xAxis.axisTick.show = false;
           optionData.options.yAxis.axisLine.show = false;
+
           if (['bar', 'line'].includes(this.chartType)) {
             this.legend.show = hasSeries && optionData.legendData.length > 0;
           } else {
@@ -598,7 +600,7 @@
                 this.hasInitChart = true;
                 if (optionData.options.toolbox) {
                   this.initChartAction();
-                  this.chart.on('dataZoom', async event => {
+                  this.chart.on('dataZoom', event => {
                     this.loading = true;
                     const [batch] = event.batch;
                     if (batch.startValue && batch.endValue) {
@@ -624,6 +626,13 @@
               this.noData = !hasSeries;
               resolve();
               this.curChartOption = Object.freeze(Object.assign({}, this.chart.getOption()));
+              this.$nextTick(() => {
+                this.chart?.dispatchAction({
+                  type: 'takeGlobalCursor',
+                  key: 'dataZoomSelect',
+                  dataZoomSelectActive: true,
+                });
+              });
             }
           }, 320);
         } else if (this.chartType === 'status') {
