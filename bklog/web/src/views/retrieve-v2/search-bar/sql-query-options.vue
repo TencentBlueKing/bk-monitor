@@ -275,7 +275,6 @@
    */
   const handleClickField = (field: string) => {
     const currentValue = props.value;
-    debugger;
 
     const trimValue = currentValue.trim();
     if (!trimValue || trimValue === '*') {

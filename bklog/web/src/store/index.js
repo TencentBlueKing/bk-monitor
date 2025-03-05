@@ -41,8 +41,6 @@ import {
   getStorageIndexItem,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-// import axios from 'axios';
-import { axiosInstance } from '@/api';
 import Vuex from 'vuex';
 
 import { deepClone } from '../components/monitor-echarts/utils';
@@ -60,6 +58,8 @@ import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
+// import axios from 'axios';
+import { axiosInstance } from '@/api';
 import http from '@/api';
 
 Vue.use(Vuex);
@@ -159,6 +159,8 @@ const stateTpl = {
   tableJsonFormat: false,
   tableJsonFormatDepth: 1,
   tableShowRowIndex: false,
+  // 是否展示空字段
+  tableAllowEmptyField: false,
   isSetDefaultTableColumn: false,
   tookTime: 0,
   searchTotal: 0,
@@ -234,6 +236,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
+        format
       } = state.indexItem;
 
       const filterAddition = addition
@@ -262,6 +265,7 @@ const store = new Vuex.Store({
       return {
         start_time,
         end_time,
+        format,
         addition: filterAddition,
         begin,
         size,
@@ -288,7 +292,6 @@ const store = new Vuex.Store({
   },
   // 公共 mutations
   mutations: {
-
     updatetableJsonFormatDepth(state, val) {
       state.tableJsonFormatDepth = val;
     },
@@ -297,6 +300,10 @@ const store = new Vuex.Store({
     },
     updateTableShowRowIndex(state, val) {
       state.tableShowRowIndex = val;
+    },
+    // 更新是否展示空字段
+    updateTableEmptyFieldFormat(state, val) {
+      state.tableAllowEmptyField = val;
     },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
@@ -747,7 +754,7 @@ const store = new Vuex.Store({
      *   - 当为数组时，表示字段名称列表。
      *   - 当为对象时，应包含以下属性：
      *     - {Array} displayFieldNames - 字段名称数组。
-     *     - {string} version - 版本信息，包含 v2时，表示是新版本设计，目前包含了object字段层级展示的添加功能，后续如果需要区别于之前的逻辑处理，可以参照此逻辑处理
+     *     - {string} version - 版本信息，包含 v2时，表示是新版本设计，目前包含了object字段层级展示的添加功能，后续如果需要区别于之前的逻辑处理，可以参照此逻辑处理(暂不生效)
      *
      */
     resetVisibleFields(state, payload) {
@@ -763,25 +770,24 @@ const store = new Vuex.Store({
           .map(displayName => {
             const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
             if (field) return field;
-            if (isVersion2Payload) {
-              return {
-                field_type: 'object',
-                field_name: displayName,
-                field_alias: '',
-                is_display: false,
-                is_editable: true,
-                tag: '',
-                origin_field: '',
-                es_doc_values: true,
-                is_analyzed: false,
-                field_operator: [],
-                is_built_in: true,
-                is_case_sensitive: false,
-                tokenize_on_chars: '',
-                description: '',
-                filterVisible: true,
-              };
-            }
+            return {
+              field_type: 'object',
+              field_name: displayName,
+              field_alias: '',
+              is_display: false,
+              is_editable: true,
+              tag: '',
+              origin_field: '',
+              es_doc_values: true,
+              is_analyzed: true,
+              is_virtual_obj_node: true,
+              field_operator: [],
+              is_built_in: true,
+              is_case_sensitive: false,
+              tokenize_on_chars: '',
+              description: '',
+              filterVisible: true,
+            };
           })
           .filter(Boolean) ?? [];
       store.commit('updateVisibleFields', visibleFields);
@@ -1013,6 +1019,7 @@ const store = new Vuex.Store({
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
+        
         if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
           if (payload.items[0].query_string) {
             payload.keyword = payload.items[0].query_string;
@@ -1024,10 +1031,7 @@ const store = new Vuex.Store({
             payload.keyword = '';
           }
         }
-        // if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
-        //   payload.keyword = payload.items[0].query_string;
-        //   payload.search_mode = 'sql';
-        // }
+
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
       }
@@ -1150,7 +1154,7 @@ const store = new Vuex.Store({
         return; // Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
-      const { size, ...otherPrams } = getters.retrieveParams;
+      const { size, format, ...otherPrams } = getters.retrieveParams;
 
       // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
       // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
@@ -1159,7 +1163,7 @@ const store = new Vuex.Store({
       const needTransform = datePickerValue.every(d => letterRegex.test(d));
 
       const [start_time, end_time] = needTransform
-        ? handleTransformToTimestamp(datePickerValue)
+        ? handleTransformToTimestamp(datePickerValue, format)
         : [state.indexItem.start_time, state.indexItem.end_time];
 
       if (needTransform) {
@@ -1393,8 +1397,8 @@ const store = new Vuex.Store({
         keyword: '*',
         fields,
         addition: payload?.addition ?? [],
-        start_time: formatDate(start_time * 1000),
-        end_time: formatDate(end_time * 1000),
+        start_time: formatDate(start_time),
+        end_time: formatDate(end_time),
         size: payload?.size ?? 100,
       };
 
@@ -1454,10 +1458,15 @@ const store = new Vuex.Store({
       const depth = Number(payload.depth ?? '0');
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
-      const getFieldType = field => {
-        const target = state.indexFieldInfo.fields?.find(item => item.field_name === field);
-        return target ? target.field_type : '';
+
+      const getTargetField = field => {
+        return state.visibleFields?.find(item => item.field_name === field);
       };
+
+      const getFieldType = field => {        
+        return getTargetField(field)?.field_type ?? '';
+      };
+
       const getAdditionMappingOperator = ({ operator, field, value }) => {
         let mappingKey = {
           // is is not 值映射
@@ -1482,7 +1491,12 @@ const store = new Vuex.Store({
           'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
         };
 
-        const textType = getFieldType(field);
+        const targetField = getTargetField(field);
+
+        const textType = targetField?.field_type ?? '';
+        const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
+
+
         if (textType === 'text') {
           mappingKey = textMappingKey;
         }
@@ -1555,14 +1569,24 @@ const store = new Vuex.Store({
           const isNewSearchPage = item.operator === 'new-search-page-is';
           item.operator = isNewSearchPage ? 'is' : item.operator;
           const { field, operator, value } = item;
+          const targetField = getTargetField(field);
+
 
           let newSearchValue = null;
           if (searchMode === 'ui') {
-            const mapOperator = getAdditionMappingOperator({ field, operator, value });
-            newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
+            if (targetField?.is_virtual_obj_node) {
+              newSearchValue = Object.assign({ field: '*', value }, { operator: 'contains match phrase' });
+            } else {
+              const mapOperator = getAdditionMappingOperator({ field, operator, value });
+              newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
+            }
           }
           if (searchMode === 'sql') {
-            newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
+            if (targetField?.is_virtual_obj_node) { 
+              newSearchValue = [value];
+            } else{
+              newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
+            }
           }
           const isExist = searchValueIsExist(newSearchValue, searchMode);
           return !isExist || isNewSearchPage ? newSearchValue : null;
@@ -1651,11 +1675,12 @@ const store = new Vuex.Store({
       commit('CLEAR_API_ERROR', apiName);
     },
 
-    handleTrendDataZoom({ commit }, payload) {
+    handleTrendDataZoom({ commit, getters }, payload) {
       const { start_time, end_time, format } = payload;
+      const formatStr = getters.retrieveParams.format;
 
       const [startTimeStamp, endTimeStamp] = format
-        ? handleTransformToTimestamp([start_time, end_time])
+        ? handleTransformToTimestamp([start_time, end_time], formatStr)
         : [start_time, end_time];
 
       commit('updateIndexItem', {

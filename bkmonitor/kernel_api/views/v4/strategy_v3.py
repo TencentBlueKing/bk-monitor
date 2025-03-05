@@ -11,10 +11,11 @@ specific language governing permissions and limitations under the License.
 
 from rest_framework import serializers
 
+from alarm_backends.management.commands.token import get_token_info
 from bkmonitor.models import StrategyModel
 from bkmonitor.strategy.new_strategy import Strategy
 from constants.data_source import DATA_CATEGORY
-from core.drf_resource import resource
+from core.drf_resource import Resource, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_web.strategies.resources import GetStrategyListV2Resource
 
@@ -74,6 +75,19 @@ class SearchStrategyWithoutBizResource(GetStrategyListV2Resource):
         return {"list": strategy_configs, "total": strategy_count}
 
 
+class QosCheckResource(Resource):
+    class RequestSerializer(GetStrategyListV2Resource.RequestSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    def perform_request(self, params):
+        messages = []
+        qos_ret = get_token_info(params["bk_biz_id"])
+        for strategy_id, info in qos_ret.items():
+            messages.append((strategy_id, info["strategy_name"], info["table_id"]))
+
+        return messages
+
+
 class AlarmStrategyV3ViewSet(ResourceViewSet):
     """
     V3版本告警策略API
@@ -86,4 +100,5 @@ class AlarmStrategyV3ViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.strategies.update_partial_strategy_v2, endpoint="update_bulk"),
         ResourceRoute("POST", SearchStrategyWithoutBizResource, endpoint="search_without_biz"),
         ResourceRoute("POST", resource.strategies.bulk_switch_strategy, endpoint="switch_by_labels"),
+        ResourceRoute("GET", QosCheckResource, endpoint="qos_check"),
     ]

@@ -42,12 +42,13 @@ class IndexSetHandler(object):
         :param start_time: 起始时间
         :param end_time: 结束时间
         """
+        time_zone = get_local_param("time_zone")
         objs = UserIndexSetSearchHistory.objects.filter(
             index_set_id=index_set_id,
             search_type="default",
             created_at__range=[
-                start_time.datetime,
-                end_time.datetime,
+                start_time.replace(tzinfo=time_zone).datetime,
+                end_time.replace(tzinfo=time_zone).datetime,
             ],
         )
         return objs
@@ -61,8 +62,8 @@ class IndexSetHandler(object):
         """
         user_index_set_history_objs = self.get_user_index_set_history_objs(
             index_set_id,
-            arrow.get(int(user_search_history_operation_time["start_time"])),
-            arrow.get(int(user_search_history_operation_time["end_time"])),
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
         user_index_set_history = (
             user_index_set_history_objs.annotate(
@@ -89,8 +90,8 @@ class IndexSetHandler(object):
         """
         user_index_set_history_objs = self.get_user_index_set_history_objs(
             index_set_id,
-            arrow.get(int(user_search_history_operation_time["start_time"])),
-            arrow.get(int(user_search_history_operation_time["end_time"])),
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
         user_index_set_history = user_index_set_history_objs.values("created_by").annotate(count=Count("id"))
         created_by_label_list = []
@@ -109,8 +110,8 @@ class IndexSetHandler(object):
         """
         user_index_set_history_objs = self.get_user_index_set_history_objs(
             index_set_id,
-            arrow.get(int(user_search_history_operation_time["start_time"])),
-            arrow.get(int(user_search_history_operation_time["end_time"])),
+            arrow.get(user_search_history_operation_time["start_time"]),
+            arrow.get(user_search_history_operation_time["end_time"]),
         )
 
         # 根据分组范围和对应的标签构建Case表达式

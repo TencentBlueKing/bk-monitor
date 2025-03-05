@@ -7,10 +7,18 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from ai_agent.views.assistant import QAViewSet
+import os
+
+from rest_framework.decorators import action
+
+from ai_agent.scenarios.bkm_chat.views import QAViewSet
 
 
 class ChatViewSet(QAViewSet):
     # ai小鲸功能迁移至ai agent模块
-    def chat_v2(self, request, *args, **kwargs):
-        return self.ask(request, *args, **kwargs)
+    @action(methods=['post'], detail=False, url_path='chat_v2')
+    def chat_dispatch(self, request, *args, **kwargs):
+        if os.getenv("BK_AI_AGENT_ENABLE"):
+            return super().ask_v2(request, *args, **kwargs)
+        else:
+            return super().ask(request, *args, **kwargs)

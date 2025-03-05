@@ -39,13 +39,15 @@ export class TimeRange {
   /** 实例化的时间范围对象 */
   value: dayjs.Dayjs[] = [];
   dateRange: DateRange = null;
-  constructor(times: TimeRangeType) {
+  formatStr = 'YYYY-MM-DD HH:mm:ss';
+  constructor(times: TimeRangeType, format: string) {
+    this.formatStr = format ?? 'YYYY-MM-DD HH:mm:ss';
     this.init(times);
   }
 
   /** 初始化时间对象 */
   init(times: TimeRangeType) {
-    this.dateRange = new DateRange(times, 'YYYY-MM-DD HH:mm:ss', window.timezone);
+    this.dateRange = new DateRange(times, this.formatStr, window.timezone);
     this.value = [this.dateRange.startDate, this.dateRange.endDate];
   }
 
@@ -55,7 +57,14 @@ export class TimeRange {
   }
   /** 格式化成秒 */
   unix(): TimestampsType {
-    return this.value.map(item => item?.unix?.() || null) as TimestampsType;
+    return this.value.map(item => {
+      const val = item?.valueOf?.() || null;
+      if (`${val}`.length === 10) {
+        return val * 1000;
+      }
+
+      return val;
+    }) as TimestampsType;
   }
 }
 
@@ -66,15 +75,15 @@ export const intTimestampStr = (str): null | number => {
 };
 
 /** 将格式为 ['now-1d', 'now'] 转换为 ['YYYY-MM-DD HH:mm:ss', 'YYYY-MM-DD HH:mm:ss'] */
-export const handleTransformTime = (value: TimeRangeType): TimeRangeType => {
-  const timeRange = new TimeRange(value);
-  return timeRange.format('YYYY-MM-DD HH:mm:ss');
+export const handleTransformTime = (value: TimeRangeType, format = 'YYYY-MM-DD HH:mm:ss'): TimeRangeType => {
+  const timeRange = new TimeRange(value, format);
+  return timeRange.format(format);
 };
 
 /** 转换成秒 */
 
-export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType => {
-  const timeRange = new TimeRange(value);
+export const handleTransformToTimestamp = (value: TimeRangeType, format = 'YYYY-MM-DD HH:mm:ss'): TimestampsType => {
+  const timeRange = new TimeRange(value, format);
   return timeRange.unix();
 };
 

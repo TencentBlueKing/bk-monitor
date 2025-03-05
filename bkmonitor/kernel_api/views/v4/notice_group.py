@@ -484,7 +484,7 @@ class SaveDutyRuleResource(Resource):
 
 class DeleteDutyRuleResource(Resource):
     """
-    删除通知组
+    批量删除轮值规则
     """
 
     class RequestSerializer(serializers.Serializer):

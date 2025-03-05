@@ -16,8 +16,15 @@ from datetime import datetime, timedelta
 
 import redis
 from django.conf import settings
+from django.db import transaction
 
+from alarm_backends.core.lock.service_lock import share_lock
+from core.drf_resource import api
+from core.prometheus import metrics
+from metadata import models
+from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
+from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.tools.redis_lock import DistributedLock
 from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 
@@ -158,3 +165,61 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
                 logger.warning("watch_bkbase_meta_redis: Failed to close pubsub->[%s]", close_error)
 
     logger.info("watch_bkbase_meta_redis: Task completed after reaching runtime limit.")
+
+
+@share_lock(ttl=3600, identify="metadata_sync_bkbase_cluster_info")
+def sync_bkbase_cluster_info():
+    """
+    同步 bkbase 集群信息
+    VM / ES /Doris ...
+    """
+    logger.info("sync_bkbase_cluster_info: Start syncing cluster info from bkbase.")
+    start_time = time.time()
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_cluster_info", status=TASK_STARTED, process_target=None
+    ).inc()
+
+    # 遍历所有存储类型配置
+    for config in BKBASE_V4_KIND_STORAGE_CONFIGS:
+        clusters = api.bkdata.list_data_bus_raw_data(namespace=config["namespace"], kind=config["kind"])
+        _sync_cluster_info(
+            cluster_list=clusters,
+            field_mappings=config["field_mappings"],
+            cluster_type=config["cluster_type"],
+            storage_name=config["storage_name"],
+        )
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_cluster_info", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bkbase_cluster_info", process_target=None).observe(
+        cost_time
+    )
+
+    logger.info("sync_bkbase_cluster_info: Finished syncing cluster info from bkbase, cost time->[%s]", cost_time)
+
+
+def _sync_cluster_info(cluster_list: list, field_mappings: dict, cluster_type: str, storage_name: str):
+    """通用集群信息同步函数"""
+    for cluster_data in cluster_list:
+        try:
+            cluster_auth_info = cluster_data.get("spec", {})
+            cluster_metadata = cluster_data.get("metadata", {})
+
+            # 动态获取字段映射（支持不同存储类型的字段差异）
+            domain_name = cluster_auth_info.get(field_mappings["domain_name"])
+            if not models.ClusterInfo.objects.filter(domain_name=domain_name).exists():
+                logger.info(f"sync_bkbase_cluster_info: create {storage_name} cluster, domain_name->[{domain_name}]")
+                with transaction.atomic():
+                    models.ClusterInfo.objects.create(
+                        domain_name=domain_name,
+                        port=cluster_auth_info.get(field_mappings["port"]),
+                        username=cluster_auth_info.get(field_mappings["username"]),
+                        password=cluster_auth_info.get(field_mappings["password"]),
+                        cluster_name=cluster_metadata.get("name"),
+                        is_default_cluster=False,
+                        cluster_type=cluster_type,
+                    )
+        except Exception as e:
+            logger.error(f"sync_bkbase_cluster_info: failed to sync {storage_name} cluster info, error->[{e}]")
+            continue

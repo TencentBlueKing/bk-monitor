@@ -80,6 +80,11 @@ export default class FieldInfo extends tsc<IProps> {
     return this.$store.getters['globals/globalsData'];
   }
 
+  // cmdb元数据
+  get extra_labels() {
+    return (this.collectorData as any).extra_labels.map(item => '__ext.' + item.key);
+  }
+
   operatorMap = {
     mask_shield: window.mainComponent.$t('掩码'),
     text_replace: window.mainComponent.$t('替换'),
@@ -348,7 +353,7 @@ export default class FieldInfo extends tsc<IProps> {
 
   render() {
     const nickNameSlot = {
-      default: ({ row }) => <span>{row.query_alias || row.field_alias || '--'}</span>
+      default: ({ row }) => <span>{row.query_alias || row.field_alias || '--'}</span>,
     };
 
     const fieldNameSlot = {
@@ -356,7 +361,7 @@ export default class FieldInfo extends tsc<IProps> {
         return (
           <div>
             {row.field_name}
-            {row.metadata_type === 'path' ? (
+            {row.metadata_type === 'path' || this.extra_labels.includes(row.field_name) ? (
               <bk-tag
                 radius='6px'
                 theme='info'

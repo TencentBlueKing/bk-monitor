@@ -10,13 +10,14 @@ specific language governing permissions and limitations under the License.
 """
 import re
 import time
-from typing import Any, Dict, List
 
 from django.db import models
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.db import JsonField
+from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.user import get_backend_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.constants import EVENT_TYPE
@@ -68,6 +69,31 @@ class CustomEventItem(models.Model):
     dimension_list = JsonField("维度", default=[])
 
 
+class CustomTSField(models.Model):
+    """
+    自定义时序字段
+    """
+
+    METRIC_TYPE_CHOICES = (
+        ("metric", "指标"),
+        ("dimension", "维度"),
+    )
+
+    class MetricType:
+        METRIC = "metric"
+        DIMENSION = "dimension"
+
+    MetricConfigFields = ["unit", "hidden", "aggregate_method", "function", "interval", "label", "dimensions"]
+    DimensionConfigFields = ["common"]
+
+    time_series_group_id = models.IntegerField("时序分组ID")
+    type = models.CharField("字段类型", max_length=16, choices=METRIC_TYPE_CHOICES, default=MetricType.METRIC)
+    name = models.CharField("字段名称", max_length=128)
+    description = models.CharField("字段描述", max_length=128, default="")
+    disabled = models.BooleanField("禁用字段", default=False)
+    config = models.JSONField("字段配置", default=dict)
+
+
 class CustomTSTable(OperateRecordModelBase):
     """
     自定义时序
@@ -88,6 +114,7 @@ class CustomTSTable(OperateRecordModelBase):
     data_label = models.CharField("数据标签", max_length=128, default="")
     protocol = models.CharField("上报协议", max_length=128, default="json", choices=PROTOCOL_CHOICES)
     desc = models.CharField("说明", max_length=1024, default="", blank=True)
+    auto_discover = models.BooleanField("自动发现", default=True)
 
     def __str__(self):
         return f"[{self.bk_biz_id}]{self.table_id}-{self.bk_data_id}"
@@ -105,91 +132,227 @@ class CustomTSTable(OperateRecordModelBase):
             data_id_info = api.metadata.get_data_id({"bk_data_id": self.bk_data_id, "with_rt_info": False})
             return data_id_info["token"]
 
-    def metric_detail(self):
-        custom_ts_items: List[Dict[str, Any]] = []
-        params = {
+    def save_to_metadata(self, with_fields=False):
+        """
+        保存 metadata 信息
+        """
+        request_params = {
+            "operator": get_request_username() or get_backend_username(),
             "time_series_group_id": self.time_series_group_id,
+            "time_series_group_name": self.name,
+            "label": self.scenario,
+            "data_label": self.data_label,
+            "enable_field_black_list": self.auto_discover,
         }
-        results = api.metadata.get_time_series_group(params)
-        # 查询数据库记录以确定指标的分组标签
-        old_metrics = CustomTSItem.objects.filter(table=self).only("metric_name", "label")
-        metric_labels = {metric.metric_name: metric.label for metric in old_metrics}
-        groups = CustomTSGroupingRule.objects.filter(**params)
 
-        metric_names = []
-        new_items = []
+        # 如果没有开启自动发现，才需要设置指标维度
+        if with_fields:
+            fields = CustomTSField.objects.filter(time_series_group_id=self.time_series_group_id)
+            request_params["field_list"] = [
+                {
+                    "field_name": field.name,
+                    "tag": field.type,
+                    "field_type": "string" if field.type == "dimension" else "float",
+                    "description": field.description,
+                    "unit": field.config.get("unit", ""),
+                    "is_disabled": field.disabled,
+                }
+                for field in fields
+            ]
+
+        api.metadata.modify_time_series_group(request_params)
+
+    def get_and_sync_fields(self) -> list[CustomTSField]:
+        """
+        获取并同步指标信息
+        1. 在查询自定义指标的指标/维度列表时，尝试从 metadata 中获取指标/维度列表，并写入到 CustomTSField中
+        2. 同步时只增不删，除非用户手动删除
+        3. 同步需要设置时间间隔，避免过于频繁请求
+        4. 当开启自动发现时，修改指标信息不需要向 metadata 同步，反之则需要同步
+        """
+        # 获取当前指标/维度集合
+        fields: dict[tuple[str, str], CustomTSField] = {
+            (item.name, item.type): item
+            for item in CustomTSField.objects.filter(time_series_group_id=self.time_series_group_id)
+        }
+
+        # 获取 metadata
+        results = api.metadata.get_time_series_group(time_series_group_id=self.time_series_group_id)
+
+        # 计算需要补充指标/维度
+        need_create_fields: list[CustomTSField] = []
+        need_update_fields: list[CustomTSField] = []
         for result in results:
-            for metric in result["metric_info_list"]:
+            for metric_info in result["metric_info_list"]:
+                # 指标信息同步，为了向前兼容
+                dimensions = sorted([tag["field_name"] for tag in metric_info["tag_list"]])
+                metric = fields.get((metric_info["field_name"], "")) or fields.get(
+                    (metric_info["field_name"], CustomTSField.MetricType.METRIC)
+                )
                 if not metric:
+                    # 新建指标
+                    metric = CustomTSField(
+                        time_series_group_id=self.time_series_group_id,
+                        name=metric_info["field_name"],
+                        type=CustomTSField.MetricType.METRIC,
+                        config={
+                            "dimensions": dimensions,
+                            "unit": metric_info["unit"],
+                            "label": [],
+                        },
+                        description=metric_info["description"],
+                        disabled=metric_info["is_disabled"],
+                    )
+                    need_create_fields.append(metric)
+                else:
+                    changed = False
+
+                    # 指标信息同步
+                    if not metric.type:
+                        metric.type = CustomTSField.MetricType.METRIC
+                        changed = True
+
+                    if not metric.config.get("unit") and metric_info.get("unit"):
+                        metric.config["unit"] = metric_info["unit"]
+                        changed = True
+
+                    if not metric.description and metric_info.get("description"):
+                        metric.description = metric_info["description"]
+                        changed = True
+
+                    # 维度变化
+                    if dimensions != metric.config.get("dimensions", []):
+                        metric.config["dimensions"] = dimensions
+                        changed = True
+
+                    # 需要更新
+                    if changed:
+                        need_update_fields.append(metric)
+
+                # 兼容旧的字段
+                if (metric.name, "") in fields:
+                    fields.pop((metric.name, ""))
+                fields[(metric.name, metric.type)] = metric
+
+                # 遍历维度
+                for tag in metric_info["tag_list"]:
+                    # 需要补充的维度
+                    if (tag["field_name"], CustomTSField.MetricType.DIMENSION) not in fields:
+                        item = CustomTSField(
+                            time_series_group_id=self.time_series_group_id,
+                            name=tag["field_name"],
+                            type=CustomTSField.MetricType.DIMENSION,
+                            description=tag["description"],
+                        )
+                        # 添加维度字段
+                        need_create_fields.append(item)
+                        fields[(tag["field_name"], CustomTSField.MetricType.DIMENSION)] = item
+                    else:
+                        # 如果存在维度别名不为空，则更新
+                        item = fields[(tag["field_name"], CustomTSField.MetricType.DIMENSION)]
+                        if item.description == "" and tag["description"]:
+                            item.description = tag["description"]
+                            need_update_fields.append(item)
+
+        if need_create_fields:
+            # 获取分组规则
+            group_rules = CustomTSGroupingRule.objects.filter(time_series_group_id=self.time_series_group_id)
+
+            # 对新增指标进行分组匹配
+            for field in need_create_fields:
+                # 跳过维度
+                if field.type == CustomTSField.MetricType.DIMENSION:
                     continue
 
-                # 新增指标进行分组匹配
-                if metric["field_name"] not in metric_labels:
-                    metric_label = set()
-                    for group in groups:
-                        if metric["field_name"] in group.manual_list:
-                            metric_label.add(group.name)
-                        for rule in group.auto_rules:
-                            if re.match(rule, metric["field_name"]):
-                                metric_label.add(group.name)
+                labels = []
+                for group in group_rules:
+                    if group.match_metric(field.name):
+                        labels.append(group.name)
+                field.config["label"] = sorted(labels)
 
-                    new_items.append(
-                        CustomTSItem(metric_name=metric["field_name"], table=self, label=list(metric_label))
-                    )
+            # 批量创建
+            CustomTSField.objects.bulk_create(need_create_fields, batch_size=500)
+
+        # 批量更新
+        if need_update_fields:
+            CustomTSField.objects.bulk_update(
+                need_update_fields,
+                ["config", "description", "disabled", "type"],
+                batch_size=500,
+            )
+
+        return list(fields.values())
+
+    def renew_metric_labels(self, group_rules: list["CustomTSGroupingRule"], delete=False, clean=False):
+        """
+        更新指标标签
+        """
+        # 获取当前指标标签
+        fields = CustomTSField.objects.filter(
+            time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.METRIC
+        )
+        updated_fields = []
+        for field in fields:
+            # 清空标签
+            if clean:
+                field.config["label"] = []
+
+            field.config.setdefault("label", [])
+            for group_rule in group_rules:
+                if not delete and group_rule.match_metric(field.name):
+                    if group_rule.name not in field.config["label"]:
+                        field.config["label"].append(group_rule.name)
+                        updated_fields.append(field)
                 else:
-                    metric_label = metric_labels[metric["field_name"]]
+                    if group_rule.name in field.config["label"]:
+                        field.config["label"].remove(group_rule.name)
+                        updated_fields.append(field)
 
-                metric_names.append(metric["field_name"])
-                group_info = {
-                    "table": self,
-                    "metric_name": metric["field_name"],
-                    "unit": metric["unit"],
-                    "type": metric["type"],
-                    "metric_display_name": metric["description"],
-                    "dimension_list": metric["tag_list"],
-                    "label": list(metric_label),
-                }
+        # 批量更新
+        if updated_fields:
+            CustomTSField.objects.bulk_update(updated_fields, ["config"], batch_size=500)
 
-                custom_ts_items.append(group_info)
+    def get_metrics(self) -> dict[str, dict]:
+        """
+        获取指标/维度信息
+        """
+        fields = self.get_and_sync_fields()
+        dimension_names: dict[str, str] = {
+            dimension.name: dimension.description
+            for dimension in CustomTSField.objects.filter(
+                time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.DIMENSION
+            )
+        }
 
-        if new_items:
-            CustomTSItem.objects.bulk_create(new_items, batch_size=500)
-
-        # 清理不存在的指标记录
-        need_clean_metric_names = set(metric_labels.keys()) - set(metric_names)
-        CustomTSItem.objects.filter(table=self, metric_name__in=need_clean_metric_names).delete()
-
-        return custom_ts_items
-
-    def get_metrics(self):
         field_map = {}
-        for metric_info in self.metric_detail():
-            if metric_info["metric_name"] not in field_map:
-                field_map[metric_info["metric_name"]] = {
-                    "name": metric_info["metric_name"],
-                    "monitor_type": "metric",
-                    "unit": metric_info["unit"],
-                    "description": metric_info["metric_display_name"],
-                    "type": metric_info["type"],
-                    "dimension_list": [
-                        {"id": dimension["field_name"], "name": dimension["description"]}
-                        for dimension in metric_info["dimension_list"]
-                    ],
-                    "label": metric_info["label"],
-                }
-            for dimension in metric_info["dimension_list"]:
-                if dimension["field_name"] not in field_map:
-                    field_map[dimension["field_name"]] = {
-                        "name": dimension["field_name"],
-                        "monitor_type": "dimension",
-                        "unit": "",
-                        "description": dimension["description"],
-                        "type": "string",
+        for field in fields:
+            field_map[field.name] = {
+                "name": field.name,
+                "monitor_type": field.type,
+                "unit": field.config.get("unit", ""),
+                "description": field.description,
+                "type": field.type,
+            }
+
+            if field.type == CustomTSField.MetricType.METRIC:
+                field_map[field.name].update(
+                    {
+                        "dimension_list": [
+                            {"id": dimension, "name": dimension_names[dimension]}
+                            for dimension in field.config.get("dimensions", [])
+                        ],
+                        "label": field.config.get("label", []),
                     }
+                )
         return field_map
 
-    def query_target(self, bk_biz_id: int):
-        metric = CustomTSItem.objects.filter(table=self).first()
+    def query_target(self, bk_biz_id: int) -> list:
+        """
+        查询 target 维度字段
+        """
+        metric = CustomTSField.objects.filter(
+            time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.METRIC
+        ).first()
         if not metric:
             return []
 
@@ -200,7 +363,7 @@ class CustomTSTable(OperateRecordModelBase):
                 "table": self.table_id,
                 "data_label": self.data_label,
                 "group_by": ["target"],
-                "metrics": [{"field": metric.metric_name}],
+                "metrics": [{"field": metric.name}],
             },
         )
         query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
@@ -218,20 +381,6 @@ class CustomTSTable(OperateRecordModelBase):
             return []
         return values["values"]["target"]
 
-    def query_dimensions(self, metric):
-        metric_info = self.metric_list.filter(metric_name=metric).first()
-        if not metric_info:
-            for field in self.metric_detail():
-                if field["metric_name"] == metric:
-                    dimension_list = field["dimension_list"]
-                    break
-            else:
-                dimension_list = []
-        else:
-            dimension_list = metric_info.dimension_list
-        dimensions = [dimension["field_name"] for dimension in dimension_list if dimension["field_name"] != "target"]
-        return dimensions
-
 
 class CustomTSItem(models.Model):
     """
@@ -243,11 +392,17 @@ class CustomTSItem(models.Model):
     )
     metric_name = models.CharField("指标名称", max_length=128)
     type = models.CharField("类型", max_length=16, default="")
+    label = JsonField("分组标签", default=list, blank=False)
+
     unit = models.CharField("字段单位", max_length=16, default="")
     metric_display_name = models.CharField("指标别名", max_length=128, default="")
-    dimension_list = JsonField("维度", default=[])
-    label = JsonField("分组标签", default=[], blank=False)
-    hidden = models.BooleanField("隐藏图表", default=False)
+    dimension_list = JsonField("维度", default=list)
+    hidden = models.BooleanField("隐藏指标", default=False)
+    disabled = models.BooleanField("禁用指标", default=False)
+    interval = models.IntegerField("指标周期", default=0)
+    aggregate_method = models.CharField("默认聚合方法", max_length=128, default="")
+    # {"function": "top", "params": {}}
+    function = models.JSONField("指标函数", default=dict)
 
 
 class CustomTSGroupingRule(models.Model):
@@ -255,6 +410,7 @@ class CustomTSGroupingRule(models.Model):
     自定义时序指标分组规则
     """
 
+    index = models.IntegerField("排序", default=0)
     name = models.CharField("分组名称", max_length=128)
     time_series_group_id = models.IntegerField("时序分组ID")
     manual_list = JsonField("手动分组的指标列表", default=[])
@@ -267,3 +423,17 @@ class CustomTSGroupingRule(models.Model):
             "manual_list": self.manual_list,
             "auto_rules": self.auto_rules,
         }
+
+    def match_metric(self, metric_name: str):
+        """
+        匹配指标
+        """
+        # 手动分组
+        if metric_name in self.manual_list:
+            return True
+
+        # 自动分组
+        for rule in self.auto_rules:
+            if re.match(rule, metric_name):
+                return True
+        return False
