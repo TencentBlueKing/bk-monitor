@@ -38,7 +38,6 @@ export default defineComponent({
     const isCollectShow = ref(false);
     const handleCollectionShowChange = () => {
       isCollectShow.value = !isCollectShow.value;
-      console.log('------');
     };
 
     return () => (
