@@ -1,0 +1,44 @@
+.group-by-select-panel {
+  margin-top: 6px;
+  display: flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #e1ecff;
+  border-radius: 2px;
+  color: #3a84ff;
+  align-self: center;
+}
+
+.tippy-tooltip.group-by-select-panel-theme {
+  padding: 0;
+  background-color: #fff !important;
+
+  .wrapper {
+    min-width: 320px;
+  }
+
+  .dimension-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 4px;
+    margin-bottom: 8px;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+    &:hover {
+      background: #f5f7fa;
+    }
+
+    .bk-form-checkbox {
+      flex: 1;
+    }
+  }
+}
