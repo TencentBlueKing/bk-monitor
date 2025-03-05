@@ -1189,3 +1189,115 @@ TRACE_DEFAULT_CONFIG_CONTENT = {
         "filter_setting": [],
     },
 }
+
+
+class OperatorEnum:
+    """操作符枚举"""
+
+    EQ = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔")}
+    NE = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔")}
+    EQ_WILDCARD = {"operator": "=", "label": "=", "placeholder": _("请选择或直接输入，Enter分隔"), "wildcard_operator": "=~"}
+    NE_WILDCARD = {"operator": "!=", "label": "!=", "placeholder": _("请选择或直接输入，Enter分隔"), "wildcard_operator": "!=~"}
+    LT = {"operator": "<", "label": "<", "placeholder": _("请选择或直接输入")}
+    GT = {"operator": ">", "label": ">", "placeholder": _("请选择或直接输入")}
+    LTE = {"operator": "<=", "label": "<=", "placeholder": _("请选择或直接输入")}
+    GTE = {"operator": ">=", "label": ">=", "placeholder": _("请选择或直接输入")}
+    EXISTS = {"operator": "exists", "label": _("存在"), "placeholder": _("确认字段已存在")}
+    NOT_EXISTS = {"operator": "does not exists", "label": _("不存在"), "placeholder": _("确认字段不存在")}
+    IS_TRUE = {"operator": "is true", "label": "is true", "placeholder": _("字段为true")}
+    IS_FALSE = {"operator": "is false", "label": "is false", "placeholder": _("字段为false")}
+    CONTAINS = {"operator": "contains", "label": _("包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
+    NOT_CONTAINS = {"operator": "not contains", "label": _("不包含"), "placeholder": _("请选择或直接输入，Enter分隔")}
+    CONTAINS_MATCH_PHRASE = {
+        "operator": "contains match phrase",
+        "label": _("包含"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "=~",
+    }
+    NOT_CONTAINS_MATCH_PHRASE = {
+        "operator": "not contains match phrase",
+        "label": _("不包含"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "!=~",
+    }
+    ALL_CONTAINS_MATCH_PHRASE = {
+        "operator": "all contains match phrase",
+        "label": _("全部包含"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "&=~",
+    }
+    ALL_NOT_CONTAINS_MATCH_PHRASE = {
+        "operator": "all not contains match phrase",
+        "label": _("全部不包含"),
+        "placeholder": _("请选择或直接输入，Enter分隔"),
+        "wildcard_operator": "&!=~",
+    }
+
+
+OPERATORS = {
+    "keyword": [
+        OperatorEnum.EQ_WILDCARD,
+        OperatorEnum.NE_WILDCARD,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+        OperatorEnum.CONTAINS,
+        OperatorEnum.NOT_CONTAINS,
+    ],
+    "text": [
+        OperatorEnum.CONTAINS_MATCH_PHRASE,
+        OperatorEnum.NOT_CONTAINS_MATCH_PHRASE,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+    ],
+    "integer": [
+        OperatorEnum.EQ,
+        OperatorEnum.NE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+    ],
+    "long": [
+        OperatorEnum.EQ,
+        OperatorEnum.NE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+    ],
+    "double": [
+        OperatorEnum.EQ,
+        OperatorEnum.NE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+    ],
+    "date": [
+        OperatorEnum.EQ,
+        OperatorEnum.NE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+    ],
+    "boolean": [OperatorEnum.IS_TRUE, OperatorEnum.IS_FALSE, OperatorEnum.EXISTS, OperatorEnum.NOT_EXISTS],
+    "conflict": [
+        OperatorEnum.EQ,
+        OperatorEnum.NE,
+        OperatorEnum.LT,
+        OperatorEnum.LTE,
+        OperatorEnum.GT,
+        OperatorEnum.GTE,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+    ],
+}

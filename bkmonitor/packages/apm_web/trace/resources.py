@@ -18,6 +18,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
+from apm_web.handlers.es_handler import ESMappingHandler
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
     StatusCodeAttributePredicate,
@@ -1145,6 +1146,7 @@ class ApplyTraceComparisonResource(Resource):
         class Meta:
             model = TraceComparison
             exclude = ["spans", "is_enabled", "is_deleted"]
+            ref_name = "ApplyTraceComparisonResponseSerializer"
 
     def perform_request(self, validated_data):
         params = dict(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
@@ -1261,3 +1263,21 @@ class UserCustomConfigResource(Resource):
         return model_to_dict(
             config_obj, fields=["id", "bk_biz_id", "app_name", "username", "trace_config", "span_config"]
         )
+
+
+class ListQueryDynamicFieldsResource(Resource):
+    """
+    获取动态字段字典
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+
+    def perform_request(self, validated_request_data):
+        es_mapping = api.apm_api.query_es_mapping(
+            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+        )
+        mapping_handler = ESMappingHandler(es_mapping=es_mapping)
+
+        return {"fields": mapping_handler.get_queryable_fields()}
