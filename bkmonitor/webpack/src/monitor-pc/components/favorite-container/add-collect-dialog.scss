@@ -1,0 +1,125 @@
+/* stylelint-disable declaration-no-important */
+@import "../../theme";
+
+.add-collect-dialog {
+  .edit-information {
+    width: 100%;
+    padding: 0 16px;
+    font-size: 12px;
+
+    > :first-child {
+      display: inline-block;
+      min-width: 72px;
+      color: #979ba5;
+    }
+
+    > :last-child {
+      margin-top: 8px;
+      word-wrap: break-word;
+    }
+  }
+
+  .collect-radio {
+    margin-top: 12px;
+
+    .bk-form-control {
+      > :last-child {
+        margin-left: 20px;
+      }
+    }
+  }
+
+  .affiliation-group {
+    margin-top: 2px !important;
+  }
+
+  .group-name {
+    margin-top: 14px;
+  }
+
+  .bk-form-item {
+    padding: 0 16px;
+
+    .bk-label, .bk-radio-text, .bk-checkbox-text {
+      font-size: 12px;
+    }
+  }
+
+  .add-new-page-container {
+    .add-new-page-input {
+      display: flex;
+      padding: 6px 0;
+    }
+
+    .operate-button {
+      justify-content: space-between;
+      margin-left: 6px;
+      font-size: 16px;
+      color: #979ba5;
+  
+      span {
+        cursor: pointer;
+      }
+  
+      > :first-child {
+        margin-right: 12px;
+        color: #33D05C;
+      }
+
+      > :last-child {
+        color: #979ba5;
+      }
+    }
+  }
+
+  .string-json {
+    display: -webkit-box;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-line-clamp: 2;
+    cursor: pointer;
+    -webkit-box-orient: vertical;
+  }
+
+  .fl-jcsb {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .view-box {
+    width: auto;
+    max-height: 180px;
+    overflow-y: hidden;
+
+    .view-content {
+      padding: 0 30px;
+
+      .promql-val {
+        width: 100%;
+        word-wrap: break-word;
+      }
+  
+      .vjs-tree {
+        font-size: 12px !important;
+  
+        .vjs-value__string {
+          tab-size: 3;
+          white-space: pre-wrap;
+        }
+      }
+    }
+  }
+
+  .is-expand {
+    padding: 10px 30px !important;
+    overflow-y: auto !important;
+    background-color: #fafbfd !important;
+
+    .view-content {
+      padding: 0 !important;
+      background-color: #fafbfd !important;
+    }
+  }
+}
