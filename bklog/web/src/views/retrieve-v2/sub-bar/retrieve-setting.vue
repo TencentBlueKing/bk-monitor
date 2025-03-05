@@ -151,10 +151,6 @@
     return true;
   };
 
-  const arrowClassName = computed(() => {
-    return isPopoverShow.value ? 'bk-icon icon-angle-up' : 'bk-icon icon-angle-down';
-  });
-
   watch(
     [indexSetItem, clusterIsActive, storeIsShowClusterStep],
     () => {
@@ -171,8 +167,8 @@
     v-if="isShowRetrieveSetting"
     :distance="11"
     :offset="0"
-    :on-show="() => handlePopShow(true)"
     :on-hide="() => handlePopShow(false)"
+    :on-show="() => handlePopShow(true)"
     animation="slide-toggle"
     placement="bottom-end"
     theme="light bk-select-dropdown"
@@ -180,14 +176,10 @@
   >
     <slot name="trigger">
       <div
-        class="more-operation"
         ref="refTrigger"
+        class="more-operation"
       >
-        <span class="bklog-icon">{{ $t('设置') }}</span>
-        <span
-          class="setting-icon"
-          :class="arrowClassName + ' bklog-select-arrow'"
-        ></span>
+        <span class="bklog-icon bklog-setting-line"></span>{{ $t('全局设置') }}
       </div>
     </slot>
     <template #content>
@@ -209,14 +201,16 @@
     </template>
   </bk-popover>
 </template>
+
 <style lang="scss">
   .more-operation {
-    padding: 5px 10px 5px 14px;
-    border: 1px solid #c4c6cc;
-    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-    .setting-icon {
-      font-size: 20px;
+    span {
+      margin: 3px 6px 0 0;
+      font-size: 14px;
     }
   }
 </style>

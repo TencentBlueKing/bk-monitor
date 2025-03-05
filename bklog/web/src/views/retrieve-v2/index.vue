@@ -254,31 +254,65 @@
 </script>
 <template>
   <div
+    :style="stickyStyle"
     :class="['retrieve-v2-index', { 'show-favorites': showFavorites, 'scroll-y': true, 'is-sticky-top': isStickyTop }]"
-    :style="stickyStyle">
+  >
     <div class="sub-head">
-      <div :style="{ width: `${showFavorites ? favoriteWidth : 94}px` }" class="box-favorites"
-        @click="handleFavoritesClick">
-        <div v-if="showFavorites" class="collet-label">
+      <div
+        :style="{ width: `${showFavorites ? favoriteWidth : 42}px` }"
+        class="box-favorites"
+        @click="handleFavoritesClick"
+      >
+        <div
+          v-if="showFavorites"
+          class="collet-label"
+        >
           <div class="left-info">
             <span class="collect-title">{{ $t('收藏夹') }}</span>
             <span class="collect-count">{{ favoriteRef?.allFavoriteNumber }}</span>
-            <span class="collect-edit bklog-icon bklog-wholesale-editor" @click="handleEditFavoriteGroup"></span>
+            <span
+              class="collect-edit bklog-icon bklog-wholesale-editor"
+              @click="handleEditFavoriteGroup"
+            ></span>
           </div>
-          <span class="bklog-icon bklog-collapse-small" @click="handleFavoritesClose"></span>
+          <span
+            class="bklog-icon bklog-collapse-small"
+            @click="handleFavoritesClose"
+          ></span>
         </div>
         <template v-else>
-          <span :class="['bklog-icon bklog-collapse-small', { active: showFavorites }]"></span>{{ $t('收藏夹') }}
+          <div class="collection-box">
+            <span
+              style="font-size: 18px"
+              :class="['bklog-icon bklog-shoucangjia', { active: showFavorites }]"
+            ></span>
+          </div>
         </template>
       </div>
-      <SubBar :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 92}px` }" show-favorites />
+      <SubBar
+        :style="{ width: `calc(100% - ${showFavorites ? favoriteWidth : 42}px` }"
+        show-favorites
+      />
     </div>
-    <div :class="['retrieve-v2-body']" :style="contentStyle">
-      <CollectFavorites ref="favoriteRef" class="collect-favorites" :is-refresh.sync="isRefreshList"
-        :is-show.sync="showFavorites" :width.sync="favoriteWidth" :style="favoritesStlye"
-        @update-active-favorite="updateActiveFavorite"></CollectFavorites>
+    <div
+      :style="contentStyle"
+      :class="['retrieve-v2-body']"
+    >
+      <CollectFavorites
+        ref="favoriteRef"
+        :style="favoritesStlye"
+        class="collect-favorites"
+        :is-refresh.sync="isRefreshList"
+        :is-show.sync="showFavorites"
+        :width.sync="favoriteWidth"
+        @update-active-favorite="updateActiveFavorite"
+      ></CollectFavorites>
       <div class="retrieve-v2-content">
-        <SearchBar :active-favorite="activeFavorite" @height-change="handleHeightChange" @refresh="handleRefresh">
+        <SearchBar
+          :active-favorite="activeFavorite"
+          @height-change="handleHeightChange"
+          @refresh="handleRefresh"
+        >
         </SearchBar>
         <SearchResultTab v-model="activeTab"></SearchResultTab>
         <template v-if="showAnalysisTab">
@@ -296,4 +330,16 @@
 </style>
 <style lang="scss">
   @import './segment-pop.scss';
+
+  .retrieve-v2-index {
+    .collection-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: #f0f1f5;
+      border-radius: 2px;
+    }
+  }
 </style>

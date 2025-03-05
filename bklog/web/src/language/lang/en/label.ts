@@ -728,6 +728,7 @@ export default {
   关联Trace检索: 'Associated Trace Search',
   检索结果为空: 'Search Results Are Empty',
   查询设置: 'Query settings',
+  全局设置: 'Global Settings',
   字段映射: 'field mapping',
   覆盖当前收藏: 'Cover current favorites',
   另存为新收藏: 'Save as a new favorite',
