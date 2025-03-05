@@ -1,4 +1,4 @@
-FROM python:3.7-bullseye as python-base
+FROM python:3.11-bullseye as python-base
 
 # variables
 ARG username=bkmonitor
@@ -41,9 +41,11 @@ FROM python-base as python-builder
 # install python packages
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=/app/requirements.txt \
+    --mount=type=bind,source=requirements_aidev.txt,target=/app/requirements_aidev.txt \
     python -m venv /app/venv \
     && /app/venv/bin/pip install --upgrade pip \
-    && /app/venv/bin/pip install -r /app/requirements.txt -i "${pypi_index_url}"
+    && /app/venv/bin/pip install -r /app/requirements.txt -i "${pypi_index_url}" \
+    && /app/venv/bin/pip install -r /app/requirements_aidev.txt -i "${pypi_index_url}"
 
 
 

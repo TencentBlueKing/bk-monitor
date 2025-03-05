@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 from dataclasses import dataclass
 
-from apm_web.profile.diagrams.base import FunctionNode
+from apm_web.profile.diagrams.base import FunctionNode, get_handler_by_mapping
 from apm_web.profile.diagrams.diff import ProfileDiffer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 
@@ -17,9 +17,10 @@ from apm_web.profile.diagrams.tree_converter import TreeConverter
 @dataclass
 class TableDiagrammer:
     def draw(self, c: TreeConverter, **options) -> dict:
+        handler = get_handler_by_mapping(options)
         nodes = list(c.tree.function_node_map.values())
         # 添加total节点
-        total_node = FunctionNode(id="", value=c.tree.root.value, name="total", filename="", system_name="")
+        total_node = FunctionNode(id="total", value=c.tree.root.value, name="total", filename="", system_name="")
         nodes.append(total_node)
         sort_map = {
             "name": lambda x: x.name,
@@ -36,7 +37,9 @@ class TableDiagrammer:
         return {
             "table_data": {
                 "total": c.tree.root.value,
-                "items": [{"id": x.id, "name": x.name, "self": x.self_time, "total": x.value} for x in sorted_nodes],
+                "items": [
+                    handler({"id": x.id, "name": x.name, "self": x.self_time, "total": x.value}) for x in sorted_nodes
+                ],
             }
         }
 
@@ -56,14 +59,16 @@ class TableDiagrammer:
     def diff(self, base_tree_converter: TreeConverter, comp_tree_converter: TreeConverter, **options) -> dict:
         diff_table = ProfileDiffer.from_raw(base_tree_converter, comp_tree_converter).diff_table()
         table_data = []
+        handler = get_handler_by_mapping(options)
+
         miss_value = {"id": 0, "value": 0, "self": 0, "name": "", "system_name": "", "filename": ""}
         for node in diff_table.diff_node_map.values():
             table_data.append(
                 {
-                    **node.default.to_dict(),
+                    **handler(node.default.to_dict()),
                     **node.diff_info,
-                    "baseline_node": node.baseline.to_dict() if node.baseline else miss_value,
-                    "comparison_node": node.comparison.to_dict() if node.comparison else miss_value,
+                    "baseline_node": handler(node.baseline.to_dict() if node.baseline else miss_value),
+                    "comparison_node": handler(node.comparison.to_dict() if node.comparison else miss_value),
                 }
             )
 

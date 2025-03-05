@@ -23,7 +23,7 @@ import base64
 
 from django.conf import settings
 from django.db.models import Q
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -61,6 +61,7 @@ from apps.log_databus.serializers import (
     CustomUpdateSerializer,
     FastCollectorCreateSerializer,
     FastCollectorUpdateSerializer,
+    FastContainerCollectorCreateSerializer,
     GetBCSCollectorStorageSerializer,
     ListBCSCollectorSerializer,
     ListBCSCollectorWithoutRuleSerializer,
@@ -2353,6 +2354,10 @@ class CollectorViewSet(ModelViewSet):
             "message": ""
         }
         """
+        if request.data.get("environment") == Environment.CONTAINER:
+            data = self.params_valid(FastContainerCollectorCreateSerializer)
+            return Response(CollectorHandler().fast_contain_create(data))
+
         data = self.params_valid(FastCollectorCreateSerializer)
         return Response(CollectorHandler().fast_create(data))
 

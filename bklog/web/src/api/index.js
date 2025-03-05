@@ -38,7 +38,6 @@ import { makeMessage } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
 import { showLoginModal } from '@blueking/login-modal';
-import { context, trace } from '@opentelemetry/api';
 import axios from 'axios';
 
 import { random } from '../common/util';
@@ -70,11 +69,11 @@ axiosInstance.interceptors.request.use(
     if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && store.state.spaceUid) {
       config.headers['X-Bk-Space-Uid'] = store.state.spaceUid;
     }
-    if (window.__IS_MONITOR_COMPONENT__) {
-      // 监控上层并没有使用 OT 这里直接自己生成traceparent id
-      const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
-      config.headers.Traceparent = traceparent;
-    }
+    // if (window.__IS_MONITOR_COMPONENT__) {
+    // 监控上层并没有使用 OT 这里直接自己生成traceparent id
+    const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+    config.headers.Traceparent = traceparent;
+    // }
     return config;
   },
   error => Promise.reject(error),
@@ -82,9 +81,23 @@ axiosInstance.interceptors.request.use(
 
 /**
  * response interceptor
+ *
+ * @returns {Object|Promise} - 如果数据是 Blob 类型，则直接返回响应对象；否则返回处理后的响应数据。
  */
 axiosInstance.interceptors.response.use(
-  response => response.data,
+  async response => {
+    if (response.data instanceof Blob) {
+      return response;
+    }
+    const config = response.config;
+    return new Promise(async (resolve, reject) => {
+      try {
+        handleResponse({ config, response: response.data, resolve, reject, status: response.status });
+      } catch (error) {
+        handleReject(error, config, reject);
+      }
+    });
+  },
   error => Promise.reject(error),
 );
 
@@ -96,10 +109,6 @@ const http = {
   cancelCache: requestId => http.cache.delete(requestId),
   cancel: requestId => Promise.all([http.cancelRequest(requestId), http.cancelCache(requestId)]),
 };
-
-// const methodsWithoutData = ['delete', 'get', 'head', 'options']
-// const methodsWithData = ['post', 'put', 'patch']
-// const allMethods = [...methodsWithoutData, ...methodsWithData]
 
 Object.defineProperty(http, 'request', {
   get() {
@@ -115,10 +124,6 @@ Object.defineProperty(http, 'request', {
  * @return {Function} 实际调用的请求函数
  */
 function getRequest(method) {
-  // if (methodsWithData.includes(method)) {
-  //     return (url, data, config) => getPromise(method, url, data, config)
-  // }
-  // return (url, config) => getPromise(method, url, null, config)
   return (url, data, config) => getPromise(method, url, data, config);
 }
 
@@ -150,18 +155,16 @@ async function getPromise(method, url, data, userConfig = {}) {
   }
 
   promise = new Promise(async (resolve, reject) => {
-    context.with(trace.setSpan(context.active(), config.span), async () => {
-      try {
-        const axiosRequest = http.$request.request(url, data, config);
-        const response = await axiosRequest;
-        Object.assign(config, response.config || {});
-        handleResponse({ config, response, resolve, reject });
-      } catch (error) {
-        Object.assign(config, error.config);
-        reject(error);
-      }
-    });
-  }).catch(error => handleReject(error, config));
+    try {
+      const axiosRequest = http.$request.request(url, data, config);
+      const response = await axiosRequest;
+      Object.assign(config, response.config || {});
+      handleResponse({ config, response, resolve, reject });
+    } catch (error) {
+      Object.assign(config, error.config);
+      reject(error);
+    }
+  });
 
   // 添加请求队列
   http.queue.set(config);
@@ -179,19 +182,30 @@ async function getPromise(method, url, data, userConfig = {}) {
  * @param {Function} promise 完成函数
  * @param {Function} promise 拒绝函数
  */
-function handleResponse({ config, response, resolve, reject }) {
+function handleResponse({ config, response, resolve, reject, status }) {
   const { code } = response;
-  if (code === '9900403') {
-    reject({ message: response.message, code, data: response.data || {} });
-    store.commit('updateAuthDialogData', {
-      apply_url: response.data.apply_url,
-      apply_data: response.permission,
-    });
-  } else if (code !== 0 && config.globalError) {
-    reject({ message: response.message, code, data: response.data || {} });
+
+  if (code === undefined) {
+    if (status === 200) {
+      resolve(response, config);
+    } else {
+      reject({ message: response.message, code, data: response.data || {} });
+    }
   } else {
-    resolve(config.originalResponse ? response : response.data, config);
+    if (code === '9900403') {
+      reject({ message: response.message, code, data: response.data || {} });
+      store.commit('updateAuthDialogData', {
+        apply_url: response.data.apply_url,
+        apply_data: response.permission,
+      });
+    } else if (code !== 0 && config.globalError) {
+      handleReject({ message: response.message, code, data: response.data || {} }, config, reject);
+    } else {
+      resolve(config.originalResponse ? response : response.data, config);
+    }
   }
+
+
   http.queue.delete(config.requestId);
 }
 
@@ -203,15 +217,12 @@ function handleResponse({ config, response, resolve, reject }) {
  *
  * @return {Promise} promise 对象
  */
-function handleReject(error, config) {
+function handleReject(error, config, reject) {
   if (axios.isCancel(error)) {
-    return Promise.reject(error);
+    return reject(error);
   }
-  // const service = getHttpService(url, serviceList);
-  // const ajaxUrl = service ? service.url : '';
-  // console.error('Request error UrlPath：', ajaxUrl);
-  const traceparent = config.span._spanContext.traceId;
 
+  const traceparent = config?.headers?.Traceparent;
   http.queue.delete(config.requestId);
 
   // 捕获 http status 错误
@@ -236,7 +247,7 @@ function handleReject(error, config) {
       } else {
         handleLoginExpire();
       }
-      return Promise.reject(nextError);
+      return reject(nextError);
     }
     if (status === 500) {
       nextError.message = i18n.t('系统出现异常');
@@ -246,13 +257,12 @@ function handleReject(error, config) {
     const resMessage = makeMessage(nextError.message, traceparent);
     config.catchIsShowMessage && messageError(resMessage);
     console.error(nextError.message);
-    return Promise.reject(nextError);
   }
 
   // 捕获业务 code 错误
   const { code } = error;
   if (code === '9900403') {
-    return Promise.reject(new Error(error.message));
+    return reject(new Error(error.message));
   }
 
   if (config.globalError && code !== 0) {
@@ -269,13 +279,13 @@ function handleReject(error, config) {
         config.catchIsShowMessage && messageError(resMessage);
       }
     }
-    return Promise.reject(message);
+    return reject(message);
   }
 
   const resMessage = makeMessage(error.message, traceparent);
   config.catchIsShowMessage && messageError(resMessage);
   console.error(error.message);
-  return Promise.reject(error);
+  return reject(error);
 }
 
 /**
@@ -289,12 +299,11 @@ function handleReject(error, config) {
  */
 function initConfig(method, url, userConfig) {
   // const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
-  // const copyUserConfig = Object.assign({}, userConfig ?? {});
+  const copyUserConfig = Object.assign({}, userConfig ?? {});
   // copyUserConfig.headers = {
   //   ...(userConfig.headers ?? {}),
   //   traceparent,
   // };
-
   const defaultConfig = {
     ...getCancelToken(),
     // http 请求默认 id
@@ -313,9 +322,8 @@ function initConfig(method, url, userConfig) {
     cancelPrevious: true,
     // 接口报错是否弹bkMessage弹窗
     catchIsShowMessage: true,
-    span: trace.getTracer('bk-log').startSpan('api'),
   };
-  return Object.assign(defaultConfig, userConfig);
+  return Object.assign(defaultConfig, copyUserConfig);
 }
 
 /**

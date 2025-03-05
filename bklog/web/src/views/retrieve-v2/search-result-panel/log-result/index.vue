@@ -79,6 +79,17 @@
           ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
         >
 
+        <bk-checkbox
+          style="margin: 0 12px 0 0"
+          :value="isAllowEmptyField"
+          theme="primary"
+          @change="handleEmptyFieldFormat"
+        >
+          <span class="switch-label">
+            {{ $t('展示空字段') }}
+          </span>
+        </bk-checkbox>
+
         <bk-input
           v-if="isJsonFormat"
           class="json-depth-num"
@@ -203,6 +214,7 @@
         isWrap: 'tableLineIsWrap',
         jsonFormatDeep: state => state.tableJsonFormatDepth,
         isJsonFormat: state => state.tableJsonFormat,
+        isAllowEmptyField: state => state.tableAllowEmptyField,
         showRowIndex: state => state.tableShowRowIndex,
       }),
 
@@ -275,6 +287,9 @@
       },
       handleJsonFormat(val) {
         this.$store.commit('updateTableJsonFormat', val);
+      },
+      handleEmptyFieldFormat(val) {
+        this.$store.commit('updateTableEmptyFieldFormat', val);
       },
       handleJsonFormatDeepChange(val) {
         const value = Number(val);

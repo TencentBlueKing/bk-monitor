@@ -1,35 +1,86 @@
 <script setup lang="ts">
-  import { ref, computed, watch } from 'vue';
+  import { ref, computed } from 'vue';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
-
+  import CommonFilterSetting from './common-filter-setting.vue';
+  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+  import { getOperatorKey } from '@/common/util';
+  import { operatorMapping, translateKeys } from './const-values';
   const { $t } = useLocale();
   const store = useStore();
 
   const filterFieldsList = computed(() => {
-    return store.state.retrieve.catchFieldCustomConfig?.filterSetting?.filterFields || [];
+    if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
+      return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
+    }
+
+    return [];
   });
 
-  const condition = ref([]);
-  const activeIndex = ref(-1);
+  // 判定当前选中条件是否需要设置Value
+  const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
 
-  watch(filterFieldsList, val => {
-    if (val && val.length) {
-      condition.value =
-        filterFieldsList.value.map(item => {
-          return {
-            field: item?.field_name || '',
+  const commonFilterAddition = computed({
+    get() {
+      const filterAddition = store.getters.common_filter_addition || [];
+      return filterFieldsList.value.map(item => {
+        const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
+        return (
+          matchingItem ?? {
+            field: item.field_name || '',
             operator: '=',
             value: [],
             list: [],
-          };
-        }) || [];
-    }
+          }
+        );
+      });
+    },
+    set(val) {
+      const target = val.map(item => {
+        if (!isShowConditonValueSetting(item.operator)) {
+          item.value = [];
+        }
+
+        return item;
+      });
+
+      store.commit('retrieve/updateCatchFieldCustomConfig', {
+        filterAddition: target,
+      });
+    },
   });
 
+  const activeIndex = ref(-1);
   let requestTimer = null;
   const isRequesting = ref(false);
+
+  const operatorDictionary = computed(() => {
+    const defVal = {
+      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
+    };
+    return {
+      ...defVal,
+      ...store.state.operatorDictionary,
+    };
+  });
+
+  /**
+   * 获取操作符展示文本
+   * @param {*} item
+   */
+  const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
+
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    if (translateKeys.includes(operatorMapping[item.operator])) {
+      return $t(operatorMapping[item.operator] ?? item.operator);
+    }
+
+    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  };
 
   const rquestFieldEgges = (() => {
     return (field, index, operator?, value?, callback?) => {
@@ -40,7 +91,7 @@
 
         return [];
       };
-      condition.value[index].list.splice(0, condition.value[index].list.length);
+      commonFilterAddition.value[index].list.splice(0, commonFilterAddition.value[index].list.length);
 
       if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
         return;
@@ -51,17 +102,17 @@
 
       requestTimer && clearTimeout(requestTimer);
       requestTimer = setTimeout(() => {
-        const addition = value
+        const targetAddition = value
           ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
               const instance = new ConditionOperator(val);
               return instance.getRequestParam();
             })
           : [];
         store
-          .dispatch('requestIndexSetValueList', { fields: [field], addition, force: true, size })
+          .dispatch('requestIndexSetValueList', { fields: [field], targetAddition, force: true, size })
           .then(res => {
             const arr = res.data?.aggs_items?.[field.field_name] || [];
-            condition.value[index].list = arr.filter(item => item);
+            commonFilterAddition.value[index].list = arr.filter(item => item);
           })
           .finally(() => {
             isRequesting.value = false;
@@ -78,71 +129,92 @@
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    rquestFieldEgges(item, index, condition.value[index].operator, value);
+    rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+  };
+
+  // 新建提交逻辑
+  const updateCommonFilterAddition = () => {
+    const target = commonFilterAddition.value.map(item => {
+      if (!isShowConditonValueSetting(item.operator)) {
+        item.value = [];
+      }
+
+      return item;
+    });
+
+    const param = {
+      filterAddition: target,
+    };
+
+    store.dispatch('userFieldConfigChange', param);
   };
 
   const handleChange = () => {
-    store.commit('updateCommonFilter', condition.value);
+    updateCommonFilterAddition();
     store.dispatch('requestIndexSetQuery');
   };
 
-  const isShowCommonFilter = ref(true);
-  const handleCollapseChange = val => {
-    isShowCommonFilter.value = !val;
+  const focusIndex = ref(null);
+  const handleRowFocus = (index, e) => {
+    if (document.activeElement === e.target) {
+      focusIndex.value = index;
+    }
+  };
+
+  const handleRowBlur = () => {
+    focusIndex.value = null;
   };
 </script>
 
 <template>
-  <bk-resize-layout
-    class="resize-layout-wrap"
-    v-if="filterFieldsList.length"
-    placement="top"
-    :collapsible="true"
-    :border="false"
-    @collapse-change="handleCollapseChange"
-  >
-    <div slot="aside">
+  <div class="filter-container-wrap">
+    <div class="filter-setting-btn">
+      <CommonFilterSetting></CommonFilterSetting>
+    </div>
+    <div
+      v-if="commonFilterAddition.length"
+      class="filter-container"
+    >
       <div
-        class="filter-container"
-        v-if="isShowCommonFilter && condition.length"
+        v-for="(item, index) in filterFieldsList"
+        :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
+        @focus.capture="e => handleRowFocus(index, e)"
+        @blur.capture="handleRowBlur"
       >
         <div
-          class="filter-select-wrap"
-          v-for="(item, index) in filterFieldsList"
+          class="title"
+          v-bk-overflow-tips
         >
-          <div
-            class="title"
-            v-bk-tooltips.top="{
-              content: item?.field_alias || item?.field_name,
-            }"
-          >
-            {{ item?.field_alias || item?.field_name || '' }}
-          </div>
-          <bk-select
-            class="operator-select"
-            v-model="condition[index].operator"
-            :input-search="false"
-            filterable
-            :popoverMinWidth="100"
-            @change="handleChange"
-          >
-            <template #trigger>
-              <span class="operator-label">{{ $t(condition[index].operator) }}</span>
-            </template>
-            <bk-option
-              v-for="(item, index) in item?.field_operator"
-              :id="item.label"
-              :key="index"
-              :name="item.label"
-            />
-          </bk-select>
+          {{ item?.field_alias || item?.field_name || '' }}
+        </div>
+        <bk-select
+          class="operator-select"
+          v-model="commonFilterAddition[index].operator"
+          :input-search="false"
+          :popover-min-width="100"
+          filterable
+          @change="handleChange"
+        >
+          <template #trigger>
+            <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
+          </template>
+          <bk-option
+            v-for="(child, childIndex) in item?.field_operator"
+            :id="child.operator"
+            :key="childIndex"
+            :name="child.label"
+          />
+        </bk-select>
+        <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
           <bk-select
             class="value-select"
             v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
-            v-model="condition[index].value"
+            v-model="commonFilterAddition[index].value"
+            allow-create
+            display-tag
             multiple
             searchable
-            allow-create
+            :fix-height="true"
             @change="handleChange"
             @toggle="visible => handleToggle(visible, item, index)"
           >
@@ -155,98 +227,133 @@
               ></bk-input>
             </template>
             <bk-option
-              v-for="option in condition[index].list"
-              :key="option"
+              v-for="option in commonFilterAddition[index].list"
               :id="option"
+              :key="option"
               :name="option"
             />
           </bk-select>
-        </div>
+        </template>
       </div>
     </div>
-  </bk-resize-layout>
+    <div
+      v-else
+      class="empty-tips"
+    >
+      （{{ $t('暂未设置常驻筛选，请点击左侧设置按钮') }}）
+    </div>
+  </div>
 </template>
-<style lang="scss">
-  .resize-layout-wrap {
+<style lang="scss" scoped>
+  .filter-container-wrap {
+    display: flex;
+    align-items: center;
+    max-height: 95px;
+    padding: 0 10px 0px 10px;
+    overflow: auto;
+    background: #ffffff;
     box-shadow:
-      0 2px 8px 0 #00000026,
+      0 2px 8px 0 rgba(0, 0, 0, 0.1490196078),
       0 1px 0 0 #eaebf0;
 
-    .bk-resize-trigger {
-      display: none;
+    .filter-setting-btn {
+      width: 83px;
+      height: 40px;
+      font-size: 13px;
+      line-height: 40px;
+      color: #3880f8;
+      cursor: pointer;
     }
 
-    .bk-resize-layout-aside {
-      border-bottom: none;
+    .empty-tips {
+      font-size: 12px;
+      line-height: 40px;
+      color: #a1a5ae;
+    }
+  }
+
+  .filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    width: calc(100% - 80px);
+  }
+
+  .filter-select-wrap {
+    display: flex;
+    align-items: center;
+    min-width: 120px;
+    max-width: 560px;
+    margin: 4px 0;
+    margin-right: 8px;
+    border: 1px solid #dbdde1;
+    border-radius: 3px;
+
+    &.is-focus {
+      border-color: #3a84ff;
     }
 
-    .filter-container {
-      display: flex;
-      flex-wrap: wrap;
-      max-height: 95px;
-      padding: 0 10px 4px 10px;
-      overflow: scroll;
-      background: #ffffff;
+    .title {
+      max-width: 120px;
+      margin-left: 8px;
+      overflow: hidden;
+      font-size: 12px;
+      color: #313238;
+      text-overflow: ellipsis;
     }
 
-    .filter-select-wrap {
-      display: flex;
-      align-items: center;
-      min-width: 250px;
-      max-width: 600px;
-      margin-top: 8px;
-      margin-right: 8px;
-      border: 1px solid #dbdde1;
-      border-radius: 3px;
+    .operator-select {
+      border: none;
 
-      .title {
-        max-width: 125px;
-        margin-left: 8px;
-        overflow: hidden;
-        font-size: 12px;
-        color: #313238;
-        text-overflow: ellipsis;
+      .operator-label {
+        display: inline-block;
+        width: 100%;
+        padding: 4px;
+        color: #3a84ff;
+        white-space: nowrap;
       }
 
-      .operator-select {
+      &.bk-select.is-focus {
+        box-shadow: none;
+      }
+    }
+
+    .value-select {
+      min-width: 200px;
+      max-width: 460px;
+
+      :deep(.bk-select-dropdown .bk-select-tag-container) {
+        .bk-select-tag {
+          &.width-limit-tag {
+            max-width: 200px;
+
+            > span {
+              max-width: 180px;
+            }
+          }
+        }
+      }
+
+      &.bk-select {
         border: none;
 
-        .operator-label {
-          padding: 4px;
-          color: #ff9c01;
-        }
-
-        &.bk-select.is-focus {
+        &.is-focus {
           box-shadow: none;
         }
-      }
 
-      .value-select {
-        min-width: 200px;
-        max-width: 460px;
-
-        &.bk-select {
-          border: none;
-
-          &.is-focus {
-            box-shadow: none;
-          }
-
-          .bk-select-name {
-            padding: 0 25px 0 0px;
-          }
-        }
-
-        .bk-loading .bk-loading1 {
-          margin-top: 10px;
-          margin-left: -20px;
+        .bk-select-name {
+          padding: 0 25px 0 0px;
         }
       }
 
-      .bk-select-angle {
-        font-size: 22px;
-        color: #979ba5;
+      .bk-loading .bk-loading1 {
+        margin-top: 10px;
+        margin-left: -20px;
       }
+    }
+
+    .bk-select-angle {
+      font-size: 22px;
+      color: #979ba5;
     }
   }
 </style>

@@ -78,20 +78,21 @@ class TestSearchHandler(TestCase):
     )
     @patch(
         "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler._init_indices_str",
-        lambda _, index_set_id: "",
+        lambda _: "",
     )
     @patch(
         "apps.log_search.handlers.search.search_handlers_esquery.SearchHandler.init_time_field",
         lambda _, index_set_id, scenario_id: ("dtEventTimeStamp", "time", "s"),
     )
     @patch(
-        "apps.log_search.handlers.search.mapping_handlers.MappingHandlers.get_time_field", lambda _: "dtEventTimeStamp"
+        "apps.log_search.handlers.search.mapping_handlers.MappingHandlers.get_time_field",
+        lambda _, __, index_set_id: "dtEventTimeStamp",
     )
     def setUp(self) -> None:
-        self.search_handler = SearchHandler(index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False)
-        self.search_handler.index_set_obj = Mock()
-        self.search_handler.index_set_obj.max_async_count = 2010000
-        self.search_handler.index_set_obj.result_window = 10000
+        self.search_handler = SearchHandler(index_set_id=INDEX_SET_ID, search_dict=SEARCH_DICT, pre_check_enable=False, can_highlight=False)
+        self.search_handler._index_set = Mock()
+        self.search_handler._index_set.max_async_count = 2010000
+        self.search_handler._index_set.result_window = 10000
 
     @patch("apps.api.BkLogApi.search", lambda _, data_api_retry_cls: SEARCH_RESULT)
     @patch(

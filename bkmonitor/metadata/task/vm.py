@@ -24,7 +24,7 @@ from metadata.utils.db import filter_model_by_in_page
 logger = logging.getLogger("metadata")
 
 
-@share_lock(identify="metadata_check_access_vm_task")
+@share_lock(ttl=3600, identify="metadata_check_access_vm_task")
 def check_access_vm_task():
     """检测遗漏或者失败的接入 vm 的结果表
 

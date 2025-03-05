@@ -224,12 +224,12 @@ class FavoriteHandler(object):
                 else:
                     group_id = FavoriteGroup.get_or_create_private_group(space_uid=space_uid, username=self.username).id
             # 名称检查
-            if (
-                self.data.name != name
-                and Favorite.objects.filter(
-                    name=name, space_uid=space_uid, group_id=group_id, created_by=self.username
-                ).exists()
-            ):
+            if (self.data.name != name or self.data.group_id != group_id) and Favorite.objects.filter(
+                name=name,
+                space_uid=space_uid,
+                group_id=group_id,
+                created_by=self.username,
+            ).exists():
                 raise FavoriteAlreadyExistException()
 
             update_model_fields = {
@@ -241,6 +241,15 @@ class FavoriteHandler(object):
                 "is_enable_display_fields": is_enable_display_fields,
                 "display_fields": display_fields,
             }
+            # 单索引
+            if index_set_id:
+                update_model_fields.update({"index_set_id": index_set_id})
+                update_model_fields.update({"index_set_type": index_set_type})
+            # 联合索引
+            if index_set_ids:
+                update_model_fields.update({"index_set_ids": index_set_ids})
+                update_model_fields.update({"index_set_type": index_set_type})
+
             for key, value in update_model_fields.items():
                 setattr(self.data, key, value)
             self.data.save()

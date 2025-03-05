@@ -55,6 +55,17 @@
       }
     }
 
+    &.disabled {
+      color: #6b7280;
+      background-color: unset;
+
+      .list-item-icon {
+        &::after {
+          background-color: unset;
+        }
+      }
+    }
+
     .rename-input {
       .bk-form-input {
         border: 0 !important;

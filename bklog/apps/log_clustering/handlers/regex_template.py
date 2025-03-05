@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 from collections import defaultdict
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.log_clustering.exceptions import (
     DuplicateNameException,

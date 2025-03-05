@@ -33,6 +33,7 @@ import { random } from 'monitor-common/utils/utils';
 import authorityStore from 'monitor-pc/store/modules/authority';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
+import { TableClickCurrentExpand } from '../../common/table-expand-plugins';
 import { handleToAlertList } from './event-detail/action-detail';
 import { getStatusInfo } from './event-detail/type';
 
@@ -133,6 +134,9 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   enableCreateChatGroup = false;
   /* 关注人禁用操作 */
   followerDisabled = false;
+  /** table 行定位色功能类实例 */
+  tableClickCurrentInstance = new TableClickCurrentExpand();
+
   get tableColumnMap() {
     return this.alertColumns.reduce((pre, cur) => {
       if (cur.disabled || cur.checked) {
@@ -704,6 +708,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
     this.handlePopoverHide();
   }
 
+  @Watch('tableData')
+  handleTableDataChange() {
+    this.tableClickCurrentInstance.resetRowCurrentIndex();
+  }
+
   /* 自动批量弹窗是需要自动选中指定数据 */
   @Watch('selectedList')
   handleSelectedList(v: string[]) {
@@ -1095,18 +1104,21 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
   }
 
   handleMetricMouseenter(e: MouseEvent, data: IEventItem['metric_display']) {
-    this.metricPopoverIns?.hide?.(0);
+    // this.metricPopoverIns?.hide?.(0);
+    this.metricPopoverIns?.destroy?.();
     const { clientWidth, scrollWidth } = e.target as HTMLDivElement;
     if (scrollWidth > clientWidth) {
       this.metricPopoverIns = this.$bkPopover(e.target, {
-        content: `${data.map(item => `<div>${item.name}</div>`).join('')}`,
+        content: `${data.map(item => `<div>${item.name || item.id}</div>`).join('')}`,
+        maxWidth: 320,
+        placement: 'top',
+        boundary: 'window',
         interactive: true,
-        distance: 0,
-        duration: [200, 0],
+        distance: 7,
+        duration: [0, 0],
+        arrow: true,
       });
       this.metricPopoverIns?.show?.(100);
-    } else {
-      this.metricPopoverIns?.destroy?.();
     }
   }
 
@@ -1483,9 +1495,11 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
           header-border={false}
           outer-border={false}
           pagination={this.pagination}
+          row-class-name={this.tableClickCurrentInstance.getClassNameByCurrentIndex()}
           size={this.tableSize}
           on-page-change={this.handlePageChange}
           on-page-limit-change={this.handlePageLimitChange}
+          on-row-click={this.tableClickCurrentInstance.tableRowClick()}
           on-row-mouse-enter={index => (this.hoverRowIndex = index)}
           on-row-mouse-leave={() => (this.hoverRowIndex = -1)}
           on-selection-change={this.handleSelectChange}

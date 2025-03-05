@@ -20,7 +20,9 @@
     }
 
     .contrast-switch {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       width: 16px;
       height: 16px;
       margin-left: 8px;
@@ -30,6 +32,11 @@
       text-align: center;
       background: #a3c5fd;
       border-radius: 50%;
+
+      .icon-switch {
+        font-size: 12px;
+        transform: scale(0.7);
+      }
     }
   }
 }

@@ -498,8 +498,8 @@ export default {
     'You currently do not have the business--${0} permission, please contact the operation and maintenance classmate {1} to add the role',
   '聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源':
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
-  '填写后原字段名和别名均可查询':
-  'The original field name and the alias can both be used for querying after being populated.',
+  填写后原字段名和别名均可查询:
+    'The original field name and the alias can both be used for querying after being populated.',
   '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
     "Clustering can only be based on one field, and the field must be of text tokenization type, defaulting to 'log' field",
   ' - 日志内容：[2006-01-02 15:04:05] content': ' - Log content: [2006-01-02 15:04:05] content',
@@ -1009,10 +1009,20 @@ export default {
   复制当前查询: 'Copy the current query',
   清理当前查询: 'Clean up the current query',
   收藏当前查询: 'Add current query to favorites',
-  该设置可以将采集设备的元数据信息补充至日志中:'The setting can augment the metadata information of the collection device into the log',
-  "检测到字段名称包含异常值，只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾。请重命名，命名后原字段将被覆盖；": 'The field name contains invalid characters. It can only include a-z, A-Z, 0-9, and _, and it cannot start or end with _. Please rename it; the original field will be overwritten after renaming',
-  "检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖": 'The field name conflicts with a system built-in name. Please rename it; the original field will be overwritten after renaming',
-  "可通过正则语法排除符合条件的匹配项": 'Can exclude matching items that meet the conditions through regular expression syntax. Reference: ',
-  "正则语法说明": 'expression syntax description',
-  "。如：匹配任意字符：.*":'For example: Match any character: .*',
+  该设置可以将采集设备的元数据信息补充至日志中:
+    'The setting can augment the metadata information of the collection device into the log',
+  '检测到字段名称包含异常值，只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾。请重命名，命名后原字段将被覆盖；':
+    'The field name contains invalid characters. It can only include a-z, A-Z, 0-9, and _, and it cannot start or end with _. Please rename it; the original field will be overwritten after renaming',
+  '检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖':
+    'The field name conflicts with a system built-in name. Please rename it; the original field will be overwritten after renaming',
+  可通过正则语法排除符合条件的匹配项:
+    'Can exclude matching items that meet the conditions through regular expression syntax. Reference: ',
+  正则语法说明: 'expression syntax description',
+  '。如：匹配任意字符：.*': 'For example: Match any character: .*',
+  暂未匹配到符合条件的收藏项: 'No matching favorites have been found yet',
+  '暂未设置常驻筛选，请点击左侧设置按钮':
+    'No permanent filtering has been set, please click the settings button on the left',
+  展示空字段: 'Display empty fields',
+  '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
+    'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
 };

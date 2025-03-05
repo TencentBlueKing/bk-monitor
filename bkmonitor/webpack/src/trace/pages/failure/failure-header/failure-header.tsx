@@ -83,7 +83,7 @@ export default defineComponent({
       assignee: [],
       alertIds: [],
     });
-    const editIncidenDialogRef = ref(null);
+    const editIncidentDialogRef = ref(null);
     const incidentDetail = inject<Ref<IIncident>>('incidentDetail');
     const incidentDetailData: Ref<IIncident> = computed(() => {
       return incidentDetail.value;
@@ -153,28 +153,17 @@ export default defineComponent({
       if (status === 'abnormal') {
         const data: IAggregationRoot = alertAggregateData.value.filter(item => item.id === 'ABNORMAL')[0];
         return (
-          <Popover
-            width='200'
-            v-slots={{
-              content: () => {
-                return statusTips();
-              },
-            }}
-            placement='bottom-start'
-            theme='light'
+          <Progress
+            width={38}
+            bg-color='#EBECF0'
+            color='#EB3333'
+            percent={Math.round((data?.count / alertAggregateTotal.value) * 100)}
+            stroke-width={12}
+            type='circle'
+            text-inside
           >
-            <Progress
-              width={38}
-              bg-color='#EBECF0'
-              color='#EB3333'
-              percent={Math.round((data?.count / alertAggregateTotal.value) * 100)}
-              stroke-width={12}
-              type='circle'
-              text-inside
-            >
-              <label class='status-num'>{data?.count || 0}</label>
-            </Progress>
-          </Popover>
+            <label class='status-num'>{data?.count || 0}</label>
+          </Progress>
         );
       }
       const info = statusList[status];
@@ -186,7 +175,7 @@ export default defineComponent({
       );
     };
     const editIncidentHandle = (type = 'edit') => {
-      editIncidenDialogRef.value?.validate().then(() => {
+      editIncidentDialogRef.value?.validate().then(() => {
         btnLoading.value = true;
         const { id, incident_id } = incidentDetailData.value;
         editIncident({ incident_reason: incidentReason.value, incident_id, id, status: 'closed' })
@@ -226,7 +215,7 @@ export default defineComponent({
         }}
       >
         <Form
-          ref='editIncidenDialogRef'
+          ref='editIncidentDialogRef'
           form-type={'vertical'}
           model={{ incidentReason: incidentReason.value }}
         >
@@ -309,7 +298,7 @@ export default defineComponent({
       chatGroupShowChange,
       currentData,
       handleChatGroup,
-      editIncidenDialogRef,
+      editIncidentDialogRef,
     };
   },
   render() {
@@ -323,11 +312,14 @@ export default defineComponent({
       }
       if (!end_time) {
         this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
-        this.timer = setInterval(() => {
-          if (begin_time) {
-            this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
-          }
-        }, 1000);
+        /** 只有故障未恢复状态下才计时 */
+        if (status === 'abnormal') {
+          this.timer = setInterval(() => {
+            if (begin_time) {
+              this.showTime = this.convertTimestamp(begin_time * 1000, new Date().getTime());
+            }
+          }, 1000);
+        }
         return this.showTime;
       }
       return this.convertTimestamp(begin_time * 1000, end_time * 1000);
@@ -367,16 +359,30 @@ export default defineComponent({
               </span>
             </div>
           </div>
-          <div class='header-status'>
-            <div class='header-status-icon'>{this.renderStatusIcon(status)}</div>
-            <span class='status-info'>
-              <span class='txt'>{this.t(`${status_alias}`)}</span>
-              <span class='txt'>
-                {this.t('故障持续时间：')}
-                <b>{handleShowTime()}</b>
+          <Popover
+            width='220'
+            extCls='header-status-popover'
+            v-slots={{
+              content: () => {
+                return this.statusTips();
+              },
+            }}
+            disabled={status !== 'abnormal'}
+            offset={{ mainAxis: 1, alignmentAxis: 16 }}
+            placement='bottom-start'
+            theme='light'
+          >
+            <div class='header-status'>
+              <div class='header-status-icon'>{this.renderStatusIcon(status)}</div>
+              <span class='status-info'>
+                <span class='txt'>{status_alias ? this.t(`${status_alias}`) : '--'}</span>
+                <span class='txt'>
+                  {this.t('故障持续时间：')}
+                  <b>{handleShowTime()}</b>
+                </span>
               </span>
-            </span>
-          </div>
+            </div>
+          </Popover>
           <div class='header-btn-group'>
             <div
               class={['header-btn', { disabled: isRecovered }]}

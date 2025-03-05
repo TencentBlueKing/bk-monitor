@@ -147,6 +147,7 @@ export default {
 
   // 专业表单 - 图表相关
   已选图表: 'Selected charts',
+  选择图表: 'Select charts',
   视图标签名: 'Label Name',
   编辑视图: 'Edit View',
   视图截取: 'View Capture',
@@ -1129,6 +1130,7 @@ export default {
   规则名称: 'Rule Name',
   详细信息: 'Details',
   事项列表: 'Items',
+  迁移: 'Migrate',
 
   // 日历相关
   日历: 'Calendar',

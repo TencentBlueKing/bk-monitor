@@ -27,7 +27,6 @@ import { Component, Emit, Prop, Provide, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import BusinessItem, { type IData as IBusinessCard } from 'fta-solutions/pages/home/business-item';
-import { monitorInfo } from 'monitor-api/modules/overview';
 
 import BusinessAlarmOverview from './components/business-alarm-overiview';
 import BusinessRight from './skeleton/business-right';
@@ -100,15 +99,7 @@ export default class BusinessItemBig extends tsc<IProps, IEvent> {
 
   async getBusinessAlarmOverviewData() {
     this.businessAlarmLoading = true;
-    const data = await monitorInfo({
-      bk_biz_id: this.data.id,
-      days: this.homeDays,
-    }).catch(() => ({
-      uptimecheck: [],
-      service: [],
-      process: [],
-      os: [],
-    }));
+    const data = {uptimecheck: [], service: [], process: [], os: []};
     this.businessAlarm = [data.uptimecheck, data.service, data.process, data.os];
     this.businessAlarmLoading = false;
   }

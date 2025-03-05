@@ -69,9 +69,9 @@ class QueryTimeBuilder(object):
             self._time_range_dict.update(
                 {
                     self.time_field: {
-                        self.start_time_filter: self.start_time,
-                        self.end_time_filter: self.end_time,
-                        "format": "epoch_second",
+                        self.start_time_filter: int(self.start_time * 1000),
+                        self.end_time_filter: int(self.end_time * 1000),
+                        "format": "epoch_millis",
                     }
                 }
             )
@@ -82,8 +82,8 @@ class QueryTimeBuilder(object):
                 self._time_range_dict.update(
                     {
                         self.time_field: {
-                            self.start_time_filter: self.start_time * time_field_unit_rate,
-                            self.end_time_filter: self.end_time * time_field_unit_rate,
+                            self.start_time_filter: int(self.start_time * time_field_unit_rate),
+                            self.end_time_filter: int(self.end_time * time_field_unit_rate),
                         }
                     }
                 )
@@ -93,7 +93,7 @@ class QueryTimeBuilder(object):
 
     def time_serilizer(self, start_time: Any, end_time: Any) -> Tuple[Union[Any, int], Union[Any, int]]:
         # 序列化接口能够识别的时间格式
-        return start_time.timestamp, end_time.timestamp
+        return start_time.timestamp(), end_time.timestamp()
 
     def _start_time_filter(self, include_start_time):
         if include_start_time:

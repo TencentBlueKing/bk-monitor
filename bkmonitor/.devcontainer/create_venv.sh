@@ -14,5 +14,6 @@ fi
 # Set up environment variables
 source /app/code/bkmonitor/venv/bin/activate
 
-# Install dependencies
+python -m ensurepip --default-pip
+
 pip install -r requirements_dev.txt

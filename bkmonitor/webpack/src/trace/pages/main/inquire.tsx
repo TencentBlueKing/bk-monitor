@@ -422,6 +422,7 @@ export default defineComponent({
           value: traceColumnFilters.value?.[key],
         });
       });
+      let cacheFilter = cacheTraceColumnFilters.value[selectedListType.value] || [];
       // 收集 耗时 区间信息
       if (durantionRange?.value) {
         filters.push({
@@ -429,9 +430,10 @@ export default defineComponent({
           value: durantionRange?.value,
           operator: 'between',
         });
+      } else {
+        cacheFilter = cacheFilter.filter(item => item.key !== 'duration');
       }
 
-      const cacheFilter = cacheTraceColumnFilters.value[selectedListType.value] || [];
       const updatedCacheFilter = filters.reduce((acc, item) => {
         const index = acc.findIndex(filter => filter.key === item.key);
         if (index !== -1) {
@@ -615,7 +617,7 @@ export default defineComponent({
       //   }
       // }
 
-      setRouterQueryParams();
+      setRouterQueryParams(params);
       collectCheckValue.value = params;
       // Trace List 查询相关
       if (selectedListType.value === 'trace') {
@@ -712,8 +714,8 @@ export default defineComponent({
         state.isAlreadyScopeQuery = true;
       }
     }
-    const setRouterQueryParams = () => {
-      const params = queryScopeParams();
+    const setRouterQueryParams = (paramsValue?) => {
+      const params = paramsValue || queryScopeParams();
       const filters: any = {};
       const query: any = {
         app_name: params.app_name,
@@ -1557,7 +1559,8 @@ export default defineComponent({
               <Input
                 v-model={queryString.value}
                 placeholder={t('输入')}
-                rows={3}
+                autosize
+                style='min-height: 70px;'
                 type='textarea'
                 onBlur={handleScopeQueryChange}
               />

@@ -190,7 +190,7 @@ def refresh_bcs_metrics_label():
 @share_lock(ttl=3600, identify="metadata_discoverBCSClusters")
 def discover_bcs_clusters():
     """
-    周期刷新bcs集群列表，将未注册进metadata的集群注册进来
+    BCS集群同步周期任务,调用BCS侧API全量拉取集群信息（包含联邦集群）,并进行同步逻辑
     """
     # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -226,6 +226,7 @@ def discover_bcs_clusters():
         cluster_id = bcs_cluster["cluster_id"]
         cluster_raw_status = bcs_cluster["status"]
         cluster_list.append(cluster_id)
+        is_fed_cluster = cluster_id in fed_cluster_id_list
 
         # todo 同一个集群在切换业务时不能重复接入
         cluster = BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
@@ -257,7 +258,12 @@ def discover_bcs_clusters():
                 )
 
                 # 变更对应的路由元信息
-                change_cluster_router(cluster=cluster, old_bk_biz_id=old_bk_biz_id, new_bk_biz_id=int(bk_biz_id))
+                change_cluster_router(
+                    cluster=cluster,
+                    old_bk_biz_id=old_bk_biz_id,
+                    new_bk_biz_id=int(bk_biz_id),
+                    is_fed_cluster=is_fed_cluster,
+                )
 
             # 如果project_id改动，需要更新集群信息
             if project_id != cluster.project_id:
@@ -272,13 +278,16 @@ def discover_bcs_clusters():
                 # 更新云区域ID
                 update_bcs_cluster_cloud_id_config(bk_biz_id, cluster_id)
 
-            # 若集群变为联邦集群的子集群且此前未创建过联邦集群的汇聚链路，需要额外进行联邦汇聚链路创建操作
-            # check_create_fed_vm_data_link(cluster)
+            if is_fed_cluster:
+                # 创建联邦集群记录
+                try:
+                    sync_federation_clusters(fed_clusters)
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("discover_bcs_clusters: sync_federation_clusters failed, error:{}".format(e))
 
-            logger.debug("cluster_id:{},project_id:{} already exists,skip create it".format(cluster_id, project_id))
+            logger.info("cluster_id:{},project_id:{} already exists,skip create it".format(cluster_id, project_id))
             continue
 
-        is_fed_cluster = cluster_id in fed_cluster_id_list
         cluster = BCSClusterInfo.register_cluster(
             bk_biz_id=bk_biz_id,
             cluster_id=cluster_id,
@@ -286,12 +295,6 @@ def discover_bcs_clusters():
             creator="admin",
             is_fed_cluster=is_fed_cluster,
         )
-        if is_fed_cluster:
-            # 创建联邦集群记录
-            try:
-                sync_federation_clusters(fed_clusters)
-            except Exception as e:  # pylint: disable=broad-except
-                logger.warning("discover_bcs_clusters: sync_federation_clusters failed, error:{}".format(e))
         logger.info(
             "discover_bcs_clusters: cluster_id:{},project_id:{},bk_biz_id:{} registered".format(
                 cluster.cluster_id, cluster.project_id, cluster.bk_biz_id

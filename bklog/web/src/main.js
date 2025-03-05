@@ -31,11 +31,7 @@ import Vue from 'vue';
 import LogButton from '@/components/log-button';
 import i18n from '@/language/i18n';
 import docsLinkMixin from '@/mixins/docs-link-mixin';
-import { ZoneContextManager } from '@opentelemetry/context-zone';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
-// 接入OTLP
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+
 import { debounce } from 'lodash';
 
 import App from './App';
@@ -50,20 +46,7 @@ import store from './store';
 
 import './static/style.css';
 
-const provider = new WebTracerProvider();
-provider.register({
-  contextManager: new ZoneContextManager(),
-});
-registerInstrumentations({
-  instrumentations: [
-    new XMLHttpRequestInstrumentation({
-      // propagateTraceHeaderCorsUrls: new RegExp('.*'),
-    }),
-  ],
-});
-const tracer = provider.getTracer('bk-log');
 Vue.prototype.$renderHeader = renderHeader;
-Vue.prototype.tracer = tracer;
 
 try {
   const id = window.TAM_AEGIS_KEY;
@@ -141,4 +124,8 @@ window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
     callback = debounce(callback);
     super(callback);
   }
+};
+
+window.$t = function (key, params) {
+  return i18n.t(key, params);
 };

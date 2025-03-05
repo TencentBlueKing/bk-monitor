@@ -70,6 +70,7 @@ export default class K8SCharts extends tsc<
 
   // 汇聚周期
   interval: number | string = 'auto';
+  limitFunc = 'top';
   limit = 10;
   // 汇聚方法
   method = K8S_METHOD_LIST[0].id;
@@ -80,6 +81,7 @@ export default class K8SCharts extends tsc<
   resourceList: Set<Partial<Record<K8sTableColumnKeysEnum, string>>> = new Set();
   sideDetailShow = false;
   sideDetail: Partial<Record<K8sTableColumnKeysEnum, string>> = {};
+
   get groupByField() {
     return this.groupBy.at(-1) || K8sTableColumnKeysEnum.CLUSTER;
   }
@@ -283,7 +285,7 @@ export default class K8SCharts extends tsc<
     if (isLimit)
       return `($method by (workload_kind, workload_name)
         (count by (workload_kind, workload_name, pod_name, namespace) (
-      container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift
+      container_memory_working_set_bytes{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift
     ) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
@@ -292,7 +294,7 @@ export default class K8SCharts extends tsc<
     )))`;
     return `($method by (workload_kind, workload_name)
                 (count by (workload_kind, workload_name, pod_name, namespace) (
-              container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift
+              container_memory_working_set_bytes{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift
             ) *
             on(pod_name, namespace)
             group_right(workload_kind, workload_name)
@@ -317,16 +319,16 @@ export default class K8SCharts extends tsc<
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
           return `$method by (workload_kind, workload_name)(rate(container_cpu_system_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) / ${this.createWorkLoadRequestOrLimit(false)}`;
         return `${this.createCommonPromqlMethod()}(rate(${'container_cpu_usage_seconds_total'}{${this.createCommonPromqlContent()}}[$interval] $time_shift)) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent()}} $time_shift)`;
-      case 'container_memory_rss': // 内存使用量(rss)
+      case 'container_memory_working_set_bytes': // 内存使用量(rss)
         return `${this.createCommonPromqlMethod()}(${metric}{${this.createCommonPromqlContent()}} $time_shift)`;
       case 'kube_pod_memory_limits_ratio': // 内存limit使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `$method by (workload_kind, workload_name)(container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift) / ${this.createWorkLoadRequestOrLimit(true, false)}`;
-        return `${this.createCommonPromqlMethod()}(${'container_memory_rss'}{${this.createCommonPromqlContent()}} $time_shift) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}} $time_shift)`;
+          return `$method by (workload_kind, workload_name)(container_memory_working_set_bytes{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift) / ${this.createWorkLoadRequestOrLimit(true, false)}`;
+        return `${this.createCommonPromqlMethod()}(${'container_memory_working_set_bytes'}{${this.createCommonPromqlContent()}} $time_shift) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent()}} $time_shift)`;
       case 'kube_pod_memory_requests_ratio': // 内存request使用率
         if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD)
-          return `$method by (workload_kind, workload_name)(container_memory_rss{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift) / ${this.createWorkLoadRequestOrLimit(false, false)}`;
-        return `${this.createCommonPromqlMethod()}(${'container_memory_rss'}{${this.createCommonPromqlContent()}} $time_shift) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}} $time_shift)`;
+          return `$method by (workload_kind, workload_name)(container_memory_working_set_bytes{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift) / ${this.createWorkLoadRequestOrLimit(false, false)}`;
+        return `${this.createCommonPromqlMethod()}(${'container_memory_working_set_bytes'}{${this.createCommonPromqlContent()}} $time_shift) / ${this.createCommonPromqlMethod()}(kube_pod_container_resource_requests_memory_bytes{${this.createCommonPromqlContent()}} $time_shift)`;
       default:
         return '';
     }
@@ -335,14 +337,17 @@ export default class K8SCharts extends tsc<
     switch (metric) {
       case 'container_cpu_usage_seconds_total': // CPU使用量
         return `kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent()}}`;
-      case 'container_memory_rss': // 内存使用量(rss)
+      case 'container_memory_working_set_bytes': // 内存使用量(rss)
         return `${this.createCommonPromqlMethod()}(kube_pod_container_resource_limit_memory_bytes{${this.createCommonPromqlContent()}})`;
       default:
         return '';
     }
   }
   createPerformanceDetailPanel(metric: string) {
-    if (this.resourceList.size !== 1 || !['container_cpu_usage_seconds_total', 'container_memory_rss'].includes(metric))
+    if (
+      this.resourceList.size !== 1 ||
+      !['container_cpu_usage_seconds_total', 'container_memory_working_set_bytes'].includes(metric)
+    )
       return [];
     if (metric === 'container_cpu_usage_seconds_total')
       return [
@@ -369,7 +374,7 @@ export default class K8SCharts extends tsc<
           filter_dict: {},
         },
       ];
-    if (metric === 'container_memory_rss') {
+    if (metric === 'container_memory_working_set_bytes') {
       return [
         {
           data_source_label: 'prometheus',
@@ -420,6 +425,7 @@ export default class K8SCharts extends tsc<
             page_size: Math.abs(this.limit),
             page: 1,
             page_type: 'scrolling',
+            order_by: this.limitFunc === 'bottom' ? 'asc' : 'desc',
           })
             .then(data => {
               if (!data?.items?.length) return [];
@@ -432,7 +438,7 @@ export default class K8SCharts extends tsc<
         const workload = new Set<string>();
         const workloadKind = new Set<string>();
         const namespace = new Set<string>();
-        const list = data.slice(0, 10);
+        const list = data.slice(0, this.limit);
         for (const item of list) {
           item.container && container.add(item.container);
           item.pod && pod.add(item.pod);
@@ -470,7 +476,9 @@ export default class K8SCharts extends tsc<
     this.method = v;
     this.updateViewOptions();
   }
+  @Debounce(300)
   handleLimitChange(v: string) {
+    if (Number.isNaN(+v) || +v < 1 || +v > 100 || +v === this.limit) return;
     this.limit = +v;
     this.createPanelList();
   }
@@ -482,6 +490,10 @@ export default class K8SCharts extends tsc<
 
   handleShowTimeCompare(v: boolean) {
     this.handleCompareTimeChange(!v ? [] : ['1h']);
+  }
+  handleLimitFuncChange(v: string) {
+    this.limitFunc = v;
+    this.createPanelList();
   }
   render() {
     return (
@@ -503,14 +515,33 @@ export default class K8SCharts extends tsc<
               value={this.method}
               onChange={this.handleMethodChange}
             />
-            <FilterVarSelectSimple
-              class='ml-36'
-              options={[
-                { name: 'top(10)', id: 10 },
-                { name: 'bottom(10)', id: -10 },
-              ]}
-              field={'limit'}
-              label={this.$t('Limit')}
+            <span class='ml-36 mr-8'>Limit</span>
+            <bk-select
+              style='width: 90px;'
+              ext-cls='ml-8'
+              behavior='simplicity'
+              clearable={false}
+              size='small'
+              value={this.limitFunc}
+              onChange={this.handleLimitFuncChange}
+            >
+              {['top', 'bottom'].map(method => (
+                <bk-option
+                  id={method}
+                  key={method}
+                  name={method}
+                />
+              ))}
+            </bk-select>
+            <bk-input
+              style='width: 150px;'
+              class='ml-8'
+              behavior='simplicity'
+              max={100}
+              min={1}
+              placeholder={this.$t('请输入1~100的数字')}
+              size='small'
+              type='number'
               value={this.limit}
               onChange={this.handleLimitChange}
             />

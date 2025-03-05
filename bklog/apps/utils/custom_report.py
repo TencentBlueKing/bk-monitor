@@ -1,4 +1,4 @@
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 BK_CUSTOM_REPORT = "bk_custom_report"
 CONFIG_OTLP_FIELD = "otlp"

@@ -12,16 +12,13 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from random import randint
+from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
 from django.utils.translation import gettext as _
 from rest_framework import serializers
-from six.moves.urllib.parse import urljoin
 
-# from bk_dataview.views import ProxyBaseView
-# from bkmonitor.models.external_iam import ExternalPermission
-# from bkmonitor.utils.request import get_request
 from core.drf_resource import Resource
 from core.errors.api import BKAPIError
 
@@ -90,27 +87,6 @@ class CreateUser(GrafanaApiResource):
         password = serializers.CharField(required=False, default=lambda: str(randint(100000000, 999999999)))
 
 
-class GetUserByLoginOrEmail(GrafanaApiResource):
-    method = "GET"
-    path = "/api/users/lookup/"
-
-    class RequestSerializer(serializers.Serializer):
-        loginOrEmail = serializers.CharField(required=True)
-
-
-class GetAllUser(GrafanaApiResource):
-    method = "GET"
-    path = "/api/users/"
-
-
-class CreateOrganization(GrafanaApiResource):
-    method = "POST"
-    path = "/api/orgs/"
-
-    class RequestSerializer(serializers.Serializer):
-        name = serializers.CharField(required=True)
-
-
 class GetOrganizationByName(GrafanaApiResource):
     method = "GET"
     path = "/api/orgs/name/{name}"
@@ -135,44 +111,7 @@ class GetAllOrganization(GrafanaApiResource):
         perpage = serializers.IntegerField(required=False, default=20000)
 
 
-class GetAllUserInOrganization(GrafanaApiResource):
-    method = "GET"
-    path = "/api/orgs/{org_id}/users/"
-
-    class RequestSerializer(serializers.Serializer):
-        org_id = serializers.IntegerField(required=True)
-
-
-class AddUserInOrganization(GrafanaApiResource):
-    method = "POST"
-    path = "/api/orgs/{org_id}/users"
-
-    class RequestSerializer(serializers.Serializer):
-        org_id = serializers.IntegerField(required=True)
-        loginOrEmail = serializers.CharField(required=True)
-        role = serializers.CharField(required=True)
-
-
-class UpdateUserInOrganization(GrafanaApiResource):
-    method = "PATCH"
-    path = "/api/orgs/{org_id}/users/{id}"
-
-    class RequestSerializer(serializers.Serializer):
-        org_id = serializers.IntegerField(required=True)
-        id = serializers.IntegerField(required=True)
-        role = serializers.IntegerField(required=True)
-
-
-class DeleteUserInOrganization(GrafanaApiResource):
-    method = "DELETE"
-    path = "/api/orgs/{org_id}/users/{id}"
-
-    class RequestSerializer(serializers.Serializer):
-        org_id = serializers.IntegerField(required=True)
-        id = serializers.IntegerField(required=True)
-
-
-class CreateDashboard(GrafanaApiResource):
+class CreateOrUpdateDashboard(GrafanaApiResource):
     method = "POST"
     path = "/api/dashboards/db/"
     with_org_id = True
@@ -181,48 +120,6 @@ class CreateDashboard(GrafanaApiResource):
         dashboard = serializers.DictField()
         org_id = serializers.IntegerField()
         folderId = serializers.IntegerField(default=0)
-
-
-class UpdateDashboardPermission(GrafanaApiResource):
-    method = "POST"
-    path = "/api/dashboards/id/{id}/permissions"
-    with_org_id = True
-
-    class RequestSerializer(serializers.Serializer):
-        org_id = serializers.IntegerField()
-        id = serializers.IntegerField()
-        items = serializers.ListField()
-
-
-class UpdateDashboardPermissionByUid(GrafanaApiResource):
-    method = "POST"
-    path = "/api/dashboards/uid/{uid}/permissions"
-    with_org_id = True
-
-    class RequestSerializer(serializers.Serializer):
-        org_id = serializers.IntegerField()
-        uid = serializers.CharField()
-        items = serializers.ListField()
-
-
-class GetDashboardPermissionByUid(GrafanaApiResource):
-    method = "GET"
-    path = "/api/dashboards/uid/{uid}/permissions"
-    with_org_id = True
-
-    class RequestSerializer(serializers.Serializer):
-        uid = serializers.CharField()
-        org_id = serializers.IntegerField()
-
-
-class GetDashboardPermission(GrafanaApiResource):
-    method = "GET"
-    path = "/api/dashboards/id/{id}/permissions"
-    with_org_id = True
-
-    class RequestSerializer(serializers.Serializer):
-        id = serializers.IntegerField()
-        org_id = serializers.IntegerField()
 
 
 class UpdateOrganizationPreference(GrafanaApiResource):
@@ -288,17 +185,6 @@ class CreateFolder(GrafanaApiResource):
         org_id = serializers.IntegerField()
         uid = serializers.CharField(required=False)
         title = serializers.CharField()
-
-
-class UpdateFolderPermission(GrafanaApiResource):
-    method = "POST"
-    path = "/api/folders/{uid}/permissions"
-    with_org_id = True
-
-    class RequestSerializer(serializers.Serializer):
-        org_id = serializers.IntegerField()
-        uid = serializers.CharField(required=False)
-        items = serializers.ListField()
 
 
 class SearchFolderOrDashboard(GrafanaApiResource):

@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 from django.db.transaction import atomic
 from django.forms import model_to_dict
 from django.utils import timezone
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import TransferApi
 from apps.log_databus.constants import (

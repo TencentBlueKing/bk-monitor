@@ -523,7 +523,7 @@ class QuickShield(AlertPermissionResource):
         """
         根据事件生成事件屏蔽参数
         """
-        return {"category": "event", "dimension_config": {"id": alert.id}}
+        return {"category": "alert", "dimension_config": {"alert_id": alert.id}}
 
     def handle(self, params, alert):
         """

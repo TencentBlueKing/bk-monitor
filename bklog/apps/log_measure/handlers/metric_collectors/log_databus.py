@@ -26,32 +26,32 @@ from typing import List
 
 from django.conf import settings
 from django.db.models import Count
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import NodeApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import SCENARIO_BKDATA
 from apps.log_databus.constants import DEFAULT_ETL_CONFIG, EtlConfig
-from apps.log_databus.models import CollectorConfig, BKDataClean
+from apps.log_databus.models import BKDataClean, CollectorConfig
 from apps.log_measure.constants import (
-    INDEX_FORMAT,
     COMMON_INDEX_RE,
-    TABLE_BKUNIFYBEAT_TASK,
     FIELD_CRAWLER_RECEIVED,
     FIELD_CRAWLER_STATE,
-    MAX_RETRY_QUERY_SUBSCRIPTION_TIMES,
-    TIME_WAIT_QUERY_SUBSCRIPTION_EXCEPTION,
+    INDEX_FORMAT,
     MAX_QUERY_SUBSCRIPTION,
+    MAX_RETRY_QUERY_SUBSCRIPTION_TIMES,
+    TABLE_BKUNIFYBEAT_TASK,
+    TIME_WAIT_QUERY_SUBSCRIPTION_EXCEPTION,
 )
 from apps.log_measure.utils.metric import MetricUtils
 from apps.log_search.constants import CollectorScenarioEnum, TimeEnum
 from apps.log_search.models import LogIndexSet
-from apps.utils.db import array_group, array_chunk
+from apps.utils.db import array_chunk, array_group
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bk_monitor.api.client import Client
 from bk_monitor.constants import TimeFilterEnum
-from bk_monitor.utils.metric import register_metric, Metric
+from bk_monitor.utils.metric import Metric, register_metric
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
 

@@ -66,6 +66,13 @@ interface IFilterInputEvent {
   onFavorite: string;
   onChange: string;
 }
+
+interface SuggestionType {
+  type: string;
+  label: string;
+  prefix: string;
+}
+
 const textTypeList = ['field', 'method', 'value', 'condition'];
 
 /* 处理字符串数组不能连续两个冒号 */
@@ -161,10 +168,19 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   ];
   focusData: IFocusData = {};
   isManualInput = false; // 是否手动输入
+  isShowDropdown = false; // 是否展示仅直接输入文本弹窗
+  isOnlyInput = false; // 是否仅直接输入
+  previousValue = '';
   textList: FilterText[] = [];
   isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
   /* 添加可被移除的事件监听器 */
   mouseDowncontroller: AbortController = null;
+
+  suggestionTypes: SuggestionType[] = [
+    { type: 'exact', label: this.$t('精确搜索') as string, prefix: '"' },
+    { type: 'fuzzy', label: this.$t('模糊匹配') as string, prefix: '' },
+  ];
+
   get menuList() {
     if (this.focusData.show === 'condition') return this.conditionList;
     if (this.focusData.show === 'method') return this.methodList;
@@ -205,6 +221,14 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   handleSearchTypeChange() {
     this.handleGetSearchHistory();
     this.handleGetSearchFavorite();
+  }
+
+  @Watch('inputValue', { immediate: true })
+  handleInputValueChange(newValue: string) {
+    this.previousValue = newValue;
+    if (!newValue) {
+      this.isOnlyInput = this.isShowDropdown = false;
+    }
   }
   created() {
     // 告警建议字段列表
@@ -565,6 +589,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   handleSelectPanelItem(e: MouseEvent, id: PanelType, item: IListItem) {
     e.preventDefault();
     e.stopPropagation();
+    this.isOnlyInput = false;
     if (id === 'field') {
       if (!this.inputValue?.length) {
         this.inputValue = item.special ? `${item.id}.` : `${item.name} : `;
@@ -776,6 +801,10 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       this.handleMainPopoverShow();
       return;
     }
+    if (this.isOnlyInput) {
+      this.isShowDropdown = true;
+      return;
+    }
     const ret = await this.handleSetInputValue();
     if (ret.show === 'field') {
       this.focusData = ret;
@@ -783,7 +812,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     } else if (['method', 'condition', 'value'].includes(ret.show.toString())) {
       this.focusData = ret;
       if (ret.show.toString() === 'value' && !this.menuList.length) {
-        this.setPlaceholderBasedOnKeyValue();
+        ret.filedId && this.setPlaceholderBasedOnKeyValue();
         this.destroyMenuPopoverInstance();
         this.destroyPopoverInstance();
         return;
@@ -914,6 +943,13 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   handleInput(e: any) {
     this.placeholderText = '';
     this.inputValue = e.target.value;
+
+    // 检查是否需要显示搜索的下拉框
+    if (!this.previousValue) {
+      this.isOnlyInput = this.isShowDropdown = true;
+      this.destroyMenuPopoverInstance();
+      this.destroyPopoverInstance();
+    }
   }
   /**
    * @description: 失焦时触发
@@ -922,8 +958,10 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
    */
   handleBlur() {
     if (!this.blurInPanel) {
+      this.isShowDropdown && this.selectSuggestion('exact');
       this.$emit('blur', this.inputValue);
       this.handleChange();
+      this.isShowDropdown = false;
     }
   }
   /**
@@ -946,10 +984,13 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
    */
   handleKeydown(e: KeyboardEvent) {
     if (e.code === 'Enter') {
+      if (this.isOnlyInput && this.inputValue.trim()) {
+        this.selectSuggestion('exact');
+      }
       e.preventDefault();
       e.stopPropagation();
       this.handleChange();
-    } else if (e.code === 'Space' || e.code === 'Backspace') {
+    } else if ((e.code === 'Space' || e.code === 'Backspace') && !this.isOnlyInput) {
       setTimeout(() => {
         this.handleInputFocus();
       }, 16);
@@ -967,6 +1008,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   handleSelectMenuItem(e: MouseEvent, item: IListItem) {
     e.preventDefault();
     e.stopPropagation();
+    this.isOnlyInput = false;
     this.handleReplaceInputValue(this.isFillId ? item.id.toString() : item.name.toString());
   }
   /**
@@ -1133,6 +1175,34 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
     this.handleRemoveNewFavorite();
     item.edit = false;
   }
+
+  /**
+   * @description: 根据类型选择，并更新输入值
+   * @param {string} type - 指定的类型，用于确定如何处理输入值
+   * @return {void}
+   */
+  selectSuggestion(type: string) {
+    const prefix = type === 'exact' ? '"' : '';
+    this.inputValue = this.wrapWithPrefixIfNeeded(this.inputValue, prefix);
+    this.isShowDropdown = false;
+  }
+
+  /**
+   * @description: 根据条件判断是否为输入值添加前缀和后缀
+   * @param {string} inputValue - 当前的输入值
+   * @param {string} prefix - 需要添加的前缀和后缀
+   * @return {string} - 处理后的字符串
+   */
+  wrapWithPrefixIfNeeded(inputValue: string, prefix: string) {
+    const isQuoted = inputValue.startsWith('"') && inputValue.endsWith('"');
+
+    if (prefix === '"') {
+      return isQuoted ? inputValue : `"${inputValue}"`;
+    }
+
+    return isQuoted && prefix === '' ? inputValue.slice(1, -1) : inputValue;
+  }
+
   commonPanelComponent(id: PanelType, list: IListItem[]) {
     return (
       <ul class='panel-list'>
@@ -1234,6 +1304,32 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             v-bk-tooltips={this.$t('清空搜索条件')}
             onMousedown={this.handleClear}
           />
+          <div
+            style={{ display: this.isShowDropdown ? 'block' : 'none' }}
+            class='search-type-dropdown'
+          >
+            {this.suggestionTypes.map((item, index) => (
+              <div
+                key={item.type}
+                class={['suggestion-container', { active: index === 0 }]}
+                onMousedown={() => this.selectSuggestion(item.type)}
+              >
+                <div
+                  class='left-item'
+                  v-bk-overflow-tips
+                >
+                  {this.wrapWithPrefixIfNeeded(this.inputValue, item.prefix)}
+                </div>
+                <div
+                  class='center-item'
+                  v-bk-overflow-tips
+                >
+                  <span>{item.label}</span>
+                  <bk-tag>{this.wrapWithPrefixIfNeeded(this.inputValue, '')}</bk-tag>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         <span
           class={['filter-favorites', { 'is-disable': this.favoriteDisable }]}

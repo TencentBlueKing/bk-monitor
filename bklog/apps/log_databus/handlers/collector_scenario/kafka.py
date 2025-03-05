@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 """
 import json
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.log_databus.constants import EtlConfig, KafkaInitialOffsetEnum, LogPluginInfo
 from apps.log_databus.handlers.collector_scenario.base import CollectorScenario

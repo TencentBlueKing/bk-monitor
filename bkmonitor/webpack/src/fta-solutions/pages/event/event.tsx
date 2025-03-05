@@ -355,6 +355,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   analyzeData = [];
   analyzeFields = ['alert_name', 'metric', 'bk_biz_id', 'duration', 'ip', 'ipv6', 'bk_cloud_id'];
   incidentFieldList = ['incident_name', 'status', 'level', 'assignees', 'handlers', 'labels'];
+  // bk助手链接
+  incidentWxCsLink = '';
+  incidentEmptyData = {
+    path: '',
+    text: '',
+  };
   analyzeTagList: ICommonItem[] = [];
   detailField = '';
   detailFieldData: any = {};
@@ -843,6 +849,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       total,
       code,
       greyed_spaces,
+      wx_cs_link,
     } = await incidentList(params, { needRes: true, needMessage: false })
       .then(res => {
         !onlyOverview && (this.filterInputStatus = 'success');
@@ -853,6 +860,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           this.$bkMessage(error_details || { message, theme: 'error' });
         }
         return {
+          wx_cs_link: '',
           greyed_spaces: [],
           aggs: [],
           incidents: [],
@@ -861,6 +869,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           code,
         };
       });
+    this.incidentWxCsLink = wx_cs_link;
     return {
       aggs,
       greyed_spaces,
@@ -1390,7 +1399,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         this.noDataType = '500';
         this.noDataString = '';
       } else {
-        this.noDataType = this.hasSearchParams ? 'search-empty' : 'empty';
+        this.noDataType = this.hasSearchParams
+          ? 'search-empty'
+          : this.searchType === 'incident'
+            ? 'incidentEmpty'
+            : 'empty';
         /**
          * 故障错误信息展示
          * 1. 有权限空间/与我的故障 无数据则根据当前人员是否有开启灰度空间，有：展示当前有多少空间权限， 无：提示开启灰度
@@ -1400,19 +1413,24 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         if (this.searchType === 'incident') {
           this.noDataString = '';
           if (this.bizIds?.some(id => [authorityBizId, hasDataBizId].includes(id))) {
-            this.noDataString = this.$t(
-              !greyed_spaces?.length
-                ? '你当前有 {0} 个空间权限，暂未开启灰度, 请联系管理员开启'
-                : '你当前有 {0} 个空间权限，暂无故障',
-              [window.space_list.length]
-            );
+            this.noDataString = !greyed_spaces?.length
+              ? 'incidentRenderAssistant'
+              : this.$t('你当前有 {0} 个空间权限，暂无您负责的故障', [window.space_list.length]);
+            this.incidentEmptyData = {
+              text: String(window.space_list.length),
+              path: '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}',
+            };
           } else {
             const diffBizIds = difference(this.bizIds, greyed_spaces);
             if (diffBizIds?.length) {
               const spaces = this.$store.getters.bizList
                 .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
                 .map(({ name, space_id }) => `${name} (#${space_id})`);
-              this.noDataString = this.$t('{0} 空间未开启故障分析功能，请联系管理员开启', [spaces.join(',')]);
+              this.incidentEmptyData = {
+                text: spaces.join(','),
+                path: '{count} 空间未开启故障分析功能，请联系 {link}',
+              };
+              this.noDataString = 'incidentRenderAssistant';
             }
           }
         } else {
@@ -1626,6 +1644,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         name: 'incident-detail',
         params: {
           id,
+        },
+        query: {
+          activeTab,
         },
       });
     } else {
@@ -2144,6 +2165,12 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     localStorage.setItem(key, JSON.stringify(v));
     await this.handleGetSearchTopNList(false, false);
     this.tableLoading = false;
+  }
+  /**
+   * @description 跳转打开bk助手
+   */
+  handleToBkAssistant() {
+    this.incidentWxCsLink && window.open(this.incidentWxCsLink, '__blank');
   }
   /**
    * @description: 告警分析查看详情时触发
@@ -2688,7 +2715,27 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                       handleOperation={this.handleOperation}
                       onApplyAuth={this.handleCheckAllowedByIds}
                     >
-                      {this.noDataString && <span>{this.noDataString} </span>}
+                      {this.noDataString && (
+                        <span>
+                          {this.noDataString === 'incidentRenderAssistant' ? (
+                            <i18n
+                              slot='title'
+                              path={this.incidentEmptyData.path}
+                            >
+                              <span slot='count'>{this.incidentEmptyData.text}</span>
+                              <span
+                                class='bk-assistant-link'
+                                slot='link'
+                                onClick={this.handleToBkAssistant}
+                              >
+                                {this.$t('BK助手')}
+                              </span>
+                            </i18n>
+                          ) : (
+                            this.noDataString
+                          )}{' '}
+                        </span>
+                      )}
                     </EmptyTable>
                   );
                 })()

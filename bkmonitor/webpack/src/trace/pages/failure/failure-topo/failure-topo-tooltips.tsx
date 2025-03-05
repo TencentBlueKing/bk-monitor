@@ -255,10 +255,10 @@ export default defineComponent({
     const handleToDetail = node => {
       emit('toDetail', node);
     };
-
     /** 不同类型的路由跳转逻辑处理 */
     const typeToLinkHandle = {
       BcsPod: {
+        title: 'pod详情页',
         path: () => '/k8s',
         beforeJumpVerify: () => true,
         query: node => ({
@@ -279,6 +279,7 @@ export default defineComponent({
         }),
       },
       BkNodeHost: {
+        title: '主机详情页',
         path: node => `/performance/detail/${node.entity?.dimensions?.bk_host_id}`,
         beforeJumpVerify: node => !!node.entity?.dimensions?.bk_host_id,
         query: node => ({
@@ -288,6 +289,7 @@ export default defineComponent({
         }),
       },
       APMService: {
+        title: '服务详情页',
         path: () => '/apm/service/',
         beforeJumpVerify: node => !!node.entity?.dimensions?.apm_service_name,
         query: node => ({
@@ -359,6 +361,7 @@ export default defineComponent({
 
     return {
       popover,
+      typeToLinkHandle,
       activeNode,
       hide,
       activeEdge,
@@ -417,7 +420,7 @@ export default defineComponent({
             {node?.entity?.entity_type}(
             <OverflowTitle
               key={node?.entity?.entity_id}
-              class='node-name'
+              class={['node-name', this.canJumpByType(node) && 'node-link-name']}
               type='tips'
             >
               <span onClick={this.handleToLink.bind(this, node)}>{node?.entity?.entity_name || '--'}</span>
@@ -745,11 +748,12 @@ export default defineComponent({
               key={node?.entity?.entity_id}
               class={['header-name', this.canJumpByType(node) && 'header-pod-name']}
               v-bk-tooltips={{
+                disabled: !this.canJumpByType(node),
                 content: (
                   <div>
                     <div>{node?.entity?.entity_name}</div>
                     <br />
-                    {this.$t('点击前往：主机详情页/服务详情页')}
+                    {this.$t(`点击前往：${this.typeToLinkHandle[node?.entity?.entity_type]?.title ?? '主机详情页'}`)}
                   </div>
                 ),
               }}
@@ -775,6 +779,7 @@ export default defineComponent({
             )}
             <div class='node-tooltip-header-icon-wrap'>
               {this.showViewResource &&
+                node.entity.rank.rank_category.category_name !== 'third_party' &&
                 createCommonIconBtn(
                   this.$t('查看从属'),
                   {

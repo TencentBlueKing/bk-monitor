@@ -30,7 +30,7 @@
       min-width: 88px;
       height: 28px;
       padding: 3px 8px 3px 3px;
-      margin: 0 auto 0 37px;
+      margin: 0 auto 0 0;
       cursor: pointer;
       background: #e1ecff;
       border-radius: 16px;
@@ -100,6 +100,12 @@
       line-height: 48px;
       color: #313238;
 
+      .cluster-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .icon-mc-arrow-down {
         font-size: 10px;
         transition: transform 0.1s;
@@ -153,6 +159,7 @@
           max-width: calc(100% - 350px);
 
           .filter-by-title {
+            padding: 0 12px;
             border-right: 1px solid #dcdee5;
           }
 

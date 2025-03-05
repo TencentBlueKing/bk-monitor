@@ -38,6 +38,10 @@
     color: white;
     background: #E71818;
     border-radius: 2px;
+
+    &:hover {
+      background: #E71818;
+    }
   }
 
   .failure-tags-container {
@@ -230,6 +234,8 @@
   }
 
   &.failure-tags-positions-absolute {
+    z-index: 1;
+
     .failure-tags-container {
       position: absolute;
       top: 0;

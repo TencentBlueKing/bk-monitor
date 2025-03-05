@@ -15,6 +15,9 @@
 
   import useFieldEgges from './use-field-egges';
 
+  import imgEnterKey from '@/images/icons/enter-key.svg';
+  import imgUpDownKey from '@/images/icons/up-down-key.svg';
+
   const props = defineProps({
     value: {
       type: String,
@@ -24,6 +27,7 @@
   });
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
+  const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { $t } = useLocale();
@@ -74,7 +78,7 @@
   const originFieldList = () => totalFieldsNameList.value;
 
   const activeType: Ref<string[]> = ref([]);
-  const separator = /\s(AND|OR)\s/i; // 区分查询语句条件
+  const separator = /\s+(AND\s+NOT|OR|AND)\s+/i; // 区分查询语句条件
   const fieldList: Ref<string[]> = ref([]);
   const valueList: Ref<string[]> = ref([]);
 
@@ -197,10 +201,9 @@
     if (
       !trimValue ||
       trimValue === '*' ||
-      /\s+AND\s+$/.test(value) ||
-      /\s+OR\s+$/.test(value) ||
-      /\s+and\s+$/.test(value) ||
-      /\s+or\s+$/.test(value)
+      /\s+AND\s+$/i.test(value) ||
+      /\s+OR\s+$/i.test(value) ||
+      /\s+AND\s+NOT\s+$/i.test(value)
     ) {
       showWhichDropdown('Fields');
       fieldList.value.push(...originFieldList());
@@ -271,9 +274,8 @@
    * @param {string} field
    */
   const handleClickField = (field: string) => {
-    // valueList.value = getValueList(retrieveDropdownData.value[field]);
-    // setValueList(field, '');
     const currentValue = props.value;
+    debugger;
 
     const trimValue = currentValue.trim();
     if (!trimValue || trimValue === '*') {
@@ -317,7 +319,7 @@
     emits(
       'change',
       props.value.replace(/(:|>=|<=|>|<)\s*[\S]*$/, (match1, matchOperator) => {
-        return `${matchOperator} ${value} `;
+        return `${matchOperator} "${value.replace(/^"|"$/g, '').replace(/"/g, '\\"')}" `;
       }),
     );
     showWhichDropdown(OptionItemType.Continue);
@@ -486,7 +488,7 @@
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
-        class="sql-query-options"
+        :class="['sql-query-options', { 'is-loading': isRequesting }]"
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
       >
         <!-- 字段列表 -->
@@ -632,6 +634,23 @@
                 </i18n>
               </div>
             </li>
+            <li
+              class="list-item continue-list-item"
+              @click="handleClickContinue('AND NOT')"
+            >
+              <div class="item-type-icon">
+                <span class="bklog-icon bklog-and"></span>
+              </div>
+              <div class="item-text">AND NOT</div>
+              <div
+                class="item-description text-overflow-hidden"
+                v-bk-overflow-tips="{ placement: 'right' }"
+              >
+                <i18n path="需要{0}为真">
+                  <span class="item-callout">{{ $t('一个或多个参数') }}</span>
+                </i18n>
+              </div>
+            </li>
           </div>
         </template>
         <!-- <template
@@ -650,6 +669,11 @@
         @change="handleFavoriteClick"
         :searchValue="value"
       ></FavoriteList>
+      <!-- 移动光标and确认结果提示 -->
+      <div class="ui-shortcut-key">
+        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
+        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
+      </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
       <span
@@ -688,13 +712,50 @@
 <style lang="scss" scoped>
   @import './sql-query-options.scss';
 
-  .sql-query-container {
+  div.sql-query-container {
     display: flex;
     border: 1px solid #dcdee5;
     border-radius: 2px;
+    line-height: 1;
+
+    position: relative;
 
     .sql-field-list {
       width: 100%;
+      position: relative;
+      padding-bottom: 38px;
+
+      /* 移动光标and确认结果提示 样式 */
+      .ui-shortcut-key {
+        padding: 9px 0 7px 15px;
+        background-color: #fafbfd;
+        border-top: 1px solid #ecedf2;
+        height: 38px;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+
+        span {
+          display: inline-flex;
+          align-items: center;
+          margin-right: 24px;
+          font-size: 12px;
+          line-height: 20px;
+          color: #63656e;
+          letter-spacing: 0;
+
+          img {
+            display: inline-flex;
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            background: #ffffff;
+            border: 1px solid #dcdee5;
+            border-radius: 2px;
+          }
+        }
+      }
     }
 
     .sql-syntax-tips {

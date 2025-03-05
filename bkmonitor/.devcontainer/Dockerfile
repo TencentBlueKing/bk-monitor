@@ -1,4 +1,4 @@
-FROM python:3.7-bullseye
+FROM python:3.11-bullseye
 
 ARG APT_MIRROR="https://mirrors.tencent.com"
 ARG PIP_MIRROR="https://mirrors.tencent.com/pypi/simple"

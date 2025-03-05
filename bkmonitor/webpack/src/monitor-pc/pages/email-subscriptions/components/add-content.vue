@@ -26,7 +26,7 @@
 <template>
   <bk-sideslider
     class="add-content-wrap"
-    :width="806"
+    :width="960"
     :is-show.sync="isShow"
     :quick-close="true"
   >
@@ -76,15 +76,15 @@
               v-model="formData.rowPicturesNum"
             >
               <bk-radio :value="2">
-                {{`2${$t('个/行')}`}}
+                {{ `2${$t('个/行')}` }}
               </bk-radio>
               <bk-radio :value="1">
-                {{`1${$t('个/行')}`}}
+                {{ `1${$t('个/行')}` }}
               </bk-radio>
             </bk-radio-group>
           </bk-form-item>
           <bk-form-item
-            :label="$t('已选图表')"
+            :label="$t('选择图表')"
             :required="true"
             :property="'graphs'"
             :error-display-type="'normal'"
@@ -141,17 +141,18 @@
             </bk-select>
           </bk-form-item>
         </template>
+        <bk-form-item class="form-action-buttons">
+          <bk-button
+            :disabled="!canSave"
+            theme="primary"
+            @click="handleConfirm"
+            >{{ $t('确认') }}</bk-button
+          >
+          <bk-button @click="isShow = false">
+            {{ $t('取消') }}
+          </bk-button>
+        </bk-form-item>
       </bk-form>
-      <div class="footer-wrap">
-        <bk-button
-          theme="primary"
-          :disabled="!canSave"
-          @click="handleConfirm"
-        >{{ $t('确认') }}</bk-button>
-        <bk-button @click="isShow = false">
-          {{ $t('取消') }}
-        </bk-button>
-      </div>
     </div>
   </bk-sideslider>
 </template>
@@ -347,6 +348,10 @@ export default class AddContent extends Vue {
         &:not(:first-child) {
           margin-top: 18px;
         }
+
+        &.form-action-buttons {
+          margin-top: 30px;
+        }
       }
 
       .radio-wrap {
@@ -367,7 +372,7 @@ export default class AddContent extends Vue {
 
       .input,
       .biz-list-wrap {
-        width: 465px;
+        width: 810px;
       }
     }
 

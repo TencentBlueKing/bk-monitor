@@ -119,7 +119,7 @@
   const getDeviceMetaData = async () => {
     try {
       const res = await $http.request('linkConfiguration/getSearchObjectAttribute');
-      const { scope, host } = res.data;
+      const { scope = [], host = [] } = res.data;
       groupList.value.push(
         ...scope.map(item => {
           item.key = 'scope';

@@ -20,23 +20,27 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 import datetime
-import arrow
-from django.db.models import Count
 
-from django.utils.translation import ugettext as _
+import arrow
 from django.conf import settings
+from django.db.models import Count
+from django.utils.translation import gettext as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import SCENARIO_BKDATA
-from apps.log_databus.models import CollectorConfig, ArchiveConfig, BKDataClean, EtlConfig
-from apps.log_search.models import UserIndexSetSearchHistory, LogIndexSet, Scenario
-from apps.log_extract.models import Tasks
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_measure.constants import TIME_RANGE, INDEX_SCENARIO
+from apps.log_databus.models import (
+    ArchiveConfig,
+    BKDataClean,
+    CollectorConfig,
+    EtlConfig,
+)
+from apps.log_extract.models import Tasks
+from apps.log_measure.constants import INDEX_SCENARIO, TIME_RANGE
 from apps.log_measure.utils.metric import MetricUtils
+from apps.log_search.models import LogIndexSet, Scenario, UserIndexSetSearchHistory
 from bk_monitor.constants import TimeFilterEnum
-from bk_monitor.utils.metric import register_metric, Metric
-
+from bk_monitor.utils.metric import Metric, register_metric
 
 FUNCTION_MODEL = {
     "log_collector": CollectorConfig,

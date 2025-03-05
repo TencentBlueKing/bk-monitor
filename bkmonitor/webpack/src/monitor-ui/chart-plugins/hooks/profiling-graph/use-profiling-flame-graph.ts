@@ -99,10 +99,11 @@ function renderItem(param, api, { data, unit, filterKeyword, textDirection = 'lt
   const start = api.coord([api.value(1), level]);
   const end = api.coord([api.value(2), level]);
   const nodeItem: IFlameGraphDataItem = data[param.dataIndexInside]?.value?.[3];
-  const height: number = api.size([1, 1])[1];
+  // const height: number = api.size([1, 1])[1];
   const width = Math.max(end[0] - start[0], 2);
   const isMinWidth = width < 4;
-  const y = defaultHeight >= height ? start[1] : defaultHeight * level + 2;
+  // const y = defaultHeight <= height ? start[1] : defaultHeight * level + 2;
+  const y = defaultHeight * level;
   const { value } = parseProfileDataTypeValue(nodeItem.value, unit);
   const color = nodeItem.diff_info ? getSingleDiffColor(nodeItem.diff_info) : getSpanColorByName(nodeItem.name);
   let rectColor = color;
@@ -161,7 +162,7 @@ function renderItem(param, api, { data, unit, filterKeyword, textDirection = 'lt
       style: {
         textAlign: textDirection === 'ltr' ? 'left' : 'right',
         text,
-        fill: '#000',
+        fill: '#63656e',
         width: width,
         overflow: 'truncate',
         ellipsis: '',

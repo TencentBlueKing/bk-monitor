@@ -8,10 +8,11 @@
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
   import { translateKeys } from './const-values';
-  import { excludesFields } from './const.common';
+  import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
   import PopInstanceUtil from './pop-instance-util';
   import useFieldEgges from './use-field-egges';
+  import { Props } from 'tippy.js';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -51,8 +52,8 @@
   // 操作符下拉当前激活Index
   const operatorActiveIndex = ref(0);
 
-  const tippyOptions = {
-    flip: false,
+  const tippyOptions: Partial<Props> = {
+    // flip: false,
     placement: 'bottom',
     popperOptions: {
       placement: 'bottom', // 或者其他你想要的位置
@@ -113,7 +114,7 @@
     is_full_text: true,
     field_alias: t('全文检索'),
     field_type: '',
-    query_alias:'',
+    query_alias: '',
     field_operator: [
       {
         operator: FulltextOperator,
@@ -163,9 +164,6 @@
     return list.map(field => ({ ...field, weight: getFieldWeight(field) })).sort((a, b) => b.weight - a.weight);
   });
 
-  // 无需配置值（Value）的条件列表
-  const withoutValueConditionList = ['does not exists', 'exists', 'is false', 'is true'];
-
   // 判定当前选中条件是否需要设置Value
   const isShowConditonValueSetting = computed(() => !withoutValueConditionList.includes(condition.value.operator));
 
@@ -202,7 +200,7 @@
     const filterFn = field =>
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
-      (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias)) ;
+      (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
     return fieldList.value.filter(filterFn);
   });
 

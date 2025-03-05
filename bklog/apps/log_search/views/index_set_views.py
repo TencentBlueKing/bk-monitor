@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import json
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -47,12 +47,12 @@ from apps.log_search.serializers import (
     ESRouterListSerializer,
     IndexSetAddTagSerializer,
     IndexSetDeleteTagSerializer,
-    UserSearchSerializer,
+    StorageUsageSerializer,
     UserFavoriteSerializer,
+    UserSearchSerializer,
 )
 from apps.log_search.tasks.bkdata import sync_auth_status
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_username
 from bkm_space.serializers import SpaceUIDField
 
 
@@ -346,11 +346,12 @@ class IndexSetViewSet(ModelViewSet):
                                     else TimeFieldUnitEnum.MILLISECOND.value,
                                 }
                             ),
-                        }, {
+                        },
+                        {
                             "name": "need_add_time",
                             "value_type": "bool",
                             "value": json.dumps(index_set["scenario_id"] != Scenario.ES),
-                        }
+                        },
                     ],
                 }
             )
@@ -1229,3 +1230,37 @@ class IndexSetViewSet(ModelViewSet):
         """
         data = self.params_valid(UserFavoriteSerializer)
         return Response(IndexSetHandler.fetch_user_favorite_index_set(params=data))
+
+    @list_route(methods=["POST"], url_path="storage_usage")
+    def storage_usage(self, request):
+        """
+        @api {post} /index_set/storage_usage/ 查询索引集的存储使用量
+        @apiDescription 查询索引集的存储使用量
+        @apiName storage_usage
+        @apiParam {Int} bk_biz_id 业务ID
+        @apiParam {Int} index_set_ids 索引集列表
+        @apiSuccessExample {json} 成功返回:
+        {
+            "result": true,
+            "data": [
+                {
+                    "index_set_id": 71,
+                    "daily_count": 8888,
+                    "total_count": 191067379,
+                    "daily_usage": 2341664,
+                    "total_usage": 50339300366
+                },
+                {
+                    "index_set_id": 81,
+                    "daily_count": 8888,
+                    "total_count": 23202673,
+                    "daily_usage": 10116334,
+                    "total_usage": 26409316486
+                }
+            ],
+            "code": 0,
+            "message": ""
+        }
+        """
+        data = self.params_valid(StorageUsageSerializer)
+        return Response(IndexSetHandler.get_storage_usage_info(data["bk_biz_id"], data["index_set_ids"]))

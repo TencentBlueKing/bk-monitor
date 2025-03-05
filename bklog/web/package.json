@@ -23,9 +23,10 @@
   "dependencies": {
     "@babel/helper-module-imports": "7.24.7",
     "@babel/runtime": "7.26.0",
+    "@blueking/ai-blueking": "0.3.29",
     "@blueking/bkmonitor-cli": "6.0.0-beta.5",
     "@blueking/bkui-library": "0.0.0-beta.5",
-    "@blueking/date-picker": "2.0.0-beta.33",
+    "@blueking/date-picker": "^2.0.0-beta.42",
     "@blueking/fork-resize-detector": "0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
     "@blueking/login-modal": "1.0.1",
@@ -39,19 +40,12 @@
     "@codemirror/language": "6.10.2",
     "@codemirror/state": "6.4.1",
     "@codemirror/view": "6.33.0",
-    "@opentelemetry/api": "1.8.0",
-    "@opentelemetry/context-zone": "1.23.0",
-    "@opentelemetry/instrumentation": "0.50.0",
-    "@opentelemetry/instrumentation-http": "0.50.0",
-    "@opentelemetry/instrumentation-xml-http-request": "0.50.0",
-    "@opentelemetry/sdk-trace-base": "1.23.0",
-    "@opentelemetry/sdk-trace-web": "1.23.0",
     "@vue/babel-helper-vue-jsx-merge-props": "1.4.0",
     "@vue/babel-preset-jsx": "1.4.0",
     "axios": "1.6.0",
     "babel-loader": "9.2.1",
     "babel-plugin-import-bk-magic-vue": "2.1.11",
-    "bk-magic-vue": "2.5.9-beta.22",
+    "bk-magic-vue": "2.5.10-beta.1",
     "codemirror": "6.0.1",
     "core-js": "3.38.0",
     "css-loader": "7.1.2",
@@ -64,6 +58,8 @@
     "json-bignumber": "1.1.1",
     "konva": "^9.3.18",
     "lodash": "4.17.21",
+    "markdown-it": "^14.1.0",
+    "markdown-it-code-copy": "^0.2.1",
     "monaco-editor": "0.33.0",
     "monaco-editor-webpack-plugin": "7.0.1",
     "monaco-yaml": "4.0.0-alpha.3",
@@ -152,5 +148,6 @@
     "src/**/*.(vue|scss|css|sass)": [
       "stylelint --cache --fix"
     ]
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

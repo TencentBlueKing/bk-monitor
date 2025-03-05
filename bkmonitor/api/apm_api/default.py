@@ -18,7 +18,7 @@ class ApmAPIGWResource(KernelAPIResource):
     TIMEOUT = 300
     base_url_statement = None
     stage = "prod" if settings.RUN_MODE == "PRODUCT" else "stag"
-    base_url = settings.MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(settings.BK_COMPONENT_API_URL, stage)
+    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(settings.BK_COMPONENT_API_URL, stage)
 
     # 模块名
     module_name = "apm_api"

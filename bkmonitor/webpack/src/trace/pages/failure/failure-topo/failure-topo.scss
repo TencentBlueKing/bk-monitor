@@ -87,6 +87,35 @@
     height: calc(100% - 40px);
   }
 
+  .exception-wrap {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-40%, -50%);
+
+    .bk-exception-img {
+      height: 100px;
+
+      .custom-icon {
+        width: 220px;
+      }
+    }
+
+    .bk-exception-footer {
+      margin-top: 12px;
+    }
+
+    .exception-title {
+      font-size: 14px;
+    }
+
+    .exception-desc {
+      max-width: 600px;
+      padding: 0px 20px;
+      margin-top: 8px;
+    }
+  }
+
   .topo-graph-wrapper {
     position: relative;
     display: flex;
@@ -248,8 +277,8 @@
     }
 
     .restored {
-      background: #6C6F78;
-      border-color: #6C6F78;
+      background: #6c6f78;
+      border-color: #6c6f78;
     }
 
     .notRestored {

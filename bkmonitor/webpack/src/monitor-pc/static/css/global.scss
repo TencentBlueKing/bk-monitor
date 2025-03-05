@@ -478,6 +478,18 @@
   }
 }
 
+.bk-table {
+  .bk-table-body-wrapper,
+  .bk-table-fixed-right,
+  .bk-table-fixed {
+    .bk-table-body {
+      .bk-table-row.bk-table-row--current {
+        background-color: #f0f5ff;
+      }
+    }
+  }
+}
+
 .service-instance-selector {
   .ip-selector-service-template,
   .ip-selector-set-template,

@@ -30,7 +30,7 @@ import arrow
 import pytz
 from django.conf import settings
 from django.utils.functional import cached_property
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import BkDataStorekitApi, BkLogApi, TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -497,8 +497,10 @@ class MappingHandlers(object):
         if self.start_time:
             try:
                 tz_info = pytz.timezone(get_local_param("time_zone", settings.TIME_ZONE))
-                if type(self.start_time) in [int, float]:
-                    start_datetime = arrow.get(self.start_time).to(tz=tz_info).datetime
+                if isinstance(self.start_time, (int, float)) or (
+                    isinstance(self.start_time, str) and self.start_time.isdigit()
+                ):
+                    start_datetime = arrow.get(int(self.start_time)).to(tz=tz_info).datetime
                 else:
                     start_datetime = arrow.get(self.start_time).replace(tzinfo=tz_info).datetime
                 storage_cluster_record_objs = StorageClusterRecord.objects.filter(

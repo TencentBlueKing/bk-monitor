@@ -25,6 +25,7 @@
  */
 import { computed, defineComponent, onMounted, provide, ref, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 
 import { ResizeLayout } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -84,6 +85,8 @@ export default defineComponent({
   },
   setup(props) {
     useIncidentProvider(computed(() => props.id));
+    const route = useRoute();
+    const router = useRouter();
     const operations = ref([]);
     const bkzIds = ref([]);
     const { t } = useI18n();
@@ -275,6 +278,13 @@ export default defineComponent({
           getIncidentOperations();
           getIncidentOperationTypes();
           handleGetSearchTopNList();
+          /** 判断路由里是否带了activeTab，需要调整到指定tab，由于其他tab的接口请求依赖详情数据，所以要在跳转前确保已经正确获取到详情数据 */
+          if (route.query?.activeTab) {
+            changeTab();
+            nextTick(() => {
+              router.replace({ query: {} });
+            });
+          }
         })
         .catch(err => {
           console.log(err);

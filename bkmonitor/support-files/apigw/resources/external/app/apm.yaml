@@ -24,7 +24,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: null
+        descriptionEn: "create apm application"
   /app/apm/start_application/:
     get:
       operationId: apm_start_application
@@ -42,7 +42,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: null
+        descriptionEn: "start apm application data report"
   /app/apm/stop_application/:
     get:
       operationId: apm_stop_application
@@ -60,7 +60,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: null
+        descriptionEn: "stop apm application data report"
   /app/apm/delete_application/:
     post:
       operationId: apm_delete_application
@@ -78,7 +78,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: null
+        descriptionEn: "delete apm application"
   /app/apm/detail_apm_application/:
     get:
       operationId: detail_apm_application
@@ -96,7 +96,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: detail apm application
+        descriptionEn: "get apm application detail"
   /app/apm/apply_strategies_to_services/:
     post:
       operationId: apply_strategies_to_services
@@ -114,4 +114,4 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: apply_strategies_to_services
+        descriptionEn: "apply strategies to apm services"

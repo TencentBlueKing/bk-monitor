@@ -35,6 +35,8 @@ class IncidentGraphCategory:
     category_id: int
     category_name: str
     category_alias: str
+    layer_name: str = None
+    layer_alias: str = None
 
     def to_src_dict(self):
         return asdict(self)
@@ -380,7 +382,7 @@ class IncidentSnapshot(object):
         for entity in sub_incident_snapshot_content["incident_propagation_graph"]["entities"]:
             entity["is_root"] = False
             entity["is_anomaly"] = False
-            entity["dimensions"] = {}
+            entity["dimensions"] = entity.get("dimensions", {})
 
             for incident_entity in self.incident_snapshot_content["incident_propagation_graph"]["entities"]:
                 if incident_entity["entity_id"] == entity["entity_id"]:

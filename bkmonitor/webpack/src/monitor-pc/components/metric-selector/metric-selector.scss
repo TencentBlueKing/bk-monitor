@@ -120,6 +120,19 @@
     .refresh-btn .bk-button-icon-loading::before {
       content: '';
     }
+
+    .refresh-div {
+      height: 36px;
+      margin-left: 8px;
+      font-size: 12px;
+      line-height: 18px;
+      white-space: nowrap;
+      color: #4D4F56;
+      .refresh-btn {
+        height: 18px;
+        font-size: 12px;
+      }
+    }
   }
 
   .metric-selector-tags {

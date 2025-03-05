@@ -14,7 +14,7 @@ from typing import List
 
 from django_elasticsearch_dsl.registries import registry
 from elasticsearch.helpers import BulkIndexError
-from elasticsearch_dsl import Search, field
+from elasticsearch_dsl import InnerDoc, Search, field
 
 from bkmonitor.documents.base import BaseDocument, Date
 from constants.action import ActionDisplayStatus, ActionPluginType
@@ -79,7 +79,17 @@ class ActionInstanceDocument(BaseDocument):
 
     # target相关内容
     operate_target_string = field.Keyword()
-    dimensions = field.Object(enabled=False, multi=True)
+
+    class Dimension(InnerDoc):
+        key = field.Keyword()
+        value = field.Keyword()
+        display_key = field.Keyword()
+        display_value = field.Keyword()
+
+        def to_dict(self):
+            return super().to_dict(skip_empty=False)
+
+    dimensions = field.Object(enabled=False, multi=True, doc_class=Dimension)
     bk_target_display = field.Keyword()
     bk_biz_id = field.Keyword()
     bk_biz_name = field.Keyword()
@@ -186,7 +196,6 @@ class ActionInstanceDocument(BaseDocument):
                 len(all_ids) - len(existed_ids),
             )
         except BulkIndexError as e:
-
             error_uuids = []
             for err in e.errors:
                 # 记录保存失败的事件ID

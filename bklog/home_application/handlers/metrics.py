@@ -27,7 +27,8 @@ import time
 from collections import defaultdict
 from functools import wraps
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
+
 from home_application.constants import HEALTHZ_METRICS_IMPORT_PATHS
 
 logger = logging.getLogger()

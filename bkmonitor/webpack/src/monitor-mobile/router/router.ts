@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Vue from 'vue';
-import Router, { RouteConfig } from 'vue-router';
+import Router, { type RouteConfig } from 'vue-router';
 Vue.use(Router);
 const AlarmInfo = () => import(/* webpackChunkName: "alarm-info" */ '../pages/alarm-info/alarm-info.vue');
 const AlarmDetail = () => import(/* webpackChunkName: "alarm-detail" */ '../pages/alarm-detail/alarm-detail.vue');
@@ -53,8 +53,12 @@ export const routerConfig: RouteConfig[] = [
   {
     path: '/detail/:id?',
     name: 'alarm-detail',
-    props: true,
-    component: AlarmDetail,
+    props: {
+      noCache: true,
+    },
+    components: {
+      noCache: AlarmDetail,
+    },
     beforeEnter(to, from, next) {
       to.meta.title = to.params.title || window.i18n.tc('告警详情');
       next();

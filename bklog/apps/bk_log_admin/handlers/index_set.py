@@ -23,7 +23,7 @@ import arrow
 import pytz
 from django.db.models import Case, CharField, Count, Value, When
 from django.db.models.functions import TruncDate
-from django.utils.encoding import force_text
+from django.utils.encoding import force_str
 
 from apps.bk_log_admin.constants import OPERATION_PIE_CHOICE_MAP
 from apps.log_search.models import UserIndexSetSearchHistory
@@ -116,9 +116,9 @@ class IndexSetHandler(object):
         # 根据分组范围和对应的标签构建Case表达式
         case_expression = Case(
             *[
-                When(duration__gte=item["min"], duration__lt=item["max"], then=Value(force_text(item["label"])))
+                When(duration__gte=item["min"], duration__lt=item["max"], then=Value(force_str(item["label"])))
                 if item.get("max")
-                else When(duration__gte=item["min"], then=Value(force_text(item["label"])))
+                else When(duration__gte=item["min"], then=Value(force_str(item["label"])))
                 for item in OPERATION_PIE_CHOICE_MAP
             ],
             output_field=CharField(),

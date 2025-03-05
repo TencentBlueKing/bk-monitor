@@ -51,8 +51,10 @@ const getRootCombos = data => {
 };
 
 const defaultLayoutOptions = {
-  algorithm: 'layered',
+  algorithm: 'stress',
   'elk.direction': 'DOWN',
+  'elk.stress.desiredEdgeLength': 10,
+  'elk.radial.center': '0,0',
   // // 调节分布每行展示节点数量
   'org.eclipse.elk.aspectRatio': '3',
   separateConnectedComponents: 'true',
@@ -426,7 +428,7 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
 /** 兼容动态combo数量 */
 const setRootComboStyle = (combos: Array<any>, width) => {
   const rootCombos = getRootCombos({ combos });
-  const maxWidth = Math.max(...rootCombos.map(combo => combo.width ?? 0), width, 1440);
+  const maxWidth = Math.max(...rootCombos.map(combo => combo.width ?? 0), width);
   rootCombos.forEach((combo, index) => {
     const prevCombo = rootCombos[index - 1];
     const y = index === 0 ? 0 : prevCombo.y + prevCombo.height + combo.height / 2 + 15 + 30;

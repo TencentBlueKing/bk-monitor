@@ -26,21 +26,21 @@
 import { ref, Ref } from 'vue';
 
 import { debounce } from 'lodash';
-import tippy from 'tippy.js';
+import tippy, { Props } from 'tippy.js';
 
 type PopInstanceUtilType = {
-  refContent: Ref<{ $el?: HTMLElement }>;
+  refContent: Ref<{ $el?: HTMLElement } | string>;
   onShowFn: () => boolean;
   onHiddenFn: () => boolean;
   arrow: boolean;
   newInstance: boolean;
-  tippyOptions: any;
+  tippyOptions: Partial<Props>;
   watchElement: Ref<HTMLElement>; // 添加需要监视的元素，能在元素高度变化时，自动更新 pop
 };
 
 export default class PopInstanceUtil {
   private tippyInstance;
-  private refContent: Ref<{ $el?: HTMLElement }> = ref(null);
+  private refContent: Ref<{ $el?: HTMLElement } | string> = ref(null);
   private onShowFn;
   private onHiddenFn;
   private arrow = true;
@@ -133,7 +133,7 @@ export default class PopInstanceUtil {
     if (this.tippyInstance === null && this.refContent.value) {
       this.tippyInstance = tippy(target, {
         arrow: this.arrow,
-        content: (this.refContent.value?.$el ?? this.refContent.value) as HTMLElement,
+        content: ((this.refContent.value as any)?.$el ?? this.refContent.value) as HTMLElement,
         trigger: 'manual',
         theme: 'log-light',
         placement: 'bottom-start',

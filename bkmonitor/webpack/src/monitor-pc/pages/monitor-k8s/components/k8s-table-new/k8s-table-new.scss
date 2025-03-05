@@ -126,29 +126,38 @@
         }
       }
 
-      .icon-monitor {
+      %filter-icon-common {
         width: 24px;
         height: 24px;
         margin-left: 6px;
+        cursor: pointer;
+      }
+
+      .selected {
+        display: block;
+        background: url('../../../../static/images/svg/cancel-search.svg');
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 20px 20px;
+        @extend %filter-icon-common;
+      }
+
+      .icon-monitor {
         font-size: 14px;
         line-height: 24px;
-        cursor: pointer;
+        @extend %filter-icon-common;
 
-        &.icon-a-sousuo,
-        &.icon-sousuo- {
+        &.icon-a-sousuo {
           display: flex;
           justify-content: center;
           font-size: 16px;
 
-          & + .k8s-dimension-drillDown {
+          &,
+          .selected + .k8s-dimension-drillDown {
             .drill-down-icon {
               margin-left: 0;
             }
           }
-        }
-
-        &.is-active {
-          color: #3a84ff;
         }
 
         &:hover {

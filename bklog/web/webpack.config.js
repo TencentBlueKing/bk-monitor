@@ -83,10 +83,7 @@ const logPluginConfig = {
       window.BCS_WEB_CONSOLE_DOMAIN = '\${BCS_WEB_CONSOLE_DOMAIN}'
       window.VERSION = '\${VERSION}'
       window.BK_SHARED_RES_URL = '\${BK_SHARED_RES_URL}'
-    </script>
-    % if TAM_AEGIS_KEY != "" :
-      <script src="https://cdn-go.cn/aegis/aegis-sdk/latest/aegis.min.js?_bid=3977"></script>
-    % endif\n`,
+    </script>`,
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');

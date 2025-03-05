@@ -46,7 +46,7 @@ export default defineComponent({
       default: 0,
     },
     chooseOperation: {
-      type: Object as () => IIncidentOperation | any,
+      type: Object as () => IIncidentOperation,
       default: () => ({}),
     },
   },
@@ -68,7 +68,7 @@ export default defineComponent({
       operationsLoading,
       goAlertDetail,
       refresh,
-      changeTab
+      changeTab,
     };
   },
   render() {
@@ -86,9 +86,9 @@ export default defineComponent({
             alertAggregateData={this.$props.alertAggregateData}
             chooseOperation={this.$props.chooseOperation}
             scrollTop={this.$props.scrollTop}
+            onChangeTab={this.changeTab}
             onGoAlertDetail={this.goAlertDetail}
             onRefresh={this.refresh}
-            onChangeTab={this.changeTab}
           />
         </Loading>
       </div>
