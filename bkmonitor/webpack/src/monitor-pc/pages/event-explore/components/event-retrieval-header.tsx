@@ -39,6 +39,7 @@ interface EventRetrievalNavBarProps {
   refreshInterval?: number;
   dataIdList?: IDataIdItem[];
   formData: IFormData;
+  isShowFavorite?: boolean;
 }
 
 interface EventRetrievalNavBarEvents {
@@ -48,6 +49,7 @@ interface EventRetrievalNavBarEvents {
   onRefreshChange(val: number): void;
   onDataIdChange(val: string): void;
   onEventTypeChange(val: { data_source_label: string; data_type_label: string }): void;
+  onFavoriteShowChange(show: boolean): void;
 }
 
 @Component
@@ -58,6 +60,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
   // 自动刷新数据间隔
   @Prop({ default: -1 }) readonly refreshInterval: number;
+  @Prop({ default: true }) readonly isShowFavorite: boolean;
   // 时区
   @Prop({ type: String }) timezone: string;
 
@@ -89,6 +92,11 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
     return v;
   }
 
+  @Emit('favoriteShowChange')
+  handleFavoriteShowChange() {
+    return !this.isShowFavorite;
+  }
+
   @Emit('dataIdChange')
   handleDataIdChange(dataId: string) {
     return dataId;
@@ -107,9 +115,11 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
     return (
       <div class='event-retrieval-header'>
         <div class='header-left'>
-          <div class='favorite-btn'>
-            <i class='icon-monitor icon-back-right' />
-            <span class='text'>{this.$t('收藏夹')}</span>
+          <div
+            class={['favorite-btn', { active: this.isShowFavorite }]}
+            onClick={this.handleFavoriteShowChange}
+          >
+            <i class='icon-monitor icon-shoucangjia' />
           </div>
           <div class='event-type-select'>
             <div
