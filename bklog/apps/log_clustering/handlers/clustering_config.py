@@ -237,16 +237,16 @@ class ClusteringConfigHandler(object):
         # 延迟10分钟重启flow
         from apps.log_clustering.tasks.flow import restart_flow
 
-        collector_config_id = self.data.collector_config_id
+        index_set_id = self.data.index_set_id
         # 缓存15分钟
         cache.set(
-            f"start_pipeline_time_{collector_config_id}",
+            f"start_pipeline_time_{index_set_id}",
             now_time.shift(minutes=10).timestamp(),
             15 * TimeEnum.ONE_MINUTE_SECOND.value,
         )
         flow_ids = [self.data.predict_flow_id, self.data.pre_treat_flow_id, self.data.after_treat_flow_id]
         restart_flow.apply_async(
-            args=[collector_config_id, flow_ids],
+            args=[index_set_id, flow_ids],
             countdown=10 * TimeEnum.ONE_MINUTE_SECOND.value,
         )
         return pipeline.id

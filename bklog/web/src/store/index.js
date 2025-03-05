@@ -228,7 +228,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition,
-        begin,
+        begin, 
         size,
         keyword = '*',
         ip_chooser,
@@ -1019,6 +1019,7 @@ const store = new Vuex.Store({
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
+        
         if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
           if (payload.items[0].query_string) {
             payload.keyword = payload.items[0].query_string;
@@ -1030,10 +1031,7 @@ const store = new Vuex.Store({
             payload.keyword = '';
           }
         }
-        // if (!payload.keyword && payload.items.length === 1 && payload.items[0].query_string) {
-        //   payload.keyword = payload.items[0].query_string;
-        //   payload.search_mode = 'sql';
-        // }
+
         commit('updateIndexId', isUnionIndex ? undefined : ids[0]);
         commit('updateIndexItem', payload);
       }

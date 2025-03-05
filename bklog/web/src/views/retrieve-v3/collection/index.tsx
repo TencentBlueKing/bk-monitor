@@ -24,25 +24,29 @@
  * IN THE SOFTWARE.
  */
 
-declare module '*.vue' {
-  import Vue from 'vue';
-  export default Vue;
-}
+import { computed, defineComponent, ref } from 'vue';
+import V2Collection from '../../retrieve-v2/collect/collect-index';
+import './index.scss';
 
-declare module '*/store';
-declare module '*.svg';
-declare module 'screenfull';
-declare module 'sql-formatter';
-
-declare module '@/hooks/use-store';
-declare module '@/hooks/use-locale';
-declare module '@/api/*';
-declare module '@/hooks/*';
-declare module '@/common/*';
-declare module '@/skeleton/*';
-declare module '@/store/*';
-
-declare module '*.module.scss' {
-  const classes: { [key: string]: string };
-  export default classes;
-}
+export default defineComponent({
+  name: 'v3-collection',
+  props: {
+    isShow: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup(props, { slots }) {
+    const showContent = computed(() => props.isShow);
+    const collectWidth = ref(240);
+    return () => {
+      return (
+        <V2Collection
+          class='v3-bklog-collection'
+          is-show={showContent.value}
+          width={collectWidth.value}
+        ></V2Collection>
+      );
+    };
+  },
+});

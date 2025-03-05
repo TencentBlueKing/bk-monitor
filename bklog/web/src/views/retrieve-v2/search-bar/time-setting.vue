@@ -53,6 +53,7 @@
 
   // 日期变化
   const handleTimeRangeChange = async val => {
+    debugger;
     store.commit('updateIsSetDefaultTableColumn', false);
     const result = handleTransformToTimestamp(val, formatValue.value);
     store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });

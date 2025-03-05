@@ -24,25 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-declare module '*.vue' {
-  import Vue from 'vue';
-  export default Vue;
-}
+import { defineComponent } from 'vue';
+import SubBar from '../../retrieve-v2/sub-bar/index.vue';
+import './index.scss';
 
-declare module '*/store';
-declare module '*.svg';
-declare module 'screenfull';
-declare module 'sql-formatter';
+export default defineComponent({
+  name: 'v3-toolbar',
+  emits: ['collection-show-change'],
+  setup(_, { emit }) {
+    const handleCollectionShowChange = () => {
+      emit('collection-show-change');
+    };
 
-declare module '@/hooks/use-store';
-declare module '@/hooks/use-locale';
-declare module '@/api/*';
-declare module '@/hooks/*';
-declare module '@/common/*';
-declare module '@/skeleton/*';
-declare module '@/store/*';
-
-declare module '*.module.scss' {
-  const classes: { [key: string]: string };
-  export default classes;
-}
+    return () => (
+      <div class='v3-bklog-toolbar'>
+        <span onClick={handleCollectionShowChange}>收藏</span>
+        <SubBar></SubBar>
+      </div>
+    );
+  },
+});
