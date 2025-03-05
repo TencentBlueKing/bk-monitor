@@ -28,7 +28,7 @@ import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listBcsCluster, listK8sResources, namespaceWorkloadOverview } from 'monitor-api/modules/k8s';
-import { random } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 
 import OverflowPrefixEllipsis from './overflow-prefix-ellipsis';
 
@@ -54,20 +54,61 @@ interface TreeNodeData {
   // 子集
   children?: TreeNodeData[];
 }
-
+enum QueryFromType {
+  NameSpace = 'namespace',
+  Workload = 'workload',
+}
+interface TreeNode extends TreeNodeData {
+  data: TreeNodeData & {
+    type: string;
+    leaf: boolean;
+    count: number;
+    queryFrom: QueryFromType;
+  };
+  state: {
+    checked: boolean;
+  };
+}
 interface RelationSelectPanelProps {
   value: string[];
 }
 
 @Component
-export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
+export default class RelationSelectPanel extends tsc<
+  RelationSelectPanelProps,
+  {
+    onChange: (value: string[]) => void;
+  }
+> {
   @Prop({ default: () => [] }) value: string[];
   @Ref('tree') treeRef: any;
 
   searchVal = '';
 
   data: TreeNodeData[] = [];
+  clusterList = [];
+  loading = false;
+  localValue: string[] = [];
+  allCheckedValue: string[] = [];
 
+  mounted() {
+    this.localValue = this.value || [];
+    this.getClusterTreeData();
+  }
+  @Debounce(300)
+  handleSearch(val: string) {
+    this.searchVal = val;
+    this.getClusterTreeData();
+  }
+
+  handleClear() {
+    this.refreshTreeData([], this.localValue);
+    this.localValue = [];
+  }
+  handleDelete(id: string) {
+    this.updateNodesState([id], false, false);
+    this.localValue = this.localValue.filter(item => item !== id);
+  }
   /** 是否显示checkbox */
   isShowCheckbox(data: TreeNodeData) {
     if (data.type === 'more' || data.root) return false;
@@ -78,8 +119,8 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
   async handleShowMore(data: TreeNodeData) {
     const { type, id: parentId } = data.parentData;
     data.loading = true;
-    const node = this.treeRef.getNodeById(parentId);
-    const children = node.children;
+    const parentNode: TreeNode = this.treeRef.getNodeById(parentId);
+    const children = parentNode.children;
     let items = [];
     /** 集群加载更多 */
     if (type === 'cluster') {
@@ -89,10 +130,8 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
         parentData: data.parentData,
       });
       items = result.items;
-    }
-
-    /** workload加载更多 */
-    if (type === 'workload') {
+    } else if (type === 'workload') {
+      /** workload加载更多 */
       const [bcs_cluster_id, namespace, workloadType] = parentId.split('/');
       const result = await this.getListResources({
         bcs_cluster_id,
@@ -100,43 +139,133 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
         workloadType,
         page: Math.floor(children.length / 5) + 1,
         parentData: data.parentData,
+        query_string: parentNode.data.queryFrom === QueryFromType.NameSpace ? '' : this.searchVal,
       });
       items = result.items;
     }
     data.loading = false;
     this.treeRef.removeNode(data.id);
     this.treeRef.addNode(items.slice(children.length), parentId);
-    if (node.checked) this.treeRef.setChecked(parentId);
+    this.refreshTreeData(this.localValue);
   }
 
-  handleCheckChange(ids) {
-    console.log(ids);
+  async handleCheckChange(ids: string[], node: TreeNode) {
+    this.updateNodesState([node.id], node.state.checked, node.state.checked);
+    const value = this.treeRef.nodes.filter(node => node.state.checked && !node.state.disabled).map(node => node.id);
+    const list = [...this.localValue];
+    if (this.searchVal) {
+      if (node.state.checked) {
+        list.push(...value);
+      } else {
+        const index = list.indexOf(node.id);
+        if (index > -1) {
+          list.splice(index, 1);
+        }
+      }
+    }
+    this.localValue = Array.from(new Set(!this.searchVal ? value : list));
+    this.$emit('change', this.localValue);
   }
 
   /** 判断节点是否有展开功能 */
-  lazyDisabled(node) {
+  lazyDisabled(node: TreeNode) {
     if (node.data.type === 'more' || node.data.leaf || node.data.count === 0) return true;
     return false;
   }
 
   /** 展开懒加载功能 */
-  async lazyMethod(node) {
+  async lazyMethod(node: TreeNode) {
     if (node.data.type === 'workload') {
       const [bcs_cluster_id, namespace] = node.data.id.split('/');
+      this.loading = true;
       const { items } = await this.getListResources({
         bcs_cluster_id,
         namespace,
         workloadType: node.name,
         parentData: node.data,
         page: 1,
+        query_string: node.data.queryFrom === QueryFromType.NameSpace ? '' : this.searchVal,
       });
-      return { data: items || [] };
+      node.data.children.push(...items);
+      this.loading = false;
     }
+    setTimeout(() => {
+      this.refreshTreeData(this.localValue);
+    }, 100);
+    return {
+      data: node.data?.children || [],
+    };
+  }
+  getDefaultExpandedIds() {
+    const expanded = [];
+    for (const item of this.data) {
+      expanded.push(item.id);
+      if (item.children?.length) {
+        for (const child of item.children) {
+          expanded.push(child.id);
+        }
+      }
+    }
+    return expanded;
   }
 
+  async updateNodesState(nodeIds: string[], checked: boolean, childDisable: boolean) {
+    const updateNodeAndChildren = (node: TreeNode, checked: boolean, disabled: boolean) => {
+      // 如果有子节点，递归设置子节点
+      if (node.children?.length) {
+        this.treeRef?.setDisabled(
+          node.children.map(n => n.id),
+          { emitEvent: false, disabled }
+        );
+        this.treeRef?.setChecked(
+          node.children.map(n => n.id),
+          { emitEvent: false, checked }
+        );
+        for (const child of node.children) {
+          updateNodeAndChildren(this.treeRef.getNodeById(child.id), checked, disabled);
+        }
+      }
+    };
+
+    for (const id of nodeIds) {
+      const node: TreeNode = this.treeRef.getNodeById(id);
+      if (!node) continue;
+      this.treeRef?.setChecked(node.id, { emitEvent: false, checked });
+      updateNodeAndChildren(node, checked, childDisable);
+    }
+  }
+  /**
+   *
+   * @param ids 重新设置的值
+   * @param oldIds 上一次操作的值
+   */
+  async refreshTreeData(ids: string[], oldIds: string[] = []) {
+    await this.$nextTick();
+    // 处理旧节点
+    this.updateNodesState(oldIds, false, false);
+
+    // 处理新节点
+    this.updateNodesState(ids, true, true);
+  }
+
+  async setExpandedData() {
+    // 重新设置展开
+    setTimeout(() => {
+      this.treeRef?.setExpanded(this.getDefaultExpandedIds(), { emitEvent: false, expanded: true });
+    }, 100);
+  }
   /** 获取集群列表 */
   async getClusterList() {
-    const clusterList = await listBcsCluster();
+    let clusterList = structuredClone(this.clusterList || []);
+    if (!clusterList.length) {
+      clusterList = await listBcsCluster().catch(() => []);
+    }
+    this.clusterList = clusterList || [];
+    return structuredClone(clusterList);
+  }
+  async getClusterTreeData() {
+    this.loading = true;
+    const clusterList = await this.getClusterList();
     const promiseList = clusterList.map(async cluster => {
       const { items, workload_count } = await this.getNamespaceWorkloadOverview({
         bcs_cluster_id: cluster.id,
@@ -154,17 +283,20 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
         children: items.map(item => ({ ...item, parentData: result })),
       };
     });
-    Promise.all(promiseList).then(res => {
-      this.data = res;
-    });
+    const data = await Promise.all(promiseList).catch(() => []);
+    this.data = data;
+    this.setExpandedData();
+    this.refreshTreeData(this.localValue);
+    this.loading = false;
   }
-
   /** 获取集群下namespace的数量和workload数量 */
   async getNamespaceWorkloadOverview(params) {
     const { count, items, workload_count } = await namespaceWorkloadOverview({
       query_string: this.searchVal,
       bcs_cluster_id: params.bcs_cluster_id,
       page: params.page,
+    }).catch(() => {
+      return { count: 0, items: [], workload_count: 0 };
     });
     const data: TreeNodeData[] = items.map(item => {
       const namespaceData = {
@@ -185,6 +317,7 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
           name: workload[0],
           count: workload[1],
           children: [],
+          queryFrom: this.searchVal ? item.query_from : QueryFromType.Workload,
         })),
       };
     });
@@ -211,7 +344,7 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
       bcs_cluster_id: params.bcs_cluster_id,
       resource_type: 'workload',
       scenario: 'performance',
-      query_string: this.searchVal,
+      query_string: params.query_string ?? this.searchVal,
       start_time: 0,
       end_time: 0,
       page: params.page,
@@ -269,18 +402,15 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
     );
   }
 
-  mounted() {
-    this.getClusterList();
-  }
-
   render() {
     return (
       <div class='relation-select-panel-comp'>
         <div class='tree-panel'>
           <bk-input
-            v-model={this.searchVal}
             left-icon='bk-icon icon-search'
             placeholder={this.$t('请输入关键字')}
+            value={this.searchVal}
+            onChange={this.handleSearch}
           />
           <div class='relation-workload-tree'>
             <bk-big-tree
@@ -306,8 +436,10 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
                   );
                 },
               }}
+              check-strictly={false}
               data={this.data}
-              default-checked-nodes={this.value}
+              default-checked-nodes={this.localValue}
+              default-expanded-nodes={this.getDefaultExpandedIds()}
               lazy-disabled={this.lazyDisabled}
               lazy-method={this.lazyMethod}
               selectable={true}
@@ -319,13 +451,18 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
         <div class='selected-panel'>
           <div class='header'>
             <span class='select-panel-title'>
-              {this.$t('已关联 workload')}({this.value.length})
+              {this.$t('已关联')}（{this.localValue.length}）
             </span>
-            <span class='clear-btn'>{this.$t('清空')}</span>
+            <span
+              class='clear-btn'
+              onClick={this.handleClear}
+            >
+              {this.$t('清空')}
+            </span>
           </div>
 
           <div class='selected-list'>
-            {this.value.map(item => (
+            {this.localValue.map(item => (
               <div
                 key={item}
                 class='selected-item'
@@ -334,7 +471,10 @@ export default class RelationSelectPanel extends tsc<RelationSelectPanelProps> {
                   class='selected-item-name'
                   text={item}
                 />
-                <i class='icon-monitor icon-mc-close' />
+                <i
+                  class='icon-monitor icon-mc-close'
+                  onClick={() => this.handleDelete(item)}
+                />
               </div>
             ))}
           </div>
