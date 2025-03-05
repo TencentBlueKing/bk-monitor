@@ -1,0 +1,10 @@
+.v3-bklog-root {
+  display: flex;
+  width: 100%;
+
+  .v3-bklog-content {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+  }
+}

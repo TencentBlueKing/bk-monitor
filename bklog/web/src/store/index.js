@@ -228,7 +228,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition,
-        begin,
+        begin, 
         size,
         keyword = '*',
         ip_chooser,

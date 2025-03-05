@@ -25,10 +25,22 @@
  */
 
 import { defineComponent } from 'vue';
+import SubBar from '../../retrieve-v2/sub-bar/index.vue';
+import './index.scss';
 
 export default defineComponent({
   name: 'v3-toolbar',
-  setup() {
-    return () => <div>v3-toolbar</div>;
+  emits: ['collection-show-change'],
+  setup(_, { emit }) {
+    const handleCollectionShowChange = () => {
+      emit('collection-show-change');
+    };
+
+    return () => (
+      <div class='v3-bklog-toolbar'>
+        <span onClick={handleCollectionShowChange}>收藏</span>
+        <SubBar></SubBar>
+      </div>
+    );
   },
 });
