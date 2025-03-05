@@ -25,7 +25,7 @@
  */
 
 export enum EMode {
-  ql = 'ql',
+  queryString = 'queryString',
   ui = 'ui',
 }
 export enum ECondition {
@@ -84,6 +84,7 @@ export const fieldTypeMap = {
     bgColor: '#EDE7DB',
   },
 };
+
 /* 可选数据格式 */
 export interface IFilterField {
   name: string;
@@ -123,7 +124,7 @@ export interface IFilterItem {
 }
 export const MODE_LIST = [
   { id: EMode.ui, name: window.i18n.tc('UI 模式') },
-  { id: EMode.ql, name: window.i18n.tc('语句模式') },
+  { id: EMode.queryString, name: window.i18n.tc('语句模式') },
 ];
 
 export interface IWhereValueOptionsItem {
@@ -222,7 +223,12 @@ export function getResidentSettingData(): IResidentSetting[] {
  */
 export function onClickOutside(element, callback, { once = false } = {}) {
   const handler = (event: MouseEvent) => {
-    const isInside = element.contains(event.target);
+    let isInside = false;
+    if (Array.isArray(element)) {
+      isInside = element.some(el => el.contains(event.target));
+    } else {
+      isInside = element.contains(event.target);
+    }
     if (!isInside) {
       callback(event);
       if (once) document.removeEventListener('click', handler);
@@ -264,3 +270,137 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
   result = [...source, ...localTarget];
   return result;
 }
+export enum EQueryStringTokenType {
+  bracket = 'bracket',
+  condition = 'condition',
+  key = 'key',
+  method = 'method',
+  split = 'split',
+  value = 'value',
+  valueCondition = 'value-condition',
+}
+
+export const queryStringMethods = [
+  {
+    id: ':',
+    name: window.i18n.t('等于'),
+  },
+  {
+    id: ':*',
+    name: window.i18n.t('存在'),
+  },
+  {
+    id: '>',
+    name: window.i18n.t('大于'),
+  },
+  {
+    id: '<',
+    name: window.i18n.t('小于'),
+  },
+  {
+    id: '>=',
+    name: window.i18n.t('大于或等于'),
+  },
+  {
+    id: '<=',
+    name: window.i18n.t('小于或等于'),
+  },
+];
+
+export interface IStrItem {
+  value: string;
+  key?: string;
+  type: EQueryStringTokenType;
+}
+
+export function parseQueryString(query: string): IStrItem[] {
+  const tokens: IStrItem[] = [];
+
+  // 增强正则表达式，支持完整括号集和运算符
+  const tokenRegex = /(\s+)|([(){}[\]])|(AND|OR)|(<=|>=|:\*|:|>|<)|(".*?")|(\S+)/gi;
+
+  let match: null | RegExpExecArray;
+  while ((match = tokenRegex.exec(query)) !== null) {
+    const [_full, space, bracket, condition, method, quoted, word] = match;
+
+    if (space) {
+      tokens.push({ value: space, type: EQueryStringTokenType.split });
+    } else if (bracket) {
+      tokens.push({ value: bracket, type: EQueryStringTokenType.bracket });
+    } else if (condition) {
+      tokens.push({ value: condition.toUpperCase(), type: EQueryStringTokenType.condition });
+    } else if (method) {
+      tokens.push({ value: method, type: EQueryStringTokenType.method });
+    } else if (quoted) {
+      tokens.push({ value: quoted, type: EQueryStringTokenType.value });
+    } else if (word) {
+      const match = word.match(/[)\]}]/);
+      if (match) {
+        tokens.push({ value: word.slice(0, match.index), type: EQueryStringTokenType.value });
+        tokens.push({ value: match[0], type: EQueryStringTokenType.bracket });
+      } else {
+        tokens.push({ value: word, type: EQueryStringTokenType.value });
+      }
+    }
+  }
+
+  // 增强的括号层级处理
+  let bracketLevel = 0;
+  const leftBrackets = new Set(['(', '[', '{']);
+
+  tokens.forEach((token, index) => {
+    // 更新括号层级
+    if (token.type === EQueryStringTokenType.bracket) {
+      const isLeft = leftBrackets.has(token.value);
+      bracketLevel += isLeft ? 1 : -1;
+      return;
+    }
+
+    // 动态条件类型转换
+    if (token.type === EQueryStringTokenType.condition) {
+      token.type = bracketLevel > 0 ? EQueryStringTokenType.valueCondition : EQueryStringTokenType.condition;
+    }
+
+    // 增强的键值类型推导
+    if (token.type === EQueryStringTokenType.value) {
+      const nextToken = tokens.slice(index + 1).find(t => t.type !== EQueryStringTokenType.split);
+
+      // 检查后续是否存在方法运算符
+      if (nextToken?.type === EQueryStringTokenType.method) {
+        token.type = EQueryStringTokenType.key;
+      }
+    }
+  });
+
+  return tokens;
+}
+
+/* 语句模式下字体颜色 */
+export const queryStringColorMap = {
+  [EQueryStringTokenType.key]: {
+    color: '#B17313',
+    background: '#FCE5C0',
+    icon: 'icon-Key',
+  },
+  [EQueryStringTokenType.method]: {
+    color: '#016BB4',
+    background: '#E6F0F8',
+    icon: 'icon-yunsuanfu',
+  },
+  [EQueryStringTokenType.value]: {
+    color: '#02776E',
+    background: '#E6F2F1',
+    icon: 'icon-Value',
+  },
+  [EQueryStringTokenType.condition]: {
+    color: '#7C609E',
+    background: '#F3F1F8',
+    icon: 'icon-Value',
+  },
+  [EQueryStringTokenType.valueCondition]: {
+    color: '#7C609E',
+    background: '#F3F1F8',
+    icon: 'icon-Value',
+  },
+};
+export const QUERY_STRING_DATA_TYPES = Object.keys(queryStringColorMap);
