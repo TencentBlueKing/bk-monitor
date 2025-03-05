@@ -341,8 +341,26 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-help:before {
 	content: "\e1a4";
 }
+.bklog-jump:before {
+	content: "\e1da";
+}
+.bklog-circle-alert-filled:before {
+	content: "\e1d8";
+}
+.bklog-circle-correct-filled:before {
+	content: "\e1d9";
+}
+.bklog-setting-line:before {
+	content: "\e1d4";
+}
+.bklog-configuration:before {
+	content: "\e1d6";
+}
 .bklog-refresh2:before {
 	content: "\e1a6";
+}
+.bklog-save:before {
+	content: "\e1d5";
 }
 .bklog-subnode:before {
 	content: "\e1a9";
@@ -406,4 +424,109 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-time-2:before {
 	content: "\e1b0";
+}
+.bklog-ai:before {
+	content: "\e1b2";
+}
+.bklog--celve:before {
+	content: "\e1b8";
+}
+.bklog-gaojing-filled:before {
+	content: "\e1b3";
+}
+.bklog-gaojing-line:before {
+	content: "\e1b4";
+}
+.bklog-ketuodong:before {
+	content: "\e1b9";
+}
+.bklog-lianxiang:before {
+	content: "\e1b5";
+}
+.bklog-paixu:before {
+	content: "\e1b6";
+}
+.bklog-shangxiawen:before {
+	content: "\e1b7";
+}
+.bklog-qingkong:before {
+	content: "\e1ba";
+}
+.bklog-shezhi:before {
+	content: "\e1bc";
+}
+.bklog-shishirizhi:before {
+	content: "\e1be";
+}
+.bklog-shoucangjia:before {
+	content: "\e1bb";
+}
+.bklog-shouqi:before {
+	content: "\e1c7";
+}
+.bklog-qiehuan-2:before {
+	content: "\e1bd";
+}
+.bklog-tuichu:before {
+	content: "\e1bf";
+}
+.bklog-xinjianwenjianjia:before {
+	content: "\e1c0";
+}
+.bklog-xinjianchaxun:before {
+	content: "\e1c4";
+}
+.bklog-yingshe-2:before {
+	content: "\e1c2";
+}
+.bklog-yibiaopan:before {
+	content: "\e1c3";
+}
+.bklog-arrow-down-filled-2:before {
+	content: "\e1c1";
+}
+.bklog-yujumoshi:before {
+	content: "\e1c9";
+}
+.bklog-backtotop:before {
+	content: "\e1c5";
+}
+.bklog-chart-2:before {
+	content: "\e1c6";
+}
+.bklog-copy-3:before {
+	content: "\e1ca";
+}
+.bklog-file-close:before {
+	content: "\e1c8";
+}
+.bklog-file-open:before {
+	content: "\e1cf";
+}
+.bklog-file-personal:before {
+	content: "\e1cb";
+}
+.bklog-goto:before {
+	content: "\e1cd";
+}
+.bklog-table-2:before {
+	content: "\e1cc";
+}
+.bklog-ui-moshi:before {
+	content: "\e1ce";
+}
+.bklog-shangxia-2:before {
+	content: "\e1d0";
+}
+.bklog-enter:before {
+	content: "\e1d2";
+}
+.bklog-esc:before {
+	content: "\e1d1";
+}
+.bklog-history-2:before {
+	content: "\e1d3";
+}
+.bklog-weixian:before {
+	content: "\e1d7";
 }

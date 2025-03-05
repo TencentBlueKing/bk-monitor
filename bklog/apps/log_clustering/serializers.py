@@ -39,8 +39,8 @@ from bkm_space.serializers import SpaceUIDField
 class PatternSearchSerlaizer(serializers.Serializer):
     host_scopes = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default=[])
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default="customized")
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     size = serializers.IntegerField(required=False, default=10000)

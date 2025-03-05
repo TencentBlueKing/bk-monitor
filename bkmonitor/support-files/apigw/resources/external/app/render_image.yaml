@@ -7,24 +7,6 @@ info:
 schemes:
 - http
 paths:
-  /app/mail_report/test_report_mail/:
-    post:
-      operationId: test_report_mail
-      description: 订阅报表测试
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: post
-          path: /api/v4/mail_report/test_report_mail/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: test report mail
   /app/mail_report/send_report_mail/:
     post:
       operationId: send_report_mail
@@ -79,21 +61,3 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: get render image task result
-  /app/new_report/send_report/:
-    post:
-      operationId: send_report
-      description: 发送订阅报表
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: post
-          path: /api/v4/new_report/send_report/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: send report

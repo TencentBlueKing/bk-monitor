@@ -2,9 +2,6 @@
 
 拨测任务配置导出
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 
@@ -283,7 +280,7 @@ message | str | 说明 |
             "collector_conf": {
                 "config": {
                     "ip_list": [
-                        "10.0.0.1"
+                        "127.0.0.1"
                     ],
                     "period": 1,
                     "response_format": "in",

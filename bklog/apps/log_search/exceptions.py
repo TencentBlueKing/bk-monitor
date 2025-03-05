@@ -568,6 +568,11 @@ class SQLQueryException(BaseException):
     MESSAGE = _("SQL查询异常: {name}")
 
 
+class SQLParserException(BaseException):
+    ERROR_CODE = "1006"
+    MESSAGE = _("SQL解析异常: {name}")
+
+
 # =================================================
 # 用户自定义配置
 # =================================================

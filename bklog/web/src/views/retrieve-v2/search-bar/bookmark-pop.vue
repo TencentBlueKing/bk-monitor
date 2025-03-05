@@ -367,7 +367,6 @@
         <template slot="dropdown-trigger">
             <div
               v-bk-tooltips="$t('收藏')"
-              style="color: #63656e"
               class="icon bk-icon icon-save"
             ></div>
         </template>
