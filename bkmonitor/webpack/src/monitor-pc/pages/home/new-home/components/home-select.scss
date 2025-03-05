@@ -302,6 +302,17 @@
     color: #a3b1cc;
   }
 
+  .icon-delete-wrap {    
+    display: none;
+    font-size: 13px;
+    color: #4d4f56;
+    vertical-align: middle;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
   .new-home-select-history-item,
   .new-home-select-item-title,
   .new-home-select-group-item {
@@ -335,6 +346,10 @@
       vertical-align: top;
       cursor: pointer;
     }
+  }
+
+  .new-home-select-history-item:hover .icon-delete-wrap{
+    display: inline-block;
   }
 
   .new-home-select-item-title {
