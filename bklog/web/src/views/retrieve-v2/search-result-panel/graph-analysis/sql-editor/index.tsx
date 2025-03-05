@@ -145,6 +145,7 @@ export default defineComponent({
             addition,
             start_time,
             end_time,
+            sql: sqlContent.value,
           },
         })
         .then(resp => {
