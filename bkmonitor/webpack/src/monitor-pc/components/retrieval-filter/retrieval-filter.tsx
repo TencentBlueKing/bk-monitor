@@ -26,6 +26,7 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import QsSelector from './qs-selector';
 import ResidentSetting, { type IResidentSetting } from './resident-setting';
 import UiSelector from './ui-selector';
 import {
@@ -80,13 +81,30 @@ export default class RetrievalFilter extends tsc<IProps> {
   uiValue: IFilterItem[] = [];
   cacheWhereStr = '';
   residentSettingValue: IResidentSetting[] = [];
+  qsValue = '';
+
+  /*  */
+  qsSelectorOptionsWidth = 0;
+  resizeObserver = null;
 
   created() {
     this.residentSettingValue = getResidentSettingData();
   }
 
+  mounted() {
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        // 获取元素的宽度
+        const contentEl = entry.target.querySelector('.retrieval-filter__component-main > .filter-content');
+        const rightEl = entry.target.querySelector('.retrieval-filter__component-main > .component-right');
+        this.qsSelectorOptionsWidth = contentEl.clientWidth + rightEl.clientWidth - 48;
+      }
+    });
+    this.resizeObserver.observe(this.$el);
+  }
+
   handleChangeMode() {
-    this.mode = this.mode === EMode.ui ? EMode.ql : EMode.ui;
+    this.mode = this.mode === EMode.ui ? EMode.queryString : EMode.ui;
   }
   handleShowResidentSetting() {
     this.showResidentSetting = !this.showResidentSetting;
@@ -305,7 +323,13 @@ export default class RetrievalFilter extends tsc<IProps> {
                 value={this.uiValue}
                 onChange={this.handleUiValueChange}
               />
-            ) : undefined}
+            ) : (
+              <QsSelector
+                fields={this.fields}
+                qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
+                value={this.qsValue}
+              />
+            )}
           </div>
           <div class='component-right'>
             {this.mode === EMode.ui && (
@@ -320,11 +344,9 @@ export default class RetrievalFilter extends tsc<IProps> {
                 <span class='icon-monitor icon-tongyishezhi' />
               </div>
             )}
-            {false && (
-              <div class='favorite-btn'>
-                <span class='icon-monitor icon-mc-uncollect' />
-              </div>
-            )}
+            <div class='favorite-btn'>
+              <span class='icon-monitor icon-mc-uncollect' />
+            </div>
             <div class='search-btn'>
               <span class='icon-monitor icon-mc-search' />
             </div>
