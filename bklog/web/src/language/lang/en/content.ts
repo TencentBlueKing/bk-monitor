@@ -1022,4 +1022,7 @@ export default {
   暂未匹配到符合条件的收藏项: 'No matching favorites have been found yet',
   '暂未设置常驻筛选，请点击左侧设置按钮':
     'No permanent filtering has been set, please click the settings button on the left',
+  展示空字段: 'Display empty fields',
+  '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
+    'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
 };

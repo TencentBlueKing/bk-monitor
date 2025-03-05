@@ -177,6 +177,118 @@ export default class UseTextSegmentation {
     return field?.is_analyzed ?? false;
   }
 
+  /**
+   * @description: 判断是否为虚拟对象字段, 字段来源：Object对象字段添加为列表字段
+   * @param {any} field
+   * @return {*}
+   */
+  private isVirtualObjField(field: any) {
+    return (field?.is_virtual_obj_node ?? false) && field?.field_type === 'object';
+  }
+
+  private convertVirtaulObjToArray() {
+    const target = this.options.data[this.options.field.field_name] ?? JSON.parse(this.options.content);
+    const convertObjToArray = (root: object, isValue = false) => {
+      const result = [];
+
+      if (typeof root === 'object') {
+        if (Array.isArray(root)) {
+          result.push({
+            text: '[',
+            isCursorText: false,
+            isMark: false,
+          });
+          result.push(root.map(child => convertObjToArray(child)));
+          result.push({
+            text: ']',
+            isCursorText: false,
+            isMark: false,
+          });
+
+          result.push({
+            text: ',',
+            isCursorText: false,
+            isMark: false,
+          });
+          return result;
+        }
+
+        result.push({
+          text: '{',
+          isCursorText: false,
+          isMark: false,
+        });
+
+        Object.entries(root).forEach(([key, value]) => {
+          result.push({
+            text: `"${key}":`,
+            isCursorText: false,
+            isMark: false,
+          });
+
+          result.push(...convertObjToArray(value, true));
+        });
+
+        const lastRow = result.at(-1);
+        if (lastRow?.text === ',') {
+          result.pop();
+        }
+
+        result.push({
+          text: '}',
+          isCursorText: false,
+          isMark: false,
+        });
+
+        result.push({
+          text: ',',
+          isCursorText: false,
+          isMark: false,
+        });
+        return result;
+      }
+
+      /** 检索高亮分词字符串 */
+      const markRegStr = '<mark>(.*?)</mark>';
+      const value = this.escapeString(`${root}`);
+      const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+      const isMark = new RegExp(markRegStr).test(value);
+
+      result.push({
+        text: '"',
+        isCursorText: false,
+        isMark: false,
+      });
+
+      result.push({
+        text: formatValue,
+        isCursorText: isValue,
+        isMark,
+      });
+
+      result.push({
+        text: '"',
+        isCursorText: false,
+        isMark: false,
+      });
+
+      result.push({
+        text: ',',
+        isCursorText: false,
+        isMark: false,
+      });
+      return result;
+    };
+
+    const output = convertObjToArray(target);
+    const lastRow = output.at(-1);
+    if (lastRow?.text === ',') {
+      output.pop();
+    }
+
+    return output;
+  }
+
   // Object.assign(item, { startIndex: start, endIndex: start + (text?.length ?? 0) });
   private splitParticipleWithStr(str: string, delimiterPattern: string) {
     if (!str) return [];
@@ -235,9 +347,15 @@ export default class UseTextSegmentation {
   }
 
   private getSplitList(field: any, content: any, forceSplit = false) {
+    debugger;
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
+
+    if (this.isVirtualObjField(field)) {
+      return this.convertVirtaulObjToArray();
+    }
+
     if (this.isAnalyzed(field) || forceSplit) {
       // 这里进来的都是开了分词的情况
       return this.splitParticipleWithStr(value, this.getCurrentFieldRegStr(field));

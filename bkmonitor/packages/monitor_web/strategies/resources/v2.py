@@ -6,6 +6,7 @@ import re
 import time
 import typing
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from functools import reduce
 from itertools import chain, product, zip_longest
@@ -772,6 +773,23 @@ class GetStrategyListV2Resource(Resource):
         return user_group_list
 
     @staticmethod
+    def get_alert_search_result(bk_biz_id, strategy_ids):
+        search_object = (
+            AlertDocument.search(all_indices=True)
+            .filter("term", **{"event.bk_biz_id": bk_biz_id})
+            .filter("term", status=EventStatus.ABNORMAL)
+            .filter("terms", strategy_id=strategy_ids)[:0]
+        )
+        # 构建ES聚合查询
+        # 按strategy_id分桶,size=10000表示最多返回10000个桶
+        # 每个strategy_id桶下再按is_shielded字段分桶,统计屏蔽和未屏蔽的告警数量
+        search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000).bucket(
+            "shield_status", "terms", field="is_shielded", size=10000
+        )
+        search_result = search_object.execute()
+        return search_result
+
+    @staticmethod
     def get_action_config_list(strategy_ids: List[int], bk_biz_id: int):
         """
         按告警处理组统计策略数量
@@ -972,9 +990,10 @@ class GetStrategyListV2Resource(Resource):
             )
         return algorithm_type_list
 
-    def fill_metric_info(self, bk_biz_id: int, strategies: List[Dict]):
+    @staticmethod
+    def get_metric_info(bk_biz_id: int, strategies: List[Dict]):
         """
-        补充策略相关指标信息
+        获取策略相关指标信息
         """
         query_tuples = set()
 
@@ -1062,7 +1081,7 @@ class GetStrategyListV2Resource(Resource):
             )
 
         if not queries:
-            return
+            return {}
 
         metrics = MetricListCache.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).filter(
             reduce(lambda x, y: x | y, queries)
@@ -1070,36 +1089,54 @@ class GetStrategyListV2Resource(Resource):
 
         metric_dicts = {get_metric_id(**metric.__dict__): metric for metric in metrics}
 
-        # 补充策略指标信息
-        for strategy in strategies:
-            item = strategy["items"][0]
-            for query_config in item["query_configs"]:
-                metric_id = get_metric_id(**query_config)
-                if metric_id in metric_dicts:
-                    query_config["name"] = metric_dicts[metric_id].metric_field_name
-                else:
-                    query_config["name"] = (
-                        query_config.get("metric_field")
-                        or query_config.get("custom_event_name")
-                        or query_config.get("bkmonitor_strategy_id")
-                        or query_config.get("alert_name")
-                        or query_config.get("result_table_id", "")
-                    )
+        return metric_dicts
 
-    def fill_shield_info(self, bk_biz_id, strategies: List[Dict], strategy_shield_info: Dict = None):
+    @staticmethod
+    def fill_metric_info(strategy: Dict, metric_info: Dict):
         """
-        补充策略屏蔽状态
+        补充策略相关指标信息
         """
-        strategy_ids = [strategy["id"] for strategy in strategies]
-        if strategy_shield_info is None:
-            strategy_shield_info = self.get_shield_info(strategy_ids, bk_biz_id)
-        for strategy in strategies:
-            strategy["shield_info"] = strategy_shield_info.get(strategy["id"])
+        item = strategy["items"][0]
+        for query_config in item["query_configs"]:
+            metric_id = get_metric_id(**query_config)
+            if metric_id in metric_info:
+                query_config["name"] = metric_info[metric_id].metric_field_name
+            else:
+                query_config["name"] = (
+                    query_config.get("metric_field")
+                    or query_config.get("custom_event_name")
+                    or query_config.get("bkmonitor_strategy_id")
+                    or query_config.get("alert_name")
+                    or query_config.get("result_table_id", "")
+                )
 
-    def fill_allow_target(self, strategies: List[Dict]):
+    @staticmethod
+    def fill_allow_target(strategy: Dict, target_strategy_mapping):
         """
         补充是否允许增删目标
         """
+        target = target_strategy_mapping.get(strategy["id"])
+        algorithms = strategy["items"][0]["algorithms"]
+        algorithm = algorithms[0] if algorithms else {}
+        strategy["add_allowed"] = (target != DataTarget.NONE_TARGET) or (
+            algorithm.get("type") == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection
+        )
+
+    @staticmethod
+    def fill_data_source_type(strategy_config, data_source_names):
+        """
+        补充数据源类型
+        """
+        data_source_label = strategy_config["items"][0]["query_configs"][0]["data_source_label"]
+        data_type_label = strategy_config["items"][0]["query_configs"][0]["data_type_label"]
+        strategy_config["data_source_type"] = data_source_names.get((data_source_label, data_type_label), "")
+
+    @staticmethod
+    def get_target_strategy_mapping(strategies: List[Dict]):
+        """
+        根据策略列表获取目标策略映射
+        """
+        target_strategy_mapping = {}
 
         for strategy in strategies:
             query_config = strategy["items"][0]["query_configs"][0]
@@ -1109,18 +1146,18 @@ class GetStrategyListV2Resource(Resource):
                 data_source_label=query_config["data_source_label"],
                 data_type_label=query_config["data_type_label"],
             )
-            algorithms = strategy["items"][0]["algorithms"]
-            algorithm = algorithms[0] if algorithms else {}
-            strategy["add_allowed"] = (target != DataTarget.NONE_TARGET) or (
-                algorithm.get("type") == AlgorithmModel.AlgorithmChoices.MultivariateAnomalyDetection
-            )
+
+            target_strategy_mapping[strategy["id"]] = target
+
+        return target_strategy_mapping
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
 
         # 按条件过滤策略
-        strategies = self.filter_by_conditions(params["conditions"], strategies, bk_biz_id)
+        if params["conditions"]:
+            strategies = self.filter_by_conditions(params["conditions"], strategies, bk_biz_id)
 
         # 在过滤监控对象前统计数量
         scenario_list = self.get_scenario_list(strategies)
@@ -1141,14 +1178,16 @@ class GetStrategyListV2Resource(Resource):
 
         # 统计其他分类数量
         strategy_ids = list(strategies.values_list("id", flat=True).distinct())
-        user_group_list = self.get_user_group_list(strategy_ids, bk_biz_id)
-        action_config_list = self.get_action_config_list(strategy_ids, bk_biz_id)
-        data_source_list = self.get_data_source_list(strategy_ids)
-        strategy_label_list = self.get_strategy_label_list(strategy_ids, bk_biz_id)
-        strategy_status_list = self.get_strategy_status_list(strategy_ids, bk_biz_id)
-        alert_level_list = self.get_alert_level_list(strategy_ids)
-        invalid_type_list = self.get_invalid_type_list(strategy_ids)
-        algorithm_type_list = self.get_algorithm_type_list(strategy_ids)
+
+        executor = ThreadPoolExecutor()
+        user_group_list_future = executor.submit(self.get_user_group_list, strategy_ids, bk_biz_id)
+        action_config_list_future = executor.submit(self.get_action_config_list, strategy_ids, bk_biz_id)
+        data_source_list_future = executor.submit(self.get_data_source_list, strategy_ids)
+        strategy_label_list_future = executor.submit(self.get_strategy_label_list, strategy_ids, bk_biz_id)
+        strategy_status_list_future = executor.submit(self.get_strategy_status_list, strategy_ids, bk_biz_id)
+        alert_level_list_future = executor.submit(self.get_alert_level_list, strategy_ids)
+        invalid_type_list_future = executor.submit(self.get_invalid_type_list, strategy_ids)
+        algorithm_type_list_future = executor.submit(self.get_algorithm_type_list, strategy_ids)
 
         # 统计总数
         total = strategies.count()
@@ -1177,45 +1216,53 @@ class GetStrategyListV2Resource(Resource):
             else:
                 strategy_config["config_source"] = "UI"
 
-        # 统计策略告警数量
-        search_object = (
-            AlertDocument.search(all_indices=True)
-            .filter("term", **{"event.bk_biz_id": bk_biz_id})
-            .filter("term", status=EventStatus.ABNORMAL)
-            .filter("terms", strategy_id=[strategy_config["id"] for strategy_config in strategy_configs])[:0]
-        )
-        search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000).bucket(
-            "shield_status", "terms", field="is_shielded", size=10000
-        )
-        search_result = search_object.execute()
+        strategy_ids = [strategy_config["id"] for strategy_config in strategy_configs]
 
+        # 查询ES，统计策略告警数量
+        search_result_future = executor.submit(self.get_alert_search_result, bk_biz_id, strategy_ids)
+        metric_info_future = executor.submit(self.get_metric_info, bk_biz_id, strategy_configs)
+        target_strategy_mapping_future = executor.submit(self.get_target_strategy_mapping, strategy_configs)
+        strategy_shield_info_future = executor.submit(self.get_shield_info, strategy_ids, bk_biz_id)
+
+        # 获取到ES查询结果
+        search_result = search_result_future.result()
         strategy_alert_counts = defaultdict(dict)
         if search_result.aggs:
             for strategy_bucket in search_result.aggs.strategy_id.buckets:
                 strategy_alert_counts[strategy_bucket.key]["alert_count"] = strategy_bucket.doc_count
                 for shield_bucket in strategy_bucket.shield_status:
                     strategy_alert_counts[strategy_bucket.key][shield_bucket.key_as_string] = shield_bucket.doc_count
-
-        for strategy_config in strategy_configs:
-            strategy_config["alert_count"] = strategy_alert_counts.get(str(strategy_config["id"]), {}).get("false", 0)
-            strategy_config["shield_alert_count"] = strategy_alert_counts.get(str(strategy_config["id"]), {}).get(
-                "true", 0
-            )
-
-        # 补充策略相关指标信息
-        self.fill_metric_info(bk_biz_id=params["bk_biz_id"], strategies=strategy_configs)
-        self.fill_shield_info(bk_biz_id=params["bk_biz_id"], strategies=strategy_configs)
-        self.fill_allow_target(strategies=strategy_configs)
-
-        # 补充策略所属数据源
         data_source_names = {
             (category["data_source_label"], category["data_type_label"]): category["name"] for category in DATA_CATEGORY
         }
 
+        metric_info = metric_info_future.result()
+        target_strategy_mapping = target_strategy_mapping_future.result()
+        strategy_shield_info = strategy_shield_info_future.result()
+
         for strategy_config in strategy_configs:
-            data_source_label = strategy_config["items"][0]["query_configs"][0]["data_source_label"]
-            data_type_label = strategy_config["items"][0]["query_configs"][0]["data_type_label"]
-            strategy_config["data_source_type"] = data_source_names.get((data_source_label, data_type_label), "")
+            # 补充告警数量
+            strategy_config["alert_count"] = strategy_alert_counts.get(str(strategy_config["id"]), {}).get("false", 0)
+            # 补充屏蔽告警数量
+            strategy_config["shield_alert_count"] = strategy_alert_counts.get(str(strategy_config["id"]), {}).get(
+                "true", 0
+            )
+            # 补充策略屏蔽状态
+            strategy_config["shield_info"] = strategy_shield_info.get(strategy_config["id"])
+            self.fill_metric_info(strategy_config, metric_info)
+            self.fill_allow_target(strategy_config, target_strategy_mapping)
+            self.fill_data_source_type(strategy_config, data_source_names)
+
+        user_group_list = user_group_list_future.result()
+        action_config_list = action_config_list_future.result()
+        data_source_list = data_source_list_future.result()
+        strategy_label_list = strategy_label_list_future.result()
+        strategy_status_list = strategy_status_list_future.result()
+        alert_level_list = alert_level_list_future.result()
+        invalid_type_list = invalid_type_list_future.result()
+        algorithm_type_list = algorithm_type_list_future.result()
+        # 等待线程执行完成，并关闭线程池
+        executor.shutdown(wait=True)
 
         return {
             "scenario_list": scenario_list,

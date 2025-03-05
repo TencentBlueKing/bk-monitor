@@ -20,10 +20,11 @@ export const addCustomMetric = request('POST', 'rest/v2/custom_metric_report/add
 export const getCustomTsFields = request('GET', 'rest/v2/custom_metric_report/get_custom_ts_fields/');
 export const modifyCustomTsFields = request('POST', 'rest/v2/custom_metric_report/modify_custom_ts_fields/');
 export const createOrUpdateGroupingRule = request('POST', 'rest/v2/custom_metric_report/create_or_update_grouping_rule/');
-export const modifyCustomTsGroupingRuleList = request('POST', 'rest/v2/custom_metric_report/modify_custom_ts_grouping_rule_list/');
 export const customTsGroupingRuleList = request('GET', 'rest/v2/custom_metric_report/custom_ts_grouping_rule_list/');
 export const previewGroupingRule = request('POST', 'rest/v2/custom_metric_report/preview_grouping_rule/');
 export const deleteGroupingRule = request('POST', 'rest/v2/custom_metric_report/delete_grouping_rule/');
+export const updateGroupingRuleOrder = request('POST', 'rest/v2/custom_metric_report/update_grouping_rule_order/');
+export const modifyCustomTsGroupingRuleList = request('POST', 'rest/v2/custom_metric_report/modify_custom_ts_grouping_rule_list/');
 export const getCustomTimeSeriesLatestDataByFields = request('POST', 'rest/v2/custom_metric_report/get_custom_time_series_latest_data_by_fields/');
 export const modifyCustomTimeSeriesDesc = request('POST', 'rest/v2/custom_metric_report/modify_custom_time_series_desc/');
 
@@ -48,10 +49,11 @@ export default {
   getCustomTsFields,
   modifyCustomTsFields,
   createOrUpdateGroupingRule,
-  modifyCustomTsGroupingRuleList,
   customTsGroupingRuleList,
   previewGroupingRule,
   deleteGroupingRule,
+  updateGroupingRuleOrder,
+  modifyCustomTsGroupingRuleList,
   getCustomTimeSeriesLatestDataByFields,
   modifyCustomTimeSeriesDesc,
 };

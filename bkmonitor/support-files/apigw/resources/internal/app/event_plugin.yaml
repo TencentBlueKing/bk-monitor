@@ -1,0 +1,27 @@
+swagger: '2.0'
+basePath: /
+info:
+  version: '1.0'
+  title: API Gateway Resources
+  description: ''
+schemes:
+- http
+paths:
+  /app/event_plugin/deploy_event_plugin/:
+    post:
+      operationId: deploy_event_plugin
+      description: 部署告警源插件
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/event_plugin/deploy_event_plugin/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: deploy event plugin

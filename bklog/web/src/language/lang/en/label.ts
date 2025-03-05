@@ -732,4 +732,6 @@ export default {
   覆盖当前收藏: 'Cover current favorites',
   另存为新收藏: 'Save as a new favorite',
   '日用量/总用量': 'Daily Usage/Total Usage',
+  'JSON 字段动态新增': 'JSON field dynamically added',
+  对象: 'Object',
 };

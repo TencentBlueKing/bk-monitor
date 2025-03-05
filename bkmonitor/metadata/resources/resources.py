@@ -1920,33 +1920,36 @@ class KafkaTailResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_data_id = validated_request_data.get("bk_data_id")
+        result_table = None
+
+        # 参数处理,result_table / datasource
         if bk_data_id:
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
+            datasource = models.DataSource.objects.get(bk_data_id=bk_data_id)
             try:
                 table_id = models.DataSourceResultTable.objects.get(bk_data_id=bk_data_id).table_id
+                result_table = models.ResultTable.objects.get(table_id=table_id)
             except models.DataSourceResultTable.DoesNotExist:
-                raise ValidationError(_("数据源关联的结果表不存在"))
+                logger.error("KafkaTailResource: bk_data_id->[%s] not found table_id,try to tail kafka", bk_data_id)
+
         else:
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
-
-        try:
             result_table = models.ResultTable.objects.get(table_id=table_id)
-        except models.ResultTable.DoesNotExist:
-            raise ValidationError(_("结果表不存在"))
+            datasource = result_table.data_source
 
-        datasource = result_table.data_source
         size = validated_request_data["size"]
         mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
 
-        # 若Kafka集群注册自计算平台，说明使用2.4+鉴权，使用confluent_kafka库
-        if mq_ins.registered_system == models.ClusterInfo.BKDATA_REGISTERED_SYSTEM:
+        # Kafka是否需要进行鉴权,如SCRAM-SHA-512协议
+        if mq_ins.is_auth:
             result = self._consume_with_confluent_kafka(mq_ins, datasource, size)
-        # 查询 ds 判断是否是v4协议接入
+        # 是否是V4数据链路
         elif datasource.datalink_version == DATA_LINK_V4_VERSION_NAME:
-            if settings.ENABLE_BKDATA_KAFKA_TAIL_API:  # 若开启特性开关，则V4数据源使用BkBase侧的Kafka采样接口拉取数据
-                logger.info("KafkaTailResource: using bkdata kafka tail api,table_id->[%s]", result_table.table_id)
-
+            # 若开启特性开关且存在RT且非日志数据，则V4链路使用BkBase侧的Kafka采样接口拉取数据
+            if settings.ENABLE_BKDATA_KAFKA_TAIL_API and result_table and datasource.etl_config != 'bk_flat_batch':
+                logger.info("KafkaTailResource: using bkdata kafka tail api,bk_data_id->[%s]", datasource.bk_data_id)
+                # TODO: 获取计算平台数据名称,待数据一致性实现后,统一通过BkBaseResultTable获取,不再进行复杂转换
                 vm_record = models.AccessVMRecord.objects.get(result_table_id=result_table.table_id)
                 data_id_name = vm_record.bk_base_data_name
                 namespace = validated_request_data["namespace"]
@@ -1977,8 +1980,8 @@ class KafkaTailResource(Resource):
             'group.id': f'bkmonitor-{uuid.uuid4()}',
             'session.timeout.ms': 6000,
             'auto.offset.reset': 'latest',
-            'security.protocol': mq_ins.schema,
-            'sasl.mechanisms': mq_ins.ssl_verification_mode,
+            'security.protocol': mq_ins.security_protocol,
+            'sasl.mechanisms': mq_ins.sasl_mechanisms,
             'sasl.username': datasource.mq_cluster.username,
             'sasl.password': datasource.mq_cluster.password,
         }
