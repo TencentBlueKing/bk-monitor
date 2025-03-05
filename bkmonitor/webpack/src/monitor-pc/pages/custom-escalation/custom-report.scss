@@ -117,4 +117,37 @@
     border-left: 1px solid $defaultBorderColor;
     border-radius: 0 0 2px 2px;
   }
+  .content-left-operator{
+    .bk-button-group-capsule{
+      background: #F0F1F5;
+      border-radius: 2px;
+      width: 152px;
+      height: 32px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      .bk-button-container{
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        flex: 1;
+      }
+      .bk-button{
+        background-color: transparent;
+        border: 0;
+        width: 72px;
+        height: 24px;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+      }
+      .bk-button.is-selected{
+        background: #FFFFFF;
+        border-radius: 2px;
+      }      
+    }
+  }
 }

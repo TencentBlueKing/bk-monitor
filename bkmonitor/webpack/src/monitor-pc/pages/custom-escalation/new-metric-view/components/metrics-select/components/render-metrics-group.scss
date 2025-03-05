@@ -1,0 +1,52 @@
+.new-metric-view-metrics-group {
+  padding: 24px 16px;
+  height: calc(100% - 100px);
+  overflow-y: auto;
+  .metrics-select-box {
+    & ~ .metrics-select-box {
+      margin-top: 6px;
+    }
+  }
+  .metrics-select-item-header {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    height: 20px;
+    color: #313238;
+    cursor: pointer;
+    .icon-monitor {
+      margin-right: 6px;
+      color: #979ba5;
+    }
+  }
+  .metrics-select-item-header-count {
+    margin-left: auto;
+    color: #a3b1cc;
+    font-weight: bold;
+    font-size: 12px;
+  }
+  .metrics-select-item-content {
+    position: relative;
+    padding-left: 22px;
+    margin-top: 8px;
+    &:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 7px;
+      top: 0;
+      width: 1px;
+      background: #dcdee5;
+    }
+  }
+  .metrics-select-item-content-item {
+    display: flex;
+    align-items: center;
+    height: 32px;
+  }
+
+  .bk-checkbox-text {
+    font-size: 12px;
+    color: #313238;
+  }
+}

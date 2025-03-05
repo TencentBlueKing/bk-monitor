@@ -512,15 +512,18 @@ class GraphDrillDownResource(Resource):
         dimensions = serializers.DictField(label="维度值")
 
         # 值
-        value = serializers.IntegerField(label="当前值")
+        value = serializers.FloatField(label="当前值")
+
+        # 占比
+        percentage = serializers.FloatField(label="占比(%)")
 
         class CompareValueSerializer(serializers.Serializer):
             # 对比值
-            value = serializers.IntegerField(label="对比值")
+            value = serializers.FloatField(label="对比值")
             # 对比值的维度
             offset = serializers.CharField(label="偏移量")
             # 波动值
-            fluctuation = serializers.IntegerField(label="波动值")
+            fluctuation = serializers.FloatField(label="波动值(%)")
 
         # 对比
         compare_values = serializers.ListField(label="对比", default=[], child=CompareValueSerializer())

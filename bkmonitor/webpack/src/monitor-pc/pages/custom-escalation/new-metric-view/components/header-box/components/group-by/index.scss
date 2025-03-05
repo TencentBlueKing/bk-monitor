@@ -1,0 +1,45 @@
+.new-metric-view-group-by {
+  border-bottom: 1px solid #dcdee5;
+
+  .wrapper {
+    display: inline-flex;
+    min-width: 225px;
+    padding-right: 25px;
+  }
+  .label {
+    height: 34px;
+    background-color: #ebeef5;
+    font-size: 12px;
+    color: #313238;
+    font-weight: 500;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border-right: 1px solid #dcdee5;
+  }
+
+  .value-wrapper {
+    display: flex;
+    padding-bottom: 6px;
+    .value-item {
+      display: flex;
+      align-items: center;
+      height: 22px;
+      border-radius: 2px;
+      background-color: #f0f1f5;
+      padding: 0 2px;
+      cursor: pointer;
+      margin-top: 6px;
+      margin-left: 6px;
+      &:hover {
+        background: #dde4eb;
+      }
+    }
+    .split-flag {
+      font-size: 12px;
+      margin-right: 2px;
+    }
+  }
+}

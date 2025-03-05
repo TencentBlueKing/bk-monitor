@@ -1,0 +1,68 @@
+.compare-type-time-edit-offset {
+  margin-left: 6px;
+  display: flex;
+  align-items: center;
+  .result-list {
+    display: flex;
+    .offset-tag {
+      display: flex;
+      height: 22px;
+      padding: 0 4px;
+      align-items: center;
+      justify-content: center;
+      background: #f0f1f5;
+      border-radius: 2px;
+      margin-right: 4px;
+    }
+    .remove-btn {
+      cursor: pointer;
+      padding-left: 4px;
+    }
+  }
+  .append-btn {
+    display: flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: #e1ecff;
+    border-radius: 2px;
+    color: #3a84ff;
+    align-self: center;
+    transition: background 0.15s ease-in-out;
+    .icon-monitor {
+      pointer-events: none;
+    }
+    &:hover {
+      background: #cddffe;
+    }
+  }
+}
+
+.tippy-tooltip.compare-type-time-edit-offset-theme {
+  padding: 0;
+  .wrapper {
+    padding: 8px 0;
+    background: #fff;
+  }
+  .time-item {
+    height: 32px;
+    line-height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    color: #4d4f56;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    &:hover {
+      background: #f5f7fa;
+    }
+    .bk-form-checkbox {
+      flex: 1;
+    }
+    .bk-checkbox {
+      margin-right: 6px;
+    }
+  }
+}

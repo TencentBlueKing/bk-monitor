@@ -1,0 +1,35 @@
+.filter-conditions-commonly-used-edit-box {
+  height: 32px;
+  background: #ffffff;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  padding-left: 6px;
+  min-width: 180px;
+  overflow: hidden;
+
+  & ~ .filter-conditions-commonly-used-edit-box {
+    margin-left: 4px;
+  }
+
+  .conditions-key {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .conditions-option {
+    color: #3a84ff;
+    padding: 0 4px 0 2px;
+  }
+
+  .conditions-value {
+    max-width: 200px;
+    flex: 1;
+
+    .bk-tag-input {
+      border: none;
+    }
+  }
+}
