@@ -377,7 +377,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * @param {IEventItem} row
    * @return {*}
    */
-  handleOperate(v: 'delete' | 'view', row: IEventItem) {
+  handleOperate(v: 'delete' | 'view' | 'manage', row: IEventItem) {
     const toView = {
       [CUSTOM_EVENT]: () => {
         this.$router.push({
@@ -417,6 +417,9 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     switch (v) {
       case 'view':
         toView[this.getRouterName]();
+        break;
+      case 'manage':
+        this.handleGotoDetail(row);
         break;
       case 'delete':
         this.$bkInfo({
@@ -534,15 +537,17 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
-              <div class='bk-button-group'>
+              <div class='bk-button-group bk-button-group-capsule'>
                 {filterTypes.map(item => (
-                  <bk-button
-                    key={item.id}
-                    class={this.filterType === item.id ? 'is-selected' : ''}
-                    onClick={() => this.handleFilterTypeChange(item.id)}
-                  >
-                    {item.name}
-                  </bk-button>
+                  <div class="bk-button-container">
+                    <bk-button
+                      key={item.id}
+                      class={this.filterType === item.id ? 'is-selected' : ''}
+                      onClick={() => this.handleFilterTypeChange(item.id)}
+                    >
+                      {item.name}
+                    </bk-button>
+                  </div>
                 ))}
               </div>
               <bk-input
@@ -570,7 +575,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                       ) : (
                         <span
                           class='col-btn'
-                          onClick={() => this.handleGotoDetail(row)}
+                          onClick={() => this.handleOperate('view', row)}
                         >
                           {row.name}
                         </span>
@@ -608,6 +613,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                       options={{
                         outside: [
                           { id: 'view', name: window.i18n.tc('可视化'), authority: true },
+                          { id: 'manage', name: window.i18n.tc('管理'), authority: true },
                           {
                             id: 'delete',
                             name: window.i18n.tc('删除'),
@@ -618,7 +624,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                           },
                         ],
                       }}
-                      onOptionClick={(v: 'delete' | 'view') => this.handleOperate(v, row)}
+                      onOptionClick={(v: 'delete' | 'view' | 'manage') => this.handleOperate(v, row)}
                     />
                   ),
                 }}
