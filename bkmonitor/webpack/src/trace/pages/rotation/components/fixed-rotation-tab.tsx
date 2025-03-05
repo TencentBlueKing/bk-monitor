@@ -28,30 +28,17 @@ import { useI18n } from 'vue-i18n';
 
 import { Button, DatePicker, Select } from 'bkui-vue';
 import { random } from 'lodash';
+import { RotationSelectTypeEnum, WeekDataList } from 'monitor-common/rotation-utils/common';
+import { validTimeOverlap } from 'monitor-common/rotation-utils/utils';
 
 import MemberSelect from '../../../components/member-select/member-select';
-import { RotationSelectTypeEnum, WeekDataList } from '../typings/common';
-import { validTimeOverlap } from '../utils';
 import CalendarSelect from './calendar-select';
 import FormItem from './form-item';
 import TimeTagPicker from './time-tag-picker';
 
-import './fixed-rotation-tab.scss';
+import type { FixedDataModel } from 'monitor-common/rotation-utils/typings';
 
-export interface FixedDataModel {
-  id?: number;
-  key: number;
-  type:
-    | RotationSelectTypeEnum.Daily
-    | RotationSelectTypeEnum.DateRange
-    | RotationSelectTypeEnum.Monthly
-    | RotationSelectTypeEnum.Weekly;
-  workDays: (number | string)[];
-  workDateRange: [];
-  workTime: string[][];
-  orderIndex: number;
-  users: { type: 'group' | 'user'; id: string }[];
-}
+import './fixed-rotation-tab.scss';
 
 export default defineComponent({
   name: 'FixedRotationTab',
@@ -172,12 +159,14 @@ export default defineComponent({
                   class='date-type-select'
                   v-model={item.type}
                   clearable={false}
+                  filterable={false}
                   onChange={() => this.handleDateTypeChange(item)}
                 >
                   {this.typeList.map(type => (
                     <Select.Option
-                      label={type.label}
-                      value={type.value}
+                      id={type.value}
+                      key={type.value}
+                      name={type.label}
                     />
                   ))}
                 </Select>
@@ -191,8 +180,9 @@ export default defineComponent({
                   >
                     {WeekDataList.map(week => (
                       <Select.Option
-                        label={week.label}
-                        value={week.id}
+                        id={week.id}
+                        key={week.id}
+                        name={week.label}
                       />
                     ))}
                   </Select>
