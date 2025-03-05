@@ -8,7 +8,7 @@
   import { isEqual } from 'lodash';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-
+  import warnTable from '@/global/warn-table.vue';
   import SelectIndexSet from '../condition-comp/select-index-set.tsx';
   import { getInputQueryIpSelectItem } from '../search-bar/const.common';
   import QueryHistory from '../search-bar/query-history';
@@ -147,6 +147,7 @@
     <div class="box-right-option">
       <VersionSwitch version="v2" />
       <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
+      <warnTable></warnTable>
       <TimeSetting></TimeSetting>
       <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
       <div
