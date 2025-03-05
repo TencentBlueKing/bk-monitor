@@ -25,15 +25,10 @@
  */
 
 import { defineComponent } from 'vue';
-import V3Toolbar from './toolbar';
 
 export default defineComponent({
-  name: 'retrieve-v3',
+  name: 'v3-toolbar',
   setup() {
-    return () => (
-      <div>
-        <V3Toolbar></V3Toolbar>RetrieveV3
-      </div>
-    );
+    return () => <div>v3-toolbar</div>;
   },
 });
