@@ -4,6 +4,7 @@
   import { useRoute } from 'vue-router/composables';
 
   const retrieveV2 = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-v2');
+  const retrieveV3 = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve-v3');
   const retrieve = () => import(/* webpackChunkName: 'logRetrieve' */ '@/views/retrieve');
   const route = useRoute();
 
@@ -14,6 +15,10 @@
       if (version === 'v1') {
         return retrieve;
       }
+    }
+
+    if (route.query.version === 'v3') {
+      return retrieveV3;
     }
 
     return retrieveV2;
