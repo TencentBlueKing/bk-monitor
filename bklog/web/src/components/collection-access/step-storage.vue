@@ -121,6 +121,11 @@
           :disabled="!selectedStorageCluster.enable_hot_warm"
           data-test-id="storageBox_select_selectHotData"
         >
+        <template #trigger>
+            <div class="bk-select-name">
+              {{ formData.allocation_min_days + $t('天') }}
+            </div>
+          </template>
           <template>
             <bk-option
               v-for="(option, index) in hotDataDaysList"

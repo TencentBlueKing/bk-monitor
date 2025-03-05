@@ -139,8 +139,12 @@ class RouteUrlResolver {
   }
 
   private additionResolver(str) {
-    return this.commonResolver(str, val => {
-      return (JSON.parse(decodeURIComponent(val)) ?? []).map(val => {
+    return this.commonResolver(str, value => {
+      if (value === undefined || value === null || value === '') {
+        return [];
+      }
+
+      return (JSON.parse(decodeURIComponent(value)) ?? []).map(val => {
         const instance = new ConditionOperator(val);
         return instance.formatApiOperatorToFront();
       });

@@ -36,19 +36,8 @@ import './new-home.scss';
   name: 'NewHome',
 })
 export default class NewHome extends tsc<object> {
-  @Ref('homeSelect') homeSelectRef!: HomeSelect;
-
   get computedWidth() {
     return window.innerWidth < 2560 ? 1200 : 1360;
-  }
-  mounted() {
-    window.addEventListener('keydown', this.handleKeydown);
-  }
-  beforeDestroy() {
-    window.removeEventListener('keydown', this.handleKeydown);
-  }
-  handleKeydown(e: KeyboardEvent) {
-    e.key === '/' && this.homeSelectRef.handleInputFocus();
   }
   render() {
     return (
