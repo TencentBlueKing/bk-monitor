@@ -12,6 +12,7 @@ import copy
 from datetime import datetime
 from typing import Any, Dict, List, Union
 
+from dateutil import parser
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
@@ -608,11 +609,10 @@ class UnifyQueryHandler(object):
         if isinstance(params["start_time"], int) and isinstance(params["end_time"], int):
             return params["start_time"], params["end_time"]
 
-        date_format = '%Y-%m-%d %H:%M:%S'
-        dt1 = datetime.strptime(params["start_time"], date_format)
-        dt2 = datetime.strptime(params["end_time"], date_format)
-        params["start_time"] = int(dt1.timestamp())
-        params["end_time"] = int(dt2.timestamp())
+        dt1 = parser.parse(params["start_time"])
+        dt2 = parser.parse(params["end_time"])
+        params["start_time"] = int(dt1.timestamp() * 1000)
+        params["end_time"] = int(dt2.timestamp() * 1000)
         return params["start_time"], params["end_time"]
 
     @staticmethod
