@@ -89,10 +89,36 @@ class MetricHandler:
         except AttributeError:
             return self.application[item]
 
+    def get_metric_ident(self, metric_result_table_id):
+        if metric_result_table_id is None:
+            logger.exception(
+                f"【MetricHandler】metric_result_table_id of application[{self.application.application_id}] "
+                f"is not found or is None."
+            )
+            raise ValueError(
+                f"【MetricHandler】metric_result_table_id of application[{self.application.application_id}] "
+                f"is not found or is None."
+            )
+
+        parts = metric_result_table_id.split(".")
+        if len(parts) < 2:
+            logger.exception(
+                f"【MetricHandler】metric_result_table_id of application[{self.application.application_id}] "
+                f"does not contain the expected format."
+            )
+            raise ValueError(
+                f"【MetricHandler】metric_result_table_id of application[{self.application.application_id}] "
+                f"does not contain the expected format."
+            )
+
+        result = parts[0]
+        return result
+
     def _unify_query_params(self):
         """获取 GraphUnifyQuery 接口查询参数"""
         interval = self.interval
-        database_name, _ = self._get_app_attr("metric_result_table_id").split(".")
+        metric_result_table_id = self._get_app_attr("metric_result_table_id")
+        database_name = self.get_metric_ident(metric_result_table_id)
 
         extra_param = {}
         if interval:
@@ -134,7 +160,8 @@ class MetricHandler:
 
     def _datasource_query_params(self, instant):
         """获取 DataSource 查询参数"""
-        database_name, _ = self._get_app_attr("metric_result_table_id").split(".")
+        metric_result_table_id = self._get_app_attr("metric_result_table_id")
+        database_name = self.get_metric_ident(metric_result_table_id)
 
         extra_param = {}
         if instant:
@@ -377,7 +404,8 @@ class PromqlInstanceQueryMixin(MetricHandler):
         }
 
     def _build_promql(self, interval):
-        table_id, _ = self._get_app_attr("metric_result_table_id").split(".")
+        metric_result_table_id = self._get_app_attr("metric_result_table_id")
+        table_id = self.get_metric_ident(metric_result_table_id)
 
         group_by = ""
         if self.group_by:
