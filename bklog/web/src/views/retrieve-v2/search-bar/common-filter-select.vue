@@ -7,6 +7,7 @@
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
   import { getOperatorKey } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
+  import useFieldEgges from './use-field-egges';
   const { $t } = useLocale();
   const store = useStore();
 
@@ -129,7 +130,13 @@
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+    const { requestFieldEgges } = useFieldEgges();
+    requestFieldEgges(item, value, resp => {
+      if (typeof resp === 'boolean') {
+        return;
+      }
+      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+    });
   };
 
   // 新建提交逻辑
