@@ -1,0 +1,226 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, Ref, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import KeySelect from './panel-key-select';
+import ValueSelect from './panel-value-select';
+
+import './edit-panel.scss';
+
+export interface IValue {
+  key: string;
+  method: string;
+  value: string[];
+  condition: string;
+}
+
+export interface IMetrics {
+  alias: string;
+  metric_name: string;
+  dimensions: {
+    alias: string;
+    name: string;
+  }[];
+}
+
+interface IProps {
+  value?: IValue;
+  metricsList: IMetrics[];
+}
+
+interface IEmit {
+  onChange: (value: IProps['value']) => void;
+}
+
+const genDefaultVallue = (payload: Partial<IProps['value']> = {}) => ({
+  key: payload.key || '',
+  method: payload.method || 'eq',
+  value: [...(payload.value || [])],
+  condition: payload.condition || 'and',
+});
+
+let triggerHandler: HTMLElement;
+let instance: any;
+
+@Component
+export default class ValueEditPanel extends tsc<IProps, IEmit> {
+  @Prop({ type: Object, default: genDefaultVallue }) readonly value: IProps['value'];
+  @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
+
+  @Ref('rootRef') rootRef: HTMLDivElement;
+  @Ref('popoverRef') popoverRef: HTMLDivElement;
+
+  currentKey = '';
+  localValue: IProps['value'] = genDefaultVallue();
+
+  // 实例方法，外部通过实例调用
+  show(handlerEl: HTMLElement) {
+    if (instance) {
+      if (triggerHandler === handlerEl) {
+        return;
+      } else {
+        instance.hide();
+        instance.destroy();
+        instance = undefined;
+      }
+    }
+
+    triggerHandler = handlerEl;
+    // 延迟创建实例，避免在前一个实例未销毁时重复创建实例导致冲突
+    setTimeout(() => {
+      instance = this.$bkPopover(handlerEl, {
+        content: this.popoverRef,
+        allowHTML: true,
+        arrow: false,
+        placement: 'bottom-start',
+        theme: 'light filter-conditions-value-edit-panel',
+        interactive: true,
+        animation: 'slide-toggle',
+        zIndex: 1000,
+        distance: 16,
+        trigger: 'manual',
+        hideOnClick: false,
+        onHidden: () => {
+          if (instance) {
+            instance.destroy();
+            instance = undefined;
+          }
+        },
+      });
+      this.localValue = genDefaultVallue(this.value);
+      instance.show();
+    });
+  }
+
+  handleMethodChange(value: string) {
+    this.localValue.method = value;
+  }
+  handleValueChange(value: string[]) {
+    this.localValue.value = value;
+  }
+
+  handleConfirm() {
+    if (this.localValue.value.length > 0) {
+      this.$emit('change', {
+        ...this.localValue,
+      });
+    }
+
+    instance.hide();
+    instance.destroy();
+  }
+
+  handleCancel() {
+    instance.hide();
+    instance.destroy();
+  }
+
+  handleQuickOperation(event: KeyboardEvent) {
+    if (!instance) {
+      return;
+    }
+    if (event.ctrlKey && event.code === 'Enter') {
+      this.handleConfirm();
+      return;
+    }
+    if (event.code === 'Escape') {
+      this.handleCancel();
+    }
+  }
+
+  mounted() {
+    document.body.addEventListener('keydown', this.handleQuickOperation);
+    this.$once('hook:beforeDestroy', () => {
+      document.body.removeEventListener('keydown', this.handleQuickOperation);
+    });
+  }
+
+  render() {
+    return (
+      <div style='display: none'>
+        <div
+          ref='popoverRef'
+          class='filter-conditions-value-edit-panel'
+        >
+          <div class='layout-wrapper'>
+            <div class='layout-left'>
+              <KeySelect
+                v-model={this.localValue.key}
+                metricsList={this.metricsList}
+              />
+            </div>
+            <div class='layout-right'>
+              <ValueSelect
+                keyName={this.localValue.key}
+                method={this.localValue.method}
+                value={this.localValue.value}
+                onMethondChange={this.handleMethodChange}
+                onValueChange={this.handleValueChange}
+              />
+            </div>
+          </div>
+          <div class='layout-footer'>
+            <div class='desc-box'>
+              <div class='desc-tag'>
+                <i class='icon-monitor icon-mc-triangle-down' />
+              </div>
+              <div class='desc-tag'>
+                <i class='icon-monitor icon-mc-triangle-down' />
+              </div>
+              {this.$t('移动光标')}
+            </div>
+            <div class='desc-box'>
+              <div class='desc-tag'>Enter</div>
+              {this.$t('选中')}
+            </div>
+            <div class='desc-box'>
+              <div class='desc-tag'>Esc</div>
+              {this.$t('收起查询')}
+            </div>
+            <div class='desc-box'>
+              <div class='desc-tag'>Ctrl+Enter</div>
+              {this.$t('提交查询')}
+            </div>
+            <bk-button
+              style='margin-left: auto'
+              theme='primary'
+              onClick={this.handleConfirm}
+            >
+              {this.$t('确定 Ctrl+ Enter')}
+            </bk-button>
+            <bk-button
+              style='margin-left: 8px'
+              onClick={this.handleCancel}
+            >
+              {this.$t('取消')}
+            </bk-button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+}
