@@ -39,7 +39,7 @@
 
         .bk-tree-node {
           &.root {
-            color: #979BA5;
+            color: #979ba5;
           }
 
           .node-content {
@@ -58,11 +58,11 @@
               padding: 0 8px;
               margin-left: 4px;
               line-height: 16px;
-              background: #F0F1F5;
+              background: #f0f1f5;
               border-radius: 2px;
             }
           }
-        }  
+        }
       }
     }
   }
@@ -102,20 +102,20 @@
         align-items: center;
         height: 28px;
         padding: 0 5px;
-        background: #FFFFFF;
+        margin-bottom: 4px;
+        background: #ffffff;
         border-radius: 2px;
-        
+
         &-name {
           flex: 1;
           overflow: hidden;
         }
 
         .icon-mc-close {
-          margin-left: 5px;
-          font-size: 14px;
+          font-size: 16px;
+          font-weight: 500;
           cursor: pointer;
         }
-
       }
     }
   }
