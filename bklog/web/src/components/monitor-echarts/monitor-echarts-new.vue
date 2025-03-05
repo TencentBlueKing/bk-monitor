@@ -133,7 +133,6 @@
   import watermarkMaker from './utils/watermark-maker';
   import { getValueFormat } from './value-formats-package';
   import { lineColor } from '../../store/constant';
-  import { debounce } from 'lodash';
   interface ICurValue {
     xAxis: number | string;
     yAxis: number | string;
