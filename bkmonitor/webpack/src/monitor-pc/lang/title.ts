@@ -160,4 +160,5 @@ export default {
   K8S对象: 'K8S object',
 
   去重后的字段统计: 'Field statistics after deduplication',
+  '联想到以下 {0} 个收藏：': 'Associated with {0} favorites:',
 };
