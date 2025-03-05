@@ -592,14 +592,14 @@ export default class SearchComp extends tsc<IProps> {
   async queryValueList(fieldsParams = []) {
     const fields = fieldsParams.length ? fieldsParams : this.fieldsKeyStrList;
     if (!fields.length) return;
-    const tempList = handleTransformToTimestamp(this.datePickerValue);
+    const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
     try {
       const urlStr = this.isUnionSearch ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
       const queryData = {
         keyword: !!this.retrievedKeyword ? this.retrievedKeyword : '*',
         fields,
-        start_time: formatDate(tempList[0] * 1000),
-        end_time: formatDate(tempList[1] * 1000),
+        start_time: formatDate(tempList[0]),
+        end_time: formatDate(tempList[1]),
       };
       if (this.isUnionSearch) {
         Object.assign(queryData, {

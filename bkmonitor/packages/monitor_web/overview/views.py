@@ -15,46 +15,9 @@ from django.http import StreamingHttpResponse
 from rest_framework import serializers, viewsets
 from rest_framework.request import Request
 
-from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_web.overview.search import Searcher
-
-
-class PermissionMixin:
-    def get_permissions(self):
-        return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS])]
-
-
-class AlarmRankViewSet(PermissionMixin, ResourceViewSet):
-    """
-    告警类型排行
-    """
-
-    resource_routes = [
-        ResourceRoute("GET", resource.overview.alarm_rank),
-    ]
-
-
-class AlarmCountInfoViewSet(PermissionMixin, ResourceViewSet):
-    """
-    告警数量信息
-    """
-
-    resource_routes = [
-        ResourceRoute("GET", resource.overview.alarm_count_info),
-    ]
-
-
-class MonitorInfoViewSet(PermissionMixin, ResourceViewSet):
-    """
-    业务监控状态总览
-    """
-
-    resource_routes = [
-        ResourceRoute("GET", resource.overview.monitor_info),
-    ]
 
 
 class SearchSerializer(serializers.Serializer):
@@ -108,7 +71,7 @@ class SearchViewSet(viewsets.GenericViewSet):
         return sr
 
 
-class FunctionShortcutViewSet(PermissionMixin, ResourceViewSet):
+class FunctionShortcutViewSet(ResourceViewSet):
     """
     功能快捷入口
     """
@@ -119,7 +82,7 @@ class FunctionShortcutViewSet(PermissionMixin, ResourceViewSet):
     ]
 
 
-class AlarmGraphConfigViewSet(PermissionMixin, ResourceViewSet):
+class AlarmGraphConfigViewSet(ResourceViewSet):
     """
     首页告警图配置
     """

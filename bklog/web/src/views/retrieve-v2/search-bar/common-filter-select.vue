@@ -5,8 +5,9 @@
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey, getRegExp } from '@/common/util';
+  import { getOperatorKey } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
+  import useFieldEgges from './use-field-egges';
   const { $t } = useLocale();
   const store = useStore();
 
@@ -26,12 +27,14 @@
       const filterAddition = store.getters.common_filter_addition || [];
       return filterFieldsList.value.map(item => {
         const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
-        return matchingItem ?? {
-          field: item.field_name || '',
-          operator: '=',
-          value: [],
-          list: [],
+        return (
+          matchingItem ?? {
+            field: item.field_name || '',
+            operator: '=',
+            value: [],
+            list: [],
           }
+        );
       });
     },
     set(val) {
@@ -50,7 +53,6 @@
   });
 
   const activeIndex = ref(-1);
-  const filterKeyword = ref('');
   let requestTimer = null;
   const isRequesting = ref(false);
 
@@ -81,55 +83,27 @@
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
-  const rquestFieldEgges = (() => {
-    return (field, index, operator?, value?, callback?) => {
-      const getConditionValue = () => {
-        if (['keyword'].includes(field.field_type)) {
-          return [`*${value}*`];
-        }
-
-        return [];
-      };
-      commonFilterAddition.value[index].list.splice(0, commonFilterAddition.value[index].list.length);
-
-      if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
-        return;
-      }
-
-      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 10 : 100;
-      isRequesting.value = true;
-
-      requestTimer && clearTimeout(requestTimer);
-      requestTimer = setTimeout(() => {
-        const targetAddition = value
-          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.getRequestParam();
-            })
-          : [];
-        store
-          .dispatch('requestIndexSetValueList', { fields: [field], targetAddition, force: true, size })
-          .then(res => {
-            const arr = res.data?.aggs_items?.[field.field_name] || [];
-            commonFilterAddition.value[index].list = arr.filter(item => item);
-          })
-          .finally(() => {
-            isRequesting.value = false;
-          });
-      }, 300);
-    };
-  })();
-
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      rquestFieldEgges(item, index, null, null, () => {});
+      const { requestFieldEgges } = useFieldEgges();
+      requestFieldEgges(item, null, resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      });
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    filterKeyword.value = value;
-    // rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+    const { requestFieldEgges } = useFieldEgges();
+    requestFieldEgges(item, value, resp => {
+      if (typeof resp === 'boolean') {
+        return;
+      }
+      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+    });
   };
 
   // 新建提交逻辑
@@ -164,10 +138,6 @@
   const handleRowBlur = () => {
     focusIndex.value = null;
   };
-  const filterOption = ( index )=>{
-    const regExp = getRegExp(filterKeyword.value.trim());
-    return  commonFilterAddition.value[index].list.filter(item => regExp.test(item));
-  }
 </script>
 
 <template>
@@ -185,7 +155,10 @@
         @focus.capture="e => handleRowFocus(index, e)"
         @blur.capture="handleRowBlur"
       >
-        <div class="title" v-bk-overflow-tips>
+        <div
+          class="title"
+          v-bk-overflow-tips
+        >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
         <bk-select
@@ -228,7 +201,7 @@
               ></bk-input>
             </template>
             <bk-option
-              v-for="option in filterOption(index)"
+              v-for="option in commonFilterAddition[index].list"
               :id="option"
               :key="option"
               :name="option"

@@ -69,4 +69,5 @@ export default {
     'There is no matching result for the current input conditions, please clear and re-enter',
   '仅支持添加 {0} 个业务': 'Only supports adding {0} space',
   '仅支持添加 {0} 个图表': 'Only supports adding {0} chart',
+  快捷键: 'Shortcut',
 };

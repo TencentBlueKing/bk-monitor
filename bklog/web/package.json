@@ -26,7 +26,7 @@
     "@blueking/ai-blueking": "0.3.29",
     "@blueking/bkmonitor-cli": "6.0.0-beta.5",
     "@blueking/bkui-library": "0.0.0-beta.5",
-    "@blueking/date-picker": "2.0.0-beta.33",
+    "@blueking/date-picker": "^2.0.0-beta.42",
     "@blueking/fork-resize-detector": "0.0.2",
     "@blueking/ip-selector": "0.2.0-beta",
     "@blueking/login-modal": "1.0.1",
@@ -40,7 +40,6 @@
     "@codemirror/language": "6.10.2",
     "@codemirror/state": "6.4.1",
     "@codemirror/view": "6.33.0",
- 
     "@vue/babel-helper-vue-jsx-merge-props": "1.4.0",
     "@vue/babel-preset-jsx": "1.4.0",
     "axios": "1.6.0",
