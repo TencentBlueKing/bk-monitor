@@ -73,10 +73,9 @@ export default class MonitorCrossDrag extends tsc<IMonitorDragProps, IMonitorDra
     document.ondragstart = () => false;
     // 保存 body 原来的 cursor 配置，后续拖拽结束后恢复
     const sourceBodyCursor = document.body.style.cursor;
-    // 保存需要进行 resize 操作的dom元素原来的 pointerEvents 配置，后续拖拽结束后恢复
-    const sourceTargetPointerEvent = target.style.pointerEvents;
-    // resize 过程中阻止需要 resize dom元素的默认target事件触发
-    target.style.pointerEvents = 'none';
+    // 保存需要进行 resize 操作的dom元素原来的 cursor 配置，后续拖拽结束后恢复
+    const sourceTargetCursor = target.style.cursor;
+    target.style.cursor = 'row-resize';
     document.body.style.cursor = 'row-resize';
     const handleMouseMove = event => {
       const rect = target.getBoundingClientRect();
@@ -95,7 +94,7 @@ export default class MonitorCrossDrag extends tsc<IMonitorDragProps, IMonitorDra
       lastPosition = event.clientY;
     };
     function handleMouseUp() {
-      target.style.pointerEvents = sourceTargetPointerEvent;
+      target.style.cursor = sourceTargetCursor;
       document.body.style.cursor = sourceBodyCursor;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);

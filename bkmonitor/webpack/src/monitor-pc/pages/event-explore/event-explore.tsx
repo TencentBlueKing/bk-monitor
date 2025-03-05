@@ -87,11 +87,33 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
   dataIdList = [];
 
+  @ProvideReactive('fieldList')
   fieldList = [];
 
-  cacheTimeRange = [];
+  /** 标识 KV 模式下，需要跳转到其他页面的字段。 */
+  sourceEntities = [];
 
+  cacheTimeRange = [];
   isShowFavorite = true;
+
+  /**
+   * @description 将 sourceEntities 数组 结构转换为 kv 结构
+   * @description 用于在 KV 模式下，判断字段是否开启 跳转到其他页面 入口
+   */
+  @ProvideReactive('entitiesMapByField')
+  get entitiesMapByField() {
+    if (!this.sourceEntities?.length) {
+      return {};
+    }
+    return this.sourceEntities.reduce((prev, curr) => {
+      const { fields } = curr || {};
+      if (!fields?.length) return prev;
+      for (const field of fields) {
+        prev[field] = curr;
+      }
+      return prev;
+    }, {});
+  }
 
   /** 公共参数 */
   @ProvideReactive('commonParams')
@@ -187,6 +209,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   async getViewConfig() {
     if (!this.formData.table) {
       this.fieldList = [];
+      this.sourceEntities = [];
       return;
     }
     this.loading = true;
@@ -203,6 +226,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
     this.loading = false;
     this.fieldList = data.fields || data.field;
+    this.sourceEntities = data.entities || [];
   }
 
   handleCloseDimensionPanel() {
@@ -403,7 +427,10 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
                 />
               </div>
               <div class='result-content-panel'>
-                <EventExploreView queryConfig={this.formData} />
+                <EventExploreView
+                  queryConfig={this.formData}
+                  source={this.source}
+                />
               </div>
             </EventRetrievalLayout>
           </div>

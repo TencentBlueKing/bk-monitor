@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { DimensionsTypeEnum } from './typing';
+
 export const fieldTypeMap = {
   interger: {
     name: window.i18n.tc('数字'),
@@ -49,4 +51,26 @@ export const fieldTypeMap = {
     color: '#CDAE71',
     bgColor: '#EDE7DB',
   },
+};
+
+/**
+ * @description 固定维度信息数据类型显示排序顺序及固定类型与图表颜色的映射顺序
+ */
+export const eventChartMap = {
+  [DimensionsTypeEnum.WARNING]: 0,
+  [DimensionsTypeEnum.NORMAL]: 1,
+  [DimensionsTypeEnum.DEFAULT]: 2,
+};
+export const EVENT_CHART_COLORS = ['#F5C78E', '#92BEF1', '#DCDEE5'];
+
+/**
+ * @description 根据事件类型获取图表颜色
+ * @param {DimensionsTypeEnum} type 事件类型
+ */
+export const getEventLegendColorByType = (type: DimensionsTypeEnum) => {
+  const index = eventChartMap[type];
+  if (index == null) {
+    return;
+  }
+  return EVENT_CHART_COLORS[eventChartMap[type]];
 };

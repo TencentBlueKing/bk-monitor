@@ -1,0 +1,68 @@
+.explore-kv-list {
+  .kv-list-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 22px;
+    line-height: 14px;
+
+    &:nth-child(odd) {
+      background-color: #fff;
+    }
+
+    &:hover {
+      background-color: #f0f1f5;
+
+      %kv-hover-text {
+        color: #3a84ff;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+
+      .item-label span {
+        @extend %kv-hover-text;
+      }
+
+      .item-value .value-text {
+        @extend %kv-hover-text;
+      }
+    }
+
+    .item-label {
+      display: flex;
+      flex-shrink: 0;
+      column-gap: 4px;
+      width: 158px;
+      color: #4d4f56;
+
+      .kv-label-icon {
+        flex-shrink: 0;
+        line-height: normal;
+      }
+    }
+
+    .item-value {
+      display: flex;
+      min-width: 0;
+      color: #313238;
+
+      .value-jump-link {
+        display: inline;
+        flex-shrink: 0;
+        margin-right: 10px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        .icon-mc-goto {
+          margin-left: 2px;
+          font-size: 14px;
+        }
+      }
+
+      .value-text {
+        flex: 1;
+        min-width: 0;
+        word-break: break-all;
+      }
+    }
+  }
+}

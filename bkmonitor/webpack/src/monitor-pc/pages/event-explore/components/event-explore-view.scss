@@ -2,5 +2,6 @@
   position: relative;
   min-width: 600px;
   height: 100%;
-  overflow-y: auto;
+  overflow-y: scroll;
+  overflow-y: overlay;
 }
