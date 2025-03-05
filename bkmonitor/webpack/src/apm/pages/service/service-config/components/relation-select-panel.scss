@@ -8,6 +8,11 @@
     width: 505px;
     background-color: #fff;
 
+    .is-keyword {
+      font-weight: 500;
+      color: #3a84ff;
+    }
+
     .bk-form-control {
       width: calc(100% - 16px);
       margin: 4px 8px;
