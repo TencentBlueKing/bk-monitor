@@ -110,7 +110,7 @@
   import Echarts, { EChartOption } from 'echarts';
   import { toPng, toBlob } from 'html-to-image';
   import { addListener, removeListener, ResizeCallback } from 'resize-detector';
-
+  import { debounce } from 'throttle-debounce';
   import { Debounce } from '../../common/util';
   import ChartAnnotation from './components/chart-annotation.vue';
   import ChartLegend from './components/chart-legend.vue';
