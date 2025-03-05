@@ -399,6 +399,10 @@ class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
 
 
+class IntelligentDiagnosisMetadataViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.IntelligentDiagnosisMetadataResource)]
+
+
 class QueryDataIdsByBizIdViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataIdsByBizIdResource)]
 
