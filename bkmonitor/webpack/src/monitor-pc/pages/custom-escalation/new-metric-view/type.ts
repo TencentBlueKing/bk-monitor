@@ -39,11 +39,13 @@ export interface IColumnItem {
   renderFn?: (row) => void;
 }
 export interface IDataItem {
+  name?: string;
   value?: number;
-  proportion?: number;
-  fluctuation?: number;
+  min?: number;
+  max?: number;
   color?: string;
-  environment?: number;
+  avg?: number;
+  latest?: number;
 }
 
 export interface IRefreshItem {
@@ -51,4 +53,45 @@ export interface IRefreshItem {
   name: string;
   // 自动刷新间隔值
   id: number | string;
+}
+
+export interface IGroupBy {
+  field: string;
+  split: boolean;
+}
+
+export interface ILimit {
+  function: 'bottom' | 'top';
+  limit: number;
+}
+
+export interface ICondition {
+  key: string;
+  method: 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
+  value: string[];
+  condition?: 'and' | 'or'; // 可选字段
+}
+
+export interface ICommonCondition {
+  key: string;
+  method: 'eq' | 'exclude' | 'include' | 'neq' | 'nreg' | 'reg';
+  value: string[];
+}
+
+export interface ICompare {
+  type: 'metric' | 'time';
+  offset: string[]; // 用于描述对比的时间偏移
+}
+
+export interface IMetricAnalysisConfig {
+  bk_biz_id: number;
+  time_series_group_id: number;
+  metrics: string[];
+  group_by: IGroupBy[];
+  limit: ILimit;
+  conditions: ICondition[];
+  common_conditions: ICommonCondition[];
+  compare: ICompare;
+  start_time: number;
+  end_time: number;
 }

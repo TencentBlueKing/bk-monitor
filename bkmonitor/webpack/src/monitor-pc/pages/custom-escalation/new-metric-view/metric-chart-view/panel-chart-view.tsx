@@ -23,125 +23,139 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Provide } from 'vue-property-decorator';
+import { Component, Watch, Provide, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
 import { type IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import { api } from './api';
+import { api, mockParam } from './api';
 import DrillAnalysisView from './drill-analysis-view';
 import LayoutChartTable from './layout-chart-table';
-import NewMetricChart from './metric-chart';
-import { tableData, panelData } from './mock-data';
 
-import type { IColumnItem, IDataItem } from '../type';
+import type { IMetricAnalysisConfig } from '../type';
 
 import './panel-chart-view.scss';
 
 /** 图表 + 表格列表，支持拉伸 */
 const DEFAULT_HEIGHT = 600;
+interface IPanelChartViewProps {
+  config?: IMetricAnalysisConfig;
+  isShowStatisticalValue?: boolean;
+  isHighlightPeakValue?: boolean;
+}
 
 @Component
-export default class PanelChartView extends tsc<object> {
-  @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
-  activeName = ['12.31.342.12', '2', '0'];
-  groupList = api.data.groups;
+export default class PanelChartView extends tsc<IPanelChartViewProps> {
+  // 图表panel实例
+  @Prop({ default: () => mockParam }) config: IMetricAnalysisConfig;
+  /** 展示统计值 */
+  @Prop({ default: false }) isShowStatisticalValue: boolean;
+  /** 高亮峰谷值 */
+  @Prop({ default: false }) isHighlightPeakValue: boolean;
+  /** 每列展示的个数 */
+  @Prop({ default: 3 }) columnNum: number;
+
+  @Provide('handleUpdateQueryData')
+  handleUpdateQueryData = undefined;
+  activeName = [];
+  groupList = [];
   collapseRefsHeight: number[][] = [];
-  columnList = [
-    { label: '', prop: 'max', renderFn: (row: IDataItem) => this.renderLegend(row) },
-    { label: '最大值', prop: 'environment' },
-    { label: '最小值', prop: 'version' },
-    { label: '最新值', prop: 'proportion' },
-    { label: '平均值', prop: 'value' },
-    { label: '累计值', prop: 'fluctuation' },
-  ];
   /** 是否展示维度下钻view */
   showDrillDown = false;
-  tableList = tableData;
+  tableList = [];
 
   currentChart = {};
+
+  loading = false;
+
   /** 拉伸的时候图表重新渲染 */
-  @Watch('groupList', { immediate: true })
-  handlePanelChange(val) {
-    if (val.length === 0) return;
+  @Watch('groupList')
+  handlePanelChange() {
+    this.handleCollapseChange();
+  }
+  /** 过滤条件发生改变的时候重新拉取数据 */
+  @Watch('config', { immediate: true })
+  handleConfigChange(val) {
+    val && this.getGroupList();
+  }
+  /** 展示的个数发生变化时 */
+  @Watch('columnNum')
+  handleColumnNumChange() {
+    this.handleCollapseChange();
+  }
+  /** 重新获取对应的高度 */
+  handleCollapseChange() {
+    if (this.groupList.length === 0) return;
     this.collapseRefsHeight = [];
-    val.map((item, ind) => {
+    this.groupList.map((item, ind) => {
       const len = item.panels.length;
       this.collapseRefsHeight[ind] = [];
       Array(len)
         .fill(0)
-        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / 2)] = DEFAULT_HEIGHT));
+        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.columnNum)] = DEFAULT_HEIGHT));
     });
   }
-  renderLegend(row: IDataItem) {
-    return (
-      <span>
-        <span
-          style={{ backgroundColor: row.color }}
-          class='color-box'
-        />
-        {row.environment}
-      </span>
-    );
-  }
-  renderIndicatorTable() {
-    return (
-      <bk-table
-        ext-cls='indicator-table'
-        data={this.tableList}
-        header-border={false}
-        outer-border={false}
-        stripe={true}
-      >
-        {this.columnList.map((item: IColumnItem, ind: number) => (
-          <bk-table-column
-            key={`${item.prop}_${ind}`}
-            width={item.width}
-            scopedSlots={{
-              default: ({ row }) => {
-                /** 自定义 */
-                if (item?.renderFn) {
-                  return item?.renderFn(row);
-                }
-                return row[item.prop];
-              },
-            }}
-            label={this.$t(item.label)}
-            prop={item.prop}
-            sortable={ind === 0 ? false : true}
-          ></bk-table-column>
-        ))}
-      </bk-table>
-    );
+  /** 获取图表配置 */
+  getGroupList() {
+    this.loading = true;
+    getCustomTsGraphConfig(this.config)
+      .then(res => {
+        this.loading = false;
+        this.groupList = res.groups || [];
+        this.activeName = this.groupList.map(item => item.name);
+      })
+      .catch(() => {
+        this.loading = false;
+        this.groupList = api.data.groups; // mock数据
+        this.activeName = this.groupList.map(item => item.name);
+      });
   }
   /** 渲染panel的内容 */
   renderPanelMain(item, chart, ind, chartInd) {
-    if (item.panels.length === 1) {
-      return (
-        <div class='chart-view-item single-item'>
-          <div class='indicator-chart-view'>
-            <NewMetricChart panel={chart} />
-          </div>
-          <div class='indicator-table-view'>{this.renderIndicatorTable()}</div>
-        </div>
-      );
-    }
     return (
-      <div class='chart-view-item'>
+      <div class={`chart-view-item column-${this.columnNum}`}>
         <LayoutChartTable
-          height={this.collapseRefsHeight[ind][Math.floor(chartInd / 2)]}
+          height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)]}
           panel={chart}
           onDrillDown={() => this.handelDrillDown(chart)}
           onResize={height => this.handleResize(height, ind, chartInd)}
-        >
-          {this.renderIndicatorTable()}
-        </LayoutChartTable>
+        ></LayoutChartTable>
+      </div>
+    );
+  }
+  /** 骨架屏loading */
+  renderSkeletonLoading() {
+    return (
+      <div class='view-skeleton-loading'>
+        {Array(2)
+          .fill(null)
+          .map((_, index) => (
+            <div class='skeleton-loading-item'>
+              <div
+                key={index}
+                class='skeleton-element'
+              />
+              <div class='skeleton-element-row'>
+                {Array(3)
+                  .fill(null)
+                  .map((_, index) => (
+                    <div
+                      key={index}
+                      class='skeleton-element-row-item'
+                    >
+                      <i class='icon-monitor icon-mc-line skeleton-icon' />
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
       </div>
     );
   }
   /** 拉伸 */
   handleResize(height: number, ind: number, chartInd: number) {
-    this.collapseRefsHeight[ind][Math.floor(chartInd / 2)] = height;
+    this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)] = height;
     this.collapseRefsHeight = [...this.collapseRefsHeight];
   }
   /** 维度下钻 */
@@ -153,32 +167,39 @@ export default class PanelChartView extends tsc<object> {
   render() {
     return (
       <div class='panel-metric-chart-view'>
-        <bk-collapse
-          class='chart-view-collapse'
-          v-model={this.activeName}
-        >
-          {this.groupList.map((item, ind) => (
-            <bk-collapse-item
-              key={item.name}
-              class='chart-view-collapse-item'
-              content-hidden-type='hidden'
-              hide-arrow={true}
-              name={item.name}
-            >
-              <span
-                class={`icon-monitor item-icon icon-mc-arrow-${this.activeName.includes(item.name) ? 'down' : 'right'}`}
-                slot='icon'
-              ></span>
-              {item.name}
-              <div
-                class='chart-view-collapse-item-content'
-                slot='content'
+        {this.loading ? (
+          this.renderSkeletonLoading()
+        ) : (
+          <bk-collapse
+            class='chart-view-collapse'
+            v-model={this.activeName}
+          >
+            {this.groupList.map((item, ind) => (
+              <bk-collapse-item
+                key={item.name}
+                class={['chart-view-collapse-item', { 'is-hide-header': !item.name }]}
+                content-hidden-type='hidden'
+                hide-arrow={true}
+                name={item.name}
               >
-                {item.panels.map((chart, chartInd) => this.renderPanelMain(item, chart, ind, chartInd))}
-              </div>
-            </bk-collapse-item>
-          ))}
-        </bk-collapse>
+                <span>
+                  <span
+                    class={`icon-monitor item-icon icon-mc-arrow-${this.activeName.includes(item.name) ? 'down' : 'right'}`}
+                    slot='icon'
+                  ></span>
+                  {item.name}
+                </span>
+                <div
+                  class='chart-view-collapse-item-content'
+                  slot='content'
+                >
+                  {item.panels.map((chart, chartInd) => this.renderPanelMain(item, chart, ind, chartInd))}
+                </div>
+              </bk-collapse-item>
+            ))}
+          </bk-collapse>
+        )}
+
         {this.showDrillDown && (
           <DrillAnalysisView
             panel={this.currentChart}

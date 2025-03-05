@@ -61,7 +61,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   })
   dimensionsList: IDimensionItem[];
   // 图表panel实例
-  @Prop({ default: false }) panel: PanelModel;
+  @Prop({ default: () => ({}) }) panel: PanelModel;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
 
   /* 主动刷新图表 */

@@ -24,6 +24,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import dayjs from 'dayjs';
+
 export const refreshList = [
   // 刷新间隔列表
   {
@@ -59,3 +61,117 @@ export const refreshList = [
     id: 60 * 24 * 60 * 1000,
   },
 ];
+
+export function getNumberAndUnit(str) {
+  const match = str.match(/^(\d+)([a-zA-Z])$/);
+  return match ? { number: Number.parseInt(match[1], 10), unit: match[2] } : null;
+}
+
+export function timeToDayNum(t) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  if (regex.test(t)) {
+    return dayjs().diff(dayjs(t), 'day');
+  }
+  const timeInfo = getNumberAndUnit(t);
+  if (timeInfo?.unit === 'd') {
+    return timeInfo.number;
+  }
+  if (timeInfo?.unit === 'w') {
+    return timeInfo.number * 7;
+  }
+  return 0;
+}
+// 设置x轴label formatter方法
+export function handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
+  let formatterFunc = null;
+  const [firstItem] = seriesData;
+  const lastItem = seriesData[seriesData.length - 1];
+  const val = new Date('2010-01-01').getTime();
+  const getXVal = (timeVal: any) => {
+    if (!timeVal) return timeVal;
+    return timeVal[0] > val ? timeVal[0] : timeVal[1];
+  };
+  const minX = Array.isArray(firstItem) ? getXVal(firstItem) : getXVal(firstItem?.value);
+  const maxX = Array.isArray(lastItem) ? getXVal(lastItem) : getXVal(lastItem?.value);
+  minX &&
+    maxX &&
+    // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+    (formatterFunc = (v: any) => {
+      const duration = Math.abs(dayjs.tz(maxX).diff(dayjs.tz(minX), 'second'));
+      if (onlyBeginEnd && v > minX && v < maxX) {
+        return '';
+      }
+      if (duration < 1 * 60) {
+        return dayjs.tz(v).format('mm:ss');
+      }
+      if (duration < 60 * 60 * 24 * 1) {
+        return dayjs.tz(v).format('HH:mm');
+      }
+      if (duration < 60 * 60 * 24 * 6) {
+        return dayjs.tz(v).format('MM-DD HH:mm');
+      }
+      if (duration <= 60 * 60 * 24 * 30 * 12) {
+        return dayjs.tz(v).format('MM-DD');
+      }
+      return dayjs.tz(v).format('YYYY-MM-DD');
+    });
+  return formatterFunc;
+}
+
+/**
+ * @description: 在图表数据没有单位或者单位不一致时则不做单位转换 y轴label的转换用此方法做计数简化
+ * @param {number} num
+ * @return {*}
+ */
+export function handleYxisLabelFormatter(num: number): string {
+  const si = [
+    { value: 1, symbol: '' },
+    { value: 1e3, symbol: 'K' },
+    { value: 1e6, symbol: 'M' },
+    { value: 1e9, symbol: 'G' },
+    { value: 1e12, symbol: 'T' },
+    { value: 1e15, symbol: 'P' },
+    { value: 1e18, symbol: 'E' },
+  ];
+  const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
+  let i: number;
+  for (i = si.length - 1; i > 0; i--) {
+    if (num >= si[i].value) {
+      break;
+    }
+  }
+  return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+}
+// 转换time_shift显示
+export function handleTransformTimeShift(val: string) {
+  const timeMatch = val.match(/(-?\d+)(\w+)/);
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  const hasMatch = timeMatch && timeMatch.length > 2;
+  if (dateRegex.test(val)) {
+    return val;
+  }
+  if (val === '1d') {
+    return this.$t('昨天');
+  }
+  if (val === '1w') {
+    return this.$t('上周');
+  }
+  return hasMatch
+    ? (dayjs() as any).add(-timeMatch[1], timeMatch[2]).fromNow().replace(/\s*/g, '')
+    : val.replace('current', window.i18n.tc('当前'));
+}
+/** 处理时间对比时线条名字 */
+export function handleTimeOffset(timeOffset: string) {
+  const match = timeOffset.match(/(current|(\d+)([hdwM]))/);
+  if (match) {
+    const [target, , num, type] = match;
+    const map = {
+      d: this.$t('{n} 天前', { n: num }),
+      w: this.$t('{n} 周前', { n: num }),
+      M: this.$t('{n} 月前', { n: num }),
+      current: this.$t('当前'),
+    };
+    return map[type || target];
+  }
+  return timeOffset;
+}

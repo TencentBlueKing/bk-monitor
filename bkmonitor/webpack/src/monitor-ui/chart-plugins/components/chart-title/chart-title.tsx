@@ -434,7 +434,7 @@ export default class ChartTitle extends tsc<IChartTitleProps, IChartTitleEvent> 
               <span
                 key={'更多'}
                 style={{
-                  marginLeft: this.metricTitleData && this.showAddMetric ? '0' : 'auto',
+                  marginLeft: this.isHoverShow ? 0 : this.metricTitleData && this.showAddMetric ? '0' : 'auto',
                   display: this.showMore && this.needMoreMenu ? 'flex' : 'none',
                 }}
                 class='icon-monitor icon-mc-more more-icon icon-btn'

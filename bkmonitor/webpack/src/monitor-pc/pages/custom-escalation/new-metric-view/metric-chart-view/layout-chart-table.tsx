@@ -27,10 +27,12 @@ import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 
 import NewMetricChart from './metric-chart';
 
-import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import type { IColumnItem, IDataItem } from '../type';
+import type { PanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
 
 import './layout-chart-table.scss';
 interface IDragInfo {
@@ -53,7 +55,7 @@ interface ILayoutChartTableEvents {
 @Component
 export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayoutChartTableEvents> {
   // 图表panel实例
-  @Prop({ default: false }) readonly panel: PanelModel;
+  @Prop({ default: () => ({}) }) panel: PanelModel;
   /* 拖拽数据 */
   @Prop({ default: () => ({ height: 300, minHeight: 180, maxHeight: 400 }) }) drag: IDragInfo;
   @Prop({ default: true }) isToolIconShow: boolean;
@@ -68,6 +70,16 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   mouseDownY = 0;
   offset = 0;
   parentHeight = 600;
+  columnList = [
+    { label: '', prop: 'max', renderFn: (row: IDataItem) => this.renderLegend(row) },
+    { label: '最大值', prop: 'max' },
+    { label: '最小值', prop: 'min' },
+    { label: '最新值', prop: 'latest' },
+    { label: '平均值', prop: 'avg' },
+    { label: '累计值', prop: 'total' },
+  ];
+  tableList: ILegendItem[] = [];
+  loading = true;
 
   mounted() {
     this.$nextTick(() => {
@@ -96,6 +108,18 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       this.resizeObserver.disconnect();
     }
   }
+  renderLegend(row: IDataItem) {
+    return (
+      <span>
+        <span
+          style={{ backgroundColor: row.color }}
+          class='color-box'
+          title={row.name}
+        />
+        {row.name}
+      </span>
+    );
+  }
   //  支持上下拖拽
   handleResizing(height) {
     this.drag.height = height;
@@ -122,6 +146,49 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   /** 维度下钻 */
   handelDrillDown() {
     this.$emit('drillDown');
+  }
+  /** 表格渲染 */
+  renderIndicatorTable() {
+    if (this.loading) {
+      return (
+        <TableSkeleton
+          class='table-view-empty-block'
+          type={1}
+        />
+      );
+    }
+    return (
+      <bk-table
+        ext-cls='indicator-table'
+        data={this.tableList}
+        header-border={false}
+        outer-border={false}
+        stripe={true}
+      >
+        {this.columnList.map((item: IColumnItem, ind: number) => (
+          <bk-table-column
+            key={`${item.prop}_${ind}`}
+            width={item.width}
+            scopedSlots={{
+              default: ({ row }) => {
+                /** 自定义 */
+                if (item?.renderFn) {
+                  return item?.renderFn(row);
+                }
+                return <span title={row[item.prop]}>{row[item.prop]}</span>;
+              },
+            }}
+            label={this.$t(item.label)}
+            prop={item.prop}
+            sortable={ind === 0 ? false : true}
+          ></bk-table-column>
+        ))}
+      </bk-table>
+    );
+  }
+  handleLegendData(list: ILegendItem[], loading: boolean) {
+    this.tableList = list;
+    this.loading = loading;
   }
   render() {
     return (
@@ -151,6 +218,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
               isToolIconShow={this.isToolIconShow}
               panel={this.panel}
               onDrillDown={this.handelDrillDown}
+              onLegendData={this.handleLegendData}
             />
           </div>
           <div
@@ -158,21 +226,13 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             class='main-table'
             slot='main'
           >
-            {this.$slots?.default}
+            {this.renderIndicatorTable()}
           </div>
         </bk-resize-layout>
         <div
           class='layout-dragging'
           onMousedown={this.startDragging}
         >
-          {/* <i
-            style='margin-top: -2px; height: 5px;'
-            class='resize-trigger'
-          ></i>
-          <i
-            style='visibility: hidden; inset: 183px auto auto 0px;'
-            class='resize-proxy top'
-          ></i> */}
           <div class='drag-btn'></div>
         </div>
       </div>
