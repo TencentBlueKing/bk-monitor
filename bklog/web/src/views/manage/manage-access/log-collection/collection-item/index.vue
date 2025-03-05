@@ -111,7 +111,6 @@
           </template>
         </bk-table-column>
         <bk-table-column
-          v-if="checkcFields('storage_usage')"
           :label="$t('日用量/总用量')"
           :render-header="$renderHeader"
           min-width="80"
@@ -645,6 +644,7 @@
         {
           id: 'storage_usage',
           label: this.$t('日用量/总用量'),
+          disabled: true,
         },
         // 存储名
         {
