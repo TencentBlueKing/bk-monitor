@@ -59,9 +59,9 @@ interface IEvent {
 @Component
 export default class CollectDialog extends tsc<IProps, IEvent> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
-  @Prop({ type: Object, default: () => ({}) }) keyword: object; // 当前弹窗展示的查询语句参数
+  @Prop({ type: Object, default: () => ({}) }) keyword: any; // 当前弹窗展示的查询语句参数
   @Prop({ type: String, required: true }) favoriteSearchType: string; // 收藏类型
-  @Prop({ type: Object, default: () => ({}) }) editFavoriteData: object; // 编辑收藏的数据
+  @Prop({ type: Object, default: () => ({}) }) editFavoriteData: any; // 编辑收藏的数据
   @Prop({ type: Array, default: () => [] }) favStrList: string[]; // 收藏类型
   @Ref('validateForm') validateFormRef: any;
   @Ref('checkInputForm') checkInputFormRef: any;
@@ -184,6 +184,16 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         label: `${window.i18n.t('查询项')}${item.alias}:`,
         value: item.code,
       }));
+  }
+
+  get dataIdFormItem() {
+    if (this.favoriteSearchType === 'event')
+      return {
+        label: this.$t('数据ID'),
+        value: this.keyword?.queryConfig?.result_table_id,
+      };
+
+    return null;
   }
 
   mounted() {
@@ -323,11 +333,13 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         >
           {this.isPromQlKeywords ? (
             <div class='view-content'>
-              {this.promqlShowData.map((item, index) => (
-                <div class='promql-box'>
+              {this.promqlShowData.map(item => (
+                <div
+                  key={`${item.label}_${item.value}`}
+                  class='promql-box'
+                >
                   <div class='promql-label'>{item.label}</div>
                   <div class='promql-val'>{item.value}</div>
-                  {this.promqlShowData.length - 1 !== index && <br />}
                 </div>
               ))}
             </div>
@@ -369,10 +381,6 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
             },
           }}
         >
-          <div class='edit-information'>
-            <span>{this.$t('查询语句')}</span>
-            {this.favoriteSearchType === 'metric' ? metricKeywordsSlot() : eventKeywordsSlot()}
-          </div>
           <bk-form-item
             class='group-name'
             label={this.$t('收藏名')}
@@ -475,6 +483,18 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
                 )}
               </div>
             </bk-select>
+          </bk-form-item>
+
+          {this.dataIdFormItem && (
+            <bk-form-item label={this.dataIdFormItem.label}>
+              <div class='edit-information'>{this.dataIdFormItem.value}</div>
+            </bk-form-item>
+          )}
+
+          <bk-form-item label={this.$t('查询语句')}>
+            <div class='edit-information'>
+              {this.favoriteSearchType === 'metric' ? metricKeywordsSlot() : eventKeywordsSlot()}
+            </div>
           </bk-form-item>
         </bk-form>
       </bk-dialog>

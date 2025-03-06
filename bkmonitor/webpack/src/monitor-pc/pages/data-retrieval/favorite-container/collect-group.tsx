@@ -91,6 +91,10 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
     }
   }
 
+  handleExpand(expand: boolean) {
+    this.isClickIcon = expand;
+  }
+
   render() {
     const groupDropdownSlot = (groupName: string) =>
       !this.isCannotChange ? (
@@ -113,7 +117,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
       </div>
     );
     return (
-      <div class='retrieve-collect-group'>
+      <div class='retrieve-collect-group-comp'>
         <div
           class={[
             'group-title fl-jcsb',
@@ -127,9 +131,11 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
         >
           <span
             class='group-cur'
-            onClick={() => (this.isClickIcon = !this.isClickIcon)}
+            onClick={() => {
+              this.handleExpand(!this.isClickIcon);
+            }}
           >
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isClickIcon }]} />
+            <span class={['icon-monitor', this.isClickIcon ? 'icon-mc-file-close' : 'icon-mc-file-open']} />
             <span class='group-str'>{this.collectItem.name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.name)}
