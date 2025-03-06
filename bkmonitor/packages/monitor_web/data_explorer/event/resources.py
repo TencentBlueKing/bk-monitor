@@ -12,6 +12,7 @@ import logging
 import string
 import threading
 from collections import defaultdict
+from threading import Lock
 from typing import Any, Dict, List, Set, Tuple
 
 from django.utils.translation import gettext_lazy as _
@@ -234,9 +235,9 @@ class EventViewConfigResource(Resource):
 
 class EventTopKResource(Resource):
     RequestSerializer = serializers.EventTopKRequestSerializer
-    lock = threading.Lock()
 
     def perform_request(self, validated_request_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        lock = threading.Lock()
         if validated_request_data["is_mock"]:
             return API_TOPK_RESPONSE
 
@@ -279,7 +280,15 @@ class EventTopKResource(Resource):
             [
                 InheritParentThread(
                     target=self.calculate_field_distinct_count,
-                    args=(queryset, query_configs, field, dimension_metadata_map, field_distinct_map, field_topk_map),
+                    args=(
+                        lock,
+                        queryset,
+                        query_configs,
+                        field,
+                        dimension_metadata_map,
+                        field_distinct_map,
+                        field_topk_map,
+                    ),
                 )
                 for field in valid_fields
             ]
@@ -303,6 +312,7 @@ class EventTopKResource(Resource):
             InheritParentThread(
                 target=self.calculate_topk,
                 args=(
+                    lock,
                     queryset,
                     self.get_match_query_configs(field, query_configs, dimension_metadata_map)[0],
                     field,
@@ -369,7 +379,13 @@ class EventTopKResource(Resource):
 
     @classmethod
     def calculate_topk(
-        cls, queryset: UnifyQuerySet, query_config, field: str, limit: int, field_topk_map: Dict[str, Dict[str, int]]
+        cls,
+        lock: Lock,
+        queryset: UnifyQuerySet,
+        query_config,
+        field: str,
+        limit: int,
+        field_topk_map: Dict[str, Dict[str, int]],
     ):
         """
         计算事件源 topk 查询
@@ -379,7 +395,7 @@ class EventTopKResource(Resource):
         for field_value_count_dict in field_value_count_dict_list:
             try:
                 # 加锁，防止多线程下非原子操作时 topk 值计算错误
-                with cls.lock:
+                with lock:
                     field_topk_map[field][field_value_count_dict[field]] += field_value_count_dict["_result_"]
             except (IndexError, KeyError) as exc:
                 logger.warning("[EventTopkResource] failed to get field topk, err -> %s", exc)
@@ -402,6 +418,7 @@ class EventTopKResource(Resource):
     @classmethod
     def calculate_field_distinct_count(
         cls,
+        lock: Lock,
         queryset: UnifyQuerySet,
         query_configs: List[Dict[str, Any]],
         field: str,
@@ -422,7 +439,7 @@ class EventTopKResource(Resource):
                 [
                     InheritParentThread(
                         target=cls.calculate_topk,
-                        args=(queryset, query_config, field, QUERY_MAX_LIMIT, field_topk_map),
+                        args=(lock, queryset, query_config, field, QUERY_MAX_LIMIT, field_topk_map),
                     )
                     for query_config in matching_configs
                 ]
