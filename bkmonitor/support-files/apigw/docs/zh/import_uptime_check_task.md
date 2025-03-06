@@ -2,9 +2,6 @@
 
 导入拨测任务
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 
@@ -74,7 +71,7 @@
 
 ```json
 "config": {
-    "ip_list": ["10.0.0.1"],
+    "ip_list": ["127.0.0.1"],
     "port": 3306,
     "period": 1,
     "response_format": "in",
@@ -251,7 +248,7 @@
             "collector_conf": {
                 "config": {
                     "ip_list": [
-                        "10.0.0.1"
+                        "127.0.0.1"
                     ],
                     "period": 1,
                     "response_format": "in",

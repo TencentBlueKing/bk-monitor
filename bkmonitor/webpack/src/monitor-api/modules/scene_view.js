@@ -12,7 +12,6 @@ export const getHostProcessPortStatus = request('POST', 'rest/v2/scene_view/get_
 export const getHostOrTopoNodeDetail = request('POST', 'rest/v2/scene_view/get_host_or_topo_node_detail/');
 export const getHostProcessUptime = request('POST', 'rest/v2/scene_view/get_host_process_uptime/');
 export const getHostProcessList = request('POST', 'rest/v2/scene_view/get_host_process_list/');
-export const getCustomMetricTargetList = request('POST', 'rest/v2/scene_view/get_custom_metric_target_list/');
 export const getCustomEventTargetList = request('POST', 'rest/v2/scene_view/get_custom_event_target_list/');
 export const getUptimeCheckTaskList = request('POST', 'rest/v2/scene_view/get_uptime_check_task_list/');
 export const getUptimeCheckTaskInfo = request('POST', 'rest/v2/scene_view/get_uptime_check_task_info/');
@@ -72,6 +71,10 @@ export const getKubernetesNodeDiskSpaceUsage = request('GET', 'rest/v2/scene_vie
 export const getKubernetesNodeDiskIoUsage = request('GET', 'rest/v2/scene_view/get_kubernetes_node_disk_io_usage/');
 export const getIndexSetLogSeries = request('POST', 'rest/v2/scene_view/get_index_set_log_series/');
 export const listIndexSetLog = request('POST', 'rest/v2/scene_view/list_index_set_log/');
+export const getCustomTsMetricGroups = request('GET', 'rest/v2/scene_view/get_custom_ts_metric_groups/');
+export const getCustomTsDimensionValues = request('POST', 'rest/v2/scene_view/get_custom_ts_dimension_values/');
+export const getCustomTsGraphConfig = request('POST', 'rest/v2/scene_view/get_custom_ts_graph_config/');
+export const getCustomMetricTargetList = request('POST', 'rest/v2/scene_view/get_custom_metric_target_list/');
 
 export default {
   getScene,
@@ -86,7 +89,6 @@ export default {
   getHostOrTopoNodeDetail,
   getHostProcessUptime,
   getHostProcessList,
-  getCustomMetricTargetList,
   getCustomEventTargetList,
   getUptimeCheckTaskList,
   getUptimeCheckTaskInfo,
@@ -146,4 +148,8 @@ export default {
   getKubernetesNodeDiskIoUsage,
   getIndexSetLogSeries,
   listIndexSetLog,
+  getCustomTsMetricGroups,
+  getCustomTsDimensionValues,
+  getCustomTsGraphConfig,
+  getCustomMetricTargetList,
 };

@@ -2,9 +2,6 @@
 
 查询告警列表
 
-### 请求参数
-
-{{ common_args_desc }}
 
 #### 接口参数
 
@@ -147,7 +144,7 @@
                     "bk_monitor.system.cpu_summary.usage"
                 ],
                 "bk_biz_id": 5000140,
-                "ip": "10.0.0.1",
+                "ip": "127.0.0.1",
                 "bk_cloud_id": "0",
                 "bk_service_instance_id": null,
                 "bk_topo_node": [
@@ -174,7 +171,7 @@
                 "latest_time": 1645669200,
                 "first_anomaly_time": 1642487460,
                 "target_type": "HOST",
-                "target": "10.0.0.1|0",
+                "target": "127.0.0.1|0",
                 "category": "os",
                 "tags": [],
                 "category_display": "主机-操作系统",
@@ -187,9 +184,9 @@
                 "stage_display": "已处理",
                 "dimensions": [
                     {
-                        "display_value": "10.0.0.1",
+                        "display_value": "127.0.0.1",
                         "display_key": "目标IP",
-                        "value": "10.0.0.1",
+                        "value": "127.0.0.1",
                         "key": "ip"
                     },
                     {
@@ -207,14 +204,14 @@
                     "target",
                     "bk_biz_id"
                 ],
-                "dimension_message": "目标IP(10.0.0.1) - 云区域ID(0)",
+                "dimension_message": "目标IP(127.0.0.1) - 云区域ID(0)",
                 "metric_display": [
                     {
                         "id": "bk_monitor.system.cpu_summary.usage",
                         "name": "CPU使用率"
                     }
                 ],
-                "target_key": "主机 10.0.0.1",
+                "target_key": "主机 127.0.0.1",
                 "strategy_name": "CPU使用率告警",
                 "bk_biz_name": "demo"
             }

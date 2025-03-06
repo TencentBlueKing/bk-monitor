@@ -111,6 +111,17 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          :label="$t('日用量/总用量')"
+          :render-header="$renderHeader"
+          min-width="80"
+        >
+          <template #default="props">
+            <span :class="{ 'text-disabled': props.row.status === 'stop' }">
+              {{ props.row.table_id ? `${formatBytes(props.row.daily_usage)} / ${formatBytes(props.row.total_usage)}` : '--' }}
+            </span>
+          </template>
+        </bk-table-column>
+        <bk-table-column
           v-if="checkcFields('table_id')"
           :label="$t('存储名')"
           :render-header="$renderHeader"
@@ -629,6 +640,12 @@
           label: this.$t('名称'),
           disabled: true,
         },
+        // 用量展示
+        {
+          id: 'storage_usage',
+          label: this.$t('日用量/总用量'),
+          disabled: true,
+        },
         // 存储名
         {
           id: 'table_id',
@@ -735,7 +752,7 @@
         isAllowedCreate: null,
         columnSetting: {
           fields: settingFields,
-          selectedFields: [...settingFields.slice(3, 7), settingFields[2]],
+          selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
         },
         statusEnum: statusEnum,
         // 是否支持一键检测
@@ -841,6 +858,15 @@
     beforeDestroy() {
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
+    },
+    watch:{
+      collectShowList:{
+        handler(val) {
+          if (val) {
+            this.requestStorageUsage()
+          }
+        },
+      }
     },
     methods: {
       async stopCollectHandler(row) {
@@ -1049,6 +1075,40 @@
               });
           });
       },
+      // 请求用量数据
+      requestStorageUsage() {
+        const index_set_ids = this.collectShowList.filter(item => {
+          return item.index_set_id && item.is_active && !('total_usage' in item)
+        }).map(item => item.index_set_id);
+        if(!index_set_ids.length){
+          return
+        }
+        this.isTableLoading = true; 
+        this.$http
+          .request('collect/getStorageUsage', {
+          data: {
+            bk_biz_id: this.bkBizId,
+            index_set_ids,
+          },
+        })
+        .then(resp => {
+          const { data } = resp;
+          this.collectList.forEach(item => {
+            ['daily_usage', 'total_usage'].forEach(key => {
+              const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
+              if (matchedItem?.[key] !== undefined) {
+                this.$set(item, key, matchedItem[key]);
+              }
+            });
+          })
+        })
+        .catch((error) => {
+          console.log(error);
+        })
+        .finally(() => {
+          this.isTableLoading = false;
+         });
+      },
       handleOperation(type) {
         if (type === 'clear-filter') {
           this.keyword = '';
@@ -1065,6 +1125,25 @@
           return;
         }
       },
+      formatBytes(size) {
+        if (size === undefined) {
+            return '--'; 
+        }
+        if (typeof size !== 'number' || size < 0) {
+            return 'Invalid input'; 
+        }
+        if (size === 0) {
+            return '0';
+        }
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let index = 0;
+        while (size >= 1024 && index < units.length - 1) {
+            size /= 1024;
+            index++;
+        }
+        const formattedSize = size % 1 === 0 ? size.toFixed(0) : size.toFixed(2);
+        return `${formattedSize}${units[index]}`;
+    },
       requestCollectStatus(isPrivate) {
         this.$http
           .request('collect/getCollectStatus', {

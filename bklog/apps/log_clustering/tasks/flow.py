@@ -52,11 +52,11 @@ def update_clustering_clean(collector_config_id, fields, etl_config, etl_params)
 
 
 @high_priority_task(ignore_result=True)
-def restart_flow(collector_config_id, flow_ids):
-    updated_timestamp = cache.get(f"start_pipeline_time_{collector_config_id}")
+def restart_flow(index_set_id, flow_ids):
+    updated_timestamp = cache.get(f"start_pipeline_time_{index_set_id}")
     if not updated_timestamp or arrow.now().timestamp() >= updated_timestamp:
         for flow_id in flow_ids:
             if not flow_id:
                 continue
             DataFlowHandler().operator_flow(flow_id=flow_id, action=ActionEnum.RESTART)
-        logger.info(f"restart flow success: collector_config_id -> {collector_config_id}")
+        logger.info(f"restart flow success: index_set_id -> {index_set_id}")

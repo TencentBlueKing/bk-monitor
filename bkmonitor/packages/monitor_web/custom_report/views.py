@@ -92,6 +92,8 @@ class CustomMetricReportViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.custom_report.preview_grouping_rule, endpoint="preview_grouping_rule"),
         # 删除分组规则
         ResourceRoute("POST", resource.custom_report.delete_grouping_rule, endpoint="delete_grouping_rule"),
+        # 更新分组规则排序
+        ResourceRoute("POST", resource.custom_report.update_grouping_rule_order, endpoint="update_grouping_rule_order"),
         # 待删除API
         ResourceRoute(
             "POST",

@@ -9,7 +9,7 @@ schemes:
 paths:
   /app/alert/get_experience/:
     get:
-      operationId: get_experience
+      operationId: get_alert_experience
       description: 获取告警处理经验
       x-bk-apigateway-resource:
         isPublic: false
@@ -25,3 +25,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: get_experience
+  /app/alert/search_by_event/:
+    post:
+      operationId: search_alert_by_event
+      description: 根据event获取告警处理信息
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          type: HTTP
+          method: post
+          path: /api/v4/alert_info/search_alert_by_event/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: search alert by event

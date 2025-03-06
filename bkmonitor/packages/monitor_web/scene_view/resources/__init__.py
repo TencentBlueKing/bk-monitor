@@ -14,6 +14,5 @@ from .host import *  # noqa
 from .kubernetes import *  # noqa
 from .log import *  # noqa
 from .observation_scene import *  # noqa
-from .old_custom_metric import *  # noqa
 from .uptime_check import *  # noqa
 from .view import *  # noqa

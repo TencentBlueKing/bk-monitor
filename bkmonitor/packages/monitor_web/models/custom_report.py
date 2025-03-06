@@ -384,13 +384,13 @@ class CustomTSTable(OperateRecordModelBase):
 
 class CustomTSItem(models.Model):
     """
-    自定义时序指标（弃用）
+    自定义时序指标
     """
 
     table = models.ForeignKey(
         CustomTSTable, verbose_name="自定义时序ID", related_name="metric_list", default=0, on_delete=models.CASCADE
     )
-    field_name = models.CharField("字段名称", max_length=128, db_column="metric_name")
+    metric_name = models.CharField("指标名称", max_length=128)
     type = models.CharField("类型", max_length=16, default="")
     label = JsonField("分组标签", default=list, blank=False)
 
@@ -410,6 +410,7 @@ class CustomTSGroupingRule(models.Model):
     自定义时序指标分组规则
     """
 
+    index = models.IntegerField("排序", default=0)
     name = models.CharField("分组名称", max_length=128)
     time_series_group_id = models.IntegerField("时序分组ID")
     manual_list = JsonField("手动分组的指标列表", default=[])
