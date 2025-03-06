@@ -370,6 +370,8 @@ class EventTopKResource(Resource):
         """
         获取字段匹配的查询条件
         """
+        if field in INNER_FIELD_TYPE_MAPPINGS:
+            return query_configs
         return [
             query_config
             for query_config in query_configs
@@ -430,9 +432,6 @@ class EventTopKResource(Resource):
         计算维度去重数量
         """
         matching_configs = cls.get_match_query_configs(field, query_configs, dimension_metadata_map)
-        # 如果是内置字段，直接查询所有事件源
-        if field in INNER_FIELD_TYPE_MAPPINGS:
-            matching_configs = query_configs
         if len(matching_configs) > 1:
             # 多事件源直接求所有枚举值
             run_threads(
