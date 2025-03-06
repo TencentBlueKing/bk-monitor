@@ -35,21 +35,17 @@ class GetDataSourceConfigResource(Resource):
     def perform_request(self, params):
         data_source_label = params["data_source_label"]
         data_type_label = params["data_type_label"]
-        metrics = list(
-            MetricListCache.objects.filter(
-                data_type_label=data_type_label,
-                data_source_label=data_source_label,
-                bk_biz_id__in=[0, params["bk_biz_id"]],
-            ).values(
-                "bk_biz_id",
-                "result_table_id",
-                "result_table_name",
-                "related_name",
-                "extend_fields",
-                "dimensions",
-                "metric_field",
-                "metric_field_name",
-            )
+        metrics = MetricListCache.objects.filter(
+            data_type_label=data_type_label, data_source_label=data_source_label, bk_biz_id__in=[0, params["bk_biz_id"]]
+        ).values(
+            "bk_biz_id",
+            "result_table_id",
+            "result_table_name",
+            "related_name",
+            "extend_fields",
+            "dimensions",
+            "metric_field",
+            "metric_field_name",
         )
 
         metric_dict = {}
@@ -80,8 +76,8 @@ class GetDataSourceConfigResource(Resource):
             metric_dict[table_id]["metrics"].append({"id": metric["metric_field"], "name": metric["metric_field_name"]})
 
         for table_id, data_source_config in metric_dict.items():
-            data_source_config["dimensions"] = table_dimension_mapping.get(table_id, {}).values()
-        return len(metric_dict.values())
+            data_source_config["dimensions"] = list(table_dimension_mapping.get(table_id, {}).values())
+        return list(metric_dict.values())
 
 
 class GetAlarmEventField(Resource):
