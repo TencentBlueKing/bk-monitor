@@ -180,18 +180,23 @@ export default class EventRetrieval extends tsc<IEventRetrieval.IProps, IEventRe
   }
 
   created() {
-    if (this.$route.query?.queryConfig) {
-      const { data_source_label, data_type_label, result_table_id, where } = JSON.parse(
-        this.$route.query.queryConfig as string
-      );
+    let queryConfig = null;
+    try {
+      queryConfig = JSON.parse((this.$route.query?.queryConfig || null) as string);
+      if (!queryConfig) {
+        queryConfig = JSON.parse((this.$route.query?.targets || null) as string)?.[0]?.data?.query_configs?.[0];
+      }
+    } catch (err) {
+      queryConfig = null;
+      console.log(err);
+    }
+    if (queryConfig) {
+      const { data_source_label, data_type_label, result_table_id, where } = queryConfig;
       this.localValue.where = where;
       this.localValue.result_table_id = result_table_id;
       this.localValue.eventType = `${data_source_label}_${data_type_label}` as IEventRetrieval.ILocalValue['eventType'];
     }
-
-    if (!this.$route.query?.targets) {
-      this.initData(!this.localValue.result_table_id);
-    }
+    this.initData(!this.localValue.result_table_id);
   }
 
   @Watch('eventInterval')
