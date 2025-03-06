@@ -23,39 +23,226 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import FieldTypeIcon from './field-type-icon';
 
-import type { IDimensionField } from '../typing';
+import { copyText } from 'monitor-common/utils';
+import { EMethod } from '../../../components/retrieval-filter/utils';
+import { type DimensionType, EventExploreEntitiesType } from '../typing';
 
 import './explore-kv-list.scss';
 
+export interface KVFieldList {
+  name: string;
+  type: DimensionType;
+  value: string;
+  sourceName: string;
+  entitiesType: EventExploreEntitiesType | '';
+  hasEntities: boolean;
+  entitiesAlias: string;
+}
+
 interface IExploreKvListProps {
-  data: Record<string, any>;
-  entitiesMap?: Record<string, any>;
+  fieldList: KVFieldList[];
+}
+
+interface IExploreKvListEvents {
+  onConditionChange(val): void;
 }
 
 @Component
-export default class ExploreKvList extends tsc<IExploreKvListProps> {
-  @Prop({ default: () => ({}), type: Object }) data: Record<string, any>;
-  @Prop({ default: () => ({}), type: Object }) entitiesMap: Record<string, any>;
+export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvListEvents> {
+  @Prop({ default: () => [], type: Array }) fieldList: KVFieldList[];
 
-  @InjectReactive('fieldList') fieldList: IDimensionField[];
+  @Ref('menu')
+  menuRef: any;
 
-  jumpLinkRender(item) {
-    const entities = this.entitiesMap[item.name];
-    if (!entities) {
+  menuList = [
+    {
+      id: 'copy',
+      name: this.$t('复制'),
+      icon: 'icon-mc-copy',
+      onClick: this.handleCopy,
+    },
+    {
+      id: 'add',
+      name: this.$t('添加到本次检索'),
+      icon: 'icon-a-sousuo',
+      onClick: () => this.handleConditionChange(EMethod.eq),
+    },
+    {
+      id: 'delete',
+      name: this.$t('从本次检索中排除'),
+      icon: 'icon-sousuo-',
+      onClick: () => this.handleConditionChange(EMethod.ne),
+    },
+    {
+      id: 'new-page',
+      name: this.$t('新建检索'),
+      icon: 'icon-mc-search',
+      onClick: this.handleNewExplorePage,
+    },
+  ];
+  popoverInstance = null;
+  fieldTarget: KVFieldList = null;
+
+  /**
+   * @description 添加/删除 检索 回调
+   */
+  @Emit('conditionChange')
+  handleConditionChange(method: EMethod) {
+    const condition = [
+      { condition: 'and', key: this.fieldTarget?.sourceName, method, value: [this.fieldTarget?.value] },
+    ];
+    this.handlePopoverHide();
+    return condition;
+  }
+
+  async handlePopoverShow(e: MouseEvent) {
+    this.popoverInstance = this.$bkPopover(e.currentTarget, {
+      content: this.menuRef,
+      trigger: 'click',
+      placement: 'bottom',
+      theme: 'light common-monitor',
+      arrow: false,
+      interactive: true,
+      followCursor: 'initial',
+      boundary: 'viewport',
+      distance: 4,
+      offset: '-2, 0',
+      onHidden: () => {
+        this.popoverInstance?.destroy?.();
+        this.popoverInstance = null;
+        this.fieldTarget = null;
+      },
+    });
+    await this.$nextTick();
+    this.popoverInstance?.show(100);
+  }
+
+  handlePopoverHide() {
+    this.popoverInstance?.hide?.();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
+    this.fieldTarget = null;
+  }
+
+  /**
+   * @description 处理 kv 值点击事件
+   * @param {MouseEvent} e
+   * @param {KVFieldList} item
+   */
+  handleValueTextClick(e: MouseEvent, item: KVFieldList) {
+    const currentName = this.fieldTarget?.name;
+    if (this.popoverInstance) {
+      this.handlePopoverHide();
+    }
+    if (currentName === item.name) {
       return;
     }
-    if (entities?.dependent_fields?.some(field => !this.data[field])) {
+    this.fieldTarget = item;
+    this.handlePopoverShow(e);
+  }
+
+  /**
+   * @description 处理复制事件
+   */
+  handleCopy() {
+    copyText(this.fieldTarget.value, msg => {
+      this.$bkMessage({
+        message: msg,
+        theme: 'error',
+      });
+      return;
+    });
+    this.$bkMessage({
+      message: this.$t('复制成功'),
+      theme: 'success',
+    });
+    this.handlePopoverHide();
+  }
+
+  /**
+   * @description 新建检索 回调
+   */
+  handleNewExplorePage() {
+    const { targets, from, to, timezone, refreshInterval } = this.$route.query;
+    const targetsList = JSON.parse(decodeURIComponent(targets as string));
+    const [
+      {
+        data: {
+          query_configs: [{ data_type_label, data_source_label, result_table_id }],
+        },
+      },
+    ] = targetsList;
+
+    const query = {
+      targets: JSON.stringify([
+        {
+          from: from,
+          to: to,
+          timezone: timezone,
+          refreshInterval: String(refreshInterval),
+          data: {
+            query_configs: [
+              {
+                data_type_label,
+                data_source_label,
+                result_table_id,
+                query_string: '*',
+                where: [
+                  {
+                    condition: 'and',
+                    key: this.fieldTarget?.sourceName,
+                    method: EMethod.eq,
+                    value: [this.fieldTarget?.value],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ]),
+    };
+    const targetRoute = this.$router.resolve({
+      query,
+    });
+    this.handlePopoverHide();
+    window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
+  }
+
+  /**
+   * @description 主机/容器 跳转链接回调
+   */
+  handleJumpLink(item: KVFieldList) {
+    let path = '';
+    switch (item.entitiesType) {
+      case EventExploreEntitiesType.HOST:
+        // TODO 跳转主机详情 host_id 待补充
+        path = '#/performance';
+        break;
+      case EventExploreEntitiesType.K8S:
+        path = '#/k8s?dashboardId=pod';
+        break;
+    }
+    if (path) {
+      const url = `${location.origin}${location.pathname}${location.search}${path}`;
+      window.open(url, '_blank');
+    }
+  }
+
+  jumpLinkRender(item: KVFieldList) {
+    if (!item.hasEntities) {
       return;
     }
-
     return (
-      <div class='value-jump-link'>
-        <span class='jump-link-label'>{entities?.alias || '主机'}</span>
+      <div
+        class='value-jump-link'
+        onClick={() => this.handleJumpLink(item)}
+      >
+        <span class='jump-link-label'>{item.entitiesAlias}</span>
         <i class='icon-monitor icon-mc-goto' />
       </div>
     );
@@ -67,7 +254,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps> {
         {this.fieldList.map(item => (
           <div
             key={item.name}
-            class='kv-list-item'
+            class={`kv-list-item ${this.fieldTarget?.name === item.name ? 'active' : ''}`}
           >
             <div class='item-label'>
               <FieldTypeIcon
@@ -78,10 +265,32 @@ export default class ExploreKvList extends tsc<IExploreKvListProps> {
             </div>
             <div class='item-value'>
               {this.jumpLinkRender(item)}
-              <span class='value-text'>{this.data[item.name] ?? '--'}</span>
+              <span
+                class='value-text'
+                onClick={e => this.handleValueTextClick(e, item)}
+              >
+                {item.value}
+              </span>
             </div>
           </div>
         ))}
+        <div style='display: none'>
+          <ul
+            ref='menu'
+            class='explore-kv-list-menu'
+          >
+            {this.menuList.map(item => (
+              <li
+                key={item.id}
+                class='menu-item'
+                onClick={item.onClick}
+              >
+                <i class={`icon-monitor ${item.icon}`} />
+                <span>{item.name}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     );
   }
