@@ -5,18 +5,30 @@
     padding: 5px 22px;
     line-height: 14px;
 
+    %kv-hover-text {
+      color: #3a84ff;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
     &:nth-child(odd) {
       background-color: #fff;
     }
 
-    &:hover {
+    &.active {
       background-color: #f0f1f5;
 
-      %kv-hover-text {
-        color: #3a84ff;
-        text-decoration: underline;
-        cursor: pointer;
+      .item-label span {
+        @extend %kv-hover-text;
       }
+
+      .item-value .value-text {
+        @extend %kv-hover-text;
+      }
+    }
+
+    &:hover {
+      background-color: #f0f1f5;
 
       .item-label span {
         @extend %kv-hover-text;
@@ -31,7 +43,7 @@
       display: flex;
       flex-shrink: 0;
       column-gap: 4px;
-      width: 158px;
+      width: 210px;
       color: #4d4f56;
 
       .kv-label-icon {
@@ -63,6 +75,27 @@
         min-width: 0;
         word-break: break-all;
       }
+    }
+  }
+}
+
+.explore-kv-list-menu {
+  width: 160px;
+  padding: 4px 0;
+
+  .menu-item {
+    display: flex;
+    column-gap: 4px;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
     }
   }
 }
