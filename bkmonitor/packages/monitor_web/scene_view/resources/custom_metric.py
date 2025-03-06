@@ -547,7 +547,7 @@ class GraphDrillDownResource(Resource):
         if index == 0:
             return 0
 
-        return sum_value / index
+        return round(sum_value / index, 3)
 
     def perform_request(self, params: dict) -> list:
         for item in params["query_configs"]:
