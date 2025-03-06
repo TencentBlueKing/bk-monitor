@@ -392,12 +392,12 @@ export default class TabContainer extends tsc<ITabContainerProps> {
             isScrollEnd={this.isScrollEnd}
             show={this.active === EPanelsNames.viewInfo}
           />
-          {!!(window as any).enable_aiops && !this.isHostAnomalyDetection && !this.checkPromqlPanel && (
+          {/* {!!(window as any).enable_aiops && !this.isHostAnomalyDetection && !this.checkPromqlPanel && (
             <AiopsContainer
               detail={this.detail}
               show={this.active === EPanelsNames.viewInfo}
             />
-          )}
+          )} */}
           <HandleExperiences
             detail={this.detail}
             show={this.active === EPanelsNames.handleExperience}

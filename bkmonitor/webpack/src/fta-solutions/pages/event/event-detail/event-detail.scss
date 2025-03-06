@@ -4,7 +4,7 @@
   flex-direction: column;
   align-items: center;
   min-width: 1200px;
-  max-height: 100%;
+  height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: smooth;
@@ -49,12 +49,14 @@
   }
   .detail-resize-view {
     width: 100%;
+    height: calc(100vh - 104px);
     border: none;
     .container-group {
       padding: 0 16px;
     }
   }
   .event-detail-aiops {
+    height: 100%;
     background: #f0f3fa;
   }
 }

@@ -90,6 +90,7 @@
     }
     .aiops-container-menu-item-content {
       padding: 0 10px;
+      max-height: calc(100vh - 228px);
     }
   }
 }

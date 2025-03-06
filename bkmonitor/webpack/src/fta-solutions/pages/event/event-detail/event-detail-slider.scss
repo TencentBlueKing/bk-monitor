@@ -184,7 +184,9 @@
       }
     }
   }
-
+  .detail-resize-view {
+    height: calc(100vh - 50px) !important;
+  }
   .event-detail-content {
     max-height: calc(100vh - 60px);
     padding: 0;
