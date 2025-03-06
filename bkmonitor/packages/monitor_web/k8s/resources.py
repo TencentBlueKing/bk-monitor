@@ -489,7 +489,7 @@ class ResourceTrendResource(Resource):
         for line in series:
             if line["datapoints"]:
                 for point in reversed(line["datapoints"]):
-                    if point[0]:
+                    if point[0] is not None:
                         max_data_point = max(max_data_point, point[1])
 
         for line in series:
