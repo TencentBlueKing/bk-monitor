@@ -142,7 +142,8 @@ class ChartHandler(object):
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
         if sql_param:
             pattern = (
-                r"^\s*?(SELECT\s+?.+?\bFROM\b.+?)"
+                r"^\s*?(SELECT\s+?.+?)"
+                r"(?:\bFROM\b.+?)?"
                 r"(?:\bWHERE\b.+?)?"
                 r"(\bGROUP\s+?BY\b.*|\bHAVING\b.*|\bORDER\s+?BY\b.*|\bLIMIT\b.*|\bINTO\s+?OUTFILE\b.*)?$"
             )
