@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import QsSelector from './qs-selector';
@@ -53,6 +53,7 @@ interface IProps {
   where?: IWhereItem[];
   queryString?: string;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onFavorite: () => void;
   onWhereChange?: (v: IWhereItem[]) => void;
   onQueryStringChange?: (v: string) => void;
 }
@@ -292,6 +293,9 @@ export default class RetrievalFilter extends tsc<IProps> {
     return result;
   }
 
+  @Emit('favorite')
+  handleFavorite() {}
+
   render() {
     return (
       <div class='retrieval-filter__component'>
@@ -344,7 +348,10 @@ export default class RetrievalFilter extends tsc<IProps> {
                 <span class='icon-monitor icon-tongyishezhi' />
               </div>
             )}
-            <div class='favorite-btn'>
+            <div
+              class='favorite-btn'
+              onClick={this.handleFavorite}
+            >
               <span class='icon-monitor icon-mc-uncollect' />
             </div>
             <div class='search-btn'>

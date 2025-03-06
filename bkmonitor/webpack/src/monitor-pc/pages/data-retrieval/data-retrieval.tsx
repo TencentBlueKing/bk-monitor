@@ -520,6 +520,11 @@ export default class DataRetrieval extends tsc<object> {
     return true;
   }
 
+  get dataId() {
+    if (this.tabActive === 'event') return this.eventMetricParams?.result_table_id;
+    return '';
+  }
+
   beforeRouteEnter(to: Route, from: Route, next: (to?: ((vm: any) => any) | false | RawLocation) => void) {
     next((vm: DataRetrieval) => {
       const { targets, type } = vm.$route.query.targets ? vm.$route.query : vm.$route.params;
@@ -3536,11 +3541,15 @@ export default class DataRetrieval extends tsc<object> {
                 >
                   <FavoriteIndex
                     ref='favoriteIndex'
+                    dataId={this.dataId}
                     favCheckedValue={this.favCheckedValue}
                     favoriteLoading={this.favoriteLoading}
                     favoriteSearchType={this.favoriteSearchType}
                     favoritesList={this.curFavList}
                     isShowFavorite={this.isShowFavorite}
+                    onClose={() => {
+                      this.isShowFavorite = false;
+                    }}
                     onGetFavoritesList={this.getListByGroupFavorite}
                     onOperateChange={({ operate, value }) => this.handleFavoriteOperate(operate, value)}
                   />
@@ -3635,11 +3644,11 @@ export default class DataRetrieval extends tsc<object> {
                     onCompareValueChange={this.handleCompareValueChange}
                     onDrillKeywordsSearch={val => (this.drillKeywords = val)}
                     onEventIntervalChange={this.handleEventIntervalChange}
+                    onNeedMenuChangeEvent={this.handleNeedMenuChange}
                     onShowLeft={this.handleLeftHiddenAndShow}
                     onSplitChange={this.handleSplitChange}
                     onTimeRangeChange={this.handleToolsTimeRangeChange}
                     onTimeRangeChangeEvent={this.handleTimeRangeChange}
-                    onNeedMenuChangeEvent={this.handleNeedMenuChange}
                   />
                 </div>
                 {/* 指标选择器 */}

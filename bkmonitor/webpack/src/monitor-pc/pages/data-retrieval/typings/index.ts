@@ -554,10 +554,11 @@ export declare namespace HandleBtnType {
 export declare namespace FavoriteIndexType {
   interface IProps {
     favoriteSearchType: string;
-    favoritesList: IFavList.favList[];
+    favoritesList: IFavList.favGroupList[];
     favoriteLoading: boolean;
     isShowFavorite: boolean;
     favCheckedValue: IFavList.favList;
+    dataId?: string;
   }
   interface IEvent {
     onOperateChange: {
@@ -565,6 +566,7 @@ export declare namespace FavoriteIndexType {
       value: any;
     };
     onGetFavoritesList();
+    onClose(): void;
   }
   interface IContainerProps {
     dataList?: IFavList.favGroupList[];
