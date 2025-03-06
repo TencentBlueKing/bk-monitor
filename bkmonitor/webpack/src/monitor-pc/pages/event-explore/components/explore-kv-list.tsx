@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import FieldTypeIcon from './field-type-icon';
-
 import { copyText } from 'monitor-common/utils';
+
 import { EMethod } from '../../../components/retrieval-filter/utils';
 import { type DimensionType, EventExploreEntitiesType } from '../typing';
+import FieldTypeIcon from './field-type-icon';
+import StatisticsList from './statistics-list';
 
 import './explore-kv-list.scss';
 
@@ -39,7 +40,7 @@ export interface KVFieldList {
   type: DimensionType;
   value: string;
   sourceName: string;
-  entitiesType: EventExploreEntitiesType | '';
+  entitiesType: '' | EventExploreEntitiesType;
   hasEntities: boolean;
   entitiesAlias: string;
 }
@@ -56,8 +57,8 @@ interface IExploreKvListEvents {
 export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvListEvents> {
   @Prop({ default: () => [], type: Array }) fieldList: KVFieldList[];
 
-  @Ref('menu')
-  menuRef: any;
+  @Ref('menu') menuRef: any;
+  @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
 
   menuList = [
     {
@@ -147,6 +148,32 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   }
 
   /**
+   * @description 处理维度项点击事件
+   */
+  async handleDimensionItemClick(e: Event, item: KVFieldList) {
+    const currentName = this.fieldTarget?.name;
+    if (this.popoverInstance) {
+      this.handlePopoverHide();
+    }
+    if (currentName === item.name) {
+      return;
+    }
+    this.fieldTarget = item;
+    this.popoverInstance = this.$bkPopover(e.currentTarget, {
+      content: this.statisticsListRef.$refs.dimensionPopover,
+      placement: 'right',
+      width: 400,
+      distance: -5,
+      boundary: 'window',
+      trigger: 'manul',
+      theme: 'light event-retrieval-dimension-filter',
+      arrow: true,
+      interactive: true,
+    });
+    this.popoverInstance?.show(100);
+  }
+
+  /**
    * @description 处理复制事件
    */
   handleCopy() {
@@ -233,6 +260,9 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     }
   }
 
+  /**
+   * @description 容器/主机 跳转链接入口渲染
+   */
   jumpLinkRender(item: KVFieldList) {
     if (!item.hasEntities) {
       return;
@@ -244,6 +274,47 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       >
         <span class='jump-link-label'>{item.entitiesAlias}</span>
         <i class='icon-monitor icon-mc-goto' />
+      </div>
+    );
+  }
+
+  /**
+   * @description kv 值点击弹出菜单popover渲染
+   */
+  menuPopoverRender() {
+    return (
+      <div style='display: none'>
+        <ul
+          ref='menu'
+          class='explore-kv-list-menu'
+        >
+          {this.menuList.map(item => (
+            <li
+              key={item.id}
+              class='menu-item'
+              onClick={item.onClick}
+            >
+              <i class={`icon-monitor ${item.icon}`} />
+              <span>{item.name}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  /**
+   * @description 统计数据 popover面板渲染
+   */
+  statisticsPopoverRender() {
+    return (
+      <div style={{ display: 'none' }}>
+        <StatisticsList
+          ref='statisticsList'
+          selectField={this.fieldTarget?.sourceName ?? ''}
+          onConditionChange={this.handleConditionChange}
+          onShowMore={this.handlePopoverHide}
+        />
       </div>
     );
   }
@@ -261,7 +332,12 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
                 class='kv-label-icon'
                 type={item.type}
               />
-              <span title={item.name}> {item.name}</span>
+              <span
+                title={item.name}
+                onClick={e => this.handleDimensionItemClick(e, item)}
+              >
+                {item.name}
+              </span>
             </div>
             <div class='item-value'>
               {this.jumpLinkRender(item)}
@@ -274,23 +350,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             </div>
           </div>
         ))}
-        <div style='display: none'>
-          <ul
-            ref='menu'
-            class='explore-kv-list-menu'
-          >
-            {this.menuList.map(item => (
-              <li
-                key={item.id}
-                class='menu-item'
-                onClick={item.onClick}
-              >
-                <i class={`icon-monitor ${item.icon}`} />
-                <span>{item.name}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {this.menuPopoverRender()}
+        {this.statisticsPopoverRender()}
       </div>
     );
   }
