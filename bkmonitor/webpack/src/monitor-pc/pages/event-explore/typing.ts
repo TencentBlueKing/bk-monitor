@@ -25,6 +25,7 @@
  */
 
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
+import type { TranslateResult } from 'vue-i18n';
 
 export interface IFormData {
   data_source_label: string;
@@ -74,4 +75,65 @@ export interface ITopKField {
     proportions: number;
     value: string;
   }[];
+}
+
+/**
+ * @description 事件检索 table表格列类型 枚举
+ */
+export enum ExploreTableColumnTypeEnum {
+  /** 事件 -- 内容列 */
+  CONTENT = 'content',
+  /** 事件 -- 目标列 */
+  LINK = 'link',
+  /** 事件 -- 来源列 */
+  PREFIX_ICON = 'prefix-icon',
+  /** 事件 -- 名称列  */
+  TEXT = 'text',
+  /** 事件 -- 发生时间列 */
+  TIME = 'time',
+}
+
+/**
+ * @description 事件检索 事件来源 枚举
+ */
+export enum ExploreSourceTypeEnum {
+  /** Kubernetes/BCS */
+  BCS = 'BCS',
+  /** CICD/蓝盾 */
+  CICD = 'CICD',
+  /** 系统/主机 */
+  HOST = 'HOST',
+}
+
+/**
+ * @description 事件type类型枚举
+ */
+export enum DimensionsTypeEnum {
+  DEFAULT = 'Default',
+  NORMAL = 'Normal',
+  WARNING = 'Warning',
+}
+
+/** 检索表格列配置类型 */
+export interface EventExploreTableColumn {
+  /** 字段类型 */
+  type: ExploreTableColumnTypeEnum;
+  /** 字段id */
+  id: string;
+  /** 字段名称（渲染指标列时为指标名称） */
+  name: TranslateResult;
+  /** 列宽 */
+  width?: number;
+  /** 最小列宽 */
+  min_width?: number;
+  /** 是否固定列 */
+  fixed?: 'left' | 'right' | boolean;
+  /** 自定义列表头类型 */
+  customHeaderCls?: string;
+}
+
+export interface EventExploreTableRequestConfigs {
+  apiModule: string;
+  apiFunc: string;
+  data: Record<string, any>;
 }
