@@ -249,7 +249,7 @@ class SearchHandler(object):
         self.time_range: str = search_dict.get("time_range")
         self.start_time: str = search_dict.get("start_time")
         self.end_time: str = search_dict.get("end_time")
-        self.time_zone: str = get_local_param("time_zone")
+        self.time_zone: str = get_local_param("time_zone", settings.TIME_ZONE)
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
@@ -390,6 +390,7 @@ class SearchHandler(object):
             self.time_field,
             start_time=self.start_time,
             end_time=self.end_time,
+            time_zone=self.time_zone,
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
@@ -1550,6 +1551,7 @@ class SearchHandler(object):
             self.storage_cluster_id,
             self.time_field,
             self.search_dict.get("bk_biz_id"),
+            time_zone=self.time_zone,
         )
         field_result, _ = mapping_handlers.get_all_fields_by_index_id()
         field_dict = dict()
@@ -1917,6 +1919,7 @@ class SearchHandler(object):
                 bk_biz_id=self.search_dict.get("bk_biz_id"),
                 only_search=True,
                 index_set=self.index_set,
+                time_zone=self.time_zone,
             )
         return self._mapping_handlers
 
