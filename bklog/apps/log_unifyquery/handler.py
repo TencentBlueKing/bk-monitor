@@ -94,7 +94,9 @@ class UnifyQueryHandler(object):
         self.is_multi_rt: bool = len(self.index_set_ids) > 1
 
         # 查询时间范围
-        self.start_time, self.end_time = self.deal_time_format(self.search_params)
+        self.start_time, self.end_time = self.deal_time_format(
+            self.search_params["start_time"], self.search_params["end_time"]
+        )
 
         # result fields
         self.field: Dict[str, max_len_dict] = {}
@@ -607,15 +609,15 @@ class UnifyQueryHandler(object):
             default_sort_tag=self.search_params.get("default_sort_tag", False),
         )
 
-    def deal_time_format(self, params):
-        if isinstance(params["start_time"], int) and isinstance(params["end_time"], int):
-            return params["start_time"], params["end_time"]
+    def deal_time_format(self, start_time, end_time):
+        if isinstance(start_time, int) and isinstance(end_time, int):
+            return start_time, end_time
 
-        dt1 = parser.parse(params["start_time"])
-        dt2 = parser.parse(params["end_time"])
-        params["start_time"] = int(dt1.timestamp() * 1000)
-        params["end_time"] = int(dt2.timestamp() * 1000)
-        return params["start_time"], params["end_time"]
+        dt1 = parser.parse(start_time)
+        dt2 = parser.parse(end_time)
+        start_time = int(dt1.timestamp() * 1000)
+        end_time = int(dt2.timestamp() * 1000)
+        return start_time, end_time
 
     @staticmethod
     def query_ts_raw(search_dict, raise_exception=False):
