@@ -26,6 +26,7 @@
 import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import Dayjs from 'dayjs';
 import _ from 'lodash';
 import { makeMap } from 'monitor-common/utils/make-map';
 
@@ -43,7 +44,9 @@ interface IEmit {
 export default class CompareWay extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly value: IProps['value'];
 
+  @Ref('rooRef') rootRef: HTMLElement;
   @Ref('popoverRef') popoverRef: any;
+  @Ref('popoverMenuRef') popoverMenuRef: HTMLElement;
 
   offsetList = Object.freeze([
     {
@@ -64,6 +67,9 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     },
   ]);
 
+  isHiddePopover = true;
+  isCustom = false;
+  customDate = '';
   localValue: string[] = [];
   tempEditValue: string[] = [];
 
@@ -73,13 +79,51 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   }
 
   triggerChange() {
-    this.$emit('change', [...this.localValue]);
+    const result = [...this.localValue];
+    if (this.isCustom) {
+      result.push(`${Dayjs().diff(Dayjs(this.customDate), 'day')}d`);
+    }
+    this.$emit('change', result);
+  }
+
+  disabledDateMethod(value: any) {
+    const tempValueMap = makeMap(this.tempEditValue);
+    if (tempValueMap['1h'] && Dayjs(value).isSame(Dayjs(), 'day')) {
+      return true;
+    }
+    if (tempValueMap['1d'] && Dayjs(value).isSame(Dayjs().subtract(1, 'day'), 'day')) {
+      return true;
+    }
+    if (tempValueMap['7d'] && Dayjs(value).isSame(Dayjs().subtract(7, 'day'), 'day')) {
+      return true;
+    }
+    if (tempValueMap['30d'] && Dayjs(value).isSame(Dayjs().subtract(30, 'day'), 'day')) {
+      return true;
+    }
+    return Dayjs(value).isAfter(Dayjs());
+  }
+
+  handleHidePopover(event: Event) {
+    if (
+      _.some(
+        event.composedPath(),
+        item =>
+          [this.rootRef, this.popoverMenuRef].includes(item as HTMLElement) ||
+          (item as HTMLElement).classList?.contains('metric-view-custom-date-picker')
+      )
+    ) {
+      return;
+    }
+    this.popoverRef.hideHandler();
   }
 
   handleBeginEdit() {
+    this.isHiddePopover = false;
     this.tempEditValue = [...this.localValue];
   }
-  handleEndEdit() {
+
+  handleSubmitEdit() {
+    this.isHiddePopover = true;
     this.localValue = [...this.tempEditValue];
     this.triggerChange();
   }
@@ -89,13 +133,30 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     this.triggerChange();
   }
 
+  handleRemoveCustom() {
+    this.isCustom = false;
+    this.customDate = '';
+    this.triggerChange();
+  }
+
+  handleCustomDateChange(day: string) {
+    this.customDate = day;
+  }
+
   mounted() {
     this.popoverRef.showHandler();
+    document.body.addEventListener('click', this.handleHidePopover);
+    this.$once('hook:beforeDestro', () => {
+      document.body.removeEventListener('click', this.handleHidePopover);
+    });
   }
 
   render() {
     return (
-      <div class='compare-type-time-edit-offset'>
+      <div
+        ref='rooRef'
+        class='compare-type-time-edit-offset'
+      >
         <div class='result-list'>
           {this.resultList.map(item => (
             <div
@@ -109,6 +170,15 @@ export default class CompareWay extends tsc<IProps, IEmit> {
               />
             </div>
           ))}
+          {this.isHiddePopover && this.customDate && (
+            <div class='offset-tag'>
+              {this.customDate}
+              <i
+                class='icon-monitor icon-mc-close remove-btn'
+                onClick={this.handleRemoveCustom}
+              />
+            </div>
+          )}
         </div>
         <bk-popover
           ref='popoverRef'
@@ -116,7 +186,8 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             placement: 'bottom-start',
             arrow: false,
             distance: 8,
-            onHidden: this.handleEndEdit,
+            hideOnClick: false,
+            onHidden: this.handleSubmitEdit,
             onShow: this.handleBeginEdit,
           }}
           theme='light compare-type-time-edit-offset'
@@ -126,8 +197,10 @@ export default class CompareWay extends tsc<IProps, IEmit> {
             <i class='icon-monitor icon-a-1jiahao' />
           </div>
           <div
+            ref='popoverMenuRef'
             class='wrapper'
             slot='content'
+            v-bk-clickoutside={this.handleHidePopover}
           >
             <bk-checkbox-group v-model={this.tempEditValue}>
               {this.offsetList.map(offsetItem => (
@@ -138,15 +211,21 @@ export default class CompareWay extends tsc<IProps, IEmit> {
                   <bk-checkbox value={offsetItem.id}>{offsetItem.name}</bk-checkbox>
                 </div>
               ))}
-              {/* <div class='time-item'>
-                <bk-checkbox />
-                {this.$t('自定义')}
+            </bk-checkbox-group>
+            <div class='time-item'>
+              <bk-checkbox v-model={this.isCustom}>{this.$t('自定义')}</bk-checkbox>
+              {this.isCustom && (
                 <bk-date-picker
                   style='width: 128px; margin-left: 12px;'
+                  options={{
+                    disabledDate: this.disabledDateMethod,
+                  }}
+                  ext-popover-cls='metric-view-custom-date-picker'
                   transfer={true}
+                  onChange={this.handleCustomDateChange}
                 />
-              </div> */}
-            </bk-checkbox-group>
+              )}
+            </div>
           </div>
         </bk-popover>
       </div>

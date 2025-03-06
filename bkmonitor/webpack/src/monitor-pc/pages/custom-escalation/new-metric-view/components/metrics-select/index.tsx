@@ -26,32 +26,20 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { type getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import RenderMetricsGroup from './components/render-metrics-group';
 
 import './index.scss';
 
-type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
-
-interface IEmit {
-  onChange: (value: {
-    metricsList: TCustomTsMetricGroups['metric_groups'][number]['metrics'];
-    commonDimensionList: TCustomTsMetricGroups['common_dimensions'];
-  }) => void;
-}
-
 @Component
-export default class HeaderFilter extends tsc<object, IEmit> {
+export default class HeaderFilter extends tsc<object> {
   @Ref('metricGroup') metricGroup: RenderMetricsGroup;
 
   searchKey = '';
 
-  handleChange(payload: {
-    metricsList: TCustomTsMetricGroups['metric_groups'][number]['metrics'];
-    commonDimensionList: TCustomTsMetricGroups['common_dimensions'];
-  }) {
-    this.$emit('change', payload);
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
   }
 
   handleClearChecked() {
@@ -69,6 +57,7 @@ export default class HeaderFilter extends tsc<object, IEmit> {
           <div class='action-box'>
             <bk-button
               style='padding: 0'
+              disabled={this.currentSelectedMetricList.length < 1}
               size='small'
               theme='primary'
               text
@@ -76,16 +65,18 @@ export default class HeaderFilter extends tsc<object, IEmit> {
               <i class='icon-monitor icon-mc-goto' />
               {this.$t('指标计算')}
             </bk-button>
-            <bk-button
-              style='margin-left: 16px; padding: 0'
-              size='small'
-              theme='primary'
-              text
-              onClick={this.handleClearChecked}
-            >
-              <i class='icon-monitor icon-a-3yuan-bohui' />
-              {this.$t('取消选中')}
-            </bk-button>
+            {this.currentSelectedMetricList.length > 0 && (
+              <bk-button
+                style='margin-left: 16px; padding: 0'
+                size='small'
+                theme='primary'
+                text
+                onClick={this.handleClearChecked}
+              >
+                <i class='icon-monitor icon-a-3yuan-bohui' />
+                {this.$t('取消选中')}
+              </bk-button>
+            )}
             <div style='display: inline-block; margin-left: auto; cursor: pointer'>
               <i class='icon-monitor icon-zhankai' />
             </div>
@@ -94,7 +85,6 @@ export default class HeaderFilter extends tsc<object, IEmit> {
         <RenderMetricsGroup
           ref='metricGroup'
           searchKey={this.searchKey}
-          onChange={this.handleChange}
         />
       </div>
     );

@@ -26,6 +26,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
 import EditPanel, { type IValue, type IMetrics } from './components/edit-panel';
@@ -34,7 +35,6 @@ import './index.scss';
 
 interface IProps {
   value: IValue[];
-  metricsList: IMetrics[];
 }
 
 interface IEmit {
@@ -44,7 +44,6 @@ interface IEmit {
 @Component
 export default class ValueTag extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly value: IProps['value'];
-  @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
 
   @Ref('editPanelRef') editPanelRef: EditPanel;
 
@@ -52,11 +51,15 @@ export default class ValueTag extends tsc<IProps, IEmit> {
   currentEditDimension: IValue;
   latestMetricsList: Readonly<IMetrics[]> = [];
 
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
+
   get isShowAddBtn() {
     return this.latestMetricsList.length > 1 || this.latestMetricsList[0]?.dimensions.length > 0;
   }
 
-  @Watch('metricsList', { immediate: true })
+  @Watch('currentSelectedMetricList', { immediate: true })
   metricsListChange() {
     this.calcLatestMetricsList();
   }
@@ -73,7 +76,7 @@ export default class ValueTag extends tsc<IProps, IEmit> {
     }, {});
 
     const dimensionCountMap: Record<string, number> = {};
-    this.metricsList.forEach(({ dimensions }) => {
+    this.currentSelectedMetricList.forEach(({ dimensions }) => {
       dimensions.forEach(({ name }) => {
         dimensionCountMap[name] = (dimensionCountMap[name] || 0) + 1;
       });
@@ -81,7 +84,7 @@ export default class ValueTag extends tsc<IProps, IEmit> {
 
     const commonDimensionList: IMetrics['dimensions'] = [];
     const otherDimensionList: IMetrics['dimensions'] = [];
-    this.metricsList.forEach(metricsItem => {
+    this.currentSelectedMetricList.forEach(metricsItem => {
       metricsItem.dimensions.forEach(dimensionItem => {
         if (selectDimensionNameMap[dimensionItem.name]) {
           return;
@@ -133,7 +136,7 @@ export default class ValueTag extends tsc<IProps, IEmit> {
   handleEditPanelChange(value: IValue) {
     if (this.currentEditDimension) {
       const localValue = [...this.localValue];
-      const index = _.findIndex(localValue, item => item === value);
+      const index = _.findIndex(localValue, item => item.key === value.key);
       localValue.splice(index, 1, value);
       this.localValue = Object.freeze(localValue);
     } else {
@@ -191,12 +194,12 @@ export default class ValueTag extends tsc<IProps, IEmit> {
                   class='tag-wrapper'
                   onClick={(event: Event) => this.handleShowEditPanel(item, event)}
                 >
-                  <div class='dimension-label'>
-                    {item.key}
-                    <span class='dimension-method'>{item.method}</span>
+                  <div class='dimension-header'>
+                    <div class='dimension-key'>{item.key}</div>
+                    <div class='dimension-method'>{item.method}</div>
                   </div>
-                  <div class='tag-value-wrapper'>
-                    {item.value.map((valueText, index) => (
+                  <div class='dimension-value-wrapper'>
+                    {item.value.slice(0, 3).map((valueText, index) => (
                       <div
                         key={index}
                         class='dimension-value'
@@ -205,6 +208,11 @@ export default class ValueTag extends tsc<IProps, IEmit> {
                         {valueText}
                       </div>
                     ))}
+                    {item.value.length > 3 && (
+                      <span class='dimension-value'>
+                        <span style='color: #F59500; padding: 0 2px; font-weight: bold'>+{item.value.length - 3}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div

@@ -13,6 +13,9 @@
       background: #f0f1f5;
       border-radius: 2px;
       margin-right: 4px;
+      &:hover {
+        background: #dde4eb;
+      }
     }
     .remove-btn {
       cursor: pointer;
@@ -45,6 +48,7 @@
   .wrapper {
     padding: 8px 0;
     background: #fff;
+    min-width: 220px;
   }
   .time-item {
     height: 32px;
@@ -55,14 +59,23 @@
     cursor: pointer;
     display: flex;
     align-items: center;
-    &:hover {
-      background: #f5f7fa;
-    }
     .bk-form-checkbox {
       flex: 1;
+      line-height: 32px;
+      .bk-checkbox-text {
+        font-size: 12px;
+      }
     }
-    .bk-checkbox {
-      margin-right: 6px;
+  }
+
+  .bk-date-picker {
+    .icon-wrapper {
+      height: 28px;
+      width: 28px;
+    }
+    .bk-date-picker-editor {
+      height: 28px;
+      line-height: 28px;
     }
   }
 }

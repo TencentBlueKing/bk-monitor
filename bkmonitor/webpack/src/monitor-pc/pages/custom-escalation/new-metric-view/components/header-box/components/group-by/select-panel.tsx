@@ -31,17 +31,21 @@ import _ from 'lodash';
 import './select-panel.scss';
 
 interface IProps {
+  value: { field: string; split: boolean }[];
   data: {
     name: string;
   }[];
+  splitable: boolean;
 }
 interface IEmit {
-  onChange: (value: { field: string; split: boolean }[]) => void;
+  onChange: (value: IProps['value']) => void;
 }
 
 @Component
 export default class AppendValue extends tsc<IProps, IEmit> {
+  @Prop({ type: Array, required: true }) readonly value: IProps['value'];
   @Prop({ type: Array, required: true }) readonly data: IProps['data'];
+  @Prop({ type: Boolean, default: false }) readonly splitable: IProps['splitable'];
 
   @Ref('popoverRef') popoverRef: any;
 
@@ -57,10 +61,12 @@ export default class AppendValue extends tsc<IProps, IEmit> {
 
   handleShowPopover() {
     this.popoverRef.showHandler();
+    this.checkedMap = Object.freeze(
+      this.value.reduce((result, item) => Object.assign(result, { [item.field]: item.split }), {})
+    );
   }
 
   handleToggleAll(checkAll: boolean) {
-    console.log('toglgle all = ', checkAll);
     const latestCheckedMap = { ...this.checkedMap };
     if (checkAll) {
       this.renderData.forEach(item => {
@@ -135,7 +141,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
           >
             {dimensionData.name}
           </bk-checkbox>
-          {isChecked && (
+          {this.splitable && isChecked && (
             <bk-popover style='margin-left: auto'>
               <bk-switcher
                 size='small'

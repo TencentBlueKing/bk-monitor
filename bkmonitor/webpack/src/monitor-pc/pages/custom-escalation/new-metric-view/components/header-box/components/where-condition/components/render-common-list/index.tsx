@@ -66,6 +66,13 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
             onChange={this.handleChange}
           />
         ))}
+        {this.data.length < 1 && (
+          <div>
+            <i18n path='(暂无常用维度，请前往 {0} 设置)'>
+              <a>{this.$t('维度管理')}</a>
+            </i18n>
+          </div>
+        )}
       </div>
     );
   }

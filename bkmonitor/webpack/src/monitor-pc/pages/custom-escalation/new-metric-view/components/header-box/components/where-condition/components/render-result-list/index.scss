@@ -54,7 +54,8 @@
       }
     }
 
-    .dimension-label {
+    .dimension-header {
+      display: flex;
       color: #757880;
       font-size: 12px;
       line-height: 14px;
@@ -62,12 +63,19 @@
       font-family: 'roboto', 'PingFang SC', 'Microsoft Yahei', 'Helvetica', 'Arial', 'sans-serif';
     }
 
+    .dimension-key {
+      max-width: 200px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
     .dimension-method {
       color: #3a84ff;
       margin-left: 2px;
       pointer-events: none;
     }
-    .tag-value-wrapper {
+    .dimension-value-wrapper {
       display: flex;
       color: #313238;
       line-height: 16px;
