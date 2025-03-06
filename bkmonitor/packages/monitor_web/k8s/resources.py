@@ -411,7 +411,7 @@ class ResourceTrendResource(Resource):
         )
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
             label="资源类型",
         )
         method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "count"])
