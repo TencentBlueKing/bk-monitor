@@ -176,6 +176,15 @@
           display: inline-block;
           color: #fafbfd;
         }
+
+        .content-item-value-link {
+          display: inline-block;
+          color: #3a84ff;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
       }
     }
   }

@@ -878,6 +878,9 @@ export default {
   检索: 'Explore',
   检索语句: 'Search statement',
   数据查询: 'Data Query',
+  添加到本次检索: 'Add to this search',
+  从本次检索中排除: 'Exclude from this search',
+  新建检索: 'New Explore',
 
   注意: 'Note',
   目录: 'Directory',

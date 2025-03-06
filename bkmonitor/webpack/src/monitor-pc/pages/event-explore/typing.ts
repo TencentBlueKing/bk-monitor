@@ -132,6 +132,13 @@ export interface EventExploreTableColumn {
   customHeaderCls?: string;
 }
 
+export enum EventExploreEntitiesType {
+  /** 主机 */
+  HOST = 'ip',
+  /** 容器 */
+  K8S = 'k8s',
+}
+
 export interface EventExploreTableRequestConfigs {
   apiModule: string;
   apiFunc: string;
