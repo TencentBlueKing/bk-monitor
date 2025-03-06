@@ -133,6 +133,9 @@ class UnifyQueryHandler(object):
 
         self.export_fields = self.search_params.get("export_fields")
 
+        index_info = self._init_index_info_list(self.search_params.get("index_set_ids", []))[0]
+        self.search_params.update({"scenario_id": index_info["scenario_id"]})
+
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
 
