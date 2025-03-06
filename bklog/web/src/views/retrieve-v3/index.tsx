@@ -25,15 +25,17 @@
  */
 
 import { defineComponent, ref } from 'vue';
-import V3Toolbar from './toolbar';
+
+import V3Collection from './collection';
 import V3Container from './container';
 import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
-import V3Collection from './collection';
+import V3Toolbar from './toolbar';
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'retrieve-v3',
+  name: 'RetrieveV3',
   setup() {
     const isCollectShow = ref(false);
     const handleCollectionShowChange = () => {
@@ -44,7 +46,10 @@ export default defineComponent({
       <div class='v3-bklog-root'>
         <V3Collection is-show={isCollectShow.value}></V3Collection>
         <div class='v3-bklog-content'>
-          <V3Toolbar on-collection-show-change={handleCollectionShowChange}></V3Toolbar>
+          <V3Toolbar
+            isCollectShow={isCollectShow.value}
+            on-collection-show-change={handleCollectionShowChange}
+          ></V3Toolbar>
           <V3Container>
             <V3Searchbar></V3Searchbar>
             <V3SearchResult></V3SearchResult>

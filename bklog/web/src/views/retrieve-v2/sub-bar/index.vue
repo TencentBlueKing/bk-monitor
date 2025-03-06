@@ -142,22 +142,38 @@
         :popover-options="{ offset: '-6,10' }"
         @selected="handleIndexSetSelected"
       ></SelectIndexSet>
+      <!-- <div style="min-width: 500px; height: 32px; background-color: #f0f1f5">采集项选择器</div> -->
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div class="box-right-option">
-      <VersionSwitch version="v2" />
-      <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" />
-      <TimeSetting></TimeSetting>
-      <ClusterSetting v-model="isShowClusterSetting"></ClusterSetting>
+      <TimeSetting class="border-solo"></TimeSetting>
+      <FieldSetting
+        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
+        class="border-solo"
+      />
+      <ClusterSetting
+        class="border-solo"
+        v-model="isShowClusterSetting"
+      ></ClusterSetting>
       <div
-        class="more-setting"
         v-if="!isExternal"
+        class="more-setting"
       >
         <RetrieveSetting :is-show-cluster-setting.sync="isShowClusterSetting"></RetrieveSetting>
       </div>
+      <VersionSwitch
+        style="border-left: 1px solid #eaebf0"
+        version="v2"
+      />
     </div>
   </div>
 </template>
 <style lang="scss">
   @import './index.scss';
+
+  .box-right-option {
+    .border-solo {
+      border-right: 1px solid #eaebf0;
+    }
+  }
 </style>

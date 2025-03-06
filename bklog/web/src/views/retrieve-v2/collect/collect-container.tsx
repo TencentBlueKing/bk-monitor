@@ -90,7 +90,10 @@ export default class CollectContainer extends tsc<IProps> {
   // eslint-disable-next-line @typescript-eslint/member-ordering
   render() {
     return (
-      <div class='retrieve-collect-container'>
+      <div
+        style='backgroundColor:#ebeef5'
+        class='retrieve-collect-container'
+      >
         {this.$slots.default}
         <div
           class='group-container-new'

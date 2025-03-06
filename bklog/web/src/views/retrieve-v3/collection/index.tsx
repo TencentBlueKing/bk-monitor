@@ -25,26 +25,29 @@
  */
 
 import { computed, defineComponent, ref } from 'vue';
+
 import V2Collection from '../../retrieve-v2/collect/collect-index';
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-collection',
+  name: 'V3Collection',
   props: {
     isShow: {
       type: Boolean,
       default: false,
     },
   },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setup(props, { slots }) {
     const showContent = computed(() => props.isShow);
     const collectWidth = ref(240);
     return () => {
       return (
         <V2Collection
+          width={collectWidth.value}
           class='v3-bklog-collection'
           is-show={showContent.value}
-          width={collectWidth.value}
         ></V2Collection>
       );
     };
