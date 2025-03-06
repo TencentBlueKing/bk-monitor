@@ -24,6 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import { h } from 'vue';
+
+import { useDocumentLink } from '../hooks/documentLink';
+
 import type { ITraceData } from '../typings';
 
 interface ISpanKindMaps {
@@ -31,6 +35,7 @@ interface ISpanKindMaps {
 }
 
 export const DEFAULT_TRACE_DATA: ITraceData = {
+  ebpf_enabled: false,
   original_data: [],
   span_classify: [],
   topo_relation: [],
@@ -81,6 +86,33 @@ export const TRACE_INFO_TOOL_FILTERS = [
     show: window.apm_ebpf_enabled ?? false,
     effect: ['timeline', 'topo', 'sequence', 'flame'],
     desc: window.i18n.t('安装了eBPF的采集服务就可以展示eBPF相关的数据'),
+    disabledDesc: h(
+      'div',
+      {
+        style: { lineHeight: '16px', display: 'flex' },
+        class: 'checkbox-item-disable-desc',
+      },
+      [
+        h('span', { style: { marginRight: '4px' } }, `${window.i18n.t('未安装')}eBPF`),
+        h(
+          'div',
+          {
+            style: {
+              marginRight: '2px',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#3A84FF',
+              cursor: 'pointer',
+            },
+            onClick: () => {
+              const { handleGotoLink } = useDocumentLink();
+              handleGotoLink('ebpf_docs');
+            },
+          },
+          [h('span', window.i18n.t('安装指引')), h('i', { class: 'icon-monitor icon-mc-goto' })]
+        ),
+      ]
+    ),
   },
   {
     id: VIRTUAL_SPAN,
