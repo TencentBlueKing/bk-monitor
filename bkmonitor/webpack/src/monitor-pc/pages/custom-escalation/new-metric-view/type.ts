@@ -24,6 +24,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export interface IObjItem {
+  [key: string]: any;
+}
 export interface IDimensionItem {
   name: string;
   key: string;
@@ -46,6 +49,13 @@ export interface IDataItem {
   color?: string;
   avg?: number;
   latest?: number;
+  percentage?: number;
+  compare_values?: {
+    value?: number;
+    offset?: string;
+    fluctuation?: number;
+  }[];
+  dimensions?: IObjItem;
 }
 
 export interface IRefreshItem {

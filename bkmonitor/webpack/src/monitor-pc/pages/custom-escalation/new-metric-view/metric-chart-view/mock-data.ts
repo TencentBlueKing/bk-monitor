@@ -1,7 +1,7 @@
 export const tableData = [
   {
     dimensions: {
-      ip: '127.0.0.1',
+      bk_target_ip: '127.0.0.1',
     },
     value: 1,
     percentage: 50,
@@ -13,46 +13,6 @@ export const tableData = [
       },
     ],
   },
-  // {
-  //   value: 234,
-  //   proportion: 32.24,
-  //   fluctuation: 10.34,
-  //   color: '#FFB848',
-  //   environment: 'test',
-  //   date_source: '2',
-  //   version: '1.0.0',
-  //   k8s_process: '2222',
-  // },
-  // {
-  //   value: 34,
-  //   proportion: 7.24,
-  //   fluctuation: 2.34,
-  //   color: '#67C19B',
-  //   environment: 'dev',
-  //   date_source: '2',
-  //   version: '1.0.1',
-  //   k8s_process: 'process-text',
-  // },
-  // {
-  //   value: 134,
-  //   proportion: 0.24,
-  //   fluctuation: 9.34,
-  //   color: '#8684DF',
-  //   environment: 'prod',
-  //   date_source: '2',
-  //   version: '1.0.2',
-  //   k8s_process: 'k8s',
-  // },
-  // {
-  //   value: 334,
-  //   proportion: 30.24,
-  //   fluctuation: 67.34,
-  //   color: '#FF74A4',
-  //   environment: 'stag',
-  //   date_source: '2',
-  //   version: '1.3.0',
-  //   k8s_process: 'process',
-  // },
 ];
 export const panelData = [
   {

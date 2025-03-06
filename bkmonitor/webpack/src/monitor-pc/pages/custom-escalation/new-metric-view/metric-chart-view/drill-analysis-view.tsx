@@ -87,6 +87,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     offset: [];
   };
   metricGroups = [];
+  loading = false;
 
   mounted() {
     this.refreshList = refreshList;
@@ -110,26 +111,33 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       this.resizeObserver.disconnect();
     }
   }
-
+  /** 获取当前可选的维度值 */
   handleGetCustomTsMetricGroups() {
-    getCustomTsMetricGroups({ time_series_group_id: 10 }).then(res => {
-      this.metricGroups = res.metric_groups;
-      let metrics = [];
-      this.panel.targets.map(item => {
-        (item.query_configs || []).map(query => {
-          metrics = query.metrics.map(metrics => metrics.field);
+    this.loading = true;
+    getCustomTsMetricGroups({ time_series_group_id: 10 })
+      .then(res => {
+        this.metricGroups = res.metric_groups;
+        let metrics = [];
+        this.panel.targets.map(item => {
+          (item.query_configs || []).map(query => {
+            metrics = query.metrics.map(metrics => metrics.field);
+          });
         });
-      });
-
-      this.metricGroups.map(item => {
-        item.metrics.map(ele => {
-          if (metrics.includes(ele.metric_name)) {
-            this.dimensionsList = ele.dimensions;
-          }
+        /** 获取当前需要展示的维度值 */
+        this.metricGroups.map(item => {
+          item.metrics.map(ele => {
+            if (metrics.includes(ele.metric_name)) {
+              this.dimensionsList = ele.dimensions;
+            }
+          });
         });
+        if (this.dimensionsList.length > 0) {
+          this.dimensionsList[0].checked = true;
+        }
+      })
+      .finally(() => {
+        this.loading = false;
       });
-      console.log(this.dimensionsList, metrics, this.metricGroups);
-    });
   }
   /** 关闭按钮 */
   handleClose() {
@@ -260,6 +268,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             >
               <DrillAnalysisTable
                 dimensionsList={this.dimensionsList}
+                loading={this.loading}
                 tableList={this.tableList}
                 onUpdateDimensions={this.handleUpdateDimensions}
               />

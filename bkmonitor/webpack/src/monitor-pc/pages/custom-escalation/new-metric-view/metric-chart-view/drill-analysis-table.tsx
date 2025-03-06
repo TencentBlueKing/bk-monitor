@@ -27,6 +27,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import type { IDimensionItem, IColumnItem, IDataItem } from '../type';
@@ -49,6 +50,7 @@ interface IDrillAnalysisTableEvent {
 export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, IDrillAnalysisTableEvent> {
   @Prop({ type: Array, default: () => [] }) dimensionsList: IDimensionItem[];
   @Prop({ type: Array, default: () => [] }) tableList: IDataItem[];
+  @Prop({ default: false }) loading: boolean;
   /** 维度是否支持多选 */
   isMultiple = false;
   /** 选中的维度 */
@@ -73,12 +75,13 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       if (item.checked) {
         list.push({
           label: item.name,
-          prop: item.key,
+          prop: `dimensions.${item.name}`,
           renderFn: row => this.renderDimensionRow(row, item),
         });
-        this.showDimensionKeys.push(item.key);
+        this.showDimensionKeys.push(item.name);
       }
     });
+    console.log(list, '===');
     return list;
   }
   get dimensionOptions() {
@@ -106,6 +109,20 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
 
   /** 维度选择侧栏 start */
   renderDimensionList() {
+    if (this.loading) {
+      return (
+        <div class='skeleton-loading'>
+          {Array(6)
+            .fill(null)
+            .map((_, index) => (
+              <div
+                key={index}
+                class='skeleton-element'
+              />
+            ))}
+        </div>
+      );
+    }
     const baseView = (item: IDimensionItem) => [<span>{item.name}</span>, <span class='item-name'>{item.alias}</span>];
     /** 单选 */
     if (!this.isMultiple) {
@@ -153,7 +170,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         checked: checkedList.includes(dimension.name),
       })
     );
-    this.$emit('updateDimensions', list);
+    this.dimensionsList = list;
+    // this.$emit('updateDimensions', list);
   }
 
   /** 维度选择侧栏 end */
@@ -162,6 +180,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
 
   /** 绘制下钻下拉列表 */
   renderOperation(row: IDataItem) {
+    const list = this.dimensionsList.filter(item => !item.checked);
+    console.log(this.drillList, 'drillList');
     return (
       <bk-dropdown-menu
         ref='dropdown'
@@ -180,7 +200,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
           class='table-drill-down-list'
           slot='dropdown-content'
         >
-          {(this.dimensionsList || []).map(option => {
+          {(list || []).map(option => {
             const isActive = this.drillValue === option.key;
             return (
               <li
@@ -207,18 +227,19 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   }
   /** 绘制维度列 */
   renderDimensionRow(row: IDataItem, item: IDimensionItem) {
+    const showTxt = row?.dimensions[item.name] || '--';
     return (
       <span class='dimensions-value'>
         <span
           class='dimensions-value-text'
           v-bk-overflow-tips
-          onClick={() => this.handleShowDetail(row, item)}
+          // onClick={() => this.handleShowDetail(row, item)}
         >
-          {row[item.key]}
+          {showTxt}
         </span>
         <i
           class='icon-monitor icon-mc-copy tab-row-icon'
-          onClick={() => this.copyValue(row[item.key])}
+          onClick={() => this.copyValue(showTxt)}
         />
       </span>
     );
@@ -260,7 +281,6 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
             },
           }}
           label={this.$t(item.label)}
-          prop={item.prop}
           sortable={item.sortable}
         ></bk-table-column>
       );
@@ -293,9 +313,10 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   }
   /** 下钻操作 */
   chooseDrill(item: IDimensionItem, row: IDataItem) {
-    this.drillValue = item.key;
+    console.log(item, row);
+    this.drillValue = item.name;
     this.isMultiple = false;
-    this.handleDimensionChange([item.key]);
+    this.handleDimensionChange([item.name]);
     this.showDimensionKeys.map(key => {
       this.drillList.push({
         key,
@@ -370,15 +391,22 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
               ))}
             </div>
           )}
-          <bk-table
-            ext-cls='dimensions-table'
-            data={this.tableList}
-            header-border={false}
-            outer-border={false}
-            stripe={true}
-          >
-            {this.renderTableColumn()}
-          </bk-table>
+          {this.loading ? (
+            <TableSkeleton
+              class='table-skeleton-block'
+              type={1}
+            />
+          ) : (
+            <bk-table
+              ext-cls='dimensions-table'
+              data={this.tableList}
+              header-border={false}
+              outer-border={false}
+              stripe={true}
+            >
+              {this.renderTableColumn()}
+            </bk-table>
+          )}
         </div>
         {/* 维度趋势图侧栏 */}
         <bk-sideslider
