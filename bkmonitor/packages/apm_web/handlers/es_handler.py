@@ -25,8 +25,8 @@ class ESMappingHandler:
 
     @staticmethod
     def flatten_mapping_properties(mapping_properties: dict, parent_path: str = None) -> dict[str, dict]:
-        """
-        将嵌套的 Elasticsearch mapping properties 结构展开为扁平化的字段字典
+        """将嵌套的 Elasticsearch mapping properties 结构展开为扁平化的字段字典
+
         参数 mapping_properties 请传入 mapping[table_name]["mappings"]["properties"]
         """
         result_dict = {}
@@ -51,7 +51,7 @@ class ESMappingHandler:
         """获取可用于查询的字段信息（包含字段类型对应的操作符）"""
         field_info_dict = self.flatten_all_index_mapping_properties()
 
-        # 排序，排序规则：顶层字段在前面，其他字段顺序随意
+        # 排序，排序规则：顶层字段排前面，二级排序按字母顺序排序
         sorted_field_names = sorted(field_info_dict.keys(), key=lambda x: ("." in x, x))
 
         fields = []

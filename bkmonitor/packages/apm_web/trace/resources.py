@@ -1146,7 +1146,6 @@ class ApplyTraceComparisonResource(Resource):
         class Meta:
             model = TraceComparison
             exclude = ["spans", "is_enabled", "is_deleted"]
-            ref_name = "ApplyTraceComparisonResponseSerializer"
 
     def perform_request(self, validated_data):
         params = dict(bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"])
@@ -1266,9 +1265,7 @@ class UserCustomConfigResource(Resource):
 
 
 class ListQueryDynamicFieldsResource(Resource):
-    """
-    获取动态字段字典
-    """
+    """获取动态字段字典"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
