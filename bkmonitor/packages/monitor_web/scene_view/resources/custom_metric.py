@@ -12,6 +12,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional
 
 from django.db import models
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -73,7 +74,15 @@ class GetCustomTsMetricGroups(Resource):
 
         # 指标分组
         metric_groups = defaultdict(list)
+        # 未分组
+        ungrouped_metrics = []
         for metric in metrics:
+            # 未分组
+            if not metric.config.get("label", []):
+                ungrouped_metrics.append(metric)
+                continue
+
+            # 分组
             for group in metric.config.get("label", []):
                 metric_groups[group].append(
                     {
@@ -85,6 +94,10 @@ class GetCustomTsMetricGroups(Resource):
                         ],
                     }
                 )
+
+        # 未分组
+        if ungrouped_metrics:
+            metric_groups[_("未分组")] = ungrouped_metrics
 
         return {
             "common_dimensions": common_dimensions,
