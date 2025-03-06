@@ -169,7 +169,7 @@ export default defineComponent({
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'mysql' });
+      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'transactsql' });
       editorInstance.value?.setValue([val].join('\n'));
     };
 
