@@ -83,27 +83,43 @@
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
+  const { requestFieldEgges } = useFieldEgges();
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      const { requestFieldEgges } = useFieldEgges();
-      requestFieldEgges(item, null, resp => {
-        if (typeof resp === 'boolean') {
-          return;
-        }
-        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-      });
+      isRequesting.value = true;
+      requestFieldEgges(
+        item,
+        null,
+        resp => {
+          if (typeof resp === 'boolean') {
+            return;
+          }
+          commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+        },
+        () => {
+          isRequesting.value = false;
+        },
+      );
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    const { requestFieldEgges } = useFieldEgges();
-    requestFieldEgges(item, value, resp => {
-      if (typeof resp === 'boolean') {
-        return;
-      }
-      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-    });
+    activeIndex.value = index;
+    isRequesting.value = true;
+    requestFieldEgges(
+      item,
+      value,
+      resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      },
+      () => {
+        isRequesting.value = false;
+      },
+    );
   };
 
   // 新建提交逻辑

@@ -376,7 +376,9 @@
           file_type: this.documentType,
         };
         axiosInstance
-          .post(downRequestUrl, data)
+          .post(downRequestUrl, data,{
+            originalResponse: true,
+          })
           .then(res => {
             if (res.result) {
               this.$bkMessage({

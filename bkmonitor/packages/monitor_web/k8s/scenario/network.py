@@ -47,25 +47,25 @@ def get_metrics() -> List:
                 Metric(
                     id="nw_container_network_receive_packets_total",
                     name=_lazy("网络入包量"),
-                    unit="Bps",
+                    unit="pps",
                     unsupported_resource=[],
                 ),
                 Metric(
                     id="nw_container_network_transmit_packets_total",
                     name=_lazy("网络出包量"),
-                    unit="Bps",
+                    unit="pps",
                     unsupported_resource=[],
                 ),
                 Metric(
                     id="nw_container_network_receive_errors_total",
                     name=_lazy("网络入丢包量"),
-                    unit="Bps",
+                    unit="pps",
                     unsupported_resource=[],
                 ),
                 Metric(
                     id="nw_container_network_transmit_errors_total",
                     name=_lazy("网络出丢包量"),
-                    unit="Bps",
+                    unit="pps",
                     unsupported_resource=[],
                 ),
                 Metric(

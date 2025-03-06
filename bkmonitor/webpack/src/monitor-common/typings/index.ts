@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { DocLinkType } from '@/utils/docs';
+
 // 项目空间
 export interface ISpaceItem {
   id: number;
@@ -45,11 +48,6 @@ export interface IBizItem {
   text: string;
   id: string;
   is_demo: boolean;
-}
-
-export enum DocLinkType {
-  Link = 'link',
-  Splice = 'splice',
 }
 
 // 文档链接
