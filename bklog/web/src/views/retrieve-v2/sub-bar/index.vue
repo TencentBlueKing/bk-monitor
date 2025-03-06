@@ -137,12 +137,12 @@
       :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
       class="box-biz-select"
     >
-      <!-- <SelectIndexSet
+      <SelectIndexSet
         style="min-width: 500px"
         :popover-options="{ offset: '-6,10' }"
         @selected="handleIndexSetSelected"
-      ></SelectIndexSet> -->
-      <div style="min-width: 500px; height: 32px; background-color: #f0f1f5">采集项选择器</div>
+      ></SelectIndexSet>
+      <!-- <div style="min-width: 500px; height: 32px; background-color: #f0f1f5">采集项选择器</div> -->
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
     <div class="box-right-option">

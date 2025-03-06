@@ -29,7 +29,7 @@ import { Component, Emit, Prop, PropSync, Watch, Ref } from 'vue-property-decora
 import { Component as tsc } from 'vue-tsx-support';
 
 import { RetrieveUrlResolver } from '@/store/url-resolver';
-import { Input, Popover, Button, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
+import { Input, Popover, Radio, RadioGroup, Form, FormItem } from 'bk-magic-vue';
 import { isEqual } from 'lodash';
 
 import $http from '../../../api';
@@ -759,6 +759,15 @@ export default class CollectIndex extends tsc<IProps> {
     window.removeEventListener('mousemove', this.dragMoving);
     window.removeEventListener('mouseup', this.dragStop);
   }
+  // 收藏夹的二种类型选择
+  // eslint-disable-next-line @typescript-eslint/member-ordering
+  currentCollectionType = 'all';
+  // 勾选是否查看当前索引集
+  // eslint-disable-next-line @typescript-eslint/member-ordering
+  isShowIndexList = 'yes';
+  handleRadioGroup(val: string) {
+    this.currentCollectionType = val;
+  }
   render() {
     return (
       <div
@@ -777,27 +786,81 @@ export default class CollectIndex extends tsc<IProps> {
           on-change={this.handleUserOperate}
         >
           <div class='search-container-new'>
+            <div class='search-container-new-title'>
+              <div>
+                <span style={{ fontSize: '14px', color: '#313238' }}>收藏夹</span>
+                <span class='search-container-new-title-num'>64</span>
+              </div>
+              <div class='search-container-new-title-right'>
+                <span
+                  style={{ fontSize: '16px' }}
+                  class='bklog-icon bklog-shezhi'
+                ></span>
+                <span
+                  style={{ fontSize: '16px' }}
+                  class='bklog-icon bklog-yingshe-2'
+                ></span>
+              </div>
+            </div>
             <div class='search-box fl-jcsb'>
               <Input
+                class='search-input'
                 vModel={this.searchVal}
-                placeholder={this.$t('请搜索')}
+                behavior='normal'
+                placeholder={this.$t('请输入')}
                 right-icon='bk-icon icon-search'
                 on-enter={this.handleSearchFavorite}
                 on-right-icon-click={this.handleSearchFavorite}
                 onKeyup={this.handleInputSearchFavorite}
               ></Input>
-              <div class='fl-jcsb operate-box'>
+            </div>
+            <div class='search-category'>
+              <div class='selector-container'>
+                {['all', 'unHandle'].map(type => (
+                  <span
+                    key={type}
+                    class={`option ${this.currentCollectionType === type ? 'selected' : ''}`}
+                    onClick={() => this.handleRadioGroup(type)}
+                  >
+                    <span
+                      style={{ marginRight: '4px' }}
+                      class={`bklog-icon ${type === 'all' ? 'bklog-table-2' : 'bklog-chart-2'}`}
+                    ></span>
+                    <span style={{ marginRight: '4px' }}>{type === 'all' ? '原始日志' : '图表分析'}</span>
+                    <span class='search-category-num'>{type === 'all' ? 23 : 43}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div class='search-tool'>
+              <span>
+                <bk-checkbox
+                  v-model={this.isShowIndexList}
+                  false-value='no'
+                  true-value='yes'
+                >
+                  仅查看当前索引集
+                </bk-checkbox>
+              </span>
+              <div
+                style={{ marginTop: '1px', cursor: 'pointer' }}
+                class='fl-jcsb operate-box'
+              >
                 <Popover
                   ref='popoverGroup'
                   ext-cls='new-group-popover'
                   placement='bottom-start'
                   tippy-options={this.tippyOption}
                 >
-                  <span class='bk-icon icon-plus-circle'></span>
+                  <span
+                    style={{ fontSize: '16px' }}
+                    class='bklog-icon bklog-xinjianwenjianjia'
+                    v-bk-tooltips={this.$t('新建收藏分组')}
+                  ></span>
                   <div slot='content'>
                     <Form
                       ref='checkInputForm'
-                      style={{ width: '100%' }}
+                      style={{ width: '100%', padding: '0px 2px' }}
                       labelWidth={0}
                       {...{
                         props: {
@@ -807,9 +870,13 @@ export default class CollectIndex extends tsc<IProps> {
                       }}
                     >
                       <FormItem property='groupName'>
+                        <span style={{ fontSize: '14px' }}>
+                          分组名称 <span style='color:red'>*</span>
+                        </span>
                         <Input
+                          style={{ marginTop: '4px' }}
                           vModel={this.verifyData.groupName}
-                          placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
+                          placeholder={this.$t('请输入')}
                           clearable
                           onEnter={() => this.handleClickGroupBtn('add')}
                           onKeydown={this.handleGroupKeyDown}
@@ -817,50 +884,73 @@ export default class CollectIndex extends tsc<IProps> {
                       </FormItem>
                     </Form>
                     <div class='operate-button'>
-                      <Button
-                        text
+                      <span
+                        class='operate-button-custom button-first'
                         onClick={() => this.handleClickGroupBtn('add')}
                       >
                         {this.$t('确定')}
-                      </Button>
-                      <span onClick={() => this.handleClickGroupBtn('cancel')}>{this.$t('取消')}</span>
+                      </span>
+                      <span
+                        class='operate-button-custom button-second'
+                        onClick={() => this.handleClickGroupBtn('cancel')}
+                      >
+                        {this.$t('取消')}
+                      </span>
                     </div>
                   </div>
                 </Popover>
+                <span
+                  style={{ fontSize: '16px' }}
+                  class='bklog-icon bklog-shouqi'
+                  v-bk-tooltips={this.$t('全部收起')}
+                ></span>
                 <Popover
                   ref='popoverSort'
                   ext-cls='sort-group-popover'
                   placement='bottom-start'
                   tippy-options={this.tippyOption}
                 >
-                  <div class='icon-box'>
-                    <span class='bk-icon icon-sort'></span>
+                  <div
+                    class='icon-box'
+                    v-bk-tooltips={this.$t('调整排序')}
+                  >
+                    <span
+                      style={{ fontSize: '16px' }}
+                      class='bk-icon icon-sort'
+                    ></span>
                   </div>
                   <div slot='content'>
-                    <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏名排序')}</span>
-                    <RadioGroup
-                      class='sort-group-container'
-                      vModel={this.sortType}
-                    >
-                      {this.groupSortList.map(item => (
-                        <Radio value={item.id}>{item.name}</Radio>
-                      ))}
-                    </RadioGroup>
-                    <div class='operate-button'>
-                      <Button
-                        theme='primary'
-                        onClick={() => this.handleClickSortBtn('sort')}
+                    <div style={{ padding: '0px 2px' }}>
+                      <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏名排序')}</span>
+                      <RadioGroup
+                        class='sort-group-container'
+                        vModel={this.sortType}
                       >
-                        {this.$t('确定')}
-                      </Button>
-                      <Button onClick={() => this.handleClickSortBtn('cancel')}>{this.$t('取消')}</Button>
+                        {this.groupSortList.map(item => (
+                          <Radio value={item.id}>{item.name}</Radio>
+                        ))}
+                      </RadioGroup>
+                      <div class='operate-button'>
+                        <span
+                          class='operate-button-custom button-first'
+                          onClick={() => this.handleClickSortBtn('sort')}
+                        >
+                          {this.$t('确定')}
+                        </span>
+                        <span
+                          class='operate-button-custom button-second'
+                          onClick={() => this.handleClickSortBtn('cancel')}
+                        >
+                          {this.$t('取消')}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </Popover>
               </div>
             </div>
           </div>
-          <div
+          {/* <div
             class={`new-search ${this.activeFavoriteID === -1 && 'active'}`}
             onClick={() => this.handleClickFavoriteItem()}
           >
@@ -870,7 +960,7 @@ export default class CollectIndex extends tsc<IProps> {
           <div
             class={['drag-border', { 'drag-ing': this.isChangingWidth }]}
             onMousedown={this.dragBegin}
-          ></div>
+          ></div> */}
         </CollectContainer>
         <ManageGroupDialog
           vModel={this.isShowManageDialog}
