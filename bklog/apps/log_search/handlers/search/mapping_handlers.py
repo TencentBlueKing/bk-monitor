@@ -105,6 +105,7 @@ class MappingHandlers(object):
         bk_biz_id=None,
         only_search=False,
         index_set=None,
+        time_zone=None,
     ):
         self.indices = indices
         self.index_set_id = index_set_id
@@ -114,7 +115,7 @@ class MappingHandlers(object):
         self.time_field = time_field
         self.start_time = start_time
         self.end_time = end_time
-        self.time_zone: str = get_local_param("time_zone", settings.TIME_ZONE)
+        self.time_zone: str = time_zone or get_local_param("time_zone", settings.TIME_ZONE)
         # 最终字段
         self._final_fields = None
 
