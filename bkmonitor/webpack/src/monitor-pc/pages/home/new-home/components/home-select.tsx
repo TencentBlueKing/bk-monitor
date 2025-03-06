@@ -93,7 +93,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 窗口宽度 */
   windowWidth = 0;
   textareaRow = MIN_ROW;
-  firstLoadPage = true;
+  showKeywordEle = false;
 
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
@@ -162,7 +162,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       this.textareaRow = MIN_ROW;
       this.handleShowChange(false);
     }
-    this.firstLoadPage = false;
+    this.showKeywordEle = !this.showPopover && !this.searchValue;
   }
   handleHiddenPopover() {
     this.handleShowChange(false);
@@ -278,7 +278,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   }
   /* 显示弹出层 */
   handleMousedown() {
-    this.showPopover = !this.firstLoadPage;
+    if (this.textareaInputRef.autofocus) {
+      // 初始化自动聚焦时，不打开搜索历史
+      this.textareaInputRef.attributes.removeNamedItem('autofocus');
+    } else {
+      this.showPopover = true;
+    }
     this.textareaRow = this.limitRows();
     this.localHistoryList = JSON.parse(localStorage.getItem(storageKey))?.slice(0, 10) || [];
   }
@@ -880,7 +885,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {!this.firstLoadPage && (!this.isBarToolShow && !this.showPopover && !this.searchValue) && (
+          {(!this.isBarToolShow && this.showKeywordEle) && (
             <div class='search-keyboard'>
               {this.$tc('快捷键')} /
             </div>
