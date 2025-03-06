@@ -32,7 +32,7 @@ apigateway:
 
 # 定义环境信息，用于命令 `sync_apigw_stage`
 stage:
-  {% if settings.ENVIRONMENT == "production" %}
+  {% if settings.APIGW_STAGE == "prod" %}
   name: "prod"
   description: "生产环境"
   description_en: "Production Environment"
