@@ -230,7 +230,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
   handleSearchFilter() {
     if (this.tableLoading) return;
     this.tableLoading = true;
-    let searchList;
+    let searchList: IFavoriteItem[] = [];
     if (this.searchValue !== '') {
       searchList = this.operateTableList.filter(item => item.name.includes(this.searchValue));
     } else {
@@ -291,7 +291,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
       this.tableList = res.map(item => ({ ...item, group_id: String(item.group_id) }));
       this.operateTableList = initList;
       this.searchAfterList = initList;
-    } catch (error) {
+    } catch {
     } finally {
       this.handleSearchFilter();
       this.tableLoading = false;
@@ -335,7 +335,6 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           this.operateListChange({ id: item.id }, { group_option: this.unPrivateList });
         });
       });
-    } catch (error) {
     } finally {
       this.groupName = '';
     }
@@ -445,7 +444,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
         ids: this.deleteTableIDList,
       };
       await bulkDeleteFavorite(data);
-    } catch (error) {}
+    } catch {}
   }
 
   // 更新收藏接口
@@ -464,7 +463,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
         configs,
       };
       await bulkUpdateFavorite(data);
-    } catch (error) {}
+    } catch {}
   }
 
   /** 所属组和变更人分组操作 */
@@ -522,7 +521,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
     const eventKeywordsSlot = row => <span>{row.config?.queryConfig.query_string}</span>;
 
     const nameSlot = {
-      default: ({ row }) => [
+      default: ({ row }) => (
         <div class='group-container'>
           <bk-checkbox
             class='group-check-box'
@@ -535,12 +534,12 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               onBlur={val => this.handleChangeFavoriteName(row, val)}
             />
           </div>
-        </div>,
-      ],
+        </div>
+      ),
     };
 
     const groupSlot = {
-      default: ({ row }) => [
+      default: ({ row }) => (
         <bk-select
           vModel={row.group_id}
           clearable={false}
@@ -591,12 +590,12 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               </li>
             )}
           </div>
-        </bk-select>,
-      ],
+        </bk-select>
+      ),
     };
 
     const visibleSlot = {
-      default: ({ row }) => [
+      default: ({ row }) => (
         <bk-select
           vModel={row.visible_type}
           clearable={false}
@@ -609,12 +608,12 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               name={item.name}
             />
           ))}
-        </bk-select>,
-      ],
+        </bk-select>
+      ),
     };
 
     const switchSlot = {
-      default: ({ row }) => [
+      default: ({ row }) => (
         <div class='switcher-box'>
           <div
             class='delete'
@@ -622,8 +621,8 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
           >
             <span class='bk-icon icon-delete' />
           </div>
-        </div>,
-      ],
+        </div>
+      ),
     };
 
     const renderHeader = () => (
@@ -690,7 +689,12 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
               >
                 <ul class='search-li'>
                   {this.unPrivateList.map(item => (
-                    <li onClick={() => this.handleClickMoveGroup(item)}>{item.group_name}</li>
+                    <li
+                      key={item.group_name}
+                      onClick={() => this.handleClickMoveGroup(item)}
+                    >
+                      {item.group_name}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -766,7 +770,7 @@ export default class GroupDialog extends tsc<IProps, IEvent> {
             <bk-table-column
               key={'column_update_time'}
               scopedSlots={{
-                default: ({ row }) => [<span>{this.getShowTime(row.update_time)}</span>],
+                default: ({ row }) => <span>{this.getShowTime(row.update_time)}</span>,
               }}
               label={this.$t('最近更新时间')}
               prop={'update_time'}
