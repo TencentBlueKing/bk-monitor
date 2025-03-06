@@ -26,11 +26,13 @@
 import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils';
 import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 
+import CompareType from '../components/header-box/components/compare-type';
 import FilterConditions from '../components/header-box/components/filter-conditions';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
@@ -52,14 +54,14 @@ interface IDrillAnalysisViewEvents {
 @Component
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
   /** 维度列表 */
-  @Prop({
-    default: () => [
-      { name: '环境', key: 'environment', checked: true },
-      { name: '数据来源', key: 'date_source' },
-      { name: '容器进程', key: 'k8s_process' },
-      { name: '版本', key: 'version' },
-    ],
-  })
+  // @Prop({
+  //   default: () => [
+  //     { name: '环境', key: 'environment', checked: true },
+  //     { name: '数据来源', key: 'date_source' },
+  //     { name: '容器进程', key: 'k8s_process' },
+  //     { name: '版本', key: 'version' },
+  //   ],
+  // })
   dimensionsList: IDimensionItem[];
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: PanelModel;
@@ -75,15 +77,21 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   timezone = window.timezone;
   timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   /* 拖拽数据 */
-  drag = { height: 550, minHeight: 300, maxHeight: 550 };
+  drag = { height: 400, minHeight: 300, maxHeight: 550 };
   divHeight = 0;
   resizeObserver = null;
   metricsList = [];
   commonDimensionList = [];
+  compare: {
+    type: '';
+    offset: [];
+  };
+  metricGroups = [];
 
   mounted() {
     this.refreshList = refreshList;
     this.$nextTick(() => {
+      this.handleGetCustomTsMetricGroups();
       if (this.drillMainRef) {
         // 初始化 ResizeObserver
         this.resizeObserver = new ResizeObserver(entries => {
@@ -101,6 +109,27 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
+  }
+
+  handleGetCustomTsMetricGroups() {
+    getCustomTsMetricGroups({ time_series_group_id: 10 }).then(res => {
+      this.metricGroups = res.metric_groups;
+      let metrics = [];
+      this.panel.targets.map(item => {
+        (item.query_configs || []).map(query => {
+          metrics = query.metrics.map(metrics => metrics.field);
+        });
+      });
+
+      this.metricGroups.map(item => {
+        item.metrics.map(ele => {
+          if (metrics.includes(ele.metric_name)) {
+            this.dimensionsList = ele.dimensions;
+          }
+        });
+      });
+      console.log(this.dimensionsList, metrics, this.metricGroups);
+    });
   }
   /** 关闭按钮 */
   handleClose() {
@@ -131,6 +160,21 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   handleResizing(height: number) {
     this.drag.height = height;
     this.chartKey = random(8);
+  }
+  /** 修改时间对比 */
+  handleComparTypeChange(payload) {
+    this.compare = payload;
+    console.log('payload', payload, this.panel);
+    this.getTableList();
+  }
+  getTableList() {
+    const { type, offset } = this.compare;
+    this.panel.targets.map(item => {
+      if (type === 'time') {
+        item.function.time_compare = offset;
+      }
+      return item;
+    });
   }
 
   render() {
@@ -176,6 +220,12 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
               on-on-icon-click={this.handleImmediateRefresh}
             />
           </div>
+        </div>
+        <div class='compare-view'>
+          <CompareType
+            value={this.compare}
+            onChange={this.handleComparTypeChange}
+          />
         </div>
         <div
           ref='drillMain'

@@ -240,7 +240,7 @@ export const mockParam = {
   group_by: [
     {
       field: 'database',
-      split: true, // 拆图
+      split: false, // 拆图
     },
     {
       field: 'datacenter',

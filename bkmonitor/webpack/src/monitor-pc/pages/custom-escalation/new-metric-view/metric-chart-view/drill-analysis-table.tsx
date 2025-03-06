@@ -106,14 +106,14 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
 
   /** 维度选择侧栏 start */
   renderDimensionList() {
-    const baseView = (item: IDimensionItem) => [<span>{item.key}</span>, <span class='item-name'>{item.name}</span>];
+    const baseView = (item: IDimensionItem) => [<span>{item.name}</span>, <span class='item-name'>{item.alias}</span>];
     /** 单选 */
     if (!this.isMultiple) {
       return this.dimensionsList.map((item: IDimensionItem) => (
         <div
-          key={item.key}
+          key={item.name}
           class={['dimensions-list-item', { active: item.checked }]}
-          onClick={() => this.handleDimensionChange([item.key])}
+          onClick={() => this.handleDimensionChange([item.name])}
         >
           {baseView(item)}
         </div>
@@ -143,14 +143,14 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   changeMultiple(val: boolean) {
     this.isMultiple = val;
     const index = this.dimensionsList.findIndex(item => item.checked);
-    this.handleDimensionChange([this.dimensionsList[index].key]);
+    this.handleDimensionChange([this.dimensionsList[index].name]);
   }
   /** 选中维度的相关处理  */
   handleDimensionChange(checkedList: string[]) {
     this.activeList = checkedList;
     const list = this.dimensionsList.map((dimension: IDimensionItem) =>
       Object.assign(dimension, {
-        checked: checkedList.includes(dimension.key),
+        checked: checkedList.includes(dimension.name),
       })
     );
     this.$emit('updateDimensions', list);

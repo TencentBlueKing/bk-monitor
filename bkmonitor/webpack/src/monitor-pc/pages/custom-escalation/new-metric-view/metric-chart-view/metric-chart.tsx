@@ -143,12 +143,17 @@ class NewMetricChart extends CommonSimpleChart {
   }
   // /** 更多里的操作列表 */
   get menuList() {
-    return ['save', 'more', 'explore', 'area', 'drill-down', 'relate-alert'];
+    return ['save', 'explore', 'drill-down', 'relate-alert', 'screenshot'];
   }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
   handleHeightChange() {
     this.handleResize();
+  }
+  /** 重新拉取数据 */
+  @Watch('panel', { deep: true })
+  handlePanelChange() {
+    this.getPanelData();
   }
   /** 切换计算的Method */
   handleMethodChange(method: (typeof APM_CUSTOM_METHODS)[number]) {
@@ -579,6 +584,7 @@ class NewMetricChart extends CommonSimpleChart {
    * @param {*} customSave 自定义保存图片
    */
   handleStoreImage(title: string, targetEl?: HTMLElement, customSave = false) {
+    console.log('====');
     const el = targetEl || (this.$el as HTMLElement);
     return toPng(el)
       .then(dataUrl => {
@@ -592,10 +598,11 @@ class NewMetricChart extends CommonSimpleChart {
   }
   /** 工具栏各个icon的操作 */
   handleIconClick(menuItem) {
+    console.log(menuItem?.id, '1====');
     switch (menuItem.id) {
       /** 维度下钻 */
       case 'drillDown':
-        this.$emit('drillDown');
+        this.$emit('drillDown', this.panel);
         break;
       // 保存到仪表盘
       case 'save':
@@ -607,19 +614,11 @@ class NewMetricChart extends CommonSimpleChart {
         }, 300);
         break;
       case 'fullscreen': {
-        // 大图检索
+        // 大图
         const copyPanel = this.getCopyPanel();
-        console.log(copyPanel);
         this.handleFullScreen(copyPanel as any);
         break;
       }
-
-      case 'area': // 面积图
-        (this.$refs.baseChart as any)?.handleTransformArea(menuItem.checked);
-        break;
-      case 'set': // 转换Y轴大小
-        (this.$refs.baseChart as any)?.handleSetYAxisSetScale(!menuItem.checked);
-        break;
       case 'explore': {
         // 跳转数据检索
         const copyPanel = this.getCopyPanel();
@@ -633,7 +632,7 @@ class NewMetricChart extends CommonSimpleChart {
         break;
       }
       case 'relate-alert': {
-        // 大图检索
+        // 关键告警
         const copyPanel = this.getCopyPanel();
         handleRelateAlert(copyPanel as any, this.timeRange);
         break;

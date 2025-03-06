@@ -28,7 +28,10 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
+import { type IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
+import DrillAnalysisView from './drill-analysis-view';
 import NewMetricChart from './metric-chart';
 
 import type { IColumnItem, IDataItem } from '../type';
@@ -55,6 +58,8 @@ interface ILayoutChartTableEvents {
 @Component
 export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayoutChartTableEvents> {
   // 图表panel实例
+  @Prop({ default: () => ({}) }) config: object;
+  // 图表panel实例
   @Prop({ default: () => ({}) }) panel: PanelModel;
   /* 拖拽数据 */
   @Prop({ default: () => ({ height: 300, minHeight: 180, maxHeight: 400 }) }) drag: IDragInfo;
@@ -80,7 +85,27 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   ];
   tableList: ILegendItem[] = [];
   loading = true;
+  /** 是否展示维度下钻view */
+  showDrillDown = false;
+  showViewDetail = false;
+  /** 查看大图参数配置 */
+  viewQueryConfig = {};
+  currentChart = {};
 
+  /** 对比工具栏数据 */
+  get compareValue() {
+    return {
+      compare: {
+        type: 'none',
+        value: '',
+      },
+      tools: {
+        timeRange: [this.config.start_time, this.config.end_time],
+        // refleshInterval: this.refleshInterval,
+        searchValue: [],
+      },
+    };
+  }
   mounted() {
     this.$nextTick(() => {
       if (this.layoutMainRef) {
@@ -144,8 +169,34 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     this.isDragging = false;
   }
   /** 维度下钻 */
-  handelDrillDown() {
-    this.$emit('drillDown');
+  /** 维度下钻 */
+  handelDrillDown(chart: IPanelModel) {
+    this.showDrillDown = true;
+    console.log('维度下钻', chart);
+    this.currentChart = chart;
+  }
+  handleLegendData(list: ILegendItem[], loading: boolean) {
+    this.tableList = list;
+    this.loading = loading;
+  }
+
+  /**
+   * @description: 查看大图
+   * @param {boolean} loading
+   */
+  handleFullScreen(config: PanelModel, compareValue?: any) {
+    this.viewQueryConfig = {
+      config: JSON.parse(JSON.stringify(config)),
+      compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue })),
+    };
+    this.showViewDetail = true;
+  }
+  /**
+   * @description: 关闭查看大图弹窗
+   */
+  handleCloseViewDetail() {
+    this.showViewDetail = false;
+    this.viewQueryConfig = {};
   }
   /** 表格渲染 */
   renderIndicatorTable() {
@@ -186,10 +237,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       </bk-table>
     );
   }
-  handleLegendData(list: ILegendItem[], loading: boolean) {
-    this.tableList = list;
-    this.loading = loading;
-  }
+
   render() {
     return (
       <div
@@ -219,6 +267,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
               panel={this.panel}
               onDrillDown={this.handelDrillDown}
               onLegendData={this.handleLegendData}
+              onfullScreen={this.handleFullScreen}
             />
           </div>
           <div
@@ -235,6 +284,20 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         >
           <div class='drag-btn'></div>
         </div>
+        {this.showDrillDown && (
+          <DrillAnalysisView
+            panel={this.currentChart}
+            onClose={() => (this.showDrillDown = false)}
+          />
+        )}
+        {/* 全屏查看大图 */}
+        {this.showViewDetail && (
+          <ViewDetail
+            show={this.showViewDetail}
+            viewConfig={this.viewQueryConfig}
+            on-close-modal={this.handleCloseViewDetail}
+          />
+        )}
       </div>
     );
   }

@@ -27,6 +27,7 @@ import { Component, Watch, Provide, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
+import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import { type IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { api, mockParam } from './api';
@@ -68,6 +69,9 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   currentChart = {};
 
   loading = false;
+  showViewDetail = false;
+  /** 查看大图参数配置 */
+  viewQueryConfig = {};
 
   /** 拉伸的时候图表重新渲染 */
   @Watch('groupList')
@@ -117,8 +121,10 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       <div class={`chart-view-item column-${this.columnNum}`}>
         <LayoutChartTable
           height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)]}
+          config={this.config}
           panel={chart}
           onDrillDown={() => this.handelDrillDown(chart)}
+          onFullscreen={() => this.handleFullScreen(chart)}
           onResize={height => this.handleResize(height, ind, chartInd)}
         ></LayoutChartTable>
       </div>
@@ -163,6 +169,17 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
     this.showDrillDown = true;
     this.currentChart = chart;
   }
+  /**
+   * @description: 关闭查看大图弹窗
+   */
+  handleCloseViewDetail() {
+    this.showViewDetail = false;
+    this.viewQueryConfig = {};
+  }
+
+  handleFullScreen(panel) {
+    console.log(panel, '====');
+  }
 
   render() {
     return (
@@ -204,6 +221,14 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
           <DrillAnalysisView
             panel={this.currentChart}
             onClose={() => (this.showDrillDown = false)}
+          />
+        )}
+        {/* 全屏查看大图 */}
+        {this.showViewDetail && (
+          <ViewDetail
+            show={this.showViewDetail}
+            viewConfig={this.viewQueryConfig}
+            on-close-modal={this.handleCloseViewDetail}
           />
         )}
       </div>
