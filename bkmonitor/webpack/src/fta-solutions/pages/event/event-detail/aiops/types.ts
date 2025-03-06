@@ -73,3 +73,18 @@ export enum EventReportType {
   Tips = 'event_detail_tips',
   View = 'event_detail_view',
 }
+
+export interface TabConfig {
+  name: string;
+  icon: string;
+  titleKey: string;
+  loading: boolean;
+  error?: string;
+  infoType: 'dimensionInfo' | 'indexInfo';
+  contentRenderer?: () => void;
+  dataItems: {
+    path: string;
+    labelKey: string;
+    showComma?: boolean;
+  }[];
+}

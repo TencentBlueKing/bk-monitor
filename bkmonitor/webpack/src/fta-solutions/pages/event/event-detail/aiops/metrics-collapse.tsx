@@ -142,7 +142,7 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
             >
               {this.title}
             </span>
-            <div class={['correlation-metrics-right', this.showLayoutPopover && 'correlation-metrics-right-show']}>
+            {/* <div class={['correlation-metrics-right', this.showLayoutPopover && 'correlation-metrics-right-show']}>
               {this.needLayout && (
                 <bk-popover
                   ref='popover'
@@ -190,7 +190,7 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
                   </ul>
                 </bk-popover>
               )}
-            </div>
+            </div> */}
           </div>
           <bk-transition name='collapse'>
             <div
