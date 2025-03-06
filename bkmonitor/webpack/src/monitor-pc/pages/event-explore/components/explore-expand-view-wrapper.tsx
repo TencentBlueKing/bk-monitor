@@ -88,6 +88,7 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
             data={this.data}
             deep={5}
             showIcon={true}
+            showKeyValueSpace={true}
           />
         </div>
       </div>

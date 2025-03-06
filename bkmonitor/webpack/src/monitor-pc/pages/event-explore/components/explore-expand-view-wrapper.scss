@@ -37,12 +37,12 @@
   .json-view-content {
     padding-left: 4px;
 
-    .vjs-tree__node {
+    .vjs-tree-node {
       font-size: 12px;
       line-height: 22px;
 
-      .vjs-tree__indent.has-line {
-        flex-basis: 2em;
+      .vjs-indent-unit.has-line {
+        width: 2em;
         border-left-style: solid;
       }
 
@@ -51,12 +51,12 @@
       }
 
       .vjs-value {
-        &.vjs-value__string {
+        &.vjs-value-string {
           color: #1f6d89;
           white-space: pre-wrap;
         }
 
-        &.vjs-value__number {
+        &.vjs-value-number {
           color: #2caf5e;
         }
       }
