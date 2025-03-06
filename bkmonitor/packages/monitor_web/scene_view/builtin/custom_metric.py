@@ -44,6 +44,8 @@ def get_order_config(view: SceneViewModel) -> List:
         for label in field.config.get("label", []):
             match_type = set()
             match_rules = []
+            if label not in group_map:
+                continue
             group = group_map[label]
             if field.name in group.manual_list:
                 match_type.add("manual")
