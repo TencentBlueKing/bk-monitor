@@ -301,21 +301,25 @@ class AsyncExportUtils(object):
         return storage_cluster_ids
 
     def _async_export(self, search_handler, file_path):
-        max_result_window = search_handler.index_set.result_window
-        result = search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
-        # 判断是否成功
-        if result["_shards"]["total"] != result["_shards"]["successful"]:
-            logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
-            raise PreCheckAsyncExportException()
-        with open(file_path, "a+", encoding="utf-8") as f:
-            result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
-            for item in result_list:
-                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
-            if search_handler.scenario_id == Scenario.ES:
-                generate_result = search_handler.scroll_result(result)
-            else:
-                generate_result = search_handler.search_after_result(result, self.sorted_fields)
-            self.write_file(f, generate_result)
+        try:
+            max_result_window = search_handler.index_set.result_window
+            result = search_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
+            # 判断是否成功
+            if result["_shards"]["total"] != result["_shards"]["successful"]:
+                logger.error("can not create async_export task, reason: {}".format(result["_shards"]["failures"]))
+                raise PreCheckAsyncExportException()
+            with open(file_path, "a+", encoding="utf-8") as f:
+                result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
+                for item in result_list:
+                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                if search_handler.scenario_id == Scenario.ES:
+                    generate_result = search_handler.scroll_result(result)
+                else:
+                    generate_result = search_handler.search_after_result(result, self.sorted_fields)
+                self.write_file(f, generate_result)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("async export error: index_set_id: %s, reason: %s", search_handler.index_set_id, e)
+            raise e
 
         return file_path
 
