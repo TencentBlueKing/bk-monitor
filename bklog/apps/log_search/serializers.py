@@ -972,7 +972,7 @@ class SearchConditionSerializer(serializers.Serializer):
 
 
 class UISearchSerializer(serializers.Serializer):
-    sql = serializers.CharField(label=_("sql"), required=False)
+    sql = serializers.CharField(label=_("sql"), required=False, default="", allow_blank=True)
     addition = serializers.ListField(
         required=False,
         default=list,
