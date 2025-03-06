@@ -4,11 +4,18 @@
   flex-direction: column;
   align-items: center;
   min-width: 1200px;
-  max-height: 100%;
-  padding: 0 200px;
+  height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: smooth;
+  .event-detail-head-container {
+    width: 100%;
+    min-height: 52px;
+    background: #ffffff;
+    box-shadow: 0 2px 4px 0 #1919291f;
+    border-radius: 2px;
+    padding-left: 8px;
+  }
 
   .chat-btn,
   .feedback-btn {
@@ -32,11 +39,24 @@
   .container-group {
     position: relative;
     width: 100%;
+    padding: 0 84px;
     min-width: 1200px;
     // padding-bottom: 68px;
 
     .basicinfo-bottom-border {
       display: none;
     }
+  }
+  .detail-resize-view {
+    width: 100%;
+    height: calc(100vh - 104px);
+    border: none;
+    .container-group {
+      padding: 0 16px;
+    }
+  }
+  .event-detail-aiops {
+    height: 100%;
+    background: #f0f3fa;
   }
 }

@@ -6,6 +6,9 @@
 
     .event-detail-container {
       min-width: auto;
+      .container-group {
+        padding: 0;
+      }
     }
   }
 
@@ -21,7 +24,7 @@
         margin-left: 10px;
         font-size: 12px;
         color: #979ba5;
-      } 
+      }
     }
 
     .icon-copy-link {
@@ -181,7 +184,9 @@
       }
     }
   }
-
+  .detail-resize-view {
+    height: calc(100vh - 50px) !important;
+  }
   .event-detail-content {
     max-height: calc(100vh - 60px);
     padding: 0;
@@ -196,9 +201,8 @@
 
       .basicinfo-bottom-border {
         display: block;
-        height: 1px;
-        margin: 0 40px;
-        background: #dbdee5;
+        height: 4px;
+        background-image: linear-gradient(180deg, #00000000 0%, #00000008 100%);
       }
 
       .event-detail-basic {
@@ -208,6 +212,7 @@
         .basic-detail {
           padding-right: 40px;
           padding-left: 40px;
+          background: #fafbfd;
 
           .basic-left {
             min-width: initial;
@@ -221,6 +226,7 @@
             }
 
             .detail-form {
+              padding-right: 0px;
               .alert-name {
                 max-width: 145px;
               }
@@ -244,8 +250,10 @@
       }
 
       .event-detail-tab {
-        padding: 0 40px;
         margin-top: 0;
+        .tab-panel-main {
+          padding: 0 40px;
+        }
 
         .aiops-container {
           padding: 0px;
@@ -253,7 +261,7 @@
 
         .event-detail-viewinfo {
           .chart-title {
-            padding: 3px 0px 3px 0px
+            padding: 3px 0px 3px 0px;
           }
 
           .source-log,
@@ -300,7 +308,7 @@
                 }
 
                 .chart-row {
-                  background: #f0f1f5
+                  background: #f0f1f5;
                 }
               }
             }

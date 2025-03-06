@@ -46,6 +46,9 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
   /** 当前选中指标 */
   active: null | string = null;
 
+  /** 展开收起 */
+  isCollapse = false;
+
   @Watch('list', { immediate: true })
   handleChange(val) {
     if (!this.active && val.length > 0 && val[0].metrics.length > 0) {
@@ -61,44 +64,57 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
     this.setActive(item.metric_name);
     return item;
   }
+  /** 切换展开收起 */
+  handleToggleCollapse(activeAuto = false) {
+    if (activeAuto && !this.isCollapse) {
+      return;
+    }
+    this.isCollapse = !this.isCollapse;
+  }
   renderClassification(item) {
     return (
       <div class='correlation-nav-classification'>
         <p class='classification-title'>
-          <i class={`icon-monitor ${DimensionTypes[item.result_table_label]}`} />
+          <i
+            class={[
+              'bk-icon bk-card-head-icon collapse-icon',
+              this.isCollapse ? 'icon-right-shape' : 'icon-down-shape',
+            ]}
+            onClick={this.handleToggleCollapse.bind(this, false)}
+          />
+          {/* <i class={`icon-monitor ${DimensionTypes[item.result_table_label]}`} /> */}
           <span class='classification-text'>{item.result_table_label_name}</span>
-          <span class='classification-num'>
-            {/* <i class='icon-monitor icon-mc-correlation-metrics'></i> */}
-            {this.$t('{slot0} 个指标', {
-              slot0: item.metrics.length,
-            })}
-          </span>
+          <span class='classification-num'>{item.metrics.length}</span>
         </p>
-        <ul class='classification-list'>
-          {item.metrics.map(metric => (
-            <li
-              key={metric.metric_name}
-              class={['classification-list-item', { active: this.active === metric.metric_name }]}
-              onClick={this.handleActive.bind(this, metric)}
-            >
-              <span class='classification-list-item-text'>{metric.metric_name_alias}</span>
-              <span
-                class='classification-list-item-num'
-                v-bk-tooltips={{
-                  content: this.$t('共 {slot0} 个维度', {
-                    slot0: metric.totalPanels.length,
-                  }),
-                  onShown: () => {
-                    this.reportEventLog?.(EventReportType.Tips);
-                  },
-                }}
+        <bk-transition name='collapse'>
+          <ul
+            class='classification-list'
+            v-show={!this.isCollapse}
+          >
+            {item.metrics.map(metric => (
+              <li
+                key={metric.metric_name}
+                class={['classification-list-item', { active: this.active === metric.metric_name }]}
+                onClick={this.handleActive.bind(this, metric)}
               >
-                <i class='icon-monitor icon-mc-dimension' />
-                {metric.totalPanels.length}
-              </span>
-            </li>
-          ))}
-        </ul>
+                <span class='classification-list-item-text'>{metric.metric_name_alias}</span>
+                <span
+                  class='classification-list-item-num'
+                  v-bk-tooltips={{
+                    content: this.$t('共 {slot0} 个维度', {
+                      slot0: metric.totalPanels.length,
+                    }),
+                    onShown: () => {
+                      this.reportEventLog?.(EventReportType.Tips);
+                    },
+                  }}
+                >
+                  {metric.totalPanels.length}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </bk-transition>
       </div>
     );
   }

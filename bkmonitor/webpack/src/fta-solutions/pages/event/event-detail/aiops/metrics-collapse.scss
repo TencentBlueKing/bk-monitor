@@ -9,7 +9,7 @@
     height: $size;
     font-size: $fontSize;
     overflow: hidden;
-      
+
     &::before {
       width: $fontSize;
       height: $fontSize;
@@ -20,19 +20,21 @@
     width: 100%;
 
     .correlation-metrics-collapse-head {
-      height: 40px;
-      background: #f0f1f5;
+      height: 30px;
+      background: #f9fafd;
+      border-radius: 2px;
       align-items: center;
       padding: 0px 10px;
 
       .collapse-icon {
-        font-size: 14px;
+        font-size: 12px;
         cursor: pointer;
+        color: #4d4f56;
       }
 
       .correlation-metrics-title {
-        color: #313238;
-        font-size: 14px;
+        color: #4d4f56;
+        font-size: 12px;
         line-height: 22px;
         display: flex;
         align-items: center;
@@ -119,7 +121,6 @@
         }
       }
     }
-
   }
 
   .metrics-collapse-show {
@@ -141,14 +142,14 @@
     flex-direction: column;
     margin: 0 -5px;
     width: 60px;
-  
+
     &-item {
       display: flex;
       align-items: center;
       padding-left: 12px;
       height: 32px;
       width: 100%;
-  
+
       &:hover,
       &.item-active {
         cursor: pointer;
