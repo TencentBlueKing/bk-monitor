@@ -30,11 +30,11 @@ import { eventViewConfig } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
-import FavoriteContainer from '../../components/favorite-container/favorite-container';
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { mergeWhereList, type IGetValueFnParams } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
+import FavoriteContainer from '../data-retrieval/favorite-container/favorite-container';
 import { APIType, getEventTopK } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
@@ -71,9 +71,18 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   }
 
   @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
+  @Ref('favoriteContainer') favoriteContainerRef: FavoriteContainer;
 
   timer = null;
   loading = false;
+
+  compare: {
+    type: 'none';
+    value: true;
+  };
+
+  /** 当前选择的收藏 */
+  currentFavorite = null;
 
   formData: IFormData = {
     data_source_label: 'custom',
@@ -363,13 +372,60 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     this.formData.where = mergeWhereList(this.formData.where, condition);
   }
 
+  /** 选择收藏或者新检索 */
   handleSelectFavorite(data) {
-    console.log(data);
+    this.currentFavorite = data;
+    if (data) {
+      // 选择收藏
+      const { compareValue, queryConfig } = data;
+      // 兼容以前的
+      const { result_table_id, ...params } = queryConfig;
+      this.formData = {
+        ...params,
+        table: result_table_id,
+      };
+      this.timeRange = compareValue.tools.timeRange;
+      this.refreshInterval = compareValue.tools.refleshInterval || compareValue.tools.refreshInterval;
+      this.timezone = compareValue.tools.timezone;
+      this.compare = compareValue.compare;
+    } else {
+      // 选择检索
+      this.formData = {
+        data_source_label: 'custom',
+        data_type_label: 'event',
+        table: '',
+        query_string: '*',
+        where: [],
+        group_by: [],
+        filter_dict: {},
+      };
+      this.timeRange = DEFAULT_TIME_RANGE;
+      this.refreshInterval = -1;
+      this.timezone = getDefaultTimezone();
+    }
   }
 
   favoriteShowChange(show: boolean) {
     this.isShowFavorite = show;
     localStorage.setItem('bk_monitor_data_favorite_show', `${show}`);
+  }
+
+  handleFavorite() {
+    const { table, ...params } = this.formData;
+    this.favoriteContainerRef.handleFavorite({
+      queryConfig: {
+        ...params,
+        result_table_id: table,
+      },
+      compareValue: {
+        compare: this.compare,
+        tools: {
+          timeRange: this.timeRange,
+          refreshInterval: this.refreshInterval,
+          timezone: this.timezone,
+        },
+      },
+    });
   }
 
   render() {
@@ -380,6 +436,8 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
           class='left-favorite-panel'
         >
           <FavoriteContainer
+            ref='favoriteContainer'
+            dataId={this.formData.table}
             favoriteSearchType='event'
             isShowFavorite={this.isShowFavorite}
             onSelectFavorite={this.handleSelectFavorite}
@@ -408,6 +466,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
               fields={this.fieldList}
               getValueFn={this.getRetrievalFilterValueData}
               where={this.formData.where}
+              onFavorite={this.handleFavorite}
               onWhereChange={this.handleWhereChange}
             />
             <EventRetrievalLayout

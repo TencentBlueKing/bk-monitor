@@ -40,13 +40,14 @@ import { deepClone } from 'monitor-common/utils';
 import AddCollectDialog from './add-collect-dialog';
 import FavoriteIndex from './collect-index';
 
-import type { IFavList } from './typing';
+import type { IFavList } from '../typings';
 
 import './favorite-container.scss';
 
 interface IProps {
   favoriteSearchType: string;
   isShowFavorite: boolean;
+  dataId?: string;
 }
 
 interface IEvent {
@@ -58,6 +59,7 @@ interface IEvent {
 export default class FavoriteContainer extends tsc<IProps, IEvent> {
   @Prop({ default: 'event' }) readonly favoriteSearchType!: string;
   @Prop({ default: true }) readonly isShowFavorite!: boolean;
+  @Prop({ default: '' }) dataId: string;
 
   @Ref('favoriteIndex') favoriteIndexRef: FavoriteIndex;
 
@@ -74,7 +76,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
   isShowAddFavoriteDialog = false;
   /** 编辑收藏弹窗时展示的收藏数据 */
   editFavoriteData: IFavList.favList = null;
-  favoriteData: IFavList.favList = null;
+  favoriteData = null;
   favoriteKeywordsData = null;
 
   get bizId(): string {
@@ -178,6 +180,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
         this.editFavoriteData = value;
         this.isShowAddFavoriteDialog = true;
         this.favoriteKeywordsData = value.config;
+        this.favoriteData = value.config;
         break;
       case 'delete-favorite': // 删除收藏
         this.$bkInfo({
@@ -236,7 +239,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
         this.getListByGroupFavorite();
         break;
       case 'new-search':
-        this.favCheckedValue = null;
+        this.handleSelectFav(null);
         break;
     }
   }
@@ -246,10 +249,10 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
    * @param data 收藏数据
    * @returns 收藏的数据
    */
-  @Emit('selectFav')
-  handleSelectFav(data: IFavList.favList) {
+  @Emit('selectFavorite')
+  handleSelectFav(data?: IFavList.favList) {
     this.favCheckedValue = data;
-    return data.config;
+    return data?.config || null;
   }
 
   /** 弹窗dialog新增或编辑收藏 */
@@ -308,6 +311,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
       <div class='favorite-container-comp'>
         <FavoriteIndex
           ref='favoriteIndex'
+          dataId={this.dataId}
           favCheckedValue={this.favCheckedValue}
           favoriteLoading={this.favoriteLoading}
           favoriteSearchType={this.favoriteSearchType}
