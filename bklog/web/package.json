@@ -69,7 +69,7 @@
     "resize-detector": "0.3.0",
     "sass-loader": "14.2.1",
     "screenfull": "6.0.2",
-    "sql-formatter": "^15.4.11",
+    "sql-formatter": "15.4.11",
     "thread-loader": "4.0.4",
     "throttle-debounce": "5.0.0",
     "tippy.js": "6.3.7",
