@@ -30,6 +30,13 @@ class HostEventProcessor(BaseEventProcessor):
                 "value": "oom",
                 "alias": "主机（0-127.0.0.1）进程（chrome）OOM",
                 "detail": {
+                    "target": {
+                        "label": "目标",
+                        "value": "127.0.0.1",
+                        "type": "link",
+                        "scenario": "主机监控",
+                        "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
+                    },
                     "process": {"label": "进程", "value": "chrome"},
                     "task_memcg": {
                         "label": "进程所属内存 cgroup",
@@ -42,6 +49,13 @@ class HostEventProcessor(BaseEventProcessor):
             #     "value": "disk_full",
             #     "alias": "主机（0-127.0.0.1）磁盘（/）已满",
             #     "detail": {
+            #         "target": {
+            #             "label": "目标",
+            #             "value": "127.0.0.1",
+            #             "type": "link",
+            #             "scenario": "主机监控",
+            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
+            #         },
             #         "fstype": {"label": "文件系统类型", "value": "ext4"},
             #         "file_system": {"label": "文件系统", "value": "/dev/vda1"},
             #     },
@@ -51,6 +65,13 @@ class HostEventProcessor(BaseEventProcessor):
             #     "value": "disk_read_only",
             #     "alias": "主机（0-127.0.0.1）磁盘（{fs}）只读，原因：{type}",
             #     "detail": {
+            #         "target": {
+            #             "label": "目标",
+            #             "value": "127.0.0.1",
+            #             "type": "link",
+            #             "scenario": "主机监控",
+            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
+            #         },
             #         "fs": {"label": "文件系统", "value": "ext4"},
             #         "position": {"label": "磁盘位置", "value": "1111"},
             #         "type": {"label": "只读原因", "value": "xxxxx"},
@@ -69,6 +90,13 @@ class HostEventProcessor(BaseEventProcessor):
             #     # case-4：executable & signal 为空。
             #     "alias3": "主机（0-127.0.0.1）产生 corefile（/data/corefile/core.1_MsgServer）",
             #     "detail": {
+            #         "target": {
+            #             "label": "目标",
+            #             "value": "127.0.0.1",
+            #             "type": "link",
+            #             "scenario": "主机监控",
+            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
+            #         },
             #         "corefile": {"label": "CoreDump 文件", "value": "/data/corefile/core.1_MsgServer"},
             #         "executable": {"label": "可执行文件", "value": "MsgServer"},
             #     },
@@ -77,8 +105,32 @@ class HostEventProcessor(BaseEventProcessor):
             # agent_lost = {
             #     "value": "AgentLost",
             #     "alias": "主机（0-127.0.0.1）Agent 失联",
-            #     "detail": {"bk_agent_id": {"label": "AgentID", "value": "02000000005254001dc07917062465625198"}},
+            #     "detail": {
+            #         "target": {
+            #             "label": "目标",
+            #             "value": "127.0.0.1",
+            #             "type": "link",
+            #             "scenario": "主机监控",
+            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
+            #         },
+            #         "bk_agent_id": {"label": "AgentID", "value": "02000000005254001dc07917062465625198"}
+            #     },
             # }
+            # # 6-PingUnreachable
+            # ping_unreachable = {
+            #     "value": "PingUnreachable",
+            #     "alias": "主机（0-127.0.0.1）Ping 不可达",
+            #     "detail": {
+            #         "target": {
+            #             "label": "目标",
+            #             "value": "127.0.0.1",
+            #             "type": "link",
+            #             "scenario": "主机监控",
+            #             "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
+            #         }
+            #     },
+            # }
+
             processed_events.append(
                 {
                     # alias - 展示值、value - 原始数据值。
@@ -89,6 +141,7 @@ class HostEventProcessor(BaseEventProcessor):
                     "event.content": oom,
                     "target": {
                         "value": "127.0.0.1",
+                        # TODO cloud_infos = api.cmdb.search_cloud_area()
                         "alias": "直连区域[0] / 127.0.0.1",
                         "scenario": "主机监控",
                         "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
