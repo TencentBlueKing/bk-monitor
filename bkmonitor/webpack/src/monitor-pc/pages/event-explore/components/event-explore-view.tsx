@@ -114,6 +114,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
       })
     );
     this.total = total;
+    this.panel.externalData.total = total;
   }
 
   /** 更新 表格请求配置 */
