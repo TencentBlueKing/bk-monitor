@@ -555,7 +555,7 @@ class GraphDrillDownResource(Resource):
         result = resource.grafana.graph_unify_query(params)
 
         dimensions_values: dict[tuple[tuple[str, str]], dict] = defaultdict(
-            {"value": 0, "percentage": 0, "compare_values": {}}
+            lambda: {"value": 0, "percentage": 0, "compare_values": {}}
         )
 
         # 计算平均值
@@ -583,7 +583,9 @@ class GraphDrillDownResource(Resource):
                     {
                         "value": value,
                         "offset": offset,
-                        "fluctuation": (value - dimension_value["value"]) / dimension_value["value"],
+                        "fluctuation": round((value - dimension_value["value"]) / dimension_value["value"] * 100, 3)
+                        if dimension_value["value"]
+                        else None,
                     }
                     for offset, value in dimension_value["compare_values"].items()
                 ],
