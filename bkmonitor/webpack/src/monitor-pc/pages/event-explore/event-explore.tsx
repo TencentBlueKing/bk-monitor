@@ -106,6 +106,33 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   isShowFavorite = true;
 
   /**
+   * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
+   * @description 用于在 KV 模式下，获取 字段类型 Icon
+   */
+  @ProvideReactive('fieldMapByField')
+  get fieldMapByField() {
+    if (!this.fieldList?.length) {
+      return { source: {}, target: {} };
+    }
+    return this.fieldList.reduce(
+      (prev, curr) => {
+        let finalName = curr.name;
+        if (curr.is_dimensions) {
+          finalName = `dimensions.${curr.name}`;
+        }
+        const item = { ...curr, finalName };
+        prev.source[curr.name] = item;
+        prev.target[finalName] = item;
+        return prev;
+      },
+      {
+        source: {},
+        target: {},
+      }
+    );
+  }
+
+  /**
    * @description 将 sourceEntities 数组 结构转换为 kv 结构
    * @description 用于在 KV 模式下，判断字段是否开启 跳转到其他页面 入口
    */
@@ -118,7 +145,8 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
       const { fields } = curr || {};
       if (!fields?.length) return prev;
       for (const field of fields) {
-        prev[field] = curr;
+        const finalName = this.fieldMapByField?.source?.[field]?.finalName || field;
+        prev[finalName] = curr;
       }
       return prev;
     }, {});
@@ -368,6 +396,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     this.formData.where = where;
   }
 
+  @Provide('handleConditionChange')
   handleConditionChange(condition: IWhereItem[]) {
     this.formData.where = mergeWhereList(this.formData.where, condition);
   }
