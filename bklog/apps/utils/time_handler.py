@@ -389,13 +389,17 @@ def _customize_time_range(start_time, end_time, local_time_zone):
     # 尝试还原HTML空格转义
     if isinstance(start_time, str):
         start_time = start_time.replace("&nbsp;", " ")
-        if start_time.isdigit():
-            start_time = int(start_time)
+        try:
+            start_time = float(start_time)
+        except ValueError:
+            pass
 
     if isinstance(end_time, str):
         end_time = end_time.replace("&nbsp;", " ")
-        if end_time.isdigit():
-            end_time = int(end_time)
+        try:
+            end_time = float(end_time)
+        except ValueError:
+            pass
 
     if start_time:
         _start_time = arrow.get(start_time, tzinfo=local_time_zone)

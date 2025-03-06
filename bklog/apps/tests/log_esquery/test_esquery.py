@@ -107,7 +107,7 @@ SEARCH_RESULT = {
         "query": {
             "bool": {
                 "filter": [
-                    {"range": {"": {"gte": 1584745200, "lte": 1584892799, "format": "epoch_second"}}},
+                    {"range": {"": {"gte": 1584745200000, "lte": 1584892799000, "format": "epoch_millis"}}},
                     {
                         "bool": {
                             "should": [

@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-import re
 import time
 
 import arrow
@@ -23,11 +22,7 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.custom_report import CustomValidationLabelError
 from monitor_web.custom_report.serializers import CustomTSGroupingRuleSerializer
-from monitor_web.models.custom_report import (
-    CustomTSGroupingRule,
-    CustomTSItem,
-    CustomTSTable,
-)
+from monitor_web.models.custom_report import CustomTSGroupingRule, CustomTSTable
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +133,7 @@ class ModifyCustomTsGroupingRuleList(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=[])
 
@@ -177,7 +173,8 @@ class ModifyCustomTsGroupingRuleList(Resource):
             batch_size=200,
         )
         return resource.custom_report.group_custom_ts_item(
-            time_series_group_id=validated_request_data["time_series_group_id"]
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            time_series_group_id=validated_request_data["time_series_group_id"],
         )
 
 
@@ -187,26 +184,26 @@ class GroupCustomTSItem(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
 
     def perform_request(self, validated_request_data):
+        table = CustomTSTable.objects.get(
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            time_series_group_id=validated_request_data["time_series_group_id"],
+        )
+        if not table:
+            raise ValidationError(
+                "custom time series table not found, "
+                f"time_series_group_id: {validated_request_data['time_series_group_id']}"
+            )
+
         # 分组匹配现存指标
         groups = CustomTSGroupingRule.objects.filter(
             time_series_group_id=validated_request_data["time_series_group_id"]
         )
-        metrics = CustomTSItem.objects.filter(table_id=validated_request_data["time_series_group_id"])
-        for metric in metrics:
-            metric_labels = set()
-            for group in groups:
-                if metric.metric_name in group.manual_list:
-                    metric_labels.add(group.name)
-                for rule in group.auto_rules:
-                    if re.search(rule, metric.metric_name):
-                        metric_labels.add(group.name)
-            if metric.label == list(metric_labels):
-                continue
-            metric.label = list(metric_labels)
-            metric.save()
+
+        table.renew_metric_labels(groups, delete=False, clean=True)
 
         return resource.custom_report.custom_ts_grouping_rule_list(
             time_series_group_id=validated_request_data["time_series_group_id"]

@@ -27,9 +27,9 @@
   }
   .drill-analysis-filter {
     width: 100%;
-    height: 52px;
-    border-bottom: 1px solid #dcdee5;
+    min-height: 53px;
     display: flex;
+    background: #ffffff;
     .filter-left {
       flex: 1;
     }
@@ -38,6 +38,7 @@
       display: flex;
       align-items: center;
       border-left: 1px solid #dcdee5;
+      border-bottom: 1px solid #dcdee5;
       .right-line {
         display: inline-block;
         width: 1px;

@@ -139,7 +139,7 @@ const commonTableProps: ICommonTableProps = {
   paginationType: 'normal',
   columns: [
     { id: 'bkDataId', name: window.i18n.tc('数据ID'), type: 'string', props: { minWidth: 100 } },
-    { id: 'nameBtn', name: window.i18n.tc('名称'), type: 'scoped_slots', props: { minWidth: 100 } },
+    { id: 'nameBtn', name: window.i18n.tc('别名'), type: 'scoped_slots', props: { minWidth: 100 } },
     { id: 'scenarioStr', name: window.i18n.tc('监控对象'), type: 'string', props: { minWidth: 80 } },
     { id: 'relatedStrategyLink', name: window.i18n.tc('关联策略'), type: 'scoped_slots', props: { minWidth: 100 } },
     { id: 'create', name: window.i18n.tc('创建记录'), type: 'scoped_slots' },
@@ -250,7 +250,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       2,
       0,
       ...([
-        { id: 'data_label', name: window.i18n.tc('英文名'), type: 'string', props: { minWidth: 100 } },
+        { id: 'data_label', name: window.i18n.tc('名称'), type: 'string', props: { minWidth: 100 } },
         { id: 'desc', name: window.i18n.tc('说明'), type: 'string', props: { minWidth: 100 } },
         { id: 'protocol', name: window.i18n.tc('上报协议'), type: 'string', props: { minWidth: 100 } },
       ] as ITableColumn[])
@@ -377,7 +377,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
    * @param {IEventItem} row
    * @return {*}
    */
-  handleOperate(v: 'delete' | 'view', row: IEventItem) {
+  handleOperate(v: 'delete' | 'view' | 'manage', row: IEventItem) {
     const toView = {
       [CUSTOM_EVENT]: () => {
         this.$router.push({
@@ -417,6 +417,9 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
     switch (v) {
       case 'view':
         toView[this.getRouterName]();
+        break;
+      case 'manage':
+        this.handleGotoDetail(row);
         break;
       case 'delete':
         this.$bkInfo({
@@ -534,15 +537,17 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                 <span class='icon-monitor icon-plus-line mr-6' />
                 {this.$t('新建')}
               </bk-button>
-              <div class='bk-button-group'>
+              <div class='bk-button-group bk-button-group-capsule'>
                 {filterTypes.map(item => (
-                  <bk-button
-                    key={item.id}
-                    class={this.filterType === item.id ? 'is-selected' : ''}
-                    onClick={() => this.handleFilterTypeChange(item.id)}
-                  >
-                    {item.name}
-                  </bk-button>
+                  <div class="bk-button-container">
+                    <bk-button
+                      key={item.id}
+                      class={this.filterType === item.id ? 'is-selected' : ''}
+                      onClick={() => this.handleFilterTypeChange(item.id)}
+                    >
+                      {item.name}
+                    </bk-button>
+                  </div>
                 ))}
               </div>
               <bk-input
@@ -570,7 +575,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                       ) : (
                         <span
                           class='col-btn'
-                          onClick={() => this.handleGotoDetail(row)}
+                          onClick={() => this.handleOperate('view', row)}
                         >
                           {row.name}
                         </span>
@@ -608,6 +613,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                       options={{
                         outside: [
                           { id: 'view', name: window.i18n.tc('可视化'), authority: true },
+                          { id: 'manage', name: window.i18n.tc('管理'), authority: true },
                           {
                             id: 'delete',
                             name: window.i18n.tc('删除'),
@@ -618,7 +624,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
                           },
                         ],
                       }}
-                      onOptionClick={(v: 'delete' | 'view') => this.handleOperate(v, row)}
+                      onOptionClick={(v: 'delete' | 'view' | 'manage') => this.handleOperate(v, row)}
                     />
                   ),
                 }}

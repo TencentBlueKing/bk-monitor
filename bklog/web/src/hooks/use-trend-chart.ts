@@ -72,7 +72,7 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
 
     if (/\d+(m|h)$/.test(interval)) {
       const { start_time, end_time } = retrieveParams.value;
-      const durationHour = (end_time - start_time) / 3600;
+      const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
       // 当筛选时间间隔6小时以上 显示日期
       const format = durationHour < 6 ? 'HH:mm:ss' : 'MM-DD HH:mm:ss';
       return dayjs.tz(data).format(format).replace(/:00$/, '');
@@ -118,10 +118,10 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     const { start_time, end_time } = retrieveParams.value;
 
     // 按照小时统计
-    const durationHour = (end_time - start_time) / 3600;
+    const durationHour = (end_time / 1000 - start_time / 1000) / 3600;
 
     // 按照分钟统计
-    const durationMin = (end_time - start_time) / 60;
+    const durationMin = (end_time / 1000 - start_time / 1000) / 60;
 
     if (durationHour < 1) {
       // 小于1小时 1min
@@ -166,8 +166,8 @@ export default ({ target, handleChartDataZoom }: TrandChartOption) => {
     setRunnningInterval();
     const intervalTimestamp = getIntervalValue(runningInterval);
 
-    const startValue = getIntegerTime(start_time);
-    let endValue = getIntegerTime(end_time);
+    const startValue = getIntegerTime(start_time / 1000);
+    let endValue = getIntegerTime(end_time / 1000);
 
     while (endValue > startValue) {
       optionData.set(endValue * 1000, [0, null]);

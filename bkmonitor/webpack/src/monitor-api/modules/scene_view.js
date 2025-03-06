@@ -74,6 +74,7 @@ export const listIndexSetLog = request('POST', 'rest/v2/scene_view/list_index_se
 export const getCustomTsMetricGroups = request('GET', 'rest/v2/scene_view/get_custom_ts_metric_groups/');
 export const getCustomTsDimensionValues = request('POST', 'rest/v2/scene_view/get_custom_ts_dimension_values/');
 export const getCustomTsGraphConfig = request('POST', 'rest/v2/scene_view/get_custom_ts_graph_config/');
+export const getCustomMetricTargetList = request('POST', 'rest/v2/scene_view/get_custom_metric_target_list/');
 
 export default {
   getScene,
@@ -150,4 +151,5 @@ export default {
   getCustomTsMetricGroups,
   getCustomTsDimensionValues,
   getCustomTsGraphConfig,
+  getCustomMetricTargetList,
 };

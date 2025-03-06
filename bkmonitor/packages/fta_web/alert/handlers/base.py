@@ -137,7 +137,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
     def transform_query_string(cls, query_string: str):
         def parse_query_string_node(_transform_obj, _query_string):
             try:
-                query_node = parser.parse(_query_string, lexer=lexer)
+                query_node = parser.parse(_query_string, lexer=lexer.clone())
                 return _transform_obj.visit(query_node)
             except ParseError as e:
                 raise QueryStringParseError({"msg": e})

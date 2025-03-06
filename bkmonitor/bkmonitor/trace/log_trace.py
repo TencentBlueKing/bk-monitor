@@ -31,7 +31,10 @@ from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace.sampling import DEFAULT_OFF, DEFAULT_ON
 
-from bkmonitor.trace.django import get_span_name
+from bkmonitor.trace.django import (
+    BKDjangoStreamingHttpResponseInstrumentor,
+    get_span_name,
+)
 from bkmonitor.trace.django import request_hook as django_request_hook
 from bkmonitor.trace.django import response_hook as django_response_hook
 from bkmonitor.trace.elastic import BkElasticsearchInstrumentor
@@ -79,6 +82,7 @@ class BluekingInstrumentor(BaseInstrumentor):
         LoggingInstrumentor().uninstrument()
         ThreadingInstrumentor().uninstrument()
         KafkaInstrumentor().uninstrument()
+        BKDjangoStreamingHttpResponseInstrumentor().uninstrument()
 
     def _instrument(self, **kwargs):
         """Instrument the library"""
@@ -123,6 +127,7 @@ class BluekingInstrumentor(BaseInstrumentor):
         BkResourceLoggingInstrument().instrument()
         ThreadingInstrumentor().instrument()
         KafkaInstrumentor().instrument()
+        BKDjangoStreamingHttpResponseInstrumentor().instrument()
 
         dbapi.wrap_connect(
             __name__,

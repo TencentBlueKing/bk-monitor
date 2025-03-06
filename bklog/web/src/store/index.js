@@ -159,6 +159,8 @@ const stateTpl = {
   tableJsonFormat: false,
   tableJsonFormatDepth: 1,
   tableShowRowIndex: false,
+  // 是否展示空字段
+  tableAllowEmptyField: false,
   isSetDefaultTableColumn: false,
   tookTime: 0,
   searchTotal: 0,
@@ -234,6 +236,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
+        format
       } = state.indexItem;
 
       const filterAddition = addition
@@ -262,6 +265,7 @@ const store = new Vuex.Store({
       return {
         start_time,
         end_time,
+        format,
         addition: filterAddition,
         begin,
         size,
@@ -296,6 +300,10 @@ const store = new Vuex.Store({
     },
     updateTableShowRowIndex(state, val) {
       state.tableShowRowIndex = val;
+    },
+    // 更新是否展示空字段
+    updateTableEmptyFieldFormat(state, val) {
+      state.tableAllowEmptyField = val;
     },
     updateApiError(state, { apiName, errorMessage }) {
       Vue.set(state.apiErrorInfo, apiName, errorMessage);
@@ -1147,7 +1155,7 @@ const store = new Vuex.Store({
         return; // Promise.reject({ message: `index_set_id is undefined` });
       }
       let begin = state.indexItem.begin;
-      const { size, ...otherPrams } = getters.retrieveParams;
+      const { size, format, ...otherPrams } = getters.retrieveParams;
 
       // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
       // 最新的 start_time, end_time 也要记录下来，用于字段统计时，保证请求的参数一致
@@ -1156,7 +1164,7 @@ const store = new Vuex.Store({
       const needTransform = datePickerValue.every(d => letterRegex.test(d));
 
       const [start_time, end_time] = needTransform
-        ? handleTransformToTimestamp(datePickerValue)
+        ? handleTransformToTimestamp(datePickerValue, format)
         : [state.indexItem.start_time, state.indexItem.end_time];
 
       if (needTransform) {
@@ -1390,8 +1398,8 @@ const store = new Vuex.Store({
         keyword: '*',
         fields,
         addition: payload?.addition ?? [],
-        start_time: formatDate(start_time * 1000),
-        end_time: formatDate(end_time * 1000),
+        start_time: formatDate(start_time),
+        end_time: formatDate(end_time),
         size: payload?.size ?? 100,
       };
 
@@ -1648,11 +1656,12 @@ const store = new Vuex.Store({
       commit('CLEAR_API_ERROR', apiName);
     },
 
-    handleTrendDataZoom({ commit }, payload) {
+    handleTrendDataZoom({ commit, getters }, payload) {
       const { start_time, end_time, format } = payload;
+      const formatStr = getters.retrieveParams.format;
 
       const [startTimeStamp, endTimeStamp] = format
-        ? handleTransformToTimestamp([start_time, end_time])
+        ? handleTransformToTimestamp([start_time, end_time], formatStr)
         : [start_time, end_time];
 
       commit('updateIndexItem', {

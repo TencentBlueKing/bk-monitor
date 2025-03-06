@@ -31,6 +31,7 @@ import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 
+import FilterConditions from '../components/header-box/components/filter-conditions';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
 import { tableData } from './mock-data';
@@ -77,6 +78,8 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   drag = { height: 550, minHeight: 300, maxHeight: 550 };
   divHeight = 0;
   resizeObserver = null;
+  metricsList = [];
+  commonDimensionList = [];
 
   mounted() {
     this.refreshList = refreshList;
@@ -141,7 +144,13 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
           />
         </div>
         <div class='drill-analysis-filter'>
-          <div class='filter-left'></div>
+          <div class='filter-left'>
+            <FilterConditions
+              commonDimensionList={this.commonDimensionList}
+              metricsList={this.metricsList}
+              // onChange={this.handleConditionChange}
+            />
+          </div>
           <div class='filter-right'>
             {/* 时间工具栏 */}
             {window.__BK_WEWEB_DATA__?.lockTimeRange ? (

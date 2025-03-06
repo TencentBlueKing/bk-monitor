@@ -1,3 +1,4 @@
+/* stylelint-disable declaration-no-important */
 @import '../../css/mixins.scss';
 
 .related-log-chart-wrap {
@@ -164,15 +165,18 @@
           display: none;
         }
 
-        &:hover {
-          color: #3a84ff;
-          cursor: pointer;
-
-          .icon-fenxiang {
-            display: inline-block;
-            margin-left: 4px;
+        &.link-type {
+          &:hover {
+            color: #3a84ff;
+            cursor: pointer;
+  
+            .icon-fenxiang {
+              display: inline-block;
+              margin-left: 4px;
+            }
           }
         }
+        
       }
 
       .right {
