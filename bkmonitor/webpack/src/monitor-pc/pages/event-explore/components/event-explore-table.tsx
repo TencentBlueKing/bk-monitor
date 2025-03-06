@@ -161,11 +161,22 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    */
   handleContentHover(e: MouseEvent, detail: Record<string, any>) {
     const createListItem = item => {
+      const itemValueDom =
+        item?.type === 'link'
+          ? `<a
+            class='content-item-value-link'
+            href=${item.url}
+            rel='noreferrer'
+            target='_blank'
+          >
+            ${item.alias || item.value || '--'}
+          </a>`
+          : `<span class="content-item-value">${item.alias || item.value || '--'}</span>`;
       return `
       <div class="explore-content-popover-main-item">
         <span class="content-item-key">${item.label}</span>
         <span class="content-item-colon">:</span>
-        <span class="content-item-value">${item.alias || item.value || '--'}</span>
+        ${itemValueDom}
       </div>
       `;
     };
@@ -311,7 +322,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           <span
             class='content-value explore-overflow-tip-col'
             onMouseenter={e => this.handleContentHover(e, detail)}
-            onMouseleave={this.handlePopoverHide}
+            // onMouseleave={this.handlePopoverHide}
           >
             {alias}
           </span>
