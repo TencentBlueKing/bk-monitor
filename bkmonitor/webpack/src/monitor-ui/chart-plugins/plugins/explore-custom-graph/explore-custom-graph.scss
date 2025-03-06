@@ -1,6 +1,10 @@
 .explore-custom-graph {
   position: relative;
 
+  .time-series-content {
+    padding-bottom: 4px;
+  }
+
   .chart-instance {
     min-height: 0;
   }
