@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import ExploreKvList from './explore-kv-list';
+import ExploreKvList, { type KVFieldList } from './explore-kv-list';
+
+import type { DimensionType, EventExploreEntitiesType } from '../typing';
 
 import './explore-expand-view-wrapper.scss';
 
@@ -44,12 +46,38 @@ enum ExploreViewTabEnum {
 export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapperProps> {
   @Prop({ type: Object, default: () => ({}) }) data: Record<string, any>;
   @InjectReactive('entitiesMapByField') entitiesMapByField;
+  @InjectReactive('fieldMapByField') fieldMapByField;
+  @Inject('handleConditionChange') handleConditionChange;
 
   /** 当前活跃的nav */
   activeTab = ExploreViewTabEnum.KV;
 
   get isKVTab() {
     return this.activeTab === ExploreViewTabEnum.KV;
+  }
+
+  /** KV列表 */
+  get kvFieldList(): KVFieldList[] {
+    return Object.entries(this.data).map(([key, value]) => {
+      const entities = this.entitiesMapByField[key];
+      let hasEntities = true;
+      let entitiesAlias: string = entities?.alias;
+      let entitiesType = entities?.type as '' | EventExploreEntitiesType;
+      if (!entities || entities?.dependent_fields?.some(field => !this.data[field])) {
+        hasEntities = false;
+        entitiesAlias = '';
+        entitiesType = '';
+      }
+      return {
+        name: key,
+        type: this.fieldMapByField?.target?.[key]?.type as DimensionType,
+        value: (value ?? '--') as string,
+        sourceName: this.fieldMapByField?.target?.[key]?.name as string,
+        entitiesType,
+        hasEntities,
+        entitiesAlias,
+      };
+    });
   }
 
   handleTabChange(activeTab: ExploreViewTabEnum) {
@@ -77,7 +105,10 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
           class='view-content kv-view-content'
           v-show={this.isKVTab}
         >
-          <ExploreKvList data={this.data} />
+          <ExploreKvList
+            fieldList={this.kvFieldList}
+            onConditionChange={this.handleConditionChange}
+          />
         </div>
         <div
           class='view-content json-view-content'
@@ -88,6 +119,7 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
             data={this.data}
             deep={5}
             showIcon={true}
+            showKeyValueSpace={true}
           />
         </div>
       </div>

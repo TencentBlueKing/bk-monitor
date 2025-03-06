@@ -44,8 +44,8 @@ export default class FieldTypeIcon extends tsc<FieldTypeIconProps> {
   render() {
     return (
       <i
-        style={{ color: this.info.color, background: this.info.bgColor }}
-        class={[this.info.icon, 'field-type-icon']}
+        style={{ color: this.info?.color, background: this.info?.bgColor }}
+        class={[this.info?.icon, 'field-type-icon']}
       />
     );
   }
