@@ -88,6 +88,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   ];
   popoverInstance = null;
   fieldTarget: KVFieldList = null;
+  /** 统计面板的 抽屉页展示状态 */
+  statisticsSliderShow = false;
 
   /**
    * @description 添加/删除 检索 回调
@@ -123,11 +125,13 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     this.popoverInstance?.show(100);
   }
 
-  handlePopoverHide() {
+  handlePopoverHide(resetFieldTarget = true) {
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
-    this.fieldTarget = null;
+    if (resetFieldTarget) {
+      this.fieldTarget = null;
+    }
   }
 
   /**
@@ -171,6 +175,13 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       trigger: 'manual',
       theme: 'light event-retrieval-dimension-filter',
       arrow: true,
+      onHidden: () => {
+        this.popoverInstance?.destroy?.();
+        this.popoverInstance = null;
+        if (!this.statisticsSliderShow) {
+          this.fieldTarget = null;
+        }
+      },
       interactive: true,
     });
     this.popoverInstance?.show(100);
@@ -243,6 +254,13 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     });
     this.handlePopoverHide();
     window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
+  }
+
+  handleStatisticsSliderShow(sliderShow: boolean) {
+    this.statisticsSliderShow = sliderShow;
+    if (!sliderShow) {
+      this.handlePopoverHide();
+    }
   }
 
   /**
@@ -321,7 +339,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
           ref='statisticsList'
           selectField={this.fieldTarget?.sourceName ?? ''}
           onConditionChange={this.handleConditionChange}
-          onShowMore={this.handlePopoverHide}
+          onShowMore={() => this.handlePopoverHide(false)}
+          onSliderShowChange={this.handleStatisticsSliderShow}
         />
       </div>
     );
