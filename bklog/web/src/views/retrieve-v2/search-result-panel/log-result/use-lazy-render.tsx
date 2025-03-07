@@ -28,10 +28,11 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import { debounce } from 'lodash';
 
-import { GLOBAL_SCROLL_SELECTOR } from './log-row-attributes';
+import RetrieveHelper from '../../../retrieve-helper';
+
 function deepQueryShadowSelector(selector) {
   // 搜索当前根下的元素
-  const searchInRoot = root => {
+  const searchInRoot = (root: HTMLElement | ShadowRoot) => {
     // 尝试直接查找
     const el = root.querySelector(selector);
     if (el) return el;
@@ -57,6 +58,7 @@ export default ({ loadMoreFn, container, rootElement }) => {
   const offsetWidth = ref(0);
   const scrollWidth = ref(0);
   const scrollDirection = ref('down');
+  const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
   // let scrollElementOffset = 0;
   let isComputingCalcOffset = false;

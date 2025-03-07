@@ -44,7 +44,7 @@ export default defineComponent({
       isCollectShow.value = !isCollectShow.value;
     };
 
-    useAppInit();
+    const { isStickyTop } = useAppInit();
     const handleWidthChange = (width: number) => {
       collectWidth.value = width;
     };
@@ -72,7 +72,7 @@ export default defineComponent({
             on-collection-show-change={handleCollectionShowChange}
           ></V3Toolbar>
           <V3Container>
-            <V3Searchbar></V3Searchbar>
+            <V3Searchbar class={{ 'is-sticky-top': isStickyTop.value }}></V3Searchbar>
             <V3SearchResult></V3SearchResult>
           </V3Container>
         </div>
