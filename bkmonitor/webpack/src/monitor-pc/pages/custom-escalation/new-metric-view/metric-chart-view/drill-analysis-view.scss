@@ -52,6 +52,7 @@
   }
   .compare-view {
     width: 100%;
+    display: flex;
     background: #fff;
   }
   .drill-analysis-main {
@@ -67,16 +68,14 @@
       .bk-resize-layout-aside {
         border: none;
       }
-    }
-    .main-chart {
-      width: 100%;
-      padding: 12px;
-    }
-    .main-table {
-      width: 100%;
-      // height: 100%;
-      border: 1px solid red;
-      padding: 12px 12px 0;
+      .drill-main-chart {
+        width: 100%;
+        padding: 12px;
+      }
+      .drill-main-table {
+        width: 100%;
+        padding: 12px 12px 0;
+      }
     }
   }
 }

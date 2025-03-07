@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import { type IPanelModel } from 'monitor-ui/chart-plugins/typings';
-
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { api, mockParam } from './api';
 import DrillAnalysisView from './drill-analysis-view';
 import LayoutChartTable from './layout-chart-table';
@@ -186,7 +186,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       <div class='panel-metric-chart-view'>
         {this.loading ? (
           this.renderSkeletonLoading()
-        ) : (
+        ) : this.groupList.length > 0 ? (
           <bk-collapse
             class='chart-view-collapse'
             v-model={this.activeName}
@@ -215,6 +215,12 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
               </bk-collapse-item>
             ))}
           </bk-collapse>
+        ) : (
+          <EmptyStatus
+            class='panel-chart-view-empty'
+            textMap={{ empty: this.$t('暂无数据') }}
+            type={'empty'}
+          />
         )}
 
         {this.showDrillDown && (

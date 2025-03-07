@@ -27,10 +27,11 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
+import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
-import type { IDimensionItem, IColumnItem, IDataItem } from '../type';
+import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
 
 import './drill-analysis-table.scss';
 
@@ -39,6 +40,8 @@ import './drill-analysis-table.scss';
 interface IDrillAnalysisTableProps {
   dimensionsList?: IDimensionItem[];
   tableList?: any[];
+  loading?: boolean;
+  filterConfig?: IFilterConfig;
 }
 
 interface IDrillAnalysisTableEvent {
@@ -51,6 +54,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   @Prop({ type: Array, default: () => [] }) dimensionsList: IDimensionItem[];
   @Prop({ type: Array, default: () => [] }) tableList: IDataItem[];
   @Prop({ default: false }) loading: boolean;
+  @Prop({ type: Object, default: () => {} }) filterConfig: IFilterConfig;
   /** 维度是否支持多选 */
   isMultiple = false;
   /** 选中的维度 */
@@ -81,9 +85,13 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         this.showDimensionKeys.push(item.name);
       }
     });
-    console.log(list, '===');
     return list;
   }
+  /** 根据搜索输入内容过滤要展示的维度 */
+  get showDimensionsList() {
+    return this.dimensionsList.filter(item => item.name.includes(this.dimensionSearch)) || [];
+  }
+  /** 维度趋势图下拉选项 */
   get dimensionOptions() {
     if (!this.tableList?.length) return [];
     const options = new Map();
@@ -123,10 +131,21 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         </div>
       );
     }
+    if (this.showDimensionsList.length === 0) {
+      return (
+        <EmptyStatus
+          textMap={{ empty: this.$t('暂无数据') }}
+          type={this.dimensionSearch ? 'search-empty' : 'empty'}
+          onOperation={() => {
+            this.dimensionSearch = '';
+          }}
+        />
+      );
+    }
     const baseView = (item: IDimensionItem) => [<span>{item.name}</span>, <span class='item-name'>{item.alias}</span>];
     /** 单选 */
     if (!this.isMultiple) {
-      return this.dimensionsList.map((item: IDimensionItem) => (
+      return this.showDimensionsList.map((item: IDimensionItem) => (
         <div
           key={item.name}
           class={['dimensions-list-item', { active: item.checked }]}
@@ -142,12 +161,12 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         value={this.activeList}
         onChange={v => this.handleDimensionChange(v)}
       >
-        {this.dimensionsList.map(item => (
+        {this.showDimensionsList.map(item => (
           <bk-checkbox
-            key={item.key}
+            key={item.name}
             class='dimensions-list-item'
             disabled={this.activeList.length === 1 && item.checked}
-            value={item.key}
+            value={item.name}
           >
             {baseView(item)}
           </bk-checkbox>
@@ -171,7 +190,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       })
     );
     this.dimensionsList = list;
-    // this.$emit('updateDimensions', list);
+    console.log(this.activeList, 'this.activeList');
+    this.$emit('updateDimensions', list, this.activeList);
   }
 
   /** 维度选择侧栏 end */
@@ -180,8 +200,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
 
   /** 绘制下钻下拉列表 */
   renderOperation(row: IDataItem) {
-    const list = this.dimensionsList.filter(item => !item.checked);
-    console.log(this.drillList, 'drillList');
+    const drillKey = this.drillList.map(item => item.key);
+    const list = this.dimensionsList.filter(item => !drillKey.includes(item.name) && !item.checked);
     return (
       <bk-dropdown-menu
         ref='dropdown'
@@ -237,10 +257,12 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         >
           {showTxt}
         </span>
-        <i
-          class='icon-monitor icon-mc-copy tab-row-icon'
-          onClick={() => this.copyValue(showTxt)}
-        />
+        {row?.dimensions[item.name] && (
+          <i
+            class='icon-monitor icon-mc-copy tab-row-icon'
+            onClick={() => this.copyValue(showTxt)}
+          />
+        )}
       </span>
     );
   }
@@ -261,8 +283,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         prop: 'operation',
         renderFn: row => this.renderOperation(row),
       },
-      { label: '值', prop: 'value', sortable: true },
-      { label: '占比', prop: 'proportion', sortable: true },
+      { label: '占比', prop: 'percentage', sortable: true },
+      { label: '当前值', prop: 'value', sortable: true },
       { label: '波动', prop: 'fluctuation', sortable: true },
     ];
     const columnList = [...colorColumn, ...this.dimensionsColumn, ...baseColumn];
@@ -313,14 +335,13 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   }
   /** 下钻操作 */
   chooseDrill(item: IDimensionItem, row: IDataItem) {
-    console.log(item, row);
     this.drillValue = item.name;
     this.isMultiple = false;
     this.handleDimensionChange([item.name]);
     this.showDimensionKeys.map(key => {
       this.drillList.push({
         key,
-        value: row[key],
+        value: row.dimensions[key],
       });
     });
   }
@@ -368,9 +389,10 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
             </bk-checkbox>
           </div>
           <bk-input
+            class='search-input'
+            v-model={this.dimensionSearch}
             placeholder={this.$t('搜索 维度')}
             right-icon={'bk-icon icon-search'}
-            value={this.dimensionSearch}
           ></bk-input>
           <div class='dimensions-list'>{this.renderDimensionList()}</div>
         </div>

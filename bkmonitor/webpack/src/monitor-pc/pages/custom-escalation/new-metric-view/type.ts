@@ -105,3 +105,29 @@ export interface IMetricAnalysisConfig {
   start_time: number;
   end_time: number;
 }
+export interface IFilterConfig {
+  metrics: string[];
+  where: {
+    key: string;
+    method: string;
+    condition: string;
+    value: string[];
+  }[];
+  common_conditions: {
+    key: string;
+    method: string;
+    condition: string;
+  }[];
+  group_by: {
+    field: string;
+    split: boolean;
+  }[];
+  limit: {
+    function: 'bottom' | 'top';
+    limit: number;
+  };
+  compare: {
+    type: string;
+    offset: string[];
+  };
+}

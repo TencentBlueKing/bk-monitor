@@ -33,6 +33,8 @@ import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 
 import CompareType from '../components/header-box/components/compare-type';
+import GroupBy from '../components/header-box/components/group-by';
+import LimitFunction from '../components/header-box/components/limit-function';
 import FilterConditions from '../components/header-box/components/filter-conditions';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
@@ -87,7 +89,23 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     offset: [];
   };
   metricGroups = [];
+  /** 选中的维度值 */
+  dimensionsActiveKey = [];
   loading = false;
+  filterConfig = {
+    metrics: [],
+    where: [],
+    common_conditions: [],
+    group_by: [],
+    limit: {
+      function: 'top',
+      limit: 10,
+    },
+    compare: {
+      type: '',
+      offset: [],
+    },
+  };
 
   mounted() {
     this.refreshList = refreshList;
@@ -145,8 +163,10 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
 
   /** 更新维度 */
-  handleUpdateDimensions(list: IDimensionItem[]) {
+  handleUpdateDimensions(list: IDimensionItem[], activeKey: string[]) {
     this.dimensionsList = list;
+    this.dimensionsActiveKey = activeKey;
+    this.getTableList();
   }
   /** 修改刷新间隔 */
   handleRefreshInterval(val: number) {
@@ -171,16 +191,16 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
   /** 修改时间对比 */
   handleComparTypeChange(payload) {
-    this.compare = payload;
-    console.log('payload', payload, this.panel);
+    this.filterConfig.compare = payload;
     this.getTableList();
   }
   getTableList() {
-    const { type, offset } = this.compare;
+    // const { type, offset } = this.filterConfig.compare;
     this.panel.targets.map(item => {
-      if (type === 'time') {
-        item.function.time_compare = offset;
-      }
+      // if (type === 'time') {
+      //   item.function.time_compare = offset;
+      // }
+      console.log(item, 'item');
       return item;
     });
   }
@@ -230,8 +250,19 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
           </div>
         </div>
         <div class='compare-view'>
+          <GroupBy
+            metricsList={this.metricsList}
+            value={this.filterConfig.group_by}
+            // onChange={this.handleGroupByChange}
+          />
+          {this.filterConfig.group_by.length > 0 && (
+            <LimitFunction
+              value={this.filterConfig.limit}
+              // onChange={this.handleLimitChange}
+            />
+          )}
           <CompareType
-            value={this.compare}
+            value={this.filterConfig.compare}
             onChange={this.handleComparTypeChange}
           />
         </div>
@@ -250,26 +281,28 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             onResizing={this.handleResizing}
           >
             <div
-              class='main-chart'
+              class='drill-main-chart'
               slot='aside'
             >
               <NewMetricChart
                 key={this.chartKey}
                 style={{ height: `${this.drag.height - 30}px` }}
                 chartHeight={this.drag.height}
+                isShowLegend={true}
                 isToolIconShow={false}
                 panel={this.panel}
               />
             </div>
             <div
-              style={{ height: `${this.divHeight - this.drag.height}px` }}
-              class='main-table'
+              style={{ height: `${this.divHeight - this.drag.height - 4}px` }}
+              class='drill-main-table'
               slot='main'
             >
               <DrillAnalysisTable
                 dimensionsList={this.dimensionsList}
                 loading={this.loading}
                 tableList={this.tableList}
+                filterConfig={this.filterConfig}
                 onUpdateDimensions={this.handleUpdateDimensions}
               />
             </div>

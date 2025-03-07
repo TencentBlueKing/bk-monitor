@@ -55,6 +55,11 @@
     width: 100%;
     height: calc(100% - 46px);
     padding-bottom: 6px;
+    .metric-chart-legend {
+      width: 100%;
+      margin-top: 12px;
+      padding: 0 16px;
+    }
 
     .chart-instance {
       height: 100%;

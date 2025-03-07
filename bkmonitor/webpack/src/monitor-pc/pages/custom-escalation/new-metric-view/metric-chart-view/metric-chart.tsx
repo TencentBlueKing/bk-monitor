@@ -40,6 +40,7 @@ import {
   type IUnifyQuerySeriesItem,
 } from 'monitor-pc/pages/view-detail/utils';
 import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
+import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-tab';
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
@@ -67,6 +68,7 @@ interface INewMetricChartProps {
   chartHeight?: number;
   isToolIconShow?: boolean;
   panel?: PanelModel;
+  isShowLegend?: boolean;
 }
 interface INewMetricChartEvents {
   onMenuClick?: () => void;
@@ -78,6 +80,8 @@ interface INewMetricChartEvents {
 class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: 300 }) chartHeight: number;
   @Prop({ default: true }) isToolIconShow: boolean;
+  /** 是否展示图例 */
+  @Prop({ default: false }) isShowLegend: boolean;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
   methodList = APM_CUSTOM_METHODS.map(method => ({
@@ -707,6 +711,14 @@ class NewMetricChart extends CommonSimpleChart {
                 </div>
               )}
             </div>
+            {this.isShowLegend && this.legendData.length > 0 && (
+              <div class={'metric-chart-legend'}>
+                <ListLegend
+                  legendData={this.legendData || []}
+                  onSelectLegend={this.handleSelectLegend}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>

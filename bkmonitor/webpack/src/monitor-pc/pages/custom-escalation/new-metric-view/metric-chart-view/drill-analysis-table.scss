@@ -3,32 +3,38 @@
   height: 100%;
   display: flex;
   margin-top: 8px;
-  border: 1px solid red;
   .table-left {
     width: 240px;
     height: 100%;
     background: #f5f7fa;
     border-radius: 2px;
     margin-right: 12px;
-    padding: 12px 10px;
+    padding: 12px 0;
     .table-left-header {
       color: #313238;
       line-height: 20px;
       margin-bottom: 8px;
       position: relative;
+      padding: 0 12px;
       .header-checkbox {
         position: absolute;
-        right: 0;
+        right: 10px;
         .bk-checkbox-text {
           font-size: 12px;
           color: #4d4f56;
         }
       }
     }
+    .search-input {
+      width: calc(100% - 20px);
+      margin: 0 10px;
+    }
     .dimensions-list {
       width: 100%;
-      height: 100%;
+      height: calc(100% - 66px);
       margin-top: 8px;
+      overflow-y: auto;
+      padding: 0 10px;
       .skeleton-loading {
         padding: 10px 2px 0;
         .skeleton-element {
@@ -82,6 +88,16 @@
     .table-skeleton-block {
       width: 100%;
       padding: 0 12px;
+      .common-table-skeleton-row-item.skeleton-element {
+        &:after {
+          background: linear-gradient(
+            90deg,
+            rgba(0, 0, 0, 0.04) 25%,
+            rgba(0, 0, 0, 0.08) 37%,
+            rgba(0, 0, 0, 0.04) 63%
+          ) !important;
+        }
+      }
     }
     .dimensions-filter {
       width: 100%;

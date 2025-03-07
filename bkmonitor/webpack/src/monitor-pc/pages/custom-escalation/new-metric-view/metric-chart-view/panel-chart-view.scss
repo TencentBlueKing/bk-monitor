@@ -2,6 +2,10 @@
   width: 100%;
   height: 100%;
   overflow-y: auto;
+  .panel-chart-view-empty {
+    height: 100%;
+    padding-top: 18%;
+  }
   .chart-view-collapse {
     padding: 12px;
     width: 100%;
