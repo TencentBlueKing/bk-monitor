@@ -143,7 +143,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     this.sliderLoading = true;
     this.$emit('showMore');
     this.sliderDimensionList = await this.getFieldTopK({
-      limit: this.statisticsList[0].distinct_count,
+      limit: this.statisticsList[0]?.distinct_count ?? 0,
       fields: [this.selectField],
     }).catch(() => []);
     this.sliderLoading = false;

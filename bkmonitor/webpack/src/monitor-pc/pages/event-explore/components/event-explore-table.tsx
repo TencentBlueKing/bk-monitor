@@ -182,7 +182,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       offset: this.tableData?.length || 0,
     };
 
-    const res = await (this as any).$api[apiModule][apiFunc](requestParam).catch(() => ({ list: [] }));
+    const res = await (this as any).$api[apiModule][apiFunc](requestParam, {
+      needMessage: true,
+    }).catch(() => ({ list: [] }));
 
     this.tableLoading[loadingType] = false;
 
@@ -217,9 +219,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             rel='noreferrer'
             target='_blank'
           >
-            ${item.alias || item.value || '--'}
+            ${item.alias || '--'}
           </a>`
-          : `<span class="content-item-value">${item.alias || item.value || '--'}</span>`;
+          : `<span class="content-item-value">${item.alias || '--'}</span>`;
       return `
       <div class="explore-content-popover-main-item">
         <span class="content-item-key">${item.label}</span>

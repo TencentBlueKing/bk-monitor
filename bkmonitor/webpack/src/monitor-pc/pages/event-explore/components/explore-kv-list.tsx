@@ -91,15 +91,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   /** 统计面板的 抽屉页展示状态 */
   statisticsSliderShow = false;
 
-  /**
-   * @description 添加/删除 检索 回调
-   */
   @Emit('conditionChange')
-  handleConditionChange(method: EMethod) {
-    const condition = [
-      { condition: 'and', key: this.fieldTarget?.sourceName, method, value: [this.fieldTarget?.value] },
-    ];
-    this.handlePopoverHide();
+  conditionChange(condition) {
     return condition;
   }
 
@@ -256,11 +249,33 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
   }
 
+  /**
+   * @description 添加/删除 检索 回调
+   */
+  handleConditionChange(method: EMethod) {
+    const condition = [
+      { condition: 'and', key: this.fieldTarget?.sourceName, method, value: [this.fieldTarget?.value] },
+    ];
+    this.handlePopoverHide();
+    this.conditionChange(condition);
+  }
+
+  /**
+   * @description 统计面板中 抽屉页 展示/消失 状态回调
+   */
   handleStatisticsSliderShow(sliderShow: boolean) {
     this.statisticsSliderShow = sliderShow;
     if (!sliderShow) {
       this.handlePopoverHide();
     }
+  }
+
+  /**
+   * @description 统计面板中 添加/删除 检索 回调
+   */
+  handleStatisticsConditionChange(condition) {
+    this.conditionChange(condition);
+    this.handlePopoverHide(false);
   }
 
   /**
@@ -338,7 +353,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
         <StatisticsList
           ref='statisticsList'
           selectField={this.fieldTarget?.sourceName ?? ''}
-          onConditionChange={this.handleConditionChange}
+          onConditionChange={this.handleStatisticsConditionChange}
           onShowMore={() => this.handlePopoverHide(false)}
           onSliderShowChange={this.handleStatisticsSliderShow}
         />
