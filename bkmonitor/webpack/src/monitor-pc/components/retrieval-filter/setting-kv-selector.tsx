@@ -331,26 +331,25 @@ export default class SettingKvSelector extends tsc<IProps> {
           </span>
           <div
             class='value-wrap'
+            data-placeholder={this.inputValue || this.isFocus || this.tagList?.length ? '' : this.$tc('请选择')}
             onClick={this.handleClickValueWrap}
           >
-            {this.tagList.length
-              ? this.tagList.map((item, index) => (
-                  <span
-                    key={index}
-                    class='tag-item'
-                  >
-                    <span class='tag-text'>{item}</span>
-                    <span
-                      class='icon-monitor icon-mc-close'
-                      onClick={e => this.handleDeleteTag(e, index)}
-                    />
-                  </span>
-                ))
-              : !this.isFocus && <span class='placeholder-text'>{this.$t('请选择')}</span>}
+            {this.tagList?.map((item, index) => (
+              <span
+                key={index}
+                class='tag-item'
+              >
+                <span class='tag-text'>{item}</span>
+                <span
+                  class='icon-monitor icon-mc-close'
+                  onClick={e => this.handleDeleteTag(e, index)}
+                />
+              </span>
+            ))}
             {this.expand && (
               <AutoWidthInput
                 height={22}
-                class='mb-5'
+                // class='mb-5'
                 isFocus={this.isFocus}
                 value={this.inputValue}
                 onBlur={this.handleBlur}
