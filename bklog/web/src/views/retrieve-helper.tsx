@@ -10,7 +10,7 @@ class RetrieveHelper {
   globalScrollSelector: string;
 
   // 搜索栏高度
-  seachBarHeight: number;
+  searchBarHeight: number;
 
   // 左侧字段设置宽度
   leftFieldSettingWidth: number;
@@ -33,13 +33,13 @@ class RetrieveHelper {
   }
 
   setSearchBarHeight(height: number) {
-    this.seachBarHeight = height;
-    this.events.get(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE)?.forEach(item => item?.fn?.(height));
+    this.searchBarHeight = height;
+    this.runEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height);
   }
 
   setLeftFieldSettingWidth(width: number) {
     this.leftFieldSettingWidth = width;
-    this.events.get(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE)?.forEach(item => item?.fn?.(width));
+    this.runEvent(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width);
   }
 
   /**
@@ -60,6 +60,14 @@ class RetrieveHelper {
 
   destroy() {
     this.events.clear();
+  }
+
+  private runEvent(event: RetrieveEvent, ...args) {
+    this.events.get(event)?.forEach(item => {
+      if (typeof item?.fn === 'function') {
+        item.fn(...args);
+      }
+    });
   }
 }
 

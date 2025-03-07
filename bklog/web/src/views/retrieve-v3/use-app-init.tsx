@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import $http from '@/api';
 import useStore from '@/hooks/use-store';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
@@ -164,6 +164,10 @@ export default () => {
   });
 
   /*** 结束计算 ***/
+
+  onBeforeUnmount(() => {
+    RetrieveHelper.destroy();
+  });
 
   return {
     isStickyTop,
