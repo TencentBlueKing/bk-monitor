@@ -44,7 +44,7 @@ export default class SelectIndexSetInput extends tsc<object> {
   }
 
   get arrowClassName() {
-    return this.isShowSelectPopover ? 'bk-icon icon-angle-up' : 'bk-icon icon-angle-down';
+    return this.isShowSelectPopover ? 'bk-icon icon-angle-up' : 'bklog-icon bklog-arrow-down-filled';
   }
 
   @Watch('watchCalcOverflowVal', { immediate: true })
@@ -139,9 +139,16 @@ export default class SelectIndexSetInput extends tsc<object> {
             class='bk-select-name'
             v-bk-overflow-tips={{ placement: 'right' }}
           >
-            <span>{(this.selectedItem as any).indexName}</span>
-            <span style='color: #979ba5;'>{(this.selectedItem as any).lightenName}</span>
-            <span class={[this.arrowClassName, 'bklog-select-arrow']}></span>
+            <span style={{ color: '#313238', fontSize: '14px' }}>{(this.selectedItem as any).indexName}</span>
+            <span style='color: #757880;'>{(this.selectedItem as any).lightenName}</span>
+            <span
+              style={{
+                fontSize: '16px',
+                transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
+                marginTop: this.isShowSelectPopover ? '-8px' : '',
+              }}
+              class='bklog-icon bklog-arrow-down-filled bklog-select-arrow'
+            ></span>
           </div>
         );
       }
