@@ -1,16 +1,36 @@
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import $http from '@/api';
 import useStore from '@/hooks/use-store';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
+import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
+import useScroll from '../../hooks/use-scroll';
+import useResizeObserve from '../../hooks/use-resize-observe';
 
 export default () => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
+  const searchBarHeight = ref(0);
+  const leftFieldSettingWidth = ref(0);
+
+  RetrieveHelper.setScrollSelector('.v3-bklog-root');
+  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
+    searchBarHeight.value = height;
+  });
+
+  RetrieveHelper.on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width => {
+    leftFieldSettingWidth.value = width;
+  });
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
+  const stickyStyle = computed(() => {
+    return {
+      '--offset-search-bar': `${searchBarHeight.value + 8}px`,
+      '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
+    };
+  });
 
   const { search_mode, addition, keyword } = route.query;
 
@@ -117,4 +137,40 @@ export default () => {
       });
     }
   });
+
+  /** 开始处理滚动容器滚动时，收藏夹高度 */
+
+  // 顶部二级导航高度，这个高度是固定的
+  const subBarHeight = ref(64);
+  const paddingTop = ref(0);
+  // 滚动容器高度
+  const scrollContainerHeight = ref(0);
+
+  useScroll(RetrieveHelper.getScrollSelector(), event => {
+    const scrollTop = (event.target as HTMLElement).scrollTop;
+    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+  });
+
+  useResizeObserve(
+    RetrieveHelper.getScrollSelector(),
+    entry => {
+      scrollContainerHeight.value = (entry.target as HTMLElement).offsetHeight;
+    },
+    0,
+  );
+
+  const isStickyTop = computed(() => {
+    return paddingTop.value === subBarHeight.value;
+  });
+
+  /*** 结束计算 ***/
+
+  onBeforeUnmount(() => {
+    RetrieveHelper.destroy();
+  });
+
+  return {
+    isStickyTop,
+    stickyStyle,
+  };
 };

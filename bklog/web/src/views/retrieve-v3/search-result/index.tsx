@@ -31,6 +31,7 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
 import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
 import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
+import './index.scss';
 
 export default defineComponent({
   name: 'v3-container',
@@ -75,7 +76,7 @@ export default defineComponent({
     };
 
     return () => (
-      <div>
+      <div class='v3-bklog-body'>
         <SearchResultTab
           value={activeTab.value}
           on-input={handleTabChange}

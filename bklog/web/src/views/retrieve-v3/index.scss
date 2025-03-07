@@ -10,4 +10,34 @@
     flex-direction: column;
     width: 100%;
   }
+
+  .search-result-panel {
+    &.flex {
+      justify-content: flex-end;
+      .field-list-sticky {
+        top: 0;
+        &.is-show {
+          position: relative;
+          height: calc(100vh - var(--offset-search-bar) - 150px);
+        }
+      }
+    }
+  }
+
+  &.is-sticky-top {
+    .search-result-panel {
+      &.flex {
+        .field-list-sticky {
+          &.is-show {
+            position: fixed;
+            left: calc(var(--left-collection-width) + 8px);
+            top: calc(var(--offset-search-bar) + 52px);
+            height: calc(100vh - var(--offset-search-bar) - 52px);
+            bottom: 0;
+            translate: all 0.3s ease;
+          }
+        }
+      }
+    }
+  }
 }

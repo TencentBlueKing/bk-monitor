@@ -42,8 +42,8 @@
   import useScroll from '../../hooks/use-scroll';
   import $http from '@/api';
 
-  import { GLOBAL_SCROLL_SELECTOR } from './search-result-panel/log-result/log-row-attributes';
   import useResizeObserve from '../../hooks/use-resize-observe';
+  import RetrieveHelper from '../retrieve-helper';
 
   const store = useStore();
   const router = useRouter();
@@ -52,6 +52,9 @@
   const showFavorites = ref(false);
   const favoriteRef = ref(null);
   const favoriteWidth = ref(240);
+
+  RetrieveHelper.setScrollSelector();
+  const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
 
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);

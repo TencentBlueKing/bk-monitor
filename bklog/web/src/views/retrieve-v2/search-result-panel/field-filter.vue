@@ -36,11 +36,12 @@
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
       // fieldAliasMap[item.field_name] = item.field_alias || item.field_name;
-      fieldAliasMap[item.field_name] = fieldShowName.value === 'field_name'
-        ?  item.field_name || item.field_alias
-        : item.query_alias || item.field_alias  || item.field_name;
+      fieldAliasMap[item.field_name] =
+        fieldShowName.value === 'field_name'
+          ? item.field_name || item.field_alias
+          : item.query_alias || item.field_alias || item.field_name;
     });
-    
+
     return fieldAliasMap;
   });
 
@@ -73,13 +74,13 @@
     emit('field-status-change', !props.value);
     emit('input', !props.value);
   };
-  const handlerChange = (value) => {
+  const handlerChange = value => {
     localStorage.setItem('showFieldAlias', value);
     store.commit('updateShowFieldAlias', value);
-  }
-  onMounted(()=>{
-    fieldShowName.value = localStorage.getItem('showFieldAlias') === 'true'
-  })
+  };
+  onMounted(() => {
+    fieldShowName.value = localStorage.getItem('showFieldAlias') === 'true';
+  });
 </script>
 
 <template>
@@ -99,7 +100,11 @@
           ext-popover-cls="field-filter-content"
         >
           <div slot="content">
-            <bk-radio-group v-model="fieldShowName" style="margin-bottom: 10px;" @change="handlerChange">
+            <bk-radio-group
+              v-model="fieldShowName"
+              style="margin-bottom: 10px"
+              @change="handlerChange"
+            >
               <bk-radio-button :value="false">
                 {{ $t('展示字段名') }}
               </bk-radio-button>
@@ -108,8 +113,8 @@
               </bk-radio-button>
             </bk-radio-group>
           </div>
-        <span class="bklog-icon bklog-log-setting"></span>
-      </bk-popconfirm>
+          <span class="bklog-icon bklog-log-setting"></span>
+        </bk-popconfirm>
       </div>
       <div
         class="close-total"
