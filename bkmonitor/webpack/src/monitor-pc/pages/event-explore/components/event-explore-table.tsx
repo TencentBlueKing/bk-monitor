@@ -272,18 +272,22 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         popoverCache?.hide?.(0);
         popoverCache?.destroy?.();
       }
-    }, 400);
+    }, 500);
   }
 
   /**
    * @description: 清除popover
    */
   handlePopoverHide() {
-    this.popoverDelayTimer && clearTimeout(this.popoverDelayTimer);
-    this.popoverDelayTimer = null;
+    this.handleClearTimer();
     this.popoverInstance?.hide?.(0);
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
+  }
+
+  handleClearTimer() {
+    this.popoverDelayTimer && clearTimeout(this.popoverDelayTimer);
+    this.popoverDelayTimer = null;
   }
 
   /**
@@ -375,7 +379,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           <span
             class='content-value explore-overflow-tip-col'
             onMouseenter={e => this.handleContentHover(e, detail)}
-            // onMouseleave={this.handlePopoverHide}
+            onMouseleave={this.handleClearTimer}
           >
             {alias}
           </span>
@@ -402,7 +406,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             rel='noreferrer'
             target='_blank'
             onMouseenter={e => this.handleTargetHover(e, `点击前往: ${item.scenario}`)}
-            onMouseleave={this.handlePopoverHide}
+            onMouseleave={this.handleClearTimer}
           >
             {item.alias}
           </a>

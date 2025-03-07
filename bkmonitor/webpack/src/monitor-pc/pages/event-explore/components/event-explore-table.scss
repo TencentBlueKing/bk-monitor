@@ -135,6 +135,13 @@
       }
     }
 
+    .bk-table-body-wrapper {
+      .bk-table-empty-block {
+        /* stylelint-disable-next-line declaration-no-important */
+        width: 100% !important;
+      }
+    }
+
     .bk-table-append-wrapper {
       .export-table-loading {
         height: 30px;
