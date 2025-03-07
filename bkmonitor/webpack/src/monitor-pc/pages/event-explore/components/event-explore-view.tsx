@@ -304,7 +304,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
           class='back-to-top'
           scrollTop={100}
         >
-          <i class='icon-monitor icon-arrow-up' />
+          <i class='icon-monitor icon-BackToTop' />
         </BackTop>
       </div>
     );

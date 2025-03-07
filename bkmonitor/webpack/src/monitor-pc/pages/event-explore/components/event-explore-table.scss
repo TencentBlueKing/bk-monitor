@@ -138,6 +138,7 @@
     .bk-table-append-wrapper {
       .export-table-loading {
         height: 30px;
+        overflow: hidden;
 
         .bk-spin {
           display: flex;

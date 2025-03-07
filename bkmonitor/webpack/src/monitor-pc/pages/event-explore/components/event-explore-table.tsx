@@ -60,8 +60,10 @@ const SourceIconMap = {
 
 @Component
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
+  /** 接口请求配置项 */
   @Prop({ type: Object, default: () => ({}) }) requestConfigs: EventExploreTableRequestConfigs;
 
+  /** table loading 配置*/
   tableLoading = {
     /** table 骨架屏 loading */
     [ExploreTableLoadingEnum.REFRESH]: true,
@@ -69,8 +71,11 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     [ExploreTableLoadingEnum.SCROLL]: false,
   };
 
+  /** table 数据 */
   tableData = [];
+  /** popover 实例 */
   popoverInstance = null;
+  /** popover 延迟打开定时器 */
   popoverDelayTimer = null;
 
   get tableColumns() {
@@ -148,6 +153,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     ];
   }
 
+  /**
+   * @description: 获取 table 表格数据
+   *
+   */
   async getEventLogs() {
     const { apiFunc, apiModule, data, loadingType = ExploreTableLoadingEnum.REFRESH } = this.requestConfigs;
     let updateTableDataFn = list => {
@@ -459,17 +468,16 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           />
           {this.tableColumns.columns.map(column => this.transformColumn(column))}
           <div
+            style={{ display: this.tableHasScrollLoading ? 'block' : 'none' }}
             class='export-table-loading'
             slot='append'
           >
-            {this.tableHasScrollLoading ? (
-              <bk-spin
-                placement='right'
-                size='mini'
-              >
-                {this.$t('加载中')}
-              </bk-spin>
-            ) : null}
+            <bk-spin
+              placement='right'
+              size='mini'
+            >
+              {this.$t('加载中')}
+            </bk-spin>
           </div>
         </bk-table>
         {this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? (
