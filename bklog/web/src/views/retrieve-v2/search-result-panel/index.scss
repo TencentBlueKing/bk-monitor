@@ -5,7 +5,7 @@
     position: relative;
     display: flex;
     height: fit-content;
-    overflow: visible;
+    overflow: hidden;
 
     .field-list-sticky {
       &.is-show {
