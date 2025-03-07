@@ -887,7 +887,7 @@ export default {
   配置项命名空间不能为空: 'Configuration item namespace cannot be empty',
   收藏夹: 'Favorite',
   UI查询: 'UI',
-  语句查询: 'Lucene',
+  语句模式: 'Lucene',
   历史查询: 'History Query',
   请输入关键字: 'Please enter keywords',
   请搜索: 'Please search',
@@ -1026,4 +1026,5 @@ export default {
   '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
     'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
   过期时间不能大于存储天数: 'The expiration time cannot be greater than the storage days',
+  '确定 Ctrl+ Enter': 'Confirm Ctrl+Enter',
 };

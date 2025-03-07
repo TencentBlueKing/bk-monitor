@@ -7,12 +7,13 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { translateKeys } from './const-values';
+  import { Props } from 'tippy.js';
+
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
+  import { translateKeys } from './const-values';
   import PopInstanceUtil from './pop-instance-util';
   import useFieldEgges from './use-field-egges';
-  import { Props } from 'tippy.js';
   const INPUT_MIN_WIDTH = 12;
 
   const props = defineProps({
@@ -904,8 +905,7 @@
             :placeholder="$t('请输入关键字')"
             behavior="simplicity"
             left-icon="bk-icon icon-search"
-          >
-          </bk-input>
+          />
         </div>
         <div
           ref="refSearchResultList"
@@ -932,7 +932,7 @@
           </div>
           <template v-if="isFieldListEmpty || isSearchEmpty">
             <bk-exception
-              style="justify-content: center; height: 260px"
+              style="justify-content: center; height: 250px"
               :type="exceptionType"
               scene="part"
             >
@@ -943,7 +943,7 @@
       <div :class="['value-list', { 'is-full-text': showFulltextMsg }]">
         <template v-if="isSearchEmpty">
           <bk-exception
-            style="justify-content: center; height: 260px"
+            style="justify-content: center; height: 250px"
             scene="part"
             type="500"
           >
@@ -1029,10 +1029,11 @@
             </div>
             <template v-if="activeFieldItem.field_name === '*'">
               <bk-input
+                class="ui-value-search-textarea"
                 v-model="condition.value[0]"
                 :rows="12"
                 type="textarea"
-              ></bk-input>
+              />
             </template>
             <div
               v-else
@@ -1054,8 +1055,8 @@
                       class="tag-item-input"
                       v-model="condition.value[index]"
                       type="text"
-                      @input="handleInputVlaueChange"
                       @blur.stop="handleTagInputBlur"
+                      @input="handleInputVlaueChange"
                       @keyup.enter="handleTagInputEnter"
                     />
                   </template>
@@ -1147,17 +1148,14 @@
       </div>
       <div class="ui-btn-opts">
         <bk-button
+          class="save-btn"
           :disabled="!isSaveBtnActive"
-          style="width: 64px; margin-right: 8px"
           theme="primary"
           @click.stop="handelSaveBtnClick"
-          >{{ $t('确定') }}</bk-button
         >
-        <bk-button
-          style="width: 64px"
-          @click.stop="handleCancelBtnClick"
-          >{{ $t('取消') }}</bk-button
-        >
+          {{ $t('确定 Ctrl+ Enter') }}
+        </bk-button>
+        <bk-button @click.stop="handleCancelBtnClick">{{ $t('取消') }}</bk-button>
       </div>
     </div>
   </div>

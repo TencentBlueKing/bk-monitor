@@ -2,8 +2,10 @@
   import { ref, computed, set } from 'vue';
 
   import { getOperatorKey, formatDateTimeField } from '@/common/util';
+  import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import { cloneDeep } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -15,8 +17,6 @@
   import IPSelector from './ip-selector';
   import UiInputOptions from './ui-input-option.vue';
   import useFocusInput from './use-focus-input';
-  import useFieldNameHook from '@/hooks/use-field-name';
-  import { cloneDeep } from 'lodash';
   const props = defineProps({
     value: {
       type: Array,
@@ -361,34 +361,56 @@
 
   //   return modelValue.value;
   // })
-
-
 </script>
 
 <template>
-  <ul ref="refUlRoot" class="search-items">
-    <li class="search-item btn-add" @click.stop="handleAddItem">
+  <ul
+    ref="refUlRoot"
+    class="search-items"
+  >
+    <li
+      class="search-item btn-add"
+      @click.stop="handleAddItem"
+    >
       <div class="tag-add">+</div>
       <div class="tag-text">{{ $t('添加条件') }}</div>
     </li>
-    <li v-for="(item, index) in modelValue"
+    <li
+      v-for="(item, index) in modelValue"
       :class="['search-item', 'tag-item', { disabled: item.disabled, 'is-common-fixed': item.isCommonFixed }]"
-      :key="`${item.field}-${index}`" @click.stop="e => handleTagItemClick(e, item, index)">
+      :key="`${item.field}-${index}`"
+      @click.stop="e => handleTagItemClick(e, item, index)"
+    >
       <div class="tag-row match-name">
         {{ getMatchName(item.field) }}
-        <span class="symbol" :data-operator="item.operator">{{ getOperatorLabel(item) }}</span>
+        <span
+          class="symbol"
+          :data-operator="item.operator"
+          >{{ getOperatorLabel(item) }}</span
+        >
       </div>
       <div class="tag-row match-value">
         <template v-if="item.field === '_ip-select_'">
           <span class="match-value-text">
-            <IPSelector v-model="item.value[0]" :bk-biz-id="bkBizId" :is-show.sync="showIpSelector"
-              @change="handleIPChange"></IPSelector>
+            <IPSelector
+              v-model="item.value[0]"
+              :bk-biz-id="bkBizId"
+              :is-show.sync="showIpSelector"
+              @change="handleIPChange"
+            ></IPSelector>
           </span>
         </template>
         <template v-else-if="Array.isArray(item.value)">
-          <span v-for="(child, childInex) in item.value" :key="childInex">
+          <span
+            v-for="(child, childInex) in item.value"
+            :key="childInex"
+          >
             <span class="match-value-text">{{ formatDateTimeField(child, item.field_type) }}</span>
-            <span v-if="childInex < item.value.length - 1" class="match-value-relation">{{ item.relation }}</span>
+            <span
+              v-if="childInex < item.value.length - 1"
+              class="match-value-relation"
+              >{{ item.relation }}</span
+            >
           </span>
         </template>
         <template v-else>
@@ -396,21 +418,40 @@
         </template>
       </div>
       <div class="tag-options">
-        <span :class="[
-          'bklog-icon',
-          { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
-        ]" @click.stop="e => handleDisabledTagItem(item, e)"></span>
-        <span class="bk-icon icon-close" @click.stop="() => handleDeleteTagItem(index, item)"></span>
+        <span
+          :class="[
+            'bklog-icon',
+            { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
+          ]"
+          @click.stop="e => handleDisabledTagItem(item, e)"
+        ></span>
+        <span
+          class="bk-icon icon-close"
+          @click.stop="() => handleDeleteTagItem(index, item)"
+        ></span>
       </div>
     </li>
     <li class="search-item is-focus-input">
-      <input ref="refSearchInput" class="tag-option-focus-input" type="text" @blur="handleFullTextInputBlur"
-        @focus.stop="handleFocusInput" @input="handleInputValueChange" @keyup.delete="handleDeleteItem"
-        @keyup.enter="handleInputValueEnter" />
+      <input
+        ref="refSearchInput"
+        class="tag-option-focus-input"
+        :placeholder="$t('请输入关键词...')"
+        type="text"
+        @blur="handleFullTextInputBlur"
+        @focus.stop="handleFocusInput"
+        @input="handleInputValueChange"
+        @keyup.delete="handleDeleteItem"
+        @keyup.enter="handleInputValueEnter"
+      />
     </li>
     <div style="display: none">
-      <UiInputOptions ref="refPopInstance" :is-input-focus="isInputFocus" :value="queryItem" @cancel="handleCancelClick"
-        @save="handleGlobalSaveQueryClick"></UiInputOptions>
+      <UiInputOptions
+        ref="refPopInstance"
+        :is-input-focus="isInputFocus"
+        :value="queryItem"
+        @cancel="handleCancelClick"
+        @save="handleGlobalSaveQueryClick"
+      ></UiInputOptions>
     </div>
   </ul>
 </template>

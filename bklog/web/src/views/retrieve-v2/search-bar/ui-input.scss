@@ -9,12 +9,35 @@ ul.search-items {
   overflow: auto;
 
   li {
+
+    @keyframes changeBackgroundColor {
+      0% {
+        background-color: #e1ecff;
+      }
+
+      10% {
+        background-color: #fdf4e8;
+      }
+
+      50% {
+        background-color: #e1ecff;
+      }
+
+      90% {
+        background-color: #fdf4e8;
+      }
+
+      100% {
+        background-color: #e1ecff;
+      }
+    }
+
     &.search-item {
       display: inline-flex;
       flex-direction: column;
       align-content: center;
       justify-content: center;
-      height: 48px;
+      height: 40px;
       margin-right: 4px;
       margin-bottom: 4px;
       cursor: pointer;
@@ -27,34 +50,21 @@ ul.search-items {
       }
 
       &.is-common-fixed {
-        animation: changeBackgroundColor 1.5s forwards;
         transition: background-color 1s ease-in-out;
+        animation: changeBackgroundColor 1.5s forwards;
       }
     }
 
-    @keyframes changeBackgroundColor {
-      0% {
-        background-color: #e1ecff;
-      }
-      10% {
-        background-color: #fdf4e8;
-      }
-      50% {
-        background-color: #e1ecff;
-      }
-      90% {
-        background-color: #fdf4e8;
-      }
-      100% {
-        background-color: #e1ecff;
-      }
-    }
     .tag-option-focus-input {
-      width: 8px;
+      // width: 8px;
       height: 38px;
       font-size: 12px;
       color: #63656e;
       border: none;
+
+      &::placeholder {
+        color: #c4c6cc;
+      }
     }
 
     &.btn-add {
