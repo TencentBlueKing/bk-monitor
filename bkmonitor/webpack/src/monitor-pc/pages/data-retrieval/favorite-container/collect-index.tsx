@@ -38,6 +38,8 @@ import type { FavoriteIndexType, IFavList } from '../typings';
 
 import './collect-index.scss';
 
+const VIEW_DATA_ID_KEY = 'bk_monitor_favorite_view_data_id';
+
 @Component
 export default class CollectIndex extends tsc<FavoriteIndexType.IProps, FavoriteIndexType.IEvent> {
   @Prop({ default: () => [], type: Array }) favoritesList: IFavList.favGroupList[]; // 收藏列表
@@ -112,7 +114,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   filterCollectList: IFavList.favGroupList[] = []; // 搜索的收藏列表
   emptyStatusType: EmptyStatusType = 'empty';
   /** 是否仅查看数据Id */
-  isViewDataId = true;
+  isViewDataId = JSON.parse(localStorage.getItem(VIEW_DATA_ID_KEY) || 'true');
 
   get isNewSearch() {
     return this.favCheckedValue === null;
@@ -278,6 +280,12 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
   @Emit('close')
   handleClose() {}
 
+  handleIsViewDataIdChange(check: boolean) {
+    this.isViewDataId = check;
+    this.handleSearchFavorite();
+    localStorage.setItem(VIEW_DATA_ID_KEY, String(check));
+  }
+
   render() {
     return (
       <div class='retrieve-collect-index-comp'>
@@ -300,7 +308,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
               </span>
               <div class='tools'>
                 <span
-                  class='icon-monitor icon-shezhi'
+                  class='icon-monitor icon-shezhi1'
                   onClick={() => (this.isShowManageDialog = true)}
                 />
                 <span
@@ -322,8 +330,8 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
               {this.favoriteSearchType === 'event' && (
                 <bk-checkbox
                   class='view-data'
-                  v-model={this.isViewDataId}
-                  onChange={() => this.handleSearchFavorite()}
+                  value={this.isViewDataId}
+                  onChange={this.handleIsViewDataIdChange}
                 >
                   {this.$t('仅查看当前数据 ID')}
                 </bk-checkbox>
@@ -374,23 +382,22 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                   </div>
                 </bk-popover>
                 <bk-icon
-                  class='tool-icon'
+                  class='ml12'
                   v-bk-tooltips={{ content: this.$t('全部收起') }}
                   type='indent'
                   onClick={this.handleCollapseAll}
                 />
                 <bk-popover
                   ref='popoverSort'
+                  class='ml12'
                   ext-cls='sort-group-popover'
                   placement='bottom-start'
                   tippy-options={this.tippyOption}
                 >
-                  <div
-                    class='icon-box tool-icon'
+                  <span
+                    class='icon-monitor icon-paixu1'
                     v-bk-tooltips={{ content: this.$t('调整排序') }}
-                  >
-                    <span class='bk-icon icon-sort' />
-                  </div>
+                  />
                   <div slot='content'>
                     <span style={{ fontSize: '14px', marginTop: '8px' }}>{this.$t('收藏排序')}</span>
                     <bk-radio-group
@@ -424,7 +431,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
             class={['new-search', { active: this.isNewSearch }]}
             onClick={() => this.handleEmitOperateChange('new-search', undefined)}
           >
-            <span class='bk-icon icon-enlarge-line' />
+            <span class='icon-monitor icon-xinjiansuo' />
             <span>{this.$t('新检索')}</span>
           </div>
         </CollectContainer>
