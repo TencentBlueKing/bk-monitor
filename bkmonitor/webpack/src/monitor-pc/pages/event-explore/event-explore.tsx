@@ -94,8 +94,10 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     filter_dict: {},
   };
 
+  /** 数据ID列表 */
   dataIdList = [];
 
+  /** 维度列表 */
   @ProvideReactive('fieldList')
   fieldList = [];
 
@@ -103,6 +105,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   sourceEntities = [];
 
   cacheTimeRange = [];
+  /** 是否展示收藏 */
   isShowFavorite = true;
 
   /**
@@ -166,6 +169,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     };
   }
 
+  /** 回填URL */
   @Watch('commonParams')
   watchCommonParams() {
     this.setRouteParams();
@@ -200,11 +204,13 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     this.handleTimeRangeChange(JSON.parse(JSON.stringify(this.cacheTimeRange)));
   }
 
+  /** 切换数据ID */
   handleDataIdChange(dataId: string) {
     this.formData.table = dataId;
     this.getViewConfig();
   }
 
+  /** 时间类型切换 */
   async handleEventTypeChange(dataType: { data_source_label: string; data_type_label: string }) {
     this.formData.data_source_label = dataType.data_source_label;
     this.formData.data_type_label = dataType.data_type_label;
@@ -266,6 +272,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     this.sourceEntities = data.entities || [];
   }
 
+  /** 关闭维度过滤面板 */
   handleCloseDimensionPanel() {
     this.eventRetrievalLayoutRef.handleClickShrink(false);
   }
@@ -403,10 +410,11 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
   /** 选择收藏或者新检索 */
   handleSelectFavorite(data) {
+    if (!this.currentFavorite && !data) return;
     this.currentFavorite = data;
     if (data) {
       // 选择收藏
-      const { compareValue, queryConfig } = data;
+      const { compareValue, queryConfig } = data.config;
       // 兼容以前的
       const { result_table_id, ...params } = queryConfig;
       this.formData = {
@@ -422,7 +430,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
       this.formData = {
         data_source_label: 'custom',
         data_type_label: 'event',
-        table: '',
+        table: this.dataIdList[0].id,
         query_string: '*',
         where: [],
         group_by: [],
@@ -434,16 +442,18 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     }
   }
 
+  /** 收藏夹显隐 */
   favoriteShowChange(show: boolean) {
     this.isShowFavorite = show;
     localStorage.setItem('bk_monitor_data_favorite_show', `${show}`);
   }
 
-  handleFavorite() {
-    const { table, ...params } = this.formData;
-    this.favoriteContainerRef.handleFavorite({
+  /** 收藏功能 */
+  handleFavorite(isEdit = false) {
+    const { table, ...otherParams } = this.formData;
+    const params = {
       queryConfig: {
-        ...params,
+        ...otherParams,
         result_table_id: table,
       },
       compareValue: {
@@ -454,7 +464,12 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
           timezone: this.timezone,
         },
       },
-    });
+    };
+    if (isEdit) {
+      this.favoriteContainerRef.handleFavorite({ ...this.currentFavorite, config: params }, isEdit);
+    } else {
+      this.favoriteContainerRef.handleFavorite(params, isEdit);
+    }
   }
 
   render() {
@@ -494,6 +509,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
             <RetrievalFilter
               fields={this.fieldList}
               getValueFn={this.getRetrievalFilterValueData}
+              selectFavorite={this.currentFavorite}
               where={this.formData.where}
               onFavorite={this.handleFavorite}
               onWhereChange={this.handleWhereChange}

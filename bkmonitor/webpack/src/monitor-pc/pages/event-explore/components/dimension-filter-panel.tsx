@@ -51,7 +51,9 @@ interface DimensionFilterPanelEvents {
 
 @Component
 export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps, DimensionFilterPanelEvents> {
+  /** 维度列表 */
   @Prop({ default: () => [] }) list!: IDimensionField[];
+  /** 已选择的条件 */
   @Prop({ default: () => [] }) condition!: IWhereItem[];
   @Prop({ default: false }) listLoading!: boolean;
 
@@ -65,7 +67,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
   /** 字段列表的count统计 */
   fieldListCount = {};
-
+  /* 搜索关键字 */
   searchVal = '';
   /** 搜索结果列表 */
   searchResultList: IDimensionField[] = [];
@@ -74,6 +76,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   /** popover实例 */
   popoverInstance = null;
 
+  /** 条件切换后，维度count需要重新获取 */
   @Watch('condition')
   async watchConditionChange() {
     await this.getFieldCount();
@@ -99,7 +102,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     }
   }
 
-  /** 维度项点击 */
+  /** 点击维度项后展示统计弹窗 */
   async handleDimensionItemClick(e: Event, item) {
     this.destroyPopover();
     this.selectField = item.name;
@@ -129,6 +132,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     return value;
   }
 
+  /** 获取各个维度的count */
   async getFieldCount() {
     const fields = this.list.reduce((pre, cur) => {
       if (cur.is_option_enabled) pre.push(cur.name);
@@ -223,14 +227,12 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
           />
         )}
 
-        <div style={{ display: 'none' }}>
-          <StatisticsList
-            ref='statisticsList'
-            selectField={this.selectField}
-            onConditionChange={this.handleConditionChange}
-            onShowMore={this.destroyPopover}
-          />
-        </div>
+        <StatisticsList
+          ref='statisticsList'
+          selectField={this.selectField}
+          onConditionChange={this.handleConditionChange}
+          onShowMore={this.destroyPopover}
+        />
       </div>
     );
   }

@@ -27,6 +27,9 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import { getDownloadTopK, getEventTopK } from '../api-utils';
 
 import type { ITopKField } from '../typing';
@@ -58,6 +61,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   /** 渲染TopK字段行 */
   renderTopKField(list: ITopKField['list'] = []) {
+    if (!list.length) return <EmptyStatus type='empty' />;
+
     return (
       <div class='top-k-list'>
         {list.map(item => (
@@ -125,7 +130,6 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   }
 
   async showMore() {
-    console.log(1231231);
     this.sliderShow = true;
     this.sliderLoading = true;
     this.$emit('showMore');
@@ -158,10 +162,10 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     }).catch(() => []);
   }
 
-  renderSkeleton() {
+  renderSkeleton(len = 1) {
     return (
       <div class='skeleton-wrap'>
-        {new Array(5).fill(null).map((_, index) => (
+        {new Array(len).fill(null).map((_, index) => (
           <div
             key={index}
             class='skeleton-element'
@@ -186,10 +190,10 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             <div class='count'>{this.statisticsList[0]?.distinct_count || 0}</div>
           </div>
           {this.popoverLoading
-            ? this.renderSkeleton()
+            ? this.renderSkeleton(this.statisticsList[0]?.distinct_count || 1)
             : [
                 this.renderTopKField(this.statisticsList[0]?.list),
-                this.statisticsList[0].distinct_count > 5 && (
+                this.statisticsList[0]?.distinct_count > 5 && (
                   <div
                     class='load-more'
                     onClick={this.showMore}
@@ -221,7 +225,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               </span>
             </div>
             {this.downloadLoading ? (
-              <bk-spin size='mini' />
+              <img
+                class='loading-icon'
+                alt=''
+                src={loadingIcon}
+              />
             ) : (
               <div
                 class='download-tool'
@@ -236,7 +244,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             class='dimension-slider-content'
             slot='content'
           >
-            {this.sliderLoading ? this.renderSkeleton() : this.renderTopKField(this.sliderDimensionList[0]?.list)}
+            {this.sliderLoading ? this.renderSkeleton(5) : this.renderTopKField(this.sliderDimensionList[0]?.list)}
           </div>
         </bk-sideslider>
       </div>
