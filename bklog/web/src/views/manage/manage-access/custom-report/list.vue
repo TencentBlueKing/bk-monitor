@@ -103,6 +103,17 @@
               </div>
             </template>
           </bk-table-column>
+          <!-- <bk-table-column
+            :label="$t('日用量/总用量')"
+            :render-header="$renderHeader"
+            min-width="80"
+          >
+            <template #default="props">
+              <span :class="{ 'text-disabled': props.row.status === 'stop' }">
+                {{ `${formatBytes(props.row.daily_usage)} / ${formatBytes(props.row.total_usage)}` }}
+              </span>
+            </template>
+          </bk-table-column> -->
           <bk-table-column
             :label="$t('监控对象')"
             :render-header="$renderHeader"
@@ -338,7 +349,7 @@
 </template>
 
 <script>
-  import { projectManages } from '@/common/util';
+  import { projectManages, formatFileSize } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import IndexSetLabelSelect from '@/components/index-set-label-select';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
@@ -367,8 +378,8 @@
         pagination: {
           current: 1,
           count: 100,
-          limit: 10,
-          limitList: [10, 20, 50, 100],
+          limit: 5,
+          limitList: [5, 20, 50, 100],
         },
         emptyType: 'empty',
       };
@@ -574,6 +585,15 @@
         } catch (error) {
           this.selectLabelList = [];
         }
+      },
+      formatBytes(size) {
+        if (size === undefined) {
+            return '--'; 
+        }
+        if (size === 0) {
+            return '0';
+        }
+        return formatFileSize(size, true);
       },
     },
   };
