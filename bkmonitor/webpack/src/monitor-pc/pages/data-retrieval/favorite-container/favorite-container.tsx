@@ -142,6 +142,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
           if (!isFindCheckValue) {
             // 未找到 清空当前收藏 变为新检索
             this.favCheckedValue = null;
+            this.handleSelectFav(null);
           }
         }
         this.favoriteLoading = false;
@@ -299,6 +300,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
   handleFavorite(data, isEdit = false) {
     if (isEdit) {
       this.favoriteData = data.config;
+      this.editFavoriteData = deepClone(this.favCheckedValue);
       this.handleSubmitFavorite({
         value: data,
         hideCallback: () => {},
@@ -307,7 +309,6 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
     } else {
       this.isShowAddFavoriteDialog = true;
       this.favoriteData = data;
-      this.editFavoriteData = deepClone(this.favCheckedValue);
       this.favoriteKeywordsData = data;
     }
   }
