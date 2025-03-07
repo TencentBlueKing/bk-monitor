@@ -79,6 +79,7 @@ API_LOGS_RESPONSE = {
                         "alias": "直连区域[0] / 127.0.0.1",
                         # 展示成链接
                         "type": "link",
+                        "scenario": "主机监控",
                         "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
                     },
                     "bk_target_cloud_id": {"label": "管控区域", "value": "0", "alias": "直连区域[0]"},
@@ -93,6 +94,7 @@ API_LOGS_RESPONSE = {
             "target": {
                 "value": "127.0.0.1",
                 "alias": "127.0.0.1",
+                "scenario": "主机监控",
                 "url": "https://bk.monitor.com/host/?bk_cloud_id=&bk_cloud_ip=127.0.0.1",
             },
             "origin_data": {
@@ -129,6 +131,7 @@ API_LOGS_RESPONSE = {
                         "value": "BCS-K8S-90001",
                         "alias": "[共享集群] 蓝鲸公共-广州(BCS-K8S-90001)",
                         "type": "link",
+                        "scenario": "容器监控",
                         # 带集群 ID 跳转到新版容器监控页面
                         "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001",
                     },
@@ -138,6 +141,7 @@ API_LOGS_RESPONSE = {
                         "alias": "kube-system",
                         # 带 namespace & 集群 ID 跳转到新版容器监控页面
                         "type": "link",
+                        "scenario": "容器监控",
                         "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",
                     },
                     "name": {
@@ -159,6 +163,7 @@ API_LOGS_RESPONSE = {
                 "alias": "BCS-K8S-90001 / kube-system / Pod / bk-log-collector-fx97q",
                 # 带 namespace & bcs_cluster_id & workload_type & workload_name 跳转到新版容器监控页面
                 "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",
+                "scenario": "容器监控",
             },
             "origin_data": {
                 # 前端在展示原始数据（JSON）时需要把 dimensions、event 这一层解成结构化的数据。
