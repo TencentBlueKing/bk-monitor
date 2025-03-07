@@ -1,5 +1,10 @@
 .event-explore-table {
+  position: relative;
+  height: 100%;
+
   .bk-table.explore-table {
+    flex-direction: column;
+    height: 100%;
     color: #4d4f56;
     border-left: 0;
 
@@ -21,6 +26,8 @@
     }
 
     .bk-table-header-wrapper {
+      flex-shrink: 0;
+
       .explore-table-source-header-cell {
         .bk-table-header-label {
           color: #16171a;
@@ -131,22 +138,10 @@
       }
     }
 
-    .bk-table-fixed-right {
-      pointer-events: none;
-      border-bottom: 0;
-
-      .bk-table-fixed-header-wrapper {
-        pointer-events: all;
-      }
-
-      .bk-table-fixed-body-wrapper {
-        .bk-table-row {
-          pointer-events: all;
-        }
-      }
-    }
-
     .bk-table-body-wrapper {
+      flex-grow: 1;
+      flex-basis: auto;
+
       .bk-table-empty-block {
         /* stylelint-disable-next-line declaration-no-important */
         width: 100% !important;
@@ -168,7 +163,24 @@
     }
   }
 
+  .bk-table-fixed-right {
+    pointer-events: none;
+    border-bottom: 0;
+
+    .bk-table-fixed-header-wrapper {
+      pointer-events: all;
+    }
+
+    .bk-table-fixed-body-wrapper {
+      .bk-table-row {
+        pointer-events: all;
+      }
+    }
+  }
+
   .explore-table-skeleton {
+    position: absolute;
+    top: 0;
     padding: 10px 8px;
   }
 }

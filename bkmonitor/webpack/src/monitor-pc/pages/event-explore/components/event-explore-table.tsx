@@ -455,7 +455,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
               '--legend-color': getEventLegendColorByType(e?.row?.type?.value),
             };
           }}
-          style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'block' : 'none' }}
+          style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'flex' : 'none' }}
           class='explore-table'
           header-cell-class-name={e => {
             const columnKey = e?.column?.columnKey;
@@ -486,12 +486,11 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             </bk-spin>
           </div>
         </bk-table>
-        {this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? (
-          <TableSkeleton
-            class='explore-table-skeleton'
-            type={6}
-          />
-        ) : null}
+        <TableSkeleton
+          style={{ visibility: this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'visible' : 'hidden' }}
+          class='explore-table-skeleton'
+          type={6}
+        />
       </div>
     );
   }

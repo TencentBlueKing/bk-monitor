@@ -1,9 +1,20 @@
 .event-explore-view-wrapper {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-width: 600px;
   height: 100%;
   overflow-y: scroll;
   overflow-y: overlay;
+
+  .event-explore-chart-wrapper {
+    flex-shrink: 0;
+  }
+
+  .event-explore-table-wrapper {
+    flex-grow: 1;
+    flex-basis: auto;
+  }
 
   .back-to-top {
     right: 14px;
