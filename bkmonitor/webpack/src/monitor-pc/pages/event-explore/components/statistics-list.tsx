@@ -27,6 +27,8 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+
 import { getDownloadTopK, getEventTopK } from '../api-utils';
 
 import type { ITopKField } from '../typing';
@@ -125,7 +127,6 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   }
 
   async showMore() {
-    console.log(1231231);
     this.sliderShow = true;
     this.sliderLoading = true;
     this.$emit('showMore');
@@ -221,7 +222,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               </span>
             </div>
             {this.downloadLoading ? (
-              <bk-spin size='mini' />
+              <img
+                class='loading-icon'
+                alt=''
+                src={loadingIcon}
+              />
             ) : (
               <div
                 class='download-tool'

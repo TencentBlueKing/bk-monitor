@@ -144,8 +144,6 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
             this.favCheckedValue = null;
           }
         }
-        // 如果是分享收藏初始化 则清空url的query参数
-        if (this.isHaveFavoriteInit) this.$router.push({ name: this.$route.name });
         this.favoriteLoading = false;
         this.isHaveFavoriteInit = false;
       });
@@ -225,7 +223,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
             });
             return;
           }
-          this.favoriteData = value;
+          this.favoriteData = value.config;
           const copyBaseParams = { group_id, name: copyName, id };
           const submitValue = {
             value: copyBaseParams,
@@ -252,7 +250,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
   @Emit('selectFavorite')
   handleSelectFav(data?: IFavList.favList) {
     this.favCheckedValue = data;
-    return data?.config || null;
+    return data || null;
   }
 
   /** 弹窗dialog新增或编辑收藏 */
@@ -291,7 +289,6 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
 
   @Emit('showChange')
   handleShowChange(isShow: boolean) {
-    console.log(isShow);
     return isShow;
   }
 
@@ -299,11 +296,20 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
    * 收藏操作
    * @param data 收藏数据
    */
-  handleFavorite(data) {
-    this.isShowAddFavoriteDialog = true;
-    this.favoriteData = data;
-    this.editFavoriteData = deepClone(this.favCheckedValue);
-    this.favoriteKeywordsData = data;
+  handleFavorite(data, isEdit = false) {
+    if (isEdit) {
+      this.favoriteData = data.config;
+      this.handleSubmitFavorite({
+        value: data,
+        hideCallback: () => {},
+        isEdit: true,
+      });
+    } else {
+      this.isShowAddFavoriteDialog = true;
+      this.favoriteData = data;
+      this.editFavoriteData = deepClone(this.favCheckedValue);
+      this.favoriteKeywordsData = data;
+    }
   }
 
   render() {

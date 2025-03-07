@@ -46,14 +46,17 @@ import {
   setResidentSettingData,
 } from './utils';
 
+import type { IFavList } from '../../pages/data-retrieval/typings';
+
 import './retrieval-filter.scss';
 
 interface IProps {
   fields: IFilterField[];
   where?: IWhereItem[];
   queryString?: string;
+  selectFavorite?: IFavList.favList;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
-  onFavorite: () => void;
+  onFavorite: (isEdit: boolean) => void;
   onWhereChange?: (v: IWhereItem[]) => void;
   onQueryStringChange?: (v: string) => void;
 }
@@ -61,6 +64,7 @@ interface IProps {
 @Component
 export default class RetrievalFilter extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
+  @Prop({ type: Object, default: null }) selectFavorite: IFavList.favList;
   @Prop({
     type: Function,
     default: () =>
@@ -294,7 +298,9 @@ export default class RetrievalFilter extends tsc<IProps> {
   }
 
   @Emit('favorite')
-  handleFavorite() {}
+  handleFavorite() {
+    return this.selectFavorite;
+  }
 
   render() {
     return (
