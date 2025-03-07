@@ -195,13 +195,12 @@ def kube_state_metrics_error_analysis(preview=True):
         python manage.py kube_state_analysis.py --no_preview # 非预览模式
 
     """
-
+    print()
     if preview:
         print("预览模式，只打印将要处理的策略的相关信息")
     else:
-        print("一下打印的是未处理的策略的相关信息")
-
-    print("策略id，策略名称，业务ID，关联的查询配置ID列表:\n")
+        print("以下打印的是未处理的策略的相关信息")
+    print("策略id、策略名称、业务ID、关联的查询配置ID列表:")
 
     restarts_total_default_query_config = restarts_total_default_strategy["items"][0]["query_configs"][0]
     terminated_reason_default_query_config = terminated_reason_default_strategy["items"][0]["query_configs"][0]
