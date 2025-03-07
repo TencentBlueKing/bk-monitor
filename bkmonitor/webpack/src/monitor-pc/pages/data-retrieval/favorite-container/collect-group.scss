@@ -8,8 +8,8 @@
     margin-right: 2px;
     font-size: 12px;
     color: #63656e;
-    transition: transform .3s;
-    transform: scale(.5);
+    transition: transform 0.3s;
+    transform: scale(0.5);
   }
 
   .group-cur {
@@ -21,7 +21,7 @@
     cursor: pointer;
 
     .icon-monitor {
-      color: #A3B1CC;
+      color: #a3b1cc;
     }
 
     .group-str {
@@ -53,7 +53,7 @@
     .title-number {
       font-size: 12px;
       font-weight: 500;
-      color: #A3B1CC;
+      color: #a3b1cc;
     }
 
     &:hover {
@@ -69,13 +69,13 @@
     .group-item {
       padding-left: 7px;
       line-height: 32px;
-      color: #4D4F56;
+      color: #4d4f56;
       cursor: pointer;
       border-bottom: none;
       border-radius: 4px;
 
       &:hover {
-        background: #DDE1EB;
+        background: #dde1eb;
 
         .more-box {
           opacity: 1;
@@ -85,7 +85,7 @@
       &.active {
         position: relative;
         z-index: 99;
-        background: #FFFFFF;
+        background: #ffffff;
         box-shadow: 0 1px 2px 0 #00000014;
 
         .group-item-left {
@@ -93,7 +93,7 @@
         }
 
         .more-box {
-          background-color: #DDE1EB;
+          background-color: #dde1eb;
         }
       }
 
@@ -107,7 +107,7 @@
         align-items: center;
         justify-content: space-between;
         padding: 0 2px 0 11px;
-        border-left: 1px solid #A3B1CC;
+        border-left: 1px solid rgba($color: #a3b1cc, $alpha: 0.6);
 
         .creator {
           color: #979ba5;
