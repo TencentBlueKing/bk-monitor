@@ -11,8 +11,8 @@
     height: 32px;
     padding: 0 6px;
     font-size: 12px;
-    background: #FFFFFF;
-    border: 1px solid #DCDEE5;
+    background: #ffffff;
+    border: 1px solid #dcdee5;
     border-radius: 2px;
 
     .key-wrap {
@@ -24,7 +24,7 @@
 
     .method-wrap {
       margin: 0 4px 0 2px;
-      color: #3A84FF;
+      color: #3a84ff;
       cursor: pointer;
 
       .method-list-wrap {
@@ -36,11 +36,11 @@
           height: 32px;
           padding: 0 16px;
           font-size: 12px;
-          color: #4D4F56;
+          color: #4d4f56;
           cursor: pointer;
 
           &:hover {
-            background: #F5F7FA;
+            background: #f5f7fa;
           }
         }
       }
@@ -51,7 +51,7 @@
       align-items: center;
       min-width: 64px;
       min-height: 30px;
-      padding: 5px 0 0 0;
+      padding: 4px 0 0 0;
       cursor: pointer;
 
       .tag-item {
@@ -59,8 +59,8 @@
         align-items: center;
         height: 22px;
         padding: 0 6px;
-        margin: 0 4px 5px 0;
-        background: #F0F1F5;
+        margin: 0 4px 4px 0;
+        background: #f0f1f5;
 
         .tag-text {
           max-width: 200px;
@@ -78,11 +78,18 @@
         }
       }
 
+      &::after {
+        position: absolute;
+        top: 7px;
+        color: #c4c6cc;
+        content: attr(data-placeholder);
+      }
+
       .placeholder-text {
         position: relative;
         top: -3px;
         line-height: 12px;
-        color: #C4C6CC;
+        color: #c4c6cc;
       }
     }
 
@@ -97,7 +104,7 @@
 
       width: 22px;
       height: 22px;
-      color: #979BA5;
+      color: #979ba5;
 
       .icon-arrow-down {
         font-size: 20px;
@@ -107,7 +114,7 @@
         font-size: 16px;
       }
     }
-    
+
     &.show {
       max-width: 560px;
       padding-right: 32px;
@@ -121,8 +128,8 @@
         }
 
         .expand-btn {
-          transition: all .3s;
-          transform: rotate(180deg)
+          transition: all 0.3s;
+          transform: rotate(180deg);
         }
       }
     }
@@ -142,7 +149,7 @@
   .options-wrap {
     max-height: 131px;
     overflow-y: scroll;
-    background: #FFFFFF;
+    background: #ffffff;
 
     .options-item {
       display: flex;
@@ -154,7 +161,7 @@
       overflow: hidden;
       font-size: 12px;
       line-height: 32px;
-      color: #4D4F56;
+      color: #4d4f56;
       text-overflow: ellipsis;
       white-space: nowrap;
       cursor: pointer;
@@ -162,16 +169,16 @@
       .icon-mc-check-small {
         display: none;
         font-size: 20px;
-        color: #3A84FF;
+        color: #3a84ff;
       }
 
       &:hover,
       &.active-index {
-        background: #F5F7FA;
+        background: #f5f7fa;
       }
 
       &.checked {
-        color: #3A84FF;
+        color: #3a84ff;
 
         .icon-mc-check-small {
           display: block;
