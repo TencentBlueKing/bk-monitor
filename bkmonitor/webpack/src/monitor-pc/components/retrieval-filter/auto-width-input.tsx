@@ -75,14 +75,6 @@ export default class AutoWidthInput extends tsc<IProps> {
 
   handleInput() {
     this.$emit('input', this.localValue);
-    // if (this.localValue) {
-    //   setTimeout(() => {
-    //     const hiddenEl = this.$el.querySelector('.input-value-hidden');
-    //     this.width = hiddenEl ? hiddenEl.clientWidth : 0;
-    //   }, 50);
-    // } else {
-    //   this.width = 0;
-    // }
   }
 
   handleFocus() {
