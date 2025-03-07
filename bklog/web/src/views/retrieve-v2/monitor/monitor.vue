@@ -43,7 +43,10 @@
   import SearchBar from '../search-bar/index.vue';
   import QueryHistory from '../search-bar/query-history.vue';
   import SearchResultPanel from '../search-result-panel/index.vue';
-  import { GLOBAL_SCROLL_SELECTOR } from '../search-result-panel/log-result/log-row-attributes';
+  import RetrieveHelper from '../../retrieve-helper.tsx';
+
+  const GLOBAL_SCROLL_SELECTOR = RetrieveHelper.getScrollSelector();
+
   const props = defineProps({
     indexSetApi: {
       type: Function,
