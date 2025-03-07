@@ -156,6 +156,12 @@ class ClusterInfoAdmin(admin.ModelAdmin):
     list_filter = ("cluster_type", "registered_system")
 
 
+class SpaceRelatedStorageInfoAdmin(admin.ModelAdmin):
+    list_display = ("space_type_id", "space_id", "storage_type", "cluster_id")
+    search_fields = ("cluster_id", "space_id")
+    list_filter = ("cluster_id", "storage_type")
+
+
 class KafkaTopicInfoAdmin(admin.ModelAdmin):
     list_display = ("bk_data_id", "topic", "partition")
     search_fields = ("topic",)
@@ -264,6 +270,7 @@ admin.site.register(models.TimeSeriesMetric, TimeSeriesMetricAdmin)
 admin.site.register(models.CustomReportSubscriptionConfig, CustomReportSubscriptionConfigAdmin)
 admin.site.register(models.PingServerSubscriptionConfig, PingServerSubscriptionConfigAdmin)
 admin.site.register(models.ClusterInfo, ClusterInfoAdmin)
+admin.site.register(models.SpaceRelatedStorageInfo, SpaceRelatedStorageInfoAdmin)
 admin.site.register(models.KafkaTopicInfo, KafkaTopicInfoAdmin)
 admin.site.register(models.DataSource, DataSourceAdmin)
 admin.site.register(models.DataSourceOption, DataSourceOptionAdmin)
