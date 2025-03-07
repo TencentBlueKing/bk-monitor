@@ -31,25 +31,27 @@
     .bk-form-control {
       .bk-form-input {
         cursor: pointer;
-        background-color: #F0F1F5;
+        background-color: #f0f1f5;
         border-color: transparent;
-  
-        &:hover {
-          background-color: #EAEBF0
-        }
 
+        &:hover {
+          background-color: #eaebf0;
+        }
 
         &:focus {
           border-width: 1px;
         }
       }
     }
-   
   }
 
   .dimension-list {
     flex: 1;
-    overflow-y: auto;
+    margin-right: 1px;
+
+    &:hover {
+      overflow-y: auto;
+    }
 
     .dimension-item {
       display: flex;
@@ -59,7 +61,7 @@
       cursor: pointer;
 
       &:hover {
-        background-color: #F5F7FA;
+        background-color: #f5f7fa;
 
         .dimension-count {
           background-color: #fff;
@@ -67,31 +69,31 @@
       }
 
       &.active {
-        background-color: #F0F1F5;
+        background-color: #f0f1f5;
 
         .dimension-count {
           background-color: #fff;
         }
       }
-      
+
       .dimension-name {
         margin: 0 3px 0 4px;
         overflow: hidden;
         font-size: 12px;
         font-weight: 400;
-        color: #16171A;
+        color: #16171a;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
       .dimension-count {
         height: 14px;
-        padding:  0 3.5px;
+        padding: 0 3.5px;
         font-weight: 700;
         line-height: 14px;
-        color: #979BA5;
+        color: #979ba5;
         text-align: center;
-        background-color: #F0F1F5;
+        background-color: #f0f1f5;
         border-radius: 7px;
       }
     }
@@ -123,7 +125,7 @@
 
     .filter-tools {
       margin-top: 2px;
-      color: #3A84FF;
+      color: #3a84ff;
 
       .icon-monitor {
         cursor: pointer;
@@ -156,7 +158,7 @@
 
         .counts {
           font-size: 12px;
-          color: #5AB8A8;
+          color: #5ab8a8;
 
           .progress-count {
             margin-left: 4px;
@@ -164,7 +166,6 @@
           }
         }
       }
-
     }
   }
 }
@@ -194,9 +195,9 @@
         font-size: 12px;
         font-weight: 700;
         line-height: 14px;
-        color: #979BA5;
+        color: #979ba5;
         text-align: center;
-        background: #F0F1F5;
+        background: #f0f1f5;
         border-radius: 7px;
       }
     }
@@ -212,7 +213,7 @@
       margin: 8px 0 0 46px;
       font-size: 12px;
       line-height: 20px;
-      color: #3A84FF;
+      color: #3a84ff;
       cursor: pointer;
     }
   }
@@ -240,12 +241,12 @@
       width: 1px;
       height: 14px;
       margin: 0 8px 0 6px;
-      background: #DCDEE5;
+      background: #dcdee5;
     }
 
     .desc {
       font-size: 14px;
-      color: #979BA5;
+      color: #979ba5;
     }
 
     .download-tool {
@@ -253,13 +254,13 @@
 
       .icon-xiazai1 {
         font-size: 14px;
-        color: #4D4F56;
+        color: #4d4f56;
       }
 
       .text {
         margin-left: 6px;
         font-size: 12px;
-        color: #4D4F56;
+        color: #4d4f56;
       }
     }
   }
