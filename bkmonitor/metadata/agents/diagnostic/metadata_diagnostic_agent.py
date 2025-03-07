@@ -11,13 +11,13 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import os
 from typing import Any, Dict, Generator
 
 from langchain.agents import Tool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ai_agent.llm import LLMConfig, LLMModel, LLMProvider, get_llm
-from metadata.agents import prompts
 from metadata.resources.bkdata_link import QueryDataLinkInfoResource
 
 logger = logging.getLogger("metadata")
@@ -30,6 +30,14 @@ class MetadataDiagnosisAgent:
             Tool(name="llm_analysis", func=self.llm_analysis_engine, description="LLM决策分析引擎"),
         ]
 
+    def _load_prompt(self, prompt_name):
+        """
+        加载提示词模版
+        """
+        prompt_path = os.path.join('metadata/agents/prompts/' f'{prompt_name}.md')
+        with open(prompt_path, 'r', encoding='utf-8') as f:
+            return f.read()
+
     def get_metadata_info(self, bk_data_id: int) -> dict:
         """
         调用接口获取元数据信息
@@ -40,7 +48,8 @@ class MetadataDiagnosisAgent:
         """
         构造诊断引擎提示词
         """
-        return prompts.diagnostic_prompt.replace("{metadata_json}", json.dumps(metadata, ensure_ascii=False))
+        prompt_template = self._load_prompt('diagnostic')
+        return prompt_template.replace("{metadata_json}", json.dumps(metadata, ensure_ascii=False))
 
     def llm_analysis_engine(self, metadata: dict) -> Dict[str, Any]:
         """
