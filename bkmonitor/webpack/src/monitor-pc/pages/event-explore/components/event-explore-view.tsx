@@ -32,11 +32,16 @@ import ExploreCustomGraph, {
 } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
+import BackTop from '../../../components/back-top/back-top';
 import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api-utils';
+import {
+  type DimensionsTypeEnum,
+  type EventExploreTableRequestConfigs,
+  ExploreTableLoadingEnum,
+  type IFormData,
+} from '../typing';
 import { eventChartMap, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
-
-import type { DimensionsTypeEnum, EventExploreTableRequestConfigs, IFormData } from '../typing';
 
 import './event-explore-view.scss';
 
@@ -68,9 +73,9 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   /** 图表配置实例 */
   panel: PanelModel = null;
   /** table表格请求配置 */
-  tableRequestConfigs = {};
-  /** 表格分页页码 */
-  limit = 1;
+  tableRequestConfigs: EventExploreTableRequestConfigs = {};
+  /** 是否滚动到底 */
+  isTheEnd = false;
 
   @Watch('commonParams', { deep: true })
   commonParamsChange() {
@@ -111,6 +116,30 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     return { ...this.commonParams, query_configs: queryConfigs };
   }
 
+  mounted() {
+    this.$el.addEventListener('scroll', this.handleScrollToEnd);
+  }
+  beforeDestroy() {
+    this.$el.removeEventListener('scroll', this.handleScrollToEnd);
+  }
+
+  /**
+   * @description: 监听滚动到底部
+   * @param {Event} evt 滚动事件对象
+   * @return {*}
+   */
+  handleScrollToEnd(evt: Event) {
+    const target = evt.target as HTMLElement;
+    const { scrollHeight } = target;
+    const { scrollTop } = target;
+    const { clientHeight } = target;
+    const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
+    this.isTheEnd = isEnd;
+    if (this.isTheEnd) {
+      this.updateTableRequestConfigs(ExploreTableLoadingEnum.SCROLL);
+    }
+  }
+
   /**
    * @description 获取数据总数
    */
@@ -123,10 +152,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     }));
     this.total = total;
     this.panel.externalData.total = total;
+    this.tableRequestConfigs.total = total;
   }
 
   /** 更新 表格请求配置 */
-  updateTableRequestConfigs() {
+  updateTableRequestConfigs(loadingType: ExploreTableLoadingEnum = ExploreTableLoadingEnum.REFRESH) {
     if (!this.eventQueryParams) {
       return;
     }
@@ -135,10 +165,12 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     this.tableRequestConfigs = {
       apiModule,
       apiFunc,
+      total: this.total ?? 0,
+      loadingType,
       data: {
         ...this.eventQueryParams,
-        limit: this.limit,
-        offset: 20,
+        /** 表格单页条数 */
+        limit: 30,
       },
     };
   }
@@ -267,6 +299,13 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
         <div class='event-explore-table-wrapper'>
           <EventExploreTable requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs} />
         </div>
+        <BackTop
+          ref='backTopRef'
+          class='back-to-top'
+          scrollTop={100}
+        >
+          <i class='icon-monitor icon-arrow-up' />
+        </BackTop>
       </div>
     );
   }

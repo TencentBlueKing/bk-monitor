@@ -134,6 +134,23 @@
         }
       }
     }
+
+    .bk-table-append-wrapper {
+      .export-table-loading {
+        height: 30px;
+
+        .bk-spin {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+        }
+      }
+    }
+  }
+
+  .explore-table-skeleton {
+    padding: 10px 8px;
   }
 }
 

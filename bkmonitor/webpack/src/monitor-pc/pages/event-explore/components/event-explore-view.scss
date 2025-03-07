@@ -4,4 +4,26 @@
   height: 100%;
   overflow-y: scroll;
   overflow-y: overlay;
+
+  .back-to-top {
+    right: 14px;
+    bottom: 24px;
+    z-index: 50;
+    width: 48px;
+    height: 48px;
+    line-height: 48px;
+    text-align: center;
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 3px 10px 0 #0000001f;
+
+    .icon-arrow-up {
+      font-size: 24px;
+    }
+
+    &:hover {
+      color: #fff;
+      background-color: #979ba5;
+    }
+  }
 }
