@@ -48,6 +48,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
   searchValue = '';
   selectedFields: IFilterField[] = [];
   localValue = [];
+  dragOverIndex = -1;
 
   get searchLocalFields() {
     if (!this.searchValue) {
@@ -147,6 +148,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
     // 阻止默认行为，允许 drop
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
+    this.dragOverIndex = _index;
   }
   /**
    * @description 拖拽结束
@@ -156,6 +158,7 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
    */
   handleDrop(event, dropIndex) {
     event.preventDefault();
+    this.dragOverIndex = -1;
     const dragIndex = event.dataTransfer.getData('drag-index');
     if (dragIndex === '') return;
     const fromIndex = Number.parseInt(dragIndex, 10);
@@ -265,7 +268,11 @@ export default class ResidentSettingTransfer extends tsc<IProps> {
               {this.selectedFields.map((item, index) => (
                 <div
                   key={item.name}
-                  class={'option drag-type'}
+                  class={{
+                    option: true,
+                    'drag-type': true,
+                    'drag-over': this.dragOverIndex === index,
+                  }}
                   draggable={true}
                   onDragover={event => this.handleDragOver(event, index)}
                   onDragstart={event => this.handleDragStart(event, index)}

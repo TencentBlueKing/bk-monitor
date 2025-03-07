@@ -75,14 +75,14 @@ export default class AutoWidthInput extends tsc<IProps> {
 
   handleInput() {
     this.$emit('input', this.localValue);
-    if (this.localValue) {
-      setTimeout(() => {
-        const hiddenEl = this.$el.querySelector('.input-value-hidden');
-        this.width = hiddenEl ? hiddenEl.clientWidth : 0;
-      }, 50);
-    } else {
-      this.width = 0;
-    }
+    // if (this.localValue) {
+    //   setTimeout(() => {
+    //     const hiddenEl = this.$el.querySelector('.input-value-hidden');
+    //     this.width = hiddenEl ? hiddenEl.clientWidth : 0;
+    //   }, 50);
+    // } else {
+    //   this.width = 0;
+    // }
   }
 
   handleFocus() {
@@ -104,17 +104,15 @@ export default class AutoWidthInput extends tsc<IProps> {
 
   render() {
     return (
-      <span
+      <div
         style={{
           height: `${this.height}px`,
+          lineHeight: `${this.height}px`,
         }}
         class='auto-width-input-component'
       >
         <input
           ref={'input'}
-          style={{
-            width: `${this.width + this.initWidth}px`,
-          }}
           v-model={this.localValue}
           type='text'
           value={this.localValue}
@@ -131,7 +129,7 @@ export default class AutoWidthInput extends tsc<IProps> {
         >
           {this.localValue}
         </span>
-      </span>
+      </div>
     );
   }
 }
