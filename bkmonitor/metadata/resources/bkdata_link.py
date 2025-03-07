@@ -462,12 +462,12 @@ class IntelligentDiagnosisMetadataResource(Resource):
         bk_data_id = serializers.CharField(label="数据源ID", required=True)
 
     def perform_request(self, validated_request_data):
-        from metadata.metadata_agents.diagnostic.metadata_diagnostic_agent import (
+        from metadata.agents.diagnostic.metadata_diagnostic_agent import (
             MetadataDiagnosisAgent,
         )
 
         bk_data_id = validated_request_data["bk_data_id"]
-        logger.info("metadata_agents: try to diagnose bk_data_id->[%s]", bk_data_id)
+        logger.info("agents: try to diagnose bk_data_id->[%s]", bk_data_id)
         try:
             report = MetadataDiagnosisAgent.diagnose(bk_data_id=int(bk_data_id))
             return report

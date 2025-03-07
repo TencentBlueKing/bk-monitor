@@ -17,7 +17,7 @@ from langchain.agents import Tool
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ai_agent.llm import LLMConfig, LLMModel, LLMProvider, get_llm
-from metadata.metadata_agents import prompts
+from metadata.agents import prompts
 from metadata.resources.bkdata_link import QueryDataLinkInfoResource
 
 logger = logging.getLogger("metadata")
