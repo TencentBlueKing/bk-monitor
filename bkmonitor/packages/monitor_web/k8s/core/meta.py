@@ -235,7 +235,12 @@ class K8sResourceMeta(object):
         obj_list = []
         resource_id_list = []
         for _, line in lines:
-            resource_name = self.get_resource_name(line)
+            try:
+                resource_name = self.get_resource_name(line)
+            except KeyError:
+                # 如果没有维度字段，则当做无效数据
+                continue
+
             if resource_name not in resource_id_list:
                 resource_obj = self.resource_class()
                 obj_list.append(self.clean_resource_obj(resource_obj, line))
