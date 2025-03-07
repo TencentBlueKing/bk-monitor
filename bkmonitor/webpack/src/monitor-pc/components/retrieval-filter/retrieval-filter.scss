@@ -109,3 +109,24 @@
     border-top: 1px #DCDEE5 solid;
   }
 }
+
+
+.tippy-popper.favorite-btn-popover {
+  .tippy-tooltip {
+    padding: 0;
+  }
+
+  .favorite-btn-popover-content {
+    padding: 4px 0;
+  }
+
+  .favorite-btn-item {
+    padding: 0 12px;
+    line-height: 32px;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #F5F7FA;
+    }
+  }
+}
