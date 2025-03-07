@@ -57,7 +57,7 @@ interface IExploreKvListEvents {
 export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvListEvents> {
   @Prop({ default: () => [], type: Array }) fieldList: KVFieldList[];
 
-  @Ref('menu') menuRef: any;
+  @Ref('menu') menuRef: HTMLUListElement;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
 
   menuList = [
@@ -149,8 +149,11 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 处理维度项点击事件
+   * @param {MouseEvent} e
+   * @param {KVFieldList} item
+   *
    */
-  async handleDimensionItemClick(e: Event, item: KVFieldList) {
+  async handleDimensionItemClick(e: MouseEvent, item: KVFieldList) {
     const currentName = this.fieldTarget?.name;
     if (this.popoverInstance) {
       this.handlePopoverHide();
@@ -165,7 +168,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       width: 400,
       distance: -5,
       boundary: 'window',
-      trigger: 'manul',
+      trigger: 'manual',
       theme: 'light event-retrieval-dimension-filter',
       arrow: true,
       interactive: true,
@@ -175,6 +178,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 处理复制事件
+   *
    */
   handleCopy() {
     copyText(this.fieldTarget.value, msg => {
@@ -193,6 +197,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 新建检索 回调
+   *
    */
   handleNewExplorePage() {
     const { targets, from, to, timezone, refreshInterval } = this.$route.query;
@@ -262,6 +267,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 容器/主机 跳转链接入口渲染
+   *
    */
   jumpLinkRender(item: KVFieldList) {
     if (!item.hasEntities) {
@@ -280,6 +286,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description kv 值点击弹出菜单popover渲染
+   *
    */
   menuPopoverRender() {
     return (
@@ -305,6 +312,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 统计数据 popover面板渲染
+   *
    */
   statisticsPopoverRender() {
     return (
