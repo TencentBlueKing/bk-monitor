@@ -124,11 +124,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         preview = not options["no_preview"]
-        kube_state_metrics_error_analysis(preview)
+        kube_state_metrics_analysis(preview)
 
 
 class QueryConfigProcessor:
-    def __init__(self, qc):
+    def __init__(self, qc: QueryConfigModel):
         self.query_config = qc.__dict__
 
     def __getitem__(self, key):
@@ -175,16 +175,16 @@ class QueryConfigProcessor:
 
     def is_same_query_config(self, default_query_config):
         """
-        判断是否与默认default_query_config相同
+        判断是否与default_query_config默认策略相同
         """
-        # 根据默认的query_config的key从self中取值，生产新的query_config
+        # 根据default_query_config的key从self中取值，组成新的query_config
         qc = {key: self[key] for key in default_query_config.keys()}
         # 对列表进行排序，使得顺序一致
         self.handle_list(qc)
         return qc == default_query_config
 
 
-def kube_state_metrics_error_analysis(preview=True):
+def kube_state_metrics_analysis(preview=True):
     """
     重启kube state metrics引起误告策略梳理
     预览模式下只打印将要处理的策略的相关信息。
@@ -215,6 +215,7 @@ def kube_state_metrics_error_analysis(preview=True):
         },
     }
 
+    # 对默认query_config中的列表进行预处理
     QueryConfigProcessor.handle_list(restarts_total_default_query_config)
     QueryConfigProcessor.handle_list(terminated_reason_default_query_config)
 
