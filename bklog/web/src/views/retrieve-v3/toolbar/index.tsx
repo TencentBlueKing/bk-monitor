@@ -25,11 +25,19 @@
  */
 
 import { defineComponent } from 'vue';
+
 import SubBar from '../../retrieve-v2/sub-bar/index.vue';
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-toolbar',
+  name: 'V3Toolbar',
+  props: {
+    isCollectShow: {
+      type: Boolean,
+      default: false,
+    },
+  },
   emits: ['collection-show-change'],
   setup(_, { emit }) {
     const handleCollectionShowChange = () => {
@@ -38,7 +46,16 @@ export default defineComponent({
 
     return () => (
       <div class='v3-bklog-toolbar'>
-        <span onClick={handleCollectionShowChange}>收藏</span>
+        <div
+          style={{ 'background-color': _.isCollectShow ? '#E1ECFF' : '#f0f1f5' }}
+          class='collection-box'
+        >
+          <span
+            style={{ color: _.isCollectShow ? '#3A84FF' : '' }}
+            class='bklog-icon bklog-shoucangjia'
+            onClick={handleCollectionShowChange}
+          ></span>
+        </div>
         <SubBar></SubBar>
       </div>
     );

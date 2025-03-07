@@ -87,7 +87,6 @@
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
 
-  const isChartMode = computed(() => route.query.tab === 'graphAnalysis');
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const isInputLoading = computed(() => {
@@ -432,9 +431,9 @@
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper', { readonly: isChartMode }]"
+    :class="['search-bar-wrapper']"
   >
-    <div :class="['search-bar-container', { readonly: isChartMode }]">
+    <div :class="['search-bar-container']">
       <div
         class="search-options"
         @click="handleQueryTypeChange"

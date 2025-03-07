@@ -1027,4 +1027,5 @@ export default {
     'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
   过期时间不能大于存储天数: 'The expiration time cannot be greater than the storage days',
   '确定 Ctrl+ Enter': 'Confirm Ctrl+Enter',
+  收藏成功: 'Favorite successfully',
 };

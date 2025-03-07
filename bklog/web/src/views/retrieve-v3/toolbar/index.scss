@@ -1,4 +1,19 @@
 .v3-bklog-toolbar {
   z-index: 5;
   display: flex;
+  align-items: center;
+  justify-items: center;
+  background-color: #ffff;
+
+  .collection-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-left: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 2px;
+  }
 }

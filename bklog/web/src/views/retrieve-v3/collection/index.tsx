@@ -24,27 +24,40 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
+
 import V2Collection from '../../retrieve-v2/collect/collect-index';
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-collection',
+  name: 'V3Collection',
   props: {
     isShow: {
       type: Boolean,
       default: false,
     },
   },
-  setup(props, { slots }) {
+  emits: ['width-change'],
+  setup(props, { emit }) {
     const showContent = computed(() => props.isShow);
     const collectWidth = ref(240);
+    const handleWidthChange = (width: number) => {
+      collectWidth.value = width;
+      emit('width-change', width);
+    };
+
+    onMounted(() => {
+      emit('width-change', collectWidth.value);
+    });
+
     return () => {
       return (
         <V2Collection
+          width={collectWidth.value}
+          onUpdate:width={handleWidthChange}
           class='v3-bklog-collection'
           is-show={showContent.value}
-          width={collectWidth.value}
         ></V2Collection>
       );
     };

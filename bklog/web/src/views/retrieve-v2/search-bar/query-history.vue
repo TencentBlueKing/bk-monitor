@@ -1,7 +1,7 @@
 <template>
   <div class="retrieve-tab-item-title">
     <span class="history-button">
-      <span class="bklog-icon bklog-lishijilu"></span>
+      <span class="bklog-icon bklog-history-2"></span>
       <span @click="handleClickHistoryButton">{{ $t('历史查询') }}</span>
     </span>
     <div v-show="false">

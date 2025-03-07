@@ -1,8 +1,9 @@
 .subbar-container {
   position: relative;
   display: flex;
+  align-items: center;
   width: 100%;
-  height: 48px;
+  height: 52px;
   padding-left: 4px;
   background: #ffffff;
   box-shadow: 0 3px 4px 0 #4070cb0f;
@@ -42,7 +43,7 @@
       }
 
       &:last-child {
-        padding-left: 16px;
+        padding-left: 8px;
         border-right: none;
       }
     }

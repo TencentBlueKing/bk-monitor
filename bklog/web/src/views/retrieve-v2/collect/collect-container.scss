@@ -12,7 +12,37 @@
   }
 
   .search-container-new {
-    padding: 0 16px 16px;
+    padding: 0 12px 12px;
+
+    &-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+
+      &-num {
+        display: inline-flex;
+        align-items: center;
+        height: 16px;
+        padding: 0 8px;
+        margin: 0 4px;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 16px;
+        color: #ffffff;
+        text-align: center;
+        letter-spacing: 0;
+        background: #a3b1cc;
+        border-radius: 8px;
+      }
+
+      &-right {
+        display: flex;
+        column-gap: 12px;
+        align-items: center;
+        justify-content: center;
+      }
+    }
 
     .search-title,
     .bklog-icon {
@@ -78,8 +108,11 @@
   }
 
   .operate-box {
-    width: 57px;
-    margin-left: 12px;
+    /* stylelint-disable-next-line declaration-no-important */
+    width: 72px !important;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-left: 0px !important;
   }
 
   .list-number {
@@ -154,7 +187,9 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    margin-top: 10px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-top: 16px !important;
 
     > :first-child {
       margin-right: 12px;

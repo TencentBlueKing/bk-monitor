@@ -10,9 +10,13 @@
   .history-button {
     display: flex;
     align-items: center;
+    justify-content: center;
+    width: 88px;
+    height: 32px;
     font-size: 12px;
-    color: #3a84ff;
+    color: #313238;
     cursor: pointer;
+    background-color: #f0f1f5;
 
     .bklog-icon {
       margin-right: 4px;

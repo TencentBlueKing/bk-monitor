@@ -40,6 +40,13 @@ SEARCH_PARAMS = [
             {"field": "is_deleted", "operator": "is true", "value": []},
         ],
     },
+    {
+        "sql": "SELECT thedate, dtEventTimeStamp, log WHERE a=1 or b=2 LIMIT 10",
+        "addition": [
+            {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
+            {"field": "is_deleted", "operator": "is true", "value": []},
+        ],
+    },
 ]
 
 SQL_RESULT = [
@@ -93,7 +100,11 @@ SQL_RESULT = [
         f" {SQL_SUFFIX}"
     ),
     (
-        "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM xx.x1 "
+        "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time "
+        "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+    ),
+    (
+        "SELECT thedate, dtEventTimeStamp, log "
         "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
     ),
 ]
