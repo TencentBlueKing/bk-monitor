@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
@@ -52,6 +52,7 @@ interface IEventExploreViewProps {
 
 @Component
 export default class EventExploreView extends tsc<IEventExploreViewProps> {
+  @Ref('eventExploreTableRef') eventExploreTableRef: InstanceType<typeof EventExploreTable>;
   /** 请求接口公共请求参数中的 query_configs 参数 */
   @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
   /** 来源 */
@@ -76,6 +77,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   tableRequestConfigs: EventExploreTableRequestConfigs = {};
   /** 是否滚动到底 */
   isTheEnd = false;
+  /** 页面滚动时消除 table 区域 target事件，滚动结束后设置定时恢复，定时器timer */
+  scrollTimer = null;
 
   @Watch('commonParams', { deep: true })
   commonParamsChange() {
@@ -129,14 +132,29 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
    * @return {*}
    */
   handleScrollToEnd(evt: Event) {
+    if (this.eventExploreTableRef && !this.scrollTimer) {
+      // @ts-ignore
+      this.eventExploreTableRef.$el.style.pointEvents = 'none';
+    }
     const target = evt.target as HTMLElement;
     const { scrollHeight } = target;
     const { scrollTop } = target;
     const { clientHeight } = target;
     const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
     this.isTheEnd = isEnd;
+
     if (this.isTheEnd) {
       this.updateTableRequestConfigs(ExploreTableLoadingEnum.SCROLL);
+    }
+    if (this.scrollTimer) {
+      clearTimeout(this.scrollTimer);
+      this.scrollTimer = null;
+      this.scrollTimer = setTimeout(() => {
+        // @ts-ignore
+        this.eventExploreTableRef.$el.style.pointEvents = 'all';
+        clearTimeout(this.scrollTimer);
+        this.scrollTimer = null;
+      }, 1000);
     }
   }
 
@@ -297,7 +315,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
           )}
         </div>
         <div class='event-explore-table-wrapper'>
-          <EventExploreTable requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs} />
+          <EventExploreTable
+            ref='eventExploreTableRef'
+            requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
+          />
         </div>
         <BackTop
           ref='backTopRef'
