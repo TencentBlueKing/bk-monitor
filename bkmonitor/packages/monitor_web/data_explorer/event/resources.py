@@ -308,20 +308,24 @@ class EventTopKResource(Resource):
 
         # 计算 topk，因为已经计算了多事件源 topk 值，此处只需计算单事件源的字段
         single_query_fields = [field for field in valid_fields if field not in field_topk_map]
-        thread_list = [
-            InheritParentThread(
-                target=self.calculate_topk,
-                args=(
-                    lock,
-                    queryset,
-                    self.get_match_query_configs(field, query_configs, dimension_metadata_map)[0],
-                    field,
-                    limit,
-                    field_topk_map,
-                ),
-            )
-            for field in single_query_fields
-        ]
+        thread_list = []
+        for field in single_query_fields:
+            match_configs = self.get_match_query_configs(field, query_configs, dimension_metadata_map)
+            # 检查是否非空
+            if match_configs:
+                thread_list.append(
+                    InheritParentThread(
+                        target=self.calculate_topk,
+                        args=(
+                            lock,
+                            queryset,
+                            match_configs[0],
+                            field,
+                            limit,
+                            field_topk_map,
+                        ),
+                    )
+                )
         run_threads(thread_list)
 
         for field, field_values in field_topk_map.items():
@@ -396,6 +400,9 @@ class EventTopKResource(Resource):
         field_value_count_dict_list = cls.query_topk(queryset, [query], field, limit)
         for field_value_count_dict in field_value_count_dict_list:
             try:
+                # 剔除 count=0 的空数据
+                if field_value_count_dict["_result_"] == 0:
+                    continue
                 # 加锁，防止多线程下非原子操作时 topk 值计算错误
                 with lock:
                     field_topk_map[field][field_value_count_dict[field]] += field_value_count_dict["_result_"]
@@ -432,7 +439,10 @@ class EventTopKResource(Resource):
         计算维度去重数量
         """
         matching_configs = cls.get_match_query_configs(field, query_configs, dimension_metadata_map)
-        if len(matching_configs) > 1:
+        matching_configs_length = len(matching_configs)
+        if matching_configs_length == 0:
+            return
+        if matching_configs_length > 1:
             # 多事件源直接求所有枚举值
             run_threads(
                 [
