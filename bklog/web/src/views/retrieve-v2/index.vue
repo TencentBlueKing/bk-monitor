@@ -342,6 +342,7 @@
       <div class="retrieve-v2-content">
         <SearchBar
           :active-favorite="activeFavorite"
+          :show-favorites="showFavorites"
           @height-change="handleHeightChange"
           @refresh="handleRefresh"
         >

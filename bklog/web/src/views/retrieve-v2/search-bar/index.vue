@@ -29,6 +29,10 @@
       default: null,
       type: Object,
     },
+    showFavorites: {
+      type: Boolean,
+      default: false
+    }
   });
 
   const emit = defineEmits(['refresh', 'height-change']);
@@ -433,13 +437,18 @@
     ref="refRootElement"
     :class="['search-bar-wrapper']"
   >
-    <div :class="['search-bar-container']">
+    <div
+      :class="[
+        'search-bar-container',
+        { 'set-border': isFilterSecFocused }
+      ]"
+      >
       <div
         class="search-options"
         @click="handleQueryTypeChange"
       >
         <span class="mode-text">{{ queryText }}</span>
-        <span class="bklog-icon bklog-double-arrow"></span>
+        <span class="bklog-icon bklog-qiehuan-2" />
       </div>
       <div
         class="search-input"
@@ -462,12 +471,12 @@
         <div class="search-tool items">
           <div
             v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading || !isCopyBtnActive }]"
+            :class="['bklog-icon bklog-copy', , { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleCopyQueryValue"
           ></div>
           <div
             v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading || !isCopyBtnActive }]"
+            :class="['bklog-icon bklog-qingkong', { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleClearBtnClick"
           ></div>
           <div

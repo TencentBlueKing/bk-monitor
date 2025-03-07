@@ -8,6 +8,7 @@
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
   import { Props } from 'tippy.js';
+  import { bkIcon } from 'bk-magic-vue';
 
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
@@ -37,6 +38,7 @@
   );
 
   const svgImg = ref({ imgUpDownKey, imgEnterKey });
+  const isArrowDown = ref(true);
 
   const store = useStore();
   const { t } = useLocale();
@@ -91,6 +93,7 @@
     arrow: false,
     newInstance: true,
     onHiddenFn: () => {
+      isArrowDown.value = true;
       operatorActiveIndex.value = 0;
       return true;
     },
@@ -127,6 +130,7 @@
 
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
+  console.log(condition.value, 5555)
   const hasConditionValueTip = computed(() => {
     return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
   });
@@ -316,6 +320,10 @@
 
   const getFieldIconColor = type => {
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
+  };
+
+  const getFieldIconTextColor =  type => {
+    return fieldTypeMap.value?.[type]?.textColor;
   };
 
   const resetActiveFieldItem = () => {
@@ -532,6 +540,7 @@
 
   const handleOperatorBtnClick = () => {
     operatorInstance.show(refUiValueOperator.value);
+    isArrowDown.value = false;
     setTimeout(() => {
       conditionValueInstance.hide();
     });
@@ -791,9 +800,16 @@
     }
 
     // key enter
-    if (e.keyCode === 13 || e.code === 'NumpadEnter') {
+    if ( e.keyCode === 13 || e.code === 'NumpadEnter') {
       stopEventPreventDefault(e);
       resolveConditonValueInputEnter();
+      return;
+    }
+
+    // ctrl + enter  e.ctrlKey || e.metaKey兼容Mac的Command键‌
+    if((e.ctrlKey || e.metaKey) && ['Control', 'Enter'].includes(e?.key)) {
+      stopEventPreventDefault(e);
+      handelSaveBtnClick();
       return;
     }
 
@@ -809,7 +825,6 @@
     if (condition.value.operator !== option.operator) {
       condition.value.operator = option.operator;
     }
-
     operatorInstance.hide();
     afterOperatorValueEnter();
   };
@@ -919,11 +934,14 @@
             @click="() => handleFieldItemClick(item, index)"
           >
             <span
-              :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+              :style="{
+                backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
+                color:  item.is_full_text ? false : getFieldIconTextColor(item.field_type)
+              }"
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
+            <span class="field-alias">{{ item.field_type }}——{{ item.query_alias || item.field_alias || item.field_name }}</span>
             <span
               v-if="!item.is_full_text"
               class="field-name"
@@ -985,7 +1003,10 @@
                 class="ui-value-operator"
                 @click.stop="handleOperatorBtnClick"
               >
-                {{ getOperatorLable(activeOperator.label) }}
+                <span class="operator-content">
+                  {{ getOperatorLable(activeOperator.label) }}
+                </span>
+                <bk-icon :type="isArrowDown ? 'angle-down' : 'angle-up'" />
               </div>
               <div style="display: none">
                 <div
@@ -997,7 +1018,7 @@
                     class="empty-section"
                   >
                     <bk-exception
-                      style="height: 100px"
+                      style="height: 94px"
                       :type="conditionValueEmptyType"
                       scene="part"
                     >
@@ -1033,6 +1054,7 @@
                 v-model="condition.value[0]"
                 :rows="12"
                 type="textarea"
+                maxlength="100"
               />
             </template>
             <div
@@ -1077,6 +1099,7 @@
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
                     type="text"
+                    :placeholder="$t('请输入 或 选择')"
                     @blur.stop="handleConditionValueInputBlur"
                     @focus.stop="handleConditionValueInputFocus"
                     @input.stop="handleInputVlaueChange"
@@ -1095,7 +1118,7 @@
                       class="empty-section"
                     >
                       <bk-exception
-                        style="height: 100px"
+                        style="height: 94px"
                         :type="conditionValueEmptyType"
                         scene="part"
                       >
@@ -1142,9 +1165,23 @@
     </div>
     <div class="ui-query-option-footer">
       <div class="ui-shortcut-key">
-        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey" />{{ $t('选中/检索') }}</span>
-        <span><span class="key-esc">Esc</span>{{ $t('收起查询/弹出选项') }}</span>
+        <div class='ui-shortcut-item'>
+          <span class="bklog-icon bklog-arrow-down-filled label up" />
+          <span class="bklog-icon bklog-arrow-down-filled label" />
+          <span class="value">{{ $t('移动光标') }}</span>
+        </div>
+        <div class='ui-shortcut-item'>
+          <span class="label">Enter</span>
+          <span class="value">{{ $t('选中') }}</span>
+        </div>
+        <div class='ui-shortcut-item'>
+          <span class="label">Esc</span>
+          <span class="value">{{ $t('收起查询') }}</span>
+        </div>
+        <div class='ui-shortcut-item'>
+          <span class="label">Ctrl+Enter</span>
+          <span class="value">{{ $t('提交查询') }}</span>
+        </div>
       </div>
       <div class="ui-btn-opts">
         <bk-button

@@ -46,7 +46,7 @@
   <div class="favorite-footer">
     <!-- 收藏查询列表 -->
     <div class="favorite-query-list">
-      <div class="query-list-title">{{ $t('收藏查询') }} ({{ favoriteList.length || 0 }})</div>
+      <div class="query-list-title" v-if="favoriteList.length">{{ $t('收藏查询') }} ({{ favoriteList.length || 0 }})</div>
       <div class="favorite-list">
         <template v-if="favoriteList.length">
           <div
@@ -65,7 +65,7 @@
             type="empty"
             scene="part"
           >
-            {{ $t('暂未匹配到符合条件的收藏项') }}
+            <span style="color: #979BA5">{{ $t('暂无匹配的收藏项') }}</span>
           </bk-exception>
         </template>
       </div>

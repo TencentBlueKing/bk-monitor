@@ -18,7 +18,7 @@
     emit('height-change', height);
   };
 
-  const placeholderText = 'log: error AND "name=bklog"';
+  const placeholderText = '/快速定位到搜索，log:error AND"name=bklog"';
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
 
@@ -184,6 +184,7 @@
       color: #c4c6cc;
       pointer-events: none;
       transform: translateY(-50%);
+      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
     }
 
     .search-sql-editor {

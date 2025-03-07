@@ -312,11 +312,11 @@
   };
 
   const handleFullTextInputBlur = e => {
-    if (!isInstanceShown()) {
+    // if (!isInstanceShown()) {
       handleInputBlur(e);
       inputValueLength = 0;
       queryItem.value = '';
-    }
+    // }
   };
 
   const handleInputValueChange = e => {
@@ -371,6 +371,7 @@
     <li
       class="search-item btn-add"
       @click.stop="handleAddItem"
+      @mouseenter="handleAddItem"
     >
       <div class="tag-add">+</div>
       <div class="tag-text">{{ $t('添加条件') }}</div>

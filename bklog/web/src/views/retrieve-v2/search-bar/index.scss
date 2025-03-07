@@ -3,6 +3,7 @@
   top: 0px;
   z-index: 4;
   margin-left: 8px;
+  margin-right: 8px;
 
   .search-bar-container {
     display: flex;
@@ -17,7 +18,7 @@
       justify-content: center;
       width: 100%;
       max-width: 82px;
-      height: 48px;
+      min-height: 48px;
       cursor: pointer;
       border-right: solid 1px #dcdee5;
 
@@ -27,17 +28,9 @@
         color: #313238;
       }
 
-      .bklog-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 16px;
-        height: 16px;
+      .bklog-qiehuan-2 {
         margin-left: 4px;
-        font-size: 8px;
-        color: #fff;
-        background-color: #4D4F56;
-        border-radius: 50%;
+        color: #4D4F56;
       }
 
       &:hover {
@@ -45,8 +38,8 @@
           color:#3a84ff;
         }
 
-        .bklog-icon {
-          background-color: #3a84ff;
+        .bklog-qiehuan-2 {
+          color: #3a84ff;
         }
       }
     }
@@ -238,5 +231,13 @@
         background-color: rgba(255, 255, 255, 0.2);
       }
     }
+
+    &.set-border {
+      border-bottom: 1px solid #dcdee5;
+    }
+  }
+
+  &.no-margin {
+    margin-left: 0;
   }
 }
