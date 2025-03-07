@@ -1,0 +1,49 @@
+.new-metric-view-page-header {
+  display: flex;
+  height: 47px;
+  align-items: center;
+  background: #fff;
+  padding: 0 16px;
+  position: relative;
+
+  .page-title {
+    display: flex;
+    align-items: center;
+    .app-name {
+      .bk-select {
+        border-color: transparent;
+        outline: none;
+        box-shadow: none;
+        &.is-focus {
+          border-color: #3a84ff;
+        }
+      }
+    }
+    .app-select-value {
+      font-size: 16px;
+      color: #313238;
+      padding: 0 5px;
+      transition: all 0.15s;
+      border-radius: 2px;
+      &:hover {
+        background: #f0f1f5;
+      }
+    }
+  }
+
+  .index-tag {
+    height: 22px;
+    background: #f0f1f5;
+    border-radius: 2px;
+    color: #63656e;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    padding: 0 5px;
+    margin-left: 12px;
+  }
+
+  .page-action-extend {
+    margin-left: auto;
+  }
+}
