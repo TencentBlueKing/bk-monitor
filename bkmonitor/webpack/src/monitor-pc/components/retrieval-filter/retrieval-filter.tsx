@@ -59,6 +59,7 @@ interface IProps {
   onFavorite: (isEdit: boolean) => void;
   onWhereChange?: (v: IWhereItem[]) => void;
   onQueryStringChange?: (v: string) => void;
+  onModeChange?: (v: EMode) => void;
 }
 
 @Component
@@ -110,6 +111,7 @@ export default class RetrievalFilter extends tsc<IProps> {
 
   handleChangeMode() {
     this.mode = this.mode === EMode.ui ? EMode.queryString : EMode.ui;
+    this.$emit('modeChange', this.mode);
   }
   handleShowResidentSetting() {
     this.showResidentSetting = !this.showResidentSetting;
@@ -126,6 +128,12 @@ export default class RetrievalFilter extends tsc<IProps> {
   @Watch('where', { immediate: true })
   handleWatchValue() {
     this.handleWatchValueFn(this.where);
+  }
+  @Watch('queryString', { immediate: true })
+  handleWatchQsString() {
+    if (this.qsValue !== this.queryString) {
+      this.qsValue = this.queryString;
+    }
   }
 
   handleWatchValueFn(where: IWhereItem[]) {
@@ -308,6 +316,11 @@ export default class RetrievalFilter extends tsc<IProps> {
     return isEdit;
   }
 
+  handleQsValueChange(v: string) {
+    this.qsValue = v;
+    this.$emit('queryStringChange', v);
+  }
+
   render() {
     return (
       <div class='retrieval-filter__component'>
@@ -342,8 +355,10 @@ export default class RetrievalFilter extends tsc<IProps> {
             ) : (
               <QsSelector
                 fields={this.fields}
+                getValueFn={this.getValueFn}
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
+                onChange={this.handleQsValueChange}
               />
             )}
           </div>
