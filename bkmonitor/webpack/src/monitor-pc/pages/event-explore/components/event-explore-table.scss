@@ -28,10 +28,6 @@
       }
     }
 
-    .bk-table-fixed-right {
-      border-bottom: 0;
-    }
-
     .bk-table-fixed-body-wrapper,
     .bk-table-body-wrapper {
       .bk-table-body {
@@ -131,6 +127,21 @@
           width: unset;
           min-width: 0;
           color: #3a84ff;
+        }
+      }
+    }
+
+    .bk-table-fixed-right {
+      pointer-events: none;
+      border-bottom: 0;
+
+      .bk-table-fixed-header-wrapper {
+        pointer-events: all;
+      }
+
+      .bk-table-fixed-body-wrapper {
+        .bk-table-row {
+          pointer-events: all;
         }
       }
     }
