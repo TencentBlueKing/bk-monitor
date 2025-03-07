@@ -15,47 +15,6 @@ from monitor_web.strategies.default_settings.common import (
     warning_algorithms_config,
 )
 
-doc = """
-    对“[kube pod] pod 因OOM重启”和“[kube pod] pod近30分钟重启次数过多”这两条策略进行修复
-
-    脚本功能：
-       1. 预览策略：打印需要进行修复的策略信息"策略id、策略名称、业务ID、关联的查询配置ID列表"
-       2. 修改策略：执行修复策略操作，并打印没有进行修复的策略信息"策略id、策略名称、业务ID、关联的查询配置ID列表",以供人工处理。
-
-    usage:
-        python manage.py kube_state_analysis.py   # 预览模式
-        python manage.py kube_state_analysis.py --no_preview # 非预览模式(修复策略)
-
-    —————————————————————————————————————————————————————————————————————————————————
-    需求背景：
-        监控中内置了针对以下两个指标的告警策略：
-            - kube_pod_container_status_restarts_total   策略名：[kube pod] pod 因OOM重启
-            - kube_pod_container_status_terminated_reason  策略名：[kube pod] pod近30分钟重启次数过多
-        但是这两个策略，配置的query_config(针对指标的查询配置)不够准确，存在误告的情况，需要进行修复处理。
-
-    处理方案：
-        - 修改数据库，将这两个内置策略的query_config内容替换为正确的promql查询语句。
-        - 判断条件：
-            - 如果近期1分钟内这两个策略有被创建过或者更新过，则对query_config进行替换。
-            - 如果这两个策略曾经被修改过，但是未修改query_config，则对query_config进行替换。
-        - 剩余的未进行修改的内置策略（之前创建的，但是从未被修改过的策略）输出策略信息，人工处理。
-
-    处理步骤：
-        1. 在数据库中查询出这两个内置策略、及其对应的query_config(查询配置)、item_model(监控项配置)
-        2. 判断这两个策略是否符合上述判断条件。
-        3. 符合条件，则进行以下内容更新：
-            - query_config.data_source_label = "prometheus"        # 数据源替换为prometheus
-            - query_config.metric_id= query_config.metric_id.replace("..", ":")
-            - query_config.config = {
-                "promql": promql,                                  # 配置正确的promql查询语句
-                "agg_interval": qc.config.get("agg_interval", ""), # 保留原有的聚合间隔
-                "functions": qc.config.get("functions", []),       # 保留原有的处理函数
-              }
-            - item_model.origin_sql = promql # 监控项配置中的origin_sql替换为promql
-        4. 如果不符合上述判断条件，则输出策略信息，待后续人工处理。
-
-    """
-
 # pod近30分钟重启次数过多，指标名
 RESTARTS_TOTAL_METRIC_FIELD = 'kube_pod_container_status_restarts_total'
 # 因OOM重启，指标名
@@ -165,11 +124,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         preview = not options["no_preview"]
-        kube_state_metrics_analysis(preview)
+        kube_state_metrics_error_analysis(preview)
 
 
 class QueryConfigProcessor:
-    def __init__(self, qc: QueryConfigModel):
+    def __init__(self, qc):
         self.query_config = qc.__dict__
 
     def __getitem__(self, key):
@@ -216,16 +175,16 @@ class QueryConfigProcessor:
 
     def is_same_query_config(self, default_query_config):
         """
-        判断是否与default_query_config默认策略相同
+        判断是否与默认default_query_config相同
         """
-        # 根据default_query_config的key从self中取值，组成新的query_config
+        # 根据默认的query_config的key从self中取值，生产新的query_config
         qc = {key: self[key] for key in default_query_config.keys()}
         # 对列表进行排序，使得顺序一致
         self.handle_list(qc)
         return qc == default_query_config
 
 
-def kube_state_metrics_analysis(preview=True):
+def kube_state_metrics_error_analysis(preview=True):
     """
     重启kube state metrics引起误告策略梳理
     预览模式下只打印将要处理的策略的相关信息。
@@ -236,12 +195,13 @@ def kube_state_metrics_analysis(preview=True):
         python manage.py kube_state_analysis.py --no_preview # 非预览模式
 
     """
-    print()
+
     if preview:
         print("预览模式，只打印将要处理的策略的相关信息")
     else:
-        print("以下打印的是未处理的策略的相关信息")
-    print("策略id、策略名称、业务ID、关联的查询配置ID列表:")
+        print("一下打印的是未处理的策略的相关信息")
+
+    print("策略id，策略名称，业务ID，关联的查询配置ID列表:\n")
 
     restarts_total_default_query_config = restarts_total_default_strategy["items"][0]["query_configs"][0]
     terminated_reason_default_query_config = terminated_reason_default_strategy["items"][0]["query_configs"][0]
@@ -256,7 +216,6 @@ def kube_state_metrics_analysis(preview=True):
         },
     }
 
-    # 对默认query_config中的列表进行预处理
     QueryConfigProcessor.handle_list(restarts_total_default_query_config)
     QueryConfigProcessor.handle_list(terminated_reason_default_query_config)
 
@@ -276,7 +235,7 @@ def kube_state_metrics_analysis(preview=True):
     for item in items:
         items_mapping[item.strategy_id].append(item)
 
-    # 预览需要被更新的策略
+    # 需要被更新的策略
     previewed_strategies_info = defaultdict(list)
     query_configs_to_update = []
     items_to_update = []
@@ -331,7 +290,7 @@ def kube_state_metrics_analysis(preview=True):
                     }
                     query_configs_to_update.append(qc)
 
-                # 不开启预览模式，则打印未处理的策略相关信息
+                # 不开启预览模式，则打印策略相关信息
                 if not preview and not promql:
                     print(f"{strategy.id}、{strategy.name}、{strategy.bk_biz_id}、{query_config_ids}")
                     continue
@@ -344,7 +303,7 @@ def kube_state_metrics_analysis(preview=True):
 
             else:
                 query_config_ids = [qc.id for qc in query_configs_mapping[strategy.id]]
-                # 不开启预览模式，则打印未处理的策略相关信息
+                # 不开启预览模式，则打印策略相关信息
                 if not preview:
                     print(f"{strategy.id}、{strategy.name}、{strategy.bk_biz_id}、{query_config_ids}")
         except Exception as e:
