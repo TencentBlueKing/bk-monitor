@@ -92,6 +92,7 @@ export default class RetrievalFilter extends tsc<IProps> {
   /*  */
   qsSelectorOptionsWidth = 0;
   resizeObserver = null;
+  cacheQueryString = '';
 
   created() {
     this.residentSettingValue = getResidentSettingData();
@@ -321,6 +322,14 @@ export default class RetrievalFilter extends tsc<IProps> {
     this.$emit('queryStringChange', v);
   }
 
+  handleClickSearchBtn() {
+    if (this.mode === EMode.ui) {
+      this.handleChange();
+    } else {
+      this.handleQsValueChange(this.cacheQueryString);
+    }
+  }
+
   render() {
     return (
       <div class='retrieval-filter__component'>
@@ -359,6 +368,9 @@ export default class RetrievalFilter extends tsc<IProps> {
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
                 onChange={this.handleQsValueChange}
+                onQueryStringChange={v => {
+                  this.cacheQueryString = v;
+                }}
               />
             )}
           </div>
@@ -411,7 +423,10 @@ export default class RetrievalFilter extends tsc<IProps> {
                 </div>
               </div>
             </bk-popover>
-            <div class='search-btn'>
+            <div
+              class='search-btn'
+              onClick={this.handleClickSearchBtn}
+            >
               <span class='icon-monitor icon-mc-search' />
             </div>
           </div>

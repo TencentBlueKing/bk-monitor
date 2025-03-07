@@ -45,6 +45,7 @@ interface IProps {
   qsSelectorOptionsWidth?: number;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: string) => void;
+  onQueryStringChange?: (v: string) => void;
 }
 
 @Component
@@ -194,6 +195,7 @@ export default class QsSelector extends tsc<IProps> {
 
   handleChange(str: string) {
     this.localValue = str;
+    this.$emit('queryStringChange', str);
   }
 
   handleQuery() {
