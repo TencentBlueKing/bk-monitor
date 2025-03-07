@@ -15,8 +15,6 @@ from monitor_web.strategies.default_settings.common import (
     warning_algorithms_config,
 )
 
-# 1分钟
-time_delta = 1 * 60
 # pod近30分钟重启次数过多，指标名
 RESTARTS_TOTAL_METRIC_FIELD = 'kube_pod_container_status_restarts_total'
 # 因OOM重启，指标名
@@ -193,13 +191,13 @@ def kube_state_metrics_error_analysis(preview=True):
     非预览模式下打印未处理的策略的相关信息。
 
     """
-    print("开始执行重启kube state metrics引起误告策略梳理...\n")
+
     if preview:
         print("预览模式，只打印将要处理的策略的相关信息")
-        print("策略id，策略名称，业务ID，关联的查询配置ID列表:\n")
     else:
         print("一下打印的是未处理的策略的相关信息")
-        print("策略id，策略名称，业务ID，关联的查询配置ID列表:\n")
+
+    print("策略id，策略名称，业务ID，关联的查询配置ID列表:\n")
 
     restarts_total_default_query_config = restarts_total_default_strategy["items"][0]["query_configs"][0]
     terminated_reason_default_query_config = terminated_reason_default_strategy["items"][0]["query_configs"][0]
@@ -222,26 +220,25 @@ def kube_state_metrics_error_analysis(preview=True):
     )
 
     strategy_ids = query_configs.values_list('strategy_id', flat=True).distinct()
-
     strategies = StrategyModel.objects.filter(id__in=strategy_ids)
     items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
 
+    # 构建映射关系
     query_configs_mapping: Dict[int, List[QueryConfigModel]] = defaultdict(list)
     items_mapping: Dict[int, List[ItemModel]] = defaultdict(list)
-
-    query_configs_to_update = []
-    items_to_update = []
-    # 需要被更新的策略
-    previewed_strategies_info = defaultdict(list)
-
     for qc in query_configs:
         query_configs_mapping[qc.strategy_id].append(qc)
-
     for item in items:
         items_mapping[item.strategy_id].append(item)
 
+    # 需要被更新的策略
+    previewed_strategies_info = defaultdict(list)
+    query_configs_to_update = []
+    items_to_update = []
+
     # 获取到日期时间的时间戳
     now = arrow.now('Asia/Shanghai').timestamp
+    time_delta = 1 * 60  # 1分钟
 
     for strategy in strategies:
         try:
@@ -250,21 +247,18 @@ def kube_state_metrics_error_analysis(preview=True):
 
             # 是否被更新过，创建时间和更新时间差值大于2秒，则认为被更新过
             is_updated = abs(create_time - update_time) > 2
-            # 是否在一分钟内，被创建或者更新过
-            is_created_or_updated_with_in_1min = now - create_time < time_delta or now - update_time < time_delta
-            # 创建时间或者更新时间在1min内，又或者创建后有更新，则进一步处理
-
-            if is_created_or_updated_with_in_1min or is_updated:
+            # 是否在最近被创建或者更新过
+            is_recently_modified = now - create_time < time_delta or now - update_time < time_delta
+            if is_recently_modified or is_updated:
                 promql = None
-                # 关联的监控项ID
-                related_item_ids = set()
+                related_item_ids = set()  # 关联的监控项ID
                 query_config_ids = []
                 for qc in query_configs_mapping[strategy.id]:
                     default_qc = promql_mapping[qc.config.get("metric_field")]["default_query_configs"]
 
                     # 被更新过，且更新后与默认query_config配置不一致，则不处理
                     if (
-                        not is_created_or_updated_with_in_1min
+                        not is_recently_modified
                         and is_updated
                         and not QueryConfigProcessor(qc).is_same_query_config(default_qc)
                     ):
@@ -299,10 +293,9 @@ def kube_state_metrics_error_analysis(preview=True):
 
                 # 修改关联监控项的origin_sql字段
                 for item in items_mapping[strategy.id]:
-                    if item.id not in related_item_ids:
-                        continue
-                    item.origin_sql = promql
-                    items_to_update.append(item)
+                    if item.id in related_item_ids:
+                        item.origin_sql = promql
+                        items_to_update.append(item)
 
             else:
                 query_config_ids = [qc.id for qc in query_configs_mapping[strategy.id]]
