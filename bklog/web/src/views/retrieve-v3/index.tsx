@@ -44,7 +44,7 @@ export default defineComponent({
       isCollectShow.value = !isCollectShow.value;
     };
 
-    const { isStickyTop } = useAppInit();
+    const { isStickyTop, stickyStyle } = useAppInit();
     const handleWidthChange = (width: number) => {
       collectWidth.value = width;
     };
@@ -57,8 +57,18 @@ export default defineComponent({
       return { width: '100%' };
     });
 
+    const stickyStyleValue = computed(() => {
+      return {
+        ...stickyStyle.value,
+        '--left-collection-width': `${isCollectShow.value ? collectWidth.value : 0}px`,
+      };
+    });
+
     return () => (
-      <div class='v3-bklog-root'>
+      <div
+        class={['v3-bklog-root', { 'is-sticky-top': isStickyTop.value }]}
+        style={stickyStyleValue.value}
+      >
         <V3Collection
           is-show={isCollectShow.value}
           onWidth-change={handleWidthChange}

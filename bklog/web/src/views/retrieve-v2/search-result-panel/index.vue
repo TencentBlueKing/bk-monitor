@@ -2,12 +2,14 @@
   import { computed, ref, defineComponent, h } from 'vue';
 
   import useStore from '@/hooks/use-store';
+  import RetrieveHelper from '../../retrieve-helper';
 
   import NoIndexSet from '../result-comp/no-index-set';
   // #if MONITOR_APP !== 'trace'
   import SearchResultChart from '../search-result-chart/index.vue';
   import FieldFilter from './field-filter';
   import LogClustering from './log-clustering/index';
+
   // #else
   // #code const SearchResultChart = defineComponent(() => h('div'));
   // #code const FieldFilter = defineComponent(() => h('div'));
@@ -41,6 +43,7 @@
   const fieldFilterWidth = ref(DEFAULT_FIELDS_WIDTH);
   const heightNum = ref();
 
+  RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth);
   const changeTotalCount = count => {
     totalCount.value = count;
   };
@@ -60,6 +63,7 @@
 
   const handleFilterWidthChange = width => {
     fieldFilterWidth.value = width;
+    RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth);
   };
 
   const handleUpdateActiveTab = active => {
@@ -82,13 +86,10 @@
       padding: '8px 16px',
     };
   });
-
- 
-
 </script>
 
 <template>
-  <div :class="['search-result-panel', {'flex': !__IS_MONITOR_TRACE__}]">
+  <div :class="['search-result-panel', { flex: !__IS_MONITOR_TRACE__ }]">
     <!-- 无索引集 申请索引集页面 -->
     <NoIndexSet v-if="!pageLoading && isNoIndexSet" />
     <template v-else>
