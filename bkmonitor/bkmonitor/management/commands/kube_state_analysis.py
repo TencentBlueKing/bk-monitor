@@ -190,6 +190,10 @@ def kube_state_metrics_error_analysis(preview=True):
     预览模式下只打印将要处理的策略的相关信息。
     非预览模式下打印未处理的策略的相关信息。
 
+    usage:
+        python manage.py kube_state_analysis.py   # 预览模式
+        python manage.py kube_state_analysis.py --no_preview # 非预览模式
+
     """
 
     if preview:
