@@ -26,6 +26,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-app-store:before {
 	content: "\e162";
 }
+.bklog-folder-open:before {
+	content: "\e1db";
+}
 .bklog-jump:before {
 	content: "\e15f";
 }
@@ -529,4 +532,7 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-weixian:before {
 	content: "\e1d7";
+}
+.bklog-jiankangdu:before {
+	content: "\e1dc";
 }

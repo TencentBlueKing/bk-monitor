@@ -103,7 +103,7 @@ class NetworkWithRelation:
             (ingress_with_service_relation{{{self.filter.filter_string(exclude=filter_exclude)}}})
             * on (namespace, service) group_left(pod)
             (count by (service, namespace, pod) (pod_with_service_relation))
-            * on (namespace, pod) group_left(ingress)"""
+            * on (namespace, pod) group_left()"""
 
     def clean_metric_name(self, metric_name):
         if metric_name.startswith("nw_"):

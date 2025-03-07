@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import V2Collection from '../../retrieve-v2/collect/collect-index';
 
@@ -38,16 +38,26 @@ export default defineComponent({
       default: false,
     },
   },
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setup(props, { slots }) {
+  emits: ['width-change'],
+  setup(props, { emit }) {
     const showContent = computed(() => props.isShow);
     const collectWidth = ref(240);
+    const handleWidthChange = (width: number) => {
+      collectWidth.value = width;
+      emit('width-change', width);
+    };
+
+    onMounted(() => {
+      emit('width-change', collectWidth.value);
+    });
+
     return () => {
       return (
         <V2Collection
           width={collectWidth.value}
           class='v3-bklog-collection'
           is-show={showContent.value}
+          onUpdate:width={handleWidthChange}
         ></V2Collection>
       );
     };

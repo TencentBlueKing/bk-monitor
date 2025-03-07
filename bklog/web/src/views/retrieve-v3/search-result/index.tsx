@@ -24,11 +24,71 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
+import { debounce } from 'lodash';
+import useStore from '@/hooks/use-store';
+import { useRoute, useRouter } from 'vue-router/composables';
+import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
+import SearchResultTab from '../../retrieve-v2/search-result-tab/index.vue';
+import GraphAnalysis from '../../retrieve-v2/search-result-panel/graph-analysis';
 
 export default defineComponent({
   name: 'v3-container',
   setup(_, { slots }) {
-    return () => <div>search result</div>;
+    const activeTab = ref('origin');
+    const store = useStore();
+    const router = useRouter();
+    const route = useRoute();
+
+    watch(
+      () => store.state.indexItem.isUnionIndex,
+      () => {
+        if (store.state.indexItem.isUnionIndex && activeTab.value === 'clustering') {
+          activeTab.value = 'origin';
+        }
+      },
+    );
+
+    const debounceUpdateTabValue = debounce(() => {
+      const isClustering = activeTab.value === 'clustering';
+      router.replace({
+        params: { ...(route.params ?? {}) },
+        query: {
+          ...(route.query ?? {}),
+          tab: activeTab.value,
+          ...(isClustering ? {} : { clusterParams: undefined }),
+        },
+      });
+    }, 60);
+
+    watch(
+      () => activeTab.value,
+      () => {
+        debounceUpdateTabValue();
+      },
+      { immediate: true },
+    );
+
+    const showAnalysisTab = computed(() => activeTab.value === 'graphAnalysis');
+    const handleTabChange = (tab: string) => {
+      activeTab.value = tab;
+    };
+
+    return () => (
+      <div>
+        <SearchResultTab
+          value={activeTab.value}
+          on-input={handleTabChange}
+        ></SearchResultTab>
+        {showAnalysisTab.value ? (
+          <GraphAnalysis></GraphAnalysis>
+        ) : (
+          <SearchResultPanel
+            active-tab={activeTab.value}
+            onUpdate:active-tab={handleTabChange}
+          ></SearchResultPanel>
+        )}
+      </div>
+    );
   },
 });
