@@ -289,7 +289,7 @@ def kube_state_metrics_error_analysis(preview=True):
                     }
                     query_configs_to_update.append(qc)
 
-                # 不开启预览模式，则打印策略相关信息
+                # 不开启预览模式，则打印未处理的策略相关信息
                 if not preview and not promql:
                     print(f"{strategy.id}、{strategy.name}、{strategy.bk_biz_id}、{query_config_ids}")
                     continue
@@ -302,7 +302,7 @@ def kube_state_metrics_error_analysis(preview=True):
 
             else:
                 query_config_ids = [qc.id for qc in query_configs_mapping[strategy.id]]
-                # 不开启预览模式，则打印策略相关信息
+                # 不开启预览模式，则打印未处理的策略相关信息
                 if not preview:
                     print(f"{strategy.id}、{strategy.name}、{strategy.bk_biz_id}、{query_config_ids}")
         except Exception as e:
