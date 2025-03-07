@@ -43,6 +43,12 @@ class CreateORUpdateExternalPermissionSLZ(serializers.Serializer):
     resources = serializers.ListField(required=True, label="资源列表", allow_empty=False)
     expire_time = serializers.DateTimeField(required=False, default=None, label="过期时间", allow_null=True)
 
+    def validate(self, attrs):
+        # 被授权人账号格式化，去除前后空格
+        for i, authorized_user in enumerate(attrs["authorized_users"]):
+            attrs["authorized_users"][i] = authorized_user.strip()
+        return attrs
+
 
 class GetResourceByActionSLZ(serializers.Serializer):
     action_id = serializers.CharField(required=True, label="操作类型")
