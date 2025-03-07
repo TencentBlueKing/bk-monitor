@@ -886,7 +886,7 @@ class ModifyCustomTsGroupingRuleList(Resource):
         )
 
         # 分组匹配现存指标
-        table.renew_metric_labels(need_update_rules + need_create_rules, delete=False, clean=False)
+        table.renew_metric_labels(need_update_rules + need_create_rules, delete=False, clean=True)
 
         return resource.custom_report.custom_ts_grouping_rule_list(time_series_group_id=params["time_series_group_id"])
 

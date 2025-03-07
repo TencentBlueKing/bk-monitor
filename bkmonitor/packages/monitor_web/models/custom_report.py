@@ -302,11 +302,13 @@ class CustomTSTable(OperateRecordModelBase):
                 if not delete and group_rule.match_metric(field.name):
                     if group_rule.name not in field.config["label"]:
                         field.config["label"].append(group_rule.name)
-                        updated_fields.append(field)
                 else:
                     if group_rule.name in field.config["label"]:
                         field.config["label"].remove(group_rule.name)
-                        updated_fields.append(field)
+
+            # 如果分组名称变更，则需要更新
+            if field.config["label"] != field.config.get("label", []):
+                updated_fields.append(field)
 
         # 批量更新
         if updated_fields:
