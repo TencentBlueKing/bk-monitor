@@ -91,16 +91,16 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   }
 
   /**
-   * @description 获取数据总数
+   * @description view 页面中的公共请求参数 queryConfig 中的 group_by 都需要默认传入 type, 因此这里统一处理
    */
-  async getEventTotal() {
+  get eventQueryParams() {
     const {
       start_time: commonStartTime,
       end_time: commonEndTime,
       query_configs: [commonQueryConfig],
     } = this.commonParams;
     if (!commonQueryConfig?.table || !commonStartTime || !commonEndTime) {
-      return;
+      return null;
     }
     const queryConfigs: Record<string, any> = [
       {
@@ -108,38 +108,35 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
         group_by: ['type'],
       },
     ];
-    const { total } = await getEventTotal({ ...this.commonParams, query_configs: queryConfigs }, this.source).catch(
-      () => ({
-        total: 0,
-      })
-    );
+    return { ...this.commonParams, query_configs: queryConfigs };
+  }
+
+  /**
+   * @description 获取数据总数
+   */
+  async getEventTotal() {
+    if (!this.eventQueryParams) {
+      return;
+    }
+    const { total } = await getEventTotal(this.eventQueryParams, this.source).catch(() => ({
+      total: 0,
+    }));
     this.total = total;
     this.panel.externalData.total = total;
   }
 
   /** 更新 表格请求配置 */
   updateTableRequestConfigs() {
-    const {
-      query_configs: [commonQueryConfig],
-    } = this.commonParams;
-
-    if (!commonQueryConfig.table) {
-      return {};
+    if (!this.eventQueryParams) {
+      return;
     }
-    const queryConfigs: Record<string, any> = [
-      {
-        ...commonQueryConfig,
-        group_by: ['type'],
-      },
-    ];
     const api = getEventLogs(this.source);
     const [apiModule, apiFunc] = api.split('.');
     this.tableRequestConfigs = {
       apiModule,
       apiFunc,
       data: {
-        ...this.commonParams,
-        query_configs: queryConfigs,
+        ...this.eventQueryParams,
         limit: this.limit,
         offset: 20,
       },
@@ -148,9 +145,13 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
 
   /** 更新 图表配置实例 */
   updatePanelConfig() {
+    if (!this.eventQueryParams) {
+      return;
+    }
+
     const {
       query_configs: [commonQueryConfig],
-    } = this.commonParams;
+    } = this.eventQueryParams;
 
     if (!commonQueryConfig.table) {
       return;
@@ -159,7 +160,6 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     const queryConfigs: Record<string, any> = [
       {
         ...commonQueryConfig,
-        group_by: ['type'],
         metrics: [
           {
             field: '_index',
