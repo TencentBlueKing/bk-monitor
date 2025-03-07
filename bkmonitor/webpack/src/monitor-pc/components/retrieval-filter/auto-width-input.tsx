@@ -50,18 +50,6 @@ export default class AutoWidthInput extends tsc<IProps> {
 
   @Ref('input') inputRef: HTMLInputElement;
 
-  localValue = '';
-  width = 0;
-
-  @Watch('value', { immediate: true })
-  handleWatchValue() {
-    if (this.localValue !== this.value) {
-      this.localValue = this.value;
-      if (!this.value) {
-        this.width = 0;
-      }
-    }
-  }
   @Watch('isFocus', { immediate: true })
   handleWatchFocus() {
     setTimeout(() => {
@@ -73,8 +61,8 @@ export default class AutoWidthInput extends tsc<IProps> {
     }, 50);
   }
 
-  handleInput() {
-    this.$emit('input', this.localValue);
+  handleInput(e: InputEvent) {
+    this.$emit('input', e.target.value);
   }
 
   handleFocus() {
@@ -105,22 +93,14 @@ export default class AutoWidthInput extends tsc<IProps> {
       >
         <input
           ref={'input'}
-          v-model={this.localValue}
           type='text'
-          value={this.localValue}
+          value={this.value}
           onBlur={this.handleBlur}
           onFocus={this.handleFocus}
           onInput={this.handleInput}
           onKeyup={this.handleKeyup}
         />
-        <span
-          style={{
-            fontSize: `${this.fontSize}px`,
-          }}
-          class='input-value-hidden'
-        >
-          {this.localValue}
-        </span>
+        <span class='input-value-hidden'>{this.value}</span>
       </div>
     );
   }
