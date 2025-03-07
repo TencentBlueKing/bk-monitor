@@ -31,7 +31,7 @@
     }
 
     .tools {
-      .icon-shezhi {
+      .icon-shezhi1 {
         margin-right: 13px;
         font-size: 16px;
       }
@@ -67,12 +67,13 @@
         }
       }
 
-      .tool-icon {
+      .ml12 {
         margin-left: 12px;
+      }
 
-        &.icon-folder-plus {
-          margin: 0;
-        }
+      .icon-paixu1 {
+        font-size: 15px;
+        vertical-align: middle;
       }
     }
   }
@@ -96,15 +97,15 @@
     border-top: 1px solid #dcdee5;
     border-bottom: 1px solid #dcdee5;
 
-    .icon-enlarge-line {
-      margin-right: 3px;
-      color: #63656e;
+    .icon-xinjiansuo {
+      margin-right: 4px;
+      color: #A3B1CC;
     }
 
     &.active {
       color: #3a84ff;
 
-      .icon-enlarge-line {
+      .icon-xinjiansuo {
         color: #3a84ff;
       }
     }

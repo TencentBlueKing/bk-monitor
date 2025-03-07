@@ -3,9 +3,9 @@
 /* stylelint-disable indentation */
 @font-face {
   font-family: "icon-monitor"; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1741143497575') format('woff2'),
-       url('monitor-icons.woff?t=1741143497575') format('woff'),
-       url('monitor-icons.ttf?t=1741143497575') format('truetype');
+  src: url('monitor-icons.woff2?t=1741316605528') format('woff2'),
+       url('monitor-icons.woff?t=1741316605528') format('woff'),
+       url('monitor-icons.ttf?t=1741316605528') format('truetype');
 }
 
 .icon-monitor {
@@ -14,6 +14,18 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-xinjiansuo:before {
+  content: "\e810";
+}
+
+.icon-file-personal:before {
+  content: "\e811";
+}
+
+.icon-paixu1:before {
+  content: "\e80f";
 }
 
 .icon-shezhi1:before {
