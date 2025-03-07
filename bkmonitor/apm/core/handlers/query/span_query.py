@@ -36,7 +36,7 @@ class SpanQuery(BaseQuery):
     def _get_select_fields(cls, exclude_fields: Optional[List[str]]) -> List[str]:
         all_fields: Set[str] = {field_info["field_name"] for field_info in TraceDataSource.TRACE_FIELD_LIST}
         select_fields: List[str] = list(all_fields - set(exclude_fields or ["attributes", "links", "events"]))
-        return select_fields
+        return sorted(select_fields)
 
     def list(
         self,
