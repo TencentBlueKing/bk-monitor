@@ -11,7 +11,7 @@
   >
     <slot name="trigger">
       <div class="operation-icon">
-        <span :class="['bklog-icon bklog-log-setting']"></span>
+        <span :class="['bklog-icon bklog-shezhi']"></span>
         设置筛选
       </div>
     </slot>
@@ -481,7 +481,7 @@
         .field-name {
           display: inline;
         }
-        
+
         .delete {
 
           position: absolute;

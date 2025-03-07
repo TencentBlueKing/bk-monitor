@@ -670,8 +670,15 @@
       ></FavoriteList>
       <!-- 移动光标and确认结果提示 -->
       <div class="ui-shortcut-key">
-        <span><img :src="svgImg.imgUpDownKey" />{{ $t('移动光标') }}</span>
-        <span><img :src="svgImg.imgEnterKey" />{{ $t('确认结果') }}</span>
+        <div class='ui-shortcut-item'>
+          <span class="bklog-icon bklog-arrow-down-filled label up" />
+          <span class="bklog-icon bklog-arrow-down-filled label" />
+          <span class="value">{{ $t('移动光标') }}</span>
+        </div>
+        <div class='ui-shortcut-item'>
+          <span class="label">Enter</span>
+          <span class="value">{{ $t('确认结果') }}</span>
+        </div>
       </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
@@ -700,8 +707,8 @@
             v-for="item in matchList"
             class="sql-query-list"
           >
-            <div style="font-weight: 700; line-height: 19px">{{ item.name }}</div>
-            <div>{{ item.value }}</div>
+            <div class="sql-query-name">{{ item.name }}</div>
+            <div class="sql-query-value">{{ item.value }}</div>
           </div>
         </div>
       </div>
@@ -722,36 +729,53 @@
     .sql-field-list {
       width: 100%;
       position: relative;
-      padding-bottom: 38px;
+      padding-bottom: 48px;
 
       /* 移动光标and确认结果提示 样式 */
       .ui-shortcut-key {
-        padding: 9px 0 7px 15px;
-        background-color: #fafbfd;
-        border-top: 1px solid #ecedf2;
-        height: 38px;
+        padding: 0 16px;
+        height: 48px;
+        line-height: 48px;
+        background-color: #FAFBFD;
+        border: 1px solid #DCDEE5;
+        border-radius: 0 0 0 2px;
         position: absolute;
         bottom: 0;
         left: 0;
         width: 100%;
 
-        span {
+        .ui-shortcut-item {
           display: inline-flex;
           align-items: center;
           margin-right: 24px;
           font-size: 12px;
-          line-height: 20px;
-          color: #63656e;
-          letter-spacing: 0;
+          line-height: 16px;
 
-          img {
+          .label {
             display: inline-flex;
-            width: 16px;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
             height: 16px;
-            margin-right: 4px;
-            background: #ffffff;
-            border: 1px solid #dcdee5;
+            font-size: 11px;
+            font-weight: 700;
+            color: #A3B1CC;
+            background-color: #a3b1cc29;
+            border: 1px solid #a3b1cc4d;
             border-radius: 2px;
+            &.bklog-arrow-down-filled {
+              padding: 0;
+              font-size: 14px;
+            }
+            &.up {
+              margin-right: 2px;
+              transform: rotate(-180deg);
+            }
+          }
+
+          .value {
+            margin-left: 4px;
+            color: #7a8599;
           }
         }
       }
@@ -760,7 +784,7 @@
     .sql-syntax-tips {
       position: relative;
       width: 240px;
-      background: #fafbfd;
+      background-color: #F5F7FA;
       border-radius: 0 2px 2px 0;
 
       .sql-query-retract {
@@ -789,11 +813,13 @@
         border-radius: 0 2px 2px 0;
         outline: 1px solid #dcdee5;
 
-        .sql-query-fold-title {
+        &-title {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 8px;
+          margin-bottom: 16px;
           font-size: 12px;
+          color: #313238;
+          line-height: 20px;
 
           .fold-title-right {
             display: flex;
@@ -813,6 +839,17 @@
           overflow-y: auto;
           font-size: 12px;
           white-space: pre-line;
+          margin-bottom: 12px;
+          .sql-query-name {
+            color: #313238;
+            font-weight: 700;
+            line-height: 16px;
+          }
+          .sql-query-value {
+            font-family: RobotoMono-Regular;
+            color: #4D4F56;
+            line-height: 20px;
+          }
         }
       }
 
