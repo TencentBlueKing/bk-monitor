@@ -46,14 +46,17 @@ import {
   setResidentSettingData,
 } from './utils';
 
+import type { IFavList } from '../../pages/data-retrieval/typings';
+
 import './retrieval-filter.scss';
 
 interface IProps {
   fields: IFilterField[];
   where?: IWhereItem[];
   queryString?: string;
+  selectFavorite?: IFavList.favList;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
-  onFavorite: () => void;
+  onFavorite: (isEdit: boolean) => void;
   onWhereChange?: (v: IWhereItem[]) => void;
   onQueryStringChange?: (v: string) => void;
 }
@@ -61,6 +64,7 @@ interface IProps {
 @Component
 export default class RetrievalFilter extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
+  @Prop({ type: Object, default: null }) selectFavorite: IFavList.favList;
   @Prop({
     type: Function,
     default: () =>
@@ -293,8 +297,16 @@ export default class RetrievalFilter extends tsc<IProps> {
     return result;
   }
 
+  handleFavoriteClick() {
+    if (!this.selectFavorite) {
+      this.handleFavorite(false);
+    }
+  }
+
   @Emit('favorite')
-  handleFavorite() {}
+  handleFavorite(isEdit = false) {
+    return isEdit;
+  }
 
   render() {
     return (
@@ -348,12 +360,42 @@ export default class RetrievalFilter extends tsc<IProps> {
                 <span class='icon-monitor icon-tongyishezhi' />
               </div>
             )}
-            <div
+            <bk-popover
               class='favorite-btn'
-              onClick={this.handleFavorite}
+              ext-cls='favorite-btn-popover'
+              tippy-options={{
+                trigger: 'click',
+                interactive: true,
+                theme: 'light',
+              }}
+              disabled={!this.selectFavorite}
+              placement='bottom'
             >
-              <span class='icon-monitor icon-mc-uncollect' />
-            </div>
+              <div onClick={this.handleFavoriteClick}>
+                {this.selectFavorite ? (
+                  <span class='icon-monitor icon-a-savebaocun' />
+                ) : (
+                  <span class='icon-monitor icon-mc-uncollect' />
+                )}
+              </div>
+              <div
+                class='favorite-btn-popover-content'
+                slot='content'
+              >
+                <div
+                  class='favorite-btn-item'
+                  onClick={() => this.handleFavorite(true)}
+                >
+                  {this.$t('覆盖当前收藏')}
+                </div>
+                <div
+                  class='favorite-btn-item'
+                  onClick={() => this.handleFavorite(false)}
+                >
+                  {this.$t('另存为新收藏')}
+                </div>
+              </div>
+            </bk-popover>
             <div class='search-btn'>
               <span class='icon-monitor icon-mc-search' />
             </div>

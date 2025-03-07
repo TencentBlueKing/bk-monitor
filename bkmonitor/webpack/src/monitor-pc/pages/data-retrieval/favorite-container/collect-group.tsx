@@ -135,7 +135,16 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IContainerProps>
               this.handleExpand(!this.isClickIcon);
             }}
           >
-            <span class={['icon-monitor', this.isClickIcon ? 'icon-mc-file-close' : 'icon-mc-file-open']} />
+            <span
+              class={[
+                'icon-monitor',
+                this.collectItem.id === 0
+                  ? 'icon-file-personal'
+                  : this.isClickIcon
+                    ? 'icon-mc-file-close'
+                    : 'icon-mc-file-open',
+              ]}
+            />
             <span class='group-str'>{this.collectItem.name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.name)}
