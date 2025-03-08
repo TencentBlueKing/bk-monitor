@@ -57,7 +57,7 @@ interface IExploreKvListEvents {
 export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvListEvents> {
   @Prop({ default: () => [], type: Array }) fieldList: KVFieldList[];
 
-  @Ref('menu') menuRef: any;
+  @Ref('menu') menuRef: HTMLUListElement;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
 
   menuList = [
@@ -88,16 +88,11 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   ];
   popoverInstance = null;
   fieldTarget: KVFieldList = null;
+  /** 统计面板的 抽屉页展示状态 */
+  statisticsSliderShow = false;
 
-  /**
-   * @description 添加/删除 检索 回调
-   */
   @Emit('conditionChange')
-  handleConditionChange(method: EMethod) {
-    const condition = [
-      { condition: 'and', key: this.fieldTarget?.sourceName, method, value: [this.fieldTarget?.value] },
-    ];
-    this.handlePopoverHide();
+  conditionChange(condition) {
     return condition;
   }
 
@@ -123,11 +118,13 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     this.popoverInstance?.show(100);
   }
 
-  handlePopoverHide() {
+  handlePopoverHide(resetFieldTarget = true) {
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
-    this.fieldTarget = null;
+    if (resetFieldTarget) {
+      this.fieldTarget = null;
+    }
   }
 
   /**
@@ -149,8 +146,11 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 处理维度项点击事件
+   * @param {MouseEvent} e
+   * @param {KVFieldList} item
+   *
    */
-  async handleDimensionItemClick(e: Event, item: KVFieldList) {
+  async handleDimensionItemClick(e: MouseEvent, item: KVFieldList) {
     const currentName = this.fieldTarget?.name;
     if (this.popoverInstance) {
       this.handlePopoverHide();
@@ -165,9 +165,16 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       width: 400,
       distance: -5,
       boundary: 'window',
-      trigger: 'manul',
+      trigger: 'manual',
       theme: 'light event-retrieval-dimension-filter',
       arrow: true,
+      onHidden: () => {
+        this.popoverInstance?.destroy?.();
+        this.popoverInstance = null;
+        if (!this.statisticsSliderShow) {
+          this.fieldTarget = null;
+        }
+      },
       interactive: true,
     });
     this.popoverInstance?.show(100);
@@ -175,6 +182,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 处理复制事件
+   *
    */
   handleCopy() {
     copyText(this.fieldTarget.value, msg => {
@@ -193,6 +201,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 新建检索 回调
+   *
    */
   handleNewExplorePage() {
     const { targets, from, to, timezone, refreshInterval } = this.$route.query;
@@ -241,6 +250,35 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   }
 
   /**
+   * @description 添加/删除 检索 回调
+   */
+  handleConditionChange(method: EMethod) {
+    const condition = [
+      { condition: 'and', key: this.fieldTarget?.sourceName, method, value: [this.fieldTarget?.value] },
+    ];
+    this.handlePopoverHide();
+    this.conditionChange(condition);
+  }
+
+  /**
+   * @description 统计面板中 抽屉页 展示/消失 状态回调
+   */
+  handleStatisticsSliderShow(sliderShow: boolean) {
+    this.statisticsSliderShow = sliderShow;
+    if (!sliderShow) {
+      this.handlePopoverHide();
+    }
+  }
+
+  /**
+   * @description 统计面板中 添加/删除 检索 回调
+   */
+  handleStatisticsConditionChange(condition) {
+    this.conditionChange(condition);
+    this.handlePopoverHide(false);
+  }
+
+  /**
    * @description 主机/容器 跳转链接回调
    */
   handleJumpLink(item: KVFieldList) {
@@ -262,6 +300,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 容器/主机 跳转链接入口渲染
+   *
    */
   jumpLinkRender(item: KVFieldList) {
     if (!item.hasEntities) {
@@ -280,6 +319,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description kv 值点击弹出菜单popover渲染
+   *
    */
   menuPopoverRender() {
     return (
@@ -305,6 +345,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
 
   /**
    * @description 统计数据 popover面板渲染
+   *
    */
   statisticsPopoverRender() {
     return (
@@ -312,8 +353,9 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
         <StatisticsList
           ref='statisticsList'
           selectField={this.fieldTarget?.sourceName ?? ''}
-          onConditionChange={this.handleConditionChange}
-          onShowMore={this.handlePopoverHide}
+          onConditionChange={this.handleStatisticsConditionChange}
+          onShowMore={() => this.handlePopoverHide(false)}
+          onSliderShowChange={this.handleStatisticsSliderShow}
         />
       </div>
     );

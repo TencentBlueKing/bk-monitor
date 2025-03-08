@@ -7,25 +7,41 @@
     3px 100%,
     100% 100%;
 
-  .view-tab {
+  .view-header {
     display: flex;
-    column-gap: 24px;
+    justify-content: space-between;
     margin-bottom: 4px;
     font-size: 12px;
     line-height: 20px;
     color: #313238;
 
-    span {
-      display: inline-flex;
-      align-items: center;
-      height: 24px;
-      text-align: center;
-      cursor: pointer;
-      border-top: 2px solid transparent;
+    .header-tabs {
+      display: flex;
+      column-gap: 24px;
 
-      &.active {
-        font-weight: 700;
-        border-top: 2px solid #313238;
+      span {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        text-align: center;
+        cursor: pointer;
+        border-top: 2px solid transparent;
+
+        &.active {
+          font-weight: 700;
+          border-top: 2px solid #313238;
+        }
+      }
+    }
+
+    .header-operation {
+      .icon-mc-copy {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        color: #4d4f56;
+        cursor: pointer;
+        border-top: 2px solid transparent;
       }
     }
   }
