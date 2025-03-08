@@ -23,26 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './custom-grouping-list.scss';
 
 interface IGroup {
   name: string;
-  metric_count: number;
-  manual_list?: string[];
-  auto_rules?: string[];
+  metric_count?: number;
+  manualList?: string[];
+  autoRules?: string[];
 }
 
 interface IMenuItem {
   name: string;
-  id: string;
+  id: 'delete' | 'edit';
   checked: boolean;
 }
 
 @Component
 export default class CustomGroupingList extends tsc<any, any> {
+  @Prop({ default: () => [] }) groupList: IGroup[];
+  @Prop({ default: '' }) selectedLabel;
+  @Prop({ default: false }) isSearchMode: boolean;
+
   menuList: IMenuItem[] = [
     {
       name: window.i18n.tc('编辑'),
@@ -55,32 +59,17 @@ export default class CustomGroupingList extends tsc<any, any> {
       id: 'delete',
     },
   ];
-  groupList: IGroup[] = [
-    {
-      name: '分组1',
-      metric_count: 23,
-    },
-    {
-      name: '分组2',
-      metric_count: 2,
-    },
-    {
-      name: '分组放大哈第三方和',
-      metric_count: 3,
-    },
-  ];
 
   /** 当前拖拽id */
   dragId = '';
   dragoverId = '';
 
-  handleMenuClick() {
+  handleMenuClick(type: 'delete' | 'edit') {
     // TODO[中等]
   }
 
   // 拖拽开始，记录当前拖拽的ID
   handleDragstart(index: number, e) {
-    console.log('e', e.target.children);
     this.dragId = index.toString();
   }
 
@@ -95,6 +84,15 @@ export default class CustomGroupingList extends tsc<any, any> {
     this.dragoverId = '';
   }
 
+  @Emit('groupListOrder')
+  saveGroupRuleOrder(tab) {
+    this.$store.dispatch('custom-escalation/saveGroupingRuleOrder', {
+      time_series_group_id: this.$route.params.id,
+      group_names: tab.map(item => item.name),
+    });
+    return tab;
+  }
+
   // 拖拽完成时逻辑
   handleDrop() {
     if (this.dragId !== this.dragoverId) {
@@ -107,11 +105,16 @@ export default class CustomGroupingList extends tsc<any, any> {
       tab.splice(dragoverIndex, 0, draggedTab);
       this.dragId = '';
       this.dragoverId = '';
-      this.groupList = tab;
+      this.saveGroupRuleOrder(tab);
     }
     this.dragoverId = '';
   }
   // 拖拽 end
+
+  changeSelectedLabel(name: string) {
+    if (name === this.selectedLabel) return;
+    this.$emit('changeGroup', name);
+  }
 
   render() {
     return (
@@ -120,25 +123,28 @@ export default class CustomGroupingList extends tsc<any, any> {
           this.groupList.map((group, index) => (
             <div
               key={group.name}
-              class={['group', this.dragoverId === index.toString() ? 'is-dragover' : '']}
-              draggable={true}
+              class={[
+                'group',
+                this.dragoverId === index.toString() ? 'is-dragover' : '',
+                this.selectedLabel === group.name ? 'group-selected' : '',
+              ]}
+              draggable={!this.isSearchMode}
+              onClick={() => this.changeSelectedLabel(group.name)}
               onDragleave={this.handleDragleave}
               onDragover={e => this.handleDragover(index, e)}
               onDragstart={e => this.handleDragstart(index, e)}
               onDrop={this.handleDrop}
             >
-              <i class='icon-monitor icon-mc-tuozhuai item-drag' />
+              {!this.isSearchMode && <i class='icon-monitor icon-mc-tuozhuai item-drag' />}
               <div class='group-name'>
                 <i class='icon-monitor icon-mc-full-folder' />
                 {group.name}
               </div>
-              <div class='group-count'>{group.metric_count || 0}</div>
+              <div class='group-count'>{group.manualList.length || 0}</div>
               <bk-popover
                 ref='menuPopover'
                 class='group-popover'
-                tippy-options={{
-                  trigger: 'click',
-                }}
+                ext-cls='group-popover'
                 arrow={false}
                 offset={'0, 0'}
                 placement='bottom-start'
@@ -148,14 +154,14 @@ export default class CustomGroupingList extends tsc<any, any> {
                   <i class='icon-monitor icon-mc-more' />
                 </span>
                 <div
-                  class='home-chart-more-list'
+                  class='group-more-list'
                   slot='content'
                 >
                   {this.menuList.map(item => (
                     <span
                       key={item.id}
                       class={`more-list-item ${item.id}`}
-                      onClick={() => this.handleMenuClick(item)}
+                      onClick={() => this.handleMenuClick(item.id)}
                     >
                       {item.name}
                     </span>

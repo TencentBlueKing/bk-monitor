@@ -32,10 +32,10 @@ const CustomEscalationSet = () =>
   import(/* webpackChunkName: 'CustomEscalationAdd' */ '@page/custom-escalation/custom-escalation-set.vue');
 const CustomEscalationDetail = () =>
   import(
-    /* webpackChunkName: 'CustomEscalationDetail' */ '../../pages/custom-escalation/custom-escalation-detail/custom-escalation-detail'
+    /* web  packChunkName: 'CustomEscalationDetail' */ '../../pages/custom-escalation/custom-escalation-detail/custom-escalation-detail'
   );
-// const CustomEscalationDetail = () =>
-//   import(/* webpackChunkName: 'CustomEscalationDetail' */ '@page/custom-escalation/custom-escalation-detail.vue');
+const CustomEscalationDetail1 = () =>
+  import(/* webpackChunkName: 'CustomEscalationDetail' */ '@page/custom-escalation/custom-escalation-detail.vue');
 const CustomEscalationView = () =>
   import(/* webpackChunkName: 'CustomEscalationView' */ '../../pages/custom-escalation/view-detail/metric-view');
 const CustomEscalationEventView = () =>
@@ -97,7 +97,7 @@ export default [
       noCache: true,
     },
     components: {
-      noCache: CustomEscalationDetail,
+      noCache: CustomEscalationDetail1,
     },
     meta: {
       title: '详情',

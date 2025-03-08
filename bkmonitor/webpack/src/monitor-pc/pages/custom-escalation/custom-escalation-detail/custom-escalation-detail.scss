@@ -1,6 +1,9 @@
 @import '../../../theme/index';
 
 .custom-detail-page-component {
+  .bk-alert-title {
+    color: #4D4F56;
+  }
   overflow: hidden;
   height: 100%;
 
@@ -12,9 +15,32 @@
       color: #979ba5;
     }
   }
-
+  .icon-audit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+    overflow: hidden;
+    &::before {
+      width: 16px;
+      height: 16px;
+    }
+    &:hover {
+      color: #63656e;
+      cursor: pointer;
+      border-radius: 50%;
+      background-color: #f0f1f5;
+    }
+    &.active { 
+      border-radius: 2px;
+      background-color: #e1ecff;
+      color: #3a84ff;
+    }
+  }
   .common-nav-bar-single {
-    padding-left: 14px;
+    padding: 0 14px;
     .custom {
       display: flex;
       align-items: center;
@@ -136,7 +162,7 @@
       min-width: 400px;
       @include border-1px($color: $defaultBorderColor);
     }
-    &-title {
+    .right-window-title {
       height: 40px;
       width: 100%;
       font-size: 14px;
@@ -164,7 +190,7 @@
         }
       }
     }
-    &-content {
+    .right-window-content {
       height: calc(100% - 40px);
       padding: 16px 23px 0;
       color: $defaultFontColor;

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import './add-group-dialog.scss';
@@ -33,18 +33,38 @@ export default class AddGroupDialog extends tsc<any, any> {
   @Prop({ default: false, type: Boolean }) show: boolean;
   @Prop({ default: false, type: Boolean }) isEdit: boolean;
 
-  metrics = ['connections', 'connections1', 'connections2'];
+  groupInfo = {
+    name: '',
+    rules: '',
+  };
+  matchedMetrics = [];
+
+  previewBtnFlag = false;
+
+  get disabled() {
+    return !this.groupInfo.name || (this.groupInfo.rules && !this.previewBtnFlag) || false;
+  }
+
+  handlePreview() {
+    this.previewBtnFlag = true;
+  }
+
+  handleRulesChange() {
+    this.previewBtnFlag = false;
+  }
 
   handleSubmit() {
     // TODO
   }
+  @Emit('show')
   handleCancel() {
     // TODO
+    return false;
   }
   render() {
     return (
       <bk-dialog
-        width={430}
+        width={480}
         extCls={'custom-metric-group-dialog'}
         header-position='left'
         mask-close={true}
@@ -75,7 +95,7 @@ export default class AddGroupDialog extends tsc<any, any> {
                 required
               >
                 <bk-input
-                  // v-model={this.strategyConfig.name}
+                  v-model={this.groupInfo.name}
                   placeholder={this.$t('请输入')}
                 />
               </bk-form-item>
@@ -87,10 +107,11 @@ export default class AddGroupDialog extends tsc<any, any> {
                 property='name'
               >
                 <bk-input
-                  // v-model={this.strategyConfig.name}
+                  v-model={this.groupInfo.rules}
                   placeholder={this.$t('请输入')}
                   rows={2}
                   type='textarea'
+                  onChange={this.handleRulesChange}
                 />
                 <div class='tip-msg'>{this.$t('支持JS正则匹配方式， 如子串前缀匹配go_，模糊匹配(.*?)_total')}</div>
               </bk-form-item>
@@ -100,12 +121,12 @@ export default class AddGroupDialog extends tsc<any, any> {
             ext-cls='btn'
             outline={true}
             theme='primary'
-            onClick={this.handleSubmit}
+            onClick={this.handlePreview}
           >
             {this.$t('预览')}
           </bk-button>
           <div class='search-content'>
-            {this.metrics.map(metric => (
+            {this.matchedMetrics.map(metric => (
               <span
                 key={metric}
                 class='metric-item'
@@ -118,11 +139,13 @@ export default class AddGroupDialog extends tsc<any, any> {
         <div slot='footer'>
           <bk-button
             style={{ 'margin-right': '8px' }}
+            disabled={this.disabled}
             theme='primary'
             onClick={this.handleSubmit}
           >
             {this.isEdit ? this.$t('保存') : this.$t('提交')}
           </bk-button>
+
           <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
         </div>
       </bk-dialog>

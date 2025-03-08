@@ -27,11 +27,17 @@ import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
-import { customTsGroupingRuleList, modifyCustomTimeSeriesDesc } from 'monitor-api/modules/custom_report';
+import {
+  customTsGroupingRuleList,
+  modifyCustomTimeSeriesDesc,
+  validateCustomEventGroupLabel,
+  validateCustomTsGroupLabel,
+} from 'monitor-api/modules/custom_report';
 
 import CommonNavBar from '../../../pages/monitor-k8s/components/common-nav-bar';
 import { SET_NAV_ROUTE_LIST } from '../../../store/modules/app';
 import { matchRuleFn } from '../group-manage-dialog';
+import IndicatorTableSlide from './metric-table-slide';
 import TimeseriesDetailNew from './timeseries-detail';
 
 import type {
@@ -45,6 +51,28 @@ import type {
 
 import './custom-escalation-detail.scss';
 
+export const ALL_LABEL = '__all_label__';
+export const NULL_LABEL = '__null_label__';
+
+interface ICustomTSFields {
+  dimensions: Item[];
+  metrics: Item[];
+}
+
+interface Item {
+  name: string;
+  type: 'dimension' | 'metric';
+  description: string;
+  disabled?: boolean;
+  unit?: string;
+  hidden?: boolean;
+  aggregate_method?: string;
+  function?: object;
+  interval?: number;
+  label?: string[];
+  dimensions?: string[];
+  common?: boolean;
+}
 interface IGroupListItem {
   name: string;
   matchRules: string[];
@@ -57,36 +85,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   @Ref('nameInput') readonly nameInput!: HTMLInputElement;
   @Ref() readonly dataLabelInput!: HTMLInputElement;
   @Ref() readonly describeInput!: HTMLInputElement;
-
-  menuList = [
-    {
-      name: window.i18n.tc('编辑'),
-      checked: false,
-      id: 'edit',
-    },
-    {
-      name: window.i18n.tc('删除'),
-      checked: false,
-      id: 'delete',
-    },
-  ];
-  /** 当前拖拽id */
-  dragId = '';
-  dragoverId = '';
-  groupListMock = [
-    {
-      title: '分组1',
-      count: 23,
-    },
-    {
-      title: '分组2',
-      count: 2,
-    },
-    {
-      title: '分组放大哈第三方和',
-      count: 3,
-    },
-  ];
+  @Ref('textCopy') readonly textCopy!: HTMLTextAreaElement;
+  isShow = false;
 
   /** 分割线 ============================================= */
   descName = ''; // 别名
@@ -169,7 +169,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   allCheckValue: 0 | 1 | 2 = 0; // 0: 取消全选 1: 半选 2: 全选
   metricCheckList: any = [];
   groupFilterList: string[] = [];
-  metricFilterList: string[] = [];
+  metricFilterList: string[] = ['metric'];
   unitFilterList: string[] = [];
   groupManage = {
     show: false,
@@ -216,9 +216,136 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     return !!this.detailData.is_readonly;
   }
 
+  //  指标数量
+  get metricNum() {
+    return this.metricData.filter(item => item.monitor_type === 'metric').length;
+  }
+
+  //  维度数量
+  get dimensionNum() {
+    return this.metricData.filter(item => item.monitor_type === 'dimension').length;
+  }
+
+  // 未分组数量
+  get nonGroupNum() {
+    return this.metricData.filter(item => item.monitor_type === 'metric').filter(item => !item.labels.length).length;
+  }
+
+  get selectionLeng() {
+    const selectionList = this.metricTable.filter(item => item.selection);
+    return selectionList.length;
+  }
+
+  get metricTable() {
+    const labelsMatchTypes = labels => {
+      let temp = [];
+      for (const item of labels) {
+        temp = temp.concat(item.match_type);
+      }
+      temp = [...new Set(temp)];
+      return temp;
+    };
+    // 模糊匹配
+    const fuzzyMatch = (str: string, pattern: string) => {
+      const lowerStr = String(str).toLowerCase();
+      const lowerPattern = String(pattern).toLowerCase();
+      return lowerStr.includes(lowerPattern);
+    };
+    const leng1 = this.groupFilterList.length;
+    const leng2 = this.metricFilterList.length;
+    const leng3 = this.unitFilterList.length;
+    const typeLeng = this.metricSearchObj.type.length;
+    const nameLeng = this.metricSearchObj.name.length;
+    const enNameLeng = this.metricSearchObj.enName.length;
+    const unitLeng = this.metricSearchObj.unit.length;
+    const textleng = this.metricSearchObj.text.length;
+    const filterList = this.metricData.filter(item => {
+      const isMetric = item.monitor_type === 'metric';
+      return (
+        (leng1
+          ? this.groupFilterList.some(
+            g => item.labels.map(l => l.name).includes(g) || (!item.labels.length && g === NULL_LABEL)
+          ) && isMetric
+          : true) &&
+        (leng2 ? this.metricFilterList.includes(item.monitor_type) : true) &&
+        (leng3
+          ? this.unitFilterList.some(u => {
+            if (u === 'none') {
+              return isMetric && (item.unit === 'none' || !item.unit);
+            }
+            if (u === '--') {
+              return !isMetric;
+            }
+            return item.unit === u;
+          })
+          : true) &&
+        (typeLeng
+          ? isMetric && this.metricSearchObj.type.some(t => labelsMatchTypes(item.labels).includes(t))
+          : true) &&
+        (nameLeng
+          ? isMetric && this.metricSearchObj.name.some(n => item.labels.some(l => fuzzyMatch(l.name, n)))
+          : true) &&
+        (enNameLeng ? this.metricSearchObj.enName.some(n => fuzzyMatch(item.name, n)) : true) &&
+        (unitLeng
+          ? isMetric && this.metricSearchObj.unit.some(u => fuzzyMatch(item.unit || (isMetric ? 'none' : ''), u))
+          : true) &&
+        (textleng
+          ? this.metricSearchObj.text.some(t => {
+            const monitorType = {
+              指标: 'metric',
+              维度: 'dimension',
+            };
+            return (
+              item.monitor_type === t ||
+              monitorType?.[t] === item.monitor_type ||
+              (isMetric && item.labels.some(l => fuzzyMatch(l.name, t))) ||
+              fuzzyMatch(item.name, t) ||
+              fuzzyMatch(item.unit || (isMetric ? 'none' : ''), t)
+            );
+          })
+          : true)
+      );
+    });
+    // this.handleGroupList(fiterList);
+    return filterList;
+    // this.changePageCount(filterList.length);
+    // return filterList.slice(
+    //   this.pagination.pageSize * (this.pagination.page - 1),
+    //   this.pagination.pageSize * this.pagination.page
+    // );
+  }
+
+  changePageCount(count: number) {
+    this.pagination.total = count;
+  }
+
+  changeGroupFilterList(v: string) {
+    this.groupFilterList = v === ALL_LABEL ? [] : [v];
+  }
+
   created() {
-    // this.updateNavData(this.$t('查看'));
     this.getDetailData();
+  }
+
+  updateAllSelection(v = false) {
+    this.metricTable.forEach(item => item.monitor_type === 'metric' && (item.selection = v));
+    this.updateCheckValue();
+  }
+  handleCheckChange({ value }) {
+    this.updateAllSelection(value === 2);
+    this.updateCheckValue();
+  }
+
+  updateCheckValue() {
+    const metricLiist = this.metricTable.filter(item => item.monitor_type === 'metric');
+    const checkedLeng = metricLiist.filter(item => item.selection).length;
+    const allLeng = metricLiist.length;
+    this.allCheckValue = 0;
+    if (checkedLeng > 0) {
+      this.allCheckValue = checkedLeng < allLeng ? 1 : 2;
+    } else {
+      this.allCheckValue = 0;
+    }
   }
 
   //  获取详情
@@ -229,6 +356,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     // this.isShowRightWindow = this.$route.params.isCreat === 'creat'; // 在第一次进来的时候展示右侧帮助栏
     const promiseItem: Promise<any>[] = [this.$store.dispatch('custom-escalation/getProxyInfo')];
     let title = '';
+    let metricData: ICustomTSFields;
     if (this.type === 'customEvent') {
       // const params: IParams = {
       //   // 自定义事件初次进入会请求最近1小时的数据
@@ -242,6 +370,11 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
           time_series_group_id: this.$route.params.id,
         })
       );
+      promiseItem.push(
+        this.$store.dispatch('custom-escalation/getCustomTSFields', {
+          time_series_group_id: this.$route.params.id,
+        })
+      );
       promiseItem.push(this.$store.dispatch('strategy-config/getUnitList'));
     }
     try {
@@ -249,11 +382,10 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
       [this.proxyInfo] = data; // 云区域展示数据
       [, this.detailData = this.detailData] = data;
-      console.log('data = = = >>', data);
       console.log('detailData = = = >>', this.detailData);
-      this.updateNavData(`${this.$t('查看')} ${this.detailData.name}`);
+      [, , metricData] = data;
       if (this.type === 'customTimeSeries') {
-        [, , this.unitList] = data; // 单位list
+        [, , , this.unitList] = data; // 单位list
         const allUnitList = [];
         const allUnitListMap = new Map();
         for (const groupItem of this.unitList) {
@@ -270,8 +402,9 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         this.allUnitList = allUnitList;
         title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${this.detailData.time_series_group_id
           } ${this.detailData.name}`;
-        this.metricList =
-          this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
+        this.metricList = metricData?.metrics || [];
+        // this.metricList =
+        //   this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
 
         // 获取表格内的单位数据
         const tempSet = new Set();
@@ -328,18 +461,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         labels: [],
       })
       );
-      const item = {
-        name: 'zs',
-        title: 'ls',
-      };
-      this.metricData = [
-        {
-          ...item,
-          selection: false,
-          descReValue: false,
-          labels: [],
-        },
-      ];
       this.setMetricDataLabels();
       this.pagination.total = this.metricData.length;
       if (!this.metricData.length) {
@@ -481,72 +602,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         allMatchRulesSet.add(rule);
       }
     }
-    // this.groupList.forEach(item => {
-    //   item.matchRules.forEach(rule => {
-    //     allMatchRulesSet.add(rule);
-    //   });
-    // });
     const allMatchRules = Array.from(allMatchRulesSet);
     /* 整理每个匹配规则配的指标数据 */
-    // allMatchRules.forEach(rule => {
-    //   this.matchRulesMap.set(
-    //     rule,
-    //     metricNames.filter(name => matchRuleFn(name, rule))
-    //   );
-    // });
     for (const rule of allMatchRules) {
       this.matchRulesMap.set(
         rule,
         metricNames.filter(name => matchRuleFn(name, rule as string))
       );
     }
-    /* 整理每个组包含的指标 */
-    // this.groupList.forEach(item => {
-    //   const tempSet = new Set();
-    //   item.matchRules.forEach(rule => {
-    //     const metrics = this.matchRulesMap.get(rule) || [];
-    //     metrics.forEach(m => {
-    //       tempSet.add(m);
-    //     });
-    //   });
-    //   const matchRulesOfMetrics = Array.from(tempSet) as string[];
-    //   this.groupsMap.set(item.name, {
-    //     ...item,
-    //     matchRulesOfMetrics,
-    //   });
-    //   /* 写入每个指标包含的组 */
-    //   const setMetricGroup = (m, type) => {
-    //     const metricItem = metricGroupsMap.get(m);
-    //     if (metricItem) {
-    //       const { groups, matchType } = metricItem;
-    //       const targetGroups = [...new Set(groups.concat([item.name]))];
-    //       const targetMatchType = JSON.parse(JSON.stringify(matchType));
-    //       targetGroups.forEach(t => {
-    //         if (t === item.name) {
-    //           targetMatchType[t as string] = [...new Set((matchType[t as string] || []).concat([type]))];
-    //         }
-    //       });
-    //       metricGroupsMap.set(m, {
-    //         groups: targetGroups,
-    //         matchType: targetMatchType,
-    //       });
-    //     } else {
-    //       const matchTypeObj = {
-    //         [item.name]: [type],
-    //       };
-    //       metricGroupsMap.set(m, {
-    //         groups: [item.name],
-    //         matchType: matchTypeObj,
-    //       });
-    //     }
-    //   };
-    //   matchRulesOfMetrics.forEach(m => {
-    //     setMetricGroup(m, 'auto');
-    //   });
-    //   item.manualList.forEach(m => {
-    //     setMetricGroup(m, 'manual');
-    //   });
-    // });
 
     for (const item of this.groupList) {
       const tempSet = new Set();
@@ -632,6 +695,22 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.isShowEditIsPlatform = false;
     this.loading = false;
   }
+
+  async handleEditFiled(props, showMsg = true) {
+    this.loading = true;
+    try {
+      const params = {
+        time_series_group_id: this.detailData.time_series_group_id,
+        ...props,
+      };
+      const data = await this.$store.dispatch('custom-escalation/editCustomTime', params);
+      if (data && showMsg) {
+        this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
+      }
+    } finally {
+      this.loading = false;
+    }
+  }
   /** 编辑英文名 */
   async handleEditDataLabel() {
     if (!this.copyDataLabel || this.copyDataLabel === this.detailData.data_label) {
@@ -656,10 +735,9 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     if (!ExistPass) {
       return;
     }
-    if (this.type === 'customEvent') {
-      this.loading = true;
-      await this.handleSave({ data_label: this.copyDataLabel });
-    }
+    await this.handleEditFiled({
+      data_label: this.copyDataLabel,
+    });
     this.detailData.data_label = this.copyDataLabel;
     this.isShowEditDataLabel = false;
     this.loading = false;
@@ -707,6 +785,10 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       };
       this.loading = true;
       await this.$store.dispatch('custom-escalation/editCustomEvent', params);
+    } else {
+      await this.handleEditFiled({
+        name: this.copyName,
+      });
     }
     this.detailData.name = this.copyName;
     this.isShowEditName = false;
@@ -743,30 +825,62 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       return;
     }
     this.isShowEditDesc = false;
+    this.handleEditFiled({
+      desc: this.copyDescribe,
+    });
     // const data = await this.handleSaveDesc();
     // if (data) {
     //   this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
-    //   this.detailData.desc = this.copyDescribe;
     //   return;
     // }
-    // this.copyDescribe = this.detailData.desc;
+    this.detailData.desc = this.copyDescribe;
   }
 
+  //  复制数据上报样例
+  handleCopyData() {
+    const str =
+      this.type === 'customEvent'
+        ? `"event_name": "input_your_event_name",
+        "event": {
+            "content": "user xxx login failed"
+        },`
+        : `"metrics": {
+            "cpu_load": 10
+        },`;
+    const example = `{
+    "data_id": ${this.detailData.bk_data_id},
+    "access_token": "${this.detailData.access_token}",
+    "data": [{
+        ${str}
+        "target": "127.0.0.1",
+        "dimension": {
+            "module": "db",
+            "location": "guangdong"
+        },
+        "timestamp": ${new Date().getTime()}
+    }]
+}`;
+    this.textCopy.value = example;
+    this.textCopy.select();
+    document.execCommand('copy');
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('样例复制成功'),
+    });
+  }
+
+  // 复制Prometheus  sdk 接入流程代码
+  handleCopyPrometheus(type) {
+    this[type].value = type === 'golangCopy' ? this.sdkData.preGoOne : this.sdkData.prePythonOne;
+    this[type].select();
+    document.execCommand('copy');
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('样例复制成功'),
+    });
+  }
   /* 通过分组管理计算每个指标包含的组 */
   setMetricDataLabels() {
-    // this.metricData.forEach(item => {
-    //   if (item.monitor_type === 'metric') {
-    //     const groupItem = this.metricGroupsMap.get(item.name);
-    //     if (groupItem) {
-    //       item.labels = groupItem.groups.map(g => ({
-    //         name: g,
-    //         match_type: groupItem.matchType[g],
-    //       }));
-    //     } else {
-    //       item.labels = [];
-    //     }
-    //   }
-    // });
     for (const item of this.metricData) {
       if (item.monitor_type === 'metric') {
         const groupItem = this.metricGroupsMap.get(item.name);
@@ -780,17 +894,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
         }
       }
     }
-  }
-
-  /** 更新面包屑 */
-  updateNavData(name = '') {
-    if (!name) return;
-    const routeList = [];
-    routeList.push({
-      name,
-      id: '',
-    });
-    this.$store.commit(`app/${SET_NAV_ROUTE_LIST}`, routeList);
   }
 
   handleJump() {
@@ -812,47 +915,6 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     };
     toView[this.type]();
   }
-
-  /** 分割线 ================================ */
-  handleMenuClick(item) {
-    // TODO
-    console.log(item);
-  }
-
-  // 拖拽开始，记录当前拖拽的ID
-  handleDragstart(index: number, e) {
-    console.log('e', e.target.children);
-    this.dragId = index.toString();
-  }
-
-  // 拖拽经过事件，设置当前拖拽ID
-  handleDragover(index: number, e: DragEvent) {
-    e.preventDefault();
-    this.dragoverId = index.toString();
-  }
-
-  // 拖拽离开事件，清除当前拖拽的ID
-  handleDragleave() {
-    this.dragoverId = '';
-  }
-
-  // 拖拽完成时逻辑
-  handleDrop() {
-    if (this.dragId !== this.dragoverId) {
-      const tab = Object.assign([], this.groupListMock);
-      const dragIndex = Number.parseInt(this.dragId, 10);
-      const dragoverIndex = Number.parseInt(this.dragoverId, 10);
-
-      const draggedTab = this.groupListMock[dragIndex];
-      tab.splice(dragIndex, 1);
-      tab.splice(dragoverIndex, 0, draggedTab);
-      this.dragId = '';
-      this.dragoverId = '';
-      this.groupListMock = tab;
-    }
-    this.dragoverId = '';
-  }
-  // 拖拽 end
   getBaseInfoCmp() {
     return (
       <div class='detail-information'>
@@ -994,6 +1056,49 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
       </div>
     );
   }
+
+  /* 分组管理指标 */
+  handleSelectGroup([value, index]) {
+    const metricName = this.metricTable[index].name;
+    const labels = [];
+    for (const item of this.groupList) {
+      const groupItem = this.groupsMap.get(item.name);
+      const { matchRulesOfMetrics, manualList } = groupItem;
+      const tempObj = {
+        name: item.name,
+        match_type: [],
+      };
+      if (matchRulesOfMetrics.includes(metricName)) {
+        tempObj.match_type.push('auto');
+      }
+      if (value.includes(item.name)) {
+        tempObj.match_type.push('manual');
+        this.groupsMap.set(item.name, {
+          ...groupItem,
+          manualList: [...new Set(manualList.concat([metricName]))],
+        });
+      } else {
+        this.groupsMap.set(item.name, {
+          ...groupItem,
+          manualList: manualList.filter(m => m !== metricName),
+        });
+      }
+      if (tempObj.match_type.length) labels.push(tempObj);
+    }
+    this.isUpdateGroup = true;
+    this.metricTable[index].labels = labels;
+    this.updateGroupList();
+  }
+  saveGroupList() {
+    
+  }
+  /* 更新分组管理 */
+  updateGroupList() {
+    this.groupList = this.groupList.map(item => ({
+      ...item,
+      manualList: this.groupsMap.get(item.name)?.manualList || [],
+    }));
+  }
   render() {
     return (
       <div
@@ -1010,7 +1115,13 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             slot='custom'
           >
             <span class='dec'>{this.$t('自定义指标管理')}</span>
-            <span class='title'>{this.descName || '-'}</span>
+            <span class='title'>{this.detailData.data_label || '-'}</span>
+          </div>
+          <div slot='append'>
+            <span
+              class={[this.isShowRightWindow ? 'active' : '', 'icon-monitor icon-audit']}
+              onClick={() => (this.isShowRightWindow = !this.isShowRightWindow)}
+            />
           </div>
         </CommonNavBar>
         <bk-alert class='hint-alert'>
@@ -1031,11 +1142,29 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             {/* 基本信息 */}
             {this.getBaseInfoCmp()}
             {/* 指标/维度列表 */}
-            {this.type === 'customTimeSeries' ? (
-              <TimeseriesDetailNew class='detail-information detail-list' />
-            ) : (
-              <TimeseriesDetailNew class='detail-information detail-list' />
-            )}
+            {
+              this.type === 'customTimeSeries' ? (
+                <TimeseriesDetailNew
+                  class='detail-information detail-list'
+                  customGroups={this.groupList}
+                  dimensionNum={this.dimensionNum}
+                  groupSelectList={this.groupSelectList}
+                  groupsMap={this.groupsMap}
+                  metricNum={this.metricNum}
+                  metricTable={this.metricTable}
+                  nonGroupNum={this.nonGroupNum}
+                  selectedLabel={this.groupFilterList[0] || ALL_LABEL}
+                  unitList={this.unitList}
+                  onChangeGroup={this.changeGroupFilterList}
+                  onGroupListOrder={tab => (this.groupList = tab)}
+                  onHandleClickSlider={v => {
+                    this.isShow = v;
+                  }}
+                  onHandleSelectGroup={this.handleSelectGroup}
+                  onUpdateAllSelection={this.updateAllSelection}
+                />
+              ) : undefined /* TODO[自定义事件]  */
+            }
           </div>
           {/* <!-- 展开内容 --> */}
           <div class={['right-window', this.isShowRightWindow ? 'active' : '']}>
@@ -1050,10 +1179,138 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                 <i class='icon-monitor icon-arrow-left icon' />
               )}
             </div>
-            <div class='right-window-title' />
-            <div class='right-window-content' />
+            <div class='right-window-title'>
+              <span>{this.type === 'customEvent' ? this.$t('自定义事件帮助') : this.$t('自定义指标帮助')}</span>
+              <span
+                class='title-right'
+                onClick={() => (this.isShowRightWindow = !this.isShowRightWindow)}
+              >
+                <span class='line' />
+              </span>
+            </div>
+            <div class='right-window-content'>
+              {this.detailData.protocol !== 'prometheus' && (
+                <div>
+                  <div class='content-title'>{this.$t('注意事项')}</div>
+                  <span>{this.$t('API频率限制 1000/min，单次上报Body最大为500KB')}</span>
+                </div>
+              )}
+              <div class={['content-title', this.detailData.protocol !== 'prometheus' ? 'content-interval' : '']}>
+                {this.$t('使用方法')}
+              </div>
+              <div class='content-row'>
+                <span>
+                  {this.detailData.protocol === 'prometheus'
+                    ? this.$t('不同云区域上报端点信息')
+                    : this.$t('不同云区域Proxy信息')}
+                </span>
+                <div class='content-example'>
+                  {this.proxyInfo.map((item, index) => (
+                    <div key={index}>
+                      {this.$t('管控区域')} {item.bkCloudId}
+                      <span style={{ marginLeft: '10px' }}>{item.ip}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {this.detailData.protocol !== 'prometheus' && (
+                <div class='content-row'>
+                  <span>{this.$t('命令行直接调用样例')}</span>
+                  <div class='content-example'>
+                    curl -g -X POST http://$&#123;PROXY_IP&#125;:10205/v2/push/ -d "$&#123;REPORT_DATA&#125;"
+                  </div>
+                </div>
+              )}
+              {this.detailData.protocol === 'prometheus' ? (
+                <div>
+                  <div class='content-title content-interval'>{this.$t('数据上报端点样例')}</div>
+                  <div class='content-row'>
+                    <pre class='content-example'>http://$&#123;PROXY_IP&#125;:4318</pre>
+                  </div>
+                  <div class='content-row mt10'>
+                    <div class='content-title content-interval'>{this.$t('sdk接入流程')}</div>
+                    <div>
+                      {this.$t(
+                        '用户使用 prometheus 原始 SDK 上报即可，不过需要指定蓝鲸的上报端点（$host:$port）以及 HTTP Headers。'
+                      )}
+                    </div>
+                    <pre class='content-example'>X-BK-TOKEN=$TOKEN</pre>
+                    <div class='mt10'>
+                      {this.$t('prometheus sdk 库：https://prometheus.io/docs/instrumenting/clientlibs/')}
+                    </div>
+                  </div>
+                  {/* Golang 示例部分 */}
+                  <div class='content-row mt10'>
+                    <div>{this.$t('各语言接入示例')} :</div>
+                    <div class='mt5'>Golang</div>
+                    <div class='mt5'>
+                      {this.$t(
+                        '1. 补充 headers，用于携带 token 信息。定义 Client 行为，由于 prometheus sdk 没有提供新增或者修改 Headers 的方法，所以需要实现 Do() interface，代码示例如下：'
+                      )}
+                    </div>
+                    <div class='mt5'>
+                      {this.$t(
+                        '2. 填写上报端点，在 `push.New("$endpoint", name)` 里指定。然后需要将自定义的 client 传入到 `pusher.Client($bkClient{})` 里面。'
+                      )}
+                    </div>
+                    <div class='content-prometheus'>
+                      <pre class='content-example'>{this.sdkData.preGoOne}</pre>
+                      <div
+                        class='content-copy-prometheus'
+                        onClick={() => this.handleCopyPrometheus('golangCopy')}
+                      >
+                        <i class='icon-monitor icon-mc-copy' />
+                      </div>
+                      <textarea
+                        ref='golangCopy'
+                        class='copy-textarea'
+                      />
+                    </div>
+                  </div>
+                  {/* Python 示例部分 */}
+                  <div class='content-row'>
+                    <div>Python</div>
+                    <div class='mt5'>{this.$t('1. 补充 headers，用于携带 token 信息。实现一个自定义的 handler。')}</div>
+                    <div>
+                      {this.$t(
+                        '2. 填写上报端点，在 `push_to_gateway("$endpoint", ...)` 里指定。然后将自定义的 handler 传入到函数里。'
+                      )}
+                    </div>
+                    <div class='content-prometheus'>
+                      <pre class='content-example'>{this.sdkData.prePythonOne}</pre>
+                      <div
+                        class='content-copy-prometheus'
+                        onClick={() => this.handleCopyPrometheus('pythonCopy')}
+                      >
+                        <i class='icon-monitor icon-mc-copy' />
+                      </div>
+                      <textarea
+                        ref='pythonCopy'
+                        class='copy-textarea'
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div class='content-row'>
+                  <span>{this.$t('数据上报格式样例')}</span>
+                  <pre class='content-example'>{this.preData}</pre>
+                  <div
+                    class='content-copy'
+                    onClick={this.handleCopyData}
+                  >
+                    <i class='icon-monitor icon-mc-copy' />
+                  </div>
+                  <textarea
+                    ref='textCopy'
+                    class='copy-textarea'
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
+        {<IndicatorTableSlide isShow={this.isShow} />}
       </div>
     );
   }

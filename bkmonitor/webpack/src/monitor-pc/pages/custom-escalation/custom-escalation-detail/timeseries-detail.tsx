@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import AddGroupDialog from './add-group-dialog';
-import CustomGroupingList from './custom-grouping-list';
-import IndicatorTable from './indicator-table';
+import { ALL_LABEL } from './custom-escalation-detail';
+import DimensionTabDetail from './dimension-tab-detail';
+import MetricTabDetail from './metric-tab-detail';
 
 import './timeseries-detail.scss';
 
@@ -41,6 +41,13 @@ interface IGroup {
 
 @Component
 export default class TimeseriesDetailNew extends tsc<any, any> {
+  // @Prop({ default: () => [] }) metricTable;
+  @Prop({ default: () => [] }) unitList;
+  @Prop({ default: '' }) selectedLabel;
+  @Prop({ default: () => [] }) customGroups;
+  @Prop({ default: 0 }) nonGroupNum;
+  @Prop({ default: 0 }) metricNum;
+  @Prop({ default: 0 }) dimensionNum;
   showAddGroupDialog = false;
   /** 当前拖拽id */
   dragId = '';
@@ -64,7 +71,7 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
   tabs = [
     {
       title: '指标',
-      id: 'indicator',
+      id: 'metric',
     },
     {
       title: '维度',
@@ -76,91 +83,58 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
   /** 分割线 ================================ */
   handleMenuClick(item) {
     // TODO
-    console.log(item);
+  }
+  @Emit('handleClickSlider')
+  handleClickSlider(v: boolean): boolean {
+    return v;
+  }
+  @Emit('changeGroup')
+  changeGroup(id: string) {
+    return id;
   }
 
   getCmpByActiveTab(activeTab: string) {
     const cmpMap = {
       /** 指标 */
-      indicator: this.getIndicatorCmp,
+      metric: () => (
+        <MetricTabDetail
+          customGroups={this.customGroups}
+          metricNum={this.metricNum}
+          // metricTable={this.metricTable}
+          {...{
+            attrs: this.$attrs,
+            on: {
+              ...this.$listeners,
+            },
+          }}
+          nonGroupNum={this.nonGroupNum}
+          selectedLabel={this.selectedLabel}
+          unitList={this.unitList}
+          onChangeGroup={this.changeGroup}
+          onHandleClickSlider={this.handleClickSlider}
+        />
+      ),
       /** 维度 */
-      dimension: this.getDimensionCmp,
+      dimension: () => (
+        <DimensionTabDetail
+          {...{
+            attrs: this.$attrs,
+            on: {
+              ...this.$listeners,
+            },
+          }}
+        />
+      ),
     };
     return cmpMap[activeTab]();
   }
 
-  getIndicatorCmp() {
-    return (
-      <div class='list-content'>
-        {this.getIndicatorGroupList()}
-        {this.getIndicatorList()}
-      </div>
-    );
-  }
-
-  getDimensionCmp() {
-    return <div>{/* TOOD */}</div>;
-  }
-
-  handleAddGroup() {
-    // TODO
-    this.showAddGroupDialog = true;
-  }
-
-  getIndicatorGroupList() {
-    return (
-      <div class={{ left: true, active: this.isShowRightWindow }}>
-        <div
-          class={'right-button'}
-          onClick={() => (this.isShowRightWindow = !this.isShowRightWindow)}
-        >
-          {this.isShowRightWindow ? (
-            <i class='icon-monitor icon-arrow-left icon' />
-          ) : (
-            <i class='icon-monitor icon-arrow-right icon' />
-          )}
-        </div>
-        <div class='group-list'>
-          <div class='top-group'>
-            <div class={{ group: true, 'group-selected': true }}>
-              <div class='group-name'>
-                <i class='icon-monitor icon-mc-all' />
-                所有指标
-              </div>
-              <div class='group-count'>23</div>
-            </div>
-            <div class='group'>
-              <div class='group-name'>
-                <i class='icon-monitor icon-mc-full-folder' />
-                未分组
-              </div>
-              <div class='group-count'>23</div>
-            </div>
-          </div>
-          <div class='custom-group-set'>
-            <div
-              class='add-group icon-monitor icon-a-1jiahao icon-arrow-left'
-              onClick={this.handleAddGroup}
-            />
-            <bk-input
-              ext-cls='search-group'
-              placeholder={window.i18n.tc('搜索 自定义分组名称')}
-              right-icon='icon-monitor icon-mc-search'
-            />
-          </div>
-          {<CustomGroupingList />}
-          {<AddGroupDialog show={this.showAddGroupDialog} />}
-        </div>
-      </div>
-    );
-  }
-
-  getIndicatorList() {
-    return (
-      <div class='right'>
-        <IndicatorTable />
-      </div>
-    );
+  getCountByType(type: string) {
+    const obj = {
+      metric: this.metricNum,
+      dimension: this.dimensionNum,
+    };
+    return obj[type];
   }
 
   render() {
@@ -176,7 +150,7 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
                   class={['tab', id === this.activeTab ? 'active' : '']}
                   onClick={() => (this.activeTab = id)}
                 >
-                  {title}
+                  {`${title}(${this.getCountByType(id)})`}
                 </span>
               ))}
             </div>
