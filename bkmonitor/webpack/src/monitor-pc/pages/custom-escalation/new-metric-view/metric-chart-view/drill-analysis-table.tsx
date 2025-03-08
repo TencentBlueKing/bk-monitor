@@ -46,7 +46,7 @@ interface IDrillAnalysisTableProps {
 }
 
 interface IDrillAnalysisTableEvent {
-  onUpdateDimensions: (v: IDimensionItem[]) => void;
+  onUpdateDimensions?: (v: IDimensionItem[]) => void;
   onShowDetail?: (v: IDataItem, item: IDimensionItem) => void;
 }
 

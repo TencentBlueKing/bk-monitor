@@ -23,19 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop } from 'vue-property-decorator';
+import { Component, Ref, Prop, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
-import { type IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import DrillAnalysisView from './drill-analysis-view';
 import NewMetricChart from './metric-chart';
 
-import type { IColumnItem, IDataItem } from '../type';
-import type { PanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
+import type { IColumnItem, IDataItem, IMetricAnalysisConfig } from '../type';
+import type { IPanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
 
 import './layout-chart-table.scss';
 interface IDragInfo {
@@ -49,7 +48,8 @@ interface ILayoutChartTableProps {
   isToolIconShow?: boolean;
   height?: number;
   minHeight?: number;
-  panel?: PanelModel;
+  panel?: IPanelModel;
+  config?: IMetricAnalysisConfig;
 }
 interface ILayoutChartTableEvents {
   onResize?: number;
@@ -58,15 +58,16 @@ interface ILayoutChartTableEvents {
 @Component
 export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayoutChartTableEvents> {
   // 图表panel实例
-  @Prop({ default: () => ({}) }) config: object;
+  @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
   // 图表panel实例
-  @Prop({ default: () => ({}) }) panel: PanelModel;
+  @Prop({ default: () => ({}) }) panel: IPanelModel;
   /* 拖拽数据 */
   @Prop({ default: () => ({ height: 300, minHeight: 180, maxHeight: 400 }) }) drag: IDragInfo;
   @Prop({ default: true }) isToolIconShow: boolean;
   @Prop({ default: 600 }) height: number;
   @Prop({ default: 500 }) minHeight: number;
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
+  @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
   /* 主动刷新图表 */
   chartKey = random(8);
   divHeight = 0;
@@ -94,14 +95,14 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
 
   /** 对比工具栏数据 */
   get compareValue() {
+    const { compare, start_time, end_time } = this.filterOption;
     return {
       compare: {
-        type: 'none',
-        value: '',
+        type: compare.type,
+        value: compare.offset,
       },
       tools: {
-        timeRange: [this.config.start_time, this.config.end_time],
-        // refleshInterval: this.refleshInterval,
+        timeRange: [start_time * 1000, end_time * 1000],
         searchValue: [],
       },
     };
@@ -184,7 +185,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
    * @description: 查看大图
    * @param {boolean} loading
    */
-  handleFullScreen(config: PanelModel, compareValue?: any) {
+  handleFullScreen(config: IPanelModel, compareValue?: any) {
     this.viewQueryConfig = {
       config: JSON.parse(JSON.stringify(config)),
       compareValue: JSON.parse(JSON.stringify({ ...this.compareValue, ...compareValue })),
@@ -266,8 +267,8 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
               isToolIconShow={this.isToolIconShow}
               panel={this.panel}
               onDrillDown={this.handelDrillDown}
+              onFullScreen={this.handleFullScreen}
               onLegendData={this.handleLegendData}
-              onfullScreen={this.handleFullScreen}
             />
           </div>
           <div

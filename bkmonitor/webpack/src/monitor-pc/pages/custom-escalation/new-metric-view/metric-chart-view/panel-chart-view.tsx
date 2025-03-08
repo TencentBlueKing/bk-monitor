@@ -23,18 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Watch, Provide, Prop } from 'vue-property-decorator';
+import { Component, Watch, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
-import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
-import { type IPanelModel } from 'monitor-ui/chart-plugins/typings';
+import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
-import { api, mockParam } from './api';
-import DrillAnalysisView from './drill-analysis-view';
+
+import { mockParam } from './api';
 import LayoutChartTable from './layout-chart-table';
 
 import type { IMetricAnalysisConfig } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './panel-chart-view.scss';
 
@@ -44,6 +45,7 @@ interface IPanelChartViewProps {
   config?: IMetricAnalysisConfig;
   isShowStatisticalValue?: boolean;
   isHighlightPeakValue?: boolean;
+  columnNum?: number;
 }
 
 @Component
@@ -57,8 +59,12 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 每列展示的个数 */
   @Prop({ default: 3 }) columnNum: number;
 
-  @Provide('handleUpdateQueryData')
-  handleUpdateQueryData = undefined;
+  @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
+  @ProvideReactive('filterOption') filterOption: IMetricAnalysisConfig;
+  @ProvideReactive('viewOptions') viewOptions: IViewOptions = {
+    interval: 'auto',
+  };
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-12h', 'now'];
   activeName = [];
   groupList = [];
   collapseRefsHeight: number[][] = [];
@@ -69,9 +75,6 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   currentChart = {};
 
   loading = false;
-  showViewDetail = false;
-  /** 查看大图参数配置 */
-  viewQueryConfig = {};
 
   /** 拉伸的时候图表重新渲染 */
   @Watch('groupList')
@@ -81,6 +84,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 过滤条件发生改变的时候重新拉取数据 */
   @Watch('config', { immediate: true })
   handleConfigChange(val) {
+    this.filterOption = deepClone(val);
     val && this.getGroupList();
   }
   /** 展示的个数发生变化时 */
@@ -111,7 +115,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       })
       .catch(() => {
         this.loading = false;
-        this.groupList = api.data.groups; // mock数据
+        this.groupList = [];
         this.activeName = this.groupList.map(item => item.name);
       });
   }
@@ -123,8 +127,6 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
           height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)]}
           config={this.config}
           panel={chart}
-          onDrillDown={() => this.handelDrillDown(chart)}
-          onFullscreen={() => this.handleFullScreen(chart)}
           onResize={height => this.handleResize(height, ind, chartInd)}
         ></LayoutChartTable>
       </div>
@@ -163,22 +165,6 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   handleResize(height: number, ind: number, chartInd: number) {
     this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)] = height;
     this.collapseRefsHeight = [...this.collapseRefsHeight];
-  }
-  /** 维度下钻 */
-  handelDrillDown(chart: IPanelModel) {
-    this.showDrillDown = true;
-    this.currentChart = chart;
-  }
-  /**
-   * @description: 关闭查看大图弹窗
-   */
-  handleCloseViewDetail() {
-    this.showViewDetail = false;
-    this.viewQueryConfig = {};
-  }
-
-  handleFullScreen(panel) {
-    console.log(panel, '====');
   }
 
   render() {
@@ -220,21 +206,6 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
             class='panel-chart-view-empty'
             textMap={{ empty: this.$t('暂无数据') }}
             type={'empty'}
-          />
-        )}
-
-        {this.showDrillDown && (
-          <DrillAnalysisView
-            panel={this.currentChart}
-            onClose={() => (this.showDrillDown = false)}
-          />
-        )}
-        {/* 全屏查看大图 */}
-        {this.showViewDetail && (
-          <ViewDetail
-            show={this.showViewDetail}
-            viewConfig={this.viewQueryConfig}
-            on-close-modal={this.handleCloseViewDetail}
           />
         )}
       </div>

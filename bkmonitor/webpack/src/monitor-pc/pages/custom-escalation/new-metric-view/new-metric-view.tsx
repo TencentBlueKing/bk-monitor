@@ -100,7 +100,7 @@ export default class NewMetricView extends tsc<object> {
               onChange={this.handleHeaderParamsChange}
             />
             <div class='metric-view-dashboard-container'>
-              <textarea
+              {/* <textarea
                 style='height: 100px; width: 100%'
                 value={JSON.stringify({
                   ...this.dimenstionParams,
@@ -109,8 +109,8 @@ export default class NewMetricView extends tsc<object> {
                   bk_biz_id: this.bkBizId,
                   time_series_group_id: this.timeSeriesGroupId,
                 })}
-              />
-              <PanelChartView />
+              /> */}
+              <PanelChartView columnNum={this.dimenstionParams.view_column} />
             </div>
           </template>
         </bk-resize-layout>

@@ -23,42 +23,36 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Prop, Watch, InjectReactive } from 'vue-property-decorator';
+import { Component, Prop, Watch, InjectReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
-import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/index';
 import { graphUnifyQuery } from 'monitor-api/modules/grafana';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import {
-  downCsvFile,
-  transformSrcData,
-  transformTableDataToCsvStr,
-  type IUnifyQuerySeriesItem,
-} from 'monitor-pc/pages/view-detail/utils';
-import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
+import { type IUnifyQuerySeriesItem } from 'monitor-pc/pages/view-detail/utils';
 import ListLegend from 'monitor-ui/chart-plugins/components/chart-legend/common-legend';
+import ChartHeader from 'monitor-ui/chart-plugins/components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from 'monitor-ui/chart-plugins/constants';
 import StatusTab from 'monitor-ui/chart-plugins/plugins/apm-custom-graph/status-tab';
 import CommonSimpleChart from 'monitor-ui/chart-plugins/plugins/common-simple-chart';
 import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
-import { downFile, handleRelateAlert, reviewInterval } from 'monitor-ui/chart-plugins/utils';
+import { downFile, handleRelateAlert } from 'monitor-ui/chart-plugins/utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-plugins/utils/axis';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { type ValueFormatter, getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { metricData } from './mock-data';
 import { timeToDayNum, handleSetFormatterFunc, handleYxisLabelFormatter, handleTimeOffset } from './utils';
 
+import type { IMetricAnalysisConfig } from '../type';
 import type {
   DataQuery,
   ILegendItem,
   ITimeSeriesItem,
   PanelModel,
-  ZrClickEvent,
+  IExtendMetricData,
 } from 'monitor-ui/chart-plugins/typings';
 
 import './metric-chart.scss';
@@ -84,6 +78,7 @@ class NewMetricChart extends CommonSimpleChart {
   @Prop({ default: false }) isShowLegend: boolean;
   // yAxis是否需要展示单位
   @InjectReactive('yAxisNeedUnit') readonly yAxisNeedUnit: boolean;
+  @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
   methodList = APM_CUSTOM_METHODS.map(method => ({
     id: method,
     name: method,
@@ -91,7 +86,7 @@ class NewMetricChart extends CommonSimpleChart {
   customScopedVars: Record<string, any> = {};
   width = 300;
   init = false;
-  metrics = metricData;
+  metrics = [];
   collectIntervalDisplay = '1m';
   cancelTokens = [];
   options = {
@@ -147,7 +142,7 @@ class NewMetricChart extends CommonSimpleChart {
   }
   // /** 更多里的操作列表 */
   get menuList() {
-    return ['save', 'explore', 'drill-down', 'relate-alert', 'screenshot'];
+    return ['explore', 'drill-down', 'relate-alert', 'screenshot'];
   }
   /** 拉伸的时候图表重新渲染 */
   @Watch('chartHeight')
@@ -557,8 +552,6 @@ class NewMetricChart extends CommonSimpleChart {
             },
           })
         );
-        // this.handleDrillDownOption(this.metrics);
-        // console.log('option', this.options, this.legendData.length);
         this.init = true;
         this.empty = false;
         setTimeout(() => {
@@ -587,7 +580,6 @@ class NewMetricChart extends CommonSimpleChart {
    * @param {*} customSave 自定义保存图片
    */
   handleStoreImage(title: string, targetEl?: HTMLElement, customSave = false) {
-    console.log('====');
     const el = targetEl || (this.$el as HTMLElement);
     return toPng(el)
       .then(dataUrl => {
@@ -597,19 +589,30 @@ class NewMetricChart extends CommonSimpleChart {
       .catch(() => {});
   }
   getCopyPanel() {
-    return JSON.parse(JSON.stringify(this.panel));
+    let copyPanel = JSON.parse(JSON.stringify(this.panel));
+    copyPanel.dashboardId = random(8);
+    copyPanel.subTitle = this.panel.sub_title;
+    copyPanel.type = 'graph';
+    copyPanel.id = this.panel.sub_title;
+    const targets = copyPanel.targets.map(item => {
+      return {
+        ...item,
+        api: 'grafana.graphUnifyQuery',
+        data: {
+          expression: item.expression,
+          query_configs: item.query_configs,
+        },
+      };
+    });
+    copyPanel.targets = targets;
+    return copyPanel;
   }
   /** 工具栏各个icon的操作 */
   handleIconClick(menuItem) {
-    console.log(menuItem?.id, '1====');
     switch (menuItem.id) {
       /** 维度下钻 */
       case 'drillDown':
         this.$emit('drillDown', this.panel);
-        break;
-      // 保存到仪表盘
-      case 'save':
-        this.handleCollectChart();
         break;
       case 'screenshot': // 保存到本地
         setTimeout(() => {
@@ -644,13 +647,30 @@ class NewMetricChart extends CommonSimpleChart {
         break;
     }
   }
+  /**
+   * @description: 点击所有指标
+   * @param {*}
+   * @return {*}
+   */
+  handleAllMetricClick() {
+    const copyPanel = this.getCopyPanel();
+    this.handleAddStrategy(copyPanel as any, null, {}, true);
+  }
+  /**
+   * @description: 点击单个指标
+   * @param {IExtendMetricData} metric
+   * @return {*}
+   */
+  handleMetricClick(metric: IExtendMetricData) {
+    const copyPanel: PanelModel = this.getCopyPanel();
+    this.handleAddStrategy(copyPanel, metric, {});
+  }
   render() {
     return (
       <div class='new-metric-chart'>
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
-          // draging={this.panel.draging}
           isHoverShow={true}
           // isInstant={this.panel.instant}
           menuList={this.menuList as any}
@@ -659,7 +679,9 @@ class NewMetricChart extends CommonSimpleChart {
           showMore={true}
           subtitle={this.panel.sub_title || ''}
           title={this.panel.title}
+          onAllMetricClick={this.handleAllMetricClick}
           onMenuClick={this.handleIconClick}
+          onMetricClick={this.handleMetricClick}
         >
           <span class='status-tab-view'>
             <StatusTab

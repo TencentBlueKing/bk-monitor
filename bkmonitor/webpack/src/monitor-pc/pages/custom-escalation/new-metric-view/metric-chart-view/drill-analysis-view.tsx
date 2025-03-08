@@ -25,20 +25,22 @@
  */
 import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import { getCustomTsMetricGroups, getGraphDrillDown } from 'monitor-api/modules/scene_view';
 import { random, deepClone } from 'monitor-common/utils';
 import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, getTimeDisplay } from 'monitor-pc/components/time-range/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import CompareType from '../components/header-box/components/compare-type';
+import FilterConditions from '../components/header-box/components/filter-conditions';
 import GroupBy from '../components/header-box/components/group-by';
 import LimitFunction from '../components/header-box/components/limit-function';
-import FilterConditions from '../components/header-box/components/filter-conditions';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
 import { refreshList } from './utils';
-import { generateFormatterFunc, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+
 import type { IDimensionItem, IRefreshItem } from '../type';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -370,12 +372,12 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             >
               <DrillAnalysisTable
                 dimensionsList={this.dimensionsList}
-                tableLoading={this.tableLoading}
+                filterConfig={this.filterConfig}
                 loading={this.loading}
                 tableList={this.tableList}
-                filterConfig={this.filterConfig}
-                onUpdateDimensions={this.handleUpdateDimensions}
+                tableLoading={this.tableLoading}
                 onChooseDrill={this.handleChooseDrill}
+                onUpdateDimensions={this.handleUpdateDimensions}
               />
             </div>
           </bk-resize-layout>
