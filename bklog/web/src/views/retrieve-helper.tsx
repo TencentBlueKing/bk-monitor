@@ -1,6 +1,11 @@
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 
+export enum STORAGE_KEY {
+  STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
+  STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
+}
+
 export enum RetrieveEvent {
   // 搜索栏高度变化
   SEARCHBAR_HEIGHT_CHANGE = 'searchbar-height-change',
@@ -30,7 +35,7 @@ class RetrieveHelper {
   isFavoriteShown: boolean;
 
   // 事件列表
-  events: Map<string, { fn: (...args) => void }[]>;
+  events: Map<string, ((...args) => void)[]>;
 
   constructor({ isFavoriteShow = false, favoriteWidth = 0 }) {
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
@@ -41,11 +46,14 @@ class RetrieveHelper {
 
   on(fnName: RetrieveEvent, callbackFn: (...args) => void) {
     if (this.events.has(fnName)) {
-      this.events.get(fnName)?.push({ fn: callbackFn });
+      if (!this.events.get(fnName).includes(callbackFn)) {
+        this.events.get(fnName)?.push(callbackFn);
+      }
       return;
     }
 
-    this.events.set(fnName, [{ fn: callbackFn }]);
+    this.events.set(fnName, [callbackFn]);
+    return this;
   }
 
   /**
@@ -78,6 +86,7 @@ class RetrieveHelper {
    */
   setFavoriteWidth(width: number) {
     this.favoriteWidth = width;
+    localStorage.setItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH, `${width}`);
     this.runEvent(RetrieveEvent.FAVORITE_WIDTH_CHANGE, width);
   }
 
@@ -87,6 +96,7 @@ class RetrieveHelper {
    */
   setFavoriteShown(show: boolean) {
     this.isFavoriteShown = show;
+    localStorage.setItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW, `${show}`);
     this.runEvent(RetrieveEvent.FAVORITE_SHOWN_CHANGE, show);
   }
 
@@ -109,7 +119,7 @@ class RetrieveHelper {
    */
   off(eventName: RetrieveEvent, fn?: (...args) => void) {
     if (typeof fn === 'function') {
-      const index = this.events.get(eventName)?.findIndex(item => item.fn === fn);
+      const index = this.events.get(eventName)?.findIndex(item => item === fn);
       if (index !== -1) {
         this.events.get(eventName)?.splice(index, 1);
       }
@@ -124,11 +134,14 @@ class RetrieveHelper {
 
   private runEvent(event: RetrieveEvent, ...args) {
     this.events.get(event)?.forEach(item => {
-      if (typeof item?.fn === 'function') {
-        item.fn(...args);
+      if (typeof item === 'function') {
+        item(...args);
       }
     });
   }
 }
 
-export default new RetrieveHelper({ isFavoriteShow: true, favoriteWidth: 240 });
+const isFavoriteShow = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
+const favoriteWidth = Number(localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240);
+
+export default new RetrieveHelper({ isFavoriteShow, favoriteWidth });

@@ -149,8 +149,12 @@ export default class CollectIndex extends tsc<IProps> {
     theme: 'light',
   };
   groupList: IGroupItem[] = []; // 分组列表
-  collectList: IGroupItem[] = []; // 收藏列表
-  filterCollectList: IGroupItem[] = []; // 搜索的收藏列表
+
+  // 收藏夹的二种类型选择
+  currentCollectionType = 'origin';
+
+  // 勾选是否查看当前索引集
+  isShowCurrentIndexList = 'yes';
 
   @Ref('popoverGroup') popoverGroupRef: Popover;
   @Ref('popoverSort') popoverSortRef: Popover;
@@ -168,17 +172,82 @@ export default class CollectIndex extends tsc<IProps> {
     return this.activeFavorite?.id || -1;
   }
 
+  get indexSetId() {
+    return `${this.$store.getters.indexId}`;
+  }
+
   get favoriteList() {
-    const data = this.$store.state.favoriteList;
-    if (!data.length) {
-      return [];
+    let data = this.$store.state.favoriteList ?? [];
+    if (this.isShowCurrentIndexList === 'yes') {
+      data = (this.$store.state.favoriteList ?? []).map(({ group_id, group_name, group_type, favorites }) => {
+        return {
+          group_id,
+          group_name,
+          group_type,
+          favorites: favorites.filter(item => {
+            if (this.isUnionSearch) {
+              return (item.index_set_ids ?? []).some(id => this.unionIndexList.includes(`${id}`));
+            }
+
+            return `${item.index_set_id}` === this.indexSetId;
+          }),
+        };
+      });
     }
 
     const provideFavorite = data[0];
     const publicFavorite = data[data.length - 1];
     const sortFavoriteList = data.slice(1, data.length - 1).sort((a, b) => a.group_name.localeCompare(b.group_name));
     const sortAfterList = [provideFavorite, ...sortFavoriteList, publicFavorite];
-    return sortAfterList;
+    return sortAfterList.filter(item => item !== undefined);
+  }
+
+  get originFavoriteList() {
+    return this.favoriteList.map(({ group_id, group_name, group_type, favorites }) => {
+      return {
+        group_id,
+        group_name,
+        group_type,
+        favorites: favorites.filter(item => item.favorite_type !== 'chart'),
+      };
+    });
+  }
+
+  get chartFavoriteList() {
+    return this.favoriteList.map(({ group_id, group_name, group_type, favorites }) => {
+      return {
+        group_id,
+        group_name,
+        group_type,
+        favorites: favorites.filter(item => item.favorite_type === 'chart'),
+      };
+    });
+  }
+
+  get filterCollectList() {
+    const mapFn = ({ group_id, group_name, group_type, favorites }) => {
+      return {
+        group_id,
+        group_name,
+        group_type,
+        favorites: favorites.filter(
+          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal),
+        ),
+      };
+    };
+    if (this.currentCollectionType === 'origin') {
+      return this.originFavoriteList.map(mapFn).filter(item => item.favorites.length);
+    }
+
+    return this.chartFavoriteList.map(mapFn).filter(item => item.favorites.length);
+  }
+
+  get originFavoriteCount() {
+    return this.originFavoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
+  }
+
+  get chartFavoriteCount() {
+    return this.chartFavoriteList.reduce((pre: number, cur) => ((pre += cur.favorites.length), pre), 0);
   }
 
   get allFavoriteNumber() {
@@ -204,8 +273,6 @@ export default class CollectIndex extends tsc<IProps> {
       this.sortType = this.baseSortType;
       this.getFavoriteList();
     } else {
-      this.collectList = [];
-      this.filterCollectList = [];
       this.activeFavorite = null;
       this.groupList = [];
       this.searchVal = '';
@@ -222,10 +289,6 @@ export default class CollectIndex extends tsc<IProps> {
     this.isShowCollect && this.getFavoriteList();
   }
 
-  @Watch('favoriteList', { deep: true })
-  watchFavoriteData(value) {
-    this.handleInitFavoriteList(value);
-  }
   @Watch('activeFavorite', { deep: true })
   changeActiveFavorite(val) {
     this.updateActiveFavorite(val);
@@ -579,32 +642,6 @@ export default class CollectIndex extends tsc<IProps> {
     this.popoverSortRef.hideHandler();
   }
 
-  /** 收藏搜索 */
-  handleSearchFavorite(isRequest = false) {
-    if (isRequest) this.collectLoading = true;
-    if (this.searchVal === '') {
-      this.filterCollectList = this.collectList;
-      this.isSearchFilter = false;
-      return;
-    }
-    this.isSearchFilter = true;
-    this.filterCollectList = this.collectList
-      .map(item => ({
-        ...item,
-        favorites: item.favorites.filter(
-          fItem => fItem.created_by.includes(this.searchVal) || fItem.name.includes(this.searchVal),
-        ),
-      }))
-      .filter(item => item.favorites.length);
-    setTimeout(() => {
-      if (isRequest) this.collectLoading = false;
-    }, 500);
-  }
-
-  handleInputSearchFavorite() {
-    if (this.searchVal === '') this.handleSearchFavorite();
-  }
-
   /** 新增或更新组名 */
   async handleUpdateGroupName(groupObj, isCreate = true) {
     const { group_id, group_new_name } = groupObj;
@@ -619,40 +656,6 @@ export default class CollectIndex extends tsc<IProps> {
       .then(() => {
         this.showMessagePop(this.$t('操作成功'));
       });
-  }
-
-  handleInitFavoriteList(value) {
-    this.collectList = value.map(item => ({
-      ...item,
-      group_name: this.groupNameMap[item.group_type] ?? item.group_name,
-    }));
-    this.groupList = value.map(item => ({
-      group_id: item.group_id,
-      group_name: this.groupNameMap[item.group_type] ?? item.group_name,
-      group_type: item.group_type,
-    }));
-    this.unknownGroupID = this.groupList[this.groupList.length - 1]?.group_id;
-    this.privateGroupID = this.groupList[0]?.group_id;
-    this.handleSearchFavorite();
-    // 当前只有未分组和个人收藏时 判断未分组是否有数据 如果没有 则不展示未分组
-    if (this.collectList.length === 2 && !this.collectList[1].favorites.length) {
-      this.collectList = [this.collectList[0]];
-    }
-    this.filterCollectList = deepClone(this.collectList);
-    if (this.activeFavoriteID >= 0) {
-      // 获取列表后 判断当前是否有点击的活跃收藏 如果有 则进行数据更新
-      let isFind = false;
-      for (const cItem of this.collectList) {
-        if (isFind) break;
-        for (const fItem of cItem.favorites) {
-          if (fItem.id === this.activeFavoriteID) {
-            isFind = true;
-            this.handleUpdateActiveFavoriteData(fItem);
-            break;
-          }
-        }
-      }
-    }
   }
 
   /** 解散分组 */
@@ -759,12 +762,7 @@ export default class CollectIndex extends tsc<IProps> {
     window.removeEventListener('mousemove', this.dragMoving);
     window.removeEventListener('mouseup', this.dragStop);
   }
-  // 收藏夹的二种类型选择
-  // eslint-disable-next-line @typescript-eslint/member-ordering
-  currentCollectionType = 'all';
-  // 勾选是否查看当前索引集
-  // eslint-disable-next-line @typescript-eslint/member-ordering
-  isShowIndexList = 'yes';
+
   handleRadioGroup(val: string) {
     this.currentCollectionType = val;
   }
@@ -794,7 +792,7 @@ export default class CollectIndex extends tsc<IProps> {
             <div class='search-container-new-title'>
               <div>
                 <span style={{ fontSize: '14px', color: '#313238' }}>收藏夹</span>
-                <span class='search-container-new-title-num'>64</span>
+                <span class='search-container-new-title-num'>{this.allFavoriteNumber}</span>
               </div>
               <div class='search-container-new-title-right'>
                 <span
@@ -815,14 +813,11 @@ export default class CollectIndex extends tsc<IProps> {
                 behavior='normal'
                 placeholder={this.$t('请输入')}
                 right-icon='bk-icon icon-search'
-                on-enter={this.handleSearchFavorite}
-                on-right-icon-click={this.handleSearchFavorite}
-                onKeyup={this.handleInputSearchFavorite}
               ></Input>
             </div>
             <div class='search-category'>
               <div class='selector-container'>
-                {['all', 'unHandle'].map(type => (
+                {['origin', 'chart'].map(type => (
                   <span
                     key={type}
                     class={`option ${this.currentCollectionType === type ? 'selected' : ''}`}
@@ -830,10 +825,12 @@ export default class CollectIndex extends tsc<IProps> {
                   >
                     <span
                       style={{ marginRight: '4px' }}
-                      class={`bklog-icon ${type === 'all' ? 'bklog-table-2' : 'bklog-chart-2'}`}
+                      class={`bklog-icon ${type === 'origin' ? 'bklog-table-2' : 'bklog-chart-2'}`}
                     ></span>
-                    <span style={{ marginRight: '4px' }}>{type === 'all' ? '原始日志' : '图表分析'}</span>
-                    <span class='search-category-num'>{type === 'all' ? 23 : 43}</span>
+                    <span style={{ marginRight: '4px' }}>{type === 'origin' ? '原始日志' : '图表分析'}</span>
+                    <span class='search-category-num'>
+                      {type === 'origin' ? this.originFavoriteCount : this.chartFavoriteCount}
+                    </span>
                   </span>
                 ))}
               </div>
@@ -841,7 +838,7 @@ export default class CollectIndex extends tsc<IProps> {
             <div class='search-tool'>
               <span>
                 <bk-checkbox
-                  v-model={this.isShowIndexList}
+                  v-model={this.isShowCurrentIndexList}
                   false-value='no'
                   true-value='yes'
                 >
