@@ -768,6 +768,11 @@ export default class CollectIndex extends tsc<IProps> {
   handleRadioGroup(val: string) {
     this.currentCollectionType = val;
   }
+
+  handleCollapse() {
+    this.isShowCollect = !this.isShowCollect;
+  }
+
   render() {
     return (
       <div
@@ -799,6 +804,7 @@ export default class CollectIndex extends tsc<IProps> {
                 <span
                   style={{ fontSize: '16px' }}
                   class='bklog-icon bklog-collapse'
+                  onClick={this.handleCollapse}
                 ></span>
               </div>
             </div>
@@ -956,11 +962,11 @@ export default class CollectIndex extends tsc<IProps> {
           >
             <span class='bk-icon icon-enlarge-line'></span>
             <span>{this.$t('新检索')}</span>
-          </div>
+          </div>*/}
           <div
             class={['drag-border', { 'drag-ing': this.isChangingWidth }]}
             onMousedown={this.dragBegin}
-          ></div> */}
+          ></div>
         </CollectContainer>
         <ManageGroupDialog
           vModel={this.isShowManageDialog}

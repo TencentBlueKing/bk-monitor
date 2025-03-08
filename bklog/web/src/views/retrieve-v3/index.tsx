@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { defineComponent, ref } from 'vue';
 
-import V3Collection from './collection';
+import V3Collection from './favorite';
 import V3Container from './container';
 import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
@@ -38,49 +38,19 @@ import './index.scss';
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
-    const collectWidth = ref(240);
-    const isCollectShow = ref(false);
-    const handleCollectionShowChange = () => {
-      isCollectShow.value = !isCollectShow.value;
-    };
-
-    const { isStickyTop, stickyStyle } = useAppInit();
-    const handleWidthChange = (width: number) => {
-      collectWidth.value = width;
-    };
-
-    const contentStyle = computed(() => {
-      if (isCollectShow.value) {
-        return { width: `calc(100% - ${collectWidth.value}px)` };
-      }
-
-      return { width: '100%' };
-    });
-
-    const stickyStyleValue = computed(() => {
-      return {
-        ...stickyStyle.value,
-        '--left-collection-width': `${isCollectShow.value ? collectWidth.value : 0}px`,
-      };
-    });
+    const { isStickyTop, stickyStyle, contentStyle } = useAppInit();
 
     return () => (
       <div
         class={['v3-bklog-root', { 'is-sticky-top': isStickyTop.value }]}
-        style={stickyStyleValue.value}
+        style={stickyStyle.value}
       >
-        <V3Collection
-          is-show={isCollectShow.value}
-          onWidth-change={handleWidthChange}
-        ></V3Collection>
+        <V3Collection></V3Collection>
         <div
           class='v3-bklog-content'
           style={contentStyle.value}
         >
-          <V3Toolbar
-            isCollectShow={isCollectShow.value}
-            on-collection-show-change={handleCollectionShowChange}
-          ></V3Toolbar>
+          <V3Toolbar></V3Toolbar>
           <V3Container>
             <V3Searchbar class={{ 'is-sticky-top': isStickyTop.value }}></V3Searchbar>
             <V3SearchResult></V3SearchResult>

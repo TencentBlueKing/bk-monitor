@@ -13,8 +13,11 @@ export default () => {
   const route = useRoute();
   const searchBarHeight = ref(0);
   const leftFieldSettingWidth = ref(0);
+  const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
+  const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
 
   RetrieveHelper.setScrollSelector('.v3-bklog-root');
+
   RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
     searchBarHeight.value = height;
   });
@@ -23,13 +26,34 @@ export default () => {
     leftFieldSettingWidth.value = width;
   });
 
+  RetrieveHelper.on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, width => {
+    favoriteWidth.value = width;
+  });
+
+  RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, isShown => {
+    isFavoriteShown.value = isShown;
+  });
+
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
   const stickyStyle = computed(() => {
     return {
-      '--offset-search-bar': `${searchBarHeight.value + 8}px`,
+      '--offset-search-bar': `${searchBarHeight.value}px`,
       '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
+      '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
     };
+  });
+
+  /**
+   * 用于处理收藏夹宽度变化
+   * 当收藏夹展开时，需要将内容宽度设置为减去收藏夹宽度
+   */
+  const contentStyle = computed(() => {
+    if (isFavoriteShown.value) {
+      return { width: `calc(100% - ${favoriteWidth.value}px)` };
+    }
+
+    return { width: '100%' };
   });
 
   const { search_mode, addition, keyword } = route.query;
@@ -172,5 +196,7 @@ export default () => {
   return {
     isStickyTop,
     stickyStyle,
+    contentStyle,
+    isFavoriteShown,
   };
 };
