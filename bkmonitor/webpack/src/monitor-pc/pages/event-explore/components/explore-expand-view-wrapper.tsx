@@ -27,6 +27,8 @@ import VueJsonPretty from 'vue-json-pretty';
 import { Component, Inject, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { copyText } from 'monitor-common/utils';
+
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
 import type { DimensionType, EventExploreEntitiesType } from '../typing';
@@ -80,6 +82,24 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
     });
   }
 
+  /**
+   * @description kv面板header右侧 复制按钮 点击事件
+   *
+   **/
+  handleCopy() {
+    copyText(JSON.stringify(this.data, null, 4), msg => {
+      this.$bkMessage({
+        message: msg,
+        theme: 'error',
+      });
+      return;
+    });
+    this.$bkMessage({
+      message: this.$t('复制成功'),
+      theme: 'success',
+    });
+  }
+
   handleTabChange(activeTab: ExploreViewTabEnum) {
     this.activeTab = activeTab;
   }
@@ -87,19 +107,27 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
   render() {
     return (
       <div class='explore-expand-view-wrapper'>
-        <div class='view-tab'>
-          <span
-            class={{ active: this.isKVTab }}
-            onClick={() => this.handleTabChange(ExploreViewTabEnum.KV)}
-          >
-            KV
-          </span>
-          <span
-            class={{ active: !this.isKVTab }}
-            onClick={() => this.handleTabChange(ExploreViewTabEnum.JSON)}
-          >
-            JSON
-          </span>
+        <div class='view-header'>
+          <div class='header-tabs'>
+            <span
+              class={{ active: this.isKVTab }}
+              onClick={() => this.handleTabChange(ExploreViewTabEnum.KV)}
+            >
+              KV
+            </span>
+            <span
+              class={{ active: !this.isKVTab }}
+              onClick={() => this.handleTabChange(ExploreViewTabEnum.JSON)}
+            >
+              JSON
+            </span>
+          </div>
+          <div class='header-operation'>
+            <i
+              class='icon-monitor icon-mc-copy'
+              onClick={this.handleCopy}
+            />
+          </div>
         </div>
         <div
           class='view-content kv-view-content'

@@ -132,6 +132,7 @@ export interface EventExploreTableColumn {
   customHeaderCls?: string;
 }
 
+/** 事件检索 kv 面板跳转其他页面 类型枚举 */
 export enum EventExploreEntitiesType {
   /** 主机 */
   HOST = 'ip',
@@ -139,8 +140,18 @@ export enum EventExploreEntitiesType {
   K8S = 'k8s',
 }
 
+/** 检索表格loading类型枚举 */
+export enum ExploreTableLoadingEnum {
+  /** 刷新 -- 显示 骨架屏 效果loading */
+  REFRESH = 'refreshLoading',
+  /** 滚动 -- 显示 表格底部 loading */
+  SCROLL = 'scrollLoading',
+}
+
 export interface EventExploreTableRequestConfigs {
-  apiModule: string;
-  apiFunc: string;
-  data: Record<string, any>;
+  apiModule?: string;
+  apiFunc?: string;
+  loadingType?: ExploreTableLoadingEnum;
+  data?: Record<string, any>;
+  total?: number;
 }
