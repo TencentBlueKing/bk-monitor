@@ -82,9 +82,12 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
             ]}
             onClick={this.handleToggleCollapse.bind(this, false)}
           />
-          {/* <i class={`icon-monitor ${DimensionTypes[item.result_table_label]}`} /> */}
           <span class='classification-text'>{item.result_table_label_name}</span>
-          <span class='classification-num'>{item.metrics.length}</span>
+          <span class='classification-num'>
+            {item?.dimension_anomaly_value_count
+              ? `${item.dimension_anomaly_value_count} / ${item.dimension_value_total_count}`
+              : item.metrics.length}
+          </span>
         </p>
         <bk-transition name='collapse'>
           <ul
@@ -98,19 +101,21 @@ export default class CorrelationNav extends tsc<IProps, IEvent> {
                 onClick={this.handleActive.bind(this, metric)}
               >
                 <span class='classification-list-item-text'>{metric.metric_name_alias}</span>
-                <span
-                  class='classification-list-item-num'
-                  v-bk-tooltips={{
-                    content: this.$t('共 {slot0} 个维度', {
-                      slot0: metric.totalPanels.length,
-                    }),
-                    onShown: () => {
-                      this.reportEventLog?.(EventReportType.Tips);
-                    },
-                  }}
-                >
-                  {metric.totalPanels.length}
-                </span>
+                {(metric.totalPanels || []).length > 0 && (
+                  <span
+                    class='classification-list-item-num'
+                    v-bk-tooltips={{
+                      content: this.$t('共 {slot0} 个维度', {
+                        slot0: metric.totalPanels.length,
+                      }),
+                      onShown: () => {
+                        this.reportEventLog?.(EventReportType.Tips);
+                      },
+                    }}
+                  >
+                    {metric.totalPanels.length}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
