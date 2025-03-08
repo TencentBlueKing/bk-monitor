@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
@@ -32,11 +32,16 @@ import ExploreCustomGraph, {
 } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
 import { type ILegendItem, type IViewOptions, PanelModel } from 'monitor-ui/chart-plugins/typings';
 
+import BackTop from '../../../components/back-top/back-top';
 import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api-utils';
+import {
+  type DimensionsTypeEnum,
+  type EventExploreTableRequestConfigs,
+  ExploreTableLoadingEnum,
+  type IFormData,
+} from '../typing';
 import { eventChartMap, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
-
-import type { DimensionsTypeEnum, EventExploreTableRequestConfigs, IFormData } from '../typing';
 
 import './event-explore-view.scss';
 
@@ -47,6 +52,7 @@ interface IEventExploreViewProps {
 
 @Component
 export default class EventExploreView extends tsc<IEventExploreViewProps> {
+  @Ref('eventExploreTableRef') eventExploreTableRef: InstanceType<typeof EventExploreTable>;
   /** 请求接口公共请求参数中的 query_configs 参数 */
   @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
   /** 来源 */
@@ -68,9 +74,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   /** 图表配置实例 */
   panel: PanelModel = null;
   /** table表格请求配置 */
-  tableRequestConfigs = {};
-  /** 表格分页页码 */
-  limit = 1;
+  tableRequestConfigs: EventExploreTableRequestConfigs = {};
+  /** 是否滚动到底 */
+  isTheEnd = false;
+  /** 页面滚动时消除 table 区域 target事件，滚动结束后设置定时恢复，定时器timer */
+  scrollTimer = null;
 
   @Watch('commonParams', { deep: true })
   commonParamsChange() {
@@ -91,16 +99,16 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   }
 
   /**
-   * @description 获取数据总数
+   * @description view 页面中的公共请求参数 queryConfig 中的 group_by 都需要默认传入 type, 因此这里统一处理
    */
-  async getEventTotal() {
+  get eventQueryParams() {
     const {
       start_time: commonStartTime,
       end_time: commonEndTime,
       query_configs: [commonQueryConfig],
     } = this.commonParams;
     if (!commonQueryConfig?.table || !commonStartTime || !commonEndTime) {
-      return;
+      return null;
     }
     const queryConfigs: Record<string, any> = [
       {
@@ -108,49 +116,92 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
         group_by: ['type'],
       },
     ];
-    const { total } = await getEventTotal({ ...this.commonParams, query_configs: queryConfigs }, this.source).catch(
-      () => ({
-        total: 0,
-      })
-    );
+    return { ...this.commonParams, query_configs: queryConfigs };
+  }
+
+  mounted() {
+    this.$el.addEventListener('scroll', this.handleScrollToEnd);
+  }
+  beforeDestroy() {
+    this.$el.removeEventListener('scroll', this.handleScrollToEnd);
+  }
+
+  /**
+   * @description: 监听滚动到底部
+   * @param {Event} evt 滚动事件对象
+   * @return {*}
+   */
+  handleScrollToEnd(evt: Event) {
+    if (this.eventExploreTableRef && !this.scrollTimer) {
+      // @ts-ignore
+      this.eventExploreTableRef.$el.style.pointEvents = 'none';
+    }
+    const target = evt.target as HTMLElement;
+    const { scrollHeight } = target;
+    const { scrollTop } = target;
+    const { clientHeight } = target;
+    const isEnd = !!scrollTop && scrollHeight - Math.ceil(scrollTop) === clientHeight;
+    this.isTheEnd = isEnd;
+
+    if (this.isTheEnd) {
+      this.updateTableRequestConfigs(ExploreTableLoadingEnum.SCROLL);
+    }
+    if (this.scrollTimer) {
+      clearTimeout(this.scrollTimer);
+      this.scrollTimer = null;
+      this.scrollTimer = setTimeout(() => {
+        // @ts-ignore
+        this.eventExploreTableRef.$el.style.pointEvents = 'all';
+        clearTimeout(this.scrollTimer);
+        this.scrollTimer = null;
+      }, 1000);
+    }
+  }
+
+  /**
+   * @description 获取数据总数
+   */
+  async getEventTotal() {
+    if (!this.eventQueryParams) {
+      return;
+    }
+    const { total } = await getEventTotal(this.eventQueryParams, this.source).catch(() => ({
+      total: 0,
+    }));
     this.total = total;
     this.panel.externalData.total = total;
+    this.tableRequestConfigs.total = total;
   }
 
   /** 更新 表格请求配置 */
-  updateTableRequestConfigs() {
-    const {
-      query_configs: [commonQueryConfig],
-    } = this.commonParams;
-
-    if (!commonQueryConfig.table) {
-      return {};
+  updateTableRequestConfigs(loadingType: ExploreTableLoadingEnum = ExploreTableLoadingEnum.REFRESH) {
+    if (!this.eventQueryParams) {
+      return;
     }
-    const queryConfigs: Record<string, any> = [
-      {
-        ...commonQueryConfig,
-        group_by: ['type'],
-      },
-    ];
     const api = getEventLogs(this.source);
     const [apiModule, apiFunc] = api.split('.');
     this.tableRequestConfigs = {
       apiModule,
       apiFunc,
+      total: this.total ?? 0,
+      loadingType,
       data: {
-        ...this.commonParams,
-        query_configs: queryConfigs,
-        limit: this.limit,
-        offset: 20,
+        ...this.eventQueryParams,
+        /** 表格单页条数 */
+        limit: 30,
       },
     };
   }
 
   /** 更新 图表配置实例 */
   updatePanelConfig() {
+    if (!this.eventQueryParams) {
+      return;
+    }
+
     const {
       query_configs: [commonQueryConfig],
-    } = this.commonParams;
+    } = this.eventQueryParams;
 
     if (!commonQueryConfig.table) {
       return;
@@ -159,7 +210,6 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     const queryConfigs: Record<string, any> = [
       {
         ...commonQueryConfig,
-        group_by: ['type'],
         metrics: [
           {
             field: '_index',
@@ -265,8 +315,18 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
           )}
         </div>
         <div class='event-explore-table-wrapper'>
-          <EventExploreTable requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs} />
+          <EventExploreTable
+            ref='eventExploreTableRef'
+            requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
+          />
         </div>
+        <BackTop
+          ref='backTopRef'
+          class='back-to-top'
+          scrollTop={100}
+        >
+          <i class='icon-monitor icon-BackToTop' />
+        </BackTop>
       </div>
     );
   }

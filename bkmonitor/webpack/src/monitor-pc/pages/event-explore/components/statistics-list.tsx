@@ -42,6 +42,7 @@ interface StatisticsListProps {
 interface StatisticsListEvents {
   onConditionChange(val): void;
   onShowMore(): void;
+  onSliderShowChange(sliderShow: boolean): void;
 }
 
 @Component
@@ -114,8 +115,16 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     return [{ condition: 'and', key: this.selectField, method: 'ne', value: [item.value] }];
   }
 
+  @Emit('sliderShowChange')
+  sliderShowChange() {
+    return this.sliderShow;
+  }
+
   @Watch('selectField')
-  watchSelectFieldChange() {
+  watchSelectFieldChange(val) {
+    if (!val) {
+      return;
+    }
     this.getStatisticsList();
   }
 
@@ -134,7 +143,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     this.sliderLoading = true;
     this.$emit('showMore');
     this.sliderDimensionList = await this.getFieldTopK({
-      limit: this.statisticsList[0].distinct_count,
+      limit: this.statisticsList[0]?.distinct_count ?? 0,
       fields: [this.selectField],
     }).catch(() => []);
     this.sliderLoading = false;
@@ -142,6 +151,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   handleSliderShowChange(show: boolean) {
     this.sliderShow = show;
+    this.sliderShowChange();
   }
 
   async handleDownload() {
