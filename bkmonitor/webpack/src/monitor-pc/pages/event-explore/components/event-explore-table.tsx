@@ -34,6 +34,7 @@ import {
   type EventExploreTableRequestConfigs,
   ExploreSourceTypeEnum,
   ExploreTableColumnTypeEnum,
+  ExploreTableLoadingEnum,
 } from '../typing';
 import { getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
@@ -59,12 +60,23 @@ const SourceIconMap = {
 
 @Component
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
+  /** 接口请求配置项 */
   @Prop({ type: Object, default: () => ({}) }) requestConfigs: EventExploreTableRequestConfigs;
 
+  /** table loading 配置*/
+  tableLoading = {
+    /** table 骨架屏 loading */
+    [ExploreTableLoadingEnum.REFRESH]: true,
+    /** 表格触底加载更多 loading  */
+    [ExploreTableLoadingEnum.SCROLL]: false,
+  };
+
+  /** table 数据 */
   tableData = [];
+  /** popover 实例 */
   popoverInstance = null;
+  /** popover 延迟打开定时器 */
   popoverDelayTimer = null;
-  loading = false;
 
   get tableColumns() {
     const column = this.getTableColumns();
@@ -77,6 +89,16 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       columns: column,
       columnForKeyMap,
     };
+  }
+
+  /**
+   * @description 判断当前数据是否需要触底加载更多
+   *
+   */
+  get tableHasScrollLoading() {
+    const total = this.requestConfigs?.total ?? 0;
+    const dataLen = this.tableData?.length ?? 0;
+    return !!total && dataLen < total;
   }
 
   @Watch('requestConfigs')
@@ -131,14 +153,42 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     ];
   }
 
+  /**
+   * @description: 获取 table 表格数据
+   *
+   */
   async getEventLogs() {
-    const { apiFunc, apiModule, data } = this.requestConfigs;
+    const { apiFunc, apiModule, data, loadingType = ExploreTableLoadingEnum.REFRESH } = this.requestConfigs;
+    let updateTableDataFn = list => {
+      this.tableData.push(...list);
+    };
+
     if (!apiFunc || !apiModule) {
       this.tableData = [];
       return;
     }
-    const res = await (this as any).$api[apiModule][apiFunc](data);
-    this.tableData = res.list;
+    if (loadingType === ExploreTableLoadingEnum.REFRESH) {
+      this.tableData = [];
+      updateTableDataFn = list => {
+        this.tableData = list;
+      };
+    } else if (!this.tableHasScrollLoading) {
+      return;
+    }
+
+    this.tableLoading[loadingType] = true;
+    const requestParam = {
+      ...data,
+      offset: this.tableData?.length || 0,
+    };
+
+    const res = await (this as any).$api[apiModule][apiFunc](requestParam, {
+      needMessage: true,
+    }).catch(() => ({ list: [] }));
+
+    this.tableLoading[loadingType] = false;
+
+    updateTableDataFn(res.list);
   }
 
   /**
@@ -169,9 +219,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             rel='noreferrer'
             target='_blank'
           >
-            ${item.alias || item.value || '--'}
+            ${item.alias || '--'}
           </a>`
-          : `<span class="content-item-value">${item.alias || item.value || '--'}</span>`;
+          : `<span class="content-item-value">${item.alias || '--'}</span>`;
       return `
       <div class="explore-content-popover-main-item">
         <span class="content-item-key">${item.label}</span>
@@ -196,7 +246,6 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    * @description: 展开
    * @param {MouseEvent} e
    * @param {string} content
-   * @return {*}
    */
   handlePopoverShow(e: MouseEvent, content: string, customOptions = {}) {
     if (this.popoverInstance || this.popoverDelayTimer) {
@@ -210,27 +259,35 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       boundary: 'window',
       interactive: true,
       theme: 'explore-content-popover',
+      onHidden: () => {
+        this.handlePopoverHide();
+      },
       ...customOptions,
     });
     const popoverCache = this.popoverInstance;
     this.popoverDelayTimer = setTimeout(() => {
       if (popoverCache === this.popoverInstance) {
-        this.popoverInstance?.show?.(100);
+        this.popoverInstance?.show?.(0);
+      } else {
+        popoverCache?.hide?.(0);
+        popoverCache?.destroy?.();
       }
-    }, 400);
+    }, 500);
   }
 
   /**
    * @description: 清除popover
-   * @param {*}
-   * @return {*}
    */
   handlePopoverHide() {
-    this.popoverDelayTimer && clearTimeout(this.popoverDelayTimer);
-    this.popoverDelayTimer = null;
+    this.handleClearTimer();
     this.popoverInstance?.hide?.(0);
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
+  }
+
+  handleClearTimer() {
+    this.popoverDelayTimer && clearTimeout(this.popoverDelayTimer);
+    this.popoverDelayTimer = null;
   }
 
   /**
@@ -322,7 +379,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           <span
             class='content-value explore-overflow-tip-col'
             onMouseenter={e => this.handleContentHover(e, detail)}
-            // onMouseleave={this.handlePopoverHide}
+            onMouseleave={this.handleClearTimer}
           >
             {alias}
           </span>
@@ -349,7 +406,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             rel='noreferrer'
             target='_blank'
             onMouseenter={e => this.handleTargetHover(e, `点击前往: ${item.scenario}`)}
-            onMouseleave={this.handlePopoverHide}
+            onMouseleave={this.handleClearTimer}
           >
             {item.alias}
           </a>
@@ -398,6 +455,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
               '--legend-color': getEventLegendColorByType(e?.row?.type?.value),
             };
           }}
+          style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'flex' : 'none' }}
           class='explore-table'
           header-cell-class-name={e => {
             const columnKey = e?.column?.columnKey;
@@ -415,13 +473,24 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             type='expand'
           />
           {this.tableColumns.columns.map(column => this.transformColumn(column))}
+          <div
+            style={{ display: this.tableHasScrollLoading ? 'block' : 'none' }}
+            class='export-table-loading'
+            slot='append'
+          >
+            <bk-spin
+              placement='right'
+              size='mini'
+            >
+              {this.$t('加载中')}
+            </bk-spin>
+          </div>
         </bk-table>
-        {this.loading ? (
-          <TableSkeleton
-            class='table-skeleton'
-            type={5}
-          />
-        ) : null}
+        <TableSkeleton
+          style={{ visibility: this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'visible' : 'hidden' }}
+          class='explore-table-skeleton'
+          type={6}
+        />
       </div>
     );
   }
