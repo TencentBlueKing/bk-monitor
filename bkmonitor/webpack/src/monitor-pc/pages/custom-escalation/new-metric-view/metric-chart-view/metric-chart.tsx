@@ -443,7 +443,6 @@ class NewMetricChart extends CommonSimpleChart {
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
-        console.log(series, 'series');
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
         /* 派出图表数据包含的维度*/
         this.series = Object.freeze(series) as any;
@@ -559,7 +558,7 @@ class NewMetricChart extends CommonSimpleChart {
           })
         );
         // this.handleDrillDownOption(this.metrics);
-        console.log('option', this.options, this.legendData.length);
+        // console.log('option', this.options, this.legendData.length);
         this.init = true;
         this.empty = false;
         setTimeout(() => {

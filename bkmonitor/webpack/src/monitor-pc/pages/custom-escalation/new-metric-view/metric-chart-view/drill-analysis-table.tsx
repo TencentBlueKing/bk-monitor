@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
@@ -42,6 +42,7 @@ interface IDrillAnalysisTableProps {
   tableList?: any[];
   loading?: boolean;
   filterConfig?: IFilterConfig;
+  tableLoading?: boolean;
 }
 
 interface IDrillAnalysisTableEvent {
@@ -54,7 +55,15 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   @Prop({ type: Array, default: () => [] }) dimensionsList: IDimensionItem[];
   @Prop({ type: Array, default: () => [] }) tableList: IDataItem[];
   @Prop({ default: false }) loading: boolean;
+  @Prop({ default: false }) tableLoading: boolean;
   @Prop({ type: Object, default: () => {} }) filterConfig: IFilterConfig;
+
+  typeEnums = {
+    '1h': this.$t('1小时前'),
+    '1d': this.$t('昨天'),
+    '7d': this.$t('上周'),
+    '30d': this.$t('1 月前'),
+  };
   /** 维度是否支持多选 */
   isMultiple = false;
   /** 选中的维度 */
@@ -104,6 +113,15 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     }
     return Array.from(options.values());
   }
+  /** 拉伸的时候图表重新渲染 */
+  @Watch('filterConfig', { deep: true })
+  handleFilterConfig(val) {
+    if (!val) return;
+    this.isMultiple = (val.group_by || []).length > 1;
+    this.activeList = val.group_by || [];
+  }
+
+  mounted() {}
 
   getDimensionId(dimensions: Record<string, string>) {
     let name = '';
@@ -189,8 +207,6 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
         checked: checkedList.includes(dimension.name),
       })
     );
-    this.dimensionsList = list;
-    console.log(this.activeList, 'this.activeList');
     this.$emit('updateDimensions', list, this.activeList);
   }
 
@@ -236,15 +252,6 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       </bk-dropdown-menu>
     );
   }
-  /** 绘制颜色块 */
-  renderColorBlock(row: IDataItem) {
-    return (
-      <div
-        style={{ backgroundColor: row.color }}
-        class='color-box'
-      ></div>
-    );
-  }
   /** 绘制维度列 */
   renderDimensionRow(row: IDataItem, item: IDimensionItem) {
     const showTxt = row?.dimensions[item.name] || '--';
@@ -266,17 +273,14 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       </span>
     );
   }
+  /** 绘制波动值 */
+  renderFluctuation(row: IDataItem, prop: string) {
+    return <span style={{ color: row[prop] >= 0 ? '#3AB669' : '#E91414' }}>{row[prop]}%</span>;
+  }
 
   /** 绘制表格内容 */
   renderTableColumn() {
-    const colorColumn: IColumnItem[] = [
-      {
-        label: '',
-        prop: 'color',
-        width: 30,
-        renderFn: row => this.renderColorBlock(row),
-      },
-    ];
+    const { offset, type } = this.filterConfig.compare;
     const baseColumn: IColumnItem[] = [
       {
         label: '操作',
@@ -285,9 +289,31 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       },
       { label: '占比', prop: 'percentage', sortable: true },
       { label: '当前值', prop: 'value', sortable: true },
-      { label: '波动', prop: 'fluctuation', sortable: true },
     ];
-    const columnList = [...colorColumn, ...this.dimensionsColumn, ...baseColumn];
+    let compareColumn: IColumnItem[] = [];
+    /** 根据时间对比动态计算要展示的表格列 */
+    if (type === 'time') {
+      offset.map(val => {
+        compareColumn = [
+          ...compareColumn,
+          ...[
+            {
+              label: this.typeEnums[val] || val,
+              prop: `${val}_value`,
+              sortable: true,
+            },
+            {
+              label: '波动',
+              prop: `${val}_fluctuation`,
+              sortable: true,
+              renderFn: row => this.renderFluctuation(row, `${val}_fluctuation`),
+            },
+          ],
+        ];
+      });
+    }
+
+    const columnList = [...this.dimensionsColumn, ...baseColumn, ...compareColumn];
     return columnList.map((item: IColumnItem, ind: number) => {
       return (
         <bk-table-column
@@ -337,18 +363,20 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   chooseDrill(item: IDimensionItem, row: IDataItem) {
     this.drillValue = item.name;
     this.isMultiple = false;
-    this.handleDimensionChange([item.name]);
     this.showDimensionKeys.map(key => {
       this.drillList.push({
         key,
         value: row.dimensions[key],
       });
     });
+    this.activeList = [item.name];
+    this.$emit('chooseDrill', this.drillList, [item.name]);
   }
 
   /**  清空下钻过滤条件  */
   clearDrillFilter(item: IDimensionItem) {
     this.drillList = this.drillList.filter(drill => item.key !== drill.key);
+    this.$emit('chooseDrill', this.drillList, this.activeList);
   }
   createOption(dimensions: Record<string, string>) {
     return (
@@ -379,7 +407,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       <div class='drill-analysis-table'>
         <div class='table-left'>
           <div class='table-left-header'>
-            {this.$t('聚合维度')}
+            {this.$t('多维分析')}
             <bk-checkbox
               class='header-checkbox'
               value={this.isMultiple}
@@ -413,7 +441,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
               ))}
             </div>
           )}
-          {this.loading ? (
+          {this.tableLoading ? (
             <TableSkeleton
               class='table-skeleton-block'
               type={1}

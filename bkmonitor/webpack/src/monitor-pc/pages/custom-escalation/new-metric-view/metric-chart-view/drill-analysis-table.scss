@@ -144,6 +144,8 @@
       }
       .dimensions-value {
         color: #3a84ff;
+        display: flex;
+        align-items: center;
         .tab-row-icon {
           margin-left: 8px;
           font-size: 13px;
