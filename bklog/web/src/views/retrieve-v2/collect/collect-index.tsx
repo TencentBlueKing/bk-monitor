@@ -798,7 +798,7 @@ export default class CollectIndex extends tsc<IProps> {
                 ></span>
                 <span
                   style={{ fontSize: '16px' }}
-                  class='bklog-icon bklog-yingshe-2'
+                  class='bklog-icon bklog-collapse'
                 ></span>
               </div>
             </div>

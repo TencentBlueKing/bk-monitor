@@ -55,9 +55,9 @@ export default defineComponent({
       return (
         <V2Collection
           width={collectWidth.value}
-          onUpdate:width={handleWidthChange}
           class='v3-bklog-collection'
           is-show={showContent.value}
+          onUpdate:width={handleWidthChange}
         ></V2Collection>
       );
     };
