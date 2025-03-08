@@ -27,27 +27,25 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils';
-
 import QsSelectorSelector from './qs-selector-options';
+import { QueryStringEditor } from './query-string-utils';
 import {
-  queryStringColorMap,
   EQueryStringTokenType,
   type IFilterField,
-  type IStrItem,
   onClickOutside,
-  parseQueryString,
-  QUERY_STRING_DATA_TYPES,
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
 } from './utils';
 
 import './qs-selector.scss';
-
-const defaultColor = '#313238';
 
 interface IProps {
   value?: string;
   fields: IFilterField[];
   qsSelectorOptionsWidth?: number;
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onChange?: (v: string) => void;
+  onQueryStringChange?: (v: string) => void;
 }
 
 @Component
@@ -55,33 +53,70 @@ export default class QsSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
   @Prop({ type: String, default: '' }) value: string;
   @Prop({ type: Number, default: 0 }) qsSelectorOptionsWidth: number;
+  @Prop({
+    type: Function,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  })
+  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 
   @Ref('select') selectRef: HTMLDivElement;
 
   localValue = '';
-  strList: IStrItem[] = [];
-
   /* 弹层实例 */
   popoverInstance = null;
+  /* 是否弹出选项框 */
   showSelector = false;
-
+  /* 当前需要弹出的选项类型 */
   curTokenType: EQueryStringTokenType = EQueryStringTokenType.key;
+  /* 当前输入的文字 */
+  search = '';
+  /* 主动刷新token列表 */
+  tokenRefreshKey = '';
+  /* 当前片段的key */
+  curTokenField = '';
+
+  queryStringEditor: QueryStringEditor = null;
 
   onClickOutsideFn = () => {};
 
   beforeDestroy() {
     this.onClickOutsideFn?.();
+    this.destroyPopoverInstance();
   }
 
   @Watch('value', { immediate: true })
   handleWatchValue() {
-    this.localValue =
-      'asdsf : (asdfas AND "asdf" ) AND XX >= (XXX AND ASDFF ) OR asd < [asdf and asdf] OR ASDF :* FASD';
-    this.setParseQueryString();
-    // if (this.localValue !== this.value) {
-    //   this.localValue = this.value;
-    //   this.setParseQueryString();
-    // }
+    if (this.localValue !== this.value) {
+      this.localValue = this.value;
+      this.handleInit();
+    }
+  }
+
+  mounted() {
+    this.handleInit();
+  }
+
+  handleInit() {
+    this.$nextTick(() => {
+      if (this.queryStringEditor) {
+        this.queryStringEditor.setQueryString(this.localValue);
+      } else {
+        const el = this.$el.querySelector('.retrieval-filter__qs-selector-component');
+        this.queryStringEditor = new QueryStringEditor({
+          target: el,
+          value: this.localValue,
+          popUpFn: this.handlePopUp,
+          onSearch: this.handleSearch,
+          popDownFn: this.destroyPopoverInstance,
+          onChange: this.handleChange,
+          onQuery: this.handleQuery,
+        });
+      }
+    });
   }
 
   async handleShowSelect(event: MouseEvent) {
@@ -98,7 +133,7 @@ export default class QsSelector extends tsc<IProps> {
       arrow: false,
       interactive: true,
       boundary: 'window',
-      distance: 20,
+      distance: 15,
       zIndex: 998,
       animation: 'slide-toggle',
       followCursor: false,
@@ -123,105 +158,57 @@ export default class QsSelector extends tsc<IProps> {
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
     this.showSelector = false;
+    this.onClickOutsideFn?.();
   }
 
-  handleInput(e) {
-    console.log(e);
-  }
-
-  handleCursorPosition() {
-    const selection = window.getSelection();
-    if (selection.rangeCount === 0) return;
-    const range = selection.getRangeAt(0);
-    const startNode = range.startContainer;
-    // 方法1：通过最近的父<span>确定位置
-    const targetSpan = startNode.parentElement.closest('span');
-    if (targetSpan) {
-      const info = targetSpan.id.split('__');
-      const target = {
-        key: info[0],
-        type: info[1],
-        value: targetSpan.textContent,
-      };
-      if (QUERY_STRING_DATA_TYPES.includes(target.type)) {
-        this.curTokenType = target.type as EQueryStringTokenType;
-      }
-      return;
-    }
-    // 若光标在<span>之间（如末尾空白区域），返回null或插入新节点
-    console.log('光标位于子元素间隙');
-  }
-
-  handleClick(e: MouseEvent) {
-    this.handleCursorPosition();
-    e.stopPropagation();
+  /**
+   * @description 弹出选项框
+   * @param type
+   * @param field
+   * @returns
+   */
+  handlePopUp(type, field) {
+    console.log('PopUp', type, field);
+    this.curTokenType = type;
+    this.curTokenField = field;
+    const customEvent = {
+      target: this.$el,
+    };
     if (this.popoverInstance) {
       this.popoverInstance?.show();
       return;
     }
-    const customEvent = {
-      ...e,
-      target: e.currentTarget,
-    };
-    this.handleShowSelect(customEvent);
+    this.handleShowSelect(customEvent as any);
   }
 
+  /**
+   * @description 下拉选项选择
+   * @param str
+   */
   handleSelectOption(str: string) {
-    if (this.localValue) {
-      //
-    } else {
-      this.localValue = str;
-    }
-    this.setParseQueryString();
-    const type = this.getLastTokenType();
-    if (type === EQueryStringTokenType.key) {
-      this.localValue = `${this.localValue} `;
-      this.curTokenType = EQueryStringTokenType.method;
-      this.setParseQueryString();
-    }
+    this.queryStringEditor.setToken(str, this.curTokenType);
   }
 
-  setParseQueryString() {
-    const tokens = parseQueryString(this.localValue);
-    this.strList = tokens.map(item => ({
-      ...item,
-      key: random(8),
-    }));
+  handleSearch(value) {
+    this.search = value;
   }
 
-  getLastTokenType() {
-    let type = '';
-    const len = this.strList.length;
-    for (let i = len - 1; i >= 0; i--) {
-      const target = this.strList[i];
-      if (QUERY_STRING_DATA_TYPES.includes(target.type)) {
-        type = target.type;
-        break;
-      }
-    }
-    return type;
+  handleChange(str: string) {
+    this.localValue = str;
+    this.$emit('queryStringChange', str);
+  }
+
+  handleQuery() {
+    this.$emit('change', this.localValue);
   }
 
   render() {
     return (
-      <div
-        class='retrieval-filter__qs-selector-component'
-        contenteditable={true}
-        onClick={this.handleClick}
-        onInput={this.handleCursorPosition}
-      >
-        {this.strList.map(item => (
-          <span
-            id={`${item.key}__${item.type}`}
-            key={item.key}
-            style={{
-              color: queryStringColorMap[item.type]?.color || defaultColor,
-            }}
-            class='str-item'
-          >
-            {item.value}
-          </span>
-        ))}
+      <div>
+        <div
+          class='retrieval-filter__qs-selector-component'
+          contenteditable={true}
+        />
         <div style='display: none;'>
           <div
             ref='select'
@@ -231,7 +218,10 @@ export default class QsSelector extends tsc<IProps> {
             class='retrieval-filter__qs-selector-component__popover'
           >
             <QsSelectorSelector
+              field={this.curTokenField}
               fields={this.fields}
+              getValueFn={this.getValueFn}
+              search={this.search}
               show={this.showSelector}
               type={this.curTokenType}
               onSelect={this.handleSelectOption}

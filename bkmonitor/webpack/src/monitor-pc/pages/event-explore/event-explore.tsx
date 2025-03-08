@@ -31,7 +31,7 @@ import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { mergeWhereList, type IGetValueFnParams } from '../../components/retrieval-filter/utils';
+import { EMode, mergeWhereList, type IGetValueFnParams } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import FavoriteContainer from '../data-retrieval/favorite-container/favorite-container';
@@ -107,6 +107,8 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   cacheTimeRange = [];
   /** 是否展示收藏 */
   isShowFavorite = true;
+
+  mode = EMode.ui;
 
   /**
    * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
@@ -472,6 +474,14 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     }
   }
 
+  handleQueryStringChange(val) {
+    this.formData.query_string = val;
+  }
+
+  handleModeChange(mode: EMode) {
+    this.mode = mode;
+  }
+
   render() {
     return (
       <div class='event-explore'>
@@ -509,9 +519,12 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
             <RetrievalFilter
               fields={this.fieldList}
               getValueFn={this.getRetrievalFilterValueData}
+              queryString={this.formData.query_string}
               selectFavorite={this.currentFavorite}
               where={this.formData.where}
               onFavorite={this.handleFavorite}
+              onModeChange={this.handleModeChange}
+              onQueryStringChange={this.handleQueryStringChange}
               onWhereChange={this.handleWhereChange}
             />
             <EventRetrievalLayout
