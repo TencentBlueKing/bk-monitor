@@ -881,6 +881,7 @@ export default {
   添加到本次检索: 'Add to this search',
   从本次检索中排除: 'Exclude from this search',
   新建检索: 'New Explore',
+  事件来源: 'Event source',
 
   注意: 'Note',
   目录: 'Directory',
