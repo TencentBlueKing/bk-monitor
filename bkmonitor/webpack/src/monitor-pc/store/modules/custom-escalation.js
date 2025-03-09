@@ -28,6 +28,9 @@ import {
   customTimeSeriesList,
   deleteCustomEventGroup,
   getCustomTsFields,
+  previewGroupingRule,
+  deleteGroupingRule,
+  createOrUpdateGroupingRule,
   updateGroupingRuleOrder,
   deleteCustomTimeSeries,
   getCustomEventGroup,
@@ -129,6 +132,24 @@ const actions = {
   },
   async getCustomTimeSeriesLatestDataByFields(_, params) {
     const data = await getCustomTimeSeriesLatestDataByFields(params).catch(() => false);
+    return data;
+  },
+
+  /* 根据分组规则获取预览信息 */
+  async getGroupRulePreviews(_, params) {
+    const data = await previewGroupingRule(params).catch(() => false);
+    return data;
+  },
+
+  /* 删除分组 */
+  async deleteGroupingRule(_, params) {
+    const data = await deleteGroupingRule(params).catch(() => false);
+    return data;
+  },
+
+  /* 创建/更新分组 */
+  async createOrUpdateGroupingRule(_, params) {
+    const data = await createOrUpdateGroupingRule(params).catch(() => false);
     return data;
   },
 };

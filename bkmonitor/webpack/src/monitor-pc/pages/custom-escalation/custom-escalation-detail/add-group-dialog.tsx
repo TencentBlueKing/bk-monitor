@@ -28,6 +28,12 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import './add-group-dialog.scss';
 
+enum EPreviewFlag {
+  Preview_Changed = 3,
+  Preview_Not_Started = 1,
+  Preview_Started = 2,
+}
+
 @Component
 export default class AddGroupDialog extends tsc<any, any> {
   @Prop({ default: false, type: Boolean }) show: boolean;
@@ -39,38 +45,99 @@ export default class AddGroupDialog extends tsc<any, any> {
   };
   matchedMetrics = [];
 
-  previewBtnFlag = false;
+  previewBtnFlag = EPreviewFlag.Preview_Not_Started;
 
   get disabled() {
-    return !this.groupInfo.name || (this.groupInfo.rules && !this.previewBtnFlag) || false;
+    return (
+      !this.groupInfo.name ||
+      (this.groupInfo.rules && this.previewBtnFlag === EPreviewFlag.Preview_Not_Started) ||
+      this.previewBtnFlag === EPreviewFlag.Preview_Changed ||
+      false
+    );
   }
 
-  handlePreview() {
-    this.previewBtnFlag = true;
+  async handlePreview() {
+    if (!this.groupInfo.rules) {
+      this.previewBtnFlag = EPreviewFlag.Preview_Not_Started;
+      this.matchedMetrics = [];
+      return;
+    }
+    // getGroupRulePreviews
+    const { auto_metrics: autoMetrics } = await this.$store.dispatch('custom-escalation/getGroupRulePreviews', {
+      time_series_group_id: this.$route.params.id,
+      // manual_list: ['cpu_load'],
+      auto_rules: [this.groupInfo.rules],
+    });
+    this.previewBtnFlag = EPreviewFlag.Preview_Started;
+    this.matchedMetrics = autoMetrics[0]?.metrics || [];
   }
 
   handleRulesChange() {
-    this.previewBtnFlag = false;
+    if (this.previewBtnFlag === EPreviewFlag.Preview_Not_Started) return;
+    this.previewBtnFlag = EPreviewFlag.Preview_Changed;
   }
 
   handleSubmit() {
     // TODO
+    this.clear();
+  }
+  clear() {
+    console.log('触发');
+    this.groupInfo = {
+      name: '',
+      rules: '',
+    };
+    this.previewBtnFlag = EPreviewFlag.Preview_Not_Started;
   }
   @Emit('show')
   handleCancel() {
     // TODO
+    this.clear();
     return false;
+  }
+
+  getPreviewCmp() {
+    const previewMap = {
+      [EPreviewFlag.Preview_Changed]: () => (
+        <div class='search-content'>
+          <span class='metric-change'>
+            {' '}
+            <i class='icon-monitor icon-hint' />
+            {this.$t('匹配规则已变更，请重新预览。')}
+          </span>
+        </div>
+      ),
+      [EPreviewFlag.Preview_Not_Started]: () => undefined,
+      [EPreviewFlag.Preview_Started]: () => {
+        return this.matchedMetrics.length ? (
+          <div class='search-content'>
+            {this.matchedMetrics.map(metric => (
+              <span
+                key={metric}
+                class='metric-item'
+              >
+                {metric}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div class='non-metric'>{`（${this.$t('暂无匹配到的指标')}）`}</div>
+        );
+      },
+    };
+    return previewMap[this.previewBtnFlag]();
   }
   render() {
     return (
       <bk-dialog
         width={480}
         extCls={'custom-metric-group-dialog'}
+        after-leave={this.clear}
         header-position='left'
         mask-close={true}
         title={this.isEdit ? this.$t('编辑分组') : this.$t('新建分组')}
         value={this.show}
-        on-cancel={() => this.$emit('show', false)}
+        on-cancel={this.handleCancel}
       >
         <div class='group-content'>
           <bk-alert
@@ -125,16 +192,7 @@ export default class AddGroupDialog extends tsc<any, any> {
           >
             {this.$t('预览')}
           </bk-button>
-          <div class='search-content'>
-            {this.matchedMetrics.map(metric => (
-              <span
-                key={metric}
-                class='metric-item'
-              >
-                {metric}
-              </span>
-            ))}
-          </div>
+          {this.getPreviewCmp()}
         </div>
         <div slot='footer'>
           <bk-button

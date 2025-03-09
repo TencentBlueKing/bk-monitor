@@ -193,6 +193,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
   metricGroupsMap = new Map();
   /* 指标列表 */
   metricList = [];
+  /* 维度列表 */
+  dimensions = [];
   /* 分组标签pop实例 */
   groupTagInstance = null;
   /* 用于判断分组下拉列表展开期间是否选择过 */
@@ -382,8 +384,8 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
 
       [this.proxyInfo] = data; // 云区域展示数据
       [, this.detailData = this.detailData] = data;
-      console.log('detailData = = = >>', this.detailData);
       [, , metricData] = data;
+      console.log('metricData = = = >>', metricData);
       if (this.type === 'customTimeSeries') {
         [, , , this.unitList] = data; // 单位list
         const allUnitList = [];
@@ -403,6 +405,7 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
         title = `${this.$tc('route-' + '自定义指标').replace('route-', '')} - #${this.detailData.time_series_group_id
           } ${this.detailData.name}`;
         this.metricList = metricData?.metrics || [];
+        this.dimensions = metricData?.dimensions || [];
         // this.metricList =
         //   this.detailData.metric_json?.[0]?.fields?.filter(item => item.monitor_type === 'metric') || [];
 
@@ -1089,9 +1092,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     this.metricTable[index].labels = labels;
     this.updateGroupList();
   }
-  saveGroupList() {
-    
-  }
+
   /* 更新分组管理 */
   updateGroupList() {
     this.groupList = this.groupList.map(item => ({
@@ -1148,6 +1149,7 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   class='detail-information detail-list'
                   customGroups={this.groupList}
                   dimensionNum={this.dimensionNum}
+                  dimensionTable={this.dimensions}
                   groupSelectList={this.groupSelectList}
                   groupsMap={this.groupsMap}
                   metricNum={this.metricNum}

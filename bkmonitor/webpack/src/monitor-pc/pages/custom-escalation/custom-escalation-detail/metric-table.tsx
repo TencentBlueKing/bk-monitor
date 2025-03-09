@@ -37,7 +37,7 @@ import IndicatorTableSlide from './metric-table-slide';
 
 import './metric-table.scss';
 
-const statusMap = new Map([
+export const statusMap = new Map([
   [false, { name: window.i18n.tc('启用'), color1: '#3FC06D', color2: 'rgba(63,192,109,0.16)' }],
   [true, { name: window.i18n.tc('停用'), color1: '#FF9C01', color2: 'rgba(255,156,1,0.16)' }],
 ]);
@@ -883,8 +883,6 @@ export default class IndicatorTable extends tsc<any, any> {
           />
         </div>
         <div class='strategy-config-wrap'>
-          <div class='config-wrap-setting' />
-          {/* {this.authLoading || this.table.loading || this.loading ? ( */}
           {this.loading ? (
             <TableSkeleton type={2} />
           ) : (

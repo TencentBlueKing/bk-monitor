@@ -140,7 +140,7 @@ export default class CustomGroupingList extends tsc<any, any> {
                 <i class='icon-monitor icon-mc-full-folder' />
                 {group.name}
               </div>
-              <div class='group-count'>{group.manualList.length || 0}</div>
+              <div class='group-count'>{group.manualList.filter(item => item).length || 0}</div>
               <bk-popover
                 ref='menuPopover'
                 class='group-popover'
