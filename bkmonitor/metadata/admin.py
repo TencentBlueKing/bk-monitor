@@ -68,9 +68,9 @@ class BkDataStorageAdmin(admin.ModelAdmin):
     search_fields = ("table_id", "bk_data_result_table_id")
 
 
-class CustomReportSubscriptionConfigAdmin(admin.ModelAdmin):
-    search_fields = ("bk_biz_id", "subscription_id")
-    list_display = ("bk_biz_id", "subscription_id", "config")
+class CustomReportSubscriptionAdmin(admin.ModelAdmin):
+    search_fields = ("bk_biz_id", "subscription_id", "bk_data_id")
+    list_display = ("bk_biz_id", "subscription_id", "bk_data_id", "config")
 
 
 class PingServerSubscriptionConfigAdmin(admin.ModelAdmin):
@@ -267,7 +267,7 @@ admin.site.register(models.ESStorage, ESStorageAdmin)
 admin.site.register(models.EventGroup, EventGroupAdmin)
 admin.site.register(models.TimeSeriesGroup, TimeSeriesGroupAdmin)
 admin.site.register(models.TimeSeriesMetric, TimeSeriesMetricAdmin)
-admin.site.register(models.CustomReportSubscriptionConfig, CustomReportSubscriptionConfigAdmin)
+admin.site.register(models.CustomReportSubscription, CustomReportSubscriptionAdmin)
 admin.site.register(models.PingServerSubscriptionConfig, PingServerSubscriptionConfigAdmin)
 admin.site.register(models.ClusterInfo, ClusterInfoAdmin)
 admin.site.register(models.SpaceRelatedStorageInfo, SpaceRelatedStorageInfoAdmin)
