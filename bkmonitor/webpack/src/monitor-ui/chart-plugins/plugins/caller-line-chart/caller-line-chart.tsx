@@ -44,13 +44,15 @@ import { type ValueFormatter, getValueFormat } from '../../../monitor-echarts/va
 import ListLegend from '../../components/chart-legend/common-legend';
 import ChartHeader from '../../components/chart-title/chart-title';
 import { COLOR_LIST, COLOR_LIST_BAR, MONITOR_LINE_OPTIONS } from '../../constants';
-import { downFile, handleRelateAlert, reviewInterval } from '../../utils';
+import { downFile, fitPosition, handleRelateAlert, reviewInterval } from '../../utils';
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
 import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
+import CustomEventMenu from './custom-event-menu/custom-event-menu';
+import { createCustomEventSeries, getCustomEventTags, type ICustomEventTagsItem } from './use-custom';
 
 import type {
   DataQuery,
@@ -66,6 +68,7 @@ import type {
 } from '../../../chart-plugins/typings';
 import type { IChartTitleMenuEvents } from '../../components/chart-title/chart-title-menu';
 import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee/type';
+import type { IPosition } from 'CustomEventMenu';
 
 import './caller-line-chart.scss';
 
@@ -138,6 +141,14 @@ class CallerLineChart extends CommonSimpleChart {
 
   // 图例排序
   legendSorts: { name: string; timeShift: string }[] = [];
+  // 自定义事件menu位置信息
+  customMenuPosition: IPosition = {
+    left: 0,
+    top: 0,
+  };
+  clickEventItem: ICustomEventTagsItem['items'][number] = null;
+  // 自定义事件menu数据
+  customMenuData: object = {};
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -255,6 +266,7 @@ class CallerLineChart extends CommonSimpleChart {
         ...callOptions,
         ...selectPanelParams,
       });
+      let newParams: Record<string, any> = {};
       for (const timeShift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const dataFormat = data => {
@@ -265,7 +277,7 @@ class CallerLineChart extends CommonSimpleChart {
           return paramsResult;
         };
         const list = this.panel.targets.map(item => {
-          const newParams = structuredClone({
+          newParams = structuredClone({
             ...variablesService.transformVariables(
               dataFormat({ ...item.data }),
               {
@@ -347,7 +359,13 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      await Promise.all(promiseList).catch(() => false);
+      let customEventList = [];
+      await Promise.all([
+        ...promiseList,
+        getCustomEventTags({ ...newParams }).then(list => {
+          customEventList = list;
+        }),
+      ]).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
@@ -427,6 +445,13 @@ class CallerLineChart extends CommonSimpleChart {
             animation: hasShowSymbol,
             color: isBar ? COLOR_LIST_BAR : COLOR_LIST,
             animationThreshold: 1,
+            grid: {
+              top: 30,
+              left: 20,
+              right: 20,
+              bottom: 0,
+              containLabel: true,
+            },
             yAxis: {
               axisLabel: {
                 formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
@@ -452,7 +477,7 @@ class CallerLineChart extends CommonSimpleChart {
               ...xInterval,
               splitNumber: 4,
             },
-            series: seriesList,
+            series: [...seriesList, createCustomEventSeries(customEventList)],
             tooltip: {
               extraCssText: 'max-width: 50%',
             },
@@ -1019,10 +1044,43 @@ class CallerLineChart extends CommonSimpleChart {
       }
     }
   }
-
+  handleClick(event) {
+    if (event.seriesType === 'custom') {
+      this.$el.focus?.();
+      const {
+        info,
+        event: {
+          event: { clientX, clientY },
+        },
+      } = event;
+      const position = fitPosition(
+        {
+          left: clientX + 12,
+          top: clientY + 12,
+        },
+        400,
+        300
+      );
+      this.customMenuPosition = {
+        left: position.left,
+        top: position.top,
+      };
+      this.clickEventItem = info;
+    }
+  }
+  handleChartBlur() {
+    this.customMenuPosition = {
+      left: 0,
+      top: 0,
+    };
+  }
   render() {
     return (
-      <div class='apm-caller-line-chart'>
+      <div
+        class='apm-caller-line-chart'
+        tabindex={22}
+        onBlur={this.handleChartBlur}
+      >
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
@@ -1082,6 +1140,7 @@ class CallerLineChart extends CommonSimpleChart {
                   needZrClick={this.panel?.options?.need_zr_click_event}
                   options={this.options}
                   showRestore={this.showRestore}
+                  onClick={this.handleClick}
                   onDataZoom={this.dataZoom}
                   onRestore={this.handleRestore}
                   onZrClick={this.handleZrClick}
@@ -1097,6 +1156,12 @@ class CallerLineChart extends CommonSimpleChart {
           </div>
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
+        )}
+        {this.customMenuPosition?.left > 0 && (
+          <CustomEventMenu
+            eventItem={this.clickEventItem}
+            position={this.customMenuPosition}
+          />
         )}
       </div>
     );

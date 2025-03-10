@@ -1,0 +1,12 @@
+{
+  "id": "event",
+  "name": "事件",
+  "show_panel_count": false,
+  "mode": "custom",
+  "type": "slot",
+  "panel_count": 3,
+  "params": {
+    "apm_app_name": "${app_name}",
+    "app_service_name": "${service_name}"
+  }
+}

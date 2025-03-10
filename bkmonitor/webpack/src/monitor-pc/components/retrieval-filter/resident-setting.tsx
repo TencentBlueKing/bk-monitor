@@ -1,0 +1,196 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import ResidentSettingTransfer from './resident-setting-transfer';
+import SettingKvSelector from './setting-kv-selector';
+import {
+  defaultWhereItem,
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+  type IFilterField,
+  type IWhereItem,
+} from './utils';
+
+import './resident-setting.scss';
+
+export interface IResidentSetting {
+  field: IFilterField;
+  value: IWhereItem;
+}
+interface IProps {
+  fields: IFilterField[];
+  value?: IResidentSetting[];
+  getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onChange?: (v: IResidentSetting[]) => void;
+}
+
+@Component
+export default class ResidentSetting extends tsc<IProps> {
+  @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
+  @Prop({
+    type: Function,
+    default: () =>
+      Promise.resolve({
+        count: 0,
+        list: [],
+      }),
+  })
+  getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  @Prop({ default: () => [], type: Array }) value: IResidentSetting[];
+  @Ref('selector') selectorRef: HTMLDivElement;
+
+  popoverInstance = null;
+
+  localValue: IResidentSetting[] = [];
+
+  @Watch('value', { immediate: true })
+  handleWatchValue() {
+    const str = JSON.stringify(this.value);
+    if (str !== JSON.stringify(this.localValue)) {
+      this.localValue = JSON.parse(str);
+    }
+  }
+
+  async handleShowSelect(event: MouseEvent) {
+    if (this.popoverInstance) {
+      this.destroyPopoverInstance();
+      return;
+    }
+    this.popoverInstance = this.$bkPopover(event.target, {
+      content: this.selectorRef,
+      trigger: 'click',
+      placement: 'bottom-start',
+      theme: 'light common-monitor',
+      arrow: false,
+      interactive: true,
+      boundary: 'window',
+      distance: 15,
+      zIndex: 998,
+      animation: 'slide-toggle',
+      followCursor: false,
+      onHidden: () => {
+        this.destroyPopoverInstance();
+      },
+    });
+    await this.$nextTick();
+    this.popoverInstance?.show();
+  }
+
+  destroyPopoverInstance() {
+    this.popoverInstance?.hide?.();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
+  }
+
+  handleShowSettingTransfer(event: MouseEvent) {
+    event.stopPropagation();
+    this.handleShowSelect({
+      target: this.$el,
+    } as any);
+  }
+
+  /**
+   * @description 点击弹层取消
+   */
+  handleCancel() {
+    this.destroyPopoverInstance();
+  }
+
+  /**
+   * @description 点击弹层确认
+   */
+  handleConfirm(fields: IFilterField[]) {
+    const valueMap: Map<string, string[]> = new Map();
+    for (const item of this.localValue) {
+      valueMap.set(item.field.name, item.value.value);
+    }
+    this.localValue = fields.map(item => ({
+      field: item,
+      value: defaultWhereItem({
+        key: item.name,
+        value: valueMap.get(item.name) || [],
+      }),
+    }));
+    this.handleChange();
+    this.destroyPopoverInstance();
+  }
+
+  /**
+   * @description 选择值改变
+   * @param value
+   * @param index
+   */
+  handleValueChange(value: IWhereItem, index: number) {
+    this.localValue[index].value = value;
+    this.handleChange();
+  }
+
+  handleChange() {
+    this.$emit('change', this.localValue);
+  }
+
+  render() {
+    return (
+      <div class='retrieval-filter__resident-setting-component'>
+        <span
+          class='left-btn'
+          onClick={this.handleShowSettingTransfer}
+        >
+          <span class='icon-monitor icon-setting' />
+          <span class='setting-text'>{this.$t('设置筛选')}</span>
+        </span>
+        <div class='right-content'>
+          {this.localValue.length ? (
+            this.localValue.map((item, index) => (
+              <SettingKvSelector
+                key={index}
+                class='mb-4 mr-4'
+                field={item.field}
+                getValueFn={this.getValueFn}
+                value={item.value}
+                onChange={v => this.handleValueChange(v, index)}
+              />
+            ))
+          ) : (
+            <span class='placeholder-text'>{`（${this.$t('暂未设置常驻筛选，请点击左侧设置按钮')}）`}</span>
+          )}
+        </div>
+        <div style='display: none;'>
+          <div ref='selector'>
+            <ResidentSettingTransfer
+              fields={this.fields}
+              value={this.localValue.map(item => item.field.name)}
+              onCancel={this.handleCancel}
+              onConfirm={this.handleConfirm}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+}

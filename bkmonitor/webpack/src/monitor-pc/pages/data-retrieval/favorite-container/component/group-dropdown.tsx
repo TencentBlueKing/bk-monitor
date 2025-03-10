@@ -269,7 +269,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
   }
 
   handleGroupKeyDown(value: string, type = 'add') {
-    if (!!value) {
+    if (value) {
       if (type === 'add') this.handleChangeGroupInputStatus('add');
       if (type === 'reset') this.handleResetGroupName();
     }
@@ -335,10 +335,9 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
           ref='operate'
           class='dropdown-list'
         >
-          <li onClick={() => this.handleClickLi('share')}>{this.$t('复制链接')}</li>
           <li onClick={() => this.handleClickLi('business-copy')}>{this.$t('共享')}</li>
           <li onClick={() => this.handleClickLi('edit-favorite')}>{this.$t('编辑')}</li>
-          <li onClick={() => this.handleClickLi('create-copy')}>{this.$t('创建副本')}</li>
+          <li onClick={() => this.handleClickLi('create-copy')}>{this.$t('克隆')}</li>
           <li
             class='move-group'
             onMouseenter={this.handleClickMoveGroup}
@@ -349,6 +348,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
           {this.isShowMoveGroup ? (
             <li onClick={() => this.handleClickLi('remove-group')}>{this.$t('从该组移除')}</li>
           ) : undefined}
+          <li onClick={() => this.handleClickLi('new-tab')}>{this.$t('新开标签页')}</li>
           <li
             class='eye-catching'
             onClick={() => this.handleClickLi('delete-favorite')}
@@ -366,6 +366,7 @@ export default class CollectGroup extends tsc<FavoriteIndexType.IDropProps> {
         >
           {this.showGroupList.map(item => (
             <li
+              key={item.group_name}
               class={{ 'new-group-container': this.newGroupName === item.group_name }}
               onClick={() => this.handleClickLi('move-favorite', item.group_id)}
             >

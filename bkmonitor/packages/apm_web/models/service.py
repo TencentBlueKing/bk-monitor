@@ -8,10 +8,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Any, Dict, List, Optional, Set
+
 from django.db import models
 
 from apm_web.constants import ServiceRelationLogTypeChoices
 from bkmonitor.utils.db import JsonField
+from monitor_web.data_explorer.event.constants import EventCategory
 
 
 class ServiceBase(models.Model):
@@ -32,6 +35,60 @@ class ServiceBase(models.Model):
 
 class CMDBServiceRelation(ServiceBase):
     template_id = models.BigIntegerField("服务模板ID")
+
+
+class EventServiceRelation(ServiceBase):
+    table = models.CharField(verbose_name="关联事件结果表", max_length=255, db_index=True)
+    relations = models.JSONField(verbose_name="匹配规则", default=list)
+    options = models.JSONField(verbose_name="事件选项", default=dict)
+
+    @classmethod
+    def fetch_relations(cls, bk_biz_id: int, app_name: str, service_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """获取事件关联配置
+        [
+            {
+                "table": "k8s_event",
+                "relations": [
+                    # 集群 / 命名空间 / Workload 类型 / Workload 名称
+                    # case 1：勾选整个集群
+                    {"bcs_cluster_id": "BCS-K8S-00000"},
+                    # case 2：勾选整个 Namespace
+                    {"bcs_cluster_id": "BCS-K8S-00000", "namespace": "blueking"},
+                    # case 3：勾选整个 WorkloadType
+                    {"bcs_cluster_id": "BCS-K8S-00000", "namespace": "blueking", "kind": "Deployment"},
+                    # case 4：勾选 Workload
+                    # Deployment 包括 Pod、HorizontalPodAutoscaler、ReplicaSet 事件
+                    # DaemonSet / StatefulSet 包括 Pod
+                    {
+                        "bcs_cluster_id": "BCS-K8S-00000",
+                        "namespace": "blueking",
+                        "kind": "Deployment",
+                        "name": "bk-monitor-api",
+                    },
+                ],
+            },
+            {
+                "table": "system_event",
+                "relations": [
+                    {"bk_biz_id": self.bk_biz_id},
+                ],
+            },
+        ]
+        """
+        filter_kwargs: Dict[str, Any] = {"bk_biz_id": bk_biz_id, "app_name": app_name}
+        if service_name:
+            filter_kwargs["service_name"] = service_name
+
+        table_relations_map: Dict[str, List[Dict[str, Any]]] = {EventCategory.SYSTEM_EVENT.value: []}
+        for relation in EventServiceRelation.objects.filter(**filter_kwargs).values("table", "relations"):
+            table_relations_map.setdefault(relation["table"], []).extend(relation["relations"])
+
+        # 去重
+        for table in table_relations_map:
+            duplicate_relation_tuples: Set[frozenset] = {frozenset(r.items()) for r in table_relations_map[table]}
+            table_relations_map[table] = [dict(relation_tuple) for relation_tuple in duplicate_relation_tuples]
+
+        return [{"table": table, "relations": relations} for table, relations in table_relations_map.items()]
 
 
 class LogServiceRelation(ServiceBase):
