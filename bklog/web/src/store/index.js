@@ -58,7 +58,6 @@ import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
-// import axios from 'axios';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 

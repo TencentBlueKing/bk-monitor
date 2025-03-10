@@ -69,7 +69,7 @@
 </template>
 
 <script>
-  import axios from 'axios';
+  import { axiosInstance } from '@/api';
   import { mapState } from 'vuex';
 
   export default {
@@ -142,7 +142,7 @@
             'X-Bk-Space-Uid': this.spaceUid,
           };
         }
-        const { data } = await axios(params).catch(_ => {
+        const { data } = await axiosInstance(params).catch(_ => {
           console.warn(_);
           return { data: { data: [] } };
         });
@@ -162,7 +162,7 @@
             'X-Bk-Space-Uid': this.spaceUid,
           };
         }
-        const { data } = await axios(params).catch(_ => {
+        const { data } = await axiosInstance(params).catch(_ => {
           console.warn(_);
           return { data: '' };
         });
