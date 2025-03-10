@@ -88,10 +88,6 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
     if (!val) this.favCheckedValue = null;
   }
 
-  created() {
-    this.isHaveFavoriteInit = !!this.$route.query?.favorite_id;
-  }
-
   /**
    * @description: 获取收藏列表
    */
