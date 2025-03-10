@@ -1,3 +1,7 @@
+from django.conf import settings
+from django.shortcuts import get_object_or_404
+from rest_framework.response import Response
+
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import insert_permission_field
@@ -19,9 +23,6 @@ from apps.log_databus.serializers import (
 from apps.log_search.permission import Permission
 from apps.utils.drf import detail_route, list_route
 from apps.utils.function import ignored
-from django.conf import settings
-from django.shortcuts import get_object_or_404
-from rest_framework.response import Response
 
 
 class CollectorPluginViewSet(ModelViewSet):
@@ -91,6 +92,7 @@ class CollectorPluginViewSet(ModelViewSet):
         @apiParam {Object} [etl_params] 清洗参数
         @apiParam {Array} [fields] 清洗字段
         @apiParam {Array} [params] 插件参数
+        @apiParam {Bool} is_create_result_table 是否创建存储
         @apiParam {Bool} is_allow_alone_storage 是否允许独立存储配置
         @apiParam {Int} [storage_cluster_id] 存储集群ID
         @apiParam {Int} [retention] 保留时间

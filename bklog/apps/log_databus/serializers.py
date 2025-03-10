@@ -1138,6 +1138,7 @@ class MultiAttrCheckSerializer:
 
 class CollectorPluginCreateSerializer(MultiAttrCheckSerializer, serializers.ModelSerializer):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), allow_null=True)
+    is_create_storage = serializers.BooleanField(label=(_("是否创建存储")), default=False)
     is_create_public_data_id = serializers.BooleanField(label=(_("创建DATAID")), default=False)
     collector_plugin_name_en = serializers.RegexField(
         label=_("采集插件英文名称"), min_length=5, max_length=50, regex=COLLECTOR_CONFIG_NAME_EN_REGEX

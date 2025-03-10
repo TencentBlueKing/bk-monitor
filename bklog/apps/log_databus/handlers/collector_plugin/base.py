@@ -26,9 +26,7 @@ from django.utils.module_loading import import_string
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.log_databus.constants import (
-    ETLProcessorChoices,
-)
+from apps.log_databus.constants import ETLProcessorChoices
 from apps.log_databus.exceptions import (
     CollectorPluginNameDuplicateException,
     CollectorPluginNotExistException,
@@ -159,7 +157,6 @@ class CollectorPluginHandler:
 
         # 创建插件
         if not self.collector_plugin:
-
             # 创建后不允许更新的参数
             bk_biz_id = params["bk_biz_id"]
             collector_plugin_name_en = params["collector_plugin_name_en"]
@@ -209,7 +206,6 @@ class CollectorPluginHandler:
 
         # 更新插件
         else:
-
             # 更新字段
             for key, val in model_fields.items():
                 setattr(self.collector_plugin, key, val)
@@ -228,7 +224,7 @@ class CollectorPluginHandler:
             self._update_or_create_etl_storage(params, is_create)
 
         # 独立存储
-        if not is_allow_alone_storage:
+        if not is_allow_alone_storage and params.get("is_create_storage"):
             self._create_metadata_result_table()
 
         self.collector_plugin.save()
