@@ -400,7 +400,7 @@ class DataExplorerViewSet(ResourceViewSet):
         ResourceRoute("POST", event_resources.EventTimeSeriesResource, endpoint="event/time_series"),
     ]
 
-    @action(methods=["POST"], detail=False, url_path="event/download_topk")
+    @action(methods=["GET"], detail=False, url_path="event/download_topk")
     def download_topk(self, request, *args, **kwargs):
         serializer = EventDownloadTopKRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
