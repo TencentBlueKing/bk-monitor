@@ -35,6 +35,7 @@ import {
   EMode,
   getCacheUIData,
   getResidentSettingData,
+  type IFavoriteListItem,
   type IFilterField,
   type IFilterItem,
   type IGetValueFnParams,
@@ -55,6 +56,8 @@ interface IProps {
   where?: IWhereItem[];
   queryString?: string;
   selectFavorite?: IFavList.favList;
+  favoriteList?: IFavoriteListItem[];
+  filterMode?: EMode;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onFavorite: (isEdit: boolean) => void;
   onWhereChange?: (v: IWhereItem[]) => void;
@@ -79,6 +82,8 @@ export default class RetrievalFilter extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) where: IWhereItem[];
   /* 语句模式数据 */
   @Prop({ type: String, default: '' }) queryString: string;
+  @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
+  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
 
   /* 展示常驻设置 */
   showResidentSetting = false;
@@ -134,6 +139,12 @@ export default class RetrievalFilter extends tsc<IProps> {
   handleWatchQsString() {
     if (this.qsValue !== this.queryString) {
       this.qsValue = this.queryString;
+    }
+  }
+  @Watch('filterMode', { immediate: true })
+  handleWatchFilterMode() {
+    if (this.mode !== this.filterMode) {
+      this.mode = this.filterMode;
     }
   }
 
@@ -307,6 +318,7 @@ export default class RetrievalFilter extends tsc<IProps> {
   }
 
   handleFavoriteClick() {
+    this.handleClickSearchBtn();
     if (!this.selectFavorite) {
       this.handleFavorite(false);
     }
@@ -363,6 +375,7 @@ export default class RetrievalFilter extends tsc<IProps> {
               />
             ) : (
               <QsSelector
+                favoriteList={this.favoriteList}
                 fields={this.fields}
                 getValueFn={this.getValueFn}
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
