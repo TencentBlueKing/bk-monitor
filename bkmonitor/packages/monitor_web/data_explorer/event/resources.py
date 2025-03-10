@@ -312,20 +312,21 @@ class EventTopKResource(Resource):
         for field in single_query_fields:
             match_configs = self.get_match_query_configs(field, query_configs, dimension_metadata_map)
             # 检查是否非空
-            if match_configs:
-                thread_list.append(
-                    InheritParentThread(
-                        target=self.calculate_topk,
-                        args=(
-                            lock,
-                            queryset,
-                            match_configs[0],
-                            field,
-                            limit,
-                            field_topk_map,
-                        ),
-                    )
+            if not match_configs:
+                continue
+            thread_list.append(
+                InheritParentThread(
+                    target=self.calculate_topk,
+                    args=(
+                        lock,
+                        queryset,
+                        match_configs[0],
+                        field,
+                        limit,
+                        field_topk_map,
+                    ),
                 )
+            )
         run_threads(thread_list)
 
         for field, field_values in field_topk_map.items():
