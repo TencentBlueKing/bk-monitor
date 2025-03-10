@@ -103,7 +103,7 @@
               </div>
             </template>
           </bk-table-column>
-          <!-- <bk-table-column
+          <bk-table-column
             :label="$t('日用量/总用量')"
             :render-header="$renderHeader"
             min-width="80"
@@ -113,7 +113,7 @@
                 {{ `${formatBytes(props.row.daily_usage)} / ${formatBytes(props.row.total_usage)}` }}
               </span>
             </template>
-          </bk-table-column> -->
+          </bk-table-column>
           <bk-table-column
             :label="$t('监控对象')"
             :render-header="$renderHeader"
@@ -378,8 +378,8 @@
         pagination: {
           current: 1,
           count: 100,
-          limit: 5,
-          limitList: [5, 20, 50, 100],
+          limit: 10,
+          limitList: [10, 20, 50, 100],
         },
         emptyType: 'empty',
       };
@@ -401,6 +401,15 @@
     mounted() {
       !this.authGlobalInfo && this.initLabelSelectList();
       !this.authGlobalInfo && this.search();
+    },
+    watch:{
+      collectList:{
+        handler(val) {
+          if (val) {
+            this.requestStorageUsage()
+          }
+        },
+      }
     },
     methods: {
       search() {
@@ -547,6 +556,40 @@
                 },
               });
           });
+      },
+      // 请求用量数据
+      requestStorageUsage() {
+        const index_set_ids = this.collectList.filter(item => {
+          return item.index_set_id && item.is_active && !('total_usage' in item)
+        }).map(item => item.index_set_id);
+        if(!index_set_ids.length){
+          return
+        }
+        this.isTableLoading = true; 
+        this.$http
+          .request('collect/getStorageUsage', {
+          data: {
+            bk_biz_id: this.bkBizId,
+            index_set_ids,
+          },
+        })
+        .then(resp => {
+          const { data } = resp;
+          this.collectList.forEach(item => {
+            ['daily_usage', 'total_usage'].forEach(key => {
+              const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
+              if (matchedItem?.[key] !== undefined) {
+                this.$set(item, key, matchedItem[key]);
+              }
+            });
+          })
+        })
+        .catch((error) => {
+          console.log(error);
+        })
+        .finally(() => {
+          this.isTableLoading = false;
+         });
       },
       handleSearchChange(val) {
         if (val === '' && !this.isRequest) {
