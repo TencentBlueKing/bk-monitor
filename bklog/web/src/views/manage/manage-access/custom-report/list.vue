@@ -104,6 +104,17 @@
             </template>
           </bk-table-column>
           <bk-table-column
+            :label="$t('日用量/总用量')"
+            :render-header="$renderHeader"
+            min-width="80"
+          >
+            <template #default="props">
+              <span :class="{ 'text-disabled': props.row.status === 'stop' }">
+                {{ `${formatBytes(props.row.daily_usage)} / ${formatBytes(props.row.total_usage)}` }}
+              </span>
+            </template>
+          </bk-table-column>
+          <bk-table-column
             :label="$t('监控对象')"
             :render-header="$renderHeader"
             prop="category_name"
@@ -338,7 +349,7 @@
 </template>
 
 <script>
-  import { projectManages } from '@/common/util';
+  import { projectManages, formatFileSize } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import IndexSetLabelSelect from '@/components/index-set-label-select';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
@@ -390,6 +401,15 @@
     mounted() {
       !this.authGlobalInfo && this.initLabelSelectList();
       !this.authGlobalInfo && this.search();
+    },
+    watch:{
+      collectList:{
+        handler(val) {
+          if (val) {
+            this.requestStorageUsage()
+          }
+        },
+      }
     },
     methods: {
       search() {
@@ -537,6 +557,40 @@
               });
           });
       },
+      // 请求用量数据
+      requestStorageUsage() {
+        const index_set_ids = this.collectList.filter(item => {
+          return item.index_set_id && item.is_active && !('total_usage' in item)
+        }).map(item => item.index_set_id);
+        if(!index_set_ids.length){
+          return
+        }
+        this.isTableLoading = true; 
+        this.$http
+          .request('collect/getStorageUsage', {
+          data: {
+            bk_biz_id: this.bkBizId,
+            index_set_ids,
+          },
+        })
+        .then(resp => {
+          const { data } = resp;
+          this.collectList.forEach(item => {
+            ['daily_usage', 'total_usage'].forEach(key => {
+              const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
+              if (matchedItem?.[key] !== undefined) {
+                this.$set(item, key, matchedItem[key]);
+              }
+            });
+          })
+        })
+        .catch((error) => {
+          console.log(error);
+        })
+        .finally(() => {
+          this.isTableLoading = false;
+         });
+      },
       handleSearchChange(val) {
         if (val === '' && !this.isRequest) {
           this.requestData();
@@ -574,6 +628,15 @@
         } catch (error) {
           this.selectLabelList = [];
         }
+      },
+      formatBytes(size) {
+        if (size === undefined) {
+            return '--'; 
+        }
+        if (size === 0) {
+            return '0';
+        }
+        return formatFileSize(size, true);
       },
     },
   };

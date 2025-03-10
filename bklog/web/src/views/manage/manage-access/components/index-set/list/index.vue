@@ -96,11 +96,22 @@
       <bk-table-column
         :label="$t('采集项')"
         :render-header="$renderHeader"
-        min-width="200"
+        min-width="180"
         prop="index_set_id"
       >
         <template #default="props">
           <span>{{ props.row.indexes.map(item => item.result_table_id).join('; ') }}</span>
+        </template>
+      </bk-table-column>
+          <bk-table-column
+        :label="$t('日用量/总用量')"
+        :render-header="$renderHeader"
+        min-width="80"
+      >
+        <template #default="props">
+          <span :class="{ 'text-disabled': props.row.status === 'stop' }">
+            {{ `${formatBytes(props.row.daily_usage)} / ${formatBytes(props.row.total_usage)}` }}
+          </span>
         </template>
       </bk-table-column>
       <bk-table-column
@@ -212,7 +223,7 @@
 </template>
 
 <script>
-  import { projectManages } from '@/common/util';
+  import { projectManages, formatFileSize } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import IndexSetLabelSelect from '@/components/index-set-label-select';
   import { mapGetters } from 'vuex';
@@ -326,12 +337,13 @@
               is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
             }));
             this.pagination.count = res.data.total;
+            this.requestStorageUsage()
           })
           .catch(() => {
             this.emptyType = '500';
           })
           .finally(() => {
-            this.isTableLoading = false;
+            // this.isTableLoading = false;
             if (!this.isInit)
               this.$router.replace({
                 query: {
@@ -340,6 +352,45 @@
               });
             this.isInit = false;
           });
+      },
+       // 请求用量数据
+       requestStorageUsage() {
+        console.log(this.indexSetList);
+        // return
+        const index_set_ids = this.indexSetList.filter(item => {
+          return item.index_set_id && item.is_active && item.apply_status == 'normal'
+        }).map(item => item.index_set_id);
+        if(!index_set_ids.length){
+          this.isTableLoading = false;
+          return
+        }
+        this.isTableLoading = true; 
+        this.$http
+          .request('collect/getStorageUsage', {
+          data: {
+            bk_biz_id: this.bkBizId,
+            index_set_ids,
+          },
+        })
+        .then(resp => {
+          const { data } = resp;
+          this.indexSetList.forEach(item => {
+            ['daily_usage', 'total_usage'].forEach(key => {
+              const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
+              if (matchedItem?.[key] !== undefined) {
+                this.$set(item, key, matchedItem[key]);
+              }
+            });
+          })
+          console.log(this.indexSetList);
+          
+        })
+        .catch((error) => {
+          console.log(error);
+        })
+        .finally(() => {
+          this.isTableLoading = false;
+         });
       },
       /**
        * 分页变换
@@ -537,6 +588,15 @@
         } catch (error) {
           this.selectLabelList = [];
         }
+      },
+      formatBytes(size) {
+        if (size === undefined) {
+            return '--'; 
+        }
+        if (size === 0) {
+            return '0';
+        }
+        return formatFileSize(size, true);
       },
     },
   };

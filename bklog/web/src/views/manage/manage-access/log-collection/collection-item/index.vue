@@ -114,6 +114,7 @@
           :label="$t('日用量/总用量')"
           :render-header="$renderHeader"
           min-width="80"
+          sortable
         >
           <template #default="props">
             <span :class="{ 'text-disabled': props.row.status === 'stop' }">
@@ -607,6 +608,7 @@
     getDefaultSettingSelectFiled,
     setDefaultSettingSelectFiled,
     deepClone,
+    formatFileSize
   } from '@/common/util';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
@@ -1129,21 +1131,11 @@
         if (size === undefined) {
             return '--'; 
         }
-        if (typeof size !== 'number' || size < 0) {
-            return 'Invalid input'; 
-        }
         if (size === 0) {
             return '0';
         }
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        let index = 0;
-        while (size >= 1024 && index < units.length - 1) {
-            size /= 1024;
-            index++;
-        }
-        const formattedSize = size % 1 === 0 ? size.toFixed(0) : size.toFixed(2);
-        return `${formattedSize}${units[index]}`;
-    },
+        return formatFileSize(size, true);
+      },
       requestCollectStatus(isPrivate) {
         this.$http
           .request('collect/getCollectStatus', {
