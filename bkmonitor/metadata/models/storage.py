@@ -4875,3 +4875,79 @@ class StorageClusterRecord(models.Model):
         )
 
         return result
+
+
+class SpaceRelatedStorageInfo(models.Model):
+    """
+    空间<->存储集群映射表
+    """
+
+    # 空间信息-> 空间类型+空间ID+租户ID
+    space_type_id = models.CharField("空间类型 ID", max_length=64)
+    space_id = models.CharField("空间ID", max_length=128, help_text="空间类型下唯一")
+    # tenant_id = models.CharField("租户ID", max_length=128,null=True)
+
+    # 存储集群信息
+    storage_type = models.CharField("存储类型", max_length=32, choices=ClusterInfo.CLUSTER_TYPE_CHOICES)
+    cluster_id = models.IntegerField("存储集群ID", help_text="ClusterInfo中的cluster_id")  # 对应ClusterInfo.cluster_id
+
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    update_time = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    @classmethod
+    def create_space_related_storage_record(cls, space_type_id, space_id, storage_type, cluster_id=None):
+        """
+        创建空间<->存储集群映射记录
+        @param space_type_id: 空间类型ID
+        @param space_id: 空间ID
+        @param storage_type: 存储类型
+        @param cluster_id: 存储集群ID
+        """
+        from django.db import transaction
+
+        logger.info(
+            "create_space_related_storage_record: try to create space related storage record, "
+            "space_type_id->[%s], space_id->[%s], storage_type->[%s], cluster_id->[%s]",
+            space_type_id,
+            space_id,
+            storage_type,
+            cluster_id,
+        )
+
+        if not cluster_id:
+            logger.info(
+                "create_space_related_storage_record: cluster_id is None, try to get default cluster,"
+                "space_type->[%s],space_id->[%s]",
+                space_type_id,
+                space_id,
+            )
+
+            cluster_id = (
+                ClusterInfo.objects.filter(cluster_type=storage_type, is_default_cluster=True).first().cluster_id
+            )
+        try:
+            with transaction.atomic():
+                # 创建空间<->存储集群映射记录
+                space_related_storage_info = cls.objects.create(
+                    space_type_id=space_type_id,
+                    space_id=space_id,
+                    storage_type=storage_type,
+                    cluster_id=cluster_id,
+                )
+                logger.info(
+                    "create_space_related_storage_record: create space related storage record, "
+                    "space_type_id->[%s], space_id->[%s], storage_type->[%s], cluster_id->[%s],successfully",
+                    space_type_id,
+                    space_id,
+                    storage_type,
+                    space_related_storage_info.cluster_id,
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "create_space_related_storage_record: create space related storage record failed,space_type->[%s],"
+                "space_id->[%s],cluster_id->[%s],error->[%s]",
+                space_type_id,
+                space_id,
+                cluster_id,
+                e,
+            )
