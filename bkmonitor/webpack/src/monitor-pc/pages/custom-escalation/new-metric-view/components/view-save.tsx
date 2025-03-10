@@ -23,13 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref } from 'vue-property-decorator';
+import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { getSceneView } from 'monitor-api/modules/scene_view';
 
 import './view-save.scss';
 
+interface IProps {
+  name: string;
+  payload: Record<string, any>;
+}
 @Component
-export default class ViewSave extends tsc<object> {
+export default class ViewSave extends tsc<IProps> {
+  @Prop({ type: String, required: true }) readonly name: IProps['name'];
+
   @Ref('popoverRef') popoverRef: any;
 
   isActive = false;
@@ -46,6 +54,14 @@ export default class ViewSave extends tsc<object> {
       },
     ],
   });
+
+  async fetchData() {
+    getSceneView({
+      scene_id: `custom_escalation_view_${this.$route.params.id}`,
+      id: 'default',
+      type: 'detail',
+    });
+  }
 
   handleShow() {
     this.isActive = true;
@@ -66,6 +82,10 @@ export default class ViewSave extends tsc<object> {
   }
   handleSubmitCreate() {
     console.log('handleSubmitCreate');
+  }
+
+  created() {
+    this.fetchData();
   }
 
   render() {

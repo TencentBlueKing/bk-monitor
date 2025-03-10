@@ -26,6 +26,8 @@
 import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
+
 import SelectPanel from './select-panel';
 
 import './index.scss';
@@ -35,14 +37,7 @@ interface IProps {
     field: string;
     split: boolean;
   }[];
-  metricsList: {
-    metric_name: string;
-    alias: string;
-    dimensions: {
-      name: string;
-      alias: string;
-    }[];
-  }[];
+  splitable: boolean;
 }
 
 interface IEmit {
@@ -52,17 +47,21 @@ interface IEmit {
 @Component
 export default class AggregateDimensions extends tsc<IProps, IEmit> {
   @Prop({ type: Array, required: true }) readonly value: IProps['value'];
-  @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
+  @Prop({ type: Boolean, default: false }) readonly splitable: IProps['splitable'];
 
   @Ref('rootRef') rootRef: HTMLElement;
   @Ref('wrapperRef') wrapperRef: HTMLElement;
+
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
 
   localValue: Readonly<IProps['value']> = [];
   isWholeLine = false;
 
   get demensionList() {
     const demenesionNameMap = {};
-    return this.metricsList.reduce<{ name: string }[]>((result, item) => {
+    return this.currentSelectedMetricList.reduce<{ name: string }[]>((result, item) => {
       item.dimensions.forEach(demesionItem => {
         if (!demenesionNameMap[demesionItem.name]) {
           result.push(demesionItem);
@@ -145,6 +144,8 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
           <SelectPanel
             style='margin-left: 6px'
             data={this.demensionList}
+            splitable={this.splitable}
+            value={this.localValue as IProps['value']}
             onChange={this.handleChange}
           />
         </div>

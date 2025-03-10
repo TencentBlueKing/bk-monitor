@@ -28,7 +28,7 @@ import { request } from '../base';
 /*
  * 查询指标分组信息
  */
-export const getCustomTsMetricGroups: (params?: Record<string, any>) => Promise<{
+export const getCustomTsMetricGroups: (params: { bk_biz_id?: number; time_series_group_id?: number }) => Promise<{
   common_dimensions: {
     alias: string;
     name: string;
@@ -49,8 +49,8 @@ export const getCustomTsMetricGroups: (params?: Record<string, any>) => Promise<
 /*
  * 查询维度的候选值
  */
-export const getCustomTsDimensionValues: (params?: {
-  bk_biz_id: number;
+export const getCustomTsDimensionValues: (params: {
+  bk_biz_id?: number;
   time_series_group_id: number;
   dimension: string;
   start_time: number;

@@ -116,6 +116,12 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
     });
   }
 
+  handleKeyChange(key: string) {
+    this.localValue = genDefaultVallue({
+      key,
+    });
+  }
+
   handleMethodChange(value: string) {
     this.localValue.method = value;
   }
@@ -169,11 +175,15 @@ export default class ValueEditPanel extends tsc<IProps, IEmit> {
           <div class='layout-wrapper'>
             <div class='layout-left'>
               <KeySelect
-                v-model={this.localValue.key}
                 metricsList={this.metricsList}
+                value={this.localValue.key}
+                onChange={this.handleKeyChange}
               />
             </div>
-            <div class='layout-right'>
+            <div
+              key={this.localValue.key}
+              class='layout-right'
+            >
               <ValueSelect
                 keyName={this.localValue.key}
                 method={this.localValue.method}

@@ -26,30 +26,16 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
 
 import CompareType from './components/compare-type';
-import FilterConditions from './components/filter-conditions';
 import GroupBy from './components/group-by';
 import LimitFunction from './components/limit-function';
 import ViewColumn from './components/view-column';
+import WhereCondition from './components/where-condition';
 
 import './index.scss';
-
-export interface IProps {
-  commonDimensionList: {
-    name: string;
-    alias: string;
-  }[];
-  metricsList: {
-    metric_name: string;
-    alias: string;
-    dimensions: {
-      name: string;
-      alias: string;
-    }[];
-  }[];
-}
 
 interface IResult {
   metrics: string[];
@@ -81,6 +67,11 @@ interface IResult {
   view_column: number;
 }
 
+interface IProps {
+  commonDimensionEnable?: boolean;
+  groupBySplitEnable?: boolean;
+}
+
 interface IEmit {
   onChange: (value: IResult) => void;
 }
@@ -105,15 +96,19 @@ export const createDefaultParams = (): IResult => ({
 
 @Component
 export default class HeaderBox extends tsc<IProps, IEmit> {
-  @Prop({ type: Array, required: true }) readonly commonDimensionList: IProps['commonDimensionList'];
-  @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
+  @Prop({ type: Boolean, default: false }) readonly commonDimensionEnable: IProps['commonDimensionEnable'];
+  @Prop({ type: Boolean, default: false }) readonly groupBySplitEnable: IProps['groupBySplitEnable'];
+
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
 
   params = createDefaultParams();
 
   triggerChange() {
     this.$emit('change', {
       ..._.cloneDeep(this.params),
-      metrics: this.metricsList.map(item => item.metric_name),
+      metrics: this.currentSelectedMetricList.map(item => item.metric_name),
     });
   }
 
@@ -141,14 +136,13 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   render() {
     return (
       <div class='bk-monitor-new-metric-view-header-box'>
-        <FilterConditions
-          commonDimensionList={this.commonDimensionList}
-          metricsList={this.metricsList}
+        <WhereCondition
+          commonDimensionEnable={this.commonDimensionEnable}
           onChange={this.handleConditionChange}
         />
         <div class='mult-item-box'>
           <GroupBy
-            metricsList={this.metricsList}
+            splitable={this.groupBySplitEnable}
             value={this.params.group_by}
             onChange={this.handleGroupByChange}
           />

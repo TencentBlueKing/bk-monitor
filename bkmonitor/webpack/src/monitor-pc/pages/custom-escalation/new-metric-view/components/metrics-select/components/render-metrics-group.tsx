@@ -26,9 +26,12 @@
 import { Component, Watch, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import _ from 'lodash';
-import { getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
+import { type getCustomTsMetricGroups } from 'monitor-api/modules/scene_view_new';
 import { makeMap } from 'monitor-common/utils/make-map';
+
+import RenderMetric from './render-metric';
 
 import './render-metrics-group.scss';
 
@@ -72,12 +75,19 @@ export const encodeRegexp = (paramStr: string) => {
 export default class IndexSelect extends tsc<IProps, IEmit> {
   @Prop({ type: String, default: '' }) readonly searchKey: IProps['searchKey'];
 
-  commonDimensonList: Readonly<TCustomTsMetricGroups['common_dimensions']> = [];
-  metricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   renderMetricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   localCheckedMetricNameList: string[] = [];
   isLoading = true;
+  groupFlodMap: Readonly<Record<string, boolean>> = {};
   handleSearch = () => {};
+
+  get commonDimensionList() {
+    return customEscalationViewStore.commonDimensionList;
+  }
+
+  get metricGroupList() {
+    return customEscalationViewStore.metricGroupList;
+  }
 
   @Watch('searchKey', { immediate: true })
   searchKeyChange() {
@@ -86,14 +96,10 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
 
   async fetchData() {
     try {
-      const result = await getCustomTsMetricGroups();
-      this.metricGroupList = Object.freeze(result.metric_groups);
-      this.commonDimensonList = Object.freeze(result.common_dimensions);
-      this.renderMetricGroupList = this.metricGroupList;
-      this.$emit('change', {
-        metricsList: [],
-        commonDimensionList: this.commonDimensonList,
+      await customEscalationViewStore.fetchData({
+        time_series_group_id: Number(this.$route.params.id),
       });
+      this.renderMetricGroupList = Object.freeze(this.metricGroupList);
     } finally {
       this.isLoading = false;
     }
@@ -101,13 +107,27 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
 
   resetMetricChecked() {
     this.localCheckedMetricNameList = [];
-    this.$emit('change', {
-      metricsList: [],
-      commonDimensionList: this.commonDimensonList,
-    });
+    customEscalationViewStore.updateCurrentSelectedMetricList([]);
   }
 
-  handleChange(value: string[]) {
+  handleGroupToggleFlod(metricGroupName: string) {
+    const latestGroupFlodMap = { ...this.groupFlodMap };
+    latestGroupFlodMap[metricGroupName] =
+      latestGroupFlodMap[metricGroupName] === undefined ? false : !latestGroupFlodMap[metricGroupName];
+    this.groupFlodMap = Object.freeze(latestGroupFlodMap);
+  }
+
+  handleGroupSelectAll(metricList: TCustomTsMetricGroups['metric_groups'][number]['metrics']) {
+    const latestCheckedMetricNameList = [...this.localCheckedMetricNameList];
+    metricList.forEach(item => {
+      latestCheckedMetricNameList.push(item.metric_name);
+    });
+    this.localCheckedMetricNameList = _.uniq(latestCheckedMetricNameList);
+
+    this.handleMetricSelectChange(this.localCheckedMetricNameList);
+  }
+
+  handleMetricSelectChange(value: string[]) {
     const metricKeyMap = makeMap(value);
 
     const result = this.metricGroupList.reduce<IMetric[]>((result, groupItem) => {
@@ -119,21 +139,18 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
       return result;
     }, []);
 
-    this.$emit('change', {
-      metricsList: result,
-      commonDimensionList: this.commonDimensonList,
-    });
+    customEscalationViewStore.updateCurrentSelectedMetricList(result);
   }
 
   created() {
     this.fetchData();
     this.handleSearch = _.throttle(() => {
       if (!this.searchKey) {
-        this.renderMetricGroupList = this.metricGroupList;
+        this.renderMetricGroupList = Object.freeze(this.metricGroupList);
         return;
       }
       const searchReg = new RegExp(encodeRegexp(this.searchKey), 'i');
-      this.renderMetricGroupList = this.metricGroupList.reduce((result, metricGroupItem) => {
+      const filterResult = this.metricGroupList.reduce((result, metricGroupItem) => {
         if (searchReg.test(metricGroupItem.name)) {
           result.push(metricGroupItem);
         } else {
@@ -147,6 +164,7 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
         }
         return result;
       }, []);
+      this.renderMetricGroupList = Object.freeze(filterResult);
     }, 300);
   }
 
@@ -158,7 +176,7 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
       >
         <bk-checkbox-group
           v-model={this.localCheckedMetricNameList}
-          onChange={this.handleChange}
+          onChange={this.handleMetricSelectChange}
         >
           {this.renderMetricGroupList.map(groupItem => (
             <div
@@ -166,18 +184,37 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
               class='metrics-select-box'
             >
               <div class='metrics-select-item-header'>
-                <i class='icon-monitor icon-mc-file-open' />
-                {groupItem.name}
-                <div class='metrics-select-item-header-count'>{groupItem.metrics.length}</div>
-              </div>
-              <div class='metrics-select-item-content'>
-                {groupItem.metrics.map(metricsItem => (
+                <i
+                  class={{
+                    'icon-monitor': true,
+                    'icon-mc-file-open': this.groupFlodMap[groupItem.name] !== false,
+                    'icon-FileFold-Close': this.groupFlodMap[groupItem.name] === false,
+                  }}
+                />
+                <div
+                  class='metric-group-name'
+                  onClick={() => this.handleGroupToggleFlod(groupItem.name)}
+                >
+                  {groupItem.name}
+                </div>
+                <div class='metric-demension-count'>
                   <div
-                    key={metricsItem.metric_name}
-                    class='metrics-select-item-content-item'
+                    class='select-all'
+                    onClick={() => this.handleGroupSelectAll(groupItem.metrics)}
                   >
-                    <bk-checkbox value={metricsItem.metric_name}>{metricsItem.alias}</bk-checkbox>
+                    {this.$t('全选：')}
                   </div>
+                  <div>{groupItem.metrics.length}</div>
+                </div>
+              </div>
+              <div
+                style={{
+                  display: this.groupFlodMap[groupItem.name] === false ? 'none' : '',
+                }}
+                class='metrics-select-item-content'
+              >
+                {groupItem.metrics.map(metricsItem => (
+                  <RenderMetric data={metricsItem} />
                 ))}
               </div>
             </div>

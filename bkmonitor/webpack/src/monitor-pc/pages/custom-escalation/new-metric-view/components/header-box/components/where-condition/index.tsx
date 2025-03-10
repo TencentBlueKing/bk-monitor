@@ -26,6 +26,8 @@
 import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
+
 import RenderCommonList from './components/render-common-list/index';
 import { type IValue } from './components/render-result-list/components/edit-panel';
 import RenderResultList from './components/render-result-list/index';
@@ -34,18 +36,7 @@ import './index.scss';
 
 interface IProps {
   value?: IValue[];
-  commonDimensionList: {
-    name: string;
-    alias: string;
-  }[];
-  metricsList: {
-    metric_name: string;
-    alias: string;
-    dimensions: {
-      name: string;
-      alias: string;
-    }[];
-  }[];
+  commonDimensionEnable: boolean;
 }
 
 interface IEmit {
@@ -66,13 +57,20 @@ interface IEmit {
 
 @Component
 export default class FilterConditions extends tsc<IProps, IEmit> {
-  @Prop({ type: Array, default: () => [] }) value: IProps['value'];
-  @Prop({ type: Array, required: true }) readonly commonDimensionList: IProps['commonDimensionList'];
-  @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
+  @Prop({ type: Array, default: () => [] }) readonly value: IProps['value'];
+  @Prop({ type: Boolean, default: false }) readonly commonDimensionEnable: IProps['commonDimensionEnable'];
 
   localConditionValueList: IValue[] = [];
   localCommonConditionValueList: Omit<IValue, 'condition'>[] = [];
   isShowCommonlyUsedList = false;
+
+  get commonDimensionList() {
+    return customEscalationViewStore.commonDimensionList;
+  }
+
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
 
   @Watch('commonDimensionList', { immediate: true })
   commonDimensionListChange() {
@@ -106,11 +104,10 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
 
   render() {
     return (
-      <div class='bk-monitor-new-metric-view-filter-conditions'>
+      <div class='bk-monitor-new-metric-view-where-condition'>
         <div class='filter-label'>{this.$t('过滤条件')}</div>
-        <div class='filter-conditions-content'>
+        <div class='where-condition-content'>
           <RenderResultList
-            metricsList={this.metricsList}
             value={this.localConditionValueList}
             onChange={this.handleConditionChange}
           />
@@ -121,15 +118,17 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
             />
           )}
         </div>
-        <div
-          class={{
-            'commonly-used-btn': true,
-            'is-active': this.isShowCommonlyUsedList,
-          }}
-          onClick={this.handleToggleCommonlyUsedList}
-        >
-          <i class='icon-monitor icon-dimension-line' />
-        </div>
+        {this.commonDimensionEnable && (
+          <div
+            class={{
+              'commonly-used-btn': true,
+              'is-active': this.isShowCommonlyUsedList,
+            }}
+            onClick={this.handleToggleCommonlyUsedList}
+          >
+            <i class='icon-monitor icon-dimension-line' />
+          </div>
+        )}
       </div>
     );
   }

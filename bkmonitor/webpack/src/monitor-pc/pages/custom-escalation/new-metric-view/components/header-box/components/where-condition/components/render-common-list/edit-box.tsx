@@ -42,7 +42,13 @@ interface IEmit {
 
 @Component
 export default class FilterConditions extends tsc<IProps, IEmit> {
-  @Prop({ type: String, required: true }) readonly data: IProps['data'];
+  @Prop({ type: Object, required: true }) readonly data: IProps['data'];
+
+  isFocused = false;
+
+  handleToggle(value: boolean) {
+    this.isFocused = value;
+  }
 
   handleChange(value: string[]) {
     this.$emit('change', {
@@ -53,17 +59,23 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
 
   render() {
     return (
-      <div class='filter-conditions-commonly-used-edit-box'>
+      <div class={{ 'filter-conditions-commonly-used-edit-box': true, 'is-focused': this.isFocused }}>
         <div class='conditions-key'>{this.data.key}</div>
         <div class='conditions-option'>=</div>
-        <bk-tag-input
-          class='conditions-value'
-          allow-create={true}
-          placeholder=' '
-          trigger='focus'
-          value={this.data.value}
-          onChange={this.handleChange}
-        />
+        <div class='conditions-value'>
+          <bk-select
+            allow-create={true}
+            clearable={true}
+            display-tag={true}
+            multiple={true}
+            placeholder=' '
+            searchable={true}
+            trigger='focus'
+            value={this.data.value}
+            onChange={this.handleChange}
+            onToggle={this.handleToggle}
+          />
+        </div>
       </div>
     );
   }

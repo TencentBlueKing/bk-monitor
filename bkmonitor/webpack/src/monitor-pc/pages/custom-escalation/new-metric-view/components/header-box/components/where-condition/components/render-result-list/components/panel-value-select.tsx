@@ -26,6 +26,7 @@
 import { Component, Ref, Watch, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsDimensionValues } from 'monitor-api/modules/scene_view_new';
 
 import './panel-value-select.scss';
@@ -63,19 +64,32 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
   isLoading = false;
   valueList: { id: string; name: string }[] = [];
 
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
+
   @Watch('keyName', { immediate: true })
   keyNameChangeCallback() {
-    this.fetchValue();
+    this.isLoading = false;
     this.$nextTick(() => {
       if (this.keyName) {
+        this.fetchValue();
         this.valueTagInputRef.focusInputer();
       }
     });
   }
+
   async fetchValue() {
     try {
       this.isLoading = true;
-      const result = await getCustomTsDimensionValues();
+      const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
+      const result = await getCustomTsDimensionValues({
+        time_series_group_id: Number(this.$route.params.id),
+        dimension: this.keyName,
+        start_time: startTime || 0,
+        end_time: endTime || 0,
+        metrics: this.currentSelectedMetricList.map(item => item.metric_name),
+      });
       this.valueList = result.map(item => ({
         id: item.name,
         name: item.name,
@@ -86,7 +100,6 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
   }
 
   handleMethodChange(value: string) {
-    console.log('vaye handleMethodChange = ', value);
     this.$emit('methondChange', value);
   }
 
@@ -97,21 +110,21 @@ export default class ValueSelect extends tsc<IProps, IEmit> {
   render() {
     return (
       <div class='edit-panel-value-select'>
-        <div class='value-title'>{this.$t('运算符')}</div>
-        <bk-select
-          disabled={!this.keyName}
-          value={this.method}
-          onChange={this.handleMethodChange}
-        >
-          {methodList.map(methodItem => (
-            <bk-option
-              id={methodItem.id}
-              name={methodItem.name}
-            />
-          ))}
-        </bk-select>
-        <div class='value-title'>{this.$t('筛选值')}</div>
         <bk-loading is-loading={this.isLoading}>
+          <div class='value-title'>{this.$t('运算符')}</div>
+          <bk-select
+            disabled={!this.keyName}
+            value={this.method}
+            onChange={this.handleMethodChange}
+          >
+            {methodList.map(methodItem => (
+              <bk-option
+                id={methodItem.id}
+                name={methodItem.name}
+              />
+            ))}
+          </bk-select>
+          <div class='value-title'>{this.$t('筛选值')}</div>
           <bk-tag-input
             ref='valueTagInputRef'
             allow-create={true}

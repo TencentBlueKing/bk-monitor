@@ -26,9 +26,10 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
-import HeaderBox, { type IProps as IHeaderBoxProps } from './components/header-box/index';
+import HeaderBox from './components/header-box/index';
 import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
 import ViewSave from './components/view-save';
@@ -41,30 +42,28 @@ import './new-metric-view.scss';
 @Component
 export default class NewMetricView extends tsc<object> {
   view = 'default';
-  commonDimensionList: IHeaderBoxProps['commonDimensionList'] = [];
-  metricsList: IHeaderBoxProps['metricsList'] = [];
   bkBizId = 0;
   timeSeriesGroupId = 0;
   dimenstionParams: Record<string, any> = {};
-  startTime = '';
-  endTime = '';
+  startTime = 'now-1h';
+  endTime = 'now';
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     const [startTime, endTime] = timeRange;
     this.startTime = startTime;
     this.endTime = endTime;
+    this.$router.replace({
+      query: {
+        ...this.$route.query,
+        startTime,
+        endTime,
+      },
+    });
+    customEscalationViewStore.updateTimeRange(timeRange);
   }
 
   handleTabChange(value: string) {
     this.view = value;
-  }
-
-  handleMetricsChange(payload: {
-    commonDimensionList: IHeaderBoxProps['commonDimensionList'];
-    metricsList: IHeaderBoxProps['metricsList'];
-  }) {
-    this.commonDimensionList = payload.commonDimensionList;
-    this.metricsList = payload.metricsList;
   }
 
   handleHeaderParamsChange(payload: any) {
@@ -78,24 +77,25 @@ export default class NewMetricView extends tsc<object> {
           <DashboardTools
             isSplitPanel={false}
             showListMenu={false}
+            timeRange={[this.startTime, this.endTime]}
             onTimeRangeChange={this.handleTimeRangeChange}
           />
         </PageHeadr>
         <div class='metric-view-view-container'>
-          <ViewTab />
-          <ViewSave />
+          <ViewTab v-model={this.view} />
+          <ViewSave name={this.view} />
         </div>
         <bk-resize-layout
           style='height: calc(100vh - 140px - var(--notice-alert-height))'
           initial-divide={220}
         >
           <template slot='aside'>
-            <MetricsSelect onChange={this.handleMetricsChange} />
+            <MetricsSelect />
           </template>
           <template slot='main'>
             <HeaderBox
-              commonDimensionList={this.commonDimensionList}
-              metricsList={this.metricsList}
+              commonDimensionEnable
+              groupBySplitEnable
               onChange={this.handleHeaderParamsChange}
             />
             <div class='metric-view-dashboard-container'>
