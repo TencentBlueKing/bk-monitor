@@ -120,7 +120,6 @@ from apps.log_search.models import (
     UserIndexSetSearchHistory,
 )
 from apps.log_search.utils import sort_func
-from apps.log_unifyquery.handler import UnifyQueryHandler
 from apps.models import model_to_dict
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -2743,6 +2742,8 @@ class UnionSearchHandler(object):
         return res
 
     def unifyquery_union_search(self, is_export=False):
+        from apps.log_unifyquery.handler import UnifyQueryHandler
+
         index_set_objs = LogIndexSet.objects.filter(index_set_id__in=self.index_set_ids)
         if not index_set_objs:
             raise BaseSearchIndexSetException(
