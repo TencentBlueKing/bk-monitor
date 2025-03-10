@@ -1301,3 +1301,21 @@ OPERATORS = {
         OperatorEnum.NOT_EXISTS,
     ],
 }
+
+ADVANCED_FIELDS = [
+    PreCalculateSpecificField.HIERARCHY_COUNT,
+    PreCalculateSpecificField.SERVICE_COUNT,
+    PreCalculateSpecificField.SPAN_COUNT,
+    PreCalculateSpecificField.ROOT_SERVICE,
+    PreCalculateSpecificField.ROOT_SERVICE_SPAN_ID,
+    PreCalculateSpecificField.ROOT_SERVICE_SPAN_NAME,
+    PreCalculateSpecificField.ROOT_SERVICE_STATUS_CODE,
+    PreCalculateSpecificField.ROOT_SERVICE_CATEGORY,
+    PreCalculateSpecificField.ROOT_SERVICE_KIND,
+    PreCalculateSpecificField.ROOT_SPAN_ID,
+    PreCalculateSpecificField.ROOT_SPAN_NAME,
+    PreCalculateSpecificField.ROOT_SPAN_SERVICE,
+    PreCalculateSpecificField.ROOT_SPAN_KIND,
+    PreCalculateSpecificField.ERROR,
+    PreCalculateSpecificField.ERROR_COUNT,
+]
