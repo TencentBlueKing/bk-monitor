@@ -1507,7 +1507,7 @@ class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
     bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
     add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"), default=False)
     add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), default=False)
-    extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer(), default=list())
+    extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer(), default=list)
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
     platform_username = serializers.CharField(label=_("平台用户"), required=False)
@@ -1607,6 +1607,37 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer):
         else:
             attrs["fields"] = []
         return attrs
+
+
+class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
+    collector_config_name_en = serializers.RegexField(label=_("采集英文名称"), regex=COLLECTOR_CONFIG_NAME_EN_REGEX)
+    description = serializers.CharField(
+        label=_("备注说明"), max_length=100, required=False, allow_null=True, allow_blank=True
+    )
+    collector_scenario_id = serializers.ChoiceField(label=_("日志类型"), choices=CollectorScenarioEnum.get_choices())
+    configs = serializers.ListSerializer(label=_("容器日志配置"), child=ContainerConfigSerializer())
+    bcs_cluster_id = serializers.CharField(label=_("bcs集群id"))
+    add_pod_label = serializers.BooleanField(label=_("是否自动添加pod中的labels"))
+    add_pod_annotation = serializers.BooleanField(label=_("是否自动添加pod中的annotations"), default=False)
+    extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer(), default=list)
+    yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
+    yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
+    etl_config = serializers.CharField(label=_("清洗类型"), required=False)
+    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
+    retention = serializers.IntegerField(label=_("有效时间"), required=False)
+    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
+    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
+    alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+
+    def validate_yaml_config(self, value):
+        try:
+            yaml_text = base64.b64decode(value).decode("utf-8")
+        except Exception:  # pylint: disable=broad-except
+            raise ValidationError(_("base64编码解析失败"))
+        return yaml_text
 
 
 class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer):
