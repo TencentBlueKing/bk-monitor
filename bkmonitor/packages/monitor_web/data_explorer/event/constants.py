@@ -39,6 +39,10 @@ class EventDomain(CachedEnum):
         default.label = value
         return default
 
+    @classmethod
+    def choices(cls):
+        return [(cls.K8S.value, cls.K8S.value), (cls.CICD.value, cls.CICD.value), (cls.SYSTEM.value, cls.SYSTEM.value)]
+
 
 class EventSource(CachedEnum):
     """事件来源，需要保持唯一"""
