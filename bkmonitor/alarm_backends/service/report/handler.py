@@ -370,10 +370,11 @@ class ReportHandler:
                 )
 
         # 截图
-        logger.info("[mail_report] prepare for screenshot...")
+        logger.info(f"[mail_report] prepare for screenshot {mail_title}...")
         images_files, err_msg = screenshot_by_uid_panel_id(
             total_graphs, need_title=bool(channel_name == ReportItems.Channel.WXBOT)
         )
+        logger.info(f"[mail_report] got screenshot {mail_title}...")
 
         # 渲染邮件模板
         render_args = {}

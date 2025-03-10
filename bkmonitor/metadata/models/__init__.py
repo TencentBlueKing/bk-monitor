@@ -92,6 +92,7 @@ from .storage import (
     KafkaStorage,
     KafkaTopicInfo,
     RedisStorage,
+    SpaceRelatedStorageInfo,
     StorageClusterRecord,
     StorageResultTable,
 )
@@ -169,6 +170,7 @@ __all__ = [
     "DataPipelineDataSource",
     "AccessVMRecord",
     "SpaceVMInfo",
+    "SpaceRelatedStorageInfo",
     # vm data link
     "DataLinkResource",
     "DataLinkResourceConfig",

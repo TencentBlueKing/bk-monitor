@@ -38,7 +38,7 @@ export default () => {
   const bkBizId = computed(() => store.state.bkBizId);
   const stickyStyle = computed(() => {
     return {
-      '--offset-search-bar': `${searchBarHeight.value}px`,
+      '--top-searchbar-height': `${searchBarHeight.value}px`,
       '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
     };

@@ -18,7 +18,7 @@
         top: 0;
         &.is-show {
           position: relative;
-          height: calc(100vh - var(--offset-search-bar) - 150px);
+          height: calc(100vh - var(--top-searchbar-height) - 150px);
         }
       }
     }
@@ -31,8 +31,8 @@
           &.is-show {
             position: fixed;
             left: calc(var(--left-collection-width) + 8px);
-            top: calc(var(--offset-search-bar) + 52px);
-            height: calc(100vh - var(--offset-search-bar) - 52px);
+            top: calc(var(--top-searchbar-height) + 52px);
+            height: calc(100vh - var(--top-searchbar-height) - 52px);
             bottom: 0;
           }
         }
