@@ -1,3 +1,9 @@
+import {
+  eventDownloadTopK as apmEventDownloadTopK,
+  eventTopK as apmEventTopK,
+  eventTotal as apmEventTotal,
+  eventViewConfig as apmEventViewConfig,
+} from 'monitor-api/modules/apm_event';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -58,15 +64,18 @@ export enum EventTableApiEnum {
  * @returns
  */
 export const getEventTopK = (params: ITopKRequestParams, type = APIType.MONITOR): Promise<ITopKField[]> => {
-  const apiFunc = type === APIType.APM ? eventTopK : eventTopK;
+  const apiFunc = type === APIType.APM ? apmEventTopK : eventTopK;
   return apiFunc(params).catch(() => []);
 };
 
-export const getEventViewConfig = (params: any) => eventViewConfig(params).then((res: any) => res.data);
+export const getEventViewConfig = (params: any, type = APIType.MONITOR) => {
+  const apiFunc = type === APIType.APM ? apmEventViewConfig : eventViewConfig;
+  return apiFunc(params, { isDataParams: true }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
+};
 
 export const getDownloadTopK = (params, type = APIType.MONITOR) => {
-  const apiFunc = type === APIType.APM ? eventDownloadTopK : eventDownloadTopK;
-  return apiFunc(params).catch(() => []);
+  const apiFunc = type === APIType.APM ? apmEventDownloadTopK : eventDownloadTopK;
+  return apiFunc(params, { isDataParams: true }).catch(err => err);
 };
 
 /**
@@ -75,7 +84,7 @@ export const getDownloadTopK = (params, type = APIType.MONITOR) => {
  * @param {APIType} type
  */
 export const getEventTotal = (params: any, type = APIType.MONITOR) => {
-  const apiFunc = type === APIType.APM ? eventTotal : eventTotal;
+  const apiFunc = type === APIType.APM ? apmEventTotal : eventTotal;
   return apiFunc(params).catch(() => ({
     total: 0,
   }));
