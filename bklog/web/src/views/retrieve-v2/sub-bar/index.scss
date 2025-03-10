@@ -30,12 +30,12 @@
             padding-right: 20px;
             border-color: #c4c6cc;
 
-            .bklog-select-arrow {
+            .bklog-arrow-down-filled {
               position: absolute;
               top: 50%;
               right: 6px;
               font-size: 18px;
-              color: #979ba5;
+              color: #4d4f56;
               transform: translateY(-50%);
             }
           }
@@ -46,6 +46,17 @@
         padding-left: 8px;
         border-right: none;
       }
+    }
+
+    .bk-select {
+      background-color: #f0f1f5;
+      border: 1px solid transparent;
+    }
+
+    .is-focus {
+      background-color: transparent;
+      border: 1px solid #3a84ff;
+      box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
     }
   }
 

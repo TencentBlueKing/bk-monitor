@@ -850,7 +850,7 @@ export default class SelectIndexSet extends tsc<object> {
     const labelFilter = () => {
       return (
         <div
-          class={['label-filter', { 'not-label': !this.labelSelectList.length }]}
+          class={['label-filter', 'custom-btn', { 'not-label': !this.labelSelectList.length }]}
           v-en-class='en-label-btn'
         >
           {!window?.__IS_MONITOR_TRACE__ && (
@@ -869,6 +869,7 @@ export default class SelectIndexSet extends tsc<object> {
             <div class='label-tag-container'>
               <div
                 ref='tagBox'
+                style={{ color: '#4D4F56' }}
                 class='tag-box'
               >
                 {this.showLabelSelectList().map(item => (
@@ -1173,7 +1174,7 @@ export default class SelectIndexSet extends tsc<object> {
       return (
         <div
           style={this.groupListStyle}
-          class='group-list'
+          class='group-list custom-group'
         >
           {this.renderOptionList.map(group => (
             <bk-option-group
@@ -1182,7 +1183,10 @@ export default class SelectIndexSet extends tsc<object> {
               scopedSlots={{
                 'group-name': () => {
                   return group.name && group.children.length ? (
-                    <div class='group-title'>
+                    <div
+                      style={{ color: '#4D4F56' }}
+                      class='group-title'
+                    >
                       <span>{group.name}</span>
                       <span>{group.children[0].no_data_check_time}</span>
                     </div>
@@ -1208,6 +1212,7 @@ export default class SelectIndexSet extends tsc<object> {
                         {indexHandDom(item)}
                         {item.isNotVal && <i class='not-val' />}
                         <span
+                          style={{ color: '#4D4F56' }}
                           class='index-name'
                           onMouseenter={e => this.handleHoverIndexName(e, item)}
                         >
@@ -1276,7 +1281,7 @@ export default class SelectIndexSet extends tsc<object> {
         clearable={false}
         data-test-id='dataQuery_div_indexSetSelect'
         display-tag={!this.isAloneType}
-        ext-popover-cls='retrieve-index-select-popover'
+        ext-popover-cls='retrieve2-index-select-popover'
         placeholder={this.placeholderText}
         popover-min-width={600}
         popover-options={{ boundary: 'window', ...(this.popoverOptions ?? {}) }}

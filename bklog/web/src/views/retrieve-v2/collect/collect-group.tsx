@@ -131,7 +131,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
       </div>
     );
     return (
-      <div class='retrieve-collect-group'>
+      <div class='retrieve2-collect-group'>
         <div
           class={[
             'group-title fl-jcsb',

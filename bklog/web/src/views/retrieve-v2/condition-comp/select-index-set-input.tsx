@@ -147,7 +147,7 @@ export default class SelectIndexSetInput extends tsc<object> {
                 transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
                 marginTop: this.isShowSelectPopover ? '-8px' : '',
               }}
-              class='bklog-icon bklog-arrow-down-filled bklog-select-arrow'
+              class='bklog-icon bklog-arrow-down-filled'
             ></span>
           </div>
         );
@@ -172,7 +172,14 @@ export default class SelectIndexSetInput extends tsc<object> {
               </span>
             </div>
           ))}
-          <span class={[this.arrowClassName, 'bklog-select-arrow']}></span>
+          <span
+            style={{
+              fontSize: '16px',
+              transform: this.isShowSelectPopover ? 'rotate(180deg)' : '',
+              marginTop: this.isShowSelectPopover ? '-8px' : '',
+            }}
+            class='bklog-icon bklog-arrow-down-filled'
+          ></span>
         </div>
       );
     };

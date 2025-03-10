@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent } from 'vue';
 
-import V3Collection from './favorite';
 import V3Container from './container';
+import V3Collection from './favorite';
 import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
@@ -42,13 +42,13 @@ export default defineComponent({
 
     return () => (
       <div
-        class={['v3-bklog-root', { 'is-sticky-top': isStickyTop.value }]}
         style={stickyStyle.value}
+        class={['v3-bklog-root', { 'is-sticky-top': isStickyTop.value }]}
       >
         <V3Collection></V3Collection>
         <div
-          class='v3-bklog-content'
           style={contentStyle.value}
+          class='v3-bklog-content'
         >
           <V3Toolbar></V3Toolbar>
           <V3Container>
