@@ -21,16 +21,15 @@ class BaseEventRequestSerializer(serializers.Serializer):
     service_name = serializers.CharField(label="服务名称", required=False)
 
     def validate(self, attrs):
-        app = Application.objects.filter(bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]).first()
-        if not app:
+        if not Application.objects.filter(bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"]).exists():
             raise ValueError(f"应用: ({attrs['bk_biz_id']}){attrs['app_name']} 不存在")
         return attrs
 
 
-class EventTimeSeriesRequestSerializer(event_serializers.EventLogsRequestSerializer, BaseEventRequestSerializer):
+class EventTimeSeriesRequestSerializer(event_serializers.EventTimeSeriesRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
         attrs = super(BaseEventRequestSerializer, self).validate(attrs)
-        attrs = super(event_serializers.EventLogsRequestSerializer, self).validate(attrs)
+        attrs = super(event_serializers.EventTimeSeriesRequestSerializer, self).validate(attrs)
         return attrs
 
 
