@@ -233,6 +233,18 @@ export const commonPageSizeGet = () => {
   return 10;
 };
 
+export const downloadFile = (data, type, filename) => {
+  const blob = new Blob([data], { type: type });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+};
+
 export * from './colorHelpers';
 export * from './constant';
 export * from './utils';

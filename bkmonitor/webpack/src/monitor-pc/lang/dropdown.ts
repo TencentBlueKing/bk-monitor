@@ -125,4 +125,7 @@ export default {
   容量: 'Capacity',
   成本: 'Cost',
   '生成"{0}"Tag': 'Generate "{0}" Tag',
+  新开标签页: 'Open in New Tab',
+  另存为新收藏: 'Save as New Favorite',
+  覆盖当前收藏: 'Override Current Favorite',
 };
