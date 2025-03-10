@@ -16,7 +16,15 @@ from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
-from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
+from apm.core.discover.precalculation.storage import PrecalculateStorage
+from apm_web.constants import (
+    ADVANCED_FIELDS,
+    DEFAULT_DIFF_TRACE_MAX_NUM,
+    OPERATORS,
+    CategoryEnum,
+    QueryMode,
+)
+from apm_web.handlers.es_handler import ESMappingHandler
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
     StatusCodeAttributePredicate,
@@ -1238,3 +1246,32 @@ class ListSpanHostInstancesResource(Resource):
 
     def perform_request(self, validated_request_data):
         return HostHandler.find_host_in_span(**validated_request_data)
+
+
+class ListQueryDynamicFieldsResource(Resource):
+    """获取动态字段字典"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        app_name = serializers.CharField(label="应用名称")
+
+    def perform_request(self, validated_request_data):
+        es_mapping = api.apm_api.query_es_mapping(
+            bk_biz_id=validated_request_data["bk_biz_id"], app_name=validated_request_data["app_name"]
+        )
+        mapping_handler = ESMappingHandler(es_mapping=es_mapping)
+
+        all_fields = []
+
+        # 静态字段 ＋ 动态字段
+        all_fields.extend(mapping_handler.get_queryable_fields())
+
+        # 增加高级字段在列表末尾A
+        for field_info in PrecalculateStorage.TABLE_SCHEMA:
+            if field_info["field_name"] in ADVANCED_FIELDS:
+                field_es_type = field_info.get("option", {}).get("es_type")
+                all_fields.append(
+                    {"field_name": field_info["field_name"], "field_operator": OPERATORS.get(field_es_type, [])}
+                )
+
+        return {"fields": all_fields}
