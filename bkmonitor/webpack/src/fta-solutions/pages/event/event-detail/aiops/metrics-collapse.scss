@@ -40,6 +40,16 @@
         align-items: center;
         cursor: pointer;
         flex: 1;
+        .title-num {
+          display: inline-block;
+          background: #a3b1cc;
+          border-radius: 2px;
+          margin-left: 8px;
+          color: #fff;
+          height: 18px;
+          line-height: 18px;
+          padding: 0 4px;
+        }
 
         .num {
           color: rgba(151, 155, 165, 1);
