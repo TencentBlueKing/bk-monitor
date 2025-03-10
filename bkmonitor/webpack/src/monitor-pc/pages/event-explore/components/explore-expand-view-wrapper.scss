@@ -1,10 +1,10 @@
 .explore-expand-view-wrapper {
   padding: 0 10px;
-  background-image: linear-gradient(to right, var(--legend-color), var(--legend-color)),
+  background-image: linear-gradient(to right, var(--table-legend-color), var(--table-legend-color)),
     linear-gradient(#f5f7fa, #f5f7fa);
   background-repeat: no-repeat;
   background-size:
-    3px 100%,
+    var(--table-legend-width) 100%,
     100% 100%;
 
   .view-header {

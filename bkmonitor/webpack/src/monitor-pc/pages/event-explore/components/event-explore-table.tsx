@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
 import {
+  type DimensionsTypeEnum,
   type EventExploreTableColumn,
   type EventExploreTableRequestConfigs,
   ExploreSourceTypeEnum,
@@ -115,6 +116,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     this.getEventLogs();
   }
 
+  /**
+   * @description 事件日志table表格列配置项
+   *
+   */
   getTableColumns(): Array<EventExploreTableColumn> {
     const { TIME, CONTENT, LINK, PREFIX_ICON, TEXT } = ExploreTableColumnTypeEnum;
     return [
@@ -189,6 +194,18 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     this.tableLoading[loadingType] = false;
 
     updateTableDataFn(res.list);
+  }
+
+  /**
+   * @description: 根据当前事件类型获取 css 变量（表格行内最左侧的 颜色 和 宽度 ）
+   * @param {DimensionsTypeEnum} type 事件类型
+   *
+   */
+  getCssVarsByType(type: DimensionsTypeEnum) {
+    return {
+      '--table-legend-color': getEventLegendColorByType(type),
+      '--table-legend-width': '3px',
+    };
   }
 
   /**
@@ -298,9 +315,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     const rowData = scopedParam?.row;
     return (
       <ExploreExpandViewWrapper
-        style={{
-          '--legend-color': getEventLegendColorByType(rowData?.type?.value),
-        }}
+        style={this.getCssVarsByType(rowData?.type?.value)}
         data={rowData?.origin_data || {}}
       />
     );
@@ -451,9 +466,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       <div class='event-explore-table'>
         <bk-table
           row-style={e => {
-            return {
-              '--legend-color': getEventLegendColorByType(e?.row?.type?.value),
-            };
+            return this.getCssVarsByType(e?.row?.type?.value);
           }}
           style={{ display: !this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'flex' : 'none' }}
           class='explore-table'
