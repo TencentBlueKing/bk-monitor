@@ -342,7 +342,6 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
           >
             <div class='header-tool'>
               <label>{this.$t('URI源')}</label>
-              {}
               <span
                 class='right-btn-wrap'
                 slot='headerTool'
