@@ -32,7 +32,6 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
 )
 from apps.log_search.exceptions import BaseSearchResultAnalyzeException
-from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
@@ -231,6 +230,8 @@ class UnifyQueryHandler(object):
         return index_info_list
 
     def init_base_dict(self):
+        from apps.log_search.handlers.index_set import BaseIndexSetHandler
+
         # 自动周期转换
         if self.search_params.get("interval", "auto") == "auto":
             interval = self.init_default_interval()
