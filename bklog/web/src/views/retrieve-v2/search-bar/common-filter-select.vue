@@ -8,9 +8,10 @@
   import { getOperatorKey } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
+  import { debounce } from 'lodash';
   const { $t } = useLocale();
   const store = useStore();
-
+  const debouncedHandleChange = debounce(() => handleChange(), 300);
   const filterFieldsList = computed(() => {
     if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
       return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
@@ -183,7 +184,7 @@
           :input-search="false"
           :popover-min-width="100"
           filterable
-          @change="handleChange"
+          @change="debouncedHandleChange"
         >
           <template #trigger>
             <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
@@ -205,7 +206,7 @@
             multiple
             searchable
             :fix-height="true"
-            @change="handleChange"
+            @change="debouncedHandleChange"
             @toggle="visible => handleToggle(visible, item, index)"
           >
             <template #search>
