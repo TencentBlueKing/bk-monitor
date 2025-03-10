@@ -16,7 +16,14 @@ from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
-from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
+from apm.core.discover.precalculation.storage import PrecalculateStorage
+from apm_web.constants import (
+    ADVANCED_FIELDS,
+    DEFAULT_DIFF_TRACE_MAX_NUM,
+    OPERATORS,
+    CategoryEnum,
+    QueryMode,
+)
 from apm_web.handlers.es_handler import ESMappingHandler
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
@@ -1254,4 +1261,17 @@ class ListQueryDynamicFieldsResource(Resource):
         )
         mapping_handler = ESMappingHandler(es_mapping=es_mapping)
 
-        return {"fields": mapping_handler.get_queryable_fields()}
+        all_fields = []
+
+        # 静态字段 ＋ 动态字段
+        all_fields.extend(mapping_handler.get_queryable_fields())
+
+        # 增加高级字段在列表末尾A
+        for field_info in PrecalculateStorage.TABLE_SCHEMA:
+            if field_info["field_name"] in ADVANCED_FIELDS:
+                field_es_type = field_info.get("option", {}).get("es_type")
+                all_fields.append(
+                    {"field_name": field_info["field_name"], "field_operator": OPERATORS.get(field_es_type, [])}
+                )
+
+        return {"fields": all_fields}
