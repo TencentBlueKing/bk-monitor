@@ -100,7 +100,7 @@ paths:
   /app/metadata/create_data_id/:
     post:
       operationId: metadata_create_data_id
-      description: 创建监控数据源
+      description: 创建监控数据ID
       tags:
       - metadata
       x-bk-apigateway-resource:
@@ -116,7 +116,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: metadata create data source
+        descriptionEn: metadata create data id
   /app/metadata/create_result_table/:
     post:
       operationId: metadata_create_result_table
@@ -200,7 +200,7 @@ paths:
   /app/metadata/get_data_id/:
     get:
       operationId: metadata_get_data_id
-      description: 获取监控数据源具体信息
+      description: 获取监控数据ID信息
       tags:
       - metadata
       x-bk-apigateway-resource:
@@ -216,7 +216,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: metadata get data source
+        descriptionEn: metadata get data id
   /app/metadata/query_data_source_by_space_uid/:
     post:
       operationId: metadata_query_data_source_by_space_uid
@@ -280,7 +280,7 @@ paths:
   /app/metadata/modify_data_id/:
     post:
       operationId: metadata_modify_data_id
-      description: 修改指定数据源的配置信息
+      description: 修改指定数据ID的配置信息
       tags:
       - metadata
       x-bk-apigateway-resource:
@@ -296,7 +296,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: metadata modify data source
+        descriptionEn: metadata modify data id
   /app/metadata/modify_datasource_result_table/:
     post:
       operationId: metadata_modify_datasource_result_table
@@ -1859,7 +1859,7 @@ paths:
         descriptionEn: metadata modify data id source
   /app/metadata/full_cmdb_node_info/:
     post:
-      operationId: full_cmdb_node_info
+      operationId: metadata_full_cmdb_node_info
       description: 根据table_id补充cmdb节点信息
       tags:
         - metadata
@@ -1879,7 +1879,7 @@ paths:
         descriptionEn: metadata modify data id source
   /app/metadata/create_down_sample_data_flow/:
     post:
-      operationId: create_down_sample_data_flow
+      operationId: metadata_create_down_sample_data_flow
       description: 创建统计节点（按指定的降采样频率）
       tags:
         - metadata
