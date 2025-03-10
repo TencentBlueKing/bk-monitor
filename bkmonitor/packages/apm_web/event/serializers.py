@@ -8,11 +8,22 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Dict, List
 
 from rest_framework import serializers
 
-from apm_web.models import Application
+from apm_web.models import Application, EventServiceRelation
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.data_explorer.event import serializers as event_serializers
+
+# def process_query_config(origin_query_config: Dict[str, Any]) -> List[Dict[str, Any]]:
+#     query_configs: List[Dict[str, Any]] = []
+#     base_q: QueryConfigBuilder = (
+#         QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.BK_APM))
+#         .query_string(origin_query_config["query_string"])
+#         .filter(filter_dict_to_conditions())
+#     )
+#     return query_configs
 
 
 class BaseEventRequestSerializer(serializers.Serializer):
@@ -44,6 +55,20 @@ class EventViewConfigRequestSerializer(event_serializers.EventViewConfigRequestS
     def validate(self, attrs):
         attrs = super(BaseEventRequestSerializer, self).validate(attrs)
         attrs = super(event_serializers.EventViewConfigRequestSerializer, self).validate(attrs)
+
+        data_sources: List[Dict[str, str]] = []
+        for relation in EventServiceRelation.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        ):
+            data_sources.append(
+                {
+                    "table": relation["table"],
+                    "data_type_label": DataTypeLabel.EVENT,
+                    "data_source_label": DataSourceLabel.BK_APM,
+                }
+            )
+
+        attrs["data_sources"] = data_sources
         return attrs
 
 
