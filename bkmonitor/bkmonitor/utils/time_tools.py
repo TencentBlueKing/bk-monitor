@@ -15,6 +15,7 @@ import time
 from typing import Union
 
 import arrow
+import arrow.parser
 import six
 from django.conf import settings
 from django.utils import timezone
@@ -372,7 +373,11 @@ def parse_time_compare_abbreviation(time_offset: Union[int, str]) -> int:
             time_offset = int((last_time - current_time).total_seconds())
     else:
         # 支持日期格式，按天计算差值
-        offset_datetime = arrow.get(time_offset)
+        try:
+            offset_datetime = arrow.get(time_offset)
+        except arrow.parser.ParserError:
+            return 0
+
         time_offset = int((offset_datetime - arrow.now()).days * 86400)
 
     return time_offset
