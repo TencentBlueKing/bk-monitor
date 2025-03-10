@@ -299,6 +299,8 @@ export default defineComponent({
     watch(
       () => [store.state.visibleFields.length],
       () => {
+        isDispose = false;
+        containerWidth = refContent.value.offsetWidth;
         setMounted();
       },
       {
