@@ -1051,7 +1051,7 @@ class ListOptionValuesResource(Resource):
 
 class GetFieldOptionValuesResource(Resource):
     """
-    获取标准字段下拉框候选值
+    获取所有字段下拉框候选值
     """
 
     class RequestSerializer(serializers.Serializer):
