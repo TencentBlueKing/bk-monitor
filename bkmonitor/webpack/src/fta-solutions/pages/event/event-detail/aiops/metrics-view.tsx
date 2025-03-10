@@ -185,30 +185,6 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       </div>
     );
   }
-  renderMetricsCollapse(item, index) {
-    const panelLen = this.recommendedMetricPanels.length;
-    return (
-      <MetricsCollapse
-        id={`${item.metric_name}_collapse`}
-        key={`${item.metric_name}_collapse`}
-        ref={`${item.metric_name}_collapse`}
-        class={[panelLen > 1 && index !== panelLen - 1 ? 'mb10' : '']}
-        info={this.info}
-        layoutActive={this.layoutActive}
-        needLayout={true}
-        title={`【${item.title}】${item.metric_name_alias}`}
-        {...{
-          on: {
-            // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
-            layoutChange: val => (this.layoutActive = val),
-          },
-          scopedSlots: {
-            default: this.renderDashboardPanel.bind(this, item),
-          },
-        }}
-      />
-    );
-  }
 
   handleActive(item) {
     clearTimeout(this.scrollActiveTime);
@@ -237,22 +213,20 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
   }
   /** 关联指标渲染 */
   renderCorrelationMetricPanels() {
+    const key = !this.isCorrelationMetrics ? 'dimensionPanels' : 'recommendedMetricPanels';
+    const chartList = !this.isCorrelationMetrics ? this.panelMap.dimensionPanels : this.recommendedMetricPanels;
     return (
       <div
-        class={[
-          'correlation-metric-wrap',
-          !this.isCorrelationMetrics ? 'aiops-metrics-view-hide' : '',
-          this.metricRecommendationErr ? 'metrics-err' : '',
-        ]}
+        class={['correlation-metric-wrap', this.metricRecommendationErr ? 'metrics-err' : '']}
         v-bkloading={{ isLoading: this.metricRecommendationLoading }}
       >
-        {this.panelMap.recommendedMetricPanels.length > 0 ? (
+        {this.panelMap[key].length > 0 ? (
           [
             <div
               key='wrap-panels'
               class={['correlation-metric-panels']}
             >
-              {this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))}
+              {chartList.map((item, index) => this.renderMetricsCollapse(item, index))}
             </div>,
             <div
               key='wrap-bg'
@@ -265,7 +239,7 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
             >
               <CorrelationNav
                 ref='correlationNav'
-                list={this.panelMap.recommendedMetricPanels}
+                list={this.panelMap[key]}
                 onActive={this.handleActive}
               />
             </div>,
@@ -283,25 +257,37 @@ export default class AiopsMetricsPanel extends tsc<IProps> {
       </div>
     );
   }
-  /** 纬度下钻图表渲染 */
-  renderDimensionPanels() {
-    return this.panelMap?.dimensionPanels?.length > 0 ? (
-      <DashboardPanel
-        id={this.dashboardPanelId}
-        key={this.dashboardPanelId}
-        class={[`aiops-metrics-view-${this.isCorrelationMetrics ? 'hide' : 'show'}`, 'aiops-dimension-panels']}
-        column={this.dimensionPanelsColumn}
-        customHeightFn={column => '200px' || (column === 1 ? '220px' : '256px')}
-        isSingleChart={false}
-        isSplitPanel={false}
-        needOverviewBtn={false}
-        panels={this.panelMap.dimensionPanels}
+
+  renderMetricsCollapse(item, index) {
+    const panelLen = this.recommendedMetricPanels.length;
+    return (
+      <MetricsCollapse
+        id={`${item.metric_name}_collapse`}
+        key={`${item.metric_name}_collapse`}
+        ref={`${item.metric_name}_collapse`}
+        class={[panelLen > 1 && index !== panelLen - 1 ? 'mb10' : '']}
+        titleNum={
+          item?.dimension_anomaly_value_count
+            ? `${item.dimension_anomaly_value_count} / ${item.dimension_value_total_count}`
+            : ''
+        }
+        info={this.info}
+        layoutActive={this.layoutActive}
+        needLayout={true}
+        title={!this.isCorrelationMetrics ? item.anomaly_dimension_alias : `【${item.title}】${item.metric_name_alias}`}
+        {...{
+          on: {
+            // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
+            layoutChange: val => (this.layoutActive = val),
+          },
+          scopedSlots: {
+            default: this.renderDashboardPanel.bind(this, item),
+          },
+        }}
       />
-    ) : (
-      ''
     );
   }
   render() {
-    return <div class='aiops-metrics-view'>{[this.renderDimensionPanels(), this.renderCorrelationMetricPanels()]}</div>;
+    return <div class='aiops-metrics-view'>{this.renderCorrelationMetricPanels()}</div>;
   }
 }

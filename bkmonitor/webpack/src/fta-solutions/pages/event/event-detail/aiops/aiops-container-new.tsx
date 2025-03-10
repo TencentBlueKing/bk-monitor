@@ -121,7 +121,7 @@ export default class AiopsContainer extends tsc<IProps> {
         titleKey: '故障诊断',
         loading: this.metricRecommendationLoading,
         error: this.metricRecommendationErr,
-        contentRenderer: () => <AiopsTroubleshootingCollapse />,
+        contentRender: () => <AiopsTroubleshootingCollapse />,
         tipsRenderer: () => {},
       },
       {
@@ -132,7 +132,7 @@ export default class AiopsContainer extends tsc<IProps> {
         isShow: this.showDimensionDrill,
         error: this.dimensionDrillDownErr,
         tipsRenderer: this.renderDimensionTips,
-        contentRenderer: this.renderDimensionAndIndexView,
+        contentRender: this.renderDimensionAndIndexView,
       },
       {
         name: 'index',
@@ -141,7 +141,7 @@ export default class AiopsContainer extends tsc<IProps> {
         loading: this.metricRecommendationLoading,
         isShow: this.showMetricRecommendation,
         error: this.metricRecommendationErr,
-        contentRenderer: this.renderDimensionAndIndexView,
+        contentRender: this.renderDimensionAndIndexView,
         tipsRenderer: this.renderMetricTips,
       },
     ];
@@ -175,11 +175,30 @@ export default class AiopsContainer extends tsc<IProps> {
   get panelMap() {
     /** 纬度下钻数据需要根据表格选择的维度来进行展示 */
     const graphPanels = this.tabData.dimension?.graph_panels || [];
-    const selects = this.anomalyDimensionsSelected.map(select => select.anomaly_dimension_class);
-    const dimensionPanels =
-      selects.length === 0
-        ? graphPanels
-        : graphPanels.filter(({ anomaly_dimension_class }) => selects.includes(anomaly_dimension_class));
+    const anomalyDimensions = this.tabData.dimension?.anomaly_dimensions || [];
+    // const selects = this.anomalyDimensionsSelected.map(select => select.anomaly_dimension_class);
+    const dimensionPanels = [];
+
+    anomalyDimensions.map(item => {
+      const panelList = graphPanels
+        .filter(panel => panel.anomaly_dimension_class === item.anomaly_dimension_class)
+        .map(panel =>
+          Object.assign(panel, {
+            metric_name: panel.id,
+            metric_name_alias: panel.title,
+          })
+        );
+      dimensionPanels.push({
+        ...item,
+        ...{
+          metric_name: item.anomaly_dimension_class,
+          metric_name_alias: item.anomaly_dimension_alias,
+          result_table_label_name: item.anomaly_dimension_alias,
+          panels: panelList,
+          metrics: panelList,
+        },
+      });
+    });
     return {
       dimensionPanels,
       recommendedMetricPanels: this.tabData.index?.recommended_metrics || [],
@@ -426,7 +445,8 @@ export default class AiopsContainer extends tsc<IProps> {
   }
   /** 维度下钻和关联指标视图 */
   renderDimensionAndIndexView() {
-    return (!this.showDimensionDrill && this.tabActive === ETabNames.dimension) ||
+    const isDimension = this.tabActive === ETabNames.dimension;
+    return (!this.showDimensionDrill && isDimension) ||
       (!this.showMetricRecommendation && this.tabActive === ETabNames.index) ? (
       <FuctionalDependency
         functionalDesc={this.$t('启用 AI 功能，将支持维度下钻、关联指标事件展示等功能。')}
@@ -437,31 +457,14 @@ export default class AiopsContainer extends tsc<IProps> {
         onGotoMore={this.handleFunctionalDepsGotoMore}
       />
     ) : (
-      [
-        // <DimensionTable
-        //   key='dimensionTable'
-        //   ref='dimensionTable'
-        //   class={`aiops-container-${this.isCorrelationMetrics ? 'hide' : 'show'}`}
-        //   v-bkloading={{ isLoading: this.dimensionDrillDownLoading }}
-        //   dimensionDrillDownErr={this.dimensionDrillDownErr}
-        //   tableData={this.anomalyDimensions}
-        //   {...{
-        //     on: {
-        //       selectionChange: this.handleSelectionChange,
-        //       sortChange: this.handleSortChange,
-        //       tipsClick: this.handleTipsClick,
-        //     },
-        //   }}
-        // />,
-        <MetricsView
-          key='metricsView'
-          ref='metricsView'
-          info={this.tabData.index?.info || {}}
-          metricRecommendationErr={this.metricRecommendationErr}
-          metricRecommendationLoading={this.metricRecommendationLoading}
-          panelMap={this.panelMap}
-        />,
-      ]
+      <MetricsView
+        key='metricsView'
+        ref='metricsView'
+        info={this.tabData.index?.info || {}}
+        metricRecommendationErr={isDimension ? this.dimensionDrillDownErr : this.metricRecommendationErr}
+        metricRecommendationLoading={isDimension ? this.dimensionDrillDownLoading : this.metricRecommendationLoading}
+        panelMap={this.panelMap}
+      />
     );
   }
   /** 异常维度的信息提示 */
@@ -572,7 +575,7 @@ export default class AiopsContainer extends tsc<IProps> {
                 class='aiops-container-menu-item-content'
                 slot='content'
               >
-                {this.tabActive === config.name && config.contentRenderer()}
+                {this.tabActive === config.name && config.contentRender()}
               </div>
             </bk-collapse-item>
           ))}

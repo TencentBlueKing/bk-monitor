@@ -41,6 +41,7 @@ interface IProps {
   showCollapse?: boolean;
   title: string;
   info: IInfo;
+  titleNum?: string;
 }
 
 @Component({
@@ -58,6 +59,7 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
 
   /** 是否展示头部展开收起 */
   @Prop({ default: true, type: Boolean }) showCollapse: boolean;
+  @Prop({ type: String, default: '' }) titleNum: string;
 
   /** 展开收起 */
   isCollapse = false;
@@ -141,6 +143,7 @@ export default class AiopsMetricsCollapse extends tsc<IProps> {
               onClick={this.handleToggleCollapse.bind(this, false)}
             >
               {this.title}
+              {this.titleNum && <span class='title-num'>{this.titleNum}</span>}
             </span>
             {/* <div class={['correlation-metrics-right', this.showLayoutPopover && 'correlation-metrics-right-show']}>
               {this.needLayout && (
