@@ -35,6 +35,7 @@ import {
   onClickOutside,
   type IGetValueFnParams,
   type IWhereValueOptionsItem,
+  type IFavoriteListItem,
 } from './utils';
 
 import './qs-selector.scss';
@@ -43,6 +44,7 @@ interface IProps {
   value?: string;
   fields: IFilterField[];
   qsSelectorOptionsWidth?: number;
+  favoriteList?: IFavoriteListItem[];
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onChange?: (v: string) => void;
   onQueryStringChange?: (v: string) => void;
@@ -62,6 +64,7 @@ export default class QsSelector extends tsc<IProps> {
       }),
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
 
   @Ref('select') selectRef: HTMLDivElement;
 
@@ -168,7 +171,9 @@ export default class QsSelector extends tsc<IProps> {
    * @returns
    */
   handlePopUp(type, field) {
-    console.log('PopUp', type, field);
+    if (this.curTokenType === EQueryStringTokenType.condition && type === EQueryStringTokenType.key) {
+      this.search = '';
+    }
     this.curTokenType = type;
     this.curTokenField = field;
     const customEvent = {
@@ -202,13 +207,16 @@ export default class QsSelector extends tsc<IProps> {
     this.$emit('change', this.localValue);
   }
 
+  handleSelectFavorite(value: string) {
+    this.queryStringEditor.setQueryString(value);
+    this.localValue = value;
+    this.handleQuery();
+  }
+
   render() {
     return (
       <div>
-        <div
-          class='retrieval-filter__qs-selector-component'
-          contenteditable={true}
-        />
+        <div class='retrieval-filter__qs-selector-component' />
         <div style='display: none;'>
           <div
             ref='select'
@@ -218,13 +226,16 @@ export default class QsSelector extends tsc<IProps> {
             class='retrieval-filter__qs-selector-component__popover'
           >
             <QsSelectorSelector
+              favoriteList={this.favoriteList}
               field={this.curTokenField}
               fields={this.fields}
               getValueFn={this.getValueFn}
+              queryString={this.localValue}
               search={this.search}
               show={this.showSelector}
               type={this.curTokenType}
               onSelect={this.handleSelectOption}
+              onSelectFavorite={this.handleSelectFavorite}
             />
           </div>
         </div>

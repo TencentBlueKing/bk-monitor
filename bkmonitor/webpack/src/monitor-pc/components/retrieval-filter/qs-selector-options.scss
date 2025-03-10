@@ -31,6 +31,15 @@
           padding: 0 12px;
         }
 
+        &.scroll-loading {
+          justify-content: center;
+
+          img {
+            width: 22px;
+            height: 22px;
+          }
+        }
+
         &.main-item {
           .option-item-icon {
             display: flex;
@@ -94,6 +103,7 @@
         font-size: 12px;
         line-height: 18px;
         color: #4D4F56;
+        cursor: pointer;
 
         .favorite-item-name {
           margin-right: 8px;
