@@ -313,4 +313,5 @@ export default {
   '试试。': 'and try.',
 
   '搜索 维度字段': 'Search Dimension Field',
+  '仅查看当前数据 ID': 'Only view current data ID',
 };
