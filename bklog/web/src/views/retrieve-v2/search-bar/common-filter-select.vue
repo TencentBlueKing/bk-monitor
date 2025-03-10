@@ -247,9 +247,9 @@
       0 1px 0 0 #eaebf0;
 
     .filter-setting-btn {
-      width: 83px;
+      min-width: 83px;
       height: 40px;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 40px;
       color: #3880f8;
       cursor: pointer;
@@ -257,8 +257,7 @@
 
     .empty-tips {
       font-size: 12px;
-      line-height: 40px;
-      color: #a1a5ae;
+      color: #979ba5;
     }
   }
 

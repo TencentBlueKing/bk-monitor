@@ -24,13 +24,28 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, ref } from 'vue';
+
+import RetrieveHelper from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-searchbar',
-  setup(_, { slots }) {
-    return () => <V2SearchBar class='v3-search-bar-root'></V2SearchBar>;
+  name: 'V3Searchbar',
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  setup(_, {}) {
+    const searchBarHeight = ref(0);
+    const handleHeightChange = height => {
+      searchBarHeight.value = height;
+      RetrieveHelper.setSearchBarHeight(height);
+    };
+
+    return () => (
+      <V2SearchBar
+        class='v3-search-bar-root'
+        on-height-change={handleHeightChange}
+      ></V2SearchBar>
+    );
   },
 });

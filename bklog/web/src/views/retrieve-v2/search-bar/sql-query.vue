@@ -18,7 +18,7 @@
     emit('height-change', height);
   };
 
-  const placeholderText = 'log: error AND "name=bklog"';
+  const placeholderText = '/快速定位到搜索，log:error AND"name=bklog"';
   const refSqlQueryOption = ref(null);
   const refEditorParent = ref(null);
 
@@ -179,6 +179,7 @@
       position: absolute;
       top: 50%;
       left: 14px;
+      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       font-size: 12px;
       line-height: 30px;
       color: #c4c6cc;

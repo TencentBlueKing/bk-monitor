@@ -2,12 +2,43 @@
   display: flex;
   width: 100%;
   height: 100%;
-  overflow-y: auto;
   overflow-x: hidden;
+  overflow-y: auto;
 
   .v3-bklog-content {
     display: flex;
     flex-direction: column;
     width: calc(100% - 240px);
+  }
+
+  .search-result-panel {
+    &.flex {
+      justify-content: flex-end;
+
+      .field-list-sticky {
+        top: 0;
+
+        &.is-show {
+          position: relative;
+          height: calc(100vh - var(--offset-search-bar) - 150px);
+        }
+      }
+    }
+  }
+
+  &.is-sticky-top {
+    .search-result-panel {
+      &.flex {
+        .field-list-sticky {
+          &.is-show {
+            position: fixed;
+            top: calc(var(--offset-search-bar) + 52px);
+            bottom: 0;
+            left: calc(var(--left-collection-width) + 8px);
+            height: calc(100vh - var(--offset-search-bar) - 52px);
+          }
+        }
+      }
+    }
   }
 }

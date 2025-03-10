@@ -3,8 +3,8 @@
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
+  import { useRoute, useRouter } from 'vue-router/composables';
   // import PopInstanceUtil from './pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
@@ -14,30 +14,33 @@
   // #endif
 
   import { ConditionOperator } from '@/store/condition-operator';
+  import { bkMessage } from 'bk-magic-vue';
 
   import $http from '../../../api';
   import { deepClone, copyMessage } from '../../../common/util';
+  import useResizeObserve from '../../../hooks/use-resize-observe';
+  import CommonFilterSelect from './common-filter-select.vue';
+  import { withoutValueConditionList } from './const.common';
   import SqlQuery from './sql-query';
   import UiInput from './ui-input';
-  import { bkMessage } from 'bk-magic-vue';
-  import CommonFilterSelect from './common-filter-select.vue';
-  import useResizeObserve from '../../../hooks/use-resize-observe';
-  import { withoutValueConditionList } from './const.common';
 
   const props = defineProps({
     activeFavorite: {
       default: null,
       type: Object,
     },
+    showFavorites: {
+      type: Boolean,
+      default: false
+    }
   });
 
   const emit = defineEmits(['refresh', 'height-change']);
   const store = useStore();
   const { $t } = useLocale();
-  const queryTypeList = ref([$t('UI查询'), $t('语句查询')]);
+  const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
   const refRootElement = ref(null);
   const queryParams = ['ui', 'sql'];
-  const btnQuery = $t('查询');
   const route = useRoute();
   const router = useRouter();
 
@@ -255,7 +258,7 @@
   );
 
   const matchSQLStr = computed(() => {
-    if(props.activeFavorite?.index_set_id !== store.state.indexId ){
+    if (props.activeFavorite?.index_set_id !== store.state.indexId) {
       return false;
     }
     if (activeIndex.value === 0) {
@@ -315,10 +318,10 @@
         index_set_ids: indexSetItem.value.ids,
         index_set_type: 'union',
       });
-    }else{
+    } else {
       Object.assign(data, {
         index_set_id: store.state.indexId,
-        index_set_type: 'single'
+        index_set_type: 'single',
       });
     }
     try {
@@ -434,13 +437,18 @@
     ref="refRootElement"
     :class="['search-bar-wrapper']"
   >
-    <div :class="['search-bar-container']">
+    <div
+      :class="[
+        'search-bar-container',
+        { 'set-border': isFilterSecFocused }
+      ]"
+      >
       <div
         class="search-options"
         @click="handleQueryTypeChange"
       >
         <span class="mode-text">{{ queryText }}</span>
-        <span class="bklog-icon bklog-double-arrow"></span>
+        <span class="bklog-icon bklog-qiehuan-2" />
       </div>
       <div
         class="search-input"
@@ -457,49 +465,47 @@
           @retrieve="handleSqlRetrieve"
         ></SqlQuery>
         <div
-          class="hidden-focus-pointer"
           ref="refPopTraget"
+          class="hidden-focus-pointer"
         ></div>
         <div class="search-tool items">
           <div
             v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-data-copy', , { disabled: isInputLoading || !isCopyBtnActive }]"
+            :class="['bklog-icon bklog-copy', , { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleCopyQueryValue"
           ></div>
           <div
             v-bk-tooltips="$t('清理当前查询')"
-            :class="['bklog-icon bklog-brush', { disabled: isInputLoading || !isCopyBtnActive }]"
+            :class="['bklog-icon bklog-qingkong', { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleClearBtnClick"
           ></div>
-
-          <BookmarkPop
-            :activeFavorite="!props.activeFavorite"
-            :addition="uiQueryValue"
-            :class="{ disabled: isInputLoading }"
-            :search-mode="queryParams[activeIndex]"
-            :sql="sqlQueryValue"
-            :matchSQLStr="matchSQLStr"
-            @saveCurrentActiveFavorite="saveCurrentActiveFavorite"
-            @refresh="handleRefresh"
-          ></BookmarkPop>
-
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"
             @click="handleFilterSecClick"
-          ></div>
+          />
+          <BookmarkPop
+            :active-favorite="!props.activeFavorite"
+            :addition="uiQueryValue"
+            :class="{ disabled: isInputLoading }"
+            :match-s-q-l-str="matchSQLStr"
+            :search-mode="queryParams[activeIndex]"
+            :sql="sqlQueryValue"
+            @refresh="handleRefresh"
+            @save-current-active-favorite="saveCurrentActiveFavorite"
+          />
         </div>
         <div
           class="search-tool search-btn"
           @click.stop="handleBtnQueryClick"
         >
           <bk-button
-            style="width: 100%; height: 100%"
             :loading="isInputLoading"
-            size="large"
+            icon="search"
+            size="small"
             theme="primary"
-            >{{ btnQuery }}</bk-button
           >
+          </bk-button>
         </div>
       </div>
       <!-- <div style="display: none">

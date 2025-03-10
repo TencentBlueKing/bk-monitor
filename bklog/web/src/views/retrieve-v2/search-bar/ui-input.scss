@@ -9,12 +9,35 @@ ul.search-items {
   overflow: auto;
 
   li {
+
+    @keyframes changeBackgroundColor {
+      0% {
+        background-color: #e1ecff;
+      }
+
+      10% {
+        background-color: #fdf4e8;
+      }
+
+      50% {
+        background-color: #e1ecff;
+      }
+
+      90% {
+        background-color: #fdf4e8;
+      }
+
+      100% {
+        background-color: #e1ecff;
+      }
+    }
+
     &.search-item {
       display: inline-flex;
       flex-direction: column;
       align-content: center;
       justify-content: center;
-      height: 48px;
+      height: 40px;
       margin-right: 4px;
       margin-bottom: 4px;
       cursor: pointer;
@@ -27,34 +50,32 @@ ul.search-items {
       }
 
       &.is-common-fixed {
-        animation: changeBackgroundColor 1.5s forwards;
         transition: background-color 1s ease-in-out;
+        animation: changeBackgroundColor 1.5s forwards;
+      }
+
+      &.is-focus-input {
+        .tag-option-focus-input {
+          &:hover {
+            cursor: pointer;
+          }
+        }
       }
     }
 
-    @keyframes changeBackgroundColor {
-      0% {
-        background-color: #e1ecff;
-      }
-      10% {
-        background-color: #fdf4e8;
-      }
-      50% {
-        background-color: #e1ecff;
-      }
-      90% {
-        background-color: #fdf4e8;
-      }
-      100% {
-        background-color: #e1ecff;
-      }
-    }
     .tag-option-focus-input {
-      width: 8px;
+      // width: 8px;
+
+    /* stylelint-disable-next-line declaration-no-important */
+      width: auto !important;
       height: 38px;
       font-size: 12px;
       color: #63656e;
       border: none;
+
+      &::placeholder {
+        color: #c4c6cc;
+      }
     }
 
     &.btn-add {
@@ -75,8 +96,8 @@ ul.search-items {
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        height: 18px;
-        font-size: 16px;
+        font-size: 18px;
+        line-height: 18px;
       }
 
       .tag-text {
@@ -149,10 +170,11 @@ ul.search-items {
         align-items: center;
         justify-content: flex-start;
         width: 100%;
+        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
         font-size: 12px;
 
         &.match-name {
-          color: #979ba5;
+          color: #757880;
 
           .symbol {
             padding: 0 4px;
@@ -205,7 +227,6 @@ ul.search-items {
 
       &.tag-add {
         font-size: 18px;
-        font-weight: 600;
         text-align: center;
       }
     }

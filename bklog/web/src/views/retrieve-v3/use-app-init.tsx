@@ -1,21 +1,87 @@
-import { computed, ref, watch } from 'vue';
-import $http from '@/api';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+
 import useStore from '@/hooks/use-store';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
-import RetrieveHelper from '../retrieve-helper';
-import useScroll from '../../hooks/use-scroll';
+
 import useResizeObserve from '../../hooks/use-resize-observe';
+import useScroll from '../../hooks/use-scroll';
+import RetrieveHelper, { RetrieveEvent } from '../retrieve-helper';
+import $http from '@/api';
 
 export default () => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
+  const searchBarHeight = ref(0);
+  const leftFieldSettingWidth = ref(0);
+  const favoriteWidth = ref(RetrieveHelper.favoriteWidth);
+  const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
 
   RetrieveHelper.setScrollSelector('.v3-bklog-root');
 
+  RetrieveHelper.on(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height => {
+    searchBarHeight.value = height;
+  });
+
+  RetrieveHelper.on(RetrieveEvent.LEFT_FIELD_SETTING_WIDTH_CHANGE, width => {
+    leftFieldSettingWidth.value = width;
+  });
+
+  RetrieveHelper.on(RetrieveEvent.FAVORITE_WIDTH_CHANGE, width => {
+    favoriteWidth.value = width;
+  });
+
+  RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, isShown => {
+    isFavoriteShown.value = isShown;
+  });
+
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
+  const stickyStyle = computed(() => {
+    return {
+      '--offset-search-bar': `${searchBarHeight.value}px`,
+      '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
+      '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
+    };
+  });
+
+  /**
+   * 用于处理收藏夹宽度变化
+   * 当收藏夹展开时，需要将内容宽度设置为减去收藏夹宽度
+   */
+  const contentStyle = computed(() => {
+    if (isFavoriteShown.value) {
+      return { width: `calc(100% - ${favoriteWidth.value}px)` };
+    }
+
+    return { width: '100%' };
+  });
 
   const { search_mode, addition, keyword } = route.query;
 
@@ -148,9 +214,16 @@ export default () => {
     return paddingTop.value === subBarHeight.value;
   });
 
-  /*** 结束计算 ***/
+  /** * 结束计算 ***/
+
+  onBeforeUnmount(() => {
+    RetrieveHelper.destroy();
+  });
 
   return {
     isStickyTop,
+    stickyStyle,
+    contentStyle,
+    isFavoriteShown,
   };
 };

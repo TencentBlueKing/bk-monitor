@@ -24,41 +24,68 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
+import { throttle } from 'lodash';
+
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import V2Collection from '../../retrieve-v2/collect/collect-index';
 
 import './index.scss';
 
 export default defineComponent({
   name: 'V3Collection',
-  props: {
-    isShow: {
-      type: Boolean,
-      default: false,
-    },
-  },
+
   emits: ['width-change'],
-  setup(props, { emit }) {
-    const showContent = computed(() => props.isShow);
+  setup(_, { emit }) {
+    const isShow = ref(RetrieveHelper.isFavoriteShown);
     const collectWidth = ref(240);
+
+    const handleShownChange = throttle((val: boolean) => {
+      isShow.value = val;
+    });
+
+    RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
+
     const handleWidthChange = (width: number) => {
       collectWidth.value = width;
+      RetrieveHelper.setFavoriteWidth(width);
       emit('width-change', width);
     };
 
+    const handleUpdateIsShow = (val: boolean) => {
+      RetrieveHelper.setFavoriteShown(val);
+    };
+
     onMounted(() => {
+      RetrieveHelper.setFavoriteWidth(collectWidth.value);
       emit('width-change', collectWidth.value);
+    });
+
+    onBeforeUnmount(() => {
+      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, handleShownChange);
+    });
+
+    const favoriteStyle = computed(() => {
+      return {
+        minWidth: `${collectWidth.value}px`,
+      };
     });
 
     return () => {
       return (
-        <V2Collection
-          width={collectWidth.value}
-          class='v3-bklog-collection'
-          is-show={showContent.value}
-          onUpdate:width={handleWidthChange}
-        ></V2Collection>
+        <keep-alive>
+          <V2Collection
+            style={favoriteStyle.value}
+            width={collectWidth.value}
+            class='v3-bklog-collection'
+            is-show={isShow.value}
+            on={{
+              'update:isShow': handleUpdateIsShow,
+              'update:width': handleWidthChange,
+            }}
+          ></V2Collection>
+        </keep-alive>
       );
     };
   },
