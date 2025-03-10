@@ -184,6 +184,7 @@ def render_mails(
         # 没有订阅者的情况下，直接返回
         logger.info(f"[mail_report] ignore send mail({report_item.mail_title}) due to no receivers")
         return
+    logger.info(f"[mail_report] report_item({report_item.id}) start...")
     status = {
         "report_item": mail_handler.item_id,
         "mail_title": report_item.mail_title,

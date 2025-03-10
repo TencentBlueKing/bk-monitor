@@ -418,3 +418,20 @@ class RefreshMetricForKihan(Resource):
             return
         logger.error("metric count gt %s", self.MAX_METRIC_COUNT)
         raise ValidationError(f"metric count gt {self.MAX_METRIC_COUNT}")
+
+
+class GetNegativeSpaceIdRelatedInfo(Resource):
+    """
+    获取负数空间ID相关信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        negative_id = serializers.IntegerField(required=True, label="负数ID")
+
+    def perform_request(self, validated_request_data):
+        negative_id = validated_request_data["negative_id"]
+        logger.info(
+            "GetNegativeSpaceIdRelatedInfo: try to get negative space id related info, negative_id->[%s]", negative_id
+        )
+        info = utils.get_negative_space_related_info(negative_biz_id=negative_id)
+        return info

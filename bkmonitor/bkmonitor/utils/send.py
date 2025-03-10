@@ -71,7 +71,7 @@ class BaseSender(object):
         try:
             self.bk_biz_id = int(self.context.get("target").business.bk_biz_id)
         except Exception as error:
-            logger.info("failed to get notice business id: %s", str(error))
+            logger.debug("failed to get notice business id: %s", str(error))
             self.bk_biz_id = self.context.get("bk_biz_id", 0)
 
         # todo: 这里是公共模块，不应该依赖alarm_backends

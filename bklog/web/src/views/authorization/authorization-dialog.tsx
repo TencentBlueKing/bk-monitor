@@ -292,7 +292,7 @@ export default class AuthorizationDialog extends tsc<IProps, IEvents> {
       data: {
         space_uid: this.spaceUid,
         ...rest,
-        authorized_users: rest.authorized_users.map(val => val.replace(/[\r\n]/g, '')),
+        authorized_users: rest.authorized_users.map(val => val.replace(/[\r\n]/g, '').trim()),
 
         ...(expire_time ? { expire_time } : {}),
         authorizer: this.authorizer,

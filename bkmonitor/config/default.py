@@ -15,6 +15,7 @@ import os
 import sys
 from urllib.parse import urljoin
 
+from ai_agent.conf.default import *
 from bkcrypto import constants
 from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
@@ -22,7 +23,6 @@ from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
 from django.utils.translation import gettext_lazy as _
 
-from ai_agent.conf.default import *
 from bkmonitor.utils.i18n import TranslateDict
 
 from . import get_env_or_raise
@@ -1476,6 +1476,8 @@ BK_MONITOR_AI_API_URL = os.environ.get("BK_MONITOR_AI_API_URL", "")
 
 # 支持来源 APIGW 列表
 FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
+# 网关环境，prod 表示生产环境，stage 表示测试环境
+APIGW_STAGE = os.getenv("APIGW_STAGE", "prod")
 
 # 集群内 bkmonitor-operator 特殊部署命名空间信息，针对一个集群部署多套 operator 时需要配置这个
 # 格式: {

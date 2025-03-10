@@ -71,13 +71,13 @@ def get_metrics() -> List:
                 Metric(
                     id="nw_container_network_receive_errors_ratio",
                     name=_lazy("网络入丢包率"),
-                    unit="Bps",
+                    unit="percentunit",
                     unsupported_resource=[],
                 ),
                 Metric(
                     id="nw_container_network_transmit_errors_ratio",
                     name=_lazy("网络出丢包率"),
-                    unit="Bps",
+                    unit="percentunit",
                     unsupported_resource=[],
                 ),
             ],
