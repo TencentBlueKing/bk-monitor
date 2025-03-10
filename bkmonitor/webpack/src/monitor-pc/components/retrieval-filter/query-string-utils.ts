@@ -323,12 +323,13 @@ export class QueryStringEditor {
   constructor(options: IOptions) {
     this.options = options;
     this.editorEl = this.options.target;
+    this.editorEl.setAttribute('contenteditable', 'true');
     this.editorEl.addEventListener('click', () => this.handleClick());
     this.editorEl.addEventListener('input', () => this.handleInput());
-    this.editorEl.addEventListener('keydown', event => this.handleKeyDown(event));
+    this.editorEl.addEventListener('keydown', e => this.handleKeyDown(e));
     this.queryString = this.options.value;
     this.parseQueryString();
-    this.setTokensToTarget();
+    this.setTokensToTarget(true);
   }
 
   /**
@@ -355,9 +356,12 @@ export class QueryStringEditor {
       if (index === this.tokens.length - 1) {
         if (isLast) {
           if (type === EQueryStringTokenType.key) {
-            this.popUp(EQueryStringTokenType.method, '');
+            const field = this.getCursorTokenField(index);
+            this.popUp(EQueryStringTokenType.method, field);
           } else if (type === EQueryStringTokenType.condition) {
             this.popUp(EQueryStringTokenType.key, '');
+          } else if (type === EQueryStringTokenType.value) {
+            this.popUp(EQueryStringTokenType.condition, '');
           }
         } else {
           if (type === EQueryStringTokenType.key) {
@@ -479,7 +483,8 @@ export class QueryStringEditor {
           } else if (type === EQueryStringTokenType.condition) {
             this.popUp(EQueryStringTokenType.key, '');
           } else if (type === EQueryStringTokenType.key) {
-            this.popUp(EQueryStringTokenType.method, '');
+            const field = this.getCursorTokenField(index);
+            this.popUp(EQueryStringTokenType.method, field);
           } else if (type === EQueryStringTokenType.value) {
             const field = this.getCursorTokenField(index);
             this.popUp(EQueryStringTokenType.condition, field);
@@ -494,7 +499,7 @@ export class QueryStringEditor {
   setQueryString(str: string) {
     this.queryString = str;
     this.parseQueryString();
-    this.setTokensToTarget();
+    this.setTokensToTarget(true);
   }
 
   /**
@@ -507,7 +512,6 @@ export class QueryStringEditor {
       lastToken.value = `${str} `;
     } else {
       this.queryString = `${this.queryString} ${str} `;
-
       this.parseQueryString();
     }
     this.setTokensToTarget(true);
