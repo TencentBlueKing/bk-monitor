@@ -15,6 +15,7 @@ from collections import defaultdict
 from threading import Lock
 from typing import Any, Dict, List, Set, Tuple
 
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -130,18 +131,22 @@ class EventViewConfigResource(Resource):
 
         data_sources = validated_request_data["data_sources"]
         tables = [data_source["table"] for data_source in data_sources]
-        dimension_metadata_map = self.get_dimension_metadata_map(tables)
+        dimension_metadata_map = self.get_dimension_metadata_map(validated_request_data["bk_biz_id"], tables)
         fields = self.sort_fields(dimension_metadata_map)
         return {"display_fields": DISPLAY_FIELDS, "entities": ENTITIES, "field": fields}
 
     @classmethod
-    def get_dimension_metadata_map(cls, tables):
-        dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=tables).values(
+    def get_dimension_metadata_map(cls, bk_biz_id: int, tables):
+        # 维度元数据集
+        data_labels_queryset = (
+            ResultTable.objects.filter(bk_biz_id__in=[0, bk_biz_id])
+            .filter(Q(table_id__in=tables) | Q(data_label__in=tables))
+            .values("table_id", "data_label")
+        )
+        data_labels_map = {item["table_id"]: item["data_label"] for item in data_labels_queryset}
+        dimensions_queryset = MetricListCache.objects.filter(result_table_id__in=data_labels_map.keys()).values(
             "dimensions", "result_table_id"
         )
-        # 维度元数据集
-        data_labels_queryset = ResultTable.objects.filter(table_id__in=tables).values("table_id", "data_label")
-        data_labels_map = {item["table_id"]: item["data_label"] for item in data_labels_queryset}
         dimension_metadata_map = {
             default_dimension_field: {"table_ids": set(), "data_labels": set()}
             for default_dimension_field in DEFAULT_DIMENSION_FIELDS
@@ -258,7 +263,9 @@ class EventTopKResource(Resource):
         limit = validated_request_data["limit"]
         query_configs = validated_request_data["query_configs"]
         tables = [query_config["table"] for query_config in query_configs]
-        dimension_metadata_map = EventViewConfigResource().get_dimension_metadata_map(tables)
+        dimension_metadata_map = EventViewConfigResource().get_dimension_metadata_map(
+            validated_request_data["bk_biz_id"], tables
+        )
         field_topk_map = defaultdict(lambda: defaultdict(int))
         # 字段和对应的去重数字典
         field_distinct_map = {}
