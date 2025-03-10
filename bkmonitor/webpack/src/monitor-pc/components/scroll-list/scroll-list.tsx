@@ -57,7 +57,7 @@ export default class ScrollList extends tsc<object> {
   loading = false;
   intersectionObserver: IntersectionObserver;
   renderData: IScrollListItem[] = [];
-  hiddenAnchor = false;
+  hiddenAnchor = true;
   isInViewport(element: Element) {
     const rect = element.getBoundingClientRect();
     return (
@@ -132,6 +132,7 @@ export default class ScrollList extends tsc<object> {
         )}
         <div
           ref='anchorRef'
+          style={{ display: this.hiddenAnchor ? 'none' : 'flex' }}
           class='scroll-list-anchor'
         >
           <bk-loading
