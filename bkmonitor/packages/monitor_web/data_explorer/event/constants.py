@@ -262,6 +262,7 @@ DETAIL_MOCK_DATA = {
         "value": "BCS-K8S-90001",
         "alias": "[共享集群] 蓝鲸公共-广州(BCS-K8S-90001)",
         "type": "link",
+        "scenario": "容器监控",
         # 带集群 ID 跳转到新版容器监控页面
         "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001",
     },
@@ -271,6 +272,7 @@ DETAIL_MOCK_DATA = {
         "alias": "kube-system",
         # 带 namespace & 集群 ID 跳转到新版容器监控页面
         "type": "link",
+        "scenario": "容器监控",
         "url": "https://bk.monitor.com/k8s-new/?=bcs_cluster_id=BCS-K8S-90001&namespace=xxx",
     },
     "name": {
