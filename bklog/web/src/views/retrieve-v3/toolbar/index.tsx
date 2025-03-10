@@ -24,34 +24,39 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, onBeforeUnmount, ref } from 'vue';
 
 import SubBar from '../../retrieve-v2/sub-bar/index.vue';
-
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import './index.scss';
 
 export default defineComponent({
   name: 'V3Toolbar',
-  props: {
-    isCollectShow: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  emits: ['collection-show-change'],
-  setup(_, { emit }) {
-    const handleCollectionShowChange = () => {
-      emit('collection-show-change');
+  setup(_, {}) {
+    const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
+    const onFavoriteShowChange = (val: boolean) => {
+      isFavoriteShown.value = val;
     };
+
+    RetrieveHelper.on(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
+
+    const handleCollectionShowChange = () => {
+      isFavoriteShown.value = !isFavoriteShown.value;
+      RetrieveHelper.setFavoriteShown(isFavoriteShown.value);
+    };
+
+    onBeforeUnmount(() => {
+      RetrieveHelper.off(RetrieveEvent.FAVORITE_SHOWN_CHANGE, onFavoriteShowChange);
+    });
 
     return () => (
       <div class='v3-bklog-toolbar'>
         <div
-          style={{ 'background-color': _.isCollectShow ? '#E1ECFF' : '#f0f1f5' }}
+          style={{ 'background-color': isFavoriteShown.value ? '#E1ECFF' : '#f0f1f5' }}
           class='collection-box'
         >
           <span
-            style={{ color: _.isCollectShow ? '#3A84FF' : '' }}
+            style={{ color: isFavoriteShown.value ? '#3A84FF' : '' }}
             class='bklog-icon bklog-shoucangjia'
             onClick={handleCollectionShowChange}
           ></span>

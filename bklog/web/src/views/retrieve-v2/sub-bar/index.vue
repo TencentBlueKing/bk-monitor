@@ -15,7 +15,6 @@
   import TimeSetting from '../search-bar/time-setting';
   import ClusterSetting from '../setting-modal/index.vue';
   import RetrieveSetting from './retrieve-setting.vue';
-  import { bus } from '@/common/bus';
 
   const props = defineProps({
     showFavorites: {

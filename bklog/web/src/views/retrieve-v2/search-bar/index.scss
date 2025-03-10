@@ -8,9 +8,7 @@
   .search-bar-container {
     display: flex;
     background-color: #fff;
-    box-shadow:
-      0 2px 8px 0 #00000026,
-      0 1px 0 0 #eaebf0;
+    box-shadow: 0 2px 4px 0 #19192914;
 
     .search-options {
       display: flex;
@@ -30,12 +28,12 @@
 
       .bklog-qiehuan-2 {
         margin-left: 4px;
-        color: #4D4F56;
+        color: #4d4f56;
       }
 
       &:hover {
         .mode-text {
-          color:#3a84ff;
+          color: #3a84ff;
         }
 
         .bklog-qiehuan-2 {
