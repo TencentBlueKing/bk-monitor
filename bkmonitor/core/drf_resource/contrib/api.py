@@ -129,6 +129,10 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         # 如果参数中传递了用户信息，则记录下来，以便接口请求时使用
         if BK_USERNAME_FIELD in request_data:
             setattr(self, "bk_username", request_data[BK_USERNAME_FIELD])
+
+        if "bk_tenant_id" in request_data:
+            setattr(self, "bk_tenant_id", request_data["bk_tenant_id"])
+
         return super(APIResource, self).request(request_data, **kwargs)
 
     def full_request_data(self, validated_request_data):
@@ -163,6 +167,21 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
             auth_params.update(make_userinfo())
         headers["x-bkapi-authorization"] = json.dumps(auth_params)
 
+        # 多租户模式下添加租户ID
+        # 如果是web请求，通过用户名获取租户ID
+        # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            request = get_request(peaceful=True)
+            if getattr(self, "bk_tenant_id", None):
+                headers["X-Bk-Tenant-Id"] = self.bk_tenant_id
+            elif request and request.user.tenant_id:
+                headers["X-Bk-Tenant-Id"] = request.user.tenant_id
+            else:
+                # TODO: 根据bk_biz_id获取租户ID
+                headers["X-Bk-Tenant-Id"] = "system"
+                # raise BKAPIError(system_name=self.module_name, url=self.action, result=_("租户ID获取失败"))
+        else:
+            headers["X-Bk-Tenant-Id"] = "default"
         return headers
 
     def perform_request(self, validated_request_data):
