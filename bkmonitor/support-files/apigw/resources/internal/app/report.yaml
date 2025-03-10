@@ -80,7 +80,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn: group list
   /app/mail_report/is_superuser/:
-    get:
+    post:
       operationId: is_superuser
       description: 判断用户是否超级管理员
       x-bk-apigateway-resource:
