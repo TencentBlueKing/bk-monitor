@@ -295,19 +295,6 @@ export default defineComponent({
       },
     );
 
-    // 需要深度监听拖拽后的数据后重新渲染数据同步更新是否需要显示更多
-    watch(
-      () => [store.state.visibleFields.length],
-      () => {
-        isDispose = false;
-        containerWidth = refContent.value.offsetWidth;
-        setMounted();
-      },
-      {
-        deep: true,
-      },
-    );
-
     const debounceUpdateWidth = debounce(() => {
       if (!refContent.value || !isMounted) {
         return;
@@ -324,6 +311,12 @@ export default defineComponent({
           computeWordListPosition(wordList).then(list => {
             setHighlightWords(list);
           });
+        }
+
+        if (getSegmentRenderType() === 'text') {
+          setWordList();
+          resetMounted();
+          setMounted();
         }
       }
     });
