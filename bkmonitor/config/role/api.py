@@ -228,6 +228,3 @@ INGESTER_CONSUL = os.environ.get("INGESTER_CONSUL", "")
 
 # api 进程禁用ssl
 SECURE_SSL_REDIRECT = False
-
-# 后台仪表盘渲染不显示图表水印
-GRAPH_WATERMARK = False
