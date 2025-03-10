@@ -55,7 +55,6 @@ export default defineComponent({
     const refContent: Ref<HTMLDivElement> = ref();
     const refCanvas: Ref<HTMLDivElement> = ref();
     const refFrontCanvas: Ref<HTMLDivElement> = ref();
-    const catchFieldCustomConfig = ref({});
 
     const fontFamily = 'Menlo,Monaco,Consolas,Courier,"PingFang SC","Microsoft Yahei",monospace';
     const store = useStore();
@@ -298,9 +297,8 @@ export default defineComponent({
 
     // 需要深度监听拖拽后的数据后重新渲染数据同步更新是否需要显示更多
     watch(
-      () => store.state.retrieve.catchFieldCustomConfig,
-      payload => {
-        catchFieldCustomConfig.value = { ...payload };
+      () => [store.state.visibleFields.length],
+      () => {
         setMounted();
       },
       {
