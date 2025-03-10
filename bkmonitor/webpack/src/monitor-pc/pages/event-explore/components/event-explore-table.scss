@@ -47,6 +47,7 @@
             .bk-table-expand-icon {
               &::before {
                 bottom: 0px;
+                border-bottom-right-radius: 0px;
               }
             }
           }
