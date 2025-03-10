@@ -93,6 +93,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 窗口宽度 */
   windowWidth = 0;
   textareaRow = MIN_ROW;
+  showKeywordEle = false;
 
   /** 符合搜索内容的路由列表 */
   get searchRouteList() {
@@ -161,6 +162,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       this.textareaRow = MIN_ROW;
       this.handleShowChange(false);
     }
+    this.showKeywordEle = !this.showPopover && !this.searchValue;
   }
   handleHiddenPopover() {
     this.handleShowChange(false);
@@ -552,6 +554,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     if (!this.isBarToolShow && !this.showPopover && this.searchValue.trim()) {
       this.showPopover = true;
     }
+    // 输入内容后未选择，手动删空了输入内容需要取消history高亮
+    if (!this.isInput && this.highlightedItem?.name) {
+      this.highlightedIndex = [-1, -1];
+      this.highlightedItem = null;
+    }
   }
   /** 弹性布局适应输入长度变化的实现 --- end */
   /** 清空历史 */
@@ -900,7 +907,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {(!this.isBarToolShow && !this.showPopover && !this.searchValue) && (
+          {(!this.isBarToolShow && this.showKeywordEle) && (
             <div class='search-keyboard'>
               {this.$tc('快捷键')} /
             </div>
