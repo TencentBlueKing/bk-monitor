@@ -20,7 +20,7 @@
 
         &.is-show {
           position: relative;
-          height: calc(100vh - var(--offset-search-bar) - 150px);
+          height: calc(100vh - var(--top-searchbar-height) - 150px);
         }
       }
     }
@@ -32,9 +32,11 @@
         .field-list-sticky {
           &.is-show {
             position: fixed;
-            top: calc(var(--offset-search-bar) + 52px);
+            top: calc(var(--top-searchbar-height) + 52px);
             bottom: 0;
             left: calc(var(--left-collection-width) + 8px);
+            left: calc(var(--left-collection-width) + 8px);
+            height: calc(100vh - var(--top-searchbar-height) - 52px);
             height: calc(100vh - var(--offset-search-bar) - 52px);
           }
         }

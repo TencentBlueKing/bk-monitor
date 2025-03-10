@@ -48,6 +48,35 @@ def get_related_spaces(space_type_id, space_id, target_space_type_id=SpaceTypes.
     return list(filtered_resources.values_list('space_id', flat=True))
 
 
+def get_negative_space_related_info(negative_biz_id):
+    """
+    获取负数ID的关联信息,空间类型、空间ID、归属业务ID（如有）
+    @param negative_biz_id: 负数ID
+    @return: dict
+    """
+    logger.info("get_negative_space_related_info: try to get negative_biz_id->[%s] related info", negative_biz_id)
+    try:
+        space = Space.objects.get(id=abs(negative_biz_id))
+        related_bk_biz_id = None
+        related_records = SpaceResource.objects.filter(
+            resource_type=SpaceTypes.BKCC.value,
+            space_id=space.space_id,
+            space_type_id=SpaceTypes.BKCI.value,
+        )
+        if related_records.exists():
+            related_bk_biz_id = related_records.last().resource_id
+    except Space.DoesNotExist:
+        logger.error("get_negative_space_related_info: negative_biz_id->[%s] not found", negative_biz_id)
+        raise ValueError("negative_biz_id->[%s] not found", negative_biz_id)
+
+    return {
+        'negative_biz_id': negative_biz_id,
+        'bk_biz_id': related_bk_biz_id,
+        'space_type': space.space_type_id,
+        'space_id': space.space_id,
+    }
+
+
 def get_biz_ids_by_space_ids(space_type, space_ids):
     """
     获取空间ID对应的业务ID列表

@@ -235,7 +235,12 @@ class K8sResourceMeta(object):
         obj_list = []
         resource_id_list = []
         for _, line in lines:
-            resource_name = self.get_resource_name(line)
+            try:
+                resource_name = self.get_resource_name(line)
+            except KeyError:
+                # 如果没有维度字段，则当做无效数据
+                continue
+
             if resource_name not in resource_id_list:
                 resource_obj = self.resource_class()
                 obj_list.append(self.clean_resource_obj(resource_obj, line))
@@ -371,11 +376,16 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     only_fields = ["name", "namespace", "workload_type", "workload_name", "bk_biz_id", "bcs_cluster_id"]
 
     def nw_tpl_prom_with_rate(self, metric_name, exclude=""):
+        pod_filters = FilterCollection(self)
+        for filter_id, r_filter in self.filter.filters.items():
+            if r_filter.resource_type == "pod":
+                pod_filters.add(r_filter)
+
         metric_name = self.clean_metric_name(metric_name)
         if self.agg_interval:
             return f"""label_replace(sum by (namespace, ingress, service, pod) {self.label_join(exclude)}
             sum by (namespace, pod)
-            ({self.agg_method}_over_time(rate({metric_name}[1m])[{self.agg_interval}:]))),
+            ({self.agg_method}_over_time(rate({metric_name}{{{pod_filters.filter_string()}}}[1m])[{self.agg_interval}:]))),
             "pod_name", "$1", "pod", "(.*)")"""
 
         return f"""label_replace({self.agg_method} by (namespace, ingress, service,  pod) {self.label_join(exclude)}
@@ -386,7 +396,8 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     def tpl_prom_with_rate(self, metric_name, exclude=""):
         if metric_name.startswith("nw_"):
             # 网络场景下的pod数据，需要关联service 和 ingress
-            return self.nw_tpl_prom_with_rate(metric_name, exclude)
+            # ingress_with_service_relation 指标忽略pod相关过滤， 因为该指标对应的pod为采集器所属pod，没意义。
+            return self.nw_tpl_prom_with_rate(metric_name, exclude="pod")
 
         if self.agg_interval:
             return (
