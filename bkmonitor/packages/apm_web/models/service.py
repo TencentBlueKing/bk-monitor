@@ -8,7 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
 from django.db import models
 
@@ -85,7 +85,7 @@ class EventServiceRelation(ServiceBase):
 
         # 去重
         for table in table_relations_map:
-            duplicate_relation_tuples: Set[Tuple] = {tuple(r.items()) for r in table_relations_map[table]}
+            duplicate_relation_tuples: Set[frozenset] = {frozenset(r.items()) for r in table_relations_map[table]}
             table_relations_map[table] = [dict(relation_tuple) for relation_tuple in duplicate_relation_tuples]
 
         return [{"table": table, "relations": relations} for table, relations in table_relations_map.items()]
