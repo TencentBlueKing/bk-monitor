@@ -846,8 +846,8 @@ export default class CollectIndex extends tsc<IProps> {
                 </bk-checkbox>
               </span>
               <div
-                style={{ marginTop: '1px', cursor: 'pointer' }}
-                class='fl-jcsb operate-box'
+                style={{ marginTop: '1px', cursor: 'pointer', marginLeft: '0px', width: '72px' }}
+                class='fl-jcsb '
               >
                 <Popover
                   ref='popoverGroup'
