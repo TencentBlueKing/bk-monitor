@@ -125,23 +125,20 @@ class TimeCompareProcessor:
         # 兼容单个时间对比配置
         if not isinstance(time_compare, list):
             time_compare = [time_compare]
-
-        # 时间对比配置解析
-        compare_configs: list[tuple[str, int]] = []
-        for offset_text in time_compare:
-            time_offset: int = parse_time_compare_abbreviation(offset_text)
-            if not time_offset:
-                continue
-            compare_configs.append((offset_text, time_offset))
+        time_compare = [offset_text for offset_text in time_compare if re.match(r"\d+[mhdwMy]", str(offset_text))]
 
         # 如果存在对比配置，哪怕为空，也需要补全time_offset维度
-        if not compare_configs:
+        if not time_compare:
             if "time_compare" in params["function"]:
                 for record in data:
                     record["time_offset"] = "current"
             return data
 
-        for offset_text, time_offset in compare_configs:
+        for offset_text in time_compare:
+            time_offset: int = parse_time_compare_abbreviation(offset_text)
+            if not time_offset:
+                continue
+
             for record in data:
                 if not record["dimensions"].get("__time_compare"):
                     if not record.get("time_offset"):
