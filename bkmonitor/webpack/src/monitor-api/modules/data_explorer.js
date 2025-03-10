@@ -9,7 +9,7 @@ export const eventTopK = request('POST', 'rest/v2/data_explorer/event/topk/');
 export const eventTotal = request('POST', 'rest/v2/data_explorer/event/total/');
 export const eventViewConfig = request('POST', 'rest/v2/data_explorer/event/view_config/');
 export const eventTimeSeries = request('POST', 'rest/v2/data_explorer/event/time_series/');
-export const eventDownloadTopK = request('GET', 'rest/v2/data_explorer/event/download_topk/');
+export const eventDownloadTopK = request('POST', 'rest/v2/data_explorer/event/download_topk/');
 
 export default {
   getGraphQueryConfig,
