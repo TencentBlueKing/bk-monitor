@@ -141,6 +141,20 @@ export interface IGetValueFnParams {
   queryString?: string;
 }
 
+export interface IFavoriteListItem {
+  id: string;
+  name: string;
+  favorites: {
+    name: string;
+    config: {
+      queryConfig: {
+        query_string: string;
+        where: IWhereItem[];
+      };
+    };
+  }[];
+}
+
 /**
  * 获取字符长度，汉字两个字节
  * @param str 需要计算长度的字符
