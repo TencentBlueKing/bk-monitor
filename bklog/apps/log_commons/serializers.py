@@ -35,7 +35,7 @@ class ListExternalPermissionSLZ(serializers.Serializer):
 
 
 class CreateORUpdateExternalPermissionSLZ(serializers.Serializer):
-    authorized_users = serializers.ListField(required=True, label="被授权人")
+    authorized_users = serializers.ListField(required=True, label="被授权人", child=serializers.CharField())
     view_type = serializers.CharField(required=False, label="视角类型", default=ViewTypeEnum.USER.value)
     operate_type = serializers.CharField(required=False, label="操作类型", default=OperateEnum.CREATE.value)
     space_uid = serializers.CharField(required=True, label="空间ID")
