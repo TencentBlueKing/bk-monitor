@@ -6,6 +6,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { cloneDeep } from 'lodash';
+  import { bkIcon } from 'bk-magic-vue';
 
   import {
     getInputQueryDefaultItem,
@@ -39,10 +40,18 @@
     if (typeof item?.value === 'string') {
       item.value = item.value.split(',');
     }
-
+    item.showAll = item?.value?.length < 3;
     if (!item?.relation) item.relation = 'OR';
     return { disabled: false, ...(item ?? {}) };
   };
+
+  /**
+   * tag数量溢出是否展示所有
+   * @param {*} item
+   */
+  const handleShowAll = (item) => {
+    item.showAll = !item.showAll;
+  }
 
   const handleHeightChange = height => {
     emit('height-change', height);
@@ -383,7 +392,7 @@
       @click.stop="e => handleTagItemClick(e, item, index)"
     >
       <div class="tag-row match-name">
-        {{ getMatchName(item.field) }}
+        <span class="match-name-label">{{ getMatchName(item.field) }}</span>
         <span
           class="symbol"
           :data-operator="item.operator"
@@ -392,7 +401,12 @@
       </div>
       <div class="tag-row match-value">
         <template v-if="item.field === '_ip-select_'">
-          <span class="match-value-text">
+          <span
+            :class="[
+              'match-value-text',
+              { 'is-show-tooltip': item.value.length > 20 }
+            ]"
+          >
             <IPSelector
               v-model="item.value[0]"
               :bk-biz-id="bkBizId"
@@ -403,16 +417,34 @@
         </template>
         <template v-else-if="Array.isArray(item.value)">
           <span
-            v-for="(child, childInex) in item.value"
-            :key="childInex"
+            v-for="(child, childIndex) in item.value"
+            :key="childIndex"
           >
-            <span class="match-value-text">{{ formatDateTimeField(child, item.field_type) }}</span>
-            <span
-              v-if="childInex < item.value.length - 1"
-              class="match-value-relation"
-              >{{ item.relation }}</span
-            >
+            <template v-if="item.showAll ? true : childIndex < 3">
+              <span
+                :class="[
+                  'match-value-text',
+                  { 'has-ellipsis': item.value.length > 20 }
+                ]"
+                v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
+              >
+                {{ formatDateTimeField(child, item.field_type) }}
+              </span>
+              <span
+                v-if="childIndex < item.value.length - 1 && (childIndex < 2 || item.showAll)"
+                class="match-value-relation"
+              >
+                {{ item.relation }}
+              </span>
+            </template>
           </span>
+          <span
+            v-if="item.value.length > 3 && !item.showAll"
+            style="color: #F59500"
+            @click.stop="handleShowAll(item)"
+           >
+            +{{ item.value.length - 3 }}
+           </span>
         </template>
         <template v-else>
           <span>{{ item.value }}</span>
@@ -425,11 +457,12 @@
             { 'bklog-eye': !item.disabled, disabled: item.disabled, 'bklog-eye-slash': item.disabled },
           ]"
           @click.stop="e => handleDisabledTagItem(item, e)"
-        ></span>
-        <span
-          class="bk-icon icon-close"
+        />
+        <bk-icon
+          type="close-circle-shape"
+          class="tag-options-close"
           @click.stop="() => handleDeleteTagItem(index, item)"
-        ></span>
+        />
       </div>
     </li>
     <li class="search-item is-focus-input">
@@ -463,9 +496,10 @@
 <style lang="scss">
   [data-tippy-root] .tippy-box {
     &[data-theme='log-light'] {
-      color: #63656e;
-      background-color: #fff;
+      color: #4D4F56;
+      background-color: #ffffff;
       box-shadow: 0 2px 6px 0 #0000001a;
+      transform: translateY(-4px);
 
       .tippy-content {
         padding: 0;

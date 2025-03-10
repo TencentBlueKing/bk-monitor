@@ -44,7 +44,7 @@ ul.search-items {
       border-radius: 2px;
 
       &:not(.is-focus-input) {
-        padding: 2px 8px;
+        padding: 4px 8px;
         padding-right: 48px;
         outline: none;
       }
@@ -65,6 +65,7 @@ ul.search-items {
 
     .tag-option-focus-input {
       // width: 8px;
+
     /* stylelint-disable-next-line declaration-no-important */
       width: auto !important;
       height: 38px;
@@ -95,8 +96,8 @@ ul.search-items {
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        line-height: 18px;
         font-size: 18px;
+        line-height: 18px;
       }
 
       .tag-text {
@@ -111,55 +112,46 @@ ul.search-items {
 
     &.tag-item {
       position: relative;
-      background: #f0f5ff;
-
-      &.disabled {
-        .tag-row {
-          &.match-value {
-            color: #c4c6cc;
-
-            span {
-              position: relative;
-
-              &::after {
-                position: absolute;
-                top: 50%;
-                left: 0;
-                width: 100%;
-                height: 1px;
-                content: '';
-                border-bottom: 1px solid #c4c6cc;
-              }
-            }
-          }
-        }
-      }
+      background: #EAEBF0;
 
       &:hover {
-        background: #e1ecff;
-
         .tag-options {
-          display: flex;
+          display: inline-flex;
         }
       }
 
       .tag-options {
         position: absolute;
-        top: 0;
+        top: 4px;
         right: 0;
         bottom: 0;
         display: none;
-        align-items: center;
-
-        justify-content: center;
         width: 48px;
+        height: 18px;
+        font-size: 16px;
 
-        span {
-          font-size: 16px;
-          color: #979ba5;
+        .bklog-icon,
+        .tag-options-close {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2px;
+          color: #4D4F56;
+          background-color: #ffffff;
+        }
 
-          &.icon-close {
-            font-size: 18px;
+        .bklog-icon {
+          &:hover {
+            color: #3A84FF;
+          }
+        }
+
+        .tag-options-close {
+          margin-right: 4px;
+          margin-left: 4px;
+
+          &:hover {
+            color: #EA3636;
           }
         }
       }
@@ -170,10 +162,12 @@ ul.search-items {
         justify-content: flex-start;
         width: 100%;
         font-size: 12px;
-        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
 
         &.match-name {
-          color: #757880;
+          .match-name-label {
+            font-family: Roboto, PingFang SC, Microsoft Yahei, Helvetica, Aria, sans-serif;
+            color: #757880;
+          }
 
           .symbol {
             padding: 0 4px;
@@ -195,29 +189,63 @@ ul.search-items {
 
           > span {
             display: flex;
+            align-items: center;
 
             .match-value-text {
               display: inline-block;
-              max-width: 200px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
+              max-width: 140px;
+              font-family: 'Roboto Mono', Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace;
+              line-height: 16px;
+
+              &.has-ellipsis {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              }
             }
 
             .match-value-relation {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              padding: 0 2px;
               margin: 0 4px;
+              font-family: 'Roboto Mono';
               font-size: 12px;
-              color: #ff9c01;
-              background: #fff3e1;
+              font-weight: 500;
+              color: #F59500;
               border-radius: 2px;
             }
           }
         }
       }
+
+      &.disabled {
+        .tag-row {
+          &.match-value {
+            color: #979BA5;
+
+            .match-value-text {
+              position: relative;
+              text-decoration: line-through;
+
+              &::after {
+                position: absolute;
+                top: 50%;
+                left: 0;
+                width: 100%;
+                height: 1px;
+                content: '';
+                border-bottom: 1px solid #c4c6cc;
+              }
+            }
+          }
+        }
+
+        .tag-options {
+          .bklog-icon,
+          .tag-options-close {
+            color: #4D4F56;
+          }
+        }
+      }
+
     }
 
     div {
