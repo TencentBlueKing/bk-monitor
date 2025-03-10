@@ -76,7 +76,7 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
       return {
         name: key,
         type: this.fieldMapByField?.target?.[key]?.type as DimensionType,
-        value: (value ?? '--') as string,
+        value: (value || '--') as string,
         sourceName: this.fieldMapByField?.target?.[key]?.name as string,
         entitiesType,
         hasEntities,

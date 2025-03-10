@@ -356,7 +356,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       <div style={{ display: 'none' }}>
         <StatisticsList
           ref='statisticsList'
-          selectField={this.fieldTarget?.sourceName ?? ''}
+          selectField={this.fieldTarget?.sourceName || '--'}
           onConditionChange={this.handleStatisticsConditionChange}
           onShowMore={() => this.handlePopoverHide(false)}
           onSliderShowChange={this.handleStatisticsSliderShow}
