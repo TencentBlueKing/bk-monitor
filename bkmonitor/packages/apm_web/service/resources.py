@@ -509,7 +509,7 @@ class ServiceConfigResource(Resource):
             EventServiceRelation.objects.bulk_create(to_be_created_relations, batch_size=100)
         if to_be_updated_relations:
             EventServiceRelation.objects.bulk_update(
-                to_be_updated_relations, batch_size=100, fields=["update_at", "update_by", "relations", "options"]
+                to_be_updated_relations, batch_size=100, fields=["updated_at", "updated_by", "relations", "options"]
             )
 
     def update(self, bk_biz_id, app_name, service_name, relation, model):
