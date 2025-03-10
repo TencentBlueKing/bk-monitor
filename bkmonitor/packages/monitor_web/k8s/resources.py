@@ -335,6 +335,11 @@ class ListK8SResources(Resource):
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
         order_by = validated_request_data["order_by"]
         column = validated_request_data["column"]
+        scenario = validated_request_data["scenario"]
+        if scenario == "network":
+            # 网络场景默认指标，用nw_container_network_receive_bytes_total
+            if not column.startswith("nw_"):
+                column = "nw_container_network_receive_bytes_total"
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
