@@ -79,24 +79,6 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: group list
-  /app/mail_report/is_superuser/:
-    post:
-      operationId: is_superuser
-      description: 判断用户是否超级管理员
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          type: HTTP
-          method: get
-          path: /api/v4/mail_report/is_superuser/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: is superuser
   /app/mail_report/get_setting_and_notify_group/:
     get:
       operationId: get_setting_and_notify_group

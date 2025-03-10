@@ -19,9 +19,9 @@ from core.drf_resource.contrib.nested_api import KernelAPIResource
 class MonitorAPIGWResource(KernelAPIResource):
     TIMEOUT = 300
     base_url_statement = None
-    stage = "prod" if settings.RUN_MODE == "PRODUCT" else "stag"
-    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(settings.BK_COMPONENT_API_URL, stage)
-
+    base_url = settings.NEW_MONITOR_API_BASE_URL or "{}/api/bk-monitor/{}/".format(
+        settings.BK_COMPONENT_API_URL, settings.APIGW_STAGE
+    )
     # 模块名
     module_name = "mointor_v3"
 
@@ -121,15 +121,6 @@ class CustomTimeSeriesDetailResource(MonitorAPIGWResource):
 
     action = "/app/custom_metric/detail/"
     method = "GET"
-
-
-class IsSuperuser(MonitorAPIGWResource):
-    """
-    判断用户是否超级管理员
-    """
-
-    action = "/app/mail_report/is_superuser/"
-    method = "POST"
 
 
 class BatchCreateActionBackendResource(MonitorAPIGWResource):

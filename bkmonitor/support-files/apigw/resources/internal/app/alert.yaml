@@ -9,7 +9,7 @@ schemes:
 paths:
   /app/alert/get_experience/:
     get:
-      operationId: get_experience
+      operationId: get_alert_experience
       description: 获取告警处理经验
       x-bk-apigateway-resource:
         isPublic: false
@@ -24,7 +24,7 @@ paths:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: get_experience
+        descriptionEn: get alert experience
   /app/alert/search_by_event/:
     post:
       operationId: search_alert_by_event
