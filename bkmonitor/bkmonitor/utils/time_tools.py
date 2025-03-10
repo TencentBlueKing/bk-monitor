@@ -350,9 +350,12 @@ def parse_time_compare_abbreviation(time_offset: Union[int, str]) -> int:
 
     time_offset = str(time_offset).strip()
 
-    if not time_offset or not TIME_ABBREVIATION_MATCH.match(time_offset):
-        time_offset = 0
-    else:
+    # 空值处理
+    if not time_offset:
+        return 0
+
+    # 支持时间对比格式(h/d/w/M/y)
+    if TIME_ABBREVIATION_MATCH.match(time_offset):
         if time_offset[-1] in "smhdw":
             time_unit = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
             try:
@@ -367,6 +370,10 @@ def parse_time_compare_abbreviation(time_offset: Union[int, str]) -> int:
             else:
                 last_time = current_time.replace(years=-int(float(time_offset[:-1])))
             time_offset = int((last_time - current_time).total_seconds())
+    else:
+        # 支持日期格式，按天计算差值
+        offset_datetime = arrow.get(time_offset)
+        time_offset = int((offset_datetime - arrow.now()).days * 86400)
 
     return time_offset
 
