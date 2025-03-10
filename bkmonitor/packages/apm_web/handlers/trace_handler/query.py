@@ -372,7 +372,9 @@ class OptionValues:
 
         option_values: Dict[str, List[Dict[str, Any]]] = {}
         for api_field, field in field_mapping.items():
-            option_values[field] = [{"value": val, "text": val} for val in field_values_mapping.get(api_field) or []]
+            option_values[field] = [
+                {"value": val, "text": val} for val in field_values_mapping.get(api_field, []) if val
+            ]
 
         return option_values
 
@@ -454,22 +456,9 @@ class SpanOptionValues(OptionValues):
     }
 
     FIELDS = [
-        OptionValues.Field(id="span_name", value_source=ValueSource.METRIC, label="Span Name"),
-        OptionValues.Field(id="status.code", value_source=ValueSource.METHOD, label=_("状态")),
-        OptionValues.Field(id="kind", value_source=ValueSource.METHOD, label=_("类型")),
-        OptionValues.Field(id="resource.telemetry.sdk.version", value_source=ValueSource.METRIC, label=_("版本")),
-        OptionValues.Field(id="resource.service.name", value_source=ValueSource.METRIC, label=_("服务")),
-        OptionValues.Field(id="resource.bk.instance.id", value_source=ValueSource.METRIC, label=_("实例")),
+        OptionValues.Field(id=field_info.field, value_source=field_info.value_source, label=field_info.value)
+        for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
     ]
-
-    @classmethod
-    def _get_field_mapping(cls) -> Dict[str, OptionValues.Field]:
-        return {
-            field_info.field: OptionValues.Field(
-                id=field_info.field, value_source=field_info.value_source, label=field_info.value
-            )
-            for field_info in SpanStandardField.COMMON_STANDARD_FIELDS
-        }
 
     @classmethod
     def _transform_field_to_metric_field(cls, field: str) -> str:
