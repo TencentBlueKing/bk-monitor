@@ -46,7 +46,8 @@
         "useKeyWithMouseEvents": "off",
         "useKeyWithClickEvents": "off",
         "noSvgWithoutTitle": "off",
-        "useValidAnchor": "off"
+        "useValidAnchor": "off",
+        "noLabelWithoutControl": "off"
       }
     }
   },
