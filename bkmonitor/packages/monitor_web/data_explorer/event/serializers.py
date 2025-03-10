@@ -32,7 +32,7 @@ class EventDataSource(serializers.Serializer):
 
 
 class EventFilterSerializer(EventDataSource):
-    query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False, default="*")
+    query_string = serializers.CharField(label="查询语句（请优先使用 where）", required=False, default="*", allow_blank=True)
     filter_dict = serializers.DictField(label="过滤条件", required=False, default={})
     where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
     group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
