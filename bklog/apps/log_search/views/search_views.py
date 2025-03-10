@@ -1399,6 +1399,8 @@ class SearchViewSet(APIViewSet):
         for info in data.get("union_configs", []):
             if not info.get("is_desensitize") and not is_verify:
                 info["is_desensitize"] = True
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            return Response(UnionSearchHandler(data).unifyquery_union_search())
         return Response(UnionSearchHandler(data).union_search())
 
     @list_route(methods=["POST"], url_path="union_search/fields")

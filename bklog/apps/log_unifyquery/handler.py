@@ -138,6 +138,8 @@ class UnifyQueryHandler(object):
         index_info = self._init_index_info_list(self.search_params.get("index_set_ids", []))[0]
         self.search_params.update({"scenario_id": index_info["scenario_id"]})
 
+        self.highlight = self.search_params.get("can_highlight", True)
+
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
 
@@ -602,7 +604,12 @@ class UnifyQueryHandler(object):
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
         index_info = self._init_index_info_list(self.search_params.get("index_set_ids", []))[0]
-        return MappingHandlers.get_default_sort_list(
+        return MappingHandlers(
+            indices=index_info["scenario_id"],
+            index_set_id=index_info["index_set_id"],
+            scenario_id=index_info["scenario_id"],
+            storage_cluster_id=index_info["storage_cluster_id"],
+        ).get_default_sort_list(
             index_set_id=index_set_id,
             scenario_id=index_info["scenario_id"],
             scope=scope,
@@ -656,6 +663,7 @@ class UnifyQueryHandler(object):
         # 参数补充
         search_dict["from"] = self.search_params["begin"]
         search_dict["limit"] = once_size
+        search_dict["highlight"] = {"enable": self.highlight}
 
         result = UnifyQueryApi.query_ts_raw(search_dict)
         result = self._deal_query_result(result)
@@ -778,6 +786,8 @@ class UnifyQueryHandler(object):
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
+            # 联合索引 增加索引集id信息
+            log.update({"__index_set_id__": int(self.search_params["index_set_ids"][0])})
             if self.export_fields:
                 new_origin_log = {}
                 for _export_field in self.export_fields:
@@ -824,6 +834,8 @@ class UnifyQueryHandler(object):
                 "aggs": {},
                 "list": log_list,
                 "origin_log_list": origin_log_list,
+                "total": result_dict.get("total", 0),
+                "took": result_dict.get("took", 0),
             }
         )
         return result_dict
