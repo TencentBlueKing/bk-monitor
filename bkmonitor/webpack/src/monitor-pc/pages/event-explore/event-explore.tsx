@@ -26,7 +26,6 @@
 import { Component, Provide, ProvideReactive, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { eventViewConfig } from 'monitor-api/modules/data_explorer';
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
@@ -35,7 +34,7 @@ import { EMode, mergeWhereList, type IGetValueFnParams } from '../../components/
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import FavoriteContainer from '../data-retrieval/favorite-container/favorite-container';
-import { APIType, getEventTopK } from './api-utils';
+import { APIType, getEventTopK, getEventViewConfig } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
 import EventRetrievalHeader from './components/event-retrieval-header';
@@ -51,7 +50,9 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 @Component
 export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   /** 来源 */
-  @Prop({ default: APIType.MONITOR }) source: APIType;
+  @ProvideReactive('source')
+  @Prop({ default: APIType.MONITOR })
+  source: APIType;
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
@@ -258,17 +259,20 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
       return;
     }
     this.loading = true;
-    const data = await eventViewConfig({
-      data_sources: [
-        {
-          data_source_label: this.formData.data_source_label,
-          data_type_label: this.formData.data_type_label,
-          table: this.formData.table,
-        },
-      ],
-      start_time: this.formatTimeRange[0],
-      end_time: this.formatTimeRange[1],
-    }).catch(() => ({ display_fields: [], entities: [], fields: [] }));
+    const data = await getEventViewConfig(
+      {
+        data_sources: [
+          {
+            data_source_label: this.formData.data_source_label,
+            data_type_label: this.formData.data_type_label,
+            table: this.formData.table,
+          },
+        ],
+        start_time: this.formatTimeRange[0],
+        end_time: this.formatTimeRange[1],
+      },
+      this.source
+    ).catch(() => ({ display_fields: [], entities: [], fields: [] }));
     this.loading = false;
     this.fieldList = data.fields || data.field;
     this.sourceEntities = data.entities || [];
@@ -289,22 +293,25 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   }
 
   async getRetrievalFilterValueData(params: IGetValueFnParams = {}) {
-    return getEventTopK({
-      limit: params?.limit || 5,
-      query_configs: [
-        {
-          data_source_label: this.formData.data_source_label,
-          data_type_label: this.formData.data_type_label,
-          table: this.formData.table,
-          filter_dict: {},
-          where: params?.where || [],
-          query_string: params?.queryString || '*',
-        },
-      ],
-      fields: params?.fields || [],
-      start_time: this.formatTimeRange[0],
-      end_time: this.formatTimeRange[1],
-    })
+    return getEventTopK(
+      {
+        limit: params?.limit || 5,
+        query_configs: [
+          {
+            data_source_label: this.formData.data_source_label,
+            data_type_label: this.formData.data_type_label,
+            table: this.formData.table,
+            filter_dict: {},
+            where: params?.where || [],
+            query_string: params?.queryString || '*',
+          },
+        ],
+        fields: params?.fields || [],
+        start_time: this.formatTimeRange[0],
+        end_time: this.formatTimeRange[1],
+      },
+      this.source
+    )
       .then(res => {
         const data = res?.[0] || {};
         console.log(res);
@@ -489,32 +496,37 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
           style={{ display: this.isShowFavorite ? 'block' : 'none' }}
           class='left-favorite-panel'
         >
-          <FavoriteContainer
-            ref='favoriteContainer'
-            dataId={this.formData.table}
-            favoriteSearchType='event'
-            isShowFavorite={this.isShowFavorite}
-            onSelectFavorite={this.handleSelectFavorite}
-            onShowChange={this.favoriteShowChange}
-          />
+          {this.source === APIType.MONITOR && (
+            <FavoriteContainer
+              ref='favoriteContainer'
+              dataId={this.formData.table}
+              favoriteSearchType='event'
+              isShowFavorite={this.isShowFavorite}
+              onSelectFavorite={this.handleSelectFavorite}
+              onShowChange={this.favoriteShowChange}
+            />
+          )}
         </div>
 
         <div class='right-main-panel'>
-          <EventRetrievalHeader
-            dataIdList={this.dataIdList}
-            formData={this.formData}
-            isShowFavorite={this.isShowFavorite}
-            refreshInterval={this.refreshInterval}
-            timeRange={this.timeRange}
-            timezone={this.timezone}
-            onDataIdChange={this.handleDataIdChange}
-            onEventTypeChange={this.handleEventTypeChange}
-            onFavoriteShowChange={this.favoriteShowChange}
-            onImmediateRefresh={this.handleImmediateRefresh}
-            onRefreshChange={this.handleRefreshChange}
-            onTimeRangeChange={this.handleTimeRangeChange}
-            onTimezoneChange={this.handleTimezoneChange}
-          />
+          {this.source === APIType.MONITOR && (
+            <EventRetrievalHeader
+              dataIdList={this.dataIdList}
+              formData={this.formData}
+              isShowFavorite={this.isShowFavorite}
+              refreshInterval={this.refreshInterval}
+              timeRange={this.timeRange}
+              timezone={this.timezone}
+              onDataIdChange={this.handleDataIdChange}
+              onEventTypeChange={this.handleEventTypeChange}
+              onFavoriteShowChange={this.favoriteShowChange}
+              onImmediateRefresh={this.handleImmediateRefresh}
+              onRefreshChange={this.handleRefreshChange}
+              onTimeRangeChange={this.handleTimeRangeChange}
+              onTimezoneChange={this.handleTimezoneChange}
+            />
+          )}
+
           <div class='event-retrieval-content'>
             <RetrievalFilter
               fields={this.fieldList}

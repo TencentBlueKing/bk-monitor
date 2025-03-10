@@ -28,7 +28,7 @@ import { Component, Emit, Ref, InjectReactive, Prop, Watch } from 'vue-property-
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { getEventTopK } from '../api-utils';
+import { APIType, getEventTopK } from '../api-utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
@@ -60,6 +60,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Ref('dimensionPopover') dimensionPopoverRef!: HTMLDivElement;
   @Ref('statisticsList') statisticsListRef!: StatisticsList;
 
+  @InjectReactive({ from: 'source', default: APIType.MONITOR }) source!: APIType;
   @InjectReactive('formatTimeRange') formatTimeRange;
   @InjectReactive('commonParams') commonParams;
 
@@ -150,10 +151,13 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   }
 
   getFieldTopK(params) {
-    return getEventTopK({
-      ...this.commonParams,
-      ...params,
-    }).catch(() => []);
+    return getEventTopK(
+      {
+        ...this.commonParams,
+        ...params,
+      },
+      this.source
+    ).catch(() => []);
   }
 
   @Emit('close')

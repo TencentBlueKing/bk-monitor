@@ -27,10 +27,11 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { getDownloadTopK, getEventTopK } from '../api-utils';
+import { APIType, getDownloadTopK, getEventTopK } from '../api-utils';
 
 import type { ITopKField } from '../typing';
 
@@ -50,6 +51,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   @Prop({ type: String, default: '' }) selectField: string;
 
   @InjectReactive('commonParams') commonParams;
+  @InjectReactive({
+    from: 'source',
+    default: APIType.MONITOR,
+  })
+  source!: APIType;
 
   sliderShow = false;
   sliderLoading = false;
@@ -156,13 +162,19 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   async handleDownload() {
     this.downloadLoading = true;
-    await getDownloadTopK({
-      limit: this.statisticsList[0].distinct_count,
-      fields: [this.selectField],
-      ...this.commonParams,
-    }).finally(() => {
+    const data = await getDownloadTopK(
+      {
+        limit: this.statisticsList[0].distinct_count,
+        fields: [this.selectField],
+        ...this.commonParams,
+      },
+      this.source
+    ).finally(() => {
       this.downloadLoading = false;
     });
+    try {
+      downloadFile(data, 'txt', `${this.selectField}.txt`);
+    } catch {}
   }
 
   getFieldTopK(params) {
@@ -196,8 +208,23 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             <div class='title'>
               {this.selectField}
               {this.$t('去重后的字段统计')}
+              <div class='count'>{this.statisticsList[0]?.distinct_count || 0}</div>
             </div>
-            <div class='count'>{this.statisticsList[0]?.distinct_count || 0}</div>
+            {this.downloadLoading ? (
+              <img
+                class='loading-icon'
+                alt=''
+                src={loadingIcon}
+              />
+            ) : (
+              <div
+                class='download-tool'
+                onClick={this.handleDownload}
+              >
+                <i class='icon-monitor icon-xiazai2' />
+                <span class='text'>{this.$t('下载')}</span>
+              </div>
+            )}
           </div>
           {this.popoverLoading
             ? this.renderSkeleton(this.statisticsList[0]?.distinct_count || 1)
@@ -245,7 +272,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
                 class='download-tool'
                 onClick={this.handleDownload}
               >
-                <i class='icon-monitor icon-xiazai1' />
+                <i class='icon-monitor icon-xiazai2' />
                 <span class='text'>{this.$t('下载')}</span>
               </div>
             )}
