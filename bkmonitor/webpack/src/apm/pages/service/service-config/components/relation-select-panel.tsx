@@ -355,11 +355,12 @@ export default class RelationSelectPanel extends tsc<
     }).catch(() => ({ count: 0, items: [] }));
 
     const data: TreeNodeData[] = items.map(workload => {
+      const name = workload.workload.split(':')?.[1] || workload.workload;
       return {
-        id: `${params.parentData.id}/${workload.workload}`,
+        id: `${params.parentData.id}/${name}`,
         key: workload.workload,
         type: params.workloadType,
-        name: workload.workload,
+        name,
         leaf: true,
         parentData: params.parentData,
       };
