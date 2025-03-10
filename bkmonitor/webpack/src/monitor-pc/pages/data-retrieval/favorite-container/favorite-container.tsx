@@ -53,6 +53,7 @@ interface IProps {
 interface IEvent {
   onSelectFavorite: (favorite: IFavList.favList) => void;
   onShowChange: (show: boolean) => void;
+  onFavoriteListChange: (list: IFavList.favGroupList[]) => void;
 }
 
 @Component
@@ -95,7 +96,7 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
     this.favoriteLoading = true;
     const order_type = localStorage.getItem('bk_monitor_favorite_sort_type') || 'asc'; // 获取收藏排序
     const param = { type: this.favoriteSearchType, order_type };
-    return await listByGroupFavorite(param)
+    await listByGroupFavorite(param)
       .then(res => {
         this.favoriteIndexRef && (this.favoriteIndexRef.emptyStatusType = 'empty');
         const provideFavorite = res[0];
@@ -144,6 +145,8 @@ export default class FavoriteContainer extends tsc<IProps, IEvent> {
         this.favoriteLoading = false;
         this.isHaveFavoriteInit = false;
       });
+
+    this.$emit('favoriteListChange', this.favoritesList);
   }
 
   /** 收藏列表操作 */

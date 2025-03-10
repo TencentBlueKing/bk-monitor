@@ -23,16 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils';
+import loadingImg from 'monitor-pc/static/images/svg/spinner.svg';
 
 import EmptyStatus from '../empty-status/empty-status';
 import QsSelectorHelp from './qs-selector-help';
 import { getQueryStringMethods, QUERY_STRING_CONDITIONS, queryStringColorMap } from './query-string-utils';
 import TextHighlighter from './text-highlighter';
-import { EQueryStringTokenType, type IGetValueFnParams, type IWhereValueOptionsItem, type IFilterField } from './utils';
+import {
+  EQueryStringTokenType,
+  type IGetValueFnParams,
+  type IWhereValueOptionsItem,
+  type IFilterField,
+  type IFavoriteListItem,
+} from './utils';
 
 import './qs-selector-options.scss';
 
@@ -48,6 +55,9 @@ interface IProps {
   search?: string;
   type?: EQueryStringTokenType;
   show?: boolean;
+  queryString?: string;
+  favoriteList?: IFavoriteListItem[];
+  onSelectFavorite?: (v: string) => void;
   onSelect?: (v: string) => void;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
 }
@@ -73,13 +83,20 @@ export default class QsSelectorSelector extends tsc<IProps> {
       }),
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
+  @Prop({ type: String, default: '' }) queryString: string;
 
-  loading = false;
+  @Ref('options') optionsRef: HTMLDivElement;
 
   localOptions: IOptions[] = [];
   favoriteOptions: { title: string; content: string; keyword: string }[] = [];
-
   cursorIndex = 0;
+
+  loading = false;
+  pageSize = 5;
+  page = 1;
+  isEnd = false;
+  scrollLoading = false;
 
   beforeDestroy() {
     document.removeEventListener('keydown', this.handleKeydownEvent);
@@ -87,25 +104,53 @@ export default class QsSelectorSelector extends tsc<IProps> {
 
   @Watch('type', { immediate: true })
   handleWatchFieldType() {
-    console.log(this.type, 'type------------');
-    this.handleGetOptions();
+    this.localOptions = [];
+    this.handleGetOptionsDebounce();
   }
   @Watch('search', { immediate: true })
   handleWatchSearch() {
-    console.log(this.search, 'search--------------');
-    this.handleGetOptions();
+    this.handleGetOptionsDebounce();
   }
   @Watch('show', { immediate: true })
   handleWatchShow() {
     if (this.show) {
-      this.handleGetOptions();
+      this.localOptions = [];
+      this.handleGetOptionsDebounce();
       document.addEventListener('keydown', this.handleKeydownEvent);
     } else {
       document.removeEventListener('keydown', this.handleKeydownEvent);
     }
   }
-  @Debounce(300)
+
+  @Watch('queryString', { immediate: true })
+  handleWatchQueryString() {
+    this.getSearchFavoriteOptions();
+  }
+
+  @Debounce(1000)
+  getSearchFavoriteOptions() {
+    const favoriteOptions = [];
+    if (this.queryString && !/^\s*$/.test(this.queryString)) {
+      const keyword = this.queryString.replace(/^\s+|\s+$/g, '').toLocaleLowerCase();
+      for (const item of this.favoriteList) {
+        const favorites = item?.favorites || [];
+        for (const favoriteItem of favorites) {
+          const content = favoriteItem?.config?.queryConfig?.query_string || '';
+          if (content?.toLocaleLowerCase().includes(keyword)) {
+            favoriteOptions.push({
+              title: `${item.name} / ${favoriteItem.name}`,
+              content,
+              keyword,
+            });
+          }
+        }
+      }
+    }
+    this.favoriteOptions = favoriteOptions;
+  }
+
   async handleGetOptions() {
+    this.pageInit();
     this.cursorIndex = 0;
     let fieldItem: IFilterField = null;
     for (const item of this.fields) {
@@ -114,7 +159,6 @@ export default class QsSelectorSelector extends tsc<IProps> {
         break;
       }
     }
-    console.log(this.field, this.type, fieldItem);
     if (this.type === EQueryStringTokenType.key) {
       this.localOptions = this.fields
         .filter(item => {
@@ -155,6 +199,11 @@ export default class QsSelectorSelector extends tsc<IProps> {
         desc: item.name,
       }));
     }
+  }
+
+  @Debounce(300)
+  async handleGetOptionsDebounce() {
+    this.handleGetOptions();
   }
 
   handleKeydownEvent(event: KeyboardEvent) {
@@ -217,26 +266,63 @@ export default class QsSelectorSelector extends tsc<IProps> {
    * @param method
    * @param value
    */
-  async getValueData() {
+  async getValueData(isScroll = false) {
     let list = [];
-    this.loading = true;
+    if (isScroll) {
+      this.scrollLoading = true;
+    } else {
+      this.loading = true;
+    }
+
     if (this.field) {
+      const limit = this.page * this.pageSize;
       const data = await this.getValueFn({
         queryString: `${this.field} : *`,
         fields: [this.field],
-        limit: 5,
+        limit: limit,
       });
+      this.isEnd = limit >= data.count;
       list = data.list;
     }
     this.loading = false;
+    this.scrollLoading = false;
     return list;
+  }
+
+  pageInit() {
+    this.page = 1;
+    this.isEnd = false;
+  }
+
+  async handleScroll() {
+    const container = this.optionsRef;
+    const scrollTop = container.scrollTop;
+    const clientHeight = container.clientHeight;
+    const scrollHeight = container.scrollHeight;
+    if (scrollTop + clientHeight >= scrollHeight - 3) {
+      if (!this.scrollLoading && !this.isEnd && this.type === EQueryStringTokenType.value) {
+        this.scrollLoading = true;
+        this.page += 1;
+        const data = await this.getValueData();
+        this.localOptions = data;
+        this.scrollLoading = false;
+      }
+    }
+  }
+
+  handleSelectFavorite(item) {
+    this.$emit('selectFavorite', item.content);
   }
 
   render() {
     return (
       <div class='retrieval-filter__qs-selector-options-component'>
         <div class='wrap-left'>
-          <div class='options-wrap'>
+          <div
+            ref='options'
+            class='options-wrap'
+            onScroll={this.handleScroll}
+          >
             {this.loading
               ? new Array(3).fill(null).map((_item, index) => (
                   <div
@@ -250,7 +336,10 @@ export default class QsSelectorSelector extends tsc<IProps> {
                   <div
                     key={item.id}
                     class={['option-item main-item', { 'cursor-active': index === this.cursorIndex }]}
-                    onClick={() => this.handleSelect(item.id)}
+                    onClick={e => {
+                      e.stopPropagation();
+                      this.handleSelect(item.id);
+                    }}
                   >
                     <span
                       style={{
@@ -264,6 +353,14 @@ export default class QsSelectorSelector extends tsc<IProps> {
                     <span class='option-item-name'>{item.name}</span>
                   </div>
                 ))}
+            {this.scrollLoading && (
+              <div class='option-item  scroll-loading'>
+                <img
+                  alt=''
+                  src={loadingImg}
+                />
+              </div>
+            )}
           </div>
           <div class='favorite-wrap'>
             <div class='favorite-wrap-title'>
@@ -276,6 +373,10 @@ export default class QsSelectorSelector extends tsc<IProps> {
                 <div
                   key={index}
                   class='favorite-item'
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleSelectFavorite(item);
+                  }}
                 >
                   <span class='favorite-item-name'>{item.title}</span>
                   <span class='favorite-item-content'>

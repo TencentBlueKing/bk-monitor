@@ -89,7 +89,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     data_source_label: 'custom',
     data_type_label: 'event',
     table: '',
-    query_string: '*',
+    query_string: '',
     where: [],
     group_by: [],
     filter_dict: {},
@@ -109,7 +109,9 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   /** 是否展示收藏 */
   isShowFavorite = true;
 
-  mode = EMode.ui;
+  filterMode = EMode.ui;
+
+  favoriteList = [];
 
   /**
    * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
@@ -334,7 +336,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
   /** 兼容以前的事件检索URL格式 */
   getRouteParams() {
-    const { targets, from, to, timezone, refreshInterval } = this.$route.query;
+    const { targets, from, to, timezone, refreshInterval, filterMode } = this.$route.query;
     if (targets) {
       try {
         const targetsList = JSON.parse(decodeURIComponent(targets as string));
@@ -368,6 +370,9 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
         this.timeRange = from ? [from as string, to as string] : DEFAULT_TIME_RANGE;
         this.timezone = (timezone as string) || getDefaultTimezone();
         this.refreshInterval = Number(refreshInterval) || -1;
+        this.filterMode = (
+          [EMode.ui, EMode.queryString].includes(filterMode as EMode) ? filterMode : EMode.ui
+        ) as EMode;
       } catch (error) {
         console.log('route query:', error);
       }
@@ -394,6 +399,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
           },
         },
       ]),
+      filterMode: this.filterMode,
     };
 
     const targetRoute = this.$router.resolve({
@@ -486,7 +492,11 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   }
 
   handleModeChange(mode: EMode) {
-    this.mode = mode;
+    this.filterMode = mode;
+  }
+
+  handleFavoriteListChange(list) {
+    this.favoriteList = list;
   }
 
   render() {
@@ -502,6 +512,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
               dataId={this.formData.table}
               favoriteSearchType='event'
               isShowFavorite={this.isShowFavorite}
+              onFavoriteListChange={this.handleFavoriteListChange}
               onSelectFavorite={this.handleSelectFavorite}
               onShowChange={this.favoriteShowChange}
             />
@@ -529,7 +540,9 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
 
           <div class='event-retrieval-content'>
             <RetrievalFilter
+              favoriteList={this.favoriteList as any}
               fields={this.fieldList}
+              filterMode={this.filterMode}
               getValueFn={this.getRetrievalFilterValueData}
               queryString={this.formData.query_string}
               selectFavorite={this.currentFavorite}
