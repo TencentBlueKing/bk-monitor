@@ -60,6 +60,9 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
 
   /** KV列表 */
   get kvFieldList(): KVFieldList[] {
+    const externalParams = {
+      cloudId: this?.data?.bk_cloud_id || this?.data?.bk_target_cloud_id || '0',
+    };
     return Object.entries(this.data).map(([key, value]) => {
       const entities = this.entitiesMapByField[key];
       let hasEntities = true;
@@ -78,6 +81,7 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
         entitiesType,
         hasEntities,
         entitiesAlias,
+        externalParams,
       };
     });
   }

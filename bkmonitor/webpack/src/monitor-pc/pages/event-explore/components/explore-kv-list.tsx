@@ -43,6 +43,7 @@ export interface KVFieldList {
   entitiesType: '' | EventExploreEntitiesType;
   hasEntities: boolean;
   entitiesAlias: string;
+  externalParams: Record<string, any>;
 }
 
 interface IExploreKvListProps {
@@ -285,8 +286,11 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     let path = '';
     switch (item.entitiesType) {
       case EventExploreEntitiesType.HOST:
-        // TODO 跳转主机详情 host_id 待补充
-        path = '#/performance';
+        {
+          const { value, sourceName } = item;
+          const endStr = `${value}${sourceName === 'bk_host_id' ? '' : `-${item.externalParams.cloudId}`}`;
+          path = `#/performance/detail/${endStr}`;
+        }
         break;
       case EventExploreEntitiesType.K8S:
         path = '#/k8s?dashboardId=pod';
