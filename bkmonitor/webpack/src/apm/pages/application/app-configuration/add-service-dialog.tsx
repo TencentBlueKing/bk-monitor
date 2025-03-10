@@ -273,7 +273,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
     this.handleShowChange(false);
   }
   /** 调试 */
-  handlDebugger() {
+  handleDebugger() {
     this.addServiceForm.validate().then(async () => {
       const params = this.getParams();
       if (params) {
@@ -552,7 +552,7 @@ export default class AddServiceDialog extends tsc<IProps, IEvents> {
                 loading={this.isDebugging}
                 theme='primary'
                 outline
-                onClick={() => this.handlDebugger()}
+                onClick={() => this.handleDebugger()}
               >
                 {this.$t('调试')}
               </bk-button>
