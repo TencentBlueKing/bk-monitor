@@ -1,0 +1,27 @@
+.edit-panel-key-select {
+  .wrapper {
+    line-height: 32px;
+    font-size: 12px;
+    color: #4d4f56;
+    margin-top: 4px;
+    height: 300px;
+    overflow-y: auto;
+    .key-title {
+      padding-left: 12px;
+      color: #979ba5;
+    }
+    .key-item {
+      padding-left: 24px;
+      transition: background-color 0.1ss ease-in-out;
+      cursor: pointer;
+      &:hover,
+      &.is-hover {
+        background-color: #f5f7fa;
+      }
+      &.is-selected {
+        color: #3a84ff;
+        background-color: #f5f7fa;
+      }
+    }
+  }
+}

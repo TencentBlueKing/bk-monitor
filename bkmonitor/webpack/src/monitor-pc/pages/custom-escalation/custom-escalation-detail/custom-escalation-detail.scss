@@ -1,0 +1,290 @@
+@import '../../../theme/index';
+
+.custom-detail-page-component {
+  .bk-alert-title {
+    color: #4D4F56;
+  }
+  overflow: hidden;
+  height: 100%;
+
+  .hint-alert {
+    margin: 16px 24px 12px 24px;
+
+    :deep(.icon-info) {
+      margin-right: 5px;
+      color: #979ba5;
+    }
+  }
+  .icon-audit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+    overflow: hidden;
+    &::before {
+      width: 16px;
+      height: 16px;
+    }
+    &:hover {
+      color: #63656e;
+      cursor: pointer;
+      border-radius: 50%;
+      background-color: #f0f1f5;
+    }
+    &.active { 
+      border-radius: 2px;
+      background-color: #e1ecff;
+      color: #3a84ff;
+    }
+  }
+  .common-nav-bar-single {
+    padding: 0 14px;
+    .custom {
+      display: flex;
+      align-items: center;
+      .dec {
+        font-family: MicrosoftYaHei;
+        font-size: 16px;
+        color: #313238;
+        line-height: 24px;
+        margin-right: 8px;
+        font-family: MicrosoftYaHei;
+      }
+      .title {
+        font-size: 14px;
+        color: #979BA5;
+        line-height: 22px;
+        padding-left: 9px;
+        position: relative;
+        &::before {
+          position: absolute;
+          content: '';
+          left: 0;
+          top: 4px;
+          width: 1px;
+          height: 14px;
+          background: #DCDEE5;
+        }
+      }
+    }
+  }
+}
+
+
+.custom-detail-page {
+  display: flex;
+  align-items: flex-start;
+  max-height: calc(100% - 96px);
+  height: calc(100% - 96px);
+  overflow: hidden;
+  .custom-detail {
+    font-size: 12px;
+    position: relative;
+    max-height: 100%;
+    padding: 0 24px;
+    overflow-y: auto;
+    overflow: -moz-scrollbars-none;    /* Firefox */
+    scrollbar-width: none;             /* Firefox 64+ */
+    -ms-overflow-style: none;          /* IE/Edge */
+    flex: 1;
+    .detail-information {
+      padding: 12px 16px;
+      border-radius: 2px;
+      background: $whiteColor;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
+      margin-bottom: 16px;
+      @include border-1px($color: $defaultBorderColor);
+
+      .detail-information-title {
+        font-weight: 700;
+        color: #313238;
+        margin-bottom: 16px;
+        font-size: 14px;
+      }
+      .detail-information-content {
+        display: flex;
+        width: 720px;
+        height: 160px;
+        flex-wrap: wrap;
+        flex-direction: column;
+        .detail-information-row {
+          height: 32px;
+          width: 300px;
+          display: flex;
+          align-items: center;
+          line-height: 16px;
+          .row-label {
+            text-align: right;
+            width: 75px;
+            margin-right: 12px;
+            flex-shrink: 0;
+            color: #4D4F56;
+          }
+          .row-content {
+            color: #313238;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .edit-name {
+            color: #979BA5;
+            font-size: 24px;
+            &:hover {
+              color: $primaryFontColor;
+              cursor: pointer;
+            }
+          }
+        }
+      }
+    }
+    .detail-list {
+      padding: 0;
+      margin-bottom: 24px;
+    }
+    .form-content-textarea {
+      position: relative;
+      bottom: -30px;
+    }
+  }
+  .right-window {
+    background: $whiteColor;
+    z-index: 10;
+    position: relative;
+    height: calc(100vh - 104px);
+    border: 0;
+    width: 0px;
+    overflow: visible;
+    &.active {
+      width: 400px;
+      min-width: 400px;
+      @include border-1px($color: $defaultBorderColor);
+    }
+    .right-window-title {
+      height: 40px;
+      width: 100%;
+      font-size: 14px;
+      color: #313238;
+      line-height: 40px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      .title-right {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        &:hover {
+          background: #eaebf0;
+          cursor: pointer;
+        }
+        .line {
+          width: 9px;
+          height: 2px;
+          background: #63656e;
+        }
+      }
+    }
+    .right-window-content {
+      height: calc(100% - 40px);
+      padding: 16px 23px 0;
+      color: $defaultFontColor;
+      overflow-x: hidden;
+      overflow-y: scroll;
+      .content-title {
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .content-interval {
+        margin-top: 25px;
+      }
+      .content-row {
+        position: relative;
+        margin-bottom: 16px;
+        .content-example {
+          overflow-x: auto;
+          margin-top: 6px;
+          padding: 10px 14px;
+          background: #f4f4f7;
+          overflow-x: auto;
+        }
+        .content-copy {
+          position: absolute;
+          top: 30px;
+          right: 10px;
+          width: 20px;
+          height: 20px;
+          text-align: center;
+          line-height: 20px;
+          background: #ffffff;
+          box-shadow: 0 2px 4px 0 #1919290d;
+          border-radius: 2px;
+          @include hover($cursor: pointer);
+
+          .icon-mc-copy {
+            font-size: 12px;
+            color: #3a84ff;
+          }
+        }
+        .content-prometheus {
+          position: relative;
+          .content-copy-prometheus {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            background: #ffffff;
+            box-shadow: 0 2px 4px 0 #1919290d;
+            border-radius: 2px;
+            @include hover($cursor: pointer);
+
+            .icon-mc-copy {
+              font-size: 12px;
+              color: #3a84ff;
+            }
+          }
+        }
+
+        .copy-textarea {
+          height: 0px;
+          opacity: 0;
+        }
+      }
+      pre {
+        margin: 0;
+        line-height: 20px;
+      }
+    }
+    .right-button {
+      position: absolute;
+      left: -16px;
+      top: calc(50% - 72px);
+      z-index: 2;
+      width: 16px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eaebf0;
+      border: 1px solid #dcdee5;
+      border-radius: 4px 0 0 4px;
+
+      @include hover($cursor: pointer);
+      .icon {
+        font-size: 24px;
+        color: #979ba5;
+      }
+      div {
+        margin: -4px 0 0 6px;
+      }
+    }
+  }
+}

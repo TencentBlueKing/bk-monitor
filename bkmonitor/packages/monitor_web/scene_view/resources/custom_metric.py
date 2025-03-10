@@ -9,14 +9,15 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from django.db import models
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSField, CustomTSTable
 
 logger = logging.getLogger("monitor_web")
@@ -73,7 +74,15 @@ class GetCustomTsMetricGroups(Resource):
 
         # 指标分组
         metric_groups = defaultdict(list)
+        # 未分组
+        ungrouped_metrics = []
         for metric in metrics:
+            # 未分组
+            if not metric.config.get("label", []):
+                ungrouped_metrics.append(metric)
+                continue
+
+            # 分组
             for group in metric.config.get("label", []):
                 metric_groups[group].append(
                     {
@@ -85,6 +94,10 @@ class GetCustomTsMetricGroups(Resource):
                         ],
                     }
                 )
+
+        # 未分组
+        if ungrouped_metrics:
+            metric_groups[_("未分组")] = ungrouped_metrics
 
         return {
             "common_dimensions": common_dimensions,
@@ -504,28 +517,79 @@ class GraphDrillDownResource(Resource):
         end_time = serializers.IntegerField(label="结束时间")
         function = serializers.DictField(label="图表函数", required=False, default=dict)
 
-        # 下钻维度
         group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
 
     class ResponseSerializer(serializers.Serializer):
-        # 维度组合
         dimensions = serializers.DictField(label="维度值")
-
-        # 值
-        value = serializers.IntegerField(label="当前值")
+        value = serializers.FloatField(label="当前值")
+        percentage = serializers.FloatField(label="占比")
 
         class CompareValueSerializer(serializers.Serializer):
-            # 对比值
-            value = serializers.IntegerField(label="对比值")
-            # 对比值的维度
+            value = serializers.FloatField(label="对比值")
             offset = serializers.CharField(label="偏移量")
-            # 波动值
-            fluctuation = serializers.IntegerField(label="波动值")
+            fluctuation = serializers.FloatField(label="波动值")
 
-        # 对比
         compare_values = serializers.ListField(label="对比", default=[], child=CompareValueSerializer())
 
     many_response_data = True
 
-    def perform_request(self, params: dict) -> dict:
-        pass
+    def get_average(self, datapoints: list[tuple[Optional[float], int]]) -> float:
+        """
+        计算平均值
+        """
+        sum_value, index = 0, 0
+        for point in datapoints:
+            if point[0] is None:
+                continue
+            sum_value += point[0]
+            index += 1
+
+        if index == 0:
+            return 0
+
+        return round(sum_value / index, 3)
+
+    def perform_request(self, params: dict) -> list:
+        for item in params["query_configs"]:
+            item["group_by"] = params["group_by"]
+        result = resource.grafana.graph_unify_query(params)
+
+        dimensions_values: dict[tuple[tuple[str, str]], dict] = defaultdict(
+            lambda: {"value": 0, "percentage": 0, "compare_values": {}}
+        )
+
+        # 计算平均值
+        for item in result["series"]:
+            dimension_tuple = tuple(sorted(item["dimensions"].items()))
+            avg_value = self.get_average(item["datapoints"])
+            if item.get("time_offset") and item["time_offset"] == "current":
+                dimensions_values[dimension_tuple]["value"] = avg_value
+            else:
+                dimensions_values[dimension_tuple]["compare_values"][item["time_offset"]] = avg_value
+
+        # 计算占比
+        sum_value = sum([x["value"] for x in dimensions_values.values()])
+        for item in dimensions_values.values():
+            item["percentage"] = round(item["value"] / sum_value * 100, 3)
+
+        # 数据组装
+        rsp_data = []
+        for dimension_tuple, dimension_value in dimensions_values.items():
+            data = {
+                "dimensions": dict(dimension_tuple),
+                "value": dimension_value["value"],
+                "percentage": dimension_value["percentage"],
+                "compare_values": [
+                    {
+                        "value": value,
+                        "offset": offset,
+                        "fluctuation": round((value - dimension_value["value"]) / dimension_value["value"] * 100, 3)
+                        if dimension_value["value"]
+                        else None,
+                    }
+                    for offset, value in dimension_value["compare_values"].items()
+                ],
+            }
+            rsp_data.append(data)
+
+        return rsp_data
