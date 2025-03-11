@@ -64,6 +64,8 @@ export interface ITopKRequestParams {
   fields: string[];
   start_time: number;
   end_time: number;
+  app_name?: string;
+  service_name?: string;
 }
 
 export interface ITopKField {
