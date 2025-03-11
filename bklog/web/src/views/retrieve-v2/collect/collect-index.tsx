@@ -158,6 +158,7 @@ export default class CollectIndex extends tsc<IProps> {
 
   @Ref('popoverGroup') popoverGroupRef: Popover;
   @Ref('popoverSort') popoverSortRef: Popover;
+  @Ref('collectContainer') collectContainerRef: CollectContainer;
   @Ref('checkInputForm') private readonly checkInputFormRef: Form; // 移动到分组实例
 
   get spaceUid() {
@@ -770,7 +771,10 @@ export default class CollectIndex extends tsc<IProps> {
   handleCollapse() {
     this.isShowCollect = !this.isShowCollect;
   }
-
+  // 折叠收藏夹文件全部收起
+  handleGroupHidden() {
+    this.collectContainerRef.handleGroupHidden();
+  }
   render() {
     return (
       <div
@@ -781,6 +785,7 @@ export default class CollectIndex extends tsc<IProps> {
         class='retrieve-collect-index'
       >
         <CollectContainer
+          ref='collectContainer'
           activeFavoriteID={this.activeFavoriteID}
           collectLoading={this.collectLoading || this.favoriteLoading}
           dataList={this.filterCollectList}
@@ -794,13 +799,12 @@ export default class CollectIndex extends tsc<IProps> {
                 <span style={{ fontSize: '14px', color: '#313238' }}>收藏夹</span>
                 <span class='search-container-new-title-num'>{this.allFavoriteNumber}</span>
               </div>
-              <div class='search-container-new-title-right'>
+              <div
+                style={{ fontSize: '16px', cursor: 'pointer' }}
+                class='search-container-new-title-right'
+              >
+                <span class='bklog-icon bklog-shezhi'></span>
                 <span
-                  style={{ fontSize: '16px' }}
-                  class='bklog-icon bklog-shezhi'
-                ></span>
-                <span
-                  style={{ fontSize: '16px' }}
                   class='bklog-icon bklog-collapse'
                   onClick={this.handleCollapse}
                 ></span>
@@ -906,6 +910,7 @@ export default class CollectIndex extends tsc<IProps> {
                   style={{ fontSize: '16px' }}
                   class='bklog-icon bklog-shouqi'
                   v-bk-tooltips={this.$t('全部收起')}
+                  onClick={() => this.handleGroupHidden()}
                 ></span>
                 <Popover
                   ref='popoverSort'

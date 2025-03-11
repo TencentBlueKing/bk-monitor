@@ -108,6 +108,9 @@ export default class CollectGroup extends tsc<ICollectProps> {
     return item.index_set_type === 'single' ? !item.is_active : item.is_actives.some(active => !active);
   }
 
+  handleGroupHidden() {
+    this.isHiddenList = true;
+  }
   render() {
     const groupDropdownSlot = groupName => {
       return !this.isCannotChange ? (
