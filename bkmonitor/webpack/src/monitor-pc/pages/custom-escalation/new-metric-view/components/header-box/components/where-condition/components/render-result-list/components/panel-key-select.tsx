@@ -37,11 +37,14 @@ interface IProps {
   metricsList: IMetrics[];
 }
 
-@Component
-export default class KeySelect extends tsc<IProps> {
-  @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
+interface IEmit {
+  onChange: (value: string) => void;
+}
 
-  @Model('change', { type: String, required: true }) readonly value: IProps['value'];
+@Component
+export default class KeySelect extends tsc<IProps, IEmit> {
+  @Prop({ type: Array, required: true }) readonly metricsList: IProps['metricsList'];
+  @Prop({ type: String, default: '' }) readonly value: IProps['value'];
 
   @Ref('rootRef') rootRef: HTMLDivElement;
   @Ref('wrapperRef') wrapperRef: HTMLInputElement;
