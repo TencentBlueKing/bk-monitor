@@ -30,7 +30,7 @@ import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import DashboardTools from '../../monitor-k8s/components/dashboard-tools';
 
 import type { TimeRangeType } from '../../../components/time-range/time-range';
-import type { IDataIdItem, IFormData } from '../typing';
+import type { IDataIdItem } from '../typing';
 
 import './event-retrieval-header.scss';
 interface EventRetrievalNavBarProps {
@@ -38,7 +38,9 @@ interface EventRetrievalNavBarProps {
   timezone?: string;
   refreshInterval?: number;
   dataIdList?: IDataIdItem[];
-  formData: IFormData;
+  dataId: string;
+  dataSourceLabel: string;
+  dataTypeLabel: string;
   isShowFavorite?: boolean;
 }
 
@@ -54,7 +56,6 @@ interface EventRetrievalNavBarEvents {
 
 @Component
 export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps, EventRetrievalNavBarEvents> {
-  @Prop({ required: true }) formData: IFormData;
   @Prop({ default: () => [] }) dataIdList: IDataIdItem[];
   // 数据间隔
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) timeRange: TimeRangeType;
@@ -63,11 +64,14 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
   @Prop({ default: true }) readonly isShowFavorite: boolean;
   // 时区
   @Prop({ type: String }) timezone: string;
+  @Prop({ type: String }) dataId: string;
+  @Prop({ type: String }) dataSourceLabel: string;
+  @Prop({ type: String }) dataTypeLabel: string;
 
   dataIdToggle = false;
 
   get selectDataIdName() {
-    return this.dataIdList.find(item => item.id === this.formData.table)?.name || '';
+    return this.dataIdList.find(item => item.id === this.dataId)?.name || '';
   }
 
   handleDataIdToggle(toggle: boolean) {
@@ -103,7 +107,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
   }
 
   handleEventTypeChange(type: 'bk_monitor' | 'custom') {
-    if (this.formData.data_source_label === type) return;
+    if (this.dataSourceLabel === type) return;
     if (type === 'custom') {
       this.$emit('eventTypeChange', { data_source_label: 'custom', data_type_label: 'event' });
       return;
@@ -123,13 +127,13 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
           </div>
           <div class='event-type-select'>
             <div
-              class={{ item: true, active: this.formData.data_source_label === 'custom' }}
+              class={{ item: true, active: this.dataSourceLabel === 'custom' }}
               onClick={() => this.handleEventTypeChange('custom')}
             >
               {this.$t('自定义上报事件')}
             </div>
             <div
-              class={{ item: true, active: this.formData.data_source_label === 'bk_monitor' }}
+              class={{ item: true, active: this.dataSourceLabel === 'bk_monitor' }}
               onClick={() => this.handleEventTypeChange('bk_monitor')}
             >
               {this.$t('日志关键字')}
@@ -138,7 +142,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
           <bk-select
             class='data-id-select'
             clearable={false}
-            value={this.formData.table}
+            value={this.dataId}
             searchable
             onSelected={this.handleDataIdChange}
             onToggle={this.handleDataIdToggle}
