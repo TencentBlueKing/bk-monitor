@@ -2207,7 +2207,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
 class NewCustomEventDataSource(CustomEventDataSource):
     data_source_label = DataSourceLabel.BK_APM
     data_type_label = DataTypeLabel.EVENT
-    INNER_DIMENSIONS = ["target", "event_name"]
+    INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count"]
 
     OPERATOR_MAPPING: Dict[str, str] = {
         "neq": "ne",
@@ -2276,7 +2276,7 @@ class NewCustomEventDataSource(CustomEventDataSource):
             else:
                 query["field_name"] = field
 
-            query["reference_name"] = (self.reference_name or metric.get("alias") or field).lower()
+            query["reference_name"] = (metric.get("alias") or field).lower()
             query["function"].append(function)
 
             if self.is_time_agg:

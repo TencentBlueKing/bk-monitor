@@ -162,49 +162,53 @@ class EventDimensionTypeEnum(Enum):
 
 
 # 事件字段别名
-EVENT_FIELD_ALIAS = {
+EVENT_FIELD_ALIAS: Dict[str, Dict[str, str]] = {
     EventCategory.COMMON.value: {
         "time": _("数据上报时间"),
         "event_name": _("事件名"),
+        "domain": _("事件域"),
+        "source": _("事件来源"),
+        "type": _("事件类型"),
+        "event.count": _("事件数"),
         "event.content": _("事件内容"),
         "target": _("目标"),
-        "bk_biz_id": _("业务"),
+        "bk_biz_id": _("业务 ID"),
         "bk_cloud_id": _("管控区域"),
         "bk_target_cloud_id": _("管控区域"),
         "bk_target_ip": _("IP"),
         "ip": _("IP"),
-        "bk_agent_id": _("AgentID"),
-        "domain": _("事件领域"),
-        "source": _("事件来源"),
         "host": _("IP"),
-        "type": _("事件类型"),
+        "bk_agent_id": _("AgentID"),
     },
     EventCategory.SYSTEM_EVENT.value: {
-        "process": _("进程"),
-        "oom_memcg": _("实际内存 cgroup"),
-        "task_memcg": _("进程所属内存 cgroup"),
+        "disk": _("磁盘"),
         "file_system": _("文件系统"),
         "fstype": _("文件系统类型"),
-        "disk": _("磁盘"),
+        "process": _("进程"),
+        # 被 OOM Killer 终止的 进程所属的 Cgroup，可能与 oom_memcg 不同（尤其在嵌套 Cgroup 结构中）。
+        # 若进程属于子 Cgroup，父 Cgroup 触发了 OOM，则 task_memcg 指向子 Cgroup 的路径。
+        "task_memcg": _("被终止内存组"),
+        # 触发 OOM 的 内存控制组（Memory Cgroup），即因内存使用超限而引发 OOM 的 Cgroup 层级。
+        "oom_memcg": _("触发 OOM 内存组"),
     },
     EventCategory.K8S_EVENT.value: {
         "bcs_cluster_id": _("集群 ID"),
-        "uid": _("资源对象 Unique ID"),
-        "apiVersion": _("资源对象 API 版本"),
-        "kind": _("资源对象类型"),
-        "namespace": _("资源对象命名空间"),
-        "name": _("资源对象名称"),
+        "namespace": _("命名空间"),
+        "kind": _("资源类型"),
+        "apiVersion": _("API 版本"),
+        "name": _("资源名称"),
+        "uid": _("资源标识"),
     },
     EventCategory.CICD_EVENT.value: {
-        "duration": _("持续时间"),
-        "start_time": _("启动时间"),
         "projectId": _("项目 ID"),
         "pipelineId": _("流水线 ID"),
         "pipelineName": _("流水线名称"),
-        "trigger": _("任务类型"),
-        "triggerUser": _("任务创建用户"),
-        "buildId": _("任务 ID"),
+        "buildId": _("构建 ID"),
+        "trigger": _("触发类型"),
+        "triggerUser": _("触发用户"),
         "status": _("任务状态"),
+        "duration": _("耗时"),
+        "start_time": _("启动时间"),
     },
 }
 
@@ -221,6 +225,7 @@ INNER_FIELD_TYPE_MAPPINGS = {
     "time": EventDimensionTypeEnum.DATE.value,
     "event_name": EventDimensionTypeEnum.KEYWORD.value,
     "event.content": EventDimensionTypeEnum.TEXT.value,
+    "event.count": EventDimensionTypeEnum.INTEGER.value,
     "target": EventDimensionTypeEnum.KEYWORD.value,
 }
 
@@ -258,7 +263,7 @@ ENTITIES = [
     {"type": "ip", "alias": _("主机"), "fields": ["host", "bk_target_ip", "ip", "serverip", "bk_host_id"]},
 ]
 
-DEFAULT_DIMENSION_FIELDS = ["time", "event_name", "event.content", "target", "type"]
+DEFAULT_DIMENSION_FIELDS = ["time", "event_name", "event.count", "event.content", "target", "type"]
 
 DETAIL_MOCK_DATA = {
     "bcs_cluster_id": {
