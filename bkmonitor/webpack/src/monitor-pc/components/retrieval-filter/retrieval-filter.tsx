@@ -63,6 +63,7 @@ interface IProps {
   onWhereChange?: (v: IWhereItem[]) => void;
   onQueryStringChange?: (v: string) => void;
   onModeChange?: (v: EMode) => void;
+  onQueryStringInputChange?: (v: string) => void;
 }
 
 @Component
@@ -331,15 +332,20 @@ export default class RetrievalFilter extends tsc<IProps> {
 
   handleQsValueChange(v: string) {
     this.qsValue = v;
-    this.$emit('queryStringChange', v);
+    this.$emit('queryStringInputChange', v);
   }
 
   handleClickSearchBtn() {
     if (this.mode === EMode.ui) {
       this.handleChange();
     } else {
-      this.handleQsValueChange(this.cacheQueryString);
+      this.handleQsValueChange(this.qsValue);
+      this.$emit('queryStringChange', this.qsValue);
     }
+  }
+
+  handleQuery() {
+    this.handleClickSearchBtn();
   }
 
   render() {
@@ -381,9 +387,7 @@ export default class RetrievalFilter extends tsc<IProps> {
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
                 onChange={this.handleQsValueChange}
-                onQueryStringChange={v => {
-                  this.cacheQueryString = v;
-                }}
+                onQuery={() => this.handleQuery()}
               />
             )}
           </div>
