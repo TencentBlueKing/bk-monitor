@@ -57,11 +57,9 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   @Prop({ default: () => [] }) condition!: IWhereItem[];
   @Prop({ default: false }) listLoading!: boolean;
 
-  @Ref('dimensionPopover') dimensionPopoverRef!: HTMLDivElement;
   @Ref('statisticsList') statisticsListRef!: StatisticsList;
 
   @InjectReactive({ from: 'source', default: APIType.MONITOR }) source!: APIType;
-  @InjectReactive('formatTimeRange') formatTimeRange;
   @InjectReactive('commonParams') commonParams;
 
   emptyStatus: EmptyStatusType = 'empty';
@@ -84,10 +82,10 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
   }
 
   @Watch('list')
-  async watchListChange() {
+  async watchListChange(list: IDimensionField[]) {
     this.searchVal = '';
     this.emptyStatus = 'search-empty';
-    this.searchResultList = this.list;
+    this.searchResultList = list;
     await this.getFieldCount();
   }
 
@@ -233,6 +231,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
         <StatisticsList
           ref='statisticsList'
+          popoverInstance={this.popoverInstance}
           selectField={this.selectField}
           onConditionChange={this.handleConditionChange}
           onShowMore={this.destroyPopover}

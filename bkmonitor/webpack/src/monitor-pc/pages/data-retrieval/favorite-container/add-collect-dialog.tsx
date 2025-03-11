@@ -354,7 +354,16 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
         </div>
       </div>
     );
-    const eventKeywordsSlot = () => <span>{this.keyword?.queryConfig.query_string}</span>;
+    const eventKeywordsSlot = () => {
+      if (this.keyword?.queryConfig?.query_string) return <span>{this.keyword.queryConfig.query_string}</span>;
+      if (this.keyword?.queryConfig?.where?.length)
+        return this.keyword?.queryConfig?.where?.map(item => (
+          <div key={item.key}>
+            {item.key} {item.method} {item.value.map(v => v).join(' AND ')}
+          </div>
+        ));
+      return '*';
+    };
     return (
       <bk-dialog
         width={480}
