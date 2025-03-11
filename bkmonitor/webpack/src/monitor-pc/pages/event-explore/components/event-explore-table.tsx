@@ -420,7 +420,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             href={item.url}
             rel='noreferrer'
             target='_blank'
-            onMouseenter={e => this.handleTargetHover(e, `点击前往: ${item.scenario}`)}
+            onMouseenter={e => this.handleTargetHover(e, `点击前往: ${item.scenario || '--'}`)}
             onMouseleave={this.handleClearTimer}
           >
             {item.alias}
