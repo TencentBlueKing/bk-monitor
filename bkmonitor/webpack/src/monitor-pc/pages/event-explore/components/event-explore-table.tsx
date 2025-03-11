@@ -27,6 +27,7 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
 import {
@@ -40,6 +41,8 @@ import {
 import { getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
 
+import type { EmptyStatusType } from '../../../components/empty-status/types';
+
 import './event-explore-table.scss';
 
 interface EventExploreTableProps {
@@ -47,7 +50,7 @@ interface EventExploreTableProps {
 }
 
 interface EventExploreTableEvents {
-  emptyClear: () => void;
+  onClearSearch: () => void;
 }
 
 /**
@@ -102,13 +105,24 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return !!total && dataLen < total;
   }
 
+  /** table 空数据时显示样式类型 'search-empty'/'empty' */
+  get tableEmptyType(): EmptyStatusType {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { where, query_string } = this.requestConfigs?.data?.query_configs?.[0] || { where: [], query_string: '*' };
+    const queryString = query_string?.trim?.();
+    if (where?.length || (!!queryString && queryString !== '*')) {
+      return 'search-empty';
+    }
+    return 'empty';
+  }
+
   @Watch('requestConfigs')
   requestConfigsChange() {
     this.getEventLogs();
   }
 
-  @Emit('emptyClear')
-  emptyClear() {
+  @Emit('clearSearch')
+  clearSearch() {
     return;
   }
 
@@ -410,6 +424,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   linkColumnFormatter(column: EventExploreTableColumn) {
     return row => {
       const item = row[column.id];
+      // 当url为空时，使用textColumnFormatter渲染为普通 text 文本样式
       if (!item.url) {
         return this.textColumnFormatter(column)(row);
       }
@@ -486,6 +501,14 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             type='expand'
           />
           {this.tableColumns.columns.map(column => this.transformColumn(column))}
+          <EmptyStatus
+            slot='empty'
+            textMap={{
+              empty: this.$t('暂无数据'),
+            }}
+            type={this.tableEmptyType}
+            onOperation={this.clearSearch}
+          />
           <div
             style={{ display: this.tableHasScrollLoading ? 'block' : 'none' }}
             class='export-table-loading'
