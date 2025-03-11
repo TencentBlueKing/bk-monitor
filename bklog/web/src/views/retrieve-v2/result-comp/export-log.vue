@@ -279,7 +279,6 @@
         // queueStatus: true
       };
     },
-
     watch: {
       totalCount(val) {
         if( val < 10000){
@@ -289,7 +288,7 @@
         }else{
           this.downloadType = 'quick';
         }
-    }
+      }
     },
     computed: {
       ...mapState({
