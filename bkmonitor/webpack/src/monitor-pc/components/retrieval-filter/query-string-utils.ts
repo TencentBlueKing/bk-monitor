@@ -306,12 +306,14 @@ interface IOptions {
   onSearch?: (value: string) => void;
   onChange?: (value: string) => void;
   onQuery?: (v?: string) => void;
+  onInput?: (v: string) => void;
 }
 export class QueryStringEditor {
   /* 当前token类型 */
   curTokenType = EQueryStringTokenType.key;
   /* 容器 */
   editorEl: Element = null;
+  isComposing = false;
   isPopUp = false;
   /* 初始化属性 */
   options: IOptions = null;
@@ -323,10 +325,20 @@ export class QueryStringEditor {
   constructor(options: IOptions) {
     this.options = options;
     this.editorEl = this.options.target;
+    this.editorEl.setAttribute('spellcheck', 'false');
     this.editorEl.setAttribute('contenteditable', 'true');
     this.editorEl.addEventListener('click', () => this.handleClick());
-    this.editorEl.addEventListener('input', () => this.handleInput());
-    this.editorEl.addEventListener('keydown', e => this.handleKeyDown(e));
+    this.editorEl.addEventListener('input', e => {
+      this.options?.onInput?.(e?.target?.textContent);
+      this.handleInput();
+    });
+    this.editorEl.addEventListener('compositionstart', () => {
+      this.isComposing = true;
+    });
+    this.editorEl.addEventListener('compositionend', () => {
+      this.isComposing = false;
+    });
+    this.editorEl.addEventListener('keydown', e => this.handleKeyDown(e as any));
     this.queryString = this.options.value;
     this.parseQueryString();
     this.setTokensToTarget(true);
@@ -338,6 +350,9 @@ export class QueryStringEditor {
    */
   @Debounce(300)
   handleInput() {
+    if (this.isComposing) {
+      return;
+    }
     this.queryString = this.editorEl.textContent;
     this.parseQueryString();
     this.setTokensToTarget();
@@ -496,6 +511,10 @@ export class QueryStringEditor {
     }
   }
 
+  setIsPopup(is: boolean) {
+    this.isPopUp = is;
+  }
+
   setQueryString(str: string) {
     this.queryString = str;
     this.parseQueryString();
@@ -530,6 +549,6 @@ export class QueryStringEditor {
       .join('');
     replaceContent(this.editorEl, content, isLast);
     this.queryString = this.editorEl.textContent;
-    this.options?.onChange?.(this.queryString);
+    this.options?.onChange?.(this.queryString.replace(/^\s+|\s+$/g, ''));
   }
 }
