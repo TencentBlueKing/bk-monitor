@@ -116,24 +116,23 @@ class TransferEtlHandler(EtlHandler):
             target_fields = index_set_obj.target_fields
 
         # 1. meta-创建/修改结果表
-        if kwargs.get("params", {}).get("is_create_storage", True):
-            etl_storage = EtlStorage.get_instance(etl_config=etl_config)
-            etl_storage.update_or_create_result_table(
-                self.data,
-                table_id=table_id,
-                storage_cluster_id=storage_cluster_id,
-                retention=retention,
-                allocation_min_days=allocation_min_days,
-                storage_replies=storage_replies,
-                fields=fields,
-                etl_params=etl_params,
-                es_version=cluster_info["cluster_config"]["version"],
-                hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
-                es_shards=es_shards,
-                sort_fields=sort_fields,
-                target_fields=target_fields,
-                alias_settings=alias_settings,
-            )
+        etl_storage = EtlStorage.get_instance(etl_config=etl_config)
+        etl_storage.update_or_create_result_table(
+            self.data,
+            table_id=table_id,
+            storage_cluster_id=storage_cluster_id,
+            retention=retention,
+            allocation_min_days=allocation_min_days,
+            storage_replies=storage_replies,
+            fields=fields,
+            etl_params=etl_params,
+            es_version=cluster_info["cluster_config"]["version"],
+            hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
+            es_shards=es_shards,
+            sort_fields=sort_fields,
+            target_fields=target_fields,
+            alias_settings=alias_settings,
+        )
 
         if not view_roles:
             view_roles = []

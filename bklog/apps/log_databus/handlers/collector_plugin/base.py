@@ -132,7 +132,7 @@ class CollectorPluginHandler:
         is_allow_alone_data_id = params["is_allow_alone_data_id"]
         is_allow_alone_etl_config = params["is_allow_alone_etl_config"]
         is_allow_alone_storage = params["is_allow_alone_storage"]
-        is_create_storage = params["is_create_storage"]
+        is_create_storage = params.get("is_create_storage", True)
         model_fields = {
             "collector_plugin_name": collector_plugin_name,
             "description": description,
