@@ -2276,7 +2276,7 @@ class NewCustomEventDataSource(CustomEventDataSource):
             else:
                 query["field_name"] = field
 
-            query["reference_name"] = (self.reference_name or metric.get("alias") or field).lower()
+            query["reference_name"] = (metric.get("alias") or field).lower()
             query["function"].append(function)
 
             if self.is_time_agg:

@@ -44,6 +44,7 @@ from .constants import (
     EventType,
 )
 from .core.processors import BaseEventProcessor, OriginEventProcessor
+from .utils import get_q_from_query_config
 from .mock_data import (
     API_LOGS_RESPONSE,
     API_TIME_SERIES_RESPONSE,
@@ -84,13 +85,7 @@ class EventLogsResource(Resource):
             return API_LOGS_RESPONSE
 
         queries = [
-            (
-                QueryConfigBuilder((config["data_type_label"], config["data_source_label"]))
-                .table(config["table"])
-                .conditions(config["where"])
-                .time_field("time")
-            )
-            for config in validated_request_data["query_configs"]
+            get_q_from_query_config(query_config) for query_config in validated_request_data["query_configs"]
         ]
 
         # 构建统一查询集
@@ -365,14 +360,28 @@ class EventTopKResource(Resource):
 
     @classmethod
     def query_topk(cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str, limit: int = 0):
-        for q in qs:
-            queryset = queryset.add_query(q.metric(field=field, method="COUNT").group_by(field).order_by("-_value"))
+        aliases: List[str] = []
+        for idx, q in enumerate(qs):
+            alias: str = chr(ord("a") + idx)
+            aliases.append(alias)
+            queryset = queryset.add_query(
+                q.metric(field=field, method="COUNT", alias=alias)
+                .group_by(field)
+                .order_by("-_value")
+            )
+
+        queryset.expression("+".join(aliases))
         return list(queryset.limit(limit))
 
     @classmethod
     def query_distinct(cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str):
-        for q in qs:
-            queryset = queryset.add_query(q.metric(field=field, method="cardinality"))
+        aliases: List[str] = []
+        for idx, q in enumerate(qs):
+            alias: str = chr(ord("a") + idx)
+            aliases.append(alias)
+            queryset = queryset.add_query(q.metric(field=field, method="cardinality", alias=alias))
+
+        queryset.expression("+".join(aliases))
         return list(queryset)
 
     @classmethod
@@ -404,8 +413,8 @@ class EventTopKResource(Resource):
         """
         计算事件源 topk 查询
         """
-        query = cls.get_q(query_config)
-        field_value_count_dict_list = cls.query_topk(queryset, [query], field, limit)
+        q: QueryConfigBuilder = get_q_from_query_config(query_config)
+        field_value_count_dict_list = cls.query_topk(queryset, [q], field, limit)
         for field_value_count_dict in field_value_count_dict_list:
             try:
                 # 剔除 count=0 的空数据
@@ -425,7 +434,7 @@ class EventTopKResource(Resource):
         """
         计算数据源的维度去重数量
         """
-        q = cls.get_q(query_config)
+        q: QueryConfigBuilder = get_q_from_query_config(query_config)
         try:
             field_distinct_map[field] = cls.query_distinct(queryset, [q], field)[0]["_result_"]
         except (IndexError, KeyError) as exc:
@@ -480,15 +489,8 @@ class EventTotalResource(Resource):
 
         # 构建查询列表
         queries = [
-            (
-                QueryConfigBuilder((config["data_type_label"], config["data_source_label"]))
-                .alias(alias)
-                .table(config["table"])
-                .metric(field="_index", method="COUNT", alias=alias)
-                .conditions(config["where"])
-                .time_field("time")
-            )
-            for config, alias in zip(query_configs, lowercase_alphabet)
+            get_q_from_query_config(query_config).alias(alias).metric(field="_index", method="COUNT", alias=alias)
+            for query_config, alias in zip(query_configs, lowercase_alphabet)
         ]
 
         # 构建统一查询集

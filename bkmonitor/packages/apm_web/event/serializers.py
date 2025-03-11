@@ -8,22 +8,45 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
+import operator
+from functools import reduce
+from typing import Dict, List, Any
 
+from django.db.models import Q
 from rest_framework import serializers
 
 from apm_web.models import Application, EventServiceRelation
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.data_explorer.event import serializers as event_serializers
+from monitor_web.data_explorer.event.utils import get_q_from_query_config
 
-# def process_query_config(origin_query_config: Dict[str, Any]) -> List[Dict[str, Any]]:
-#     query_configs: List[Dict[str, Any]] = []
-#     base_q: QueryConfigBuilder = (
-#         QueryConfigBuilder((DataTypeLabel.EVENT, DataSourceLabel.BK_APM))
-#         .query_string(origin_query_config["query_string"])
-#         .filter(filter_dict_to_conditions())
-#     )
-#     return query_configs
+
+def process_query_config(
+    origin_query_config: Dict[str, Any], event_relations: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    base_q: QueryConfigBuilder = get_q_from_query_config(
+        {**origin_query_config, "data_type_label": DataTypeLabel.EVENT, "data_source_label": DataSourceLabel.BK_APM}
+    )
+
+    if origin_query_config.get("interval"):
+        base_q = base_q.interval(origin_query_config["interval"])
+
+    aliases: List[str] = []
+    queryset: UnifyQuerySet = UnifyQuerySet().start_time(0).end_time(0)
+    for idx, relation in enumerate(event_relations):
+        alias: str = chr(ord("a") + idx)
+        q: QueryConfigBuilder = base_q.table(relation["table"]).alias(alias)
+        for metric in origin_query_config.get("metrics") or []:
+            q = q.metric(**{**metric, "alias": alias})
+
+        if relation["relations"]:
+            q = q.filter(Q() | reduce(operator.or_, [Q(**cond) for cond in relation["relations"]]))
+
+        aliases.append(alias)
+        queryset = queryset.add_query(q)
+
+    return queryset.config["query_configs"]
 
 
 class BaseEventRequestSerializer(serializers.Serializer):
@@ -41,6 +64,12 @@ class EventTimeSeriesRequestSerializer(event_serializers.EventTimeSeriesRequestS
     def validate(self, attrs):
         attrs = super(BaseEventRequestSerializer, self).validate(attrs)
         attrs = super(event_serializers.EventTimeSeriesRequestSerializer, self).validate(attrs)
+
+        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
+        attrs["expression"] = " or ".join([query_config["reference_name"] for query_config in attrs["query_configs"]])
         return attrs
 
 
@@ -48,6 +77,11 @@ class EventLogsRequestSerializer(event_serializers.EventLogsRequestSerializer, B
     def validate(self, attrs):
         attrs = super(BaseEventRequestSerializer, self).validate(attrs)
         attrs = super(event_serializers.EventLogsRequestSerializer, self).validate(attrs)
+
+        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
         return attrs
 
 
@@ -76,6 +110,11 @@ class EventTopKRequestSerializer(event_serializers.EventTopKRequestSerializer, B
     def validate(self, attrs):
         attrs = super(BaseEventRequestSerializer, self).validate(attrs)
         attrs = super(event_serializers.EventTopKRequestSerializer, self).validate(attrs)
+
+        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
         return attrs
 
 
@@ -83,4 +122,9 @@ class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer,
     def validate(self, attrs):
         attrs = super(BaseEventRequestSerializer, self).validate(attrs)
         attrs = super(event_serializers.EventTotalRequestSerializer, self).validate(attrs)
+
+        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
         return attrs
