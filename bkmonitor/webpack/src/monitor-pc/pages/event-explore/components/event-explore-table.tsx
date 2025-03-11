@@ -34,6 +34,8 @@ import {
   type DimensionsTypeEnum,
   type EventExploreTableColumn,
   type EventExploreTableRequestConfigs,
+  type ExploreEntitiesMap,
+  type ExploreFieldMap,
   ExploreSourceTypeEnum,
   ExploreTableColumnTypeEnum,
   ExploreTableLoadingEnum,
@@ -42,14 +44,18 @@ import { getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
 
 import type { EmptyStatusType } from '../../../components/empty-status/types';
+import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 
 import './event-explore-table.scss';
 
 interface EventExploreTableProps {
   requestConfigs: EventExploreTableRequestConfigs;
+  fieldMap: ExploreFieldMap;
+  entitiesMap: ExploreEntitiesMap;
 }
 
 interface EventExploreTableEvents {
+  onConditionChange: (condition: IWhereItem[]) => void;
   onClearSearch: () => void;
 }
 
@@ -66,6 +72,10 @@ const SourceIconMap = {
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
   /** 接口请求配置项 */
   @Prop({ type: Object, default: () => ({}) }) requestConfigs: EventExploreTableRequestConfigs;
+  /** expand 展开 kv 面板使用 */
+  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
+  /** expand 展开 kv 面板使用 */
+  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
 
   /** table loading 配置*/
   tableLoading = {
@@ -108,9 +118,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
   get tableEmptyType(): EmptyStatusType {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { where, query_string } = this.requestConfigs?.data?.query_configs?.[0] || { where: [], query_string: '*' };
+    const { where, query_string } = this.requestConfigs?.data?.query_configs?.[0] || {};
     const queryString = query_string?.trim?.();
-    if (where?.length || (!!queryString && queryString !== '*')) {
+    if (where?.length || !!queryString) {
       return 'search-empty';
     }
     return 'empty';
@@ -119,6 +129,11 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   @Watch('requestConfigs')
   requestConfigsChange() {
     this.getEventLogs();
+  }
+
+  @Emit('conditionChange')
+  conditionChange(condition: IWhereItem[]) {
+    return condition;
   }
 
   @Emit('clearSearch')
@@ -331,6 +346,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       <ExploreExpandViewWrapper
         style={this.getCssVarsByType(rowData?.type?.value)}
         data={rowData?.origin_data || {}}
+        entitiesMap={this.entitiesMap}
+        fieldMap={this.fieldMap}
+        onConditionChange={this.conditionChange}
       />
     );
   }
