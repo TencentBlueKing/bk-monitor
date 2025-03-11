@@ -188,7 +188,10 @@ export default class UseTextSegmentation {
   }
 
   private convertVirtaulObjToArray() {
-    const target = this.options.data[this.options.field.field_name] ?? JSON.parse(this.options.content);
+    // this.options.content值为--时，直接JSON.parse会转义报错
+    const target =
+      this.options.data[this.options.field.field_name] ??
+      (['', '--'].includes(this.options.content) ? this.options.content : JSON.parse(this.options.content));
     const convertObjToArray = (root: object, isValue = false) => {
       const result = [];
 

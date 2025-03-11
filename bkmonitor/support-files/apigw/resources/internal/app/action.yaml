@@ -7,39 +7,39 @@ info:
 schemes:
 - http
 paths:
-  /app/alert/get_experience/:
-    get:
-      operationId: get_alert_experience
-      description: 获取告警处理经验
+  /app/action/get_action_params_by_config/:
+    post:
+      operationId: get_action_params_by_config
+      description: 根据套餐ID获取当前告警处理参数
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
         matchSubpath: false
         backend:
           type: HTTP
-          method: get
-          path: /api/v4/alert/alert/get_experience/
+          method: post
+          path: /api/v4/action_instance/get_action_params_by_config/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: get alert experience
-  /app/alert/search_by_event/:
+        descriptionEn: null
+  /app/action/batch_create_action/:
     post:
-      operationId: search_alert_by_event
-      description: 根据event获取告警处理信息
+      operationId: batch_create_action
+      description: 批量创建处理事件
       x-bk-apigateway-resource:
         isPublic: false
-        allowApplyPermission: true
+        allowApplyPermission: false
         matchSubpath: false
         backend:
           type: HTTP
           method: post
-          path: /api/v4/alert_info/search_alert_by_event/
+          path: /api/v4/action_instance/batch_create_action/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
           userVerifiedRequired: false
           resourcePermissionRequired: true
-        descriptionEn: search alert by event
+        descriptionEn: batch_create_action
