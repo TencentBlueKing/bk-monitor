@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+from typing import Dict, List, Any
 
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -37,6 +38,11 @@ class EventFilterSerializer(EventDataSource):
     where = serializers.ListField(label="过滤条件", required=False, default=[], child=serializers.DictField())
     group_by = serializers.ListSerializer(label="聚合字段", required=False, default=[], child=serializers.CharField())
 
+    @classmethod
+    def drop_group_by(cls, query_configs: List[Dict[str, Any]]):
+        for query_config in query_configs:
+            query_config["group_by"] = []
+
 
 class EventQueryConfigSerializer(EventFilterSerializer):
     interval = serializers.IntegerField(label="汇聚周期（秒）", required=False)
@@ -62,6 +68,10 @@ class EventLogsRequestSerializer(BaseEventRequestSerializer):
     offset = serializers.IntegerField(label="偏移量", required=False, default=0)
     query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
 
+    def validate(self, attrs):
+        EventFilterSerializer.drop_group_by(attrs.get("query_configs") or [])
+        return attrs
+
 
 class EventViewConfigRequestSerializer(BaseEventRequestSerializer):
     data_sources = serializers.ListSerializer(label="数据源列表", child=EventDataSource(), allow_empty=False)
@@ -75,6 +85,10 @@ class EventTopKRequestSerializer(BaseEventRequestSerializer):
 
 class EventTotalRequestSerializer(BaseEventRequestSerializer):
     query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+
+    def validate(self, attrs):
+        EventFilterSerializer.drop_group_by(attrs.get("query_configs") or [])
+        return attrs
 
 
 class EventDownloadTopKRequestSerializer(EventTopKRequestSerializer):

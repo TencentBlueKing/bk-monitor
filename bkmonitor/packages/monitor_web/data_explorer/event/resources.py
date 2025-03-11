@@ -9,7 +9,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
-import string
 import threading
 from collections import defaultdict
 from threading import Lock
@@ -44,6 +43,7 @@ from .constants import (
     EventType,
 )
 from .core.processors import BaseEventProcessor, OriginEventProcessor
+from .utils import get_q_from_query_config
 from .mock_data import (
     API_LOGS_RESPONSE,
     API_TIME_SERIES_RESPONSE,
@@ -83,16 +83,6 @@ class EventLogsResource(Resource):
         if validated_request_data.get("is_mock"):
             return API_LOGS_RESPONSE
 
-        queries = [
-            (
-                QueryConfigBuilder((config["data_type_label"], config["data_source_label"]))
-                .table(config["table"])
-                .conditions(config["where"])
-                .time_field("time")
-            )
-            for config in validated_request_data["query_configs"]
-        ]
-
         # 构建统一查询集
         queryset = (
             UnifyQuerySet()
@@ -106,8 +96,10 @@ class EventLogsResource(Resource):
         )
 
         # 添加查询到查询集中
-        for query in queries:
-            queryset = queryset.add_query(query)
+        for query in [
+            get_q_from_query_config(query_config) for query_config in validated_request_data["query_configs"]
+        ]:
+            queryset = queryset.add_query(query.order_by("-time"))
         try:
             # unify-query 查询失败
             events: List[Dict[str, Any]] = list(queryset)
@@ -173,7 +165,7 @@ class EventViewConfigResource(Resource):
         fields = []
         for name, dimension_metadata in dimension_metadata_map.items():
             field_type = cls.get_field_type(name)
-            alias, field_category = cls.get_field_alias(name, dimension_metadata)
+            alias, field_category, index = cls.get_field_alias(name, dimension_metadata)
             is_option_enabled = cls.is_option_enabled(field_type)
             is_dimensions = cls.is_dimensions(name)
             supported_operations = cls.get_supported_operations(field_type)
@@ -185,36 +177,48 @@ class EventViewConfigResource(Resource):
                     "is_option_enabled": is_option_enabled,
                     "is_dimensions": is_dimensions,
                     "supported_operations": supported_operations,
+                    "index": index,
                     "category": field_category,
                 }
             )
 
         # 使用 category_weights 对 fields 进行排序
-        fields.sort(key=lambda field: CATEGORY_WEIGHTS.get(field["category"], CategoryWeight.UNKNOWN.value))
+        fields.sort(
+            key=lambda _f: CATEGORY_WEIGHTS.get(_f["category"], CategoryWeight.UNKNOWN.value) * 100 + _f["index"]
+        )
 
         # 排序后除去权重字段
         for field in fields:
+            del field["index"]
             del field["category"]
         return fields
 
     @classmethod
-    def get_field_alias(cls, name, dimension_metadata) -> Tuple[str, str]:
+    def get_field_alias(cls, name, dimension_metadata) -> Tuple[str, str, int]:
         """
         获取字段别名
         """
-        # 先渲染 common
+
+        def get_index(_d: Dict[str, str], _name: str) -> int:
+            try:
+                return list(_d.keys()).index(_name)
+            except ValueError:
+                # 不存在则排到最后
+                return len(_d.keys())
+
         if EVENT_FIELD_ALIAS[EventCategory.COMMON.value].get(name):
+            data_label: str = EventCategory.COMMON.value
+        else:
+            data_label: str = list(dimension_metadata["data_labels"])[0]
+
+        if EVENT_FIELD_ALIAS.get(data_label, {}).get(name):
             return (
-                "{}（{}）".format(EVENT_FIELD_ALIAS[EventCategory.COMMON.value].get(name), name),
-                EventCategory.COMMON.value,
+                "{}（{}）".format(EVENT_FIELD_ALIAS[data_label].get(name), name),
+                data_label,
+                get_index(EVENT_FIELD_ALIAS[data_label], name)
             )
 
-        data_label = list(dimension_metadata["data_labels"])[0]
-        # 考虑 data_label 为空时处理
-        if EVENT_FIELD_ALIAS.get(data_label, {}).get(name):
-            return "{}（{}）".format(EVENT_FIELD_ALIAS[data_label].get(name), name), data_label
-
-        return name, EventCategory.UNKNOWN_EVENT.value
+        return name, EventCategory.UNKNOWN_EVENT.value, 0
 
     @classmethod
     def is_dimensions(cls, name) -> bool:
@@ -231,7 +235,7 @@ class EventViewConfigResource(Resource):
 
     @classmethod
     def is_option_enabled(cls, field_type) -> bool:
-        return field_type in {EventDimensionTypeEnum.KEYWORD.value, EventDimensionTypeEnum.INTEGER.value}
+        return field_type in {EventDimensionTypeEnum.KEYWORD.value}
 
     @classmethod
     def get_supported_operations(cls, field_type) -> List[Dict[str, Any]]:
@@ -302,14 +306,22 @@ class EventTopKResource(Resource):
         )
         # 只计算维度的去重数量，不需要 topk 值
         if limit == DIMENSION_DISTINCT_VALUE:
-            topk_field_map = {
-                field: {
+            for field in valid_fields:
+                # 对多线程获取失败的进行补偿
+                if field not in field_distinct_map:
+                    logger.warning(
+                        "[EventTopKResource] distinct_count not found, try to compensate: field -> %s", field
+                    )
+                    self.calculate_field_distinct_count(
+                        lock, queryset, query_configs, field, dimension_metadata_map, field_distinct_map, field_topk_map
+                    )
+
+                topk_field_map[field] = {
                     "field": field,
                     "distinct_count": field_distinct_map[field],
                     "list": [],
                 }
-                for field in valid_fields
-            }
+
             # 合并不存在的字段
             return list(topk_field_map.values()) + missing_fields
 
@@ -327,7 +339,7 @@ class EventTopKResource(Resource):
                     args=(
                         lock,
                         queryset,
-                        match_configs[0],
+                        [match_configs[0]],
                         field,
                         limit,
                         field_topk_map,
@@ -365,14 +377,24 @@ class EventTopKResource(Resource):
 
     @classmethod
     def query_topk(cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str, limit: int = 0):
+        alias: str = "a"
         for q in qs:
-            queryset = queryset.add_query(q.metric(field=field, method="COUNT").group_by(field).order_by("-_value"))
+            queryset = queryset.add_query(
+                q.metric(field=field, method="COUNT", alias=alias)
+                .group_by(field)
+                .order_by("-_value")
+            )
+
+        queryset.expression(alias)
         return list(queryset.limit(limit))
 
     @classmethod
     def query_distinct(cls, queryset: UnifyQuerySet, qs: List[QueryConfigBuilder], field: str):
+        alias: str = "a"
         for q in qs:
-            queryset = queryset.add_query(q.metric(field=field, method="cardinality"))
+            queryset = queryset.add_query(q.metric(field=field, method="cardinality", alias=alias))
+
+        queryset.expression(alias)
         return list(queryset)
 
     @classmethod
@@ -396,7 +418,7 @@ class EventTopKResource(Resource):
         cls,
         lock: Lock,
         queryset: UnifyQuerySet,
-        query_config,
+        query_configs: List[Dict[str, Any]],
         field: str,
         limit: int,
         field_topk_map: Dict[str, Dict[str, int]],
@@ -404,8 +426,9 @@ class EventTopKResource(Resource):
         """
         计算事件源 topk 查询
         """
-        query = cls.get_q(query_config)
-        field_value_count_dict_list = cls.query_topk(queryset, [query], field, limit)
+        field_value_count_dict_list = cls.query_topk(
+            queryset, [get_q_from_query_config(query_config) for query_config in query_configs], field, limit
+        )
         for field_value_count_dict in field_value_count_dict_list:
             try:
                 # 剔除 count=0 的空数据
@@ -425,7 +448,7 @@ class EventTopKResource(Resource):
         """
         计算数据源的维度去重数量
         """
-        q = cls.get_q(query_config)
+        q: QueryConfigBuilder = get_q_from_query_config(query_config)
         try:
             field_distinct_map[field] = cls.query_distinct(queryset, [q], field)[0]["_result_"]
         except (IndexError, KeyError) as exc:
@@ -452,15 +475,7 @@ class EventTopKResource(Resource):
             return
         if matching_configs_length > 1:
             # 多事件源直接求所有枚举值
-            run_threads(
-                [
-                    InheritParentThread(
-                        target=cls.calculate_topk,
-                        args=(lock, queryset, query_config, field, QUERY_MAX_LIMIT, field_topk_map),
-                    )
-                    for query_config in matching_configs
-                ]
-            )
+            cls.calculate_topk(lock, queryset, matching_configs, field, QUERY_MAX_LIMIT, field_topk_map)
             field_distinct_map[field] = len(field_topk_map.get(field, []))
         else:
             cls.calculate_distinct_count_for_table(queryset, matching_configs[0], field, field_distinct_map)
@@ -473,22 +488,11 @@ class EventTotalResource(Resource):
         if validated_request_data.get("is_mock"):
             return API_TOTAL_RESPONSE
 
-        # 获取查询配置
-        query_configs = validated_request_data["query_configs"]
-        # 小写字母表
-        lowercase_alphabet = list(string.ascii_lowercase)
-
+        alias: str = "a"
         # 构建查询列表
         queries = [
-            (
-                QueryConfigBuilder((config["data_type_label"], config["data_source_label"]))
-                .alias(alias)
-                .table(config["table"])
-                .metric(field="_index", method="COUNT", alias=alias)
-                .conditions(config["where"])
-                .time_field("time")
-            )
-            for config, alias in zip(query_configs, lowercase_alphabet)
+            get_q_from_query_config(query_config).alias(alias).metric(field="_index", method="COUNT", alias=alias)
+            for query_config in validated_request_data["query_configs"]
         ]
 
         # 构建统一查询集
@@ -497,7 +501,7 @@ class EventTotalResource(Resource):
             .scope(bk_biz_id=validated_request_data["bk_biz_id"])
             .start_time(1000 * validated_request_data["start_time"])
             .end_time(1000 * validated_request_data["end_time"])
-            .expression("+".join(lowercase_alphabet[: len(query_configs)]))
+            .expression(alias)
             .time_agg(False)
             .instant()
         )

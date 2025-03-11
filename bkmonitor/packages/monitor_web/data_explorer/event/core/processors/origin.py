@@ -62,7 +62,7 @@ class OriginEventProcessor(BaseEventProcessor):
 
             events.append(event)
 
-        return events
+        return sorted(events, key=lambda _e: -_e["_meta"]["_time_"])
 
     @classmethod
     def process_display_field(cls, origin_event: Dict[str, Any]) -> Dict[str, Any]:
