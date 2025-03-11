@@ -36,7 +36,7 @@ class CustomMetricV2BuiltinProcessor(BuiltinProcessor):
         return {
             "id": view.id,
             "name": view.name,
-            "mode": SceneViewModel.SceneViewType.auto,
+            "mode": SceneViewModel.SceneViewType.auto.value,
             "variables": [],
             "order": [],
             "panels": [],
@@ -58,7 +58,7 @@ class CustomMetricV2BuiltinProcessor(BuiltinProcessor):
             id=view_id,
             defaults={
                 "name": view_config["name"],
-                "mode": SceneViewModel.SceneViewType.auto,
+                "mode": SceneViewModel.SceneViewType.auto.value,
                 "options": view_config["options"],
             },
         )
