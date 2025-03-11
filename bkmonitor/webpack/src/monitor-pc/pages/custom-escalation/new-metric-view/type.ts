@@ -104,6 +104,7 @@ export interface IMetricAnalysisConfig {
   compare: ICompare;
   start_time: number;
   end_time: number;
+  show_statistical_value: boolean;
 }
 export interface IFilterConfig {
   metrics: string[];

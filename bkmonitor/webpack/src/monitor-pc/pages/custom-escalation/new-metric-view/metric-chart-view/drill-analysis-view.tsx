@@ -101,6 +101,8 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       offset: [],
     },
   };
+  /** 自动刷新定时器 */
+  timer = null;
   /** 默认的图表配置 */
   get defaultPanelConfig() {
     return this.panelData?.targets[0] || {};
@@ -130,6 +132,10 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
+  }
+
+  beforeDestroy() {
+    this.timer && clearInterval(this.timer);
   }
   /** 初始化过滤条件 */
   initDefaultFilterConfig() {
@@ -192,7 +198,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         checked: activeKey.includes(dimension.name),
       })
     );
-    this.panelData.targets[0].query_configs[0].filter_dict['drill_filter'] = list;
+    this.panelData.targets[0].query_configs[0].filter_dict.drill_filter = list;
     this.panelData = deepClone(this.panelData);
     this.filterConfig.group_by = activeKey;
     this.getTableList();
@@ -200,18 +206,27 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   /** 修改刷新间隔 */
   handleRefreshInterval(val: number) {
     this.refreshInterval = val;
+    this.timer && clearInterval(this.timer);
+    if (val > -1) {
+      this.timer = setInterval(() => {
+        this.handleImmediateRefresh();
+      }, val);
+    }
   }
   /** 手动刷新 */
   handleImmediateRefresh() {
     this.chartKey = random(8);
+    this.getTableList();
   }
   /** 修改时间间隔 */
   handleTimeRangeChange(val: TimeRangeType) {
     this.timeRange = [...val];
+    this.getTableList();
   }
   /** 修改时区 */
   handleTimezoneChange(timezone: string) {
     this.timezone = timezone;
+    this.getTableList();
   }
   /** 支持上下拖拽 */
   handleResizing(height: number) {
@@ -226,6 +241,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   /** 获取表格数据 */
   getTableList() {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    console.log(startTime, endTime, '===');
     function convertData(data) {
       // 创建一个新对象，用于存储转换后的数据
       const result = {

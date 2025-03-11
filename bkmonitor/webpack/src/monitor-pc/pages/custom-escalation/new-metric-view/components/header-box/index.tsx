@@ -98,7 +98,7 @@ export const createDefaultParams = (): IResult => ({
     type: '',
     offset: [],
   },
-  show_statistical_value: false,
+  show_statistical_value: true,
   highlight_peak_value: false,
   view_column: 1,
 });

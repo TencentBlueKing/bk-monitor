@@ -170,11 +170,13 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     this.isDragging = false;
   }
   /** 维度下钻 */
-  /** 维度下钻 */
   handelDrillDown(chart: IPanelModel) {
     this.showDrillDown = true;
-    console.log('维度下钻', chart);
-    this.currentChart = chart;
+    this.currentChart = {
+      ...chart,
+      targets: [chart.targets[0]],
+    };
+    console.log('维度下钻', this.currentChart, chart);
   }
   handleLegendData(list: ILegendItem[], loading: boolean) {
     this.tableList = list;
