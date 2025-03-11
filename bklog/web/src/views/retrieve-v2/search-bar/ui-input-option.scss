@@ -1,3 +1,5 @@
+@use "sass:color";
+
 .ui-query-options {
   background: #ffffff;
 
@@ -38,6 +40,17 @@
         height: 315px;
         overflow: auto;
 
+        &::-webkit-scrollbar {
+          width: 6px;
+          background-color: color.scale(transparent, $lightness: 80%);
+        }
+
+        &::-webkit-scrollbar-thumb {
+          height: 6px;
+          background-color: #DCDEE5;
+          border-radius: 3px;
+        }
+
         .ui-search-result-row {
           display: flex;
           align-items: center;
@@ -62,9 +75,29 @@
             }
           }
 
+          &.location {
+            background-color: #f5f7fa;
+
+            .field-alias {
+              color: #313238;
+            }
+
+            .field-name {
+              color: #757880;
+            }
+          }
+
           &:hover {
             &:not(.active) {
-              background-color: #F0F5FF;
+              background-color: #f0f5ff;
+            }
+
+            .field-alias {
+              color: #3A84FF;
+            }
+
+            .field-name {
+              color: #699DF4;
             }
           }
 
@@ -75,7 +108,6 @@
             width: 14px;
             height: 14px;
             background: #E8EAF0;
-            border: 1px dashed;
             border-radius: 2px;
             opacity: 0.9;
 
@@ -319,6 +351,7 @@
 
       &.tag-item {
         color: #63656e;
+        cursor: pointer;
         background: #f0f1f5;
         border-color: #f0f1f5;
 
@@ -326,7 +359,7 @@
           // white-space: nowrap;
           display: box;
           max-width: 100%;
-          padding: 0 4px;
+          padding: 0 8px;
           overflow: hidden;
           text-overflow: ellipsis;
 
@@ -336,13 +369,14 @@
           user-select: none;
           box-orient: vertical;
 
-          &:hover {
-            background-color: #dcdee5;
-          }
+          // &:hover {
+          //   background-color: #dcdee5;
+          // }
         }
 
         .tag-item-del {
           font-size: 16px;
+          color: #979BA5;
           cursor: pointer;
         }
       }
@@ -367,11 +401,10 @@
         width: 100%;
         max-width: 100%;
         height: 100%;
-
-        /* overflow: hidden; */
-        padding: 0;
+        padding: 0 8px;
         resize: none;
-        border: 1px solid #c4c6cc;
+        background-color: #E1ECFF;
+        border: none;
 
         &::-webkit-scrollbar {
           width: 12px; /* Width of the scrollbar */
