@@ -1,0 +1,43 @@
+from typing import Callable, Dict, List
+
+from core.drf_resource import resource
+
+from .base import BaseContext, EntityT
+
+
+class BcsClusterContext(BaseContext):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(args, kwargs)
+
+    def fetch(
+        self, entities: List[EntityT], get_key: Callable[[EntityT], str] = lambda _e: _e.get("id", "")
+    ) -> Dict[str, EntityT]:
+        bcs_cluster_info_map: Dict[str, EntityT] = {}
+        for entity in entities:
+            bk_biz_id = entity.get("bk_biz_id", "")
+            bcs_cluster_id = entity.get("bcs_cluster_id", "")
+            cluster_info_key = f"{bk_biz_id}::{bcs_cluster_id}"
+
+            if cluster_info_key in self._cache:
+                bcs_cluster_info_map[cluster_info_key] = self._cache[cluster_info_key]
+            else:
+                clusters = resource.scene_view.get_kubernetes_cluster_choices(bk_biz_id=bk_biz_id)
+                for cluster in clusters:
+                    new_cluster_info_key = f"{bk_biz_id}::{cluster['id']}"
+                    cluster_info = {
+                        "bk_biz_id": bk_biz_id,
+                        "bcs_cluster_id": cluster["id"],
+                        "bcs_cluster_name": cluster["name"],
+                    }
+                    self._cache[new_cluster_info_key] = cluster_info
+                    if new_cluster_info_key == cluster_info_key:
+                        bcs_cluster_info_map[cluster_info_key] = cluster_info
+
+                if cluster_info_key not in bcs_cluster_info_map:
+                    bcs_cluster_info_map[cluster_info_key] = {
+                        "bk_biz_id": bk_biz_id,
+                        "bcs_cluster_id": "",
+                        "bcs_cluster_name": "",
+                    }
+
+        return bcs_cluster_info_map
