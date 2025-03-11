@@ -15,7 +15,6 @@ from ipaddress import IPv6Address, ip_address
 from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.trace import SpanAttributes
 
-from alarm_backends.core.storage.redis import Cache
 from api.cmdb.client import list_biz_hosts
 from apm_web.constants import HostAddressType
 from apm_web.models import Application, CMDBServiceRelation
@@ -32,6 +31,8 @@ from constants.apm import OtlpKey
 from core.drf_resource import api
 
 logger = logging.getLogger("apm")
+
+TIME_OUT = 60
 
 
 class HostHandler:
@@ -55,6 +56,7 @@ class HostHandler:
     PAGE_LIMIT = 100
 
     @classmethod
+    @using_cache(CacheType.APM(TIME_OUT))
     def list_application_hosts(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
         """
         获取应用的主机列表
@@ -64,14 +66,16 @@ class HostHandler:
         3. 通过关联查询
         """
 
-        cache = Cache("cache")
-        cache_key = f"{bk_biz_id}-{app_name}-{service_name}"
-        cached_result = cache.get(cache_key)
-        if cached_result:
-            return cached_result
         if not start_time or not end_time:
             app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+            if app is None:
+                logger.exception(f"[HostHandler] 业务({bk_biz_id})下的app({app_name}) 不存在.")
+                return []
             start_time, end_time = app.list_retention_time_range()
+
+        global TIME_OUT
+        # 使用end_time和start_time的时间差作为过期时间，保证在同个时间区间查询时，直接从缓存获取
+        TIME_OUT = end_time - start_time
 
         # step1: 从主机发现取出 和 拓扑关联中取出主机
         def get_hosts_from_cmdb_and_topo(bk_biz_id, app_name, service_name):
@@ -119,7 +123,7 @@ class HostHandler:
                         extra_ip_info[source_info["bk_target_ip"]]["source_type"] = cls.SourceType.RELATION
 
             query_host_instances = cls.list_host_by_ips(bk_biz_id, query_ips, ip_info_mapping=extra_ip_info)
-            return apm_host_instances, query_host_instances
+            return apm_host_instances + query_host_instances
 
         # step2: 从关联cmdb取出主机
         def get_from_cmdb_hosts(bk_biz_id, app_name, service_name):
@@ -160,22 +164,29 @@ class HostHandler:
                             )
                 return cmdb_host_instances
 
-        pool = ThreadPool()
-        apm_host_instances, query_host_instances = pool.map_ignore_exception(
-            get_hosts_from_cmdb_and_topo, [(bk_biz_id, app_name, service_name)]
+        query_apm_host_instances = cls.list_ignore_exception(
+            get_hosts_from_cmdb_and_topo, (bk_biz_id, app_name, service_name)
         )
-        cmdb_host_instances = pool.map_ignore_exception(get_from_cmdb_hosts, [(bk_biz_id, app_name, service_name)])
+        cmdb_host_instances = cls.list_ignore_exception(get_from_cmdb_hosts, (bk_biz_id, app_name, service_name))
 
         res = []
         host_ids = []
-        for i in apm_host_instances + cmdb_host_instances + query_host_instances:  # noqa
+        for i in query_apm_host_instances + cmdb_host_instances:  # noqa
             if i["bk_host_id"] in host_ids:
                 continue
             res.append(i)
             host_ids.append(i["bk_host_id"])
-        # 使用end_time和start_time的时间差作为过期时间，保证在同个时间区间查询时，直接从缓存获取
-        cache.set(cache_key, res, ex=(end_time - start_time) // 60)
         return res
+
+    @classmethod
+    def list_ignore_exception(cls, func, params):
+        pool = ThreadPool()
+        result = pool.apply_async(func, params)
+        try:
+            query_list = result.get()
+        except Exception:
+            return []
+        return query_list if query_list else []
 
     @classmethod
     def find_host_in_span(cls, bk_biz_id, app_name, span_id, span=None):
