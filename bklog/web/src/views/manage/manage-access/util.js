@@ -42,7 +42,14 @@ export function formatBytes(size) {
   }
   return formatFileSize(size, true);
 }
-
+/**
+ * 请求存储使用情况并更新数据列表中的相应字段。
+ *
+ * @param {Object} that - Vue 组件上下文，用于访问组件内的数据和方法。
+ * @param {Array} arr - 包含数据项的数组，每个数据项应具有 `index_set_id` 和 `is_active` 属性。
+ * @param {boolean} [type=false] - 可选参数，决定筛选数据项的条件。
+ *
+ */
 export function requestStorageUsage(that, arr, type = false) {
   let index_set_ids = [];
 
