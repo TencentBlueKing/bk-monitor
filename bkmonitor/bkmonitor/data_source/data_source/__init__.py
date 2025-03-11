@@ -2207,7 +2207,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
 class NewCustomEventDataSource(CustomEventDataSource):
     data_source_label = DataSourceLabel.BK_APM
     data_type_label = DataTypeLabel.EVENT
-    INNER_DIMENSIONS = ["target", "event_name"]
+    INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count"]
 
     OPERATOR_MAPPING: Dict[str, str] = {
         "neq": "ne",

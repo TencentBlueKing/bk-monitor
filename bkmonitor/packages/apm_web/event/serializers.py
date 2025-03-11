@@ -28,22 +28,18 @@ def process_query_config(
     base_q: QueryConfigBuilder = get_q_from_query_config(
         {**origin_query_config, "data_type_label": DataTypeLabel.EVENT, "data_source_label": DataSourceLabel.BK_APM}
     )
+    for metric in origin_query_config.get("metrics") or []:
+        base_q = base_q.metric(**metric)
 
     if origin_query_config.get("interval"):
         base_q = base_q.interval(origin_query_config["interval"])
 
-    aliases: List[str] = []
     queryset: UnifyQuerySet = UnifyQuerySet().start_time(0).end_time(0)
-    for idx, relation in enumerate(event_relations):
-        alias: str = chr(ord("a") + idx)
-        q: QueryConfigBuilder = base_q.table(relation["table"]).alias(alias)
-        for metric in origin_query_config.get("metrics") or []:
-            q = q.metric(**{**metric, "alias": alias})
-
+    for relation in event_relations:
+        q: QueryConfigBuilder = base_q.table(relation["table"])
         if relation["relations"]:
             q = q.filter(Q() | reduce(operator.or_, [Q(**cond) for cond in relation["relations"]]))
 
-        aliases.append(alias)
         queryset = queryset.add_query(q)
 
     return queryset.config["query_configs"]
@@ -62,21 +58,18 @@ class BaseEventRequestSerializer(serializers.Serializer):
 
 class EventTimeSeriesRequestSerializer(event_serializers.EventTimeSeriesRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
-        attrs = super(event_serializers.EventTimeSeriesRequestSerializer, self).validate(attrs)
+        attrs = super().validate(attrs)
 
         event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
-        attrs["expression"] = " or ".join([query_config["reference_name"] for query_config in attrs["query_configs"]])
         return attrs
 
 
 class EventLogsRequestSerializer(event_serializers.EventLogsRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
-        attrs = super(event_serializers.EventLogsRequestSerializer, self).validate(attrs)
+        attrs = super().validate(attrs)
 
         event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
@@ -87,8 +80,7 @@ class EventLogsRequestSerializer(event_serializers.EventLogsRequestSerializer, B
 
 class EventViewConfigRequestSerializer(event_serializers.EventViewConfigRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
-        attrs = super(event_serializers.EventViewConfigRequestSerializer, self).validate(attrs)
+        attrs = super().validate(attrs)
 
         data_sources: List[Dict[str, str]] = []
         for relation in EventServiceRelation.fetch_relations(
@@ -108,8 +100,7 @@ class EventViewConfigRequestSerializer(event_serializers.EventViewConfigRequestS
 
 class EventTopKRequestSerializer(event_serializers.EventTopKRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
-        attrs = super(event_serializers.EventTopKRequestSerializer, self).validate(attrs)
+        attrs = super().validate(attrs)
 
         event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
@@ -120,8 +111,7 @@ class EventTopKRequestSerializer(event_serializers.EventTopKRequestSerializer, B
 
 class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer, BaseEventRequestSerializer):
     def validate(self, attrs):
-        attrs = super(BaseEventRequestSerializer, self).validate(attrs)
-        attrs = super(event_serializers.EventTotalRequestSerializer, self).validate(attrs)
+        attrs = super().validate(attrs)
 
         event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
