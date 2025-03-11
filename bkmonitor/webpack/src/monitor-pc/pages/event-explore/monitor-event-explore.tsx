@@ -23,26 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 import { random } from 'monitor-common/utils';
 
-import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
-import { EMode, mergeWhereList, type IGetValueFnParams } from '../../components/retrieval-filter/utils';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
+import { EMode } from '../../components/retrieval-filter/utils';
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import FavoriteContainer from '../data-retrieval/favorite-container/favorite-container';
-import { APIType, getEventTopK, getEventViewConfig } from './api-utils';
-import DimensionFilterPanel from './components/dimension-filter-panel';
-import EventExploreView from './components/event-explore-view';
+import { APIType } from './api-utils';
 import EventRetrievalHeader from './components/event-retrieval-header';
-import EventRetrievalLayout from './components/event-retrieval-layout';
 import EventExplore from './event-explore';
 
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
+import type { IFavList } from '../data-retrieval/typings';
 import type { IFormData } from './typing';
 
 @Component
@@ -62,18 +59,14 @@ export default class MonitorEventExplore extends tsc<object> {
   /** 图表框选范围事件所需参数 -- 是否展示复位按钮 */
   @ProvideReactive('showRestore') showRestore = false;
 
-  @ProvideReactive('formatTimeRange')
-  get formatTimeRange() {
-    return handleTransformToTimestamp(this.timeRange);
-  }
   cacheTimeRange = [];
   timer = null;
   /** 是否展示收藏 */
   isShowFavorite = true;
 
-  favoriteList = [];
+  favoriteList: IFavList.favGroupList[] = [];
   /** 当前选择的收藏 */
-  currentFavorite = null;
+  currentFavorite: IFavList.favList = null;
 
   dataTypeLabel = 'event';
   dataSourceLabel = 'custom';
@@ -84,43 +77,28 @@ export default class MonitorEventExplore extends tsc<object> {
   /** 查询语句 */
   queryString = '';
   /** UI查询 */
-  where: IFormData['where'] = [];
+  where: IWhereItem[] = [];
   /** 维度列表 */
   group_by: IFormData['group_by'] = [];
   /** 过滤条件 */
   filter_dict: IFormData['filter_dict'] = {};
   /** 用于 日志 和 事件关键字切换 换成查询 */
-  cacheQuery: IFormData = null;
-  compare: { type: 'none'; value: string[] } = {
-    type: 'none',
-    value: [],
-  };
-  get formData(): IFormData {
-    return {
-      data_source_label: this.dataSourceLabel || 'custom',
-      data_type_label: this.dataTypeLabel || 'event',
-      table: this.dataId,
-      query_string: this.queryString,
-      where: this.where || [],
-      group_by: this.group_by || [],
-      filter_dict: this.filter_dict || {},
-    };
-  }
+  cacheQuery = null;
+  filterMode = EMode.ui;
 
   async mounted() {
     const isShowFavorite =
       JSON.parse(localStorage.getItem('bk_monitor_data_favorite_show') || 'false') || !!this.$route.query?.favorite_id;
     this.isShowFavorite = isShowFavorite;
-    // this.getRouteParams();
+    this.getRouteParams();
     await this.getDataIdList(!this.dataId);
-    // await this.getViewConfig();
   }
 
   @Provide('handleTimeRangeChange')
   handleTimeRangeChange(timeRange: TimeRangeType) {
     this.showRestore = false;
     this.timeRange = timeRange;
-    // this.getViewConfig();
+    this.setRouteParams();
   }
   /**
    * @description 更改数据时间间隔（其中 Provide 主要提供图表组件框选事件需要）
@@ -133,7 +111,7 @@ export default class MonitorEventExplore extends tsc<object> {
     this.showRestore = true;
     this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
     this.timeRange = timeRange;
-    // this.getViewConfig();
+    this.setRouteParams();
   }
   /**
    * @description 恢复数据时间间隔
@@ -144,21 +122,22 @@ export default class MonitorEventExplore extends tsc<object> {
   }
   handleTimezoneChange(timezone: string) {
     this.timezone = timezone;
+    this.setRouteParams();
   }
   handleImmediateRefresh() {
     this.refreshImmediate = random(4);
-    // this.getViewConfig();
+    this.setRouteParams();
   }
 
   handleRefreshChange(value: number) {
     this.refreshInterval = value;
-    // this.setRouteParams();
     this.timer && clearInterval(this.timer);
     if (value > -1) {
       this.timer = setInterval(() => {
         this.handleImmediateRefresh();
       }, value);
     }
+    this.setRouteParams();
   }
   /** 收藏夹显隐 */
   favoriteShowChange(show: boolean) {
@@ -177,8 +156,16 @@ export default class MonitorEventExplore extends tsc<object> {
       // 选择收藏
       const { compareValue, queryConfig } = data.config;
       // 兼容以前的
-      const { result_table_id, data_source_label, data_type_label, query_string, where, group_by, filter_dict } =
-        queryConfig;
+      const {
+        result_table_id,
+        data_source_label,
+        data_type_label,
+        query_string,
+        where,
+        group_by,
+        filter_dict,
+        filterMode,
+      } = queryConfig;
       this.dataId = result_table_id;
       this.dataSourceLabel = data_source_label;
       this.dataTypeLabel = data_type_label;
@@ -189,7 +176,7 @@ export default class MonitorEventExplore extends tsc<object> {
       this.timeRange = compareValue.tools.timeRange;
       this.refreshInterval = compareValue.tools.refleshInterval || compareValue.tools.refreshInterval;
       this.timezone = compareValue.tools.timezone;
-      this.compare = compareValue.compare;
+      this.filterMode = filterMode || EMode.ui;
     } else {
       // 选择检索
       this.dataId = this.dataIdList[0].id;
@@ -201,18 +188,29 @@ export default class MonitorEventExplore extends tsc<object> {
       this.filter_dict = {};
       this.timeRange = DEFAULT_TIME_RANGE;
       this.refreshInterval = -1;
+      this.filterMode = EMode.ui;
       this.timezone = getDefaultTimezone();
     }
+    this.setRouteParams();
   }
   /** 收藏功能 */
   handleFavorite(isEdit = false) {
     const params = {
       queryConfig: {
-        ...this.formData,
         result_table_id: this.dataId,
+        data_source_label: this.dataSourceLabel,
+        data_type_label: this.dataTypeLabel,
+        query_string: this.filterMode === EMode.queryString ? this.queryString : '',
+        where: this.filterMode === EMode.ui ? this.where : [],
+        group_by: this.group_by,
+        filter_dict: this.filter_dict,
+        filterMode: this.filterMode,
       },
       compareValue: {
-        compare: this.compare,
+        compare: {
+          type: 'none',
+          value: [],
+        },
         tools: {
           timeRange: this.timeRange,
           refreshInterval: this.refreshInterval,
@@ -230,17 +228,30 @@ export default class MonitorEventExplore extends tsc<object> {
   /** 切换数据ID */
   handleDataIdChange(dataId: string) {
     this.dataId = dataId;
-    // this.getViewConfig();
+    this.setRouteParams();
   }
+
   /** 事件类型切换 */
   async handleEventTypeChange(dataType: { data_source_label: string; data_type_label: string }) {
-    // todo 还原上次切换前数据
-    this.cacheQuery = JSON.parse(JSON.stringify(this.formData)); // 缓存原始数据查询
+    const cacheQuery = {
+      where: this.where,
+      dataId: this.dataId,
+      query_string: this.queryString,
+      group_by: this.group_by,
+      filter_dict: this.filter_dict,
+    };
     this.dataSourceLabel = dataType.data_source_label;
     this.dataTypeLabel = dataType.data_type_label;
-    await this.getDataIdList();
-    // await this.getViewConfig();
+    this.dataId = this.cacheQuery?.dataId || '';
+    this.where = this.cacheQuery?.where || [];
+    this.queryString = this.cacheQuery?.query_string || '';
+    this.group_by = this.cacheQuery?.group_by || [];
+    this.filter_dict = this.cacheQuery?.filter_dict || {};
+    this.cacheQuery = cacheQuery;
+    await this.getDataIdList(!this.dataId);
+    this.setRouteParams();
   }
+
   async getDataIdList(init = true) {
     const list = await getDataSourceConfig({
       data_source_label: this.dataSourceLabel,
@@ -251,21 +262,110 @@ export default class MonitorEventExplore extends tsc<object> {
       this.dataId = list[0]?.id || '';
     }
   }
+
   handleWhereChange(where: IFormData['where']) {
     this.where = where;
+    this.setRouteParams();
   }
   handleQueryStringChange(queryString: string) {
     this.queryString = queryString;
+    this.setRouteParams();
   }
   handleGroupByChange(group_by: IFormData['group_by']) {
     this.group_by = group_by;
+    this.setRouteParams();
   }
   handleFilterChange(filter_dict: IFormData['filter_dict']) {
     this.filter_dict = filter_dict;
+    this.setRouteParams();
   }
-  handleCompareChange(compare: { type: 'none'; value: string[] }) {
-    this.compare = compare;
+
+  handleFilterModelChange(mode: EMode) {
+    this.filterMode = mode;
+    this.setRouteParams();
   }
+
+  /** 兼容以前的事件检索URL格式 */
+  getRouteParams() {
+    const { targets, from, to, timezone, refreshInterval, filterMode } = this.$route.query;
+    if (targets) {
+      try {
+        const targetsList = JSON.parse(decodeURIComponent(targets as string));
+        const [
+          {
+            data: {
+              query_configs: [
+                {
+                  data_type_label,
+                  data_source_label,
+                  result_table_id,
+                  where,
+                  query_string: queryString,
+                  group_by: groupBy,
+                  filter_dict: filterDict,
+                },
+              ],
+            },
+          },
+        ] = targetsList;
+        this.dataTypeLabel = data_type_label;
+        this.dataSourceLabel = data_source_label;
+        this.dataId = result_table_id;
+        this.where = where || [];
+        this.queryString = queryString || '';
+        this.group_by = groupBy || [];
+        this.filter_dict = filterDict || {};
+        this.timeRange = from ? [from as string, to as string] : DEFAULT_TIME_RANGE;
+        this.timezone = (timezone as string) || getDefaultTimezone();
+        this.refreshInterval = Number(refreshInterval) || -1;
+        this.filterMode = (
+          [EMode.ui, EMode.queryString].includes(filterMode as EMode) ? filterMode : EMode.ui
+        ) as EMode;
+      } catch (error) {
+        console.log('route query:', error);
+      }
+    }
+  }
+
+  setRouteParams() {
+    const query = {
+      ...this.$route.query,
+      from: this.timeRange[0],
+      to: this.timeRange[1],
+      timezone: this.timezone,
+      refreshInterval: String(this.refreshInterval),
+      targets: JSON.stringify([
+        {
+          data: {
+            query_configs: [
+              {
+                result_table_id: this.dataId,
+                data_type_label: this.dataTypeLabel,
+                data_source_label: this.dataSourceLabel,
+                where: this.where,
+                query_string: this.queryString,
+                group_by: this.group_by,
+                filter_dict: this.filter_dict,
+              },
+            ],
+          },
+        },
+      ]),
+      filterMode: this.filterMode,
+    };
+
+    const targetRoute = this.$router.resolve({
+      query,
+    });
+
+    /** 防止出现跳转当前地址导致报错 */
+    if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
+      this.$router.replace({
+        query,
+      });
+    }
+  }
+
   render() {
     return (
       <EventExplore
@@ -290,8 +390,10 @@ export default class MonitorEventExplore extends tsc<object> {
           header: () => (
             <EventRetrievalHeader
               slot='header'
+              dataId={this.dataId}
               dataIdList={this.dataIdList}
-              formData={this.formData}
+              dataSourceLabel={this.dataSourceLabel}
+              dataTypeLabel={this.dataTypeLabel}
               isShowFavorite={this.isShowFavorite}
               refreshInterval={this.refreshInterval}
               timeRange={this.timeRange}
@@ -306,14 +408,19 @@ export default class MonitorEventExplore extends tsc<object> {
             />
           ),
         }}
+        currentFavorite={this.currentFavorite}
         dataId={this.dataId}
         dataSourceLabel={this.dataSourceLabel}
         dataTypeLabel={this.dataTypeLabel}
+        favoriteList={this.favoriteList}
         filter_dict={this.filter_dict}
+        filterMode={this.filterMode}
         group_by={this.group_by}
         queryString={this.queryString}
         source={APIType.MONITOR}
         where={this.where}
+        onFavorite={this.handleFavorite}
+        onFilterModelChange={this.handleFilterModelChange}
         onQueryStringChange={this.handleQueryStringChange}
         onWhereChange={this.handleWhereChange}
       />
