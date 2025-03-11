@@ -23,8 +23,12 @@ the project delivered to anyone in the future.
 import datetime
 from typing import Any, Dict, Tuple, Union
 
+import arrow
+
+from apps.api import TransferApi
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import SearchUnKnowTimeFieldType
+from apps.utils.cache import cache_five_minute
 
 
 class QueryTimeBuilder(object):
@@ -48,12 +52,14 @@ class QueryTimeBuilder(object):
         time_field_unit: str = TimeFieldUnitEnum.SECOND.value,
         include_start_time: bool = True,
         include_end_time: bool = True,
+        indices: str = "",
     ):
         self.time_field: str = time_field
         self.start_time: Union[int, datetime]
         self.end_time: Union[int, datetime]
         self.time_field_type = time_field_type
         self.time_field_unit = time_field_unit
+        self.indices = indices
 
         self._time_range_dict: Dict = {}
 
@@ -92,6 +98,7 @@ class QueryTimeBuilder(object):
         raise SearchUnKnowTimeFieldType()
 
     def time_serilizer(self, start_time: Any, end_time: Any) -> Tuple[Union[Any, int], Union[Any, int]]:
+        start_time = self._deal_start_time(start_time)
         # 序列化接口能够识别的时间格式
         return start_time.timestamp(), end_time.timestamp()
 
@@ -104,3 +111,24 @@ class QueryTimeBuilder(object):
         if include_end_time:
             return self.LTE
         return self.LT
+
+    @cache_five_minute("retention_time_{indices}", need_md5=True)
+    def get_storage_retention_time(self, indices):
+        if not indices:
+            return None
+
+        storage = TransferApi.get_result_table_storage(
+            params={"result_table_list": indices, "storage_type": "elasticsearch"}
+        )[indices]
+        retention = storage["storage_config"].get("retention")
+        return retention
+
+    def _deal_start_time(self, start_time):
+        retention = self.get_storage_retention_time(self.indices)
+        if retention:
+            current_time = arrow.now(start_time.tzinfo)
+            retention_time = current_time.shift(days=-int(retention))
+            # 开始时间在过期时间前
+            if start_time < retention_time:
+                return retention_time
+        return start_time
