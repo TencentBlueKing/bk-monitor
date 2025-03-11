@@ -267,6 +267,7 @@
     display: flex;
     flex-wrap: wrap;
     width: calc(100% - 80px);
+    margin-top: 4px;
   }
 
   .filter-select-wrap {
@@ -274,8 +275,8 @@
     align-items: center;
     min-width: 180px;
     max-width: 560px;
-    margin: 4px 0;
-    margin-right: 8px;
+    margin-right: 4px;
+    margin-bottom: 4px;
     border: 1px solid #dbdde1;
     border-radius: 3px;
 
@@ -315,6 +316,7 @@
 
       :deep(.bk-select-dropdown .bk-select-tag-container) {
         padding-left: 4px;
+
         .bk-select-tag {
           &.width-limit-tag {
             max-width: 200px;

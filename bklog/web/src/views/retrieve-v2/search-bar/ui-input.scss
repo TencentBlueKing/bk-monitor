@@ -194,8 +194,11 @@ ul.search-items {
             .match-value-text {
               display: inline-block;
               max-width: 140px;
+              overflow: hidden;
               font-family: 'Roboto Mono', Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace;
               line-height: 16px;
+              text-overflow: ellipsis;
+              white-space: nowrap;
 
               &.has-ellipsis {
                 overflow: hidden;
