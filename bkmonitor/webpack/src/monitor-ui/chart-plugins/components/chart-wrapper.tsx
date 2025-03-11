@@ -26,6 +26,7 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { APIType } from 'monitor-pc/pages/event-explore/api-utils';
 // import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 
@@ -60,6 +61,7 @@ import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
 import ProfilinGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
+
 // import RelationGraph from '../plugins/relation-graph/relation-graph';
 import ResourceChart from '../plugins/resource-chart/resource-chart';
 import StatusListChart from '../plugins/status-list-chart/status-list-chart';
@@ -108,6 +110,7 @@ interface IChartWrapperEvent {
     RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),
     MonitorRetrieve: () =>
       import(/* webpackChunkName: "MonitorRetrieve" */ '../plugins/monitor-retrieve/monitor-retrieve'),
+    EventExplore: () => import(/* webpackChunkName: "EventExplore" */ 'monitor-pc/pages/event-explore/event-explore'),
   },
 })
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
@@ -618,6 +621,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
             onLoading={this.handleChangeLoading}
           />
         );
+      case 'event-explore':
+        return <event-explore source={APIType.APM} />;
       // 不需要报错显示
       // case 'graph':
       default:

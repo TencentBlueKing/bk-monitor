@@ -694,7 +694,7 @@ export default class TimeSeriesOutlier extends LineChart {
             onAllMetricClick={this.handleAllMetricClick}
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           />
         )}
         {!this.empty ? (
