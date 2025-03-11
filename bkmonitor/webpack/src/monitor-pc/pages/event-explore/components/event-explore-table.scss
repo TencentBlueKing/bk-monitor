@@ -47,6 +47,7 @@
             .bk-table-expand-icon {
               &::before {
                 bottom: 0px;
+                border-bottom-right-radius: 0px;
               }
             }
           }
@@ -65,9 +66,9 @@
           top: 1px;
           bottom: 1px;
           left: 0;
-          width: 3px;
+          width: var(--table-legend-width);
           content: '';
-          background-color: var(--legend-color);
+          background-color: var(--table-legend-color);
           border-top-right-radius: 2px;
           border-bottom-right-radius: 2px;
         }
