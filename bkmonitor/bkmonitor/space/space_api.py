@@ -9,7 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import json
-from typing import List, Union
+from typing import List, Optional, Union
 
 from django.conf import settings
 from django.core.cache import caches
@@ -96,7 +96,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         return cls._init_space(space_info)
 
     @classmethod
-    def list_spaces(cls, refresh=False) -> List[SpaceDefine]:
+    def list_spaces(cls, refresh=False, bk_tenant_id: Optional[str] = None) -> List[SpaceDefine]:
         """
         查询空间列表
         """
@@ -107,6 +107,11 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 for space_dict in cls.list_spaces_dict(using_cache=False)
             ]
             local_mem.set("metadata:list_spaces", ret, timeout=3600)
+
+        # 如果指定了bk_tenant_id，则只查询指定租户的空间
+        if bk_tenant_id:
+            ret = [space for space in ret if space.bk_tenant_id == bk_tenant_id]
+
         return ret
 
     @classmethod
@@ -130,6 +135,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                        s.time_zone,
                        s.language,
                        s.is_bcs_valid,
+                       s.bk_tenant_id,
                        CONCAT(s.space_type_id, '__', s.space_id) AS space_uid,
                        t.type_name
                 FROM

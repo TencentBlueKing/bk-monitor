@@ -52,6 +52,7 @@ class Space:
     bk_biz_id: int
     is_demo: bool = False
     time_zone: str = "Asia/Shanghai"
+    bk_tenant_id: str = "default"
 
     @classmethod
     def from_dict(cls, data, cleaned=False):
