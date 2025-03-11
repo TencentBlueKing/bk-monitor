@@ -10,7 +10,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Callable
+
+
+EntityT = Dict[str, Any]
 
 
 class BaseEventProcessor(abc.ABC):
@@ -26,3 +29,22 @@ class BaseEventProcessor(abc.ABC):
         :return:
         """
         raise NotImplementedError
+
+
+class BaseContext(abc.ABC):
+    """事件上下文基类"""
+
+    def __init__(self, *args, **kwargs):
+        self._cache: Dict[str, Dict[str, Any]]
+
+    @abc.abstractmethod
+    def fetch(
+        self, entities: List[EntityT], get_key: Callable[[EntityT], str] = lambda _e: _e.get("id", "")
+    ) -> Dict[str, EntityT]:
+        """
+        k8s: context.fetch(
+            [{"bcs_cluster_id": "xxx", "bk_biz_id": 2}], get_key=lambda _e: f"{e['bk_biz_id']-_e['bcs_cluster_id']}"
+        )
+        return: {"2xxx": {"bcs_cluster_id": "xxx", "bk_biz_id": 2, "bcs_cluster_name": "xxx"}}
+        """
+        pass
