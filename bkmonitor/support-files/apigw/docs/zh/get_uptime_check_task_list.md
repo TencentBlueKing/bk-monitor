@@ -11,7 +11,7 @@
 | bk_biz_id         | int  | 是  | 业务ID         |
 | get_available     | bool | 否  | 是否获取拨测任务可用性  |
 | get_task_duration | bool | 否  | 是否获取拨测任务持续时间 |
-| plain             | bool | 否  | 是否返回简单数据     |
+| plain             | bool | 否  | 是否返回简单数据  |
 
 #### 示例数据
 
