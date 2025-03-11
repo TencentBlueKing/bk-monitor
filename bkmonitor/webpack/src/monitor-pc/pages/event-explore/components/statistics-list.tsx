@@ -38,6 +38,7 @@ import type { ITopKField } from '../typing';
 import './statistics-list.scss';
 interface StatisticsListProps {
   selectField: string;
+  popoverInstance?: any;
 }
 
 interface StatisticsListEvents {
@@ -49,6 +50,7 @@ interface StatisticsListEvents {
 @Component
 export default class StatisticsList extends tsc<StatisticsListProps, StatisticsListEvents> {
   @Prop({ type: String, default: '' }) selectField: string;
+  @Prop({ type: Object, default: null }) popoverInstance: any;
 
   @InjectReactive('commonParams') commonParams;
   @InjectReactive({
@@ -60,7 +62,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   sliderShow = false;
   sliderLoading = false;
 
+  /** 维度统计列表 */
   statisticsList = [];
+  /** 侧栏维度列表 */
   sliderDimensionList = [];
 
   popoverLoading = true;
@@ -142,6 +146,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     });
     this.statisticsList = list;
     this.popoverLoading = false;
+    this.popoverInstance?.popperInstance?.update();
   }
 
   async showMore() {
@@ -184,10 +189,10 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     }).catch(() => []);
   }
 
-  renderSkeleton(len = 1) {
+  renderSkeleton() {
     return (
       <div class='skeleton-wrap'>
-        {new Array(len).fill(null).map((_, index) => (
+        {new Array(5).fill(null).map((_, index) => (
           <div
             key={index}
             class='skeleton-element'
@@ -206,9 +211,14 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
         >
           <div class='popover-header'>
             <div class='title'>
-              {this.selectField}
-              {this.$t('去重后的字段统计')}
-              <div class='count'>{this.statisticsList[0]?.distinct_count || 0}</div>
+              <span
+                class='title-text'
+                v-bk-overflow-tips
+              >
+                {this.selectField}
+                {this.$t('去重后的字段统计')}
+              </span>
+              <span class='count'>{this.statisticsList[0]?.distinct_count || 0}</span>
             </div>
             {this.downloadLoading ? (
               <img
@@ -227,7 +237,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             )}
           </div>
           {this.popoverLoading
-            ? this.renderSkeleton(this.statisticsList[0]?.distinct_count || 1)
+            ? this.renderSkeleton()
             : [
                 this.renderTopKField(this.statisticsList[0]?.list),
                 this.statisticsList[0]?.distinct_count > 5 && (
@@ -255,7 +265,12 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             slot='header'
           >
             <div class='title'>
-              <span class='field-name'>{this.selectField}</span>
+              <span
+                class='field-name'
+                v-bk-overflow-tips
+              >
+                {this.selectField}
+              </span>
               <span class='divider' />
               <span class='desc'>
                 {this.$t('去重后的字段统计')} ({this.sliderDimensionList[0]?.distinct_count || 0})
@@ -281,7 +296,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             class='dimension-slider-content'
             slot='content'
           >
-            {this.sliderLoading ? this.renderSkeleton(5) : this.renderTopKField(this.sliderDimensionList[0]?.list)}
+            {this.sliderLoading ? this.renderSkeleton() : this.renderTopKField(this.sliderDimensionList[0]?.list)}
           </div>
         </bk-sideslider>
       </div>

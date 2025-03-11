@@ -32,9 +32,9 @@ export interface IFormData {
   data_type_label: string;
   table: string;
   query_string: string;
-  where?: IWhereItem[];
-  group_by?: any[];
-  filter_dict?: Record<string, any>;
+  where: IWhereItem[];
+  group_by: any[];
+  filter_dict: Record<string, any>;
 }
 
 export interface IDataIdItem {
