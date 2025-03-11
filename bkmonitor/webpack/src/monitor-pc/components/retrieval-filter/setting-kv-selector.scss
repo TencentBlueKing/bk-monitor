@@ -48,8 +48,9 @@
 
     .value-wrap {
       display: flex;
+      flex: 1;
       align-items: center;
-      min-width: 64px;
+      min-width: 138px;
       min-height: 30px;
       padding: 4px 0 0 0;
       cursor: pointer;

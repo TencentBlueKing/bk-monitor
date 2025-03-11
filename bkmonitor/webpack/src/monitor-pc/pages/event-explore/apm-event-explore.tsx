@@ -23,46 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import type { PanelModel } from '../../typings';
-
-import './chart-row.scss';
-
-interface IChartRowProps {
-  panel: PanelModel;
-}
-interface IChartRowEvent {
-  onCollapse: boolean;
-}
+import './apm-event-explore.scss';
 @Component
-export default class ChartRow extends tsc<IChartRowProps, IChartRowEvent> {
-  @Prop({ required: true, type: Object }) readonly panel: PanelModel;
-
-  handleCollapsed() {
-    if (!this.panel.draging) {
-      this.$emit('collapse', !this.panel.collapsed);
-    }
-    this.panel.updateDragging(false);
-  }
-  handleClickIcon(e: MouseEvent) {
-    if (this.panel.collapsed && e.target === e.currentTarget) {
-      setTimeout(this.handleCollapsed, 20);
-    }
-  }
+export default class PascalCaseClass extends tsc<object> {
+  @Prop() a: number;
   render() {
-    return (
-      <div
-        class={'chart-row'}
-        onClick={this.handleCollapsed}
-      >
-        <i class='bk-icon icon-right-shape chart-row-icon' />
-        <div class={`chart-row-content ${this.panel.collapsed ? '' : 'draggable-handle'} `}>
-          {this.panel.title}
-          <span class='panel-count'>({this.panel.panels?.length || 0})</span>
-        </div>
-      </div>
-    );
+    return <div class='apm-event-explore'>aa</div>;
   }
 }

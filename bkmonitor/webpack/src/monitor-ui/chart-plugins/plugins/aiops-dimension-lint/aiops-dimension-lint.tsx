@@ -615,7 +615,7 @@ export default class AiopsDimensionLine extends LineChart {
             onMenuClick={this.handleMenuToolsSelect}
             onMetricClick={this.handleMetricClick}
             onSelectChild={this.handleSelectChildMenu}
-            onUpdateDragging={() => this.panel.updateDraging(false)}
+            onUpdateDragging={() => this.panel.updateDragging(false)}
           />
         )}
         {!this.empty ? (
