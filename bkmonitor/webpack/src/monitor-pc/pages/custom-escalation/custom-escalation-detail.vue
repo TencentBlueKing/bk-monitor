@@ -1537,6 +1537,8 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
 
       [this.proxyInfo] = data; // 云区域展示数据
       [, this.detailData] = data;
+      console.log('data = = = >>', data);
+      console.log('detailData = = = >>', JSON.parse(JSON.stringify(this.detailData)));
       this.updateNavData(`${this.$t('查看')} ${this.detailData.name}`);
       if (this.type === 'customTimeSeries') {
         [, , this.unitList] = data; // 单位list
@@ -1714,6 +1716,16 @@ export default class CustomEscalationDetail extends Mixins(authorityMixinCreate(
           labels: [],
         })
       );
+      const item = {
+        name: 'zs',
+        title: 'ls',
+      };
+      this.metricData = [{
+          ...item,
+          selection: false,
+          descReValue: false,
+          labels: [],
+        }];
       this.setMetricDataLabels();
       this.pagination.total = this.metricData.length;
       if (!this.metricData.length) {

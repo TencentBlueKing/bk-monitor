@@ -27,6 +27,11 @@ import {
   customTimeSeriesDetail,
   customTimeSeriesList,
   deleteCustomEventGroup,
+  getCustomTsFields,
+  previewGroupingRule,
+  deleteGroupingRule,
+  createOrUpdateGroupingRule,
+  updateGroupingRuleOrder,
   deleteCustomTimeSeries,
   getCustomEventGroup,
   getCustomTimeSeriesLatestDataByFields,
@@ -56,6 +61,17 @@ const actions = {
   //  获取自定义指标详情
   async getCustomTimeSeriesDetail(_, params) {
     const data = await customTimeSeriesDetail(params).catch(() => ({}));
+    return data;
+  },
+  //  获取自定义指标详情
+  async getCustomTSFields(_, params) {
+    const data = await getCustomTsFields(params).catch(() => ({}));
+    return data;
+  },
+
+  //  保存指标分组排序
+  async saveGroupingRuleOrder(_, params) {
+    const data = await updateGroupingRuleOrder(params).catch(() => ({}));
     return data;
   },
 
@@ -116,6 +132,24 @@ const actions = {
   },
   async getCustomTimeSeriesLatestDataByFields(_, params) {
     const data = await getCustomTimeSeriesLatestDataByFields(params).catch(() => false);
+    return data;
+  },
+
+  /* 根据分组规则获取预览信息 */
+  async getGroupRulePreviews(_, params) {
+    const data = await previewGroupingRule(params).catch(() => false);
+    return data;
+  },
+
+  /* 删除分组 */
+  async deleteGroupingRule(_, params) {
+    const data = await deleteGroupingRule(params).catch(() => false);
+    return data;
+  },
+
+  /* 创建/更新分组 */
+  async createOrUpdateGroupingRule(_, params) {
+    const data = await createOrUpdateGroupingRule(params).catch(() => false);
     return data;
   },
 };

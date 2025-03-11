@@ -1,7 +1,9 @@
 .filter-conditions-common-list {
   display: flex;
-  height: 40px;
+  min-height: 40px;
   align-items: center;
   background: #ebeef566;
   padding: 0 6px;
+  flex-wrap: wrap;
+  padding-bottom: 4px;
 }
