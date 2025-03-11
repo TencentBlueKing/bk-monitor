@@ -114,6 +114,10 @@ export default class EventRetrievalNew extends tsc<
 
   filterMode = EMode.ui;
 
+  favoriteList = [];
+
+  queryStringInput = '';
+
   /**
    * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
    * @description 用于在 KV 模式下，获取 字段类型 Icon
@@ -238,7 +242,7 @@ export default class EventRetrievalNew extends tsc<
             table: this.dataId,
             filter_dict: {},
             where: params?.where || [],
-            query_string: params?.queryString || '*',
+            query_string: params?.queryString || '',
           },
         ],
         fields: params?.fields || [],
@@ -249,7 +253,6 @@ export default class EventRetrievalNew extends tsc<
     )
       .then(res => {
         const data = res?.[0] || {};
-        console.log(res);
         return {
           count: +data?.distinct_count || 0,
           list:
@@ -359,6 +362,9 @@ export default class EventRetrievalNew extends tsc<
   handleQueryStringChange(val: string) {
     return val;
   }
+  handleQueryStringInputChange(val) {
+    this.queryStringInput = val;
+  }
 
   handleModeChange(mode: EMode) {
     this.filterMode = mode;
@@ -382,6 +388,7 @@ export default class EventRetrievalNew extends tsc<
               onFavorite={this.handleFavorite}
               onModeChange={this.handleModeChange}
               onQueryStringChange={this.handleQueryStringChange}
+              onQueryStringInputChange={this.handleQueryStringInputChange}
               onWhereChange={this.handleWhereChange}
             />
             <EventRetrievalLayout

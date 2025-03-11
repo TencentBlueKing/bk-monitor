@@ -65,7 +65,7 @@ export enum EventTableApiEnum {
  */
 export const getEventTopK = (params: ITopKRequestParams, type = APIType.MONITOR): Promise<ITopKField[]> => {
   const apiFunc = type === APIType.APM ? apmEventTopK : eventTopK;
-  return apiFunc(params).catch(() => []);
+  return apiFunc(params, { needMessage: false }).catch(() => []);
 };
 
 export const getEventViewConfig = (params: any, type = APIType.MONITOR) => {
