@@ -1,11 +1,13 @@
 <script setup lang="ts">
   import { ref, computed } from 'vue';
+
+  import { getOperatorKey } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
-  import useLocale from '@/hooks/use-locale';
+
   import CommonFilterSetting from './common-filter-setting.vue';
   import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { getOperatorKey } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
   const { $t } = useLocale();
@@ -168,8 +170,8 @@
       <div
         v-for="(item, index) in filterFieldsList"
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
-        @focus.capture="e => handleRowFocus(index, e)"
         @blur.capture="handleRowBlur"
+        @focus.capture="e => handleRowFocus(index, e)"
       >
         <div
           class="title"
@@ -198,21 +200,21 @@
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
           <bk-select
             class="value-select"
-            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
             v-model="commonFilterAddition[index].value"
+            v-bkloading="{ isLoading: index === activeIndex ? isRequesting : false, size: 'mini' }"
+            :fix-height="true"
             allow-create
             display-tag
             multiple
             searchable
-            :fix-height="true"
             @change="handleChange"
             @toggle="visible => handleToggle(visible, item, index)"
           >
             <template #search>
               <bk-input
-                behavior="simplicity"
                 :clearable="true"
                 :left-icon="'bk-icon icon-search'"
+                behavior="simplicity"
                 @input="e => handleInputVlaueChange(e, item, index)"
               ></bk-input>
             </template>
@@ -270,7 +272,7 @@
   .filter-select-wrap {
     display: flex;
     align-items: center;
-    min-width: 120px;
+    min-width: 180px;
     max-width: 560px;
     margin: 4px 0;
     margin-right: 8px;
@@ -296,7 +298,8 @@
       .operator-label {
         display: inline-block;
         width: 100%;
-        padding: 4px;
+        // padding: 4px;
+        padding-left: 2px;
         color: #3a84ff;
         white-space: nowrap;
       }
@@ -311,6 +314,7 @@
       max-width: 460px;
 
       :deep(.bk-select-dropdown .bk-select-tag-container) {
+        padding-left: 4px;
         .bk-select-tag {
           &.width-limit-tag {
             max-width: 200px;
@@ -320,6 +324,10 @@
             }
           }
         }
+      }
+
+      :deep(.bk-select-tag-input) {
+        min-width: 0;
       }
 
       &.bk-select {

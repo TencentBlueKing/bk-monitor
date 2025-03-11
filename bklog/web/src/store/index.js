@@ -228,7 +228,7 @@ const store = new Vuex.Store({
         start_time,
         end_time,
         addition,
-        begin, 
+        begin,
         size,
         keyword = '*',
         ip_chooser,
@@ -236,7 +236,7 @@ const store = new Vuex.Store({
         interval,
         search_mode,
         sort_list,
-        format
+        format,
       } = state.indexItem;
 
       const filterAddition = addition
@@ -1019,7 +1019,7 @@ const store = new Vuex.Store({
           items: ids.map(val => (list || []).find(item => item.index_set_id === val)).filter(val => val !== undefined),
           isUnionIndex,
         };
-        
+
         if (payload.items.length === 1 && !payload.keyword && !payload.addition?.length) {
           if (payload.items[0].query_string) {
             payload.keyword = payload.items[0].query_string;
@@ -1440,7 +1440,13 @@ const store = new Vuex.Store({
           },
         })
         .then(resp => {
-          commit('updateFavoriteList', resp.data || []);
+          const results = (resp.data || []).map(item => {
+            item.favorites?.forEach(sub => {
+              sub.full_name = `${item.group_name}/${sub.name}`;
+            });
+            return item;
+          });
+          commit('updateFavoriteList', results);
           return resp;
         });
     },
@@ -1463,7 +1469,7 @@ const store = new Vuex.Store({
         return state.visibleFields?.find(item => item.field_name === field);
       };
 
-      const getFieldType = field => {        
+      const getFieldType = field => {
         return getTargetField(field)?.field_type ?? '';
       };
 
@@ -1495,7 +1501,6 @@ const store = new Vuex.Store({
 
         const textType = targetField?.field_type ?? '';
         const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
-
 
         if (textType === 'text') {
           mappingKey = textMappingKey;
@@ -1571,7 +1576,6 @@ const store = new Vuex.Store({
           const { field, operator, value } = item;
           const targetField = getTargetField(field);
 
-
           let newSearchValue = null;
           if (searchMode === 'ui') {
             if (targetField?.is_virtual_obj_node) {
@@ -1582,9 +1586,9 @@ const store = new Vuex.Store({
             }
           }
           if (searchMode === 'sql') {
-            if (targetField?.is_virtual_obj_node) { 
+            if (targetField?.is_virtual_obj_node) {
               newSearchValue = [value];
-            } else{
+            } else {
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }
           }

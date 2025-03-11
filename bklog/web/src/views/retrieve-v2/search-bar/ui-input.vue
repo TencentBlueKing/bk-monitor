@@ -5,8 +5,8 @@
   import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { cloneDeep } from 'lodash';
   import { bkIcon } from 'bk-magic-vue';
+  import { cloneDeep } from 'lodash';
 
   import {
     getInputQueryDefaultItem,
@@ -49,9 +49,9 @@
    * tag数量溢出是否展示所有
    * @param {*} item
    */
-  const handleShowAll = (item) => {
+  const handleShowAll = item => {
     item.showAll = !item.showAll;
-  }
+  };
 
   const handleHeightChange = height => {
     emit('height-change', height);
@@ -322,9 +322,9 @@
 
   const handleFullTextInputBlur = e => {
     // if (!isInstanceShown()) {
-      handleInputBlur(e);
-      inputValueLength = 0;
-      queryItem.value = '';
+    handleInputBlur(e);
+    inputValueLength = 0;
+    queryItem.value = '';
     // }
   };
 
@@ -401,12 +401,7 @@
       </div>
       <div class="tag-row match-value">
         <template v-if="item.field === '_ip-select_'">
-          <span
-            :class="[
-              'match-value-text',
-              { 'is-show-tooltip': item.value.length > 20 }
-            ]"
-          >
+          <span :class="['match-value-text', { 'is-show-tooltip': item.value.length > 20 }]">
             <IPSelector
               v-model="item.value[0]"
               :bk-biz-id="bkBizId"
@@ -422,11 +417,8 @@
           >
             <template v-if="item.showAll ? true : childIndex < 3">
               <span
-                :class="[
-                  'match-value-text',
-                  { 'has-ellipsis': item.value.length > 20 }
-                ]"
                 v-bk-tooltips="{ content: item.value, disabled: item.value.length < 21 }"
+                :class="['match-value-text', { 'has-ellipsis': item.value.length > 20 }]"
               >
                 {{ formatDateTimeField(child, item.field_type) }}
               </span>
@@ -440,11 +432,11 @@
           </span>
           <span
             v-if="item.value.length > 3 && !item.showAll"
-            style="color: #F59500"
+            style="color: #f59500"
             @click.stop="handleShowAll(item)"
-           >
+          >
             +{{ item.value.length - 3 }}
-           </span>
+          </span>
         </template>
         <template v-else>
           <span>{{ item.value }}</span>
@@ -459,8 +451,8 @@
           @click.stop="e => handleDisabledTagItem(item, e)"
         />
         <bk-icon
-          type="close-circle-shape"
           class="tag-options-close"
+          type="close-circle-shape"
           @click.stop="() => handleDeleteTagItem(index, item)"
         />
       </div>
@@ -496,7 +488,7 @@
 <style lang="scss">
   [data-tippy-root] .tippy-box {
     &[data-theme='log-light'] {
-      color: #4D4F56;
+      color: #4d4f56;
       background-color: #ffffff;
       box-shadow: 0 2px 6px 0 #0000001a;
       transform: translateY(-4px);

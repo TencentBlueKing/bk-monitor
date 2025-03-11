@@ -1,22 +1,20 @@
 <script lang="ts" setup>
   import { computed, ref, watch, nextTick, Ref } from 'vue';
+
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
   import useStore from '@/hooks/use-store';
-  // @ts-ignore
-  import { debounce } from 'lodash';
-  // @ts-ignore
-  import FavoriteList from './favorite-list';
-
-  import { excludesFields } from './const.common';
-  import jsCookie from 'js-cookie';
-
-  import useFieldEgges from './use-field-egges';
-
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import jsCookie from 'js-cookie';
+  // @ts-ignore
+  import { debounce } from 'lodash';
+
+  import { excludesFields } from './const.common'; // @ts-ignore
+  import FavoriteList from './favorite-list';
+  import useFieldEgges from './use-field-egges';
 
   const props = defineProps({
     value: {
@@ -364,6 +362,10 @@
     const dropdownList = dropdownEl.querySelectorAll('.list-item');
     if (code === 'NumpadEnter' || code === 'Enter') {
       e.preventDefault();
+      const hasHover = dropdownEl.querySelector('.list-item.is-hover');
+      if (hasHover && !activeIndex.value) {
+        activeIndex.value = 0;
+      }
       if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
@@ -487,8 +489,8 @@
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
-        :class="['sql-query-options', { 'is-loading': isRequesting }]"
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
+        :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
@@ -665,24 +667,24 @@
         </template> -->
       </ul>
       <FavoriteList
+        :search-value="value"
         @change="handleFavoriteClick"
-        :searchValue="value"
       ></FavoriteList>
       <!-- 移动光标and确认结果提示 -->
       <div class="ui-shortcut-key">
-        <div class='ui-shortcut-item'>
+        <div class="ui-shortcut-item">
           <span class="bklog-icon bklog-arrow-down-filled label up" />
           <span class="bklog-icon bklog-arrow-down-filled label" />
           <span class="value">{{ $t('移动光标') }}</span>
         </div>
-        <div class='ui-shortcut-item'>
+        <div class="ui-shortcut-item">
           <span class="label">Enter</span>
           <span class="value">{{ $t('确认结果') }}</span>
         </div>
       </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
-      <span
+      <!-- <span
         class="sql-query-retract"
         @click="handleRetract"
       >
@@ -690,7 +692,7 @@
         <span
           :class="['angle-icon bk-icon', { 'icon-angle-left': !isRetractShow, 'icon-angle-right': isRetractShow }]"
         ></span>
-      </span>
+      </span> -->
       <div class="sql-query-fold">
         <div>
           <div class="sql-query-fold-title">
@@ -736,8 +738,8 @@
         padding: 0 16px;
         height: 48px;
         line-height: 48px;
-        background-color: #FAFBFD;
-        border: 1px solid #DCDEE5;
+        background-color: #fafbfd;
+        border: 1px solid #dcdee5;
         border-radius: 0 0 0 2px;
         position: absolute;
         bottom: 0;
@@ -759,7 +761,7 @@
             height: 16px;
             font-size: 11px;
             font-weight: 700;
-            color: #A3B1CC;
+            color: #a3b1cc;
             background-color: #a3b1cc29;
             border: 1px solid #a3b1cc4d;
             border-radius: 2px;
@@ -784,7 +786,7 @@
     .sql-syntax-tips {
       position: relative;
       width: 240px;
-      background-color: #F5F7FA;
+      background-color: #f5f7fa;
       border-radius: 0 2px 2px 0;
 
       .sql-query-retract {
@@ -847,7 +849,7 @@
           }
           .sql-query-value {
             font-family: RobotoMono-Regular;
-            color: #4D4F56;
+            color: #4d4f56;
             line-height: 20px;
           }
         }

@@ -31,8 +31,8 @@
     },
     showFavorites: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   });
 
   const emit = defineEmits(['refresh', 'height-change']);
@@ -90,7 +90,6 @@
   const searchMode = computed(() => indexItem.value.search_mode);
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
-
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const isInputLoading = computed(() => {
@@ -437,12 +436,7 @@
     ref="refRootElement"
     :class="['search-bar-wrapper']"
   >
-    <div
-      :class="[
-        'search-bar-container',
-        { 'set-border': isFilterSecFocused }
-      ]"
-      >
+    <div :class="['search-bar-container', { 'set-border': isFilterSecFocused }]">
       <div
         class="search-options"
         @click="handleQueryTypeChange"
@@ -504,8 +498,7 @@
             icon="search"
             size="small"
             theme="primary"
-          >
-          </bk-button>
+          />
         </div>
       </div>
       <!-- <div style="display: none">

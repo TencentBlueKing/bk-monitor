@@ -167,7 +167,7 @@ export default defineComponent({
         }
 
         const endIndex = textSegmentIndex + (size ?? textSegmentPageSize);
-        if (textSegmentIndex < wordList.length) {
+        if (textSegmentIndex < wordList?.length) {
           wordList.slice(textSegmentIndex, endIndex).forEach(item => {
             const child = document.createElement(getTagName(item));
             child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
