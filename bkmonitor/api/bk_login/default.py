@@ -8,10 +8,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-import abc
-
-import six
 from django.conf import settings
 from rest_framework import serializers
 
@@ -19,19 +15,13 @@ from bkmonitor.utils.cache import CacheType
 from core.drf_resource import APIResource
 
 
-class BkLoginAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
-    base_url = "%s/api/c/compapi/bk_login/" % settings.BK_COMPONENT_API_URL
-
-    # 模块名
-    module_name = "bk_login"
+class UserManageAPIGWResource(APIResource):
+    base_url = "%s/api/c/compapi/v2/usermanage/" % settings.BK_COMPONENT_API_URL
+    module_name = "usermanage"
 
     @property
     def label(self):
         return self.__doc__
-
-
-class UserManageAPIGWResource(BkLoginAPIGWResource, metaclass=abc.ABCMeta):
-    base_url = "%s/api/c/compapi/v2/usermanage/" % settings.BK_COMPONENT_API_URL
 
 
 class GetUserResource(UserManageAPIGWResource):
@@ -87,7 +77,7 @@ class ListProfileDepartmentsResource(UserManageAPIGWResource):
         with_family = serializers.BooleanField(label="是否返回部门树", default=True)
 
 
-class UnityUserBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
+class UnityUserBaseResource(APIResource):
     base_url = settings.BK_USERINFO_API_BASE_URL
     module_name = "unity-user"
 
