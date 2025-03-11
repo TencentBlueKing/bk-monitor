@@ -1,10 +1,81 @@
-.retrieval-filter__qs-selector-component {
-  padding: 16px 10px;
-  font-family: Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace;
-  font-size: 12px;
-  white-space: pre-wrap;
+.retrieval-filter__qs-selector-component-wrap {
+  position: relative;
 
-  .str-item {
+  .retrieval-filter__qs-selector-component,
+  .qs-value-hidden {
+    padding: 16px 10px;
+    font-family: Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+
+    .str-item {
+      line-height: 16px;
+    }
+  }
+
+  .qs-value-hidden {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: 100%;
+    height: 0;
+    padding: 0 10px;
+    overflow: hidden;
+
+    .qs-value-hidden-text {
+      visibility: hidden;
+    }
+  }
+
+  .qs-operate-wrap {
+    position: absolute;
+    z-index: 1;
+    display: none;
+    align-items: center;
+
+    .operate-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin-right: 3px;
+      color: #4D4F56;
+      cursor: pointer;
+      background: #FAFBFD;
+      border: 1px solid #DCDEE5;
+      border-radius: 2px;
+      box-shadow: 0 1px 3px 1px #0000001f;
+
+      .icon-a-Clearqingkong {
+        font-size: 16px;
+      }
+
+      .icon-mc-copy {
+        font-size: 16px;
+      }
+
+      &:hover {
+        color: #3A84FF;
+      }
+    }
+  }
+
+  &:hover {
+    .qs-operate-wrap {
+      display: flex;
+    }
+  }
+
+  &::before {
+    position: absolute;
+    top: 16px;
+    left: 10px;
+    font-family: Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace;
+    font-size: 12px;
     line-height: 16px;
+    color: #C4C6CC;
+    pointer-events: none;
+    content: attr(data-placeholder);
   }
 }

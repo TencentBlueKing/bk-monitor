@@ -27,6 +27,8 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { copyText, Debounce } from 'monitor-common/utils';
+
 import QsSelectorSelector from './qs-selector-options';
 import { QueryStringEditor } from './query-string-utils';
 import {
@@ -46,8 +48,8 @@ interface IProps {
   qsSelectorOptionsWidth?: number;
   favoriteList?: IFavoriteListItem[];
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+  onQuery?: (v: string) => void;
   onChange?: (v: string) => void;
-  onQueryStringChange?: (v: string) => void;
 }
 
 @Component
@@ -67,6 +69,7 @@ export default class QsSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
 
   @Ref('select') selectRef: HTMLDivElement;
+  @Ref('lastPosition') lastPositionRef: HTMLDivElement;
 
   localValue = '';
   /* 弹层实例 */
@@ -84,19 +87,40 @@ export default class QsSelector extends tsc<IProps> {
 
   queryStringEditor: QueryStringEditor = null;
 
+  operatePosition = {
+    top: -26,
+    left: 0,
+  };
+
+  inputValue = '';
+
   onClickOutsideFn = () => {};
 
   beforeDestroy() {
     this.onClickOutsideFn?.();
     this.destroyPopoverInstance();
+    document.removeEventListener('keydown', this.handleKeyDownSlash);
   }
 
   @Watch('value', { immediate: true })
   handleWatchValue() {
     if (this.localValue !== this.value) {
       this.localValue = this.value;
+      this.inputValue = this.value;
       this.handleInit();
     }
+  }
+
+  @Debounce(200)
+  @Watch('localValue', { immediate: true })
+  handleWatchLocalValue() {
+    const left = this.lastPositionRef.offsetLeft;
+    const top = this.lastPositionRef.offsetTop < 14 ? -26 : this.$el.clientHeight - 2;
+    this.operatePosition = {
+      top,
+      left,
+    };
+    this.handleAddKeyDownSlash();
   }
 
   mounted() {
@@ -117,6 +141,7 @@ export default class QsSelector extends tsc<IProps> {
           popDownFn: this.destroyPopoverInstance,
           onChange: this.handleChange,
           onQuery: this.handleQuery,
+          onInput: this.handleInput,
         });
       }
     });
@@ -162,6 +187,7 @@ export default class QsSelector extends tsc<IProps> {
     this.popoverInstance = null;
     this.showSelector = false;
     this.onClickOutsideFn?.();
+    this.queryStringEditor?.setIsPopup?.(false);
   }
 
   /**
@@ -171,6 +197,7 @@ export default class QsSelector extends tsc<IProps> {
    * @returns
    */
   handlePopUp(type, field) {
+    console.log(type, field);
     if (this.curTokenType === EQueryStringTokenType.condition && type === EQueryStringTokenType.key) {
       this.search = '';
     }
@@ -194,29 +221,129 @@ export default class QsSelector extends tsc<IProps> {
     this.queryStringEditor.setToken(str, this.curTokenType);
   }
 
+  /**
+   * @description 搜索
+   * @param value
+   */
   handleSearch(value) {
     this.search = value;
   }
 
+  /**
+   * @description 输入框的值变化
+   * @param str
+   */
   handleChange(str: string) {
     this.localValue = str;
-    this.$emit('queryStringChange', str);
+    this.$emit('change', str);
   }
 
+  /**
+   * @description 查询
+   */
   handleQuery() {
-    this.$emit('change', this.localValue);
+    this.$emit('query');
   }
 
+  /**
+   * @description 选择了收藏项
+   * @param value
+   */
   handleSelectFavorite(value: string) {
     this.queryStringEditor.setQueryString(value);
-    this.localValue = value;
+    this.handleChange(value);
     this.handleQuery();
+  }
+
+  /**
+   * @description 清空
+   */
+  handleClear() {
+    this.handleChange('');
+  }
+  /**
+   * @description 复制
+   */
+  handleCopy() {
+    copyText(this.localValue, msg => {
+      this.$bkMessage({
+        message: msg,
+        theme: 'error',
+      });
+      return;
+    });
+    this.$bkMessage({
+      message: this.$t('复制成功'),
+      theme: 'success',
+    });
+  }
+
+  handleInput(val) {
+    this.inputValue = val.replace(/^\s+|\s+$/g, '');
+  }
+
+  handleKeyDownSlash(event) {
+    if (event.key === '/') {
+      this.handlePopUp(EQueryStringTokenType.key, '');
+      document.removeEventListener('keydown', this.handleKeyDownSlash);
+    }
+  }
+  handleAddKeyDownSlash() {
+    if (this.localValue) {
+      document.removeEventListener('keydown', this.handleKeyDownSlash);
+    } else {
+      document.addEventListener('keydown', this.handleKeyDownSlash);
+    }
   }
 
   render() {
     return (
-      <div>
+      <div
+        class='retrieval-filter__qs-selector-component-wrap'
+        data-placeholder={
+          !this.inputValue && !this.localValue
+            ? `/ ${this.$t('快速定位到搜索，请输入关键词，')}log:error AND"name=bklog"`
+            : ''
+        }
+      >
         <div class='retrieval-filter__qs-selector-component' />
+        <div class='qs-value-hidden'>
+          <div class='qs-value-hidden-text'>
+            {this.localValue}
+            <span
+              ref='lastPosition'
+              class='last-position__'
+            />
+          </div>
+        </div>
+        <div
+          style={{
+            left: `${this.operatePosition.left}px`,
+            top: `${this.operatePosition.top}px`,
+          }}
+          class='qs-operate-wrap'
+        >
+          <div
+            class='operate-btn'
+            v-bk-tooltips={{
+              content: this.$tc('清空'),
+              delay: 300,
+            }}
+            onClick={this.handleClear}
+          >
+            <span class='icon-monitor icon-a-Clearqingkong' />
+          </div>
+          <div
+            class='operate-btn'
+            v-bk-tooltips={{
+              content: this.$tc('复制'),
+              delay: 300,
+            }}
+            onClick={this.handleCopy}
+          >
+            <span class='icon-monitor icon-mc-copy' />
+          </div>
+        </div>
         <div style='display: none;'>
           <div
             ref='select'

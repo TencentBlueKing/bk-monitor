@@ -90,7 +90,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
 
   localOptions: IOptions[] = [];
   favoriteOptions: { title: string; content: string; keyword: string }[] = [];
-  cursorIndex = 0;
+  cursorIndex = -1;
 
   loading = false;
   pageSize = 5;
@@ -105,17 +105,17 @@ export default class QsSelectorSelector extends tsc<IProps> {
   @Watch('type', { immediate: true })
   handleWatchFieldType() {
     this.localOptions = [];
-    this.handleGetOptionsDebounce();
+    this.handleGetOptionsProxy();
   }
   @Watch('search', { immediate: true })
   handleWatchSearch() {
-    this.handleGetOptionsDebounce();
+    this.handleGetOptionsProxy();
   }
   @Watch('show', { immediate: true })
   handleWatchShow() {
     if (this.show) {
       this.localOptions = [];
-      this.handleGetOptionsDebounce();
+      this.handleGetOptionsProxy();
       document.addEventListener('keydown', this.handleKeydownEvent);
     } else {
       document.removeEventListener('keydown', this.handleKeydownEvent);
@@ -151,7 +151,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
 
   async handleGetOptions() {
     this.pageInit();
-    this.cursorIndex = 0;
+    this.cursorIndex = -1;
     let fieldItem: IFilterField = null;
     for (const item of this.fields) {
       if (item.name === this.field) {
@@ -201,9 +201,17 @@ export default class QsSelectorSelector extends tsc<IProps> {
     }
   }
 
-  @Debounce(300)
+  @Debounce(500)
   async handleGetOptionsDebounce() {
     this.handleGetOptions();
+  }
+
+  handleGetOptionsProxy() {
+    if (this.type === EQueryStringTokenType.value) {
+      this.handleGetOptionsDebounce();
+    } else {
+      this.handleGetOptions();
+    }
   }
 
   handleKeydownEvent(event: KeyboardEvent) {
@@ -212,7 +220,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
         // 按下上箭头键
         event.preventDefault();
         this.cursorIndex -= 1;
-        if (this.cursorIndex < 0) {
+        if (this.cursorIndex < -1) {
           this.cursorIndex = this.localOptions.length - 1;
         }
         this.updateSelection();
@@ -277,7 +285,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
     if (this.field) {
       const limit = this.page * this.pageSize;
       const data = await this.getValueFn({
-        queryString: `${this.field} : *`,
+        queryString: `${this.field} : ${this.search || '*'}`,
         fields: [this.field],
         limit: limit,
       });

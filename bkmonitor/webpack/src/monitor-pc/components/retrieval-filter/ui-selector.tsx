@@ -87,6 +87,10 @@ export default class UiSelector extends tsc<IProps> {
     }
   }
 
+  mounted() {
+    this.handleAddKeyDownSlash();
+  }
+
   async handleShowSelect(event: MouseEvent) {
     if (this.popoverInstance) {
       this.destroyPopoverInstance();
@@ -117,6 +121,7 @@ export default class UiSelector extends tsc<IProps> {
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
     this.showSelector = false;
+    this.handleAddKeyDownSlash();
   }
 
   handleAdd(event: MouseEvent) {
@@ -268,6 +273,20 @@ export default class UiSelector extends tsc<IProps> {
     this.$emit('change', this.localValue);
   }
 
+  handleKeyDownSlash(event) {
+    if (event.key === '/') {
+      this.handleClickComponent();
+      document.removeEventListener('keydown', this.handleKeyDownSlash);
+    }
+  }
+  handleAddKeyDownSlash() {
+    if (this.showInput) {
+      document.removeEventListener('keydown', this.handleKeyDownSlash);
+    } else {
+      document.addEventListener('keydown', this.handleKeyDownSlash);
+    }
+  }
+
   render() {
     return (
       <div
@@ -307,11 +326,21 @@ export default class UiSelector extends tsc<IProps> {
             <div class='hover-btn-wrap'>
               <div
                 class='operate-btn'
+                v-bk-tooltips={{
+                  content: this.$tc('清空'),
+                  delay: 300,
+                }}
                 onClick={this.handleClear}
               >
                 <span class='icon-monitor icon-a-Clearqingkong' />
               </div>
-              <div class='operate-btn'>
+              <div
+                class='operate-btn'
+                v-bk-tooltips={{
+                  content: this.$tc('复制'),
+                  delay: 300,
+                }}
+              >
                 <span class='icon-monitor icon-mc-copy' />
               </div>
             </div>
