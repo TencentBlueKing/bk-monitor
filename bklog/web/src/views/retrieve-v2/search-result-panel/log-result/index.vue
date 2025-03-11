@@ -29,20 +29,15 @@
     <div class="original-log-panel-tools">
       <div class="left-operate">
         <div class="bk-button-group">
-          <bk-button
-            :class="!showOriginalLog ? 'is-selected' : ''"
-            size="small"
-            @click="handleClickTableBtn('table')"
+          <span
+            v-for="type in ['original', 'table']"
+            class="option"
+            :class="contentType === type ? 'option-selected' : ''"
+            :key="type"
+            @click="handleClickTableBtn(type)"
           >
-            {{ $t('表格') }}
-          </bk-button>
-          <bk-button
-            :class="showOriginalLog ? 'is-selected' : ''"
-            size="small"
-            @click="handleClickTableBtn('original')"
-          >
-            {{ $t('原始') }}
-          </bk-button>
+            {{ type === 'table' ? '表格' : '原始' }}
+          </span>
         </div>
         <bk-checkbox
           style="margin: 0 12px"
@@ -51,7 +46,7 @@
           theme="primary"
           @change="handleShowRowIndexChange"
         >
-          <span class="switch-label">{{ $t('行号') }}</span>
+          <span class="switch-label">{{ $t('显示行号') }}</span>
         </bk-checkbox>
         <bk-checkbox
           style="margin: 0 12px 0 0"
@@ -76,9 +71,17 @@
           :value="isJsonFormat"
           theme="primary"
           @change="handleJsonFormat"
-          ><span class="switch-label">{{ $t('JSON解析') }}</span></bk-checkbox
+          ><span class="switch-label">{{ $t('JSON 解析') }}</span></bk-checkbox
         >
-
+        <bk-checkbox
+          style="margin: 0 12px 0 0"
+          value="false"
+          theme="primary"
+        >
+          <span class="switch-label">
+            {{ $t('转换时间字段') }}
+          </span>
+        </bk-checkbox>
         <bk-checkbox
           style="margin: 0 12px 0 0"
           :value="isAllowEmptyField"
@@ -100,8 +103,25 @@
           @change="handleJsonFormatDeepChange"
         ></bk-input>
       </div>
-      <div class="tools-more" v-if="!isMonitorTrace">
+      <div
+        class="tools-more"
+        v-if="!isMonitorTrace"
+      >
         <div class="operation-icons">
+          <bk-input
+            style="width: 240px"
+            v-model="value"
+            placeholder="输入后按 Enter..."
+          >
+            <template slot="prepend">
+              <div
+                class="group-text"
+                style="width: 40px; padding: 0px 0px; color: #4d4f56; text-align: center; background: #fafbfd"
+              >
+                高亮
+              </div>
+            </template>
+          </bk-input>
           <export-log
             :async-export-usable="asyncExportUsable"
             :async-export-usable-reason="asyncExportUsableReason"
@@ -124,7 +144,10 @@
           >
             <slot name="trigger">
               <div class="operation-icon">
-                <span class="icon bklog-icon bklog-set-icon"></span>
+                <span
+                  class="icon bklog-icon bklog-shezhi"
+                  style="font-size: 16px"
+                ></span>
               </div>
             </slot>
             <template #content>
@@ -186,7 +209,7 @@
         exportLoading: false,
         expandTextView: false,
         isInitActiveTab: false,
-        isMonitorTrace: window.__IS_MONITOR_TRACE__
+        isMonitorTrace: window.__IS_MONITOR_TRACE__,
       };
     },
     computed: {
@@ -307,7 +330,7 @@
     .original-log-panel-tools {
       display: flex;
       justify-content: space-between;
-      padding: 0 3px 0 16px;
+      padding: 0 6px 0 6px;
     }
 
     .tools-more {
@@ -334,7 +357,7 @@
         height: 32px;
         margin-left: 10px;
         cursor: pointer;
-        border: 1px solid #c4c6cc;
+        background-color: #f0f1f5;
         border-radius: 2px;
         outline: none;
         transition: boder-color 0.2s;
@@ -377,6 +400,35 @@
 
       > div {
         flex-shrink: 0;
+      }
+
+      .bk-button-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 104px;
+        height: 32px;
+        padding: 4px 4px;
+        font-size: 12px;
+        background-color: #f0f1f5;
+        border-radius: 2px;
+      }
+
+      .option {
+        display: flex; /* 使用 flex 布局 */
+        flex: 1;
+        align-items: center; /* 垂直居中 */
+        justify-content: center; /* 水平居中 */
+        width: 100%;
+        height: 100%;
+        color: #4d4f56;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .option.option-selected {
+        color: #3a84ff; /* 蓝色 */
+        background-color: #ffffff;
       }
 
       .bklog-option-item {
