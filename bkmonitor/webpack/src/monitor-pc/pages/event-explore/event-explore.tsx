@@ -23,21 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref, Prop, Watch } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Ref, Prop, Watch, Emit, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getDataSourceConfig } from 'monitor-api/modules/grafana';
-import { random } from 'monitor-common/utils';
+// import { getDataSourceConfig } from 'monitor-api/modules/grafana';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { EMode, mergeWhereList, type IGetValueFnParams } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
-import FavoriteContainer from '../data-retrieval/favorite-container/favorite-container';
 import { APIType, getEventTopK, getEventViewConfig } from './api-utils';
 import DimensionFilterPanel from './components/dimension-filter-panel';
 import EventExploreView from './components/event-explore-view';
-import EventRetrievalHeader from './components/event-retrieval-header';
 import EventRetrievalLayout from './components/event-retrieval-layout';
 
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
@@ -46,25 +43,49 @@ import type { IFormData } from './typing';
 
 import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
-
+interface IEvent {
+  onWhereChange: (where: IFormData['where']) => void;
+  onQueryStringChange: (queryString: string) => void;
+}
 @Component
-export default class EventRetrievalNew extends tsc<{ source: APIType }> {
-  /** 来源 */
-  @ProvideReactive('source')
-  @Prop({ default: APIType.MONITOR })
-  source: APIType;
+export default class EventRetrievalNew extends tsc<
+  {
+    source: APIType;
+    dataId: string;
+    dataTypeLabel: string;
+    dataSourceLabel: string;
+    queryString: string;
+    where: IFormData['where'];
+    group_by: IFormData['group_by'];
+    filter_dict: IFormData['filter_dict'];
+  },
+  IEvent
+> {
+  // /** 来源 */
+  // @ProvideReactive('source')
+  @Prop({ default: APIType.MONITOR }) source: APIType;
+
+  /** 数据Id */
+  @Prop({ default: '' }) dataId;
+  /** 查询语句 */
+  @Prop({ default: '' }) queryString;
+  @Prop({ default: 'event' }) dataTypeLabel: string;
+  @Prop({ default: 'custom' }) dataSourceLabel: string;
+  /** UI查询 */
+  @Prop({ default: () => [], type: Array }) where: IFormData['where'];
+  /** 维度列表 */
+  @Prop({ default: () => [], type: Array }) group_by: IFormData['group_by'];
+  /** 过滤条件 */
+  @Prop({ default: () => ({}), type: Object }) filter_dict: IFormData['filter_dict'];
+
   // 数据时间间隔
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
+  @Inject('timeRange') timeRange: TimeRangeType;
   // 时区
-  @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
+  @Inject('timezone') timezone: string;
   // 刷新间隔
-  @ProvideReactive('refleshInterval') refreshInterval = -1;
+  @Inject('refleshInterval') refreshInterval;
   // 是否立即刷新
-  @ProvideReactive('refleshImmediate') refreshImmediate = '';
-  /** 图表框选范围事件所需参数 -- 开启框选功能 */
-  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
-  /** 图表框选范围事件所需参数 -- 是否展示复位按钮 */
-  @ProvideReactive('showRestore') showRestore = false;
+  @Inject('refleshImmediate') refreshImmediate;
 
   @ProvideReactive('formatTimeRange')
   get formatTimeRange() {
@@ -72,7 +93,6 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   }
 
   @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
-  @Ref('favoriteContainer') favoriteContainerRef: FavoriteContainer;
 
   timer = null;
   loading = false;
@@ -85,19 +105,6 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   /** 当前选择的收藏 */
   currentFavorite = null;
 
-  formData: IFormData = {
-    data_source_label: 'custom',
-    data_type_label: 'event',
-    table: '',
-    query_string: '',
-    where: [],
-    group_by: [],
-    filter_dict: {},
-  };
-
-  /** 数据ID列表 */
-  dataIdList = [];
-
   /** 维度列表 */
   @ProvideReactive('fieldList')
   fieldList = [];
@@ -105,13 +112,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   /** 标识 KV 模式下，需要跳转到其他页面的字段。 */
   sourceEntities = [];
 
-  cacheTimeRange = [];
-  /** 是否展示收藏 */
-  isShowFavorite = true;
-
   filterMode = EMode.ui;
-
-  favoriteList = [];
 
   /**
    * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
@@ -166,7 +167,13 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     return {
       query_configs: [
         {
-          ...this.formData,
+          data_source_label: this.dataSourceLabel || 'custom',
+          data_type_label: this.dataTypeLabel || 'event',
+          table: this.dataId,
+          query_string: this.queryString,
+          where: this.where || [],
+          group_by: this.group_by || [],
+          filter_dict: this.filter_dict || {},
         },
       ],
       start_time: this.formatTimeRange[0],
@@ -180,82 +187,8 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
     this.setRouteParams();
   }
 
-  @Provide('handleTimeRangeChange')
-  handleTimeRangeChange(timeRange: TimeRangeType) {
-    this.showRestore = false;
-    this.timeRange = timeRange;
-    this.getViewConfig();
-  }
-
-  /**
-   * @description 更改数据时间间隔（其中 Provide 主要提供图表组件框选事件需要）
-   */
-  @Provide('handleChartDataZoom')
-  handleTimeRangeChangeForChart(timeRange: TimeRangeType) {
-    if (JSON.stringify(this.timeRange) === JSON.stringify(timeRange)) {
-      return;
-    }
-    this.showRestore = true;
-    this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-    this.timeRange = timeRange;
-    this.getViewConfig();
-  }
-
-  /**
-   * @description 恢复数据时间间隔
-   */
-  @Provide('handleRestoreEvent')
-  handleRestoreEventForChart() {
-    this.handleTimeRangeChange(JSON.parse(JSON.stringify(this.cacheTimeRange)));
-  }
-
-  /** 切换数据ID */
-  handleDataIdChange(dataId: string) {
-    this.formData.table = dataId;
-    this.getViewConfig();
-  }
-
-  /** 时间类型切换 */
-  async handleEventTypeChange(dataType: { data_source_label: string; data_type_label: string }) {
-    this.formData.data_source_label = dataType.data_source_label;
-    this.formData.data_type_label = dataType.data_type_label;
-    await this.getDataIdList();
-    await this.getViewConfig();
-  }
-
-  handleImmediateRefresh() {
-    this.refreshImmediate = random(4);
-    this.getViewConfig();
-  }
-
-  handleRefreshChange(value: number) {
-    this.refreshInterval = value;
-    this.setRouteParams();
-    this.timer && clearInterval(this.timer);
-    if (value > -1) {
-      this.timer = setInterval(() => {
-        this.handleImmediateRefresh();
-      }, value);
-    }
-  }
-
-  handleTimezoneChange(timezone: string) {
-    this.timezone = timezone;
-  }
-
-  async getDataIdList(init = true) {
-    const list = await getDataSourceConfig({
-      data_source_label: this.formData.data_source_label,
-      data_type_label: this.formData.data_type_label,
-    }).catch(() => []);
-    this.dataIdList = list;
-    if (init) {
-      this.formData.table = list[0]?.id || '';
-    }
-  }
-
   async getViewConfig() {
-    if (!this.formData.table) {
+    if (!this.dataId) {
       this.fieldList = [];
       this.sourceEntities = [];
       return;
@@ -265,9 +198,9 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
       {
         data_sources: [
           {
-            data_source_label: this.formData.data_source_label,
-            data_type_label: this.formData.data_type_label,
-            table: this.formData.table,
+            data_source_label: this.dataSourceLabel,
+            data_type_label: this.dataTypeLabel,
+            table: this.dataId,
           },
         ],
         start_time: this.formatTimeRange[0],
@@ -286,11 +219,11 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
   }
 
   async mounted() {
-    const isShowFavorite =
-      JSON.parse(localStorage.getItem('bk_monitor_data_favorite_show') || 'false') || !!this.$route.query?.favorite_id;
-    this.isShowFavorite = isShowFavorite;
+    // const isShowFavorite =
+    //   JSON.parse(localStorage.getItem('bk_monitor_data_favorite_show') || 'false') || !!this.$route.query?.favorite_id;
+    // this.isShowFavorite = isShowFavorite;
     this.getRouteParams();
-    await this.getDataIdList(!this.formData.table);
+    // await this.getDataIdList(!this.formData.table);
     await this.getViewConfig();
   }
 
@@ -300,9 +233,9 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
         limit: params?.limit || 5,
         query_configs: [
           {
-            data_source_label: this.formData.data_source_label,
-            data_type_label: this.formData.data_type_label,
-            table: this.formData.table,
+            data_source_label: this.dataSourceLabel,
+            data_type_label: this.dataTypeLabel,
+            table: this.dataId,
             filter_dict: {},
             where: params?.where || [],
             query_string: params?.queryString || '*',
@@ -413,140 +346,39 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
       });
     }
   }
-
-  handleWhereChange(where) {
-    this.formData.where = where;
+  @Emit('whereChange')
+  handleWhereChange(where: IFormData['where']) {
+    return where;
   }
 
   @Provide('handleConditionChange')
   handleConditionChange(condition: IWhereItem[]) {
-    this.formData.where = mergeWhereList(this.formData.where, condition);
+    this.handleWhereChange(mergeWhereList(this.where, condition));
   }
-
-  /** 选择收藏或者新检索 */
-  handleSelectFavorite(data) {
-    if (!this.currentFavorite && !data) return;
-    this.currentFavorite = data;
-    if (data) {
-      // 选择收藏
-      const { compareValue, queryConfig } = data.config;
-      // 兼容以前的
-      const { result_table_id, ...params } = queryConfig;
-      this.formData = {
-        ...params,
-        table: result_table_id,
-      };
-      this.timeRange = compareValue.tools.timeRange;
-      this.refreshInterval = compareValue.tools.refleshInterval || compareValue.tools.refreshInterval;
-      this.timezone = compareValue.tools.timezone;
-      this.compare = compareValue.compare;
-    } else {
-      // 选择检索
-      this.formData = {
-        data_source_label: 'custom',
-        data_type_label: 'event',
-        table: this.dataIdList[0].id,
-        query_string: '*',
-        where: [],
-        group_by: [],
-        filter_dict: {},
-      };
-      this.timeRange = DEFAULT_TIME_RANGE;
-      this.refreshInterval = -1;
-      this.timezone = getDefaultTimezone();
-    }
-  }
-
-  /** 收藏夹显隐 */
-  favoriteShowChange(show: boolean) {
-    this.isShowFavorite = show;
-    localStorage.setItem('bk_monitor_data_favorite_show', `${show}`);
-  }
-
-  /** 收藏功能 */
-  handleFavorite(isEdit = false) {
-    const { table, ...otherParams } = this.formData;
-    const params = {
-      queryConfig: {
-        ...otherParams,
-        result_table_id: table,
-      },
-      compareValue: {
-        compare: this.compare,
-        tools: {
-          timeRange: this.timeRange,
-          refreshInterval: this.refreshInterval,
-          timezone: this.timezone,
-        },
-      },
-    };
-    if (isEdit) {
-      this.favoriteContainerRef.handleFavorite({ ...this.currentFavorite, config: params }, isEdit);
-    } else {
-      this.favoriteContainerRef.handleFavorite(params, isEdit);
-    }
-  }
-
-  handleQueryStringChange(val) {
-    this.formData.query_string = val;
+  @Emit('queryStringChange')
+  handleQueryStringChange(val: string) {
+    return val;
   }
 
   handleModeChange(mode: EMode) {
     this.filterMode = mode;
   }
 
-  handleFavoriteListChange(list) {
-    this.favoriteList = list;
-  }
-
   render() {
     return (
       <div class='event-explore'>
-        <div
-          style={{ display: this.isShowFavorite ? 'block' : 'none' }}
-          class='left-favorite-panel'
-        >
-          {this.source === APIType.MONITOR && (
-            <FavoriteContainer
-              ref='favoriteContainer'
-              dataId={this.formData.table}
-              favoriteSearchType='event'
-              isShowFavorite={this.isShowFavorite}
-              onFavoriteListChange={this.handleFavoriteListChange}
-              onSelectFavorite={this.handleSelectFavorite}
-              onShowChange={this.favoriteShowChange}
-            />
-          )}
-        </div>
-
+        {this.$scopedSlots.favorite?.()}
         <div class='right-main-panel'>
-          {this.source === APIType.MONITOR && (
-            <EventRetrievalHeader
-              dataIdList={this.dataIdList}
-              formData={this.formData}
-              isShowFavorite={this.isShowFavorite}
-              refreshInterval={this.refreshInterval}
-              timeRange={this.timeRange}
-              timezone={this.timezone}
-              onDataIdChange={this.handleDataIdChange}
-              onEventTypeChange={this.handleEventTypeChange}
-              onFavoriteShowChange={this.favoriteShowChange}
-              onImmediateRefresh={this.handleImmediateRefresh}
-              onRefreshChange={this.handleRefreshChange}
-              onTimeRangeChange={this.handleTimeRangeChange}
-              onTimezoneChange={this.handleTimezoneChange}
-            />
-          )}
-
+          {this.$scopedSlots.header?.()}
           <div class='event-retrieval-content'>
             <RetrievalFilter
               favoriteList={this.favoriteList as any}
               fields={this.fieldList}
               filterMode={this.filterMode}
               getValueFn={this.getRetrievalFilterValueData}
-              queryString={this.formData.query_string}
+              queryString={this.queryString}
               selectFavorite={this.currentFavorite}
-              where={this.formData.where}
+              where={this.where}
               onFavorite={this.handleFavorite}
               onModeChange={this.handleModeChange}
               onQueryStringChange={this.handleQueryStringChange}
@@ -561,7 +393,7 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
                 slot='aside'
               >
                 <DimensionFilterPanel
-                  condition={this.formData.where}
+                  condition={this.where}
                   list={this.fieldList}
                   listLoading={this.loading}
                   onClose={this.handleCloseDimensionPanel}
@@ -570,7 +402,15 @@ export default class EventRetrievalNew extends tsc<{ source: APIType }> {
               </div>
               <div class='result-content-panel'>
                 <EventExploreView
-                  queryConfig={this.formData}
+                  queryConfig={{
+                    data_source_label: this.dataSourceLabel || 'custom',
+                    data_type_label: this.dataTypeLabel || 'event',
+                    table: this.dataId,
+                    query_string: this.queryString,
+                    where: this.where || [],
+                    group_by: this.group_by || [],
+                    filter_dict: this.filter_dict || {},
+                  }}
                   source={this.source}
                 />
               </div>

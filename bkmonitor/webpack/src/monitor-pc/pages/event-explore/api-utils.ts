@@ -1,9 +1,3 @@
-import {
-  eventDownloadTopK as apmEventDownloadTopK,
-  eventTopK as apmEventTopK,
-  eventTotal as apmEventTotal,
-  eventViewConfig as apmEventViewConfig,
-} from 'monitor-api/modules/apm_event';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -29,6 +23,12 @@ import {
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import {
+  eventDownloadTopK as apmEventDownloadTopK,
+  eventTopK as apmEventTopK,
+  eventTotal as apmEventTotal,
+  eventViewConfig as apmEventViewConfig,
+} from 'monitor-api/modules/apm_event';
 import { eventDownloadTopK, eventTopK, eventTotal, eventViewConfig } from 'monitor-api/modules/data_explorer';
 
 import type { ITopKField, ITopKRequestParams } from './typing';
