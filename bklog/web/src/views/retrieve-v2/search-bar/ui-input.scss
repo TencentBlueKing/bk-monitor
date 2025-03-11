@@ -65,6 +65,7 @@ ul.search-items {
 
     .tag-option-focus-input {
       // width: 8px;
+
     /* stylelint-disable-next-line declaration-no-important */
       width: auto !important;
       height: 38px;
@@ -95,8 +96,8 @@ ul.search-items {
         display: flex;
         align-items: flex-start;
         justify-content: center;
-        line-height: 18px;
         font-size: 18px;
+        line-height: 18px;
       }
 
       .tag-text {
@@ -169,8 +170,8 @@ ul.search-items {
         align-items: center;
         justify-content: flex-start;
         width: 100%;
-        font-size: 12px;
         font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+        font-size: 12px;
 
         &.match-name {
           color: #757880;

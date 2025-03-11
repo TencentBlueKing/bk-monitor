@@ -26,12 +26,14 @@
 
 import { defineComponent, onBeforeUnmount, ref } from 'vue';
 
-import SubBar from '../../retrieve-v2/sub-bar/index.vue';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import SubBar from '../../retrieve-v2/sub-bar/index.vue';
+
 import './index.scss';
 
 export default defineComponent({
   name: 'V3Toolbar',
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setup(_, {}) {
     const isFavoriteShown = ref(RetrieveHelper.isFavoriteShown);
     const onFavoriteShowChange = (val: boolean) => {

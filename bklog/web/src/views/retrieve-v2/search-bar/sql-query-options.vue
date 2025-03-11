@@ -670,12 +670,12 @@
       ></FavoriteList>
       <!-- 移动光标and确认结果提示 -->
       <div class="ui-shortcut-key">
-        <div class='ui-shortcut-item'>
+        <div class="ui-shortcut-item">
           <span class="bklog-icon bklog-arrow-down-filled label up" />
           <span class="bklog-icon bklog-arrow-down-filled label" />
           <span class="value">{{ $t('移动光标') }}</span>
         </div>
-        <div class='ui-shortcut-item'>
+        <div class="ui-shortcut-item">
           <span class="label">Enter</span>
           <span class="value">{{ $t('确认结果') }}</span>
         </div>
@@ -719,30 +719,30 @@
   @import './sql-query-options.scss';
 
   div.sql-query-container {
-    display: flex;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
-    line-height: 1;
 
     position: relative;
+    display: flex;
+    line-height: 1;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
 
     .sql-field-list {
-      width: 100%;
       position: relative;
+      width: 100%;
       padding-bottom: 48px;
 
       /* 移动光标and确认结果提示 样式 */
       .ui-shortcut-key {
-        padding: 0 16px;
-        height: 48px;
-        line-height: 48px;
-        background-color: #FAFBFD;
-        border: 1px solid #DCDEE5;
-        border-radius: 0 0 0 2px;
         position: absolute;
         bottom: 0;
         left: 0;
         width: 100%;
+        height: 48px;
+        padding: 0 16px;
+        line-height: 48px;
+        background-color: #fafbfd;
+        border: 1px solid #dcdee5;
+        border-radius: 0 0 0 2px;
 
         .ui-shortcut-item {
           display: inline-flex;
@@ -755,18 +755,20 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0 4px;
             height: 16px;
+            padding: 0 4px;
             font-size: 11px;
             font-weight: 700;
-            color: #A3B1CC;
+            color: #a3b1cc;
             background-color: #a3b1cc29;
             border: 1px solid #a3b1cc4d;
             border-radius: 2px;
+
             &.bklog-arrow-down-filled {
               padding: 0;
               font-size: 14px;
             }
+
             &.up {
               margin-right: 2px;
               transform: rotate(-180deg);
@@ -784,7 +786,7 @@
     .sql-syntax-tips {
       position: relative;
       width: 240px;
-      background-color: #F5F7FA;
+      background-color: #f5f7fa;
       border-radius: 0 2px 2px 0;
 
       .sql-query-retract {
@@ -818,8 +820,8 @@
           justify-content: space-between;
           margin-bottom: 16px;
           font-size: 12px;
-          color: #313238;
           line-height: 20px;
+          color: #313238;
 
           .fold-title-right {
             display: flex;
@@ -836,19 +838,22 @@
         }
 
         .sql-query-list {
+          margin-bottom: 12px;
           overflow-y: auto;
           font-size: 12px;
           white-space: pre-line;
-          margin-bottom: 12px;
+
           .sql-query-name {
-            color: #313238;
             font-weight: 700;
             line-height: 16px;
+            color: #313238;
           }
+
           .sql-query-value {
+            /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
             font-family: RobotoMono-Regular;
-            color: #4D4F56;
             line-height: 20px;
+            color: #4d4f56;
           }
         }
       }

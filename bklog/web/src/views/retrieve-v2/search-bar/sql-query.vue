@@ -179,12 +179,12 @@
       position: absolute;
       top: 50%;
       left: 14px;
+      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
       font-size: 12px;
       line-height: 30px;
       color: #c4c6cc;
       pointer-events: none;
       transform: translateY(-50%);
-      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
     }
 
     .search-sql-editor {
