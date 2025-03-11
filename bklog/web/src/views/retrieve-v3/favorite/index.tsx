@@ -26,9 +26,11 @@
 
 import { computed, defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
-import V2Collection from '../../retrieve-v2/collect/collect-index';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { throttle } from 'lodash';
+
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import V2Collection from '../../retrieve-v2/collect/collect-index';
+
 import './index.scss';
 
 export default defineComponent({
@@ -74,10 +76,10 @@ export default defineComponent({
       return (
         <keep-alive>
           <V2Collection
+            style={favoriteStyle.value}
             width={collectWidth.value}
             class='v3-bklog-collection'
             is-show={isShow.value}
-            style={favoriteStyle.value}
             on={{
               'update:isShow': handleUpdateIsShow,
               'update:width': handleWidthChange,

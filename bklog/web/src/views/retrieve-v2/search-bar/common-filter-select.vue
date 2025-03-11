@@ -251,8 +251,8 @@
     .filter-setting-btn {
       min-width: 83px;
       height: 40px;
-      line-height: 40px;
       font-size: 12px;
+      line-height: 40px;
       color: #3880f8;
       cursor: pointer;
     }

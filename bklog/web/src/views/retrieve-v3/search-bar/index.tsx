@@ -25,12 +25,15 @@
  */
 
 import { defineComponent, ref } from 'vue';
-import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
+
 import RetrieveHelper from '../../retrieve-helper';
+import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
+
 import './index.scss';
 
 export default defineComponent({
-  name: 'v3-searchbar',
+  name: 'V3Searchbar',
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   setup(_, {}) {
     const searchBarHeight = ref(0);
     const handleHeightChange = height => {

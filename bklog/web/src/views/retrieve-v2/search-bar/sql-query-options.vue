@@ -573,7 +573,7 @@
               </div>
             </li>
           </div>
-          <template
+          <div
             v-if="showOption.showOperator"
             class="control-list"
           >
@@ -596,7 +596,7 @@
                 </i18n>
               </div>
             </li>
-          </template>
+          </div>
         </template>
         <!-- AND OR -->
         <template v-if="showOption.showContinue">
@@ -708,6 +708,7 @@
           <div
             v-for="item in matchList"
             class="sql-query-list"
+            :key="item.value"
           >
             <div class="sql-query-name">{{ item.name }}</div>
             <div class="sql-query-value">{{ item.value }}</div>
@@ -721,16 +722,15 @@
   @import './sql-query-options.scss';
 
   div.sql-query-container {
+    position: relative;
     display: flex;
+    line-height: 1;
     border: 1px solid #dcdee5;
     border-radius: 2px;
-    line-height: 1;
-
-    position: relative;
 
     .sql-field-list {
-      width: 100%;
       position: relative;
+      width: 100%;
       padding-bottom: 48px;
 
       /* 移动光标and确认结果提示 样式 */
@@ -741,10 +741,6 @@
         background-color: #fafbfd;
         border: 1px solid #dcdee5;
         border-radius: 0 0 0 2px;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
 
         .ui-shortcut-item {
           display: inline-flex;
@@ -757,18 +753,20 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0 4px;
             height: 16px;
+            padding: 0 4px;
             font-size: 11px;
             font-weight: 700;
             color: #a3b1cc;
             background-color: #a3b1cc29;
             border: 1px solid #a3b1cc4d;
             border-radius: 2px;
+
             &.bklog-arrow-down-filled {
               padding: 0;
               font-size: 14px;
             }
+
             &.up {
               margin-right: 2px;
               transform: rotate(-180deg);
@@ -820,8 +818,8 @@
           justify-content: space-between;
           margin-bottom: 16px;
           font-size: 12px;
-          color: #313238;
           line-height: 20px;
+          color: #313238;
 
           .fold-title-right {
             display: flex;
@@ -838,19 +836,21 @@
         }
 
         .sql-query-list {
+          margin-bottom: 12px;
           overflow-y: auto;
           font-size: 12px;
           white-space: pre-line;
-          margin-bottom: 12px;
+
           .sql-query-name {
-            color: #313238;
             font-weight: 700;
             line-height: 16px;
+            color: #313238;
           }
+
           .sql-query-value {
             font-family: RobotoMono-Regular;
-            color: #4d4f56;
             line-height: 20px;
+            color: #4d4f56;
           }
         }
       }
