@@ -46,7 +46,10 @@
                 @click="addField(item)"
               >
                 <span
-                  :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+                  :style="{
+                    backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
+                    color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
+                  }"
                   :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                 >
                 </span>
@@ -86,7 +89,10 @@
                 >
                   <span class="icon bklog-icon bklog-ketuodong"></span>
                   <span
-                    :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
+                    :style="{
+                      backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
+                      color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
+                    }"
                     :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                   >
                   </span>
@@ -187,6 +193,10 @@
 
   const getFieldIconColor = type => {
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
+  };
+
+  const getFieldIconTextColor = type => {
+    return fieldTypeMap.value?.[type]?.textColor;
   };
 
   // 新建提交逻辑
