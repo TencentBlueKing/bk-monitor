@@ -165,6 +165,7 @@ class EsQuery(object):
             include_start_time=include_start_time,
             include_end_time=include_end_time,
             indices=indices,
+            scenario_id=scenario_id,
         ).time_range_dict
 
         query_string, filter_dict_list, index, sort_tuple = self._optimizer(

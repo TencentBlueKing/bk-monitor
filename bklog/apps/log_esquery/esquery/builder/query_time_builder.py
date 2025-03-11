@@ -29,6 +29,8 @@ from apps.api import TransferApi
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import SearchUnKnowTimeFieldType
 from apps.utils.cache import cache_ten_minute
+from apps.utils.log import logger
+from scripts.export import Scenario
 
 
 class QueryTimeBuilder(object):
@@ -53,6 +55,7 @@ class QueryTimeBuilder(object):
         include_start_time: bool = True,
         include_end_time: bool = True,
         indices: str = "",
+        scenario_id: str = "",
     ):
         self.time_field: str = time_field
         self.start_time: Union[int, datetime]
@@ -60,6 +63,7 @@ class QueryTimeBuilder(object):
         self.time_field_type = time_field_type
         self.time_field_unit = time_field_unit
         self.indices = indices
+        self.scenario_id = scenario_id
 
         self._time_range_dict: Dict = {}
 
@@ -112,19 +116,23 @@ class QueryTimeBuilder(object):
             return self.LTE
         return self.LT
 
-    @cache_ten_minute("retention_time_{indices}", need_md5=True)
-    def get_storage_retention_time(self, indices):
+    @cache_ten_minute("retention_time_{indices}_{scenario_id}", need_md5=True)
+    def get_storage_retention_time(self, indices, scenario_id):
         if not indices:
             return None
-
-        storage = TransferApi.get_result_table_storage(
-            params={"result_table_list": indices, "storage_type": "elasticsearch"}
-        )[indices]
-        retention = storage["storage_config"].get("retention")
-        return retention
+        if scenario_id == Scenario.LOG:
+            try:
+                storage = TransferApi.get_result_table_storage(
+                    params={"result_table_list": indices, "storage_type": "elasticsearch"}
+                )[indices]
+                retention = int(storage["storage_config"]["retention"])
+            except Exception as e:
+                logger.exception("get_result_table_storage_error: indices: %s, reason: %s", indices, e)
+                raise e
+            return retention
 
     def _deal_time(self, start_time, end_time):
-        retention = self.get_storage_retention_time(self.indices)
+        retention = self.get_storage_retention_time(self.indices, self.scenario_id)
         if retention:
             current_time = arrow.now(start_time.tzinfo)
             retention_time = current_time.shift(days=-int(retention))
