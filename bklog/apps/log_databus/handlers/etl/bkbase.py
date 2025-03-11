@@ -139,6 +139,9 @@ class BKBaseEtlHandler(EtlHandler):
             BkDataDatabusApi.databus_cleans_put(bkdata_params, request_cookies=False)
             self.restart_bkdata_clean(instance.bkbase_table_id)
 
+        if not params.get("is_create_storage", True):
+            return
+
         # 入库参数
         cluster_info = StorageHandler(params.get("storage_cluster_id")).get_cluster_info_by_id()
         bkbase_cluster_id = cluster_info["cluster_config"].get("custom_option", {}).get("bkbase_cluster_id")

@@ -142,11 +142,6 @@ class CollectorPluginHandler:
             "is_allow_alone_etl_config": is_allow_alone_etl_config,
             "is_allow_alone_storage": is_allow_alone_storage,
             "storage_cluster_id": params.get("storage_cluster_id"),
-            "retention": params.get("retention", 1),
-            "allocation_min_days": params.get("allocation_min_days", 0),
-            "storage_replies": params.get("storage_replies", 1),
-            "storage_shards_nums": params.get("storage_shards_nums", 1),
-            "storage_shards_size": params.get("storage_shards_size", 10),
             "etl_config": params.get("etl_config"),
             "etl_params": params.get("etl_params", {}),
             "fields": params.get("fields", []),
@@ -154,6 +149,16 @@ class CollectorPluginHandler:
             "index_settings": params.get("index_settings", {}),
             "is_create_storage": is_create_storage,
         }
+        if is_create_storage:
+            model_fields.update(
+                {
+                    "retention": params.get("retention", 1),
+                    "allocation_min_days": params.get("allocation_min_days", 0),
+                    "storage_replies": params.get("storage_replies", 1),
+                    "storage_shards_nums": params.get("storage_shards_nums", 1),
+                    "storage_shards_size": params.get("storage_shards_size", 10),
+                }
+            )
 
         is_create_public_data_id = params.get("is_create_public_data_id", False)
 

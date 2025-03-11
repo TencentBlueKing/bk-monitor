@@ -1165,17 +1165,23 @@ class CollectorPluginCreateSerializer(MultiAttrCheckSerializer, serializers.Mode
         if not attrs.get("bk_biz_id"):
             attrs["bk_biz_id"] = 0
 
+        is_create_storage = attrs.get("is_create_storage", True)
+        if is_create_storage:
+            self._check_multi_attrs(
+                attrs,
+                "retention",
+                "allocation_min_days",
+                "storage_replies",
+                "storage_shards_nums",
+                "storage_shards_size",
+            )
+
         # 不允许独立存储或有dataid时
         is_allow_alone_storage = attrs.get("is_allow_alone_storage", True)
         if not is_allow_alone_storage or self._is_create_data_id(attrs):
             self._check_multi_attrs(
                 attrs,
                 "storage_cluster_id",
-                "retention",
-                "allocation_min_days",
-                "storage_replies",
-                "storage_shards_nums",
-                "storage_shards_size",
             )
 
         # 不允许独立清洗规则或有dataid时
