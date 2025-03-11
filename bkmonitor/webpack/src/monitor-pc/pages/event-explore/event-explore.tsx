@@ -109,6 +109,8 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
   /** 标识 KV 模式下，需要跳转到其他页面的字段。 */
   sourceEntities = [];
 
+  queryStringInput = '';
+
   /**
    * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
    * @description 用于在 KV 模式下，获取 字段类型 Icon
@@ -243,7 +245,7 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
             filter_dict: {},
             where: params?.where || [],
             group_by: this.group_by,
-            query_string: params?.queryString || '*',
+            query_string: params?.queryString || '',
           },
         ],
         fields: params?.fields || [],
@@ -254,7 +256,6 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
     )
       .then(res => {
         const data = res?.[0] || {};
-        console.log(res);
         return {
           count: +data?.distinct_count || 0,
           list:
@@ -286,6 +287,9 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
   handleQueryStringChange(val: string) {
     return val;
   }
+  handleQueryStringInputChange(val) {
+    this.queryStringInput = val;
+  }
 
   @Emit('favorite')
   handleFavorite(isEdit: boolean) {
@@ -315,6 +319,7 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
               onFavorite={this.handleFavorite}
               onModeChange={this.handleModeChange}
               onQueryStringChange={this.handleQueryStringChange}
+              onQueryStringInputChange={this.handleQueryStringInputChange}
               onWhereChange={this.handleWhereChange}
             />
             <EventRetrievalLayout
