@@ -1,37 +1,23 @@
 {
   "id": "event",
+  "type": "overview",
   "mode": "custom",
-  "type": "slot",
   "name": "事件",
-  "variables": [],
-  "panels": [
-    {
-      "id": 1,
-      "title": "",
-      "type": "slot",
-      "gridPos": {
-        "x": 0,
-        "y": 0,
-        "w": 24,
-        "h": 24
-      },
-      "targets": []
-    }
-  ],
   "overview_panels": [
     {
       "id": 1,
       "title": "",
-      "type": "slot",
+      "type": "event-explore",
       "gridPos": {
         "x": 0,
         "y": 0,
         "w": 24,
         "h": 24
       },
-      "targets": []
+      "targets": [
+      ]
     }
   ],
-  "order": [],
-  "options": {}
+  "panels": [],
+  "order": []
 }
