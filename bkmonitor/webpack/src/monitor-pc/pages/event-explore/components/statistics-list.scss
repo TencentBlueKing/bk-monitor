@@ -6,11 +6,21 @@
     height: 22px;
 
     .title {
+      display: flex;
+      flex: 1;
+      align-items: center;
       margin-right: 4px;
+      overflow: hidden;
       font-size: 14px;
       font-weight: 400;
       color: #313238;
       letter-spacing: 0;
+    }
+
+    .title-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .count {
@@ -21,7 +31,6 @@
       margin-left: 4px;
       font-size: 12px;
       font-weight: 700;
-      line-height: 14px;
       color: #979BA5;
       text-align: center;
       background: #F0F1F5;
@@ -34,6 +43,7 @@
     }
 
     .download-tool {
+      margin-left: 10px;
       cursor: pointer;
 
         .icon-xiazai2 {
@@ -82,12 +92,17 @@
 
     .title {
       display: flex;
+      flex: 1;
       align-items: center;
+      overflow: hidden;
     }
 
     .field-name {
+      overflow: hidden;
       font-size: 16px;
       color: #313238;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .divider {
@@ -99,6 +114,7 @@
     }
 
     .desc {
+      flex-shrink: 0;
       font-size: 14px;
       color: #979BA5;
     }
@@ -109,6 +125,7 @@
     }
 
     .download-tool {
+      margin-left: 10px;
       cursor: pointer;
 
       .icon-xiazai2 {
