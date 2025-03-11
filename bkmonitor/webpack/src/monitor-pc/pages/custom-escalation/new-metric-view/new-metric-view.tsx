@@ -44,10 +44,20 @@ import './new-metric-view.scss';
 export default class NewMetricView extends tsc<object> {
   view = 'default';
   bkBizId = 0;
-  timeSeriesGroupId = 0;
+  timeSeriesGroupId = 10;
   dimenstionParams: Record<string, any> = {};
   startTime = 'now-1h';
   endTime = 'now';
+
+  get filterConfig() {
+    return {
+      ...this.dimenstionParams,
+      start_time: this.startTime,
+      end_time: this.endTime,
+      bk_biz_id: this.bkBizId,
+      time_series_group_id: this.timeSeriesGroupId,
+    };
+  }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     const [startTime, endTime] = timeRange;
@@ -110,7 +120,7 @@ export default class NewMetricView extends tsc<object> {
                   time_series_group_id: this.timeSeriesGroupId,
                 })}
               /> */}
-              <PanelChartView columnNum={this.dimenstionParams.view_column} />
+              <PanelChartView config={this.filterConfig} />
             </div>
           </template>
         </bk-resize-layout>

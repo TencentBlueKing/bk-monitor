@@ -30,7 +30,6 @@ import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 
-import { mockParam } from './api';
 import LayoutChartTable from './layout-chart-table';
 
 import type { IMetricAnalysisConfig } from '../type';
@@ -43,28 +42,19 @@ import './panel-chart-view.scss';
 const DEFAULT_HEIGHT = 600;
 interface IPanelChartViewProps {
   config?: IMetricAnalysisConfig;
-  isShowStatisticalValue?: boolean;
-  isHighlightPeakValue?: boolean;
-  columnNum?: number;
 }
 
 @Component
 export default class PanelChartView extends tsc<IPanelChartViewProps> {
   // 图表panel实例
-  @Prop({ default: () => mockParam }) config: IMetricAnalysisConfig;
-  /** 展示统计值 */
-  @Prop({ default: false }) isShowStatisticalValue: boolean;
-  /** 高亮峰谷值 */
-  @Prop({ default: false }) isHighlightPeakValue: boolean;
-  /** 每列展示的个数 */
-  @Prop({ default: 3 }) columnNum: number;
+  @Prop({ default: () => {} }) config: IMetricAnalysisConfig;
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;
   @ProvideReactive('filterOption') filterOption: IMetricAnalysisConfig;
   @ProvideReactive('viewOptions') viewOptions: IViewOptions = {
     interval: 'auto',
   };
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-12h', 'now'];
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   activeName = [];
   groupList = [];
   collapseRefsHeight: number[][] = [];
@@ -76,15 +66,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
 
   loading = false;
 
-  /** 拉伸的时候图表重新渲染 */
-  @Watch('groupList')
-  handlePanelChange() {
-    this.handleCollapseChange();
-  }
   /** 过滤条件发生改变的时候重新拉取数据 */
-  @Watch('config', { immediate: true })
+  @Watch('config', { deep: true })
   handleConfigChange(val) {
     this.filterOption = deepClone(val);
+    this.timeRange = [val.start_time, val.end_time];
     val && this.getGroupList();
   }
   /** 展示的个数发生变化时 */
@@ -92,6 +78,19 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   handleColumnNumChange() {
     this.handleCollapseChange();
   }
+  /** 每列展示的个数 */
+  get columnNum() {
+    return this.config.view_column || 3;
+  }
+  /** 是否展示统计值 */
+  get isShowStatisticalValue() {
+    return this.config?.show_statistical_value || true;
+  }
+  /** 是否展示高亮峰谷值 */
+  get isHighlightPeakValue() {
+    return this.config?.highlight_peak_value || false;
+  }
+
   /** 重新获取对应的高度 */
   handleCollapseChange() {
     if (this.groupList.length === 0) return;
@@ -107,11 +106,15 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   /** 获取图表配置 */
   getGroupList() {
     this.loading = true;
-    getCustomTsGraphConfig(this.config)
+    const { show_statistical_value, view_column, highlight_peak_value, bk_biz_id, compare, ...rest } = this.config;
+    const params = compare?.type ? { ...rest, compare } : rest;
+
+    getCustomTsGraphConfig(params)
       .then(res => {
         this.loading = false;
         this.groupList = res.groups || [];
         this.activeName = this.groupList.map(item => item.name);
+        this.handleCollapseChange();
       })
       .catch(() => {
         this.loading = false;
@@ -120,7 +123,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       });
   }
   /** 渲染panel的内容 */
-  renderPanelMain(item, chart, ind, chartInd) {
+  renderPanelMain(item, chart, ind: number, chartInd: number) {
     return (
       <div class={`chart-view-item column-${this.columnNum}`}>
         <LayoutChartTable

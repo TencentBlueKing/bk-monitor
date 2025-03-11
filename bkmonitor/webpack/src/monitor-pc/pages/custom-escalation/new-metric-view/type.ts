@@ -105,8 +105,17 @@ export interface IMetricAnalysisConfig {
   start_time: number;
   end_time: number;
   show_statistical_value: boolean;
+  highlight_peak_value?: boolean;
+  view_column?: number;
 }
 export interface IFilterConfig {
+  group_by: string[];
+  function: {
+    time_compare: string[];
+  };
+}
+
+export interface IResultItem {
   metrics: string[];
   where: {
     key: string;
@@ -131,4 +140,7 @@ export interface IFilterConfig {
     type: string;
     offset: string[];
   };
+  show_statistical_value: boolean;
+  highlight_peak_value: boolean;
+  view_column: number;
 }

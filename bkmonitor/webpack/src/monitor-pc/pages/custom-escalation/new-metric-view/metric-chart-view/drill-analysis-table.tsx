@@ -23,13 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
-import DashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
 import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
 
@@ -113,15 +112,6 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     }
     return Array.from(options.values());
   }
-  /** 拉伸的时候图表重新渲染 */
-  @Watch('filterConfig', { deep: true })
-  handleFilterConfig(val) {
-    if (!val) return;
-    this.isMultiple = (val.group_by || []).length > 1;
-    this.activeList = val.group_by || [];
-  }
-
-  mounted() {}
 
   getDimensionId(dimensions: Record<string, string>) {
     let name = '';
@@ -280,7 +270,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
 
   /** 绘制表格内容 */
   renderTableColumn() {
-    const { offset, type } = this.filterConfig.compare;
+    const { time_compare = [] } = this.filterConfig.function;
     const baseColumn: IColumnItem[] = [
       {
         label: '操作',
@@ -292,8 +282,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     ];
     let compareColumn: IColumnItem[] = [];
     /** 根据时间对比动态计算要展示的表格列 */
-    if (type === 'time') {
-      offset.map(val => {
+    if (time_compare.length > 0) {
+      time_compare.map(val => {
         compareColumn = [
           ...compareColumn,
           ...[
@@ -459,7 +449,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
           )}
         </div>
         {/* 维度趋势图侧栏 */}
-        <bk-sideslider
+        {/* <bk-sideslider
           width={640}
           ext-cls='drill-multi-detail-slider'
           isShow={this.isShowDetail}
@@ -498,12 +488,12 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
                 <DashboardPanel
                   id={'drill-table-extra_panels'}
                   column={1}
-                  panels={this.panel.extra_panels}
+                  panels={this.panel}
                 />
               </div>
             </div>
           )}
-        </bk-sideslider>
+        </bk-sideslider> */}
       </div>
     );
   }

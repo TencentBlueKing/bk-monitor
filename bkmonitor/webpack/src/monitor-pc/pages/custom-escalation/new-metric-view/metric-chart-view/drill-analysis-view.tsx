@@ -23,25 +23,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop } from 'vue-property-decorator';
+import { Component, Ref, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getCustomTsMetricGroups, getGraphDrillDown } from 'monitor-api/modules/scene_view';
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import { getGraphDrillDown } from 'monitor-api/modules/scene_view';
 import { random, deepClone } from 'monitor-common/utils';
 import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE, getTimeDisplay } from 'monitor-pc/components/time-range/utils';
+import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { updateTimezone } from 'monitor-pc/i18n/dayjs';
 
 import CompareType from '../components/header-box/components/compare-type';
-import FilterConditions from '../components/header-box/components/filter-conditions';
 import GroupBy from '../components/header-box/components/group-by';
 import LimitFunction from '../components/header-box/components/limit-function';
+import WhereCondition from '../components/header-box/components/where-condition';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
 import { refreshList } from './utils';
 
-import type { IDimensionItem, IRefreshItem } from '../type';
+import type { IDimensionItem, IRefreshItem, IResultItem } from '../type';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
@@ -58,6 +60,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: PanelModel;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
+  @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   panelData = {
     targets: [],
   };
@@ -71,18 +74,10 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   /* 刷新时间列表 */
   refreshList: IRefreshItem[] = [];
   timezone = window.timezone;
-  timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   /* 拖拽数据 */
   drag = { height: 400, minHeight: 300, maxHeight: 550 };
   divHeight = 0;
   resizeObserver = null;
-  metricsList = [];
-  commonDimensionList = [];
-  compare: {
-    type: '';
-    offset: [];
-  };
-  metricGroups = [];
   /** 选中的维度值 */
   dimensionsActiveKey = [];
   loading = false;
@@ -90,15 +85,13 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   filterConfig = {
     metrics: [],
     where: [],
-    common_conditions: [],
     group_by: [],
     limit: {
       function: 'top',
       limit: 10,
     },
-    compare: {
-      type: 'time',
-      offset: [],
+    function: {
+      time_compare: [],
     },
   };
   /** 自动刷新定时器 */
@@ -107,12 +100,19 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   get defaultPanelConfig() {
     return this.panelData?.targets[0] || {};
   }
+  /** 默认的图表query_configs */
+  get defaultPanelQuery() {
+    return this.defaultPanelConfig?.query_configs[0] || {};
+  }
+  /** 指标列表 */
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
 
   mounted() {
     this.refreshList = refreshList;
     this.$nextTick(() => {
       this.panelData = deepClone(this.panel);
-      this.initDefaultFilterConfig();
       this.handleGetCustomTsMetricGroups();
       this.getTableList();
       if (this.drillMainRef) {
@@ -137,47 +137,22 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   beforeDestroy() {
     this.timer && clearInterval(this.timer);
   }
-  /** 初始化过滤条件 */
-  initDefaultFilterConfig() {
-    const defaultConfig = this.panelData?.targets[0] || {};
-    if (!defaultConfig) {
-      return;
-    }
-    const { query_configs = [] } = defaultConfig;
-    if (query_configs.length > 0) {
-      const metric = query_configs[0]?.group_by;
-      this.filterConfig.group_by = metric;
-    }
-  }
+
   /** 获取当前可选的维度值 */
   handleGetCustomTsMetricGroups() {
-    this.loading = true;
-    getCustomTsMetricGroups({ time_series_group_id: 10 })
-      .then(res => {
-        this.metricGroups = res.metric_groups;
-        let metrics = [];
-        (this.panelData.targets || []).map(item => {
-          (item.query_configs || []).map(query => {
-            metrics = query.metrics.map(metrics => metrics.field);
-          });
-        });
-        /** 获取当前需要展示的维度值 */
-        this.metricGroups.map(item => {
-          item.metrics.map(ele => {
-            if (metrics.includes(ele.metric_name)) {
-              this.dimensionsList = ele.dimensions;
-            }
-          });
-        });
-        if (this.dimensionsList.length > 0) {
-          this.dimensionsList.map(ele =>
-            Object.assign(ele, { checked: this.filterConfig.group_by.includes(ele.name) })
-          );
-        }
-      })
-      .finally(() => {
-        this.loading = false;
+    let metrics = [];
+    (this.panelData.targets || []).map(item => {
+      (item.query_configs || []).map(query => {
+        metrics = query.metrics.map(metrics => metrics.field);
       });
+    });
+    const list = this.currentSelectedMetricList.find(item => metrics.includes(item.metric_name)) || { dimensions: [] };
+    this.dimensionsList = list?.dimensions || [];
+    if (this.dimensionsList.length > 0) {
+      this.dimensionsList.map(item => (item.checked = false));
+      this.dimensionsList[0].checked = true;
+      this.filterConfig.group_by = [this.dimensionsList[0].name];
+    }
   }
   /** 关闭按钮 */
   handleClose() {
@@ -187,7 +162,6 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   /** 更新维度 */
   handleUpdateDimensions(list: IDimensionItem[], activeKey: string[]) {
     this.dimensionsList = list;
-    this.dimensionsActiveKey = activeKey;
     this.filterConfig.group_by = activeKey;
     this.getTableList();
   }
@@ -198,9 +172,26 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         checked: activeKey.includes(dimension.name),
       })
     );
-    this.panelData.targets[0].query_configs[0].filter_dict.drill_filter = list;
-    this.panelData = deepClone(this.panelData);
     this.filterConfig.group_by = activeKey;
+    this.setPanelConfigAndRefresh('filter_dict.drill_filter', list);
+  }
+  /** 设置panel的值 */
+  setPanelConfigAndRefresh(keys, value) {
+    const keysArray = keys.split('.');
+    let current = this.panelData.targets[0].query_configs[0];
+
+    for (let i = 0; i < keysArray.length; i++) {
+      const key = keysArray[i];
+      if (i === keysArray.length - 1) {
+        current[key] = value;
+      } else {
+        if (!current[key]) {
+          current[key] = {};
+        }
+        current = current[key];
+      }
+    }
+    this.panelData = deepClone(this.panelData);
     this.getTableList();
   }
   /** 修改刷新间隔 */
@@ -225,7 +216,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
   }
   /** 修改时区 */
   handleTimezoneChange(timezone: string) {
-    this.timezone = timezone;
+    updateTimezone(timezone);
     this.getTableList();
   }
   /** 支持上下拖拽 */
@@ -234,42 +225,22 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     this.chartKey = random(8);
   }
   /** 修改时间对比 */
-  handleComparTypeChange(payload) {
-    this.filterConfig.compare = payload;
+  handleComparTypeChange(payload: IResultItem['compare']) {
+    this.panelData.targets[0].function = !payload.type ? {} : { time_compare: payload.offset };
+    this.filterConfig.function.time_compare = payload.offset;
+    this.panelData = deepClone(this.panelData);
     this.getTableList();
   }
   /** 获取表格数据 */
   getTableList() {
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    console.log(startTime, endTime, '===');
-    function convertData(data) {
-      // 创建一个新对象，用于存储转换后的数据
-      const result = {
-        function: {
-          time_compare: [],
-        },
-      };
-
-      // 将offset数组的元素添加到time_compare数组中
-      result.function.time_compare = [...data.offset];
-
-      return result;
-    }
-    // 调用转换方法
-    const output = convertData(this.filterConfig.compare);
-    // 输出转换后的结果
-    // console.log(output, 'output');
     this.tableLoading = true;
     const params = {
       start_time: startTime,
       end_time: endTime,
-      ...this.filterConfig,
-      /** 不对比 */
-      // function: {
-      //   time_compare: [],
-      // },
+      group_by: this.filterConfig.group_by,
+      function: this.filterConfig.function,
     };
-    // console.log('item', this.filterConfig.compare);
     getGraphDrillDown({ ...this.panelData.targets[0], ...params })
       .then(res => {
         this.tableList = (res || []).map(item => {
@@ -286,13 +257,21 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       });
   }
   /** 修改聚合维度 */
-  handleGroupByChange(item) {
-    this.filterConfig.group_by = item;
+  handleGroupByChange(item: IResultItem['group_by']) {
+    this.setPanelConfigAndRefresh(
+      'group_by',
+      item.map(item => item.field)
+    );
   }
   /** 修改限制 */
-  handleLimitChange(item) {
-    this.filterConfig.limit = item;
+  handleLimitChange(item: IResultItem['limit']) {
+    this.setPanelConfigAndRefresh('limit', item);
+    // this.filterConfig.limit = item;
   }
+  handleConditionChange(payload: { where: IResultItem['where']; common_conditions: IResultItem['common_conditions'] }) {
+    this.setPanelConfigAndRefresh('where', payload.where);
+  }
+
   render() {
     return (
       <div class='drill-analysis-view'>
@@ -305,11 +284,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         </div>
         <div class='drill-analysis-filter'>
           <div class='filter-left'>
-            <FilterConditions
-              commonDimensionList={this.commonDimensionList}
-              metricsList={this.metricsList}
-              // onChange={this.handleConditionChange}
-            />
+            <WhereCondition onChange={this.handleConditionChange} />
           </div>
           <div class='filter-right'>
             {/* 时间工具栏 */}
@@ -339,8 +314,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
         </div>
         <div class='compare-view'>
           <GroupBy
-            metricsList={this.metricsList}
-            value={this.filterConfig.group_by}
+            value={this.filterConfig.metrics}
             onChange={this.handleGroupByChange}
           />
           {this.filterConfig.group_by.length > 0 && (
@@ -350,7 +324,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             />
           )}
           <CompareType
-            value={this.filterConfig.compare}
+            value={this.filterConfig.function}
             onChange={this.handleComparTypeChange}
           />
         </div>

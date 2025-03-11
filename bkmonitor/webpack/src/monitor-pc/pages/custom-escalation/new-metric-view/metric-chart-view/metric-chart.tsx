@@ -26,6 +26,7 @@
 import { Component, Prop, Watch, InjectReactive } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
 import { CancelToken } from 'monitor-api/index';
@@ -374,67 +375,68 @@ class NewMetricChart extends CommonSimpleChart {
       const series = [];
       const metrics = [];
       let params = {
-        // start_time: start_time ? dayjs(start_time).unix() : startTime,
-        // end_time: end_time ? dayjs(end_time).unix() : endTime,
-        start_time: 1740567339,
-        end_time: 1740567839,
+        start_time: start_time ? dayjs(start_time).unix() : startTime,
+        end_time: end_time ? dayjs(end_time).unix() : endTime,
       };
       const promiseList = [];
       const variablesService = new VariablesService({
         ...this.viewOptions,
         ...this.customScopedVars,
       });
-      const list = this.panel.targets.map(item => {
-        (item?.query_configs || []).map(config => {
-          config.metrics.map(metric => (metric.method = this.method));
-        });
-        const newParams = {
-          ...variablesService.transformVariables(item, {
-            ...this.customScopedVars,
-          }),
-          ...params,
-        };
-        const primaryKey = item?.primary_key;
-        const paramsArr = [];
-        if (primaryKey) {
-          paramsArr.push(primaryKey);
-        }
-        paramsArr.push({
-          ...newParams,
-          unify_query_param: {
-            ...newParams.unify_query_param,
-          },
-        });
-        return graphUnifyQuery(...paramsArr, {
-          cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
-          needMessage: false,
-        })
-          .then(res => {
-            this.$emit('seriesData', res);
-            res.metrics && metrics.push(...res.metrics);
-            res.series &&
-              series.push(
-                ...res.series.map(set => {
-                  // const name = this.handleSeriesName(item, set) || set.target;
-                  const name = set.target;
-                  this.legendSorts.push({
-                    name,
-                    timeShift: '1d',
-                  });
-                  return {
-                    ...set,
-                    name,
-                  };
-                })
-              );
-            this.clearErrorMsg();
-            return true;
-          })
-          .catch(error => {
-            this.handleErrorMsgChange(error.msg || error.message);
+
+      const timeShiftList = ['', ...(this.filterOption?.compare?.offset || [])];
+      for (const timeShift of timeShiftList) {
+        const list = this.panel.targets.map(item => {
+          (item?.query_configs || []).map(config => {
+            config.metrics.map(metric => (metric.method = this.method));
           });
-      });
-      promiseList.push(...list);
+          const newParams = {
+            ...variablesService.transformVariables(item, {
+              ...this.customScopedVars,
+            }),
+            ...params,
+          };
+          const primaryKey = item?.primary_key;
+          const paramsArr = [];
+          if (primaryKey) {
+            paramsArr.push(primaryKey);
+          }
+          paramsArr.push({
+            ...newParams,
+            unify_query_param: {
+              ...newParams.unify_query_param,
+            },
+          });
+          return graphUnifyQuery(...paramsArr, {
+            cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+            needMessage: false,
+          })
+            .then(res => {
+              this.$emit('seriesData', res);
+              res.metrics && metrics.push(...res.metrics);
+              res.series &&
+                series.push(
+                  ...res.series.map(set => {
+                    const name = set.target;
+                    this.legendSorts.push({
+                      name,
+                      timeShift,
+                    });
+                    return {
+                      ...set,
+                      name,
+                    };
+                  })
+                );
+              this.clearErrorMsg();
+              return true;
+            })
+            .catch(error => {
+              this.handleErrorMsgChange(error.msg || error.message);
+            });
+        });
+        promiseList.push(...list);
+      }
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
@@ -588,23 +590,35 @@ class NewMetricChart extends CommonSimpleChart {
       })
       .catch(() => {});
   }
+  // 生成随机的dashboardId
+  generateRandomDashboardId() {
+    return Math.random().toString(36).substr(2, 9);
+  }
   getCopyPanel() {
+    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
     let copyPanel = JSON.parse(JSON.stringify(this.panel));
-    copyPanel.dashboardId = random(8);
-    copyPanel.subTitle = this.panel.sub_title;
-    copyPanel.type = 'graph';
-    copyPanel.id = this.panel.sub_title;
-    const targets = copyPanel.targets.map(item => {
-      return {
-        ...item,
-        api: 'grafana.graphUnifyQuery',
-        data: {
-          expression: item.expression,
-          query_configs: item.query_configs,
-        },
-      };
-    });
-    copyPanel.targets = targets;
+
+    const targets = copyPanel.targets.map(item => ({
+      ...item,
+      api: 'grafana.graphUnifyQuery',
+      data: {
+        expression: item.expression,
+        query_configs: item.query_configs,
+      },
+    }));
+
+    copyPanel = {
+      ...copyPanel,
+      ...{
+        dashboardId: this.generateRandomDashboardId(),
+        subTitle: this.panel.sub_title,
+        type: 'graph',
+        id: this.panel.sub_title,
+        end_time: endTime,
+        start_time: startTime,
+        targets,
+      },
+    };
     return copyPanel;
   }
   /** 工具栏各个icon的操作 */

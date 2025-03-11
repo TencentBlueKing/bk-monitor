@@ -34,6 +34,7 @@ import DrillAnalysisView from './drill-analysis-view';
 import NewMetricChart from './metric-chart';
 
 import type { IColumnItem, IDataItem, IMetricAnalysisConfig } from '../type';
+import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IPanelModel, ILegendItem } from 'monitor-ui/chart-plugins/typings';
 
 import './layout-chart-table.scss';
@@ -68,6 +69,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   @Prop({ default: 500 }) minHeight: number;
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
+  @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   /* 主动刷新图表 */
   chartKey = random(8);
   divHeight = 0;
@@ -95,14 +97,14 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
 
   /** 对比工具栏数据 */
   get compareValue() {
-    const { compare, start_time, end_time } = this.filterOption;
+    const { compare } = this.filterOption;
     return {
       compare: {
         type: compare.type,
         value: compare.offset,
       },
       tools: {
-        timeRange: [start_time * 1000, end_time * 1000],
+        timeRange: this.timeRange,
         searchValue: [],
       },
     };

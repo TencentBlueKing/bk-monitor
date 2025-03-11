@@ -134,6 +134,8 @@ export const getCustomTsDimensionValues = request('POST', 'rest/v2/scene_view/ge
 export const getCustomTsGraphConfig = request('POST', 'rest/v2/scene_view/get_custom_ts_graph_config/');
 export const getCustomMetricTargetList = request('POST', 'rest/v2/scene_view/get_custom_metric_target_list/');
 
+export const getGraphDrillDown = request('POST', 'rest/v2/scene_view/graph_drill_down/');
+
 export default {
   getScene,
   getSceneView,
