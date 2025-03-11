@@ -1,13 +1,13 @@
 <template>
   <bk-popover
     ref="fieldsSettingPopperRef"
+    class="common-filter-popper"
+    :on-show="handlePopoverShow"
+    :tippy-options="tippyOptions"
     animation="slide-toggle"
     placement="bottom"
     theme="light bk-select-dropdown"
     trigger="click"
-    class="common-filter-popper"
-    :on-show="handlePopoverShow"
-    :tippy-options="tippyOptions"
   >
     <slot name="trigger">
       <div class="operation-icon">
@@ -27,13 +27,13 @@
                 >{{ $t('全部添加') }}</span
               >
             </div>
-            <div style=" height: 40px;padding: 4px 8px">
+            <div class="common-filter-search">
               <bk-input
+                v-model="searchKeyword"
+                :clearable="true"
+                :placeholder="$t('请输入关键字')"
                 behavior="simplicity"
                 left-icon="bk-icon icon-search"
-                v-model="searchKeyword"
-                :placeholder="$t('请输入关键字')"
-                :clearable="true"
               ></bk-input>
             </div>
             <ul class="select-list">
@@ -41,9 +41,9 @@
                 v-for="item in shadowTotal"
                 style="cursor: pointer"
                 class="select-item"
+                v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
                 :key="item.field_name"
                 @click="addField(item)"
-                v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
               >
                 <span
                   :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
@@ -62,10 +62,10 @@
           <div class="visible-fields-list">
             <div class="title">
               <span>{{ $t('常驻筛选') + '(' + shadowVisible.length + ')' }}</span>
-              <span
+              <!-- <span
                 class="icon bklog-icon bklog-info-fill"
                 v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
-              ></span>
+              ></span> -->
               <span
                 class="clear-all text-action"
                 @click="deleteAllField"
@@ -81,10 +81,10 @@
                 <li
                   v-for="(item, index) in shadowVisible"
                   class="select-item"
-                  :key="item.field_name"
                   v-bk-overflow-tips="{ content: `${item.query_alias || item.field_name}(${item.field_name})` }"
+                  :key="item.field_name"
                 >
-                  <span class="icon bklog-icon bklog-drag-dots"></span>
+                  <span class="icon bklog-icon bklog-ketuodong"></span>
                   <span
                     :style="{ backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type) }"
                     :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
@@ -105,12 +105,12 @@
       <div class="bklog-common-field-filter fields-button-container">
         <bk-button
           class="mr10"
-          :theme="'primary'"
           :loading="isLoading"
+          :theme="'primary'"
           type="submit"
           @click="confirmModifyFields"
         >
-          {{ $t('保存') }}
+          {{ $t('确定') }}
         </bk-button>
         <bk-button
           :theme="'default'"
@@ -125,12 +125,13 @@
 </template>
 <script setup>
   import { ref, computed, watch, set } from 'vue';
-  import useStore from '@/hooks/use-store';
-  import useLocale from '@/hooks/use-locale';
 
-  import VueDraggable from 'vuedraggable';
-  import { excludesFields } from './const.common';
   import { getRegExp } from '@/common/util';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
+  import VueDraggable from 'vuedraggable';
+
+  import { excludesFields } from './const.common';
 
   // 获取 store
   const store = useStore();
@@ -170,7 +171,7 @@
   const dragOptions = ref({
     animation: 150,
     tag: 'ul',
-    handle: '.bklog-drag-dots',
+    handle: '.bklog-ketuodong',
     'ghost-class': 'sortable-ghost-class',
   });
 
@@ -260,8 +261,8 @@
       .total-fields-list,
       .visible-fields-list,
       .sort-fields-list {
-        width: 350px;
-        height: 340px;
+        width: 320px;
+        height: 344px;
         border: 1px solid #dcdee5;
         border-bottom: none;
 
@@ -275,8 +276,9 @@
           position: relative;
           display: flex;
           align-items: center;
-          height: 41px;
+          height: 44px;
           padding: 0 16px;
+          font-weight: 700;
           line-height: 40px;
           color: #313238;
           background: #fafbfd;
@@ -295,12 +297,25 @@
             position: absolute;
             top: 0;
             right: 16px;
+            font-weight: normal;
+          }
+        }
+
+        .common-filter-search {
+          height: 32px;
+          padding: 0 8px;
+          margin-top: 5px;
+
+          .bk-form-control {
+            .left-icon {
+              color: #979ba5;
+            }
           }
         }
 
         .select-list {
           height: 255px;
-          padding: 4px 0;
+          padding: 8px 0;
           overflow: auto;
 
           @include scroller;
@@ -310,7 +325,7 @@
             align-items: center;
             width: 100%;
             height: 32px;
-            padding: 0 12px;
+            padding: 0 16px;
             overflow: hidden;
             line-height: 32px;
             text-overflow: ellipsis;
@@ -321,10 +336,10 @@
               display: inline-flex;
             }
 
-            .bklog-drag-dots {
+            .bklog-ketuodong {
               width: 18px;
               font-size: 14px;
-              color: #979ba5;
+              color: #4d4f56;
               text-align: left;
               cursor: move;
             }
@@ -390,7 +405,7 @@
       }
 
       .visible-fields-list {
-        width: 380px;
+        width: 320px;
         border-left: none;
       }
 
@@ -483,7 +498,6 @@
         }
 
         .delete {
-
           position: absolute;
           top: 8px;
           right: 12px;
@@ -492,7 +506,7 @@
           color: #c4c6cc;
           text-align: right;
           cursor: pointer;
-          }
+        }
 
         &:hover .delete {
           display: block;
@@ -508,7 +522,6 @@
         background-color: #dcdee5;
 
         .bklog-double-arrow {
-
           position: absolute;
 
           display: flex;
@@ -539,5 +552,4 @@
       border-radius: 0 0 2px 2px;
     }
   }
-
 </style>
