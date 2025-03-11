@@ -1,12 +1,37 @@
 {
   "id": "event",
-  "name": "事件",
-  "show_panel_count": false,
   "mode": "custom",
   "type": "slot",
-  "panel_count": 3,
-  "params": {
-    "apm_app_name": "${app_name}",
-    "app_service_name": "${service_name}"
-  }
+  "name": "事件",
+  "variables": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "slot",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": []
+    }
+  ],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "slot",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": []
+    }
+  ],
+  "order": [],
+  "options": {}
 }
