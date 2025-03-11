@@ -107,7 +107,6 @@
       .favorite-list {
         margin-bottom: 8px;
         :deep(.bk-exception) {
-          margin-top: 16px;
           .exception-image {
             width: 110px;
             height: 50px;

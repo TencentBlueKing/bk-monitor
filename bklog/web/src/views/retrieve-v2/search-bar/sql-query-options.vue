@@ -6,8 +6,8 @@
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
   import useStore from '@/hooks/use-store';
-  import imgEnterKey from '@/images/icons/enter-key.svg';
-  import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  // import imgEnterKey from '@/images/icons/enter-key.svg';
+  // import imgUpDownKey from '@/images/icons/up-down-key.svg';
   import jsCookie from 'js-cookie';
   // @ts-ignore
   import { debounce } from 'lodash';
@@ -25,7 +25,7 @@
   });
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
-  const svgImg = ref({ imgUpDownKey, imgEnterKey });
+  // const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { $t } = useLocale();
@@ -360,9 +360,9 @@
     }
 
     const dropdownList = dropdownEl.querySelectorAll('.list-item');
+    const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
       e.preventDefault();
-      const hasHover = dropdownEl.querySelector('.list-item.is-hover');
       if (hasHover && !activeIndex.value) {
         activeIndex.value = 0;
       }
@@ -378,6 +378,10 @@
     }
 
     if (code === 'ArrowUp') {
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
       if (activeIndex.value) {
         activeIndex.value -= 1;
       } else {
@@ -386,6 +390,10 @@
     }
 
     if (code === 'ArrowDown') {
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
       if (activeIndex.value === null || activeIndex.value === dropdownList.length - 1) {
         activeIndex.value = 0;
       } else {
@@ -421,9 +429,9 @@
 
   // 查询语法按钮部分
   const isRetractShow = ref(true);
-  const handleRetract = () => {
-    isRetractShow.value = !isRetractShow.value;
-  };
+  // const handleRetract = () => {
+  //   isRetractShow.value = !isRetractShow.value;
+  // };
   const matchList = ref([
     {
       name: $t('精确匹配(支持AND、OR):'),
