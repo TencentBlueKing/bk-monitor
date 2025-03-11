@@ -574,13 +574,14 @@ class EtlStorage(object):
 
         # 别名配置
         query_alias_settings = []
-        for item in alias_settings:
-            field_alias = {
-                "field_name": item["field_name"],
-                "query_alias": item["query_alias"],
-                "path_type": item["path_type"],
-            }
-            query_alias_settings.append(field_alias)
+        if alias_settings:
+            for item in alias_settings:
+                field_alias = {
+                    "field_name": item["field_name"],
+                    "query_alias": item["query_alias"],
+                    "path_type": item["path_type"],
+                }
+                query_alias_settings.append(field_alias)
         params.update({"query_alias_settings": query_alias_settings})
 
         # 时间默认为维度
