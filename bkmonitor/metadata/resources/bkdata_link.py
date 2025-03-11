@@ -470,6 +470,6 @@ class IntelligentDiagnosisMetadataResource(Resource):
         logger.info("agents: try to diagnose bk_data_id->[%s]", bk_data_id)
         try:
             report = MetadataDiagnosisAgent.diagnose(bk_data_id=int(bk_data_id))
-            return report
+            return json.dumps(report, ensure_ascii=False)  # 适配中文返回
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("metadata diagnose error, bk_data_id->[%s], error->[%s]", bk_data_id, e)

@@ -296,6 +296,8 @@ LONG_TASK_CRONTAB = [
     ("metadata.task.custom_report.check_custom_event_group_sleep", "0 4 * * *", "global"),
     # ES 周期性任务 从report_cron 队列迁回 LONG_TASK_CRONTAB (周期调整 10-> 15min)
     ("metadata.task.config_refresh.refresh_es_storage", "*/15 * * * *", "global"),
+    # BkBase数据兜底任务,2h一次
+    ("metadata.task.bkbase.sync_bkbase_metadata_all", "0 */2 * * *", "global"),
     # 禁用采集项索引清理任务，30min
     ("metadata.task.config_refresh.manage_disable_es_storage", "*/30 * * * *", "global"),
     # 新版链路状态自动兜底刷新,15min 一次

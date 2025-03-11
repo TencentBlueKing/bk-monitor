@@ -211,9 +211,7 @@ export default defineComponent({
     };
 
     const getSegmentRenderType = () => {
-      return 'text';
-
-      if (wordList.length < 10) {
+      if (wordList?.length < 10) {
         return 'text';
       }
 
@@ -313,6 +311,12 @@ export default defineComponent({
           computeWordListPosition(wordList).then(list => {
             setHighlightWords(list);
           });
+        }
+
+        if (getSegmentRenderType() === 'text') {
+          setWordList();
+          resetMounted();
+          setMounted();
         }
       }
     });
