@@ -163,7 +163,7 @@ class NewMetricChart extends CommonSimpleChart {
     };
     this.getPanelData();
   }
-  removeTrailingZeros(num) {
+  removeTrailingZeros(num: number | string) {
     if (num && num !== '0') {
       return num
         .toString()

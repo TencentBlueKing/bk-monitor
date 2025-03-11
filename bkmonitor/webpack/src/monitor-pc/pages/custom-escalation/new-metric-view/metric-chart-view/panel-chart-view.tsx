@@ -35,6 +35,7 @@ import LayoutChartTable from './layout-chart-table';
 import type { IMetricAnalysisConfig } from '../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
+import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './panel-chart-view.scss';
 
@@ -123,7 +124,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       });
   }
   /** 渲染panel的内容 */
-  renderPanelMain(item, chart, ind: number, chartInd: number) {
+  renderPanelMain(chart: IPanelModel, ind: number, chartInd: number) {
     return (
       <div class={`chart-view-item column-${this.columnNum}`}>
         <LayoutChartTable
@@ -199,7 +200,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
                   class='chart-view-collapse-item-content'
                   slot='content'
                 >
-                  {item.panels.map((chart, chartInd) => this.renderPanelMain(item, chart, ind, chartInd))}
+                  {item.panels.map((chart, chartInd) => this.renderPanelMain(chart, ind, chartInd))}
                 </div>
               </bk-collapse-item>
             ))}

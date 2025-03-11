@@ -44,7 +44,7 @@ import NewMetricChart from './metric-chart';
 import { refreshList } from './utils';
 
 import type { IDimensionItem, IRefreshItem, IResultItem } from '../type';
-import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './drill-analysis-view.scss';
 
@@ -58,7 +58,7 @@ interface IDrillAnalysisViewEvents {
 @Component
 export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDrillAnalysisViewEvents> {
   // 图表panel实例
-  @Prop({ default: () => ({}) }) panel: PanelModel;
+  @Prop({ default: () => ({}) }) panel: IPanelModel;
   @Ref('drillMain') drillMainRef: HTMLDivElement;
   @ProvideReactive('timeRange') timeRange: TimeRangeType = ['now-1h', 'now'];
   panelData = {
@@ -176,7 +176,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
     this.setPanelConfigAndRefresh('filter_dict.drill_filter', list);
   }
   /** 设置panel的值 */
-  setPanelConfigAndRefresh(keys, value) {
+  setPanelConfigAndRefresh(keys: string, value) {
     const keysArray = keys.split('.');
     let current = this.panelData.targets[0].query_configs[0];
 

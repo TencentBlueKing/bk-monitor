@@ -149,16 +149,16 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     );
   }
   //  支持上下拖拽
-  handleResizing(height) {
+  handleResizing(height: number) {
     this.drag.height = height;
     this.chartKey = random(8);
   }
-  startDragging(e) {
+  startDragging(e: MouseEvent) {
     this.isDragging = true;
     this.mouseDownY = e.clientY;
     this.offset = this.parentHeight;
   }
-  handleMouseMove(e) {
+  handleMouseMove(e: MouseEvent) {
     if (!this.isDragging) return;
     const newHeight = e.clientY - this.mouseDownY + this.offset;
     if (newHeight > 0 && newHeight > this.minHeight) {
@@ -178,7 +178,6 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       ...chart,
       targets: [chart.targets[0]],
     };
-    console.log('维度下钻', this.currentChart, chart);
   }
   handleLegendData(list: ILegendItem[], loading: boolean) {
     this.tableList = list;
