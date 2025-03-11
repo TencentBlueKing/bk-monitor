@@ -1582,7 +1582,7 @@ const store = new Vuex.Store({
           }
           if (searchMode === 'sql') {
             if (targetField?.is_virtual_obj_node) { 
-              newSearchValue = [value];
+              newSearchValue = `\"${value[0]}\"`;
             } else{
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }
