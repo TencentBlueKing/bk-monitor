@@ -120,7 +120,7 @@ export default class TextUnit extends CommonSimpleChart {
           isInstant={this.panel.instant}
           showMore={false}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         <div class='text-wrapper'>
           {!this.empty && this.series?.value ? (

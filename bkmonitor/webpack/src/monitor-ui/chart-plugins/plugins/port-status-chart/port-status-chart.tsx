@@ -125,7 +125,7 @@ class PortStatusChart extends CommonSimpleChart {
           isInstant={this.panel.instant}
           showMore={false}
           title={this.panel.title}
-          onUpdateDragging={() => this.panel.updateDraging(false)}
+          onUpdateDragging={() => this.panel.updateDragging(false)}
         />
         {!this.empty && this.series?.length ? (
           this.series.map(item => (

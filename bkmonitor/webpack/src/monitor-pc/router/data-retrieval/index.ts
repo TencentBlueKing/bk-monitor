@@ -33,7 +33,8 @@ const IndexRetrievalNew = () =>
   import(/* webpackChunkName: 'IndexRetrievalNew'*/ '../../pages/data-retrieval/index-retrieval');
 const EventRetrievalNew = () =>
   import(/* webpackChunkName: 'EventRetrievalNew'*/ '../../pages/data-retrieval/event-retrieval');
-const EventExplore = () => import(/* webpackChunkName: 'EventRetrievalNew'*/ '../../pages/event-explore/event-explore');
+const EventExplore = () =>
+  import(/* webpackChunkName: 'EventRetrievalNew'*/ '../../pages/event-explore/monitor-event-explore');
 const LogRetrievalNew = () =>
   import(/* webpackChunkName: 'LogRetrievalNew'*/ '../../pages/data-retrieval/log-retrieval');
 const TraceRetrieval = () =>

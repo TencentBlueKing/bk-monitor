@@ -739,7 +739,7 @@ export class PanelModel implements IPanelModel {
     this.collapsed = v;
     this.panels?.length && this.panels.forEach(item => item?.updateShow?.(v));
   }
-  public updateDraging(v: boolean) {
+  public updateDragging(v: boolean) {
     this.draging = v;
   }
   public updateGridPos(v: IGridPos) {
