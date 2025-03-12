@@ -19,6 +19,7 @@ from django.http import HttpResponseForbidden
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.models import logger
+from constants.common import DEFAULT_TENANT_ID
 
 
 class NoCsrfSessionAuthentication(SessionAuthentication):
@@ -27,54 +28,70 @@ class NoCsrfSessionAuthentication(SessionAuthentication):
 
 
 class ApiTokenAuthBackend(ModelBackend):
-    def authenticate(self, request, username=None, **kwargs):
+    def authenticate(self, request, username: str, tenant_id: str, **kwargs):
         if not username:
             return None
         try:
             user_model = get_user_model()
             user, _ = user_model.objects.get_or_create(username=username, defaults={"nickname": username})
+            # 如果用户没有租户id，则设置租户id
+            if not user.tenant_id:
+                user.tenant_id = tenant_id
+                user.save()
         except Exception:
             return None
         return user
 
 
 class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
-    def process_view(self, request, view, *args, **kwargs):
+    def api_token_auth(self, request, view, *args, **kwargs):
         from bkmonitor.models import ApiAuthToken
 
+        token = request.META["HTTP_AUTHORIZATION"][7:]
+        try:
+            record = ApiAuthToken.objects.get(token=token)
+        except ApiAuthToken.DoesNotExist:
+            record = None
+
+        if not record:
+            return HttpResponseForbidden("not valid token")
+
+        if record.is_expired():
+            return HttpResponseForbidden("token has expired")
+
+        if not record.is_allowed_view(view):
+            return HttpResponseForbidden("api is not allowed")
+
+        # TODO: 检查命名空间与租户id是否匹配
+        if not record.is_allowed_namespace(f"biz#{request.biz_id}"):
+            return HttpResponseForbidden(
+                f"namespace biz#{request.biz_id} is not allowed in [{','.join(record.namespaces)}]"
+            )
+
+        # grafana、as_code场景权限模式：替换请求用户为令牌创建者
+        if record.type.lower() in ["as_code", "grafana"]:
+            username = "system" if record.type.lower() == "as_code" else "admin"
+            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+            auth.login(request, user)
+            request.skip_check = True
+        else:
+            # 观测场景、告警事件场景权限模式：保留原用户信息,判定action是否符合token鉴权场景
+            request.token = token
+        return
+
+    def process_view(self, request, view, *args, **kwargs):
+        # 如果请求头中携带了token，则进行token鉴权
         if "HTTP_AUTHORIZATION" in request.META and request.META["HTTP_AUTHORIZATION"].startswith("Bearer "):
-            token = request.META["HTTP_AUTHORIZATION"][7:]
-            try:
-                record = ApiAuthToken.objects.get(token=token)
-            except ApiAuthToken.DoesNotExist:
-                record = None
+            return self.api_token_auth(request, view, *args, **kwargs)
+        else:
+            result = super(ApiTokenAuthenticationMiddleware, self).process_view(request, view, *args, **kwargs)
 
-            if not record:
-                return HttpResponseForbidden("not valid token")
-
-            if record.is_expired():
-                return HttpResponseForbidden("token has expired")
-
-            if not record.is_allowed_view(view):
-                return HttpResponseForbidden("api is not allowed")
-
-            if not record.is_allowed_namespace(f"biz#{request.biz_id}"):
-                return HttpResponseForbidden(
-                    f"namespace biz#{request.biz_id} is not allowed in [{','.join(record.namespaces)}]"
-                )
-
-            # grafana、as_code场景权限模式：替换请求用户为令牌创建者
-            if record.type.lower() in ["as_code", "grafana"]:
-                username = "system" if record.type.lower() == "as_code" else "admin"
-                user = auth.authenticate(username=username)
-                auth.login(request, user)
-                request.skip_check = True
-            else:
-                # 观测场景、告警事件场景权限模式：保留原用户信息,判定action是否符合token鉴权场景
-                request.token = token
-            return
-
-        return super(ApiTokenAuthenticationMiddleware, self).process_view(request, view, *args, **kwargs)
+            # 在不开启租户的情况下，确保user.tenant_id不为空，确保后续处理逻辑的统一性
+            if request.user:
+                if not request.user.tenant_id:
+                    request.user.tenant_id = DEFAULT_TENANT_ID
+                    request.user.save()
+            return result
 
 
 class SettingsExternalPublicKeyProvider(PublicKeyProvider):
