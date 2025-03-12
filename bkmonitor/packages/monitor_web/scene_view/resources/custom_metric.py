@@ -188,7 +188,7 @@ class GetCustomTsGraphConfig(Resource):
                     expression = serializers.CharField(label="表达式")
                     alias = serializers.CharField(label="别名", allow_blank=True)
                     query_configs = serializers.ListField(label="查询配置")
-                    function = serializers.DictField(label="图表函数", allow_null=True, default=None)
+                    function = serializers.DictField(label="图表函数", allow_null=True, default={})
 
                 targets = TargetSerializer(label="目标", many=True)
 
@@ -279,7 +279,13 @@ class GetCustomTsGraphConfig(Resource):
                         "title": metric.description or metric.name,
                         "sub_title": f"custom:{table.data_label}:{metric.name}",
                         "targets": [
-                            {"expression": "a", "alias": "", "query_configs": [query_config], "function": function}
+                            {
+                                "expression": "a",
+                                "alias": "",
+                                "query_configs": [query_config],
+                                "function": function,
+                                "metric": {"name": metric.name, "alias": metric.description},
+                            }
                         ],
                     }
                 )
@@ -298,7 +304,7 @@ class GetCustomTsGraphConfig(Resource):
 
         # 按照拆图维度分组
         split_dimensions = {d["field"] for d in params.get("group_by", []) if d["split"]}
-        series_groups = defaultdict(dict)
+        series_groups: dict[tuple[tuple[str, str]], dict[tuple[str, str], list[CustomTSField]]] = defaultdict(dict)
         for series_tuple, metric_list in series_metrics.items():
             # 计算拆图维度
             group_series = tuple((k, v) for k, v in series_tuple if k in split_dimensions)
@@ -356,8 +362,14 @@ class GetCustomTsGraphConfig(Resource):
                             },
                         },
                     }
-                    targets.append({"expression": "a", "alias": "", "query_configs": [query_config]})
-
+                    targets.append(
+                        {
+                            "expression": "a",
+                            "alias": "",
+                            "query_configs": [query_config],
+                            "metric": {"name": metric.name, "alias": metric.description},
+                        }
+                    )
                 # 计算图表标题
                 panel_title = "-"
                 if series_tuple:

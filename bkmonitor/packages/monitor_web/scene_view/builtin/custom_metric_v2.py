@@ -51,15 +51,19 @@ class CustomMetricV2BuiltinProcessor(BuiltinProcessor):
         """
         创建或更新视图
         """
+        update_params = {
+            "name": view_config["name"],
+            "mode": SceneViewModel.SceneViewType.auto.value,
+        }
+
+        if "options" in view_config:
+            update_params["options"] = view_config["options"]
+
         view, _ = SceneViewModel.objects.update_or_create(
             bk_biz_id=bk_biz_id,
             scene_id=scene_id,
             type=view_type,
             id=view_id,
-            defaults={
-                "name": view_config["name"],
-                "mode": SceneViewModel.SceneViewType.auto.value,
-                "options": view_config["options"],
-            },
+            defaults=update_params,
         )
         return view

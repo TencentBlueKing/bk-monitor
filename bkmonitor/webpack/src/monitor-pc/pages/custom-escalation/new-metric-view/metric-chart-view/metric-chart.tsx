@@ -337,15 +337,13 @@ class NewMetricChart extends CommonSimpleChart {
   }
   handleSeriesName(item: DataQuery, set) {
     const { dimensions = {}, dimensions_translation = {} } = set;
-    if (!item.alias) {
+    if (!item.alias)
       return set.time_offset
         ? handleTimeOffset(set.time_offset)
         : Object.values({
             ...dimensions,
             ...dimensions_translation,
           }).join('|');
-    }
-
     const aliasFix = Object.values(dimensions).join('|');
     if (!aliasFix.length) return item.alias;
     return `${item.alias}-${aliasFix}`;
