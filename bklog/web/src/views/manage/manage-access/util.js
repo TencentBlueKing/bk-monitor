@@ -68,11 +68,10 @@ export function requestStorageUsage(that, arr, type = false) {
   }
 
   if (!index_set_ids.length) {
-    that.isTableLoading = false;
-    return;
+    return Promise.resolve([]);
   }
-  that.isTableLoading = true;
-  that.$http
+
+  return that.$http
     .request('collect/getStorageUsage', {
       data: {
         bk_biz_id: that.bkBizId,
@@ -81,19 +80,9 @@ export function requestStorageUsage(that, arr, type = false) {
     })
     .then(resp => {
       const { data } = resp;
-      arr.forEach(item => {
-        ['daily_usage', 'total_usage'].forEach(key => {
-          const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
-          if (matchedItem?.[key] !== undefined) {
-            that.$set(item, key, matchedItem[key]);
-          }
-        });
-      });
+      return data;
     })
     .catch(error => {
-      console.log(error);
-    })
-    .finally(() => {
-      that.isTableLoading = false;
+      throw error;
     });
 }

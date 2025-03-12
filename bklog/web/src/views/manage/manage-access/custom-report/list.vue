@@ -406,7 +406,24 @@
       collectList:{
         handler(val) {
           if (val) {
+            this.isTableLoading = true;
             requestStorageUsage(this, val, true)
+              .then((data) => {
+                val.forEach(item => {
+                  ['daily_usage', 'total_usage'].forEach(key => {
+                    const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
+                    if (matchedItem?.[key] !== undefined) {
+                      this.$set(item, key, matchedItem[key]);
+                    }
+                  });
+                });
+              })
+              .catch((error) => {
+                console.error('Error loading data:', error);
+              })
+              .finally(() => {
+                this.isTableLoading = false;
+              });
           }
         },
       }

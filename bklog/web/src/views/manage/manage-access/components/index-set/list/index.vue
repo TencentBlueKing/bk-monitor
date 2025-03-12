@@ -337,7 +337,7 @@
               is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
             }));
             this.pagination.count = res.data.total;
-            requestStorageUsage(this, this.indexSetList)
+            this.loadData()
           })
           .catch(() => {
             this.emptyType = '500';
@@ -351,6 +351,26 @@
                 },
               });
             this.isInit = false;
+          });
+      },
+      loadData() {
+        this.isTableLoading = true;
+        requestStorageUsage(this, this.indexSetList)
+          .then((data) => {
+            this.indexSetList.forEach(item => {
+              ['daily_usage', 'total_usage'].forEach(key => {
+                const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
+                if (matchedItem?.[key] !== undefined) {
+                  this.$set(item, key, matchedItem[key]);
+                }
+              });
+            });
+          })
+          .catch((error) => {
+            console.error('Error loading data:', error);
+          })
+          .finally(() => {
+            this.isTableLoading = false;
           });
       },
       /**
