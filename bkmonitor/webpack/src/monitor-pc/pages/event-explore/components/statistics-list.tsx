@@ -171,6 +171,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   handleSliderShowChange(show: boolean) {
     this.sliderShow = show;
     this.sliderShowChange();
+    if (!show) {
+      this.sliderDimensionList = { distinct_count: 0, field: '', list: [] };
+    }
   }
 
   async handleDownload() {

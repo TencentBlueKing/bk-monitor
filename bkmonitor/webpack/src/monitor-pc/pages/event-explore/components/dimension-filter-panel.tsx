@@ -32,7 +32,7 @@ import { APIType, getEventTopK } from '../api-utils';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
-import type { EmptyStatusType } from '../../../components/empty-status/types';
+import type { EmptyStatusOperationType, EmptyStatusType } from '../../../components/empty-status/types';
 import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 import type { IDimensionField } from '../typing';
 
@@ -91,6 +91,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
 
   /** 关键字搜索 */
   handleSearch(keyword: string) {
+    console.log(keyword);
     this.searchVal = keyword;
     if (!this.searchVal) {
       this.searchResultList = this.list;
@@ -177,6 +178,13 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
     );
   }
 
+  emptyOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.searchVal = '';
+      this.handleSearch('');
+    }
+  }
+
   render() {
     if (this.listLoading) return this.renderSkeleton();
 
@@ -236,8 +244,8 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
           </div>
         ) : (
           <EmptyStatus
-            showOperation={false}
             type={this.emptyStatus}
+            onOperation={this.emptyOperation}
           />
         )}
 
