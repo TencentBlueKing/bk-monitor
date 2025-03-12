@@ -1,0 +1,116 @@
+.panel-metric-chart-view {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  .panel-chart-view-empty {
+    height: 100%;
+    padding-top: 18%;
+  }
+  .chart-view-collapse {
+    padding: 12px;
+    width: 100%;
+    .item-icon {
+      color: #6498b3;
+      font-size: 12px;
+      margin-right: 6px;
+    }
+    .chart-view-collapse-item {
+      margin-bottom: 10px;
+    }
+    .is-hide-header {
+      .bk-collapse-item-header {
+        display: none;
+      }
+    }
+    .bk-collapse-item-content {
+      padding-top: 12px;
+    }
+    .bk-collapse-item-header {
+      height: 24px;
+      line-height: 24px;
+      background: #dde4eb;
+      font-size: 12px;
+      color: #313238;
+    }
+    .chart-view-collapse-item-content {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      .chart-view-item {
+        display: inline-block;
+        width: 100%;
+        background: #ffffff;
+        box-shadow: 0 2px 4px 0 #1919290d;
+        border-radius: 2px;
+        margin-bottom: 16px;
+        .indicator-table-view {
+          width: 100%;
+          height: 40%;
+          margin-top: 10px;
+        }
+        .indicator-chart-view {
+          width: 100%;
+          height: 60%;
+        }
+        &.column-2 {
+          width: calc(50% - 6px);
+          margin-right: 12px;
+          &:nth-child(2n) {
+            margin-right: 0;
+          }
+        }
+        &.column-3 {
+          width: calc(33.33% - 8px);
+          margin-right: 12px;
+          &:nth-child(3n) {
+            margin-right: 0;
+          }
+        }
+      }
+      .single-item {
+        width: 100%;
+        height: 600px;
+        padding: 12px;
+      }
+    }
+  }
+  .view-skeleton-loading {
+    width: 100%;
+    height: 100%;
+    // background: #fff;
+    padding: 12px;
+    .skeleton-element {
+      margin-bottom: 13px;
+      height: 32px;
+      border-radius: 2px;
+      &::after {
+        background: linear-gradient(90deg, rgba(0, 0, 0, 0.03) 25%, rgba(0, 0, 0, 0.06) 37%, rgba(0, 0, 0, 0.03) 63%);
+      }
+    }
+    .skeleton-element-row {
+      display: flex;
+      height: 260px;
+      margin: 20px 0 30px;
+      .skeleton-element-row-item {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        width: 33%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.03);
+        box-shadow: 0 2px 6px 0 #19192914;
+        border-radius: 2px;
+        margin-right: 24px;
+        &:last-child {
+          margin-right: 0;
+        }
+        .skeleton-icon {
+          font-size: 54px;
+          font-weight: 900;
+          color: #dfe0e5;
+        }
+      }
+    }
+  }
+}

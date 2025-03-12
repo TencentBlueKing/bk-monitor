@@ -34,6 +34,7 @@ import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
 import ViewSave from './components/view-save';
 import ViewTab from './components/view-tab/index';
+import PanelChartView from './metric-chart-view/panel-chart-view';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
@@ -43,10 +44,20 @@ import './new-metric-view.scss';
 export default class NewMetricView extends tsc<object> {
   view = 'default';
   bkBizId = 0;
-  timeSeriesGroupId = 0;
+  timeSeriesGroupId = 10;
   dimenstionParams: Record<string, any> = {};
   startTime = 'now-1h';
   endTime = 'now';
+
+  get filterConfig() {
+    return {
+      ...this.dimenstionParams,
+      start_time: this.startTime,
+      end_time: this.endTime,
+      bk_biz_id: this.bkBizId,
+      time_series_group_id: this.timeSeriesGroupId,
+    };
+  }
 
   handleTimeRangeChange(timeRange: TimeRangeType) {
     const [startTime, endTime] = timeRange;
@@ -99,8 +110,8 @@ export default class NewMetricView extends tsc<object> {
               onChange={this.handleHeaderParamsChange}
             />
             <div class='metric-view-dashboard-container'>
-              <textarea
-                style='height: 400px; width: 100%'
+              {/* <textarea
+                style='height: 100px; width: 100%'
                 value={JSON.stringify({
                   ...this.dimenstionParams,
                   start_time: this.startTime,
@@ -108,7 +119,8 @@ export default class NewMetricView extends tsc<object> {
                   bk_biz_id: this.bkBizId,
                   time_series_group_id: this.timeSeriesGroupId,
                 })}
-              />
+              /> */}
+              <PanelChartView config={this.filterConfig} />
             </div>
           </template>
         </bk-resize-layout>
