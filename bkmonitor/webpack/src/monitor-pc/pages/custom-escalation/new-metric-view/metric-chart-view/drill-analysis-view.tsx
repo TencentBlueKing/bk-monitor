@@ -27,7 +27,7 @@ import { Component, Ref, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
-import { getGraphDrillDown } from 'monitor-api/modules/scene_view';
+import { graphDrillDown } from 'monitor-api/modules/scene_view';
 import { random, deepClone } from 'monitor-common/utils';
 import MonitorDropdown from 'monitor-pc/components/monitor-dropdown';
 import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/time-range';
@@ -241,7 +241,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
       group_by: this.filterConfig.group_by,
       function: this.filterConfig.function,
     };
-    getGraphDrillDown({ ...this.panelData.targets[0], ...params })
+    graphDrillDown({ ...this.panelData.targets[0], ...params })
       .then(res => {
         this.tableList = (res || []).map(item => {
           const compareValues = {};
