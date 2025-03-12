@@ -158,11 +158,15 @@ export default class EventExplore extends tsc<
       return {};
     }
     return this.sourceEntities.reduce((prev, curr) => {
-      const { fields } = curr || {};
+      const { fields, dependent_fields = [] } = curr || {};
+      const finalDependentFields = dependent_fields.map(field => this.fieldMapByField?.source?.[field]?.finalName);
       if (!fields?.length) return prev;
       for (const field of fields) {
         const finalName = this.fieldMapByField?.source?.[field]?.finalName || field;
-        prev[finalName] = curr;
+        prev[finalName] = {
+          ...curr,
+          dependent_fields: finalDependentFields,
+        };
       }
       return prev;
     }, {});

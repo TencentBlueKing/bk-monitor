@@ -148,7 +148,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     if (this.popoverInstance) {
       this.handlePopoverHide();
     }
-    if (currentName === item.name) {
+    if (!item.value || currentName === item.name) {
       return;
     }
     this.fieldTarget = item;
@@ -310,7 +310,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
         }
         break;
       case ExploreEntitiesTypeEnum.K8S:
-        path = '#/k8s?dashboardId=pod';
+        path = '#/k8s-new?dashboardId=pod';
         break;
     }
     if (path) {
