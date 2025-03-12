@@ -15,6 +15,7 @@ from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 import arrow
 import pytz
 from django.conf import settings
+from django.db import close_old_connections
 from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -86,6 +87,18 @@ from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
 
 logger = logging.getLogger(__name__)
+
+
+def db_safe_wrapper(func):
+    """数据库连接安全装饰器"""
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        finally:
+            close_old_connections()
+
+    return wrapper
 
 
 class GetStrategyListV2Resource(Resource):
@@ -1180,14 +1193,20 @@ class GetStrategyListV2Resource(Resource):
         strategy_ids = list(strategies.values_list("id", flat=True).distinct())
 
         executor = ThreadPoolExecutor()
-        user_group_list_future = executor.submit(self.get_user_group_list, strategy_ids, bk_biz_id)
-        action_config_list_future = executor.submit(self.get_action_config_list, strategy_ids, bk_biz_id)
-        data_source_list_future = executor.submit(self.get_data_source_list, strategy_ids)
-        strategy_label_list_future = executor.submit(self.get_strategy_label_list, strategy_ids, bk_biz_id)
-        strategy_status_list_future = executor.submit(self.get_strategy_status_list, strategy_ids, bk_biz_id)
-        alert_level_list_future = executor.submit(self.get_alert_level_list, strategy_ids)
-        invalid_type_list_future = executor.submit(self.get_invalid_type_list, strategy_ids)
-        algorithm_type_list_future = executor.submit(self.get_algorithm_type_list, strategy_ids)
+        user_group_list_future = executor.submit(db_safe_wrapper(self.get_user_group_list), strategy_ids, bk_biz_id)
+        action_config_list_future = executor.submit(
+            db_safe_wrapper(self.get_action_config_list), strategy_ids, bk_biz_id
+        )
+        data_source_list_future = executor.submit(db_safe_wrapper(self.get_data_source_list), strategy_ids)
+        strategy_label_list_future = executor.submit(
+            db_safe_wrapper(self.get_strategy_label_list), strategy_ids, bk_biz_id
+        )
+        strategy_status_list_future = executor.submit(
+            db_safe_wrapper(self.get_strategy_status_list), strategy_ids, bk_biz_id
+        )
+        alert_level_list_future = executor.submit(db_safe_wrapper(self.get_alert_level_list), strategy_ids)
+        invalid_type_list_future = executor.submit(db_safe_wrapper(self.get_invalid_type_list), strategy_ids)
+        algorithm_type_list_future = executor.submit(db_safe_wrapper(self.get_algorithm_type_list), strategy_ids)
 
         # 统计总数
         total = strategies.count()
@@ -1219,10 +1238,12 @@ class GetStrategyListV2Resource(Resource):
         strategy_ids = [strategy_config["id"] for strategy_config in strategy_configs]
 
         # 查询ES，统计策略告警数量
-        search_result_future = executor.submit(self.get_alert_search_result, bk_biz_id, strategy_ids)
-        metric_info_future = executor.submit(self.get_metric_info, bk_biz_id, strategy_configs)
-        target_strategy_mapping_future = executor.submit(self.get_target_strategy_mapping, strategy_configs)
-        strategy_shield_info_future = executor.submit(self.get_shield_info, strategy_ids, bk_biz_id)
+        search_result_future = executor.submit(db_safe_wrapper(self.get_alert_search_result), bk_biz_id, strategy_ids)
+        metric_info_future = executor.submit(db_safe_wrapper(self.get_metric_info), bk_biz_id, strategy_configs)
+        target_strategy_mapping_future = executor.submit(
+            db_safe_wrapper(self.get_target_strategy_mapping), strategy_configs
+        )
+        strategy_shield_info_future = executor.submit(db_safe_wrapper(self.get_shield_info), strategy_ids, bk_biz_id)
 
         # 获取到ES查询结果
         search_result = search_result_future.result()

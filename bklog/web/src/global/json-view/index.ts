@@ -24,10 +24,14 @@
  * IN THE SOFTWARE.
  */
 import { copyMessage } from '@/common/util';
+
 export type JsonViewConfig = {
   onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
   jsonValue?: any;
   depth?: number;
+  segmentRegStr?: string;
+  field?: any;
+  segmentRender?: (value: string, rootNode: HTMLElement) => void;
 };
 export default class JsonView {
   options: JsonViewConfig;
@@ -137,8 +141,14 @@ export default class JsonView {
     if (nodeType === 'object') {
       node.append(...this.createObjectNode(target, depth));
     } else {
-      node.append(target);
       node.classList.add('bklog-json-field-value');
+      if (nodeType === 'string' && typeof this.options.segmentRender === 'function') {
+        setTimeout(() => {
+          this.options.segmentRender(target, node);
+        });
+      } else {
+        node.append(target);
+      }
     }
 
     return node;

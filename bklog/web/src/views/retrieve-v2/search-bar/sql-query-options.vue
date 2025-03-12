@@ -1,22 +1,20 @@
 <script lang="ts" setup>
   import { computed, ref, watch, nextTick, Ref } from 'vue';
+
   import useFieldNameHook from '@/hooks/use-field-name';
   // @ts-ignore
   import useLocale from '@/hooks/use-locale';
   // @ts-ignore
   import useStore from '@/hooks/use-store';
+  // import imgEnterKey from '@/images/icons/enter-key.svg';
+  // import imgUpDownKey from '@/images/icons/up-down-key.svg';
+  import jsCookie from 'js-cookie';
   // @ts-ignore
   import { debounce } from 'lodash';
-  // @ts-ignore
+
+  import { excludesFields } from './const.common'; // @ts-ignore
   import FavoriteList from './favorite-list';
-
-  import { excludesFields } from './const.common';
-  import jsCookie from 'js-cookie';
-
   import useFieldEgges from './use-field-egges';
-
-  import imgEnterKey from '@/images/icons/enter-key.svg';
-  import imgUpDownKey from '@/images/icons/up-down-key.svg';
 
   const props = defineProps({
     value: {
@@ -27,7 +25,7 @@
   });
 
   const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
-  const svgImg = ref({ imgUpDownKey, imgEnterKey });
+  // const svgImg = ref({ imgUpDownKey, imgEnterKey });
 
   const store = useStore();
   const { $t } = useLocale();
@@ -362,8 +360,12 @@
     }
 
     const dropdownList = dropdownEl.querySelectorAll('.list-item');
+    const hasHover = dropdownEl.querySelector('.list-item.is-hover');
     if (code === 'NumpadEnter' || code === 'Enter') {
       e.preventDefault();
+      if (hasHover && !activeIndex.value) {
+        activeIndex.value = 0;
+      }
       if (activeIndex.value !== null && dropdownList[activeIndex.value] !== undefined) {
         // enter 选中下拉选项
         (dropdownList[activeIndex.value] as HTMLElement).click();
@@ -376,6 +378,10 @@
     }
 
     if (code === 'ArrowUp') {
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
       if (activeIndex.value) {
         activeIndex.value -= 1;
       } else {
@@ -384,6 +390,10 @@
     }
 
     if (code === 'ArrowDown') {
+      if (hasHover) {
+        activeIndex.value = 0;
+        hasHover?.classList.remove('is-hover');
+      }
       if (activeIndex.value === null || activeIndex.value === dropdownList.length - 1) {
         activeIndex.value = 0;
       } else {
@@ -419,9 +429,9 @@
 
   // 查询语法按钮部分
   const isRetractShow = ref(true);
-  const handleRetract = () => {
-    isRetractShow.value = !isRetractShow.value;
-  };
+  // const handleRetract = () => {
+  //   isRetractShow.value = !isRetractShow.value;
+  // };
   const matchList = ref([
     {
       name: $t('精确匹配(支持AND、OR):'),
@@ -487,8 +497,8 @@
       <!-- 搜索提示 -->
       <ul
         ref="refDropdownEl"
-        :class="['sql-query-options', { 'is-loading': isRequesting }]"
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
+        :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
@@ -571,7 +581,7 @@
               </div>
             </li>
           </div>
-          <template
+          <div
             v-if="showOption.showOperator"
             class="control-list"
           >
@@ -594,7 +604,7 @@
                 </i18n>
               </div>
             </li>
-          </template>
+          </div>
         </template>
         <!-- AND OR -->
         <template v-if="showOption.showContinue">
@@ -665,8 +675,8 @@
         </template> -->
       </ul>
       <FavoriteList
+        :search-value="value"
         @change="handleFavoriteClick"
-        :searchValue="value"
       ></FavoriteList>
       <!-- 移动光标and确认结果提示 -->
       <div class="ui-shortcut-key">
@@ -682,7 +692,7 @@
       </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
-      <span
+      <!-- <span
         class="sql-query-retract"
         @click="handleRetract"
       >
@@ -690,7 +700,7 @@
         <span
           :class="['angle-icon bk-icon', { 'icon-angle-left': !isRetractShow, 'icon-angle-right': isRetractShow }]"
         ></span>
-      </span>
+      </span> -->
       <div class="sql-query-fold">
         <div>
           <div class="sql-query-fold-title">
@@ -706,6 +716,7 @@
           <div
             v-for="item in matchList"
             class="sql-query-list"
+            :key="item.value"
           >
             <div class="sql-query-name">{{ item.name }}</div>
             <div class="sql-query-value">{{ item.value }}</div>
@@ -719,7 +730,6 @@
   @import './sql-query-options.scss';
 
   div.sql-query-container {
-
     position: relative;
     display: flex;
     line-height: 1;
@@ -733,12 +743,8 @@
 
       /* 移动光标and确认结果提示 样式 */
       .ui-shortcut-key {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 48px;
         padding: 0 16px;
+        height: 48px;
         line-height: 48px;
         background-color: #fafbfd;
         border: 1px solid #dcdee5;

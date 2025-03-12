@@ -883,6 +883,11 @@ def sync_bkbase_v4_metadata(key):
     @param key: 计算平台对应的DataBusKey
     """
     logger.info("sync_bkbase_v4_metadata: try to sync bkbase metadata,key->[%s]", key)
+    start_time = time.time()
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_v4_metadata", status=TASK_STARTED, process_target=None
+    ).inc()
+
     bkbase_redis = bkbase_redis_client()
     bk_data_id = key.split(":")[-1]  # 提取 bk_data_id
     bkbase_redis_data = bkbase_redis.hgetall(key)
@@ -937,3 +942,16 @@ def sync_bkbase_v4_metadata(key):
             )
             sync_vm_metadata(vm_info, table_id)
             logger.info("sync_bkbase_v4_metadata: sync vm info for bk_data_id->[%s] successfully", bk_data_id)
+
+    cost_time = time.time() - start_time
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
+        task_name="sync_bkbase_v4_metadata", status=TASK_FINISHED_SUCCESS, process_target=None
+    ).inc()
+    metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name="sync_bkbase_metadata_all", process_target=None).observe(
+        cost_time
+    )
+    logger.info(
+        "sync_bkbase_v4_metadata: sync bkbase metadata for bk_data_id->[%s] successfully,cost->[%s]",
+        bk_data_id,
+        cost_time,
+    )

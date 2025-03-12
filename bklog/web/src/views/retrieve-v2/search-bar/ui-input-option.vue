@@ -47,6 +47,7 @@
   const refUiValueOperator = ref(null);
   const refUiValueOperatorList = ref(null);
   const activeIndex = ref(0);
+  const locationIndex = ref(0);
   const refSearchResultList = ref(null);
   const refFilterInput = ref(null);
   // 条件Value选择列表
@@ -130,7 +131,6 @@
 
   const activeFieldItem = ref(getFieldConditonItem());
   const condition = ref(getInputQueryDefaultItem());
-  console.log(condition.value, 5555)
   const hasConditionValueTip = computed(() => {
     return !['_ip-select_', '*'].includes(activeFieldItem.value.field_name);
   });
@@ -287,6 +287,7 @@
 
   const setDefaultActiveIndex = () => {
     activeIndex.value = searchValue.value.length ? null : 0;
+    locationIndex.value = activeIndex.value || 0;
   };
 
   watch(
@@ -582,6 +583,7 @@
     if (isIncrease) {
       if (objIndex.value < maxIndex) {
         objIndex.value++;
+        locationIndex.value = objIndex;
         return;
       }
 
@@ -591,10 +593,12 @@
 
     if (objIndex.value > 0) {
       objIndex.value--;
+      locationIndex.value = objIndex;
       return;
     }
 
     objIndex.value = maxIndex;
+    locationIndex.value = maxIndex;
   };
 
   /**
@@ -637,7 +641,6 @@
       afterOperatorValueEnter();
       return;
     }
-
     // 如果需要设置条件
     // 条件选择或者输入框已经渲染出来
     if (
@@ -648,9 +651,11 @@
       activeIndex.value >= 0
     ) {
       const instance = conditionValueInstance.getTippyInstance();
-
       // 如果是条件选择下拉已经展开，查询当前选中项
       if (instance?.state.isShown) {
+        if (conditionValueActiveIndex.value === -1 &&  activeItemMatchList.value?.length > 0) {
+          conditionValueActiveIndex.value = 0;
+        }
         const val = activeItemMatchList.value[conditionValueActiveIndex.value];
         if (val !== undefined) {
           handleTagItemClick(val, conditionValueActiveIndex.value);
@@ -661,6 +666,7 @@
 
           // 设置当前行样式，避免Vue实例渲染，这里直接操作DOM进行class赋值
           activeConditionValueOption();
+          refValueTagInput.value?.focus();
           return;
         }
       }
@@ -928,7 +934,11 @@
         >
           <div
             v-for="(item, index) in filterFieldList"
-            :class="['ui-search-result-row', { active: activeIndex === index }]"
+            :class="[
+              'ui-search-result-row',
+              { active: activeIndex === index },
+              { location: locationIndex === index }
+            ]"
             :data-tab-index="index"
             :key="item.field_name"
             @click="() => handleFieldItemClick(item, index)"
@@ -1085,7 +1095,7 @@
                   <template>
                     <span
                       class="tag-item-text"
-                      @dblclick.stop="e => handleEditTagDBClick(e, item, index)"
+                      @click.stop="e => handleEditTagDBClick(e, item, index)"
                       >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
                     >
                     <span

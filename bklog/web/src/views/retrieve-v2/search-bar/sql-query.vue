@@ -61,6 +61,7 @@
     onShowFn: instance => {
       if (refSqlQueryOption.value?.beforeShowndFn?.()) {
         instance.popper?.style.setProperty('width', '100%');
+        refSqlQueryOption.value?.$el?.querySelector('.list-item')?.classList.add('is-hover');
         return true;
       }
 
@@ -71,7 +72,7 @@
         setIsDocumentMousedown(false);
         return false;
       }
-
+      refSqlQueryOption.value?.$el?.querySelector('.list-item ')?.classList.remove('is-hover');
       refSqlQueryOption.value?.beforeHideFn?.();
       return true;
     },
@@ -160,12 +161,28 @@
   });
 </script>
 <template>
-  <div class="search-sql-query" @click="handleEditorClick">
-    <div ref="refEditorParent" class="search-sql-editor"></div>
-    <span class="empty-placeholder-text" v-show="isEmptySqlString">{{ placeholderText }}</span>
+  <div
+    class="search-sql-query"
+    @click="handleEditorClick"
+  >
+    <div
+      ref="refEditorParent"
+      class="search-sql-editor"
+    ></div>
+    <span
+      class="empty-placeholder-text"
+      v-show="isEmptySqlString"
+      >{{ placeholderText }}</span
+    >
     <div style="display: none">
-      <SqlQueryOptions ref="refSqlQueryOption" :value="modelValue" @active-change="handleSqlParamsActiveChange"
-        @cancel="handleCancel" @change="handleQueryChange" @retrieve="closeAndRetrieve"></SqlQueryOptions>
+      <SqlQueryOptions
+        ref="refSqlQueryOption"
+        :value="modelValue"
+        @active-change="handleSqlParamsActiveChange"
+        @cancel="handleCancel"
+        @change="handleQueryChange"
+        @retrieve="closeAndRetrieve"
+      ></SqlQueryOptions>
     </div>
   </div>
 </template>
@@ -206,6 +223,14 @@
 
           .cm-line {
             width: fit-content;
+            /* stylelint-disable-next-line declaration-no-important */
+            color: #b17313 !important;
+            .ͼb {
+              color: #7c609e;
+            }
+            .ͼi {
+              color: #02776e;
+            }
           }
 
           .cm-gutters {
