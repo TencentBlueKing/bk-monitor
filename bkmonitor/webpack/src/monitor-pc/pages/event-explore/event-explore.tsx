@@ -41,6 +41,7 @@ import EventRetrievalLayout from './components/event-retrieval-layout';
 import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
+import type { IViewOptions } from '../monitor-k8s/typings/book-mark';
 import type { IFormData } from './typing';
 
 import './event-explore.scss';
@@ -48,13 +49,13 @@ Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
 
 interface IProps {
   source: APIType;
-  dataId: string;
-  dataTypeLabel: string;
-  dataSourceLabel: string;
-  queryString: string;
-  where: IFormData['where'];
-  group_by: IFormData['group_by'];
-  filter_dict: IFormData['filter_dict'];
+  dataId?: string;
+  dataTypeLabel?: string;
+  dataSourceLabel?: string;
+  queryString?: string;
+  where?: IFormData['where'];
+  group_by?: IFormData['group_by'];
+  filter_dict?: IFormData['filter_dict'];
   favoriteList?: IFavList.favGroupList[];
   currentFavorite?: IFavList.favList;
   filterMode?: EMode;
@@ -67,7 +68,14 @@ interface IEvent {
   onFilterModelChange: (filterMode: EMode) => void;
 }
 @Component
-export default class EventRetrievalNew extends tsc<IProps, IEvent> {
+export default class EventExplore extends tsc<
+  IProps,
+  IEvent,
+  {
+    favorite?: string;
+    header?: string;
+  }
+> {
   // /** 来源 */
   // @ProvideReactive('source')
   @Prop({ default: APIType.MONITOR }) source: APIType;
@@ -96,6 +104,8 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
   @InjectReactive('refleshInterval') refreshInterval;
   // 是否立即刷新
   @InjectReactive('refleshImmediate') refreshImmediate;
+  // 视图变量
+  @InjectReactive('viewOptions') viewOptions: IViewOptions;
 
   @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
 
@@ -174,6 +184,8 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
           filter_dict: this.filter_dict || {},
         },
       ],
+      app_name: this.viewOptions?.filters?.app_name,
+      service_name: this.viewOptions?.filters?.service_name,
       start_time: formatTimeRange[0],
       end_time: formatTimeRange[1],
     };
@@ -198,7 +210,9 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
   async handleTimeRangeChange() {
     this.getViewConfig();
   }
-
+  mounted() {
+    this.getViewConfig();
+  }
   @Debounce(100)
   async getViewConfig() {
     if (!this.dataId) {
@@ -217,6 +231,8 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
             table: this.dataId,
           },
         ],
+        app_name: this.viewOptions?.filters?.app_name,
+        service_name: this.viewOptions?.filters?.service_name,
         start_time: formatTimeRange[0],
         end_time: formatTimeRange[1],
       },
@@ -248,6 +264,8 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
             query_string: params?.queryString || '',
           },
         ],
+        app_name: this.viewOptions?.filters?.app_name,
+        service_name: this.viewOptions?.filters?.service_name,
         fields: params?.fields || [],
         start_time: formatTimeRange[0],
         end_time: formatTimeRange[1],
@@ -304,9 +322,9 @@ export default class EventRetrievalNew extends tsc<IProps, IEvent> {
   render() {
     return (
       <div class='event-explore'>
-        {this.$scopedSlots.favorite?.()}
+        {this.$scopedSlots.favorite?.('')}
         <div class='right-main-panel'>
-          {this.$scopedSlots.header?.()}
+          {this.$scopedSlots.header?.('')}
           <div class='event-retrieval-content'>
             <RetrievalFilter
               favoriteList={this.favoriteList as any}
