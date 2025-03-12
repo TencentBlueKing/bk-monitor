@@ -26,41 +26,77 @@
 import { Component, Ref, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { getSceneView } from 'monitor-api/modules/scene_view';
+import _ from 'lodash';
+import { getSceneView, updateSceneView } from 'monitor-api/modules/scene_view';
 
-import './view-save.scss';
+import './index.scss';
 
 interface IProps {
-  name: string;
+  sceneId: string;
   payload: Record<string, any>;
+  viewId: string;
+  viewList: {
+    id: string;
+    name: string;
+  }[];
 }
+
+interface IEmit {
+  onSuccess: () => void;
+}
+
 @Component
-export default class ViewSave extends tsc<IProps> {
-  @Prop({ type: String, required: true }) readonly name: IProps['name'];
+export default class ViewSave extends tsc<IProps, IEmit> {
+  @Prop({ type: String, required: true }) readonly sceneId: IProps['sceneId'];
+  @Prop({ type: Object, default: () => ({}) }) readonly payload: IProps['payload'];
+  @Prop({ type: String, required: true }) readonly viewId: IProps['viewId'];
+  @Prop({ type: Array, required: true }) readonly viewList: IProps['viewList'];
 
-  @Ref('popoverRef') popoverRef: any;
+  @Ref('popoverRef') readonly popoverRef: any;
+  @Ref('createFormRef') readonly createFormRef: any;
 
+  isCreateSubmiting = false;
   isActive = false;
   isShowCreateDialog = false;
   createFormData = {
     name: '',
   };
-  createRules = Object.freeze({
-    name: [
-      {
-        required: true,
-        message: this.$t('必填项'),
-        trigger: 'blur',
-      },
-    ],
-  });
+
+  get createRules() {
+    return Object.freeze({
+      name: [
+        {
+          required: true,
+          message: this.$t('必填项'),
+          trigger: 'blur',
+        },
+        {
+          validator: (value: string) => {
+            return _.every(this.viewList, item => item.name !== value);
+          },
+          message: this.$t('视图名称重复'),
+          trigger: 'blur',
+        },
+      ],
+    });
+  }
+
+  get currentSelectViewInfo() {
+    return this.viewList.find(item => item.id === this.viewId) || { id: 'default', name: 'default' };
+  }
+
+  get isDefaultView() {
+    return this.viewId === 'default';
+  }
 
   async fetchData() {
-    getSceneView({
-      scene_id: `custom_escalation_view_${this.$route.params.id}`,
-      id: 'default',
-      type: 'detail',
-    });
+    if (!this.isDefaultView) {
+      getSceneView({
+        scene_id: this.sceneId,
+        id: this.viewId,
+        type: 'detail',
+      });
+    }
   }
 
   handleShow() {
@@ -80,8 +116,44 @@ export default class ViewSave extends tsc<IProps> {
   handleCancelCreate() {
     this.isShowCreateDialog = false;
   }
-  handleSubmitCreate() {
-    console.log('handleSubmitCreate');
+  async handleSubmitCreate() {
+    this.isCreateSubmiting = true;
+    try {
+      await this.createFormRef.validate();
+      await updateSceneView({
+        scene_id: this.sceneId,
+        id: `custom_view_${Date.now()}`,
+        type: 'detail',
+        config: {
+          options: this.payload,
+        },
+        ...this.createFormData,
+      });
+      this.isShowCreateDialog = false;
+      this.$bkMessage({
+        theme: 'success',
+        message: this.$t('新视图保存成功'),
+      });
+      this.$emit('success');
+    } finally {
+      this.isCreateSubmiting = false;
+    }
+  }
+
+  async handleEdit() {
+    await updateSceneView({
+      scene_id: this.sceneId,
+      type: 'detail',
+      config: {
+        options: this.payload,
+      },
+      ...this.currentSelectViewInfo,
+    });
+    this.$bkMessage({
+      theme: 'success',
+      message: this.$t('当前视图保存成功'),
+    });
+    this.$emit('success');
   }
 
   created() {
@@ -106,6 +178,7 @@ export default class ViewSave extends tsc<IProps> {
             hideOnClick: true,
             onShow: this.handleShow,
             onHidden: this.handleHidden,
+            zIndex: 999,
           }}
           placement='bottom'
           theme='light metric-view-view-save-panel'
@@ -113,7 +186,14 @@ export default class ViewSave extends tsc<IProps> {
         >
           <i class='icon-monitor icon-a-savebaocun' />
           <div slot='content'>
-            <div class='item'>{this.$t('覆盖当前视图')}</div>
+            {!this.isDefaultView && (
+              <div
+                class='item'
+                onClick={this.handleEdit}
+              >
+                {this.$t('覆盖当前视图')}
+              </div>
+            )}
             <div
               class='item'
               onClick={this.handleShowCreate}
@@ -128,16 +208,23 @@ export default class ViewSave extends tsc<IProps> {
           draggable={false}
           header-position='left'
           render-directive='if'
-          rules={this.createRules}
           scrollable={false}
           title={this.$t('另存为新视图')}
         >
           <bk-form
+            ref='createFormRef'
             form-type='vertical'
-            model={this.createFormData}
+            {...{
+              props: {
+                model: this.createFormData,
+                rules: this.createRules,
+              },
+            }}
           >
             <bk-form-item
+              error-display-type='normal'
               label={this.$t('视图名称')}
+              property='name'
               required
             >
               <bk-input v-model={this.createFormData.name} />
@@ -145,6 +232,7 @@ export default class ViewSave extends tsc<IProps> {
           </bk-form>
           <div slot='footer'>
             <bk-button
+              loading={this.isCreateSubmiting}
               theme='primary'
               onClick={this.handleSubmitCreate}
             >

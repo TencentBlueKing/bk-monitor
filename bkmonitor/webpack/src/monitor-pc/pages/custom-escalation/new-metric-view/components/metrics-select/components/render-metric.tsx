@@ -23,8 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { modifyCustomTsFields } from 'monitor-api/modules/custom_report';
 
 import './render-metric.scss';
 
@@ -35,8 +37,12 @@ interface IProps {
   };
 }
 
+interface IEmit {
+  onChange: () => void;
+}
+
 @Component
-export default class RenderMetric extends tsc<IProps> {
+export default class RenderMetric extends tsc<IProps, IEmit> {
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
 
   @Ref('popoverRef') popoverRef: any;
@@ -44,6 +50,12 @@ export default class RenderMetric extends tsc<IProps> {
 
   isActive = false;
   isSubmiting = false;
+  localAlias = '';
+
+  @Watch('data', { immediate: true })
+  dataChange() {
+    this.localAlias = this.data.alias;
+  }
 
   handleEditShow() {
     this.isActive = true;
@@ -56,9 +68,24 @@ export default class RenderMetric extends tsc<IProps> {
     this.isActive = false;
   }
 
-  handleSubmit() {
+  async handleSubmit() {
     this.isSubmiting = true;
-    this.popoverRef.hideHandler();
+    try {
+      await modifyCustomTsFields({
+        time_series_group_id: this.$route.params.id,
+        update_fields: [
+          {
+            type: 'metric',
+            name: this.data.metric_name,
+            description: this.localAlias,
+          },
+        ],
+      });
+      this.popoverRef.hideHandler();
+      this.$emit('change');
+    } finally {
+      this.isSubmiting = false;
+    }
   }
 
   handleCancel() {
@@ -74,7 +101,7 @@ export default class RenderMetric extends tsc<IProps> {
           'is-active': this.isActive,
         }}
       >
-        <bk-checkbox value={this.data.metric_name}>{this.data.metric_name}</bk-checkbox>
+        <bk-checkbox value={this.data.metric_name}>{this.data.alias || this.data.metric_name}</bk-checkbox>
         <bk-popover
           ref='popoverRef'
           tippyOptions={{
@@ -100,11 +127,17 @@ export default class RenderMetric extends tsc<IProps> {
               <div style='margin: 8px 0 6px; color: #4D4F56;'>{this.$t('指标别名：')}</div>
               <bk-input
                 ref='inputRef'
-                value={this.data.alias}
+                v-model={this.localAlias}
               />
             </div>
             <div class='footer'>
-              <bk-button theme='primary'>{this.$t('确定')}</bk-button>
+              <bk-button
+                loading={this.isSubmiting}
+                theme='primary'
+                onClick={this.handleSubmit}
+              >
+                {this.$t('确定')}
+              </bk-button>
               <bk-button
                 style='margin-left: 8px'
                 onClick={this.handleCancel}

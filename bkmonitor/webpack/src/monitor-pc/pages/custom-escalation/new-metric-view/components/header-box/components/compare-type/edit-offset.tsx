@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Ref, Prop } from 'vue-property-decorator';
+import { Component, Ref, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import Dayjs from 'dayjs';
@@ -78,6 +78,17 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     return _.filter(this.offsetList, item => valueMap[item.id]);
   }
 
+  @Watch('value', { immediate: true })
+  valueChange() {
+    this.localValue = [...this.value];
+    const constValueMap = makeMap(this.offsetList.map(item => item.id));
+    const customDay = _.find(this.value, item => !constValueMap[item]);
+    if (customDay) {
+      this.isCustom = true;
+      this.customDate = Dayjs().subtract(parseInt(customDay), 'day').format('YYYY-MM-DD');
+    }
+  }
+
   triggerChange() {
     const result = [...this.localValue];
     if (this.isCustom) {
@@ -114,7 +125,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     ) {
       return;
     }
-    this.popoverRef.hideHandler();
+    this.popoverRef?.hideHandler();
   }
 
   handleBeginEdit() {
@@ -144,7 +155,9 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   }
 
   mounted() {
-    this.popoverRef.showHandler();
+    if (this.value.length < 1) {
+      this.popoverRef.showHandler();
+    }
     document.body.addEventListener('click', this.handleHidePopover);
     this.$once('hook:beforeDestro', () => {
       document.body.removeEventListener('click', this.handleHidePopover);

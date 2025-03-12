@@ -36,9 +36,9 @@ class CustomEscalationViewStore extends VuexModule {
   public commonDimensionList: Readonly<TCustomTsMetricGroups['common_dimensions']> = [];
   // 当前视图选中的指标
   public currentSelectedMetricList: TCustomTsMetricGroups['metric_groups'][number]['metrics'] = [];
-  public endTime = '';
+  public endTime = 'now';
   public metricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
-  public startTime = '';
+  public startTime = 'now-1h';
   public timeSeriesGroupId = -1;
 
   get timeRangTimestamp() {
@@ -48,6 +48,8 @@ class CustomEscalationViewStore extends VuexModule {
   @Action
   public async fetchData(params: { time_series_group_id: number }) {
     this.updateTimeSeriesGroupId(params.time_series_group_id);
+    this.updateCommonDimensionList([]);
+    this.updateMetricGroupList([]);
 
     const result = await getCustomTsMetricGroups(params);
 
