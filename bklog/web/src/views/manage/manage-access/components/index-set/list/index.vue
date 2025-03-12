@@ -355,23 +355,17 @@
       },
       loadData() {
         this.isTableLoading = true;
-        requestStorageUsage(this, this.indexSetList)
-          .then((data) => {
-            this.indexSetList.forEach(item => {
-              ['daily_usage', 'total_usage'].forEach(key => {
-                const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
-                if (matchedItem?.[key] !== undefined) {
-                  this.$set(item, key, matchedItem[key]);
-                }
-              });
-            });
-          })
+        const callbackFn = (item, key, value) => {
+            this.$set(item, key, value[key]);
+        };
+
+        requestStorageUsage(this.bkBizId, this.indexSetList, false, callbackFn)
           .catch((error) => {
             console.error('Error loading data:', error);
           })
           .finally(() => {
             this.isTableLoading = false;
-          });
+        });
       },
       /**
        * 分页变换
