@@ -42,7 +42,7 @@ import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
 import type { IViewOptions } from '../monitor-k8s/typings/book-mark';
-import type { ExploreEntitiesMap, ExploreFieldMap, IFormData } from './typing';
+import type { IFormData } from './typing';
 
 import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
@@ -123,58 +123,22 @@ export default class EventExplore extends tsc<
 
   queryStringInput = '';
 
-  /**
-   * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
-   * @description 用于在 KV 模式下，获取 字段类型 Icon
-   */
-  get fieldMapByField(): ExploreFieldMap {
-    if (!this.fieldList?.length) {
-      return { source: {}, target: {} };
-    }
-    return this.fieldList.reduce(
-      (prev, curr) => {
-        let finalName = curr.name;
-        if (curr.is_dimensions) {
-          finalName = `dimensions.${curr.name}`;
-        }
-        const item = { ...curr, finalName };
-        prev.source[curr.name] = item;
-        prev.target[finalName] = item;
-        return prev;
-      },
-      {
-        source: {},
-        target: {},
-      }
-    );
-  }
-
-  /**
-   * @description 将 sourceEntities 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions.后的值作为 key
-   * @description 用于在 KV 模式下，判断字段是否开启 跳转到其他页面 入口
-   */
-  get entitiesMapByField(): ExploreEntitiesMap[] {
-    if (!this.sourceEntities?.length) {
-      return [];
-    }
-    return this.sourceEntities.reduce((prev, curr) => {
-      const { fields, dependent_fields = [] } = curr || {};
-      if (!fields?.length) return prev;
-      const finalDependentFields = dependent_fields.map(field => this.fieldMapByField?.source?.[field]?.finalName);
-      const map = {};
-      for (const field of fields) {
-        const finalName = this.fieldMapByField?.source?.[field]?.finalName || field;
-        map[finalName] = {
-          ...curr,
-          dependent_fields: finalDependentFields,
-        };
-      }
-      prev.push(map);
-      return prev;
-    }, []);
-  }
-
   get queryConfig() {
+    return {
+      data_source_label: this.dataSourceLabel || 'custom',
+      data_type_label: this.dataTypeLabel || 'event',
+      table: this.dataId,
+      query_string: this.queryString,
+      where: this.where,
+      group_by: this.group_by || [],
+      filter_dict: this.filter_dict || {},
+    };
+  }
+
+  /** 公共参数 */
+  @ProvideReactive('commonParams')
+  get commonParams() {
+    const formatTimeRange = handleTransformToTimestamp(this.timeRange);
     let queryString = '';
     let where = mergeWhereList(this.where || [], this.commonWhere || []);
     if (this.filterMode === EMode.ui) {
@@ -186,23 +150,15 @@ export default class EventExplore extends tsc<
       queryString = this.queryString;
       where = [];
     }
+    const queryConfigs = [
+      {
+        ...this.queryConfig,
+        query_string: queryString,
+        where,
+      },
+    ];
     return {
-      data_source_label: this.dataSourceLabel || 'custom',
-      data_type_label: this.dataTypeLabel || 'event',
-      table: this.dataId,
-      query_string: queryString,
-      where,
-      group_by: this.group_by || [],
-      filter_dict: this.filter_dict || {},
-    };
-  }
-
-  /** 公共参数 */
-  @ProvideReactive('commonParams')
-  get commonParams() {
-    const formatTimeRange = handleTransformToTimestamp(this.timeRange);
-    return {
-      query_configs: [this.queryConfig],
+      query_configs: queryConfigs,
       app_name: this.viewOptions?.filters?.app_name,
       service_name: this.viewOptions?.filters?.service_name,
       start_time: formatTimeRange[0],
@@ -389,11 +345,11 @@ export default class EventExplore extends tsc<
               </div>
               <div class='result-content-panel'>
                 <EventExploreView
-                  entitiesMapList={this.entitiesMapByField}
-                  fieldMap={this.fieldMapByField}
+                  fieldList={this.fieldList}
                   queryConfig={this.queryConfig}
                   refreshImmediate={this.refreshImmediate}
                   source={this.source}
+                  sourceEntities={this.sourceEntities}
                   timeRange={this.timeRange}
                   onClearSearch={this.handleClearSearch}
                   onConditionChange={this.handleConditionChange}

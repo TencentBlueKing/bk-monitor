@@ -37,9 +37,9 @@ import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api
 import {
   type DimensionsTypeEnum,
   type EventExploreTableRequestConfigs,
-  type ExploreEntitiesMap,
-  type ExploreFieldMap,
+  type ExploreEntitiesItem,
   ExploreTableLoadingEnum,
+  type IDimensionField,
   type IFormData,
 } from '../typing';
 import { eventChartMap, getEventLegendColorByType } from '../utils';
@@ -53,8 +53,8 @@ import './event-explore-view.scss';
 interface IEventExploreViewProps {
   queryConfig: IFormData;
   source: APIType;
-  fieldMap: ExploreFieldMap;
-  entitiesMapList: ExploreEntitiesMap[];
+  fieldList: IDimensionField[];
+  sourceEntities: ExploreEntitiesItem[];
   timeRange: TimeRangeType;
   refreshImmediate: string;
 }
@@ -73,9 +73,9 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** 请求接口公共请求参数中的 query_configs 参数 */
   @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
+  @Prop({ type: Array, default: () => [] }) fieldList: IDimensionField[];
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
+  @Prop({ type: Array, default: () => [] }) sourceEntities: ExploreEntitiesItem[];
   // 数据时间间隔
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   /** 是否立即刷新 */
@@ -350,9 +350,9 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
             ref='eventExploreTableRef'
-            entitiesMapList={this.entitiesMapList}
-            fieldMap={this.fieldMap}
+            fieldList={this.fieldList}
             requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
+            sourceEntities={this.sourceEntities}
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
           />
