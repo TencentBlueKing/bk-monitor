@@ -46,6 +46,7 @@ import { eventChartMap, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
 
 import type { IWhereItem } from '../../../components/retrieval-filter/utils';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import './event-explore-view.scss';
 
@@ -54,6 +55,7 @@ interface IEventExploreViewProps {
   source: APIType;
   fieldMap: ExploreFieldMap;
   entitiesMap: ExploreEntitiesMap;
+  timeRange: TimeRangeType;
   refreshImmediate: string;
 }
 
@@ -73,6 +75,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
+  // 数据时间间隔
+  @InjectReactive('timeRange') timeRange: TimeRangeType;
   /** 是否立即刷新 */
   @Prop({ type: String, default: '' }) refreshImmediate: string;
   /** 请求接口公共请求参数 */
@@ -113,7 +117,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     return { ...this.commonParams, query_configs: queryConfigs };
   }
 
-  @Watch('eventQueryParams')
+  @Watch('timeRange')
   commonParamsChange() {
     this.getEventTotal();
     this.updateTableRequestConfigs();
@@ -122,6 +126,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Watch('queryConfig', { deep: true })
   queryParamsChange() {
     this.updatePanelConfig();
+    this.getEventTotal();
+    this.updateTableRequestConfigs();
   }
 
   @Watch('refreshImmediate')
