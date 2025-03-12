@@ -126,9 +126,9 @@ class QueryTimeBuilder(object):
                     params={"result_table_list": indices, "storage_type": "elasticsearch"}
                 )[indices]
                 retention = int(storage["storage_config"]["retention"])
+                return retention
             except Exception as e:
                 logger.exception("get_result_table_storage_error: indices: %s, reason: %s", indices, e)
-            return retention
 
     def _deal_time(self, start_time, end_time):
         retention = self.get_storage_retention_time(self.indices, self.scenario_id)
