@@ -53,7 +53,8 @@ interface IProps {
   dataTypeLabel?: string;
   dataSourceLabel?: string;
   queryString?: string;
-  where?: IFormData['where'];
+  where?: IWhereItem[];
+  commonWhere?: IWhereItem[];
   group_by?: IFormData['group_by'];
   filter_dict?: IFormData['filter_dict'];
   favoriteList?: IFavList.favGroupList[];
@@ -62,10 +63,11 @@ interface IProps {
 }
 
 interface IEvent {
-  onWhereChange: (where: IFormData['where']) => void;
+  onWhereChange: (where: IWhereItem[]) => void;
   onQueryStringChange: (queryString: string) => void;
   onFavorite: (isEdit: boolean) => void;
-  onFilterModelChange: (filterMode: EMode) => void;
+  onFilterModeChange: (filterMode: EMode) => void;
+  onQueryStringInputChange: (val: string) => void;
 }
 @Component
 export default class EventExplore extends tsc<
@@ -89,6 +91,8 @@ export default class EventExplore extends tsc<
   @Prop({ default: 'custom' }) dataSourceLabel: string;
   /** UI查询 */
   @Prop({ default: () => [], type: Array }) where: IFormData['where'];
+  /** 常驻筛选 */
+  @Prop({ default: () => [], type: Array }) commonWhere: IWhereItem[];
   /** 维度列表 */
   @Prop({ default: () => [], type: Array }) group_by: IFormData['group_by'];
   /** 过滤条件 */
@@ -109,7 +113,6 @@ export default class EventExplore extends tsc<
 
   @Ref('eventRetrievalLayout') eventRetrievalLayoutRef: EventRetrievalLayout;
 
-  timer = null;
   loading = false;
 
   /** 维度列表 */
@@ -170,8 +173,8 @@ export default class EventExplore extends tsc<
       data_source_label: this.dataSourceLabel || 'custom',
       data_type_label: this.dataTypeLabel || 'event',
       table: this.dataId,
-      query_string: this.queryString,
-      where: this.where || [],
+      query_string: this.filterMode === EMode.queryString ? this.queryString : '',
+      where: this.filterMode === EMode.ui ? mergeWhereList(this.where || [], this.commonWhere || []) : [],
       group_by: this.group_by || [],
       filter_dict: this.filter_dict || {},
     };
@@ -303,8 +306,11 @@ export default class EventExplore extends tsc<
   handleQueryStringChange(val: string) {
     return val;
   }
+
+  @Emit('queryStringInputChange')
   handleQueryStringInputChange(val) {
     this.queryStringInput = val;
+    return val;
   }
 
   @Emit('favorite')
@@ -312,7 +318,7 @@ export default class EventExplore extends tsc<
     return isEdit;
   }
 
-  @Emit('filterModelChange')
+  @Emit('filterModeChange')
   handleModeChange(mode: EMode) {
     return mode;
   }

@@ -74,6 +74,7 @@ export default class EventRetrievalLayout extends tsc<object> {
           ) : (
             <div
               class='expand-trigger'
+              v-bk-tooltips={{ content: this.$t('展开') }}
               onClick={() => this.handleClickShrink(true)}
             >
               <i class='icon-monitor icon-gongneng-shouqi' />

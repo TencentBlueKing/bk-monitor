@@ -4,38 +4,6 @@
     align-items: center;
     justify-content: space-between;
     height: 22px;
-
-    .title {
-      display: flex;
-      flex: 1;
-      align-items: center;
-      margin-right: 4px;
-      overflow: hidden;
-      font-size: 14px;
-      font-weight: 400;
-      color: #313238;
-      letter-spacing: 0;
-    }
-
-    .title-text {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .count {
-      display: inline-block;
-      min-width: 21px;
-      height: 14px;
-      padding: 0 3.5px;
-      margin-left: 4px;
-      font-size: 12px;
-      font-weight: 700;
-      color: #979BA5;
-      text-align: center;
-      background: #F0F1F5;
-      border-radius: 7px;
-    }
      
     .loading-icon {
       width: 20px;
@@ -75,6 +43,35 @@
   }
 }
 
+.dimension-top-k-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  overflow: hidden;
+
+  .field-name {
+    overflow: hidden;
+    font-size: 16px;
+    color: #313238;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .divider {
+    display: inline-block;
+    width: 1px;
+    height: 14px;
+    margin: 0 8px 0 6px;
+    background: #DCDEE5;
+  }
+
+  .desc {
+    flex-shrink: 0;
+    font-size: 14px;
+    color: #979BA5;
+  }
+}
+
 
 .dimension-top-k-slider {
   .skeleton-wrap {
@@ -89,35 +86,6 @@
     align-items: center;
     justify-content: space-between;
     padding-right: 24px;
-
-    .title {
-      display: flex;
-      flex: 1;
-      align-items: center;
-      overflow: hidden;
-    }
-
-    .field-name {
-      overflow: hidden;
-      font-size: 16px;
-      color: #313238;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .divider {
-      display: inline-block;
-      width: 1px;
-      height: 14px;
-      margin: 0 8px 0 6px;
-      background: #DCDEE5;
-    }
-
-    .desc {
-      flex-shrink: 0;
-      font-size: 14px;
-      color: #979BA5;
-    }
 
     .loading-icon {
       width: 20px;
@@ -143,5 +111,31 @@
 
   .dimension-slider-content {
     padding: 12px 40px;
+
+    .slider-load-more {
+      width: 120px;
+      height: 27px;
+      margin: 16px auto 0;
+      font-size: 12px;
+      line-height: 27px;
+      color: #3A84FF;
+      text-align: center;
+      cursor: pointer;
+      background: #F0F5FF;
+      border-radius: 14px;
+
+      &.is-loading {
+        background: transparent
+      }
+
+      &:hover {
+        background: #E1ECFF;
+
+        &.is-loading {
+          background: transparent
+        }
+      }
+    }
+
   }
 }

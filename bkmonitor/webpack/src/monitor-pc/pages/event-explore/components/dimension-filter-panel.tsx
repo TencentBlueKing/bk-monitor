@@ -186,6 +186,7 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
           <div class='title'>{this.$t('维度过滤')}</div>
           <i
             class='icon-monitor icon-gongneng-shouqi'
+            v-bk-tooltips={{ content: this.$t('收起') }}
             onClick={this.handleClose}
           />
         </div>
@@ -218,7 +219,18 @@ export default class DimensionFilterPanel extends tsc<DimensionFilterPanelProps,
                 >
                   {item.alias}
                 </span>
-                {item.is_option_enabled && <span class='dimension-count'>{this.fieldListCount[item.name] || 0}</span>}
+                {item.is_option_enabled && [
+                  <span
+                    key={`${item.name}__count`}
+                    class='dimension-count'
+                  >
+                    {this.fieldListCount[item.name] || 0}
+                  </span>,
+                  <i
+                    key={`${item.name}__statistics`}
+                    class='icon-monitor icon-Chart statistics-icon'
+                  />,
+                ]}
               </div>
             ))}
           </div>
