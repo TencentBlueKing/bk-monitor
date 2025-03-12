@@ -26,6 +26,7 @@
 import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils';
 
 import { EMethod } from '../../../components/retrieval-filter/utils';
@@ -338,6 +339,22 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   }
 
   /**
+   * @description kv 值渲染
+   * @param {KVFieldList} item
+   *
+   */
+  transformValue(item: KVFieldList) {
+    const { value } = item;
+    if (value == null || value === '') {
+      return '--';
+    }
+    if (item.type === 'date') {
+      return dayjs(Number(item.value)).format('YYYY-MM-DD HH:mm:ss');
+    }
+    return value;
+  }
+
+  /**
    * @description kv 值点击弹出菜单popover渲染
    *
    */
@@ -408,7 +425,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
                 class='value-text'
                 onClick={e => this.handleValueTextClick(e, item)}
               >
-                {item.value || '--'}
+                {this.transformValue(item)}
               </span>
             </div>
           </div>
