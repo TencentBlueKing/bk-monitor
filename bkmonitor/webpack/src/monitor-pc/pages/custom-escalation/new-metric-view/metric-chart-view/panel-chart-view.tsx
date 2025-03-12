@@ -47,7 +47,7 @@ interface IPanelChartViewProps {
 
 @Component
 export default class PanelChartView extends tsc<IPanelChartViewProps> {
-  // 图表panel实例
+  // 相关配置
   @Prop({ default: () => {} }) config: IMetricAnalysisConfig;
 
   @ProvideReactive('handleUpdateQueryData') handleUpdateQueryData = undefined;

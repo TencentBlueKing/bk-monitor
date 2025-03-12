@@ -58,7 +58,7 @@ interface ILayoutChartTableEvents {
 }
 @Component
 export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayoutChartTableEvents> {
-  // 图表panel实例
+  // 相关配置
   @Prop({ default: () => ({}) }) config: IMetricAnalysisConfig;
   // 图表panel实例
   @Prop({ default: () => ({}) }) panel: IPanelModel;
@@ -246,7 +246,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     return (
       <div
         ref='layoutMain'
-        style={{ height: this.height + 'px' }}
+        style={{ height: `${this.height}px` }}
         class='layout-chart-table'
       >
         <bk-resize-layout
