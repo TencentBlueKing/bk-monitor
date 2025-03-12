@@ -36,13 +36,22 @@ import StatisticsList from './statistics-list';
 import './explore-kv-list.scss';
 
 export interface KVFieldList {
+  /** kv 面板中的 key */
   name: string;
+  /** 字段的类型 */
   type: DimensionType;
+  /** kv 面板中的 value */
   value: string;
+  /** 部分字段目前显示的 name 是经过拼接处理后的值，sourceName 则是最原始未处理前的 name */
   sourceName: string;
+  /** 跳转到其他哪个页面（容器/主机） */
   entitiesType: '' | ExploreEntitiesTypeEnum;
+  /** 是否显示跳转入口 */
   hasEntities: boolean;
+  /** 跳转入口显示的文案 */
   entitiesAlias: string;
+  /** 点击 name 是否能够弹出 统计面板popover */
+  canOpenStatistics: boolean;
   externalParams: Record<string, any>;
 }
 
@@ -156,7 +165,8 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     if (this.popoverInstance) {
       this.handlePopoverHide();
     }
-    if (currentName === item.name) {
+
+    if (!item.canOpenStatistics || currentName === item.name) {
       return;
     }
     this.fieldTarget = item;

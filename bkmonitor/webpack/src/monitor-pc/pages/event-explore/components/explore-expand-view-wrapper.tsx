@@ -94,6 +94,7 @@ export default class ExploreExpandViewWrapper extends tsc<
         sourceName: fieldItem?.name as string,
         entitiesType,
         hasEntities,
+        canOpenStatistics: fieldItem?.is_option_enabled || false,
         entitiesAlias,
         externalParams,
       };
