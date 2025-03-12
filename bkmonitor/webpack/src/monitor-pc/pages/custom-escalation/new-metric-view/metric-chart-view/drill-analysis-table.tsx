@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { copyText } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
+import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/group-compare-select/utils';
 
 import type { IDimensionItem, IColumnItem, IDataItem, IFilterConfig } from '../type';
 
@@ -265,7 +266,8 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
   }
   /** 绘制波动值 */
   renderFluctuation(row: IDataItem, prop: string) {
-    return <span style={{ color: row[prop] >= 0 ? '#3AB669' : '#E91414' }}>{row[prop]}%</span>;
+    const color = row[prop] >= 0 ? '#3AB669' : '#E91414';
+    return <span style={{ color: row[prop] ? color : '#313238' }}>{row[prop] ? `${row[prop]}%` : '--'}</span>;
   }
 
   /** 绘制表格内容 */
@@ -288,7 +290,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
           ...compareColumn,
           ...[
             {
-              label: this.typeEnums[val] || val,
+              label: this.typeEnums[val] || timeOffsetDateFormat(val),
               prop: `${val}_value`,
               sortable: true,
             },
@@ -315,7 +317,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
               if (item?.renderFn) {
                 return item?.renderFn(row);
               }
-              return row[item.prop];
+              return row[item.prop] || '--';
             },
           }}
           label={this.$t(item.label)}

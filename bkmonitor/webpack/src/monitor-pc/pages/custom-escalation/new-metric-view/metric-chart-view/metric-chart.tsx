@@ -337,13 +337,15 @@ class NewMetricChart extends CommonSimpleChart {
   }
   handleSeriesName(item: DataQuery, set) {
     const { dimensions = {}, dimensions_translation = {} } = set;
-    if (!item.alias)
+    if (!item.alias) {
       return set.time_offset
         ? handleTimeOffset(set.time_offset)
         : Object.values({
             ...dimensions,
             ...dimensions_translation,
           }).join('|');
+    }
+
     const aliasFix = Object.values(dimensions).join('|');
     if (!aliasFix.length) return item.alias;
     return `${item.alias}-${aliasFix}`;
@@ -679,6 +681,54 @@ class NewMetricChart extends CommonSimpleChart {
     const copyPanel: PanelModel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel, metric, {});
   }
+
+  renderToolIconList() {
+    return this.handleIconList.map(item => {
+      // if (this.panel?.targets?.length > 1 && item.id === 'drillDown') {
+      //   return (
+      //     <bk-dropdown-menu>
+      //       <div slot='dropdown-trigger'>
+      //         <i
+      //           key={item.id}
+      //           class={`icon-monitor ${item.icon} menu-list-icon`}
+      //           v-bk-tooltips={{
+      //             content: this.$t(item.text),
+      //             delay: 200,
+      //           }}
+      //         ></i>
+      //       </div>
+      //       <ul
+      //         class='bk-dropdown-list'
+      //         slot='dropdown-content'
+      //       >
+      //         {this.panel.targets.map(target => {
+      //           return (
+      //             <li
+      //               class='bk-dropdown-item'
+      //               // key={target.id}
+      //               // onClick={() => this.handleMetricClick(target)}
+      //             >
+      //               {/* <span>{target.metricName}</span> */}
+      //             </li>
+      //           );
+      //         })}
+      //       </ul>
+      //     </bk-dropdown-menu>
+      //   );
+      // }
+      return (
+        <i
+          key={item.id}
+          class={`icon-monitor ${item.icon} menu-list-icon`}
+          v-bk-tooltips={{
+            content: this.$t(item.text),
+            delay: 200,
+          }}
+          onClick={() => this.handleIconClick(item)}
+        ></i>
+      );
+    });
+  }
   render() {
     return (
       <div class='new-metric-chart'>
@@ -710,17 +760,7 @@ class NewMetricChart extends CommonSimpleChart {
               class='icon-tool-list'
               slot='iconList'
             >
-              {this.handleIconList.map(item => (
-                <i
-                  key={item.id}
-                  class={`icon-monitor ${item.icon} menu-list-icon`}
-                  v-bk-tooltips={{
-                    content: this.$t(item.text),
-                    delay: 200,
-                  }}
-                  onClick={() => this.handleIconClick(item)}
-                ></i>
-              ))}
+              {this.renderToolIconList()}
             </span>
           )}
         </ChartHeader>

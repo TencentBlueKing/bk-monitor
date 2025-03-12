@@ -230,7 +230,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
                 if (item?.renderFn) {
                   return item?.renderFn(row);
                 }
-                return <span title={row[item.prop]}>{row[item.prop]}</span>;
+                return <span title={row[item.prop]}>{row[item.prop] || '--'}</span>;
               },
             }}
             label={this.$t(item.label)}
