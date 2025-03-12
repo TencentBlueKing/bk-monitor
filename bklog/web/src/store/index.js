@@ -58,7 +58,6 @@ import globals from './globals';
 import RequestPool from './request-pool';
 import retrieve from './retrieve';
 import RouteUrlResolver from './url-resolver';
-// import axios from 'axios';
 import { axiosInstance } from '@/api';
 import http from '@/api';
 
@@ -1586,9 +1585,9 @@ const store = new Vuex.Store({
             }
           }
           if (searchMode === 'sql') {
-            if (targetField?.is_virtual_obj_node) {
-              newSearchValue = [value];
-            } else {
+            if (targetField?.is_virtual_obj_node) { 
+              newSearchValue = `\"${value[0]}\"`;
+            } else{
               newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
             }
           }

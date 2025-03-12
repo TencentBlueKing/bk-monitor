@@ -39,12 +39,13 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
-import { RetrieveUrlResolver } from '@/store/url-resolver';
 import aiBlueking from '@/images/ai/ai-blueking.svg';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
 import { uniqueId, debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
+import PopInstanceUtil from '../../search-bar/pop-instance-util';
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
@@ -66,7 +67,6 @@ import ScrollXBar from './scroll-x-bar';
 import TableColumn from './table-column.vue';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import PopInstanceUtil from '../../search-bar/pop-instance-util';
 
 import './log-rows.scss';
 
@@ -902,6 +902,9 @@ export default defineComponent({
               width,
               minWidth: column.minWidth ? `${column.minWidth}px` : `${column.width}px`,
             };
+            if (typeof column.minWidth === 'number' && column.width < column.minWidth) {
+              cellStyle.minWidth = `${column.width}px`;
+            }
             return (
               <div
                 key={`${rowIndex}-${column.key}`}

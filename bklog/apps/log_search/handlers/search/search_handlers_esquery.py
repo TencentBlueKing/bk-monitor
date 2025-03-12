@@ -2207,6 +2207,8 @@ class SearchHandler(object):
         if not isinstance(base_dict, dict):
             return base_dict
         for key, value in update_dict.items():
+            if key not in base_dict:
+                continue
             if isinstance(value, dict):
                 base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
             else:
@@ -2215,15 +2217,52 @@ class SearchHandler(object):
 
     @staticmethod
     def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        expand highlight dict by dot
+        input:
+        {
+            "resource.service.name": [
+                "<mark>groupsvr</mark>"
+            ],
+            "resource.deployment.cluster.name": [
+                "<mark>BCS-K8S-12345</mark>"
+            ]
+        }
+        =>
+        output:
+        {
+            "resource.service.name": "<mark>groupsvr</mark>",
+            "resource.deployment.cluster.name": "<mark>BCS-K8S-12345</mark>",
+            "resource": {
+                "service.name": "<mark>groupsvr</mark>",
+                "service": {
+                    "name": "<mark>groupsvr</mark>"
+                },
+                "deployment.cluster.name": "<mark>BCS-K8S-12345</mark>",
+                "deployment": {
+                    "cluster.name": "<mark>BCS-K8S-12345</mark>",
+                    "cluster": {
+                        "name": "<mark>BCS-K8S-12345</mark>"
+                    }
+                }
+            }
+        }
+        """
         result = {}
         for key, value in dotted_dict.items():
+            joined_value = "".join(value)
             parts = key.split('.')
+            result[key] = joined_value
+            if len(parts) <= 1:
+                continue
             current_level = result
-            for part in parts[:-1]:
+            for idx, part in enumerate(parts[:-1]):
                 if part not in current_level:
                     current_level[part] = {}
+                if idx < len(parts) - 1:
+                    current_level[part][".".join(parts[idx + 1 :])] = joined_value
                 current_level = current_level[part]
-            current_level[parts[-1]] = "".join(value)
+            current_level[parts[-1]] = joined_value
         return result
 
     def _deal_object_highlight(self, log: Dict[str, Any], highlight: Dict[str, Any]) -> Dict[str, Any]:

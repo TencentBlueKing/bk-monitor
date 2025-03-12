@@ -356,6 +356,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-help:before {
 	content: "\e1a4";
 }
+.bklog-more:before {
+	content: "\e1f2";
+}
 .bklog-collapse:before {
 	content: "\e1dd";
 }
@@ -583,4 +586,19 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-copy-4:before {
 	content: "\e1e6";
+}
+.bklog-yuju1:before {
+	content: "\e1ed";
+}
+.bklog-ui1:before {
+	content: "\e1ee";
+}
+.bklog-vim1:before {
+	content: "\e1ef";
+}
+.bklog-yuju2:before {
+	content: "\e1f0";
+}
+.bklog-vm2:before {
+	content: "\e1f1";
 }
