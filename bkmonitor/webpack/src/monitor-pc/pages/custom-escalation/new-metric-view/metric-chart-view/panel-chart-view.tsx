@@ -79,6 +79,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   handleColumnNumChange() {
     this.handleCollapseChange();
   }
+  /** 是否需要展示统计值 */
+  @Watch('isShowStatisticalValue', { immediate: true })
+  handleShowStatisticalValueChange() {
+    this.handleCollapseChange();
+  }
   /** 每列展示的个数 */
   get columnNum() {
     return this.config.view_column || 3;
@@ -91,6 +96,9 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   get isHighlightPeakValue() {
     return this.config?.highlight_peak_value || false;
   }
+  get baseHeight() {
+    return this.isShowStatisticalValue ? DEFAULT_HEIGHT : 300;
+  }
 
   /** 重新获取对应的高度 */
   handleCollapseChange() {
@@ -101,13 +109,13 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       this.collapseRefsHeight[ind] = [];
       Array(len)
         .fill(0)
-        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.columnNum)] = DEFAULT_HEIGHT));
+        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.columnNum)] = this.baseHeight));
     });
   }
   /** 获取图表配置 */
   getGroupList() {
     this.loading = true;
-    const { show_statistical_value, view_column, highlight_peak_value, bk_biz_id, compare, ...rest } = this.config;
+    const { show_statistical_value, view_column, highlight_peak_value, compare, ...rest } = this.config;
     const params = compare?.type ? { ...rest, compare } : rest;
 
     getCustomTsGraphConfig(params)
@@ -130,6 +138,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
         <LayoutChartTable
           height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)]}
           config={this.config}
+          isShowStatisticalValue={this.isShowStatisticalValue}
           panel={chart}
           onResize={height => this.handleResize(height, ind, chartInd)}
         ></LayoutChartTable>

@@ -388,7 +388,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
       },
       [CUSTOM_METRIC]: () => {
         this.$router.push({
-          name: 'custom-escalation-view',
+          name: 'new-custom-escalation-view',
           params: { id: String(row.time_series_group_id) },
           query: { name: row.name },
         });
@@ -539,7 +539,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
               </bk-button>
               <div class='bk-button-group bk-button-group-capsule'>
                 {filterTypes.map(item => (
-                  <div class="bk-button-container">
+                  <div class='bk-button-container'>
                     <bk-button
                       key={item.id}
                       class={this.filterType === item.id ? 'is-selected' : ''}

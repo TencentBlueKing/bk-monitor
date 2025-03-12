@@ -51,6 +51,7 @@ interface ILayoutChartTableProps {
   minHeight?: number;
   panel?: IPanelModel;
   config?: IMetricAnalysisConfig;
+  isShowStatisticalValue?: boolean;
 }
 interface ILayoutChartTableEvents {
   onResize?: number;
@@ -65,6 +66,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   /* 拖拽数据 */
   @Prop({ default: () => ({ height: 300, minHeight: 180, maxHeight: 400 }) }) drag: IDragInfo;
   @Prop({ default: true }) isToolIconShow: boolean;
+  @Prop({ default: true }) isShowStatisticalValue: boolean;
   @Prop({ default: 600 }) height: number;
   @Prop({ default: 500 }) minHeight: number;
   @Ref('layoutMain') layoutMainRef: HTMLDivElement;
@@ -243,45 +245,53 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   }
 
   render() {
+    const renderChart = () => (
+      <NewMetricChart
+        key={this.chartKey}
+        style={{ height: `${this.drag.height - 30}px` }}
+        chartHeight={this.drag.height}
+        isToolIconShow={this.isToolIconShow}
+        panel={this.panel}
+        onDrillDown={this.handelDrillDown}
+        onFullScreen={this.handleFullScreen}
+        onLegendData={this.handleLegendData}
+      />
+    );
     return (
       <div
         ref='layoutMain'
         style={{ height: `${this.height}px` }}
         class='layout-chart-table'
       >
-        <bk-resize-layout
-          extCls='layout-chart-table-main'
-          slot='aside'
-          border={false}
-          initial-divide={'50%'}
-          max={this.drag.maxHeight}
-          min={this.drag.minHeight}
-          placement='top'
-          onResizing={this.handleResizing}
-        >
-          <div
-            class='main-chart'
+        {this.isShowStatisticalValue ? (
+          <bk-resize-layout
+            extCls='layout-chart-table-main'
             slot='aside'
+            border={false}
+            initial-divide={'50%'}
+            max={this.drag.maxHeight}
+            min={this.drag.minHeight}
+            placement='top'
+            onResizing={this.handleResizing}
           >
-            <NewMetricChart
-              key={this.chartKey}
-              style={{ height: `${this.drag.height - 30}px` }}
-              chartHeight={this.drag.height}
-              isToolIconShow={this.isToolIconShow}
-              panel={this.panel}
-              onDrillDown={this.handelDrillDown}
-              onFullScreen={this.handleFullScreen}
-              onLegendData={this.handleLegendData}
-            />
-          </div>
-          <div
-            style={{ height: `${this.divHeight - this.drag.height}px` }}
-            class='main-table'
-            slot='main'
-          >
-            {this.renderIndicatorTable()}
-          </div>
-        </bk-resize-layout>
+            <div
+              class='main-chart'
+              slot='aside'
+            >
+              {renderChart()}
+            </div>
+            <div
+              style={{ height: `${this.divHeight - this.drag.height}px` }}
+              class='main-table'
+              slot='main'
+            >
+              {this.renderIndicatorTable()}
+            </div>
+          </bk-resize-layout>
+        ) : (
+          <div class='main-chart'>{renderChart()}</div>
+        )}
+
         <div
           class='layout-dragging'
           onMousedown={this.startDragging}
