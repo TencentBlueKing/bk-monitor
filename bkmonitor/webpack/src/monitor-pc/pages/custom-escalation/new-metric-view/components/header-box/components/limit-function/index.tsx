@@ -81,7 +81,12 @@ export default class LimitFunction extends tsc<IProps, IEmit> {
   render() {
     return (
       <div class='new-metric-view-limit-function'>
-        <div class='label'>{this.$t('限制')}</div>
+        <div
+          class='label'
+          role='param-label'
+        >
+          <div>{this.$t('限制')}</div>
+        </div>
         <bk-popover
           ref='popoverRef'
           tippyOptions={{
@@ -118,9 +123,10 @@ export default class LimitFunction extends tsc<IProps, IEmit> {
         <div class='line' />
         <bk-input
           class='limit-input'
-          placeholder=' '
+          min={0}
           size='small'
           type='number'
+          value={this.value.limit}
           onChange={this.handleLimitChange}
         />
       </div>

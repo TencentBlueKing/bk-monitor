@@ -23,10 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _ from 'lodash';
+import { makeMap } from 'monitor-common/utils/make-map';
 
 import EditOffset from './edit-offset';
 
@@ -37,6 +38,7 @@ interface IProps {
     type: string;
     offset: string[];
   };
+  exclude?: Array<'metric' | 'time'>;
 }
 
 interface IEmit {
@@ -46,6 +48,7 @@ interface IEmit {
 @Component
 export default class CompareType extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: () => ({ type: '', offset: [] }) }) readonly value: IProps['value'];
+  @Prop({ type: Array, default: () => [] }) readonly exclude: IProps['exclude'];
 
   @Ref('popoverRef') popoverRef: any;
 
@@ -75,6 +78,17 @@ export default class CompareType extends tsc<IProps, IEmit> {
     return this.localType === 'time';
   }
 
+  get renderTypeList() {
+    const excludeMap = makeMap(this.exclude);
+    return _.filter(this.typeList, item => !excludeMap[item.id]);
+  }
+
+  @Watch('value', { immediate: true })
+  valueChange() {
+    this.localType = this.value.type;
+    this.localOffset = this.value.offset;
+  }
+
   triggerChange() {
     this.$emit('change', {
       type: this.localType,
@@ -99,7 +113,12 @@ export default class CompareType extends tsc<IProps, IEmit> {
   render() {
     return (
       <div class='new-metric-view-compare-type'>
-        <div class='label'>{this.$t('对比')}</div>
+        <div
+          class='label'
+          role='param-label'
+        >
+          <div>{this.$t('对比')}</div>
+        </div>
         <bk-popover
           ref='popoverRef'
           tippy-options={{
@@ -119,7 +138,7 @@ export default class CompareType extends tsc<IProps, IEmit> {
             class='wrapper'
             slot='content'
           >
-            {this.typeList.map(item => (
+            {this.renderTypeList.map(item => (
               <div
                 key={item.id}
                 class={{

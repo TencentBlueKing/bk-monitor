@@ -99,6 +99,11 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
       await customEscalationViewStore.fetchData({
         time_series_group_id: Number(this.$route.params.id),
       });
+      if (this.metricGroupList.length > 0) {
+        this.localCheckedMetricNameList = [this.metricGroupList[0].metrics[0].metric_name];
+        this.handleMetricSelectChange(this.localCheckedMetricNameList);
+      }
+
       this.renderMetricGroupList = Object.freeze(this.metricGroupList);
     } finally {
       this.isLoading = false;
@@ -214,7 +219,10 @@ export default class IndexSelect extends tsc<IProps, IEmit> {
                 class='metrics-select-item-content'
               >
                 {groupItem.metrics.map(metricsItem => (
-                  <RenderMetric data={metricsItem} />
+                  <RenderMetric
+                    data={metricsItem}
+                    onChange={this.fetchData}
+                  />
                 ))}
               </div>
             </div>

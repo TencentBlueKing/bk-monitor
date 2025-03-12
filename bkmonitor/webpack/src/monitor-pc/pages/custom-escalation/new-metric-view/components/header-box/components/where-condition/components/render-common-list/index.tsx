@@ -53,7 +53,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
     const index = _.findIndex(latestValue, item => item.key === payload.key);
     latestValue.splice(index, 1, payload);
 
-    this.$emit('onChange', latestValue);
+    this.$emit('change', latestValue);
   }
 
   render() {

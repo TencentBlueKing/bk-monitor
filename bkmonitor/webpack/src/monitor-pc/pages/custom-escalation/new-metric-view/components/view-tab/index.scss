@@ -1,8 +1,57 @@
 .bk-monitor-new-metric-view-view-tab {
-  .bk-tab-header {
-    background-image: none !important;
+  display: flex;
+  align-items: center;
+  background: #fff;
+  box-shadow: 0 1px 4px 0 #00000014;
+  padding-right: 16px;
+  .bk-tab {
+    .bk-tab-header {
+      background-image: none !important;
+    }
+    .bk-tab-section {
+      display: none;
+    }
+    .bk-tab-label-item {
+      &:hover,
+      .is-active {
+        .icon-monitor {
+          opacity: 1;
+        }
+      }
+      .bk-tab-label {
+        display: inline-flex;
+        align-items: center;
+      }
+    }
+    .is-active {
+      .remove-btn {
+        color: #ea3636;
+      }
+    }
+    .drag-flag {
+      font-size: 10px;
+      margin-right: 4px;
+      color: #979ba5;
+    }
+    .remove-btn {
+      font-size: 10px;
+      color: #979ba5;
+      padding-left: 4px;
+      transition: all 0.15s;
+      cursor: pointer;
+
+      &:hover {
+        color: #ea3636;
+      }
+    }
+
+    .icon-monitor {
+      font-size: 12px;
+      opacity: 0;
+    }
   }
-  .bk-tab-section {
-    display: none;
+
+  .view-save {
+    margin-left: auto;
   }
 }

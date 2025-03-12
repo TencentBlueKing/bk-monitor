@@ -26,10 +26,45 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import { customTimeSeriesList } from 'monitor-api/modules/custom_report';
+
 import './index.scss';
 
 @Component
-export default class NewMetricView extends tsc<object> {
+export default class PageHeader extends tsc<object> {
+  customTimeSeriesList: Readonly<{ time_series_group_id: number; name: string }[]> = [];
+
+  currentCustomTimeSeriesId = 0;
+  get currentCustomTimeSeriesName() {
+    return (
+      this.customTimeSeriesList.find(item => item.time_series_group_id === this.currentCustomTimeSeriesId)?.name || '--'
+    );
+  }
+
+  get currentSelectedMetricList() {
+    return customEscalationViewStore.currentSelectedMetricList;
+  }
+
+  async fetchData() {
+    const result = await customTimeSeriesList();
+    this.customTimeSeriesList = Object.freeze(result.list);
+  }
+
+  handleSeriesChange(id: number) {
+    this.$router.replace({
+      params: {
+        id: `${id}`,
+      },
+    });
+    customEscalationViewStore.updateCurrentSelectedMetricList([]);
+  }
+
+  created() {
+    this.fetchData();
+    this.currentCustomTimeSeriesId = Number(this.$route.params.id);
+  }
+
   render() {
     return (
       <div class='new-metric-view-page-header'>
@@ -37,30 +72,49 @@ export default class NewMetricView extends tsc<object> {
           <i class='icon-monitor icon-back-left navigation-bar-back' />
           <div class='app-name'>
             <bk-select
+              v-model={this.currentCustomTimeSeriesId}
               clearable={false}
               popover-min-width={240}
+              onChange={this.handleSeriesChange}
             >
               <div
                 class='app-select-value'
                 slot='trigger'
               >
-                hellow
+                {this.currentCustomTimeSeriesName}
                 <i
                   style='margin-left: 10px'
                   class='icon-monitor icon-mc-arrow-down'
                 />
               </div>
-              <bk-option
-                id='asd'
-                name='asdasd'
-              ></bk-option>
+              {this.customTimeSeriesList.map(item => (
+                <bk-option
+                  id={item.time_series_group_id}
+                  name={item.name}
+                />
+              ))}
             </bk-select>
           </div>
         </div>
-        <div class='index-tag'>
-          指标：system.disk.in_use
-          <i class='icon-monitor icon-mc-share' />
-        </div>
+        {this.currentSelectedMetricList.length > 0 && (
+          <div class='index-tag'>
+            {this.currentSelectedMetricList.length === 1 && (
+              <span>
+                {this.$t('指标：')}
+                {this.currentSelectedMetricList[0].metric_name}
+              </span>
+            )}
+            {this.currentSelectedMetricList.length > 1 && (
+              <i18n path='已选 {0} 个指标'>
+                <span style='font-weight: bold'>{this.currentSelectedMetricList.length}</span>
+              </i18n>
+            )}
+            <i
+              style='margin-left: 4px; color: #3A84FF'
+              class='icon-monitor icon-mc-share'
+            />
+          </div>
+        )}
         <div class='page-action-extend'>{this.$slots.default}</div>
       </div>
     );

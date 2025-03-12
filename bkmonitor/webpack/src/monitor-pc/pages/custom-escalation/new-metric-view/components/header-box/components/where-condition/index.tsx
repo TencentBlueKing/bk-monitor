@@ -27,6 +27,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
+import _ from 'lodash';
 
 import RenderCommonList from './components/render-common-list/index';
 import { type IValue } from './components/render-result-list/components/edit-panel';
@@ -36,6 +37,7 @@ import './index.scss';
 
 interface IProps {
   value?: IValue[];
+  commonConditionValue?: Omit<IValue, 'condition'>[];
   commonDimensionEnable: boolean;
 }
 
@@ -50,7 +52,7 @@ interface IEmit {
     common_conditions: {
       key: string;
       method: string;
-      condition: string;
+      value: string[];
     }[];
   }) => void;
 }
@@ -58,10 +60,11 @@ interface IEmit {
 @Component
 export default class FilterConditions extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly value: IProps['value'];
+  @Prop({ type: Array, default: () => [] }) readonly commonConditionValue: IProps['commonConditionValue'];
   @Prop({ type: Boolean, default: false }) readonly commonDimensionEnable: IProps['commonDimensionEnable'];
 
-  localConditionValueList: IValue[] = [];
-  localCommonConditionValueList: Omit<IValue, 'condition'>[] = [];
+  localWhereValueList: Readonly<IProps['value']> = [];
+  localCommonConditionValueList: Readonly<IProps['commonConditionValue']> = [];
   isShowCommonlyUsedList = false;
 
   get commonDimensionList() {
@@ -74,27 +77,62 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
 
   @Watch('commonDimensionList', { immediate: true })
   commonDimensionListChange() {
-    this.localCommonConditionValueList = this.commonDimensionList.map(item => ({
-      key: item.name,
-      method: 'eq',
-      value: [],
-    }));
+    this.localCommonConditionValueList = Object.freeze(
+      this.commonDimensionList.map(item => ({
+        key: item.name,
+        method: 'eq',
+        value: [],
+      }))
+    );
+  }
+
+  @Watch('value', { immediate: true })
+  valueChange() {
+    this.localWhereValueList = Object.freeze([...this.value]);
+  }
+
+  @Watch('commonConditionValue', { immediate: true })
+  commonConditionValueChange() {
+    if (this.commonConditionValue.length < 1) {
+      return;
+    }
+    const valueMap = this.commonConditionValue.reduce<Record<string, IProps['commonConditionValue'][number]>>(
+      (result, item) => {
+        if (item.value.length > 0) {
+          Object.assign(result, {
+            [item.key]: item,
+          });
+        }
+        return result;
+      },
+      {}
+    );
+    const latestCommonConditionValueList = [...this.localCommonConditionValueList];
+    latestCommonConditionValueList.forEach(item => {
+      if (valueMap[item.key]) {
+        Object.assign(item, valueMap[item.key]);
+      }
+    });
+    this.localCommonConditionValueList = Object.freeze(latestCommonConditionValueList);
+    this.isShowCommonlyUsedList = true;
+
+    console.log('localCommonConditionValueList = ', this.localCommonConditionValueList);
   }
 
   triggerChange() {
     this.$emit('change', {
-      where: this.localConditionValueList,
-      common_conditions: this.localCommonConditionValueList,
+      where: this.localWhereValueList,
+      common_conditions: _.filter(this.localCommonConditionValueList, item => item.value.length > 0),
     });
   }
 
-  handleConditionChange(value: typeof this.localConditionValueList) {
-    this.localConditionValueList = value;
+  handleConditionChange(value: typeof this.localWhereValueList) {
+    this.localWhereValueList = Object.freeze(value);
     this.triggerChange();
   }
 
   handleCommonConditinChange(value: typeof this.localCommonConditionValueList) {
-    this.localCommonConditionValueList = value;
+    this.localCommonConditionValueList = Object.freeze(value);
     this.triggerChange();
   }
 
@@ -105,15 +143,20 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
   render() {
     return (
       <div class='bk-monitor-new-metric-view-where-condition'>
-        <div class='filter-label'>{this.$t('过滤条件')}</div>
+        <div
+          class='filter-label'
+          role='param-label'
+        >
+          <div>{this.$t('过滤条件')}</div>
+        </div>
         <div class='where-condition-content'>
           <RenderResultList
-            value={this.localConditionValueList}
+            value={this.localWhereValueList as IProps['value']}
             onChange={this.handleConditionChange}
           />
           {this.isShowCommonlyUsedList && (
             <RenderCommonList
-              data={this.localCommonConditionValueList}
+              data={this.localCommonConditionValueList as IProps['commonConditionValue']}
               onChange={this.handleCommonConditinChange}
             />
           )}
