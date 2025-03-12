@@ -115,12 +115,11 @@ export default defineComponent({
 
       return axiosInstance(params)
         .then((resp: any) => {
-          if (resp.data.result) {
-            isRequesting.value = false;
-            emit('change', resp.data);
-          } else {
-            emit('error', resp.data);
-          }
+          isRequesting.value = false;
+          emit('change', resp);
+        })
+        .catch((resp: any) => {
+          emit('error', resp);
         })
         .finally(() => {
           isRequesting.value = false;

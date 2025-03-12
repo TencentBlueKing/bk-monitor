@@ -61,8 +61,9 @@
 
       .last-placeholder {
         &:last-child {
-          display: inline-block;
-          min-width: 120px;
+          display: inline-flex;
+          min-width: 80px;
+          min-height: 1px;
         }
       }
     }

@@ -225,8 +225,10 @@ export default defineComponent({
         // 这里默认渲染前500跟分词 + 10 - 20行溢出
         setListItem(isLimitExpandView.value ? 550 : 300);
 
-        const { offsetHeight, scrollHeight } = refContent.value;
-        hasOverflowY.value = offsetHeight < scrollHeight;
+        if (refContent.value) {
+          const { offsetHeight, scrollHeight } = refContent.value;
+          hasOverflowY.value = offsetHeight < scrollHeight;
+        }
       });
     });
 
