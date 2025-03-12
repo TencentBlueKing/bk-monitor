@@ -27,7 +27,7 @@
 import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Debounce } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 
 import {
   fieldTypeMap,
@@ -86,12 +86,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
   values = [];
   /* 是否使用通配符 */
   isWildcard = false;
-  /* 检索值loading */
-  valueLoading = false;
-  /* 检索值候选项 */
-  valueOptions = [];
-  /* 光标是否移至右边 */
-  cursorRight = false;
+  rightRefreshKey = random(8);
+  isShowDropDown = false;
 
   get wildcardItem() {
     return this.checkedItem?.supported_operations?.find(item => item.value === this.method)?.options;
@@ -117,35 +113,30 @@ export default class UiSelectorOptions extends tsc<IProps> {
 
   @Watch('show', { immediate: true })
   handleWatchShow() {
-    if (this.show) {
-      if (this.value) {
-        const id = this.value.key.id;
-        for (const item of this.localFields) {
-          if (item.name === id) {
-            const checkedItem = JSON.parse(JSON.stringify(item));
-            this.handleCheck(checkedItem, this.value.method.id, this.value.value);
-            break;
-          }
+    if (!this.show) {
+      this.initData();
+    }
+    if (this.show && this.value) {
+      const id = this.value.key.id;
+      for (const item of this.localFields) {
+        if (item.name === id) {
+          const checkedItem = JSON.parse(JSON.stringify(item));
+          this.handleCheck(checkedItem, this.value.method.id, this.value.value);
+          break;
         }
       }
-    } else {
-      this.initData();
     }
   }
 
   initData() {
     this.searchValue = '';
-    this.localFields = [];
-    // this.searchLocalFields = [];
     this.cursorIndex = 0;
     this.checkedItem = null;
     this.queryString = '';
     this.method = '';
     this.values = [];
     this.isWildcard = false;
-    this.valueLoading = false;
-    this.valueOptions = [];
-    this.cursorRight = false;
+    this.handleWatchFields();
   }
 
   /**
@@ -156,41 +147,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
     this.checkedItem = JSON.parse(JSON.stringify(item));
     this.values = value || [];
     this.method = method || item?.supported_operations?.[0]?.value || '';
-    this.getValueData(this.checkedItem, method, value);
     const index = this.searchLocalFields.findIndex(f => f.name === item.name) || 0;
     this.cursorIndex = index;
-  }
-
-  /**
-   * @description 搜索接口
-   * @param item
-   * @param method
-   * @param value
-   */
-  async getValueData(item: IFilterField, method = '', value = []) {
-    this.valueOptions = [];
-    this.valueLoading = true;
-    if (item.name !== '*') {
-      const data = await this.getValueFn({
-        where: [
-          {
-            key: item.name,
-            method: method,
-            value: value,
-            condition: ECondition.and,
-            options: this.isWildcard
-              ? {
-                  is_wildcard: true,
-                }
-              : undefined,
-          },
-        ],
-        fields: [item.name],
-        limit: 5,
-      });
-      this.valueOptions = data.list;
-      this.valueLoading = false;
-    }
+    this.rightRefreshKey = random(8);
   }
 
   /**
@@ -258,15 +217,6 @@ export default class UiSelectorOptions extends tsc<IProps> {
   }
 
   /**
-   * @description 搜索
-   * @param v
-   */
-  @Debounce(500)
-  handleValueSearch(v: string) {
-    this.getValueData(this.checkedItem, this.method, [v]);
-  }
-
-  /**
    * @description 监听键盘事件
    * @param event
    * @returns
@@ -280,12 +230,13 @@ export default class UiSelectorOptions extends tsc<IProps> {
       this.handleConfirm();
       return;
     }
-    if (this.cursorRight) {
+    if (this.isShowDropDown) {
       return;
     }
     switch (event.key) {
       case 'ArrowUp': {
         // 按下上箭头键
+        console.log('xxxx');
         event.preventDefault();
         this.cursorIndex -= 1;
         if (this.cursorIndex < 0) {
@@ -335,7 +286,6 @@ export default class UiSelectorOptions extends tsc<IProps> {
         this.queryString = '';
         this.handleCheck(item);
       }
-      this.cursorRight = true;
     }
   }
 
@@ -357,6 +307,10 @@ export default class UiSelectorOptions extends tsc<IProps> {
       }
       return false;
     });
+  }
+
+  handleDropDownChange(v: boolean) {
+    this.isShowDropDown = v;
   }
 
   render() {
@@ -413,23 +367,27 @@ export default class UiSelectorOptions extends tsc<IProps> {
             >
               <div class='form-item-label'>
                 <span class='left'>{this.$t('检索值')}</span>
-                <span class='right'>
-                  <bk-checkbox
-                    v-model={this.isWildcard}
-                    onChange={this.handleIsWildcardChange}
-                  >
-                    {this.wildcardItem?.label || '使用通配符'}
-                  </bk-checkbox>
-                </span>
+                {!!this.wildcardItem && (
+                  <span class='right'>
+                    <bk-checkbox
+                      v-model={this.isWildcard}
+                      onChange={this.handleIsWildcardChange}
+                    >
+                      {this.wildcardItem?.label || '使用通配符'}
+                    </bk-checkbox>
+                  </span>
+                )}
               </div>
               <div class='form-item-content mt-6'>
                 <ValueTagSelector
-                  cursorActive={this.cursorRight}
-                  loading={this.valueLoading}
-                  options={this.valueOptions}
+                  key={this.rightRefreshKey}
+                  checkedItem={this.checkedItem}
+                  getValueFn={this.getValueFn}
+                  isWildcard={this.isWildcard}
+                  method={this.method}
                   value={this.values}
                   onChange={this.handleValueChange}
-                  onSearch={this.handleValueSearch}
+                  onDropDownChange={this.handleDropDownChange}
                 />
               </div>
             </div>,
@@ -460,7 +418,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
                       { checked: this.checkedItem?.name === item.name },
                       { cursor: index === this.cursorIndex },
                     ]}
-                    onClick={() => this.handleCheck(item)}
+                    onClick={() => {
+                      this.handleCheck(item);
+                    }}
                   >
                     <span
                       style={{

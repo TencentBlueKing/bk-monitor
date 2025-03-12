@@ -47,6 +47,7 @@ interface IProps {
   fields: IFilterField[];
   qsSelectorOptionsWidth?: number;
   favoriteList?: IFavoriteListItem[];
+  isQsOperateWrapBottom?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onQuery?: (v: string) => void;
   onChange?: (v: string) => void;
@@ -67,9 +68,12 @@ export default class QsSelector extends tsc<IProps> {
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
+  /* 语句模式hover显示的操作是否显示在下方 */
+  @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
 
   @Ref('select') selectRef: HTMLDivElement;
   @Ref('lastPosition') lastPositionRef: HTMLDivElement;
+  @Ref('el') elRef: HTMLDivElement;
 
   localValue = '';
   /* 弹层实例 */
@@ -115,7 +119,7 @@ export default class QsSelector extends tsc<IProps> {
   @Watch('localValue', { immediate: true })
   handleWatchLocalValue() {
     const left = this.lastPositionRef.offsetLeft;
-    const top = this.lastPositionRef.offsetTop < 14 ? -26 : this.$el.clientHeight - 2;
+    const top = this.lastPositionRef.offsetTop < 14 && !this.isQsOperateWrapBottom ? -26 : this.$el.clientHeight - 2;
     this.operatePosition = {
       top,
       left,
@@ -204,7 +208,7 @@ export default class QsSelector extends tsc<IProps> {
     this.curTokenType = type;
     this.curTokenField = field;
     const customEvent = {
-      target: this.$el,
+      target: this.elRef,
     };
     if (this.popoverInstance) {
       this.popoverInstance?.show();
@@ -259,6 +263,7 @@ export default class QsSelector extends tsc<IProps> {
    * @description 清空
    */
   handleClear() {
+    this.queryStringEditor.setQueryString('');
     this.handleChange('');
   }
   /**
@@ -282,9 +287,16 @@ export default class QsSelector extends tsc<IProps> {
     this.inputValue = val.replace(/^\s+|\s+$/g, '');
   }
 
+  /**
+   * @description 是否输入了/，如果输入了则弹出选项框
+   * @param event
+   */
   handleKeyDownSlash(event) {
     if (event.key === '/') {
       this.handlePopUp(EQueryStringTokenType.key, '');
+      setTimeout(() => {
+        this.queryStringEditor.editorEl?.focus?.();
+      }, 300);
       document.removeEventListener('keydown', this.handleKeyDownSlash);
     }
   }
@@ -307,6 +319,10 @@ export default class QsSelector extends tsc<IProps> {
         }
       >
         <div class='retrieval-filter__qs-selector-component' />
+        <div
+          ref='el'
+          class='__bottom__'
+        />
         <div class='qs-value-hidden'>
           <div class='qs-value-hidden-text'>
             {this.localValue}
@@ -316,34 +332,7 @@ export default class QsSelector extends tsc<IProps> {
             />
           </div>
         </div>
-        <div
-          style={{
-            left: `${this.operatePosition.left}px`,
-            top: `${this.operatePosition.top}px`,
-          }}
-          class='qs-operate-wrap'
-        >
-          <div
-            class='operate-btn'
-            v-bk-tooltips={{
-              content: this.$tc('清空'),
-              delay: 300,
-            }}
-            onClick={this.handleClear}
-          >
-            <span class='icon-monitor icon-a-Clearqingkong' />
-          </div>
-          <div
-            class='operate-btn'
-            v-bk-tooltips={{
-              content: this.$tc('复制'),
-              delay: 300,
-            }}
-            onClick={this.handleCopy}
-          >
-            <span class='icon-monitor icon-mc-copy' />
-          </div>
-        </div>
+
         <div style='display: none;'>
           <div
             ref='select'
@@ -366,6 +355,38 @@ export default class QsSelector extends tsc<IProps> {
             />
           </div>
         </div>
+        {!!this.localValue && !this.showSelector && (
+          <div
+            style={{
+              left: `${this.operatePosition.left}px`,
+              top: `${this.operatePosition.top}px`,
+            }}
+            class='qs-operate-wrap'
+          >
+            <div
+              class='operate-btn'
+              onClick={this.handleClear}
+            >
+              <span
+                class='icon-monitor icon-a-Clearqingkong'
+                v-bk-tooltips={{
+                  content: this.$tc('清空'),
+                  delay: 300,
+                }}
+              />
+            </div>
+            <div
+              class='operate-btn'
+              v-bk-tooltips={{
+                content: this.$tc('复制'),
+                delay: 300,
+              }}
+              onClick={this.handleCopy}
+            >
+              <span class='icon-monitor icon-mc-copy' />
+            </div>
+          </div>
+        )}
       </div>
     );
   }

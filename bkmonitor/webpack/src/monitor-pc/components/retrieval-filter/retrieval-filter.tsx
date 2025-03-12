@@ -58,6 +58,7 @@ interface IProps {
   selectFavorite?: IFavList.favList;
   favoriteList?: IFavoriteListItem[];
   filterMode?: EMode;
+  isQsOperateWrapBottom?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   onFavorite: (isEdit: boolean) => void;
   onWhereChange?: (v: IWhereItem[]) => void;
@@ -85,6 +86,8 @@ export default class RetrievalFilter extends tsc<IProps> {
   @Prop({ type: String, default: '' }) queryString: string;
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
   @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
+  /* 语句模式hover显示的操作是否显示在下方 */
+  @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
 
   /* 展示常驻设置 */
   showResidentSetting = false;
@@ -384,6 +387,7 @@ export default class RetrievalFilter extends tsc<IProps> {
                 favoriteList={this.favoriteList}
                 fields={this.fields}
                 getValueFn={this.getValueFn}
+                isQsOperateWrapBottom={this.isQsOperateWrapBottom}
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
                 onChange={this.handleQsValueChange}
