@@ -61,11 +61,12 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   sliderShow = false;
   sliderLoading = false;
+  sliderLoadMoreLoading = false;
 
   /** 维度统计列表 */
-  statisticsList = [];
+  statisticsList: ITopKField = { distinct_count: 0, field: '', list: [] };
   /** 侧栏维度列表 */
-  sliderDimensionList = [];
+  sliderDimensionList: ITopKField = { distinct_count: 0, field: '', list: [] };
 
   popoverLoading = true;
   downloadLoading = false;
@@ -140,24 +141,31 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   async getStatisticsList() {
     this.popoverLoading = true;
-    const list = await this.getFieldTopK({
+    this.statisticsList = await this.getFieldTopK({
       limit: 5,
       fields: [this.selectField],
     });
-    this.statisticsList = list;
     this.popoverLoading = false;
     this.popoverInstance?.popperInstance?.update();
   }
 
+  /** 展示侧栏 */
   async showMore() {
     this.sliderShow = true;
     this.sliderLoading = true;
     this.$emit('showMore');
-    this.sliderDimensionList = await this.getFieldTopK({
-      limit: this.statisticsList[0]?.distinct_count ?? 0,
-      fields: [this.selectField],
-    }).catch(() => []);
+    await this.loadMore();
     this.sliderLoading = false;
+  }
+
+  /** 加载更多 */
+  async loadMore() {
+    this.sliderLoadMoreLoading = true;
+    this.sliderDimensionList = await this.getFieldTopK({
+      limit: (Math.floor(this.sliderDimensionList.list.length / 100) + 1) * 100,
+      fields: [this.selectField],
+    });
+    this.sliderLoadMoreLoading = false;
   }
 
   handleSliderShowChange(show: boolean) {
@@ -169,7 +177,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     this.downloadLoading = true;
     const data = await getDownloadTopK(
       {
-        limit: this.statisticsList[0].distinct_count,
+        limit: this.statisticsList.distinct_count,
         fields: [this.selectField],
         ...this.commonParams,
       },
@@ -182,11 +190,12 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     } catch {}
   }
 
-  getFieldTopK(params) {
-    return getEventTopK({
+  async getFieldTopK(params) {
+    const data = await getEventTopK({
       ...this.commonParams,
       ...params,
-    }).catch(() => []);
+    }).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
+    return data[0];
   }
 
   renderSkeleton() {
@@ -210,15 +219,17 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
           class='event-retrieval-dimension-filter-content'
         >
           <div class='popover-header'>
-            <div class='title'>
+            <div class='dimension-top-k-title'>
               <span
-                class='title-text'
+                class='field-name'
                 v-bk-overflow-tips
               >
                 {this.selectField}
-                {this.$t('去重后的字段统计')}
               </span>
-              <span class='count'>{this.statisticsList[0]?.distinct_count || 0}</span>
+              <span class='divider' />
+              <span class='desc'>
+                {this.$t('去重后的字段统计')} ({this.statisticsList.distinct_count || 0})
+              </span>
             </div>
             {this.downloadLoading ? (
               <img
@@ -239,8 +250,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
           {this.popoverLoading
             ? this.renderSkeleton()
             : [
-                this.renderTopKField(this.statisticsList[0]?.list),
-                this.statisticsList[0]?.distinct_count > 5 && (
+                this.renderTopKField(this.statisticsList.list),
+                this.statisticsList.distinct_count > 5 && (
                   <div
                     class='load-more'
                     onClick={this.showMore}
@@ -264,7 +275,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             class='dimension-slider-header'
             slot='header'
           >
-            <div class='title'>
+            <div class='dimension-top-k-title'>
               <span
                 class='field-name'
                 v-bk-overflow-tips
@@ -273,7 +284,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               </span>
               <span class='divider' />
               <span class='desc'>
-                {this.$t('去重后的字段统计')} ({this.sliderDimensionList[0]?.distinct_count || 0})
+                {this.$t('去重后的字段统计')} ({this.sliderDimensionList.distinct_count || 0})
               </span>
             </div>
             {this.downloadLoading ? (
@@ -296,7 +307,15 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             class='dimension-slider-content'
             slot='content'
           >
-            {this.sliderLoading ? this.renderSkeleton() : this.renderTopKField(this.sliderDimensionList[0]?.list)}
+            {this.sliderLoading ? this.renderSkeleton() : this.renderTopKField(this.sliderDimensionList.list)}
+            {this.sliderDimensionList.distinct_count > this.sliderDimensionList.list.length && (
+              <div
+                class={['slider-load-more', { 'is-loading': this.sliderLoadMoreLoading }]}
+                onClick={this.loadMore}
+              >
+                {this.$t(this.sliderLoadMoreLoading ? '正在加载...' : '加载更多')}
+              </div>
+            )}
           </div>
         </bk-sideslider>
       </div>
