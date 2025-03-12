@@ -176,7 +176,7 @@ export interface ExploreFieldMap {
 
 export interface ExploreEntitiesItem {
   alias: string;
-  dependent_fields: string[];
+  dependent_fields?: string[];
   fields: string[];
   type: ExploreEntitiesTypeEnum;
 }
