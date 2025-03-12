@@ -61,6 +61,7 @@ interface IEventExploreViewProps {
 
 interface IEventExploreViewEvents {
   onConditionChange: (condition: IWhereItem[]) => void;
+  onClearSearch: () => void;
 }
 
 @Component
@@ -140,6 +141,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   @Emit('conditionChange')
   conditionChange(condition: IWhereItem[]) {
     return condition;
+  }
+
+  @Emit('clearSearch')
+  clearSearch() {
+    return;
   }
 
   mounted() {
@@ -347,6 +353,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             entitiesMapList={this.entitiesMapList}
             fieldMap={this.fieldMap}
             requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
+            onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
           />
         </div>

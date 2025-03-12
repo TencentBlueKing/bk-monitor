@@ -340,6 +340,15 @@ export default class EventExplore extends tsc<
     return mode;
   }
 
+  /**
+   * @description 清空筛选条件
+   *
+   **/
+  handleClearSearch() {
+    this.handleQueryStringChange('');
+    this.handleWhereChange([]);
+  }
+
   render() {
     return (
       <div class='event-explore'>
@@ -386,6 +395,7 @@ export default class EventExplore extends tsc<
                   refreshImmediate={this.refreshImmediate}
                   source={this.source}
                   timeRange={this.timeRange}
+                  onClearSearch={this.handleClearSearch}
                   onConditionChange={this.handleConditionChange}
                 />
               </div>

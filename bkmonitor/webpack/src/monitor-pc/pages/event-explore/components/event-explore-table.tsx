@@ -141,10 +141,6 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return;
   }
 
-  created() {
-    this.getEventLogs();
-  }
-
   /**
    * @description 事件日志table表格列配置项
    *
