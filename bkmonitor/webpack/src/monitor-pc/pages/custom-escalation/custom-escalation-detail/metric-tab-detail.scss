@@ -159,6 +159,11 @@
       }
       .empty-group {
         font-family: MicrosoftYaHei;
+        .empty-tip {
+          color: #979ba5;
+          font-size: 12px;
+          margin-top: 8px;
+        }
         .empty-img {
           width: 220px;
           height: 100px;
@@ -180,7 +185,9 @@
           color: #3A84FF;
           line-height: 20px;
           text-align: center;
+          margin-top: 30px;
           &:hover {
+            cursor: pointer;
           }
         }
       }

@@ -73,7 +73,7 @@ interface Item {
   dimensions?: string[];
   common?: boolean;
 }
-interface IGroupListItem {
+export interface IGroupListItem {
   name: string;
   matchRules: string[];
   manualList: string[];
@@ -238,6 +238,12 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
     return selectionList.length;
   }
 
+  // 分组名称列表
+  get groupNameList() {
+    console.log(this.groupList);
+    return this.groupList.map(item => item.name);
+  }
+
   get metricTable() {
     const labelsMatchTypes = labels => {
       let temp = [];
@@ -385,7 +391,6 @@ export default class CustomEscalationDetailNew extends tsc<any, any> {
       [this.proxyInfo] = data; // 云区域展示数据
       [, this.detailData = this.detailData] = data;
       [, , metricData] = data;
-      console.log('metricData = = = >>', metricData);
       if (this.type === 'customTimeSeries') {
         [, , , this.unitList] = data; // 单位list
         const allUnitList = [];
@@ -1063,6 +1068,89 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
     );
   }
 
+  getGroupChanges(metricName, newGroups, metricMap) {
+    // 获取原有分组信息
+    const metricInfo = metricMap.get(metricName);
+    const oldGroups = metricInfo ? metricInfo.groups : [];
+
+    const oldSet = new Set(oldGroups);
+    const newSet = new Set(newGroups);
+
+    // 计算新增和删除的分组
+    const added = [...newGroups].filter(group => !oldSet.has(group));
+    const removed = [...oldGroups].filter(group => !newSet.has(group));
+
+    return { added, removed };
+  }
+
+  async updateGroupInfo(metricName, groupNames, isAdd = true) {
+    if (!groupNames?.length) return;
+
+    const updatePromises = groupNames.map(async groupName => {
+      const group = this.groupsMap.get(groupName);
+      if (!group) {
+        return;
+      }
+
+      const currentMetrics = group.manualList || [];
+      const newMetrics = isAdd
+        ? [...new Set([...currentMetrics, metricName])] // 防止重复添加
+        : currentMetrics.filter(m => m !== metricName);
+
+      try {
+        await this.submitGroupInfo({
+          name: groupName,
+          manual_list: newMetrics,
+          auto_rules: group.matchRules || [],
+        });
+      } catch (error) {
+        console.error(`Group ${groupName} update failed:`, error);
+      }
+    });
+
+    await Promise.all(updatePromises);
+  }
+
+  async saveSelectGroup(selectedGroups, metricName) {
+    try {
+      const changes = this.getGroupChanges(metricName, selectedGroups, this.metricGroupsMap);
+
+      await Promise.all([
+        this.updateGroupInfo(metricName, changes.added),
+        this.updateGroupInfo(metricName, changes.removed, false),
+      ]);
+    } catch (error) {
+      console.error('Group update failed:', error);
+    }
+  }
+
+  async submitGroupInfo(config) {
+    await this.$store.dispatch('custom-escalation/createOrUpdateGroupingRule', {
+      time_series_group_id: this.$route.params.id,
+      ...config,
+    });
+  }
+
+  /** 更新自定义分组 */
+  async handleSubmitGroup(config) {
+    await this.submitGroupInfo(config);
+    await this.getGroupList();
+    this.changeGroupFilterList(config.name);
+    this.getDetailData();
+  }
+
+  /** 删除自定义分组 */
+  async handleDelGroup(name) {
+    await this.$store.dispatch('custom-escalation/deleteGroupingRule', {
+      time_series_group_id: this.$route.params.id,
+      name,
+    });
+    if (this.groupFilterList[0] === name) {
+      this.changeGroupFilterList(ALL_LABEL);
+    }
+    this.getDetailData();
+  }
+
   /* 分组管理指标 */
   handleSelectGroup([value, index]) {
     const metricName = this.metricTable[index].name;
@@ -1155,17 +1243,22 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
                   dimensionTable={this.dimensions}
                   groupSelectList={this.groupSelectList}
                   groupsMap={this.groupsMap}
+                  metricGroupsMap={this.metricGroupsMap}
                   metricNum={this.metricNum}
                   metricTable={this.metricTable}
+                  nameList={this.groupNameList}
                   nonGroupNum={this.nonGroupNum}
                   selectedLabel={this.groupFilterList[0] || ALL_LABEL}
                   unitList={this.unitList}
                   onChangeGroup={this.changeGroupFilterList}
+                  onGroupDelByName={this.handleDelGroup}
                   onGroupListOrder={tab => (this.groupList = tab)}
+                  onGroupSubmit={this.handleSubmitGroup}
                   onHandleClickSlider={v => {
                     this.isShow = v;
                   }}
                   onHandleSelectGroup={this.handleSelectGroup}
+                  onHandleSelectToggle={this.saveSelectGroup}
                   onUpdateAllSelection={this.updateAllSelection}
                 />
               ) : undefined /* TODO[自定义事件]  */
@@ -1315,7 +1408,14 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
             </div>
           </div>
         </div>
-        {<IndicatorTableSlide isShow={this.isShow} />}
+        {
+          <IndicatorTableSlide
+            isShow={this.isShow}
+            metricTable={this.metricTable}
+            unitList={this.unitList}
+            onHidden={v => (this.isShow = v)}
+          />
+        }
       </div>
     );
   }

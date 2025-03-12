@@ -26,18 +26,11 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { ALL_LABEL } from './custom-escalation-detail';
 import DimensionTabDetail from './dimension-tab-detail';
 import MetricTabDetail from './metric-tab-detail';
 
 import './timeseries-detail.scss';
 
-interface IGroup {
-  name: string;
-  metric_count: number;
-  manual_list?: string[];
-  auto_rules?: string[];
-}
 
 @Component
 export default class TimeseriesDetailNew extends tsc<any, any> {
@@ -48,25 +41,6 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
   @Prop({ default: 0 }) nonGroupNum;
   @Prop({ default: 0 }) metricNum;
   @Prop({ default: 0 }) dimensionNum;
-  showAddGroupDialog = false;
-  /** 当前拖拽id */
-  dragId = '';
-  dragoverId = '';
-  groupList: IGroup[] = [
-    {
-      name: '分组1',
-      metric_count: 23,
-    },
-    {
-      name: '分组2',
-      metric_count: 2,
-    },
-    {
-      name: '分组放大哈第三方和',
-      metric_count: 3,
-    },
-  ];
-  isShowRightWindow = true; // 是否显示右侧帮助栏
 
   tabs = [
     {
@@ -84,14 +58,7 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
   handleMenuClick(item) {
     // TODO
   }
-  @Emit('handleClickSlider')
-  handleClickSlider(v: boolean): boolean {
-    return v;
-  }
-  @Emit('changeGroup')
-  changeGroup(id: string) {
-    return id;
-  }
+
 
   getCmpByActiveTab(activeTab: string) {
     const cmpMap = {
@@ -110,8 +77,6 @@ export default class TimeseriesDetailNew extends tsc<any, any> {
           nonGroupNum={this.nonGroupNum}
           selectedLabel={this.selectedLabel}
           unitList={this.unitList}
-          onChangeGroup={this.changeGroup}
-          onHandleClickSlider={this.handleClickSlider}
         />
       ),
       /** 维度 */

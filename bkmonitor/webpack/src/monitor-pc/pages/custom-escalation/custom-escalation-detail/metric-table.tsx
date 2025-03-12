@@ -23,17 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Inject, Prop } from 'vue-property-decorator';
+import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 const { i18n: I18N } = window;
 
-import dayjs from 'dayjs';
-
 // import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
-import GroupSelectMultiple from '../group-select-multiple';
-import IndicatorTableSlide from './metric-table-slide';
+import GroupSearchMultiple from './group-search-multiple';
 
 import './metric-table.scss';
 
@@ -42,10 +39,13 @@ export const statusMap = new Map([
   [true, { name: window.i18n.tc('停用'), color1: '#FF9C01', color2: 'rgba(255,156,1,0.16)' }],
 ]);
 
-interface MetricDetail {
+interface ILabel {
+  name: string;
+}
+interface IMetricDetail {
   name: string;
   alias: string;
-  labels?: string[];
+  labels?: ILabel[];
   status: 'disable' | 'enable';
   unit: string;
   aggregation: string;
@@ -58,6 +58,7 @@ interface MetricDetail {
     value: string;
     timestamp: string;
   };
+  description: string;
 }
 
 const StatusTag = {
@@ -130,6 +131,9 @@ export default class IndicatorTable extends tsc<any, any> {
   @Prop({ default: () => [], type: Array }) groupSelectList: IListItem[];
   @Prop({ default: () => [], type: Array }) value: string[];
   @Prop({ default: () => new Map(), type: Map }) groupsMap: Map<string, any>;
+  @Prop({ default: () => new Map(), type: Map }) metricGroupsMap: Map<string, any>;
+
+  @Ref() readonly descriptionInput!: HTMLInputElement;
   table = {
     // data: Array(1).fill({
     //   id: 'haha',
@@ -147,6 +151,8 @@ export default class IndicatorTable extends tsc<any, any> {
     select: [],
   };
 
+  canEditName = false;
+  copyDescription = ''; //
   /* 分组标签pop实例 */
   groupTagInstance = null;
 
@@ -158,6 +164,7 @@ export default class IndicatorTable extends tsc<any, any> {
 
   fieldSettingData: any = {};
   showDetail = false;
+  activeIndex = -1;
   tableInstance = {
     total: 0,
     data: [],
@@ -302,6 +309,7 @@ export default class IndicatorTable extends tsc<any, any> {
   mounted() { }
 
   showMetricDetail(props) {
+    this.activeIndex = props.$index;
     this.showDetail = true;
   }
 
@@ -317,12 +325,17 @@ export default class IndicatorTable extends tsc<any, any> {
   @Emit('handleSelectGroup')
   handleSelectGroup(v: string[], index: number, row) {
     // 处理分组选择逻辑
-    console.log('v', v, index, row);
-    return [v, index];
+    return [v, index, row.name];
   }
 
-  handleGroupSelectToggle() {
+  handleGroupSelectToggle(isShow, row) {
     // 处理切换逻辑
+    if (isShow) return;
+    this.$emit(
+      'handleSelectToggle',
+      row.labels.map(label => label.name),
+      row.name
+    );
   }
 
   /* 分组tag tip展示 */
@@ -429,13 +442,13 @@ export default class IndicatorTable extends tsc<any, any> {
     const groupSlot = {
       /* 分组 */ default: ({ row, $index }) => {
         return (
-          <GroupSelectMultiple
+          <GroupSearchMultiple
             groups-map={this.groupsMap}
             list={this.groupSelectList}
             metric-name={row.name}
             value={row.labels.map((item: GroupLabel) => item.name)}
             onChange={(v: string[]) => this.handleSelectGroup(v, $index, row)}
-            onToggle={this.handleGroupSelectToggle}
+            onToggle={v => this.handleGroupSelectToggle(v, row)}
           >
             {row.labels?.length ? (
               <div class='table-group-tags'>
@@ -451,10 +464,7 @@ export default class IndicatorTable extends tsc<any, any> {
                 ))}
               </div>
             ) : (
-              <div class='table-group-select'>
-                {this.$t('未分组')}
-                <i class='icon-monitor icon-arrow-down' />
-              </div>
+              <div class='table-group-select'>{this.$t('未分组')}</div>
             )}
 
             <div
@@ -465,7 +475,7 @@ export default class IndicatorTable extends tsc<any, any> {
               <span class='icon-monitor icon-a-1jiahao' />
               <span>{this.$t('新建分组')}</span>
             </div>
-          </GroupSelectMultiple>
+          </GroupSearchMultiple>
         );
       },
     };
@@ -727,18 +737,42 @@ export default class IndicatorTable extends tsc<any, any> {
   handleClickSlider(): boolean {
     return true;
   }
+  handleEditDescription(metricInfo) {
+    this.canEditName = false;
+    if (!this.copyDescription) {
+      return;
+    }
+    this.$store.dispatch('custom-escalation/modifyCustomTsFields', {
+      time_series_group_id: this.$route.params.id,
+      update_fields: [
+        {
+          ...metricInfo,
+          description: this.copyDescription,
+        },
+      ],
+    });
+    metricInfo.description = this.copyDescription;
+  }
+
+  handleShowEditDescription(name) {
+    this.canEditName = true;
+    this.copyDescription = name;
+    this.$nextTick(() => {
+      this.descriptionInput.focus();
+    });
+  }
   getDetailCmp() {
-    const renderInfoItem = (props: { label: string; value?: any }, children?: JSX.Element) => {
+    const renderInfoItem = (props: { label: string; value?: any }, editEle) => {
       return (
         <div class='info-item'>
           <span class='info-label'>{props.label}：</span>
-          <div class='info-content'>{children || (props.value ?? '-')}</div>
+          <div class='info-content'>{props.value ?? '-'}</div>
         </div>
       );
     };
 
-    const metricData: MetricDetail = this.metricTableVal;
-
+    const metricData: IMetricDetail = this.metricTableVal[this.activeIndex] || {};
+    console.log('metricData', metricData);
     return (
       <div class='metric-card'>
         <div class='card-header'>
@@ -752,18 +786,34 @@ export default class IndicatorTable extends tsc<any, any> {
         <div class='card-body'>
           <div class='info-column'>
             {renderInfoItem({ label: '名称', value: metricData.name }, null)}
-            {renderInfoItem({ label: '别名', value: metricData.alias }, null)}
+            <div class='info-item'>
+              <span class='info-label'>{this.$t('别名')}：</span>
+              {!this.canEditName ? (
+                <div
+                  class='info-content'
+                  onClick={() => this.handleShowEditDescription(metricData.description)}
+                >
+                  {metricData.description ?? '-'}
+                </div>
+              ) : (
+                <bk-input
+                  ref='descriptionInput'
+                  v-model={this.copyDescription}
+                  onBlur={() => this.handleEditDescription(metricData)}
+                />
+              )}
+            </div>
 
             <div class='info-item'>
-              <span class='info-label'>分组：</span>
+              <span class='info-label'>{this.$t('分组')}：</span>
               <div class='info-content group-list'>
                 {metricData.labels?.length ? (
                   metricData.labels.map(label => (
                     <div
-                      key={label}
+                      key={label.name}
                       class='group-item'
                     >
-                      {label}
+                      {label.name}
                     </div>
                   ))
                 ) : (
@@ -780,7 +830,7 @@ export default class IndicatorTable extends tsc<any, any> {
             {renderInfoItem({ label: '函数', value: metricData.func }, null)}
 
             <div class='info-item'>
-              <span class='info-label'>关联维度：</span>
+              <span class='info-label'>{this.$t('关联维度')}：</span>
               <div class='info-content dimension-list'>
                 {metricData.dimensions?.length ? (
                   metricData.dimensions.map(dim => (
@@ -825,9 +875,8 @@ export default class IndicatorTable extends tsc<any, any> {
           <div class='indicator-btn'>
             <bk-button
               class='header-btn'
-              // v-authority={{ active: !this.authority.MANAGE_AUTH }}
               theme='primary'
-              onClick={() => this.handleClickSlider}
+              onClick={this.handleClickSlider}
             >
               {this.$t('编辑')}
             </bk-button>

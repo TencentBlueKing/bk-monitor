@@ -1,3 +1,6 @@
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,8 +26,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import type { PropType } from 'vue';
 
 import './add-group-dialog.scss';
 
@@ -34,68 +36,152 @@ enum EPreviewFlag {
   Preview_Started = 2,
 }
 
+interface IGroupInfo {
+  name: string;
+  rules: string;
+}
+interface IGroupConfig {
+  name: string;
+  manual_list?: string[];
+  auto_rules?: string[];
+}
+
 @Component
-export default class AddGroupDialog extends tsc<any, any> {
+export default class AddGroupDialog extends tsc<any> {
   @Prop({ default: false, type: Boolean }) show: boolean;
   @Prop({ default: false, type: Boolean }) isEdit: boolean;
+  @Prop({ default: () => ({ name: '', rules: '' }), type: Object as PropType<IGroupInfo> }) groupInfo;
+  @Prop({ default: () => [] }) nameList;
+  @Ref() groupRef;
+  localGroupInfo: IGroupInfo = { name: '', rules: '' };
 
-  groupInfo = {
-    name: '',
-    rules: '',
-  };
   matchedMetrics = [];
 
+  /** 分组表单规则 */
+  rules = {
+    name: [
+      {
+        required: true,
+        message: window.i18n.t('必填项'),
+        trigger: 'blur',
+      },
+      {
+        validator: this.checkGroupName,
+        message: window.i18n.t('注意: 名字冲突'),
+        trigger: 'blur',
+      },
+      {
+        validator: this.checkGroupRepeat,
+        message: window.i18n.t('输入中文、英文、数字、下划线类型的字符'),
+        trigger: 'blur',
+      },
+    ],
+  };
+
+  /** 预览按钮状态：未预览、需重新预览、已预览 */
   previewBtnFlag = EPreviewFlag.Preview_Not_Started;
 
   get disabled() {
     return (
-      !this.groupInfo.name ||
-      (this.groupInfo.rules && this.previewBtnFlag === EPreviewFlag.Preview_Not_Started) ||
+      !this.localGroupInfo.name ||
+      (this.localGroupInfo.rules && this.previewBtnFlag === EPreviewFlag.Preview_Not_Started) ||
+      !this.checkGroupName() ||
+      !this.checkGroupRepeat() ||
       this.previewBtnFlag === EPreviewFlag.Preview_Changed ||
       false
     );
   }
 
+  get disabledTips() {
+    if (!this.localGroupInfo.name) {
+      return this.$t('请输入名称');
+    }
+    if (!this.checkGroupName()) {
+      return this.$t('名称重复');
+    }
+    if (!this.checkGroupRepeat()) {
+      return this.$t('输入中文、英文、数字、下划线类型的字符');
+    }
+    if (this.localGroupInfo.rules && this.previewBtnFlag === EPreviewFlag.Preview_Not_Started) {
+      return this.$t('已有规则，请先预览');
+    }
+    if (this.previewBtnFlag === EPreviewFlag.Preview_Changed) {
+      return this.$t('规则变更，请重新预览');
+    }
+    return '';
+  }
+
+  @Watch('groupInfo', { immediate: true, deep: true })
+  handleGroupInfoChange(newVal: IGroupInfo) {
+    this.localGroupInfo = { ...newVal };
+  }
+
+  /** 校验分组名称是否重名 */
+  checkGroupName() {
+    const groupNames = this.nameList.filter(name => name !== this.groupInfo.name);
+    return !groupNames.includes(this.localGroupInfo.name);
+  }
+  /** 校验分组名称是否符合正则规范 */
+  checkGroupRepeat() {
+    return /^[\u4E00-\u9FA5A-Za-z0-9_-]+$/g.test(this.localGroupInfo.name);
+  }
+  /** 点击预览 */
   async handlePreview() {
-    if (!this.groupInfo.rules) {
+    if (!this.localGroupInfo.rules) {
       this.previewBtnFlag = EPreviewFlag.Preview_Not_Started;
       this.matchedMetrics = [];
       return;
     }
-    // getGroupRulePreviews
     const { auto_metrics: autoMetrics } = await this.$store.dispatch('custom-escalation/getGroupRulePreviews', {
       time_series_group_id: this.$route.params.id,
-      // manual_list: ['cpu_load'],
-      auto_rules: [this.groupInfo.rules],
+      auto_rules: [this.localGroupInfo.rules],
     });
     this.previewBtnFlag = EPreviewFlag.Preview_Started;
     this.matchedMetrics = autoMetrics[0]?.metrics || [];
   }
-
+  /** 规则改变 */
   handleRulesChange() {
     if (this.previewBtnFlag === EPreviewFlag.Preview_Not_Started) return;
+    if (!this.localGroupInfo.rules) {
+      this.matchedMetrics = [];
+      this.previewBtnFlag = EPreviewFlag.Preview_Not_Started;
+    }
     this.previewBtnFlag = EPreviewFlag.Preview_Changed;
   }
-
+  /** 提交分组 */
   handleSubmit() {
-    // TODO
+    const config: IGroupConfig = {
+      name: this.localGroupInfo.name,
+    };
+    if (this.localGroupInfo.rules) {
+      config.auto_rules = [this.localGroupInfo.rules];
+    }
+    if (
+      this.localGroupInfo.rules &&
+      this.matchedMetrics.length &&
+      this.previewBtnFlag === EPreviewFlag.Preview_Started
+    ) {
+      config.manual_list = this.matchedMetrics;
+    }
+    this.$emit('groupSubmit', config);
     this.clear();
   }
+  /** 取消添加分组 */
+  @Emit('cancel')
+  handleCancel() {
+    this.clear();
+    return false;
+  }
+  /** 初始化相关数据 */
   clear() {
-    console.log('触发');
-    this.groupInfo = {
+    this.groupRef?.clearError?.();
+    this.localGroupInfo = {
       name: '',
       rules: '',
     };
     this.previewBtnFlag = EPreviewFlag.Preview_Not_Started;
   }
-  @Emit('show')
-  handleCancel() {
-    // TODO
-    this.clear();
-    return false;
-  }
-
+  /** 获取预览后的状态 */
   getPreviewCmp() {
     const previewMap = {
       [EPreviewFlag.Preview_Changed]: () => (
@@ -137,7 +223,7 @@ export default class AddGroupDialog extends tsc<any, any> {
         mask-close={true}
         title={this.isEdit ? this.$t('编辑分组') : this.$t('新建分组')}
         value={this.show}
-        on-cancel={this.handleCancel}
+        onCancel={this.handleCancel}
       >
         <div class='group-content'>
           <bk-alert
@@ -145,11 +231,12 @@ export default class AddGroupDialog extends tsc<any, any> {
             title={this.$t('分组 用于指标归类，建议拥有相同维度的指标归到一个组里。')}
           />
           <bk-form
+            ref='groupRef'
             formType='vertical'
             {...{
               props: {
-                // model: this.strategyConfig,
-                // rules: this.rules,
+                model: this.localGroupInfo,
+                rules: this.rules,
               },
             }}
           >
@@ -162,7 +249,7 @@ export default class AddGroupDialog extends tsc<any, any> {
                 required
               >
                 <bk-input
-                  v-model={this.groupInfo.name}
+                  v-model={this.localGroupInfo.name}
                   placeholder={this.$t('请输入')}
                 />
               </bk-form-item>
@@ -171,10 +258,10 @@ export default class AddGroupDialog extends tsc<any, any> {
               <bk-form-item
                 error-display-type='normal'
                 label={this.$t('匹配规则')}
-                property='name'
+                property='rule'
               >
                 <bk-input
-                  v-model={this.groupInfo.rules}
+                  v-model={this.localGroupInfo.rules}
                   placeholder={this.$t('请输入')}
                   rows={2}
                   type='textarea'
@@ -195,14 +282,18 @@ export default class AddGroupDialog extends tsc<any, any> {
           {this.getPreviewCmp()}
         </div>
         <div slot='footer'>
-          <bk-button
-            style={{ 'margin-right': '8px' }}
-            disabled={this.disabled}
-            theme='primary'
-            onClick={this.handleSubmit}
+          <div
+            style={{ 'margin-right': '8px', display: 'inline-block' }}
+            v-bk-tooltips={{ content: this.disabledTips, disabled: !this.disabled }}
           >
-            {this.isEdit ? this.$t('保存') : this.$t('提交')}
-          </bk-button>
+            <bk-button
+              disabled={this.disabled}
+              theme='primary'
+              onClick={this.handleSubmit}
+            >
+              {this.isEdit ? this.$t('保存') : this.$t('提交')}
+            </bk-button>
+          </div>
 
           <bk-button onClick={this.handleCancel}>{this.$t('取消')}</bk-button>
         </div>
