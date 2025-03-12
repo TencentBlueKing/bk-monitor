@@ -27,11 +27,19 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './apm-event-explore.scss';
+import { APIType } from './api-utils';
+import EventExplore from './event-explore';
+const APM_EVENT_DATA_ID = 'builtin';
 @Component
-export default class PascalCaseClass extends tsc<object> {
+export default class ApmEventExplore extends tsc<object> {
   @Prop() a: number;
   render() {
-    return <div class='apm-event-explore'>aa</div>;
+    return (
+      <EventExplore
+        dataId={APM_EVENT_DATA_ID}
+        dataSourceLabel={'apm'}
+        source={APIType.APM}
+      />
+    );
   }
 }

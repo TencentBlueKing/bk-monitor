@@ -26,7 +26,6 @@
 import { Component, Emit, InjectReactive, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { APIType } from 'monitor-pc/pages/event-explore/api-utils';
 // import ViewDetail from 'monitor-pc/pages/view-detail/view-detail.vue';
 import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 
@@ -110,7 +109,8 @@ interface IChartWrapperEvent {
     RelationGraph: () => import(/* webpackChunkName: "RelationGraph" */ '../plugins/relation-graph/relation-graph'),
     MonitorRetrieve: () =>
       import(/* webpackChunkName: "MonitorRetrieve" */ '../plugins/monitor-retrieve/monitor-retrieve'),
-    EventExplore: () => import(/* webpackChunkName: "EventExplore" */ 'monitor-pc/pages/event-explore/event-explore'),
+    ApmEventExplore: () =>
+      import(/* webpackChunkName: "ApmEventExplore" */ 'monitor-pc/pages/event-explore/apm-event-explore'),
   },
 })
 export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperEvent> {
@@ -622,7 +622,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
           />
         );
       case 'event-explore':
-        return <event-explore source={APIType.APM} />;
+        return <apm-event-explore />;
       // 不需要报错显示
       // case 'graph':
       default:
