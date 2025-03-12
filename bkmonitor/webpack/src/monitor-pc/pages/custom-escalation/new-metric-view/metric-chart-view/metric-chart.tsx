@@ -606,7 +606,6 @@ class NewMetricChart extends CommonSimpleChart {
   getCopyPanel() {
     const [startTime, endTime] = this.handleTime();
     let copyPanel = JSON.parse(JSON.stringify(this.panel));
-
     const targets = copyPanel.targets.map(item => ({
       ...item,
       api: 'grafana.graphUnifyQuery',

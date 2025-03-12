@@ -26,6 +26,7 @@
 import { Component, Watch, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
@@ -116,9 +117,10 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   getGroupList() {
     this.loading = true;
     const { show_statistical_value, view_column, highlight_peak_value, compare, ...rest } = this.config;
+    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
     const params = compare?.type ? { ...rest, compare } : rest;
 
-    getCustomTsGraphConfig(params)
+    getCustomTsGraphConfig({ ...params, start_time: startTime, end_time: endTime })
       .then(res => {
         this.loading = false;
         this.groupList = res.groups || [];
