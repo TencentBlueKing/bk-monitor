@@ -2207,7 +2207,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
 class NewCustomEventDataSource(CustomEventDataSource):
     data_source_label = DataSourceLabel.BK_APM
     data_type_label = DataTypeLabel.EVENT
-    INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count"]
+    INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count", "time"]
 
     OPERATOR_MAPPING: Dict[str, str] = {
         "neq": "ne",
@@ -2216,6 +2216,8 @@ class NewCustomEventDataSource(CustomEventDataSource):
         "include": "contains",
         "exclude": "ncontains",
     }
+
+    ADVANCE_CONDITION_METHOD = ["reg", "nreg"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
