@@ -172,11 +172,11 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
     this.isDragging = false;
   }
   /** 维度下钻 */
-  handelDrillDown(chart: IPanelModel) {
+  handelDrillDown(chart: IPanelModel, ind: number) {
     this.showDrillDown = true;
     this.currentChart = {
       ...chart,
-      targets: [chart.targets[0]],
+      targets: [chart.targets[ind]],
     };
   }
   handleLegendData(list: ILegendItem[], loading: boolean) {

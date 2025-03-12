@@ -622,11 +622,11 @@ class NewMetricChart extends CommonSimpleChart {
     return copyPanel;
   }
   /** 工具栏各个icon的操作 */
-  handleIconClick(menuItem) {
+  handleIconClick(menuItem: { id: string; text: string; icon: string }, ind: number) {
     switch (menuItem.id) {
       /** 维度下钻 */
       case 'drillDown':
-        this.$emit('drillDown', this.panel);
+        this.$emit('drillDown', this.panel, ind);
         break;
       case 'screenshot': // 保存到本地
         setTimeout(() => {
@@ -681,39 +681,43 @@ class NewMetricChart extends CommonSimpleChart {
   }
 
   renderToolIconList() {
+    console.log(this.panel?.targets?.length, 'this.panel?.targets?.length');
     return this.handleIconList.map(item => {
-      // if (this.panel?.targets?.length > 1 && item.id === 'drillDown') {
-      //   return (
-      //     <bk-dropdown-menu>
-      //       <div slot='dropdown-trigger'>
-      //         <i
-      //           key={item.id}
-      //           class={`icon-monitor ${item.icon} menu-list-icon`}
-      //           v-bk-tooltips={{
-      //             content: this.$t(item.text),
-      //             delay: 200,
-      //           }}
-      //         ></i>
-      //       </div>
-      //       <ul
-      //         class='bk-dropdown-list'
-      //         slot='dropdown-content'
-      //       >
-      //         {this.panel.targets.map(target => {
-      //           return (
-      //             <li
-      //               class='bk-dropdown-item'
-      //               // key={target.id}
-      //               // onClick={() => this.handleMetricClick(target)}
-      //             >
-      //               {/* <span>{target.metricName}</span> */}
-      //             </li>
-      //           );
-      //         })}
-      //       </ul>
-      //     </bk-dropdown-menu>
-      //   );
-      // }
+      if (this.panel?.targets?.length > 1 && item.id === 'drillDown') {
+        return (
+          <bk-dropdown-menu
+            align={'right'}
+            trigger={'click'}
+          >
+            <div slot='dropdown-trigger'>
+              <i
+                key={item.id}
+                class={`icon-monitor ${item.icon} menu-list-icon`}
+                v-bk-tooltips={{
+                  content: this.$t(item.text),
+                  delay: 200,
+                }}
+              ></i>
+            </div>
+            <ul
+              class='metric-dropdown-list-tool'
+              slot='dropdown-content'
+            >
+              {this.panel.targets.map((target, ind) => {
+                return (
+                  <li
+                    key={target.metric?.name}
+                    class='metric-dropdown-item-tool'
+                    onClick={() => this.handleIconClick(item, ind)}
+                  >
+                    <span>{target.metric?.name}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </bk-dropdown-menu>
+        );
+      }
       return (
         <i
           key={item.id}
@@ -722,7 +726,7 @@ class NewMetricChart extends CommonSimpleChart {
             content: this.$t(item.text),
             delay: 200,
           }}
-          onClick={() => this.handleIconClick(item)}
+          onClick={() => this.handleIconClick(item, 0)}
         ></i>
       );
     });

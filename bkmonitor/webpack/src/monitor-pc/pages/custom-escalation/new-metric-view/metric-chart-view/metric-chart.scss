@@ -129,3 +129,15 @@
     }
   }
 }
+.metric-dropdown-list-tool {
+  .metric-dropdown-item-tool {
+    height: 32px;
+    line-height: 32px;
+    padding: 0 12px;
+    color: #4d4f56;
+    cursor: pointer;
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+}
