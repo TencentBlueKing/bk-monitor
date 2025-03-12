@@ -26,16 +26,24 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { skipToDocsLink } from 'monitor-common/utils/docs';
+
 import './qs-selector-help.scss';
 
 @Component
 export default class QsSelectorHelp extends tsc<object> {
+  handleClick() {
+    skipToDocsLink('queryString');
+  }
   render() {
     return (
       <div class='retrieval-filter__qs-selector-help-component'>
         <div class='header-operate'>
           <span>{this.$t('如何查询')}?</span>
-          <span class='link-btn'>
+          <span
+            class='link-btn'
+            onClick={this.handleClick}
+          >
             <span>{this.$t('查询语法')}</span>
             <span class='icon-monitor icon-fenxiang' />
           </span>

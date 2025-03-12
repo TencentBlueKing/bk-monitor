@@ -311,7 +311,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
       if (!this.scrollLoading && !this.isEnd && this.type === EQueryStringTokenType.value) {
         this.scrollLoading = true;
         this.page += 1;
-        const data = await this.getValueData();
+        const data = await this.getValueData(true);
         this.localOptions = data;
         this.scrollLoading = false;
       }
