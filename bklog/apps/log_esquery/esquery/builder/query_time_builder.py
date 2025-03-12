@@ -128,7 +128,6 @@ class QueryTimeBuilder(object):
                 retention = int(storage["storage_config"]["retention"])
             except Exception as e:
                 logger.exception("get_result_table_storage_error: indices: %s, reason: %s", indices, e)
-                raise e
             return retention
 
     def _deal_time(self, start_time, end_time):
