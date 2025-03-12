@@ -54,6 +54,8 @@ import { Debounce, copyText, deepClone, getUrlParam, random } from 'monitor-comm
 import MetricSelector from '../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../components/monitor-ip-selector/utils';
 import NotifyBox from '../../components/notify-box/notify-box';
+import { LETTERS } from '../../constant/constant';
+
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import PromqlEditor from '../../components/promql-editor/promql-editor';
 import {
@@ -86,6 +88,7 @@ import {
   type IFilterCondition,
   type TEditMode,
 } from './typings';
+
 // import PromqlEditor from 'monitor-ui/promql-editor/promql-editor';
 import type { EmptyStatusType } from '../../components/empty-status/types';
 import type { IIpV6Value, INodeType } from '../../components/monitor-ip-selector/typing';
@@ -2291,13 +2294,15 @@ export default class DataRetrieval extends tsc<object> {
       }
       return promqlData;
     }
-    for (const target of targets) {
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i];
       if (target?.data?.query_configs?.[0]?.data_source_label === 'prometheus') {
         const q = target.data.query_configs[0];
         const temp = {
           code: q.promql,
           filter_dict: q.filter_dict,
           step: q.interval || q.agg_interval || 'auto',
+          alias: q.alias || LETTERS.at(i),
         };
         promqlData.push(new DataRetrievalPromqlItem(temp as any));
       }
@@ -3635,11 +3640,11 @@ export default class DataRetrieval extends tsc<object> {
                     onCompareValueChange={this.handleCompareValueChange}
                     onDrillKeywordsSearch={val => (this.drillKeywords = val)}
                     onEventIntervalChange={this.handleEventIntervalChange}
+                    onNeedMenuChangeEvent={this.handleNeedMenuChange}
                     onShowLeft={this.handleLeftHiddenAndShow}
                     onSplitChange={this.handleSplitChange}
                     onTimeRangeChange={this.handleToolsTimeRangeChange}
                     onTimeRangeChangeEvent={this.handleTimeRangeChange}
-                    onNeedMenuChangeEvent={this.handleNeedMenuChange}
                   />
                 </div>
                 {/* 指标选择器 */}

@@ -112,6 +112,7 @@ class ChartHandler(object):
             if "." in field_name:
                 field_list = field_name.split(".")
                 field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
+                field_name = f"CAST({field_name} AS TEXT)"
 
             # 组内条件的与或关系
             condition_type = "OR"
@@ -235,7 +236,7 @@ class SQLChartHandler(ChartHandler):
                     errors_message = errors_message + ":" + errors
                 exc = errors_message
                 logger.info(
-                    "[doris query] username: %s, execute sql: \"%s\", query exception: %s",
+                    "[doris query] QUERY ERROR! username: %s, execute sql: \"%s\", error info: %s",
                     get_request_username(),
                     sql.replace("\n", " "),
                     errors_message,
@@ -265,11 +266,21 @@ class SQLChartHandler(ChartHandler):
             "result_schema": result_schema,
         }
         # 记录doris日志
-        logger.info(
-            "[doris query] username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
-            get_request_username(),
-            sql.replace("\n", " "),
-            result_data["data"]["totalRecords"],
-            result_data["data"]["timetaken"],
-        )
+        if result_data["data"]["timetaken"] < 5:
+            logger.info(
+                "[doris query] username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
+                get_request_username(),
+                sql.replace("\n", " "),
+                result_data["data"]["totalRecords"],
+                result_data["data"]["timetaken"],
+            )
+        else:
+            # 大于 5s 的判定为慢查询
+            logger.info(
+                "[doris query] SLOW QUERY! username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
+                get_request_username(),
+                sql.replace("\n", " "),
+                result_data["data"]["totalRecords"],
+                result_data["data"]["timetaken"],
+            )
         return data

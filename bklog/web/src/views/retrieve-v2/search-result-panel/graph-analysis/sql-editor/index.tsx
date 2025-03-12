@@ -30,7 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import axios from 'axios';
+import { axiosInstance } from '@/api';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
 import { format } from 'sql-formatter';
@@ -113,14 +113,13 @@ export default defineComponent({
 
       emit('error', { code: 200, message: '请求中', result: true });
 
-      return axios(params)
+      return axiosInstance(params)
         .then((resp: any) => {
-          if (resp.data.result) {
-            isRequesting.value = false;
-            emit('change', resp.data);
-          } else {
-            emit('error', resp.data);
-          }
+          isRequesting.value = false;
+          emit('change', resp);
+        })
+        .catch((resp: any) => {
+          emit('error', resp);
         })
         .finally(() => {
           isRequesting.value = false;
