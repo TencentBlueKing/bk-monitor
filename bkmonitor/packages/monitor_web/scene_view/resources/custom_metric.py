@@ -189,6 +189,7 @@ class GetCustomTsGraphConfig(Resource):
                     alias = serializers.CharField(label="别名", allow_blank=True)
                     query_configs = serializers.ListField(label="查询配置")
                     function = serializers.DictField(label="图表函数", allow_null=True, default={})
+                    metric = serializers.DictField(label="指标", allow_null=True, default={})
 
                 targets = TargetSerializer(label="目标", many=True)
 
@@ -215,7 +216,6 @@ class GetCustomTsGraphConfig(Resource):
         series_metrics = cls.query_metric_series(
             table=table, metrics=metrics, dimensions=split_dimensions, params=params
         )
-        print(f"series_metrics: {series_metrics}")
 
         # 计算限制函数
         functions = []
@@ -456,7 +456,6 @@ class GetCustomTsGraphConfig(Resource):
 
         compare_config = params.get("compare", {})
         if not compare_config or compare_config.get("type") == "time":
-            print(f"time_or_no_compare: {params}")
             groups = self.time_or_no_compare(table, metrics, params)
         elif compare_config.get("type") == "metric":
             groups = self.metric_compare(table, metrics, params)
