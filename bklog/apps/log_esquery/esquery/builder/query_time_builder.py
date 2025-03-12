@@ -29,9 +29,9 @@ from django.conf import settings
 from apps.api import TransferApi
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import SearchUnKnowTimeFieldType
+from apps.log_search.models import Scenario
 from apps.utils.cache import cache_ten_minute
 from apps.utils.log import logger
-from scripts.export import Scenario
 
 
 class QueryTimeBuilder(object):
