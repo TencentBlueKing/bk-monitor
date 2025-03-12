@@ -64,6 +64,11 @@ export default class ValueTag extends tsc<IProps, IEmit> {
     this.calcLatestMetricsList();
   }
 
+  @Watch('value', { immediate: true })
+  valueChange() {
+    this.localValue = Object.freeze(this.value);
+  }
+
   calcLatestMetricsList() {
     // 编辑状态不过滤当前编辑 dimension
     const selectDimensionNameMap = this.localValue.reduce<Record<string, boolean>>((result, item) => {

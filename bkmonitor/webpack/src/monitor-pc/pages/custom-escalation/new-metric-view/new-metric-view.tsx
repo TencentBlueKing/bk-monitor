@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
@@ -32,7 +32,6 @@ import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-to
 import HeaderBox from './components/header-box/index';
 import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
-import ViewSave from './components/view-save';
 import ViewTab from './components/view-tab/index';
 import PanelChartView from './metric-chart-view/panel-chart-view';
 
@@ -42,42 +41,46 @@ import './new-metric-view.scss';
 
 @Component
 export default class NewMetricView extends tsc<object> {
-  view = 'default';
-  bkBizId = 0;
-  timeSeriesGroupId = 10;
+  currentView = '';
   dimenstionParams: Record<string, any> = {};
   startTime = 'now-1h';
   endTime = 'now';
 
-  get filterConfig() {
+  get timeSeriesGroupId() {
+    return this.$route.params.id;
+  }
+
+  get graphConfigParams() {
+    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
     return {
       ...this.dimenstionParams,
-      start_time: this.startTime,
-      end_time: this.endTime,
-      bk_biz_id: this.bkBizId,
+      start_time: startTime,
+      end_time: endTime,
       time_series_group_id: this.timeSeriesGroupId,
     };
   }
 
+  @Watch('$route')
+  routerChange() {
+    console.log('from rout change = ', this.$route);
+    this.dimenstionParams = {};
+  }
+
   handleTimeRangeChange(timeRange: TimeRangeType) {
-    const [startTime, endTime] = timeRange;
-    this.startTime = startTime;
-    this.endTime = endTime;
-    this.$router.replace({
-      query: {
-        ...this.$route.query,
-        startTime,
-        endTime,
-      },
-    });
+    // const [startTime, endTime] = timeRange;
+    // this.startTime = startTime;
+    // this.endTime = endTime;
+    // this.$router.replace({
+    //   query: {
+    //     ...this.$route.query,
+    //     startTime,
+    //     endTime,
+    //   },
+    // });
     customEscalationViewStore.updateTimeRange(timeRange);
   }
 
-  handleTabChange(value: string) {
-    this.view = value;
-  }
-
-  handleHeaderParamsChange(payload: any) {
+  handleDimensionParamsChange(payload: any) {
     this.dimenstionParams = Object.freeze(payload);
   }
 
@@ -92,38 +95,34 @@ export default class NewMetricView extends tsc<object> {
             onTimeRangeChange={this.handleTimeRangeChange}
           />
         </PageHeadr>
-        <div class='metric-view-view-container'>
-          <ViewTab v-model={this.view} />
-          <ViewSave name={this.view} />
+        <div key={this.timeSeriesGroupId}>
+          <ViewTab
+            v-model={this.currentView}
+            graphConfigPayload={this.dimenstionParams}
+            onPayloadChange={this.handleDimensionParamsChange}
+          >
+            <bk-resize-layout
+              key={this.currentView}
+              style='height: calc(100vh - 140px - var(--notice-alert-height))'
+              initial-divide={220}
+            >
+              <template slot='aside'>
+                <MetricsSelect />
+              </template>
+              <template slot='main'>
+                <HeaderBox
+                  dimenstionParams={this.dimenstionParams}
+                  commonDimensionEnable
+                  groupBySplitEnable
+                  onChange={this.handleDimensionParamsChange}
+                />
+                <div class='metric-view-dashboard-container'>
+                  <PanelChartView config={this.graphConfigParams as any} />
+                </div>
+              </template>
+            </bk-resize-layout>
+          </ViewTab>
         </div>
-        <bk-resize-layout
-          style='height: calc(100vh - 140px - var(--notice-alert-height))'
-          initial-divide={220}
-        >
-          <template slot='aside'>
-            <MetricsSelect />
-          </template>
-          <template slot='main'>
-            <HeaderBox
-              commonDimensionEnable
-              groupBySplitEnable
-              onChange={this.handleHeaderParamsChange}
-            />
-            <div class='metric-view-dashboard-container'>
-              {/* <textarea
-                style='height: 100px; width: 100%'
-                value={JSON.stringify({
-                  ...this.dimenstionParams,
-                  start_time: this.startTime,
-                  end_time: this.endTime,
-                  bk_biz_id: this.bkBizId,
-                  time_series_group_id: this.timeSeriesGroupId,
-                })}
-              /> */}
-              <PanelChartView config={this.filterConfig} />
-            </div>
-          </template>
-        </bk-resize-layout>
       </div>
     );
   }

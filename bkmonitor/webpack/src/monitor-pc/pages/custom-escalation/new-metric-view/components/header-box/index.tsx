@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
@@ -32,7 +32,7 @@ import _ from 'lodash';
 import CompareType from './components/compare-type';
 import GroupBy from './components/group-by';
 import LimitFunction from './components/limit-function';
-import ViewColumn from './components/view-column';
+import ViewColumn from './components/view-column/index';
 import WhereCondition from './components/where-condition';
 
 import './index.scss';
@@ -48,7 +48,7 @@ interface IResult {
   common_conditions: {
     key: string;
     method: string;
-    condition: string;
+    value: string[];
   }[];
   group_by: {
     field: string;
@@ -68,6 +68,7 @@ interface IResult {
 }
 
 interface IProps {
+  dimenstionParams?: Record<string, any>;
   commonDimensionEnable?: boolean;
   groupBySplitEnable?: boolean;
 }
@@ -96,8 +97,11 @@ export const createDefaultParams = (): IResult => ({
 
 @Component
 export default class HeaderBox extends tsc<IProps, IEmit> {
+  @Prop({ type: Object, default: false }) readonly dimenstionParams: IProps['dimenstionParams'];
   @Prop({ type: Boolean, default: false }) readonly commonDimensionEnable: IProps['commonDimensionEnable'];
   @Prop({ type: Boolean, default: false }) readonly groupBySplitEnable: IProps['groupBySplitEnable'];
+
+  @Ref('rootRef') rootRef: HTMLElement;
 
   get currentSelectedMetricList() {
     return customEscalationViewStore.currentSelectedMetricList;
@@ -105,10 +109,51 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
 
   params = createDefaultParams();
 
+  @Watch('currentSelectedMetricList')
+  currentSelectedMetricListChnage() {
+    this.triggerChange();
+  }
+
+  @Watch('dimenstionParams', { immediate: true })
+  dimenstionParamsChange() {
+    if (!this.dimenstionParams) {
+      return;
+    }
+    Object.keys(this.params).forEach(key => {
+      if (this.dimenstionParams[key]) {
+        this.params[key] = Object.freeze(this.dimenstionParams[key]);
+      }
+    });
+  }
+
   triggerChange() {
     this.$emit('change', {
       ..._.cloneDeep(this.params),
       metrics: this.currentSelectedMetricList.map(item => item.metric_name),
+    });
+  }
+
+  calcLableWidth() {
+    const resizeObserver = new ResizeObserver(() => {
+      const rootElLeft = this.rootRef.getBoundingClientRect().left;
+      const labelElList = Array.from(this.rootRef.querySelectorAll('[role="param-label"]')) as HTMLElement[];
+      let maxWidth = 0;
+      const fitLeftEl: HTMLElement[] = [];
+      labelElList.forEach(itemEl => {
+        if (itemEl.getBoundingClientRect().left - 10 < rootElLeft) {
+          maxWidth = Math.max(maxWidth, itemEl.querySelector('div').getBoundingClientRect().width);
+          fitLeftEl.push(itemEl);
+        } else {
+          itemEl.style.width = 'auto';
+        }
+      });
+      fitLeftEl.forEach(item => {
+        item.style.width = `${maxWidth + 30}px`;
+      });
+    });
+    resizeObserver.observe(this.rootRef);
+    this.$once('hook:beforeDestroy', () => {
+      resizeObserver.disconnect();
     });
   }
 
@@ -132,12 +177,22 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     this.params.compare = payload;
     this.triggerChange();
   }
+  mounted() {
+    this.calcLableWidth();
+
+    console.log('from header box mounted');
+  }
 
   render() {
     return (
-      <div class='bk-monitor-new-metric-view-header-box'>
+      <div
+        ref='rootRef'
+        class='bk-monitor-new-metric-view-header-box'
+      >
         <WhereCondition
+          commonConditionValue={this.params.common_conditions}
           commonDimensionEnable={this.commonDimensionEnable}
+          value={this.params.where}
           onChange={this.handleConditionChange}
         />
         <div class='mult-item-box'>
@@ -163,13 +218,13 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
             >
               {this.$t('展示统计值')}
             </bk-checkbox>
-            <bk-checkbox
+            {/* <bk-checkbox
               style='margin-left: 16px'
               v-model={this.params.highlight_peak_value}
               onChange={this.triggerChange}
             >
               {this.$t('高粱峰谷值')}
-            </bk-checkbox>
+            </bk-checkbox> */}
             <ViewColumn
               style='margin-left: 32px;'
               v-model={this.params.view_column}

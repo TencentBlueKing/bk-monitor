@@ -30,3 +30,7 @@ type ServiceReturnType<T extends (...args: any) => Promise<any>> = T extends (..
 type ServiceParameters<T extends (params: any) => Promise<any>> = Parameters<T>[number] extends 0
   ? never
   : Parameters<T>[0];
+
+type Writable<T> = {
+  -readonly [P in keyof T]: T[P]; // 移除每个属性的 readonly
+};

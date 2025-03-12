@@ -74,7 +74,7 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
 
   @Watch('value', { immediate: true })
   valueChange() {
-    this.localValue = [...this.value];
+    this.localValue = Object.freeze([...this.value]);
   }
 
   triggerChange() {
@@ -125,7 +125,12 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
           ref='wrapperRef'
           class='wrapper'
         >
-          <div class='label'>{this.$t('聚合维度')}</div>
+          <div
+            class='label'
+            role='param-label'
+          >
+            <div>{this.$t('聚合维度')}</div>
+          </div>
           <div class='value-wrapper'>
             {this.localValue.map((item, index) => (
               <div

@@ -3,6 +3,8 @@
   border-bottom: 1px solid #dcdee5;
   align-items: center;
   padding-right: 25px;
+  border-left: 1px solid #dcdee5;
+
   .label {
     height: 34px;
     background-color: #ebeef5;
@@ -14,7 +16,6 @@
     align-items: center;
     justify-content: center;
     flex: 0 0 auto;
-    border-left: 1px solid #dcdee5;
     border-right: 1px solid #dcdee5;
   }
 
