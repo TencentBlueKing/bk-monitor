@@ -50,6 +50,8 @@
             margin-right: 6px;
   
             .icon-monitor {
+              width: 20px;
+              height: 20px;
               font-size: 20px;
             }
             
@@ -63,6 +65,12 @@
           &.cursor-active,
           &:hover {
             background: #F5F7FA;
+
+            .option-item-icon {
+              .icon-monitor {
+                color: #313238;
+              }
+            }
   
             &::after {
               position: absolute;
