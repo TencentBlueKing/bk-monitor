@@ -592,7 +592,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 非批量任务，记录日志
         if not self.sub_task_id:
             logger.info(
-                "strategy_group_key({}), push records({}), last_checkpoint({})".format(
+                "strategy_group_key({}), process records({}), last_checkpoint({})".format(
                     self.strategy_group_key,
                     len(self.record_list),
                     arrow.get(last_checkpoint).strftime(constants.STD_LOG_DT_FORMAT),
