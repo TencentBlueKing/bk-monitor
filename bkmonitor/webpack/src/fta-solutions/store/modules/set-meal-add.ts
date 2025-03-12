@@ -155,10 +155,14 @@ class SetMealAdd extends VuexModule implements ISetMealAddState {
    * 获取套餐类型下拉列表
    */
   @Action
-  public async getMealTypeList() {
-    const result = await getPlugins().catch(() => []);
-    this.setData({ expr: 'mealTypeList', value: result });
-    this.setPluginDescription(result);
+  public async getMealTypeList(needMessage = true) {
+    const result = await getPlugins({}, { needMessage }).catch(e => {
+      return !needMessage ? e : [];
+    });
+    if (Array.isArray(result)) {
+      this.setData({ expr: 'mealTypeList', value: result });
+      this.setPluginDescription(result);
+    }
     return result;
   }
 

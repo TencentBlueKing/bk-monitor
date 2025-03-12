@@ -267,7 +267,16 @@ export default class SetMealAdd extends tsc<object> {
   }
 
   async getMealTypeList() {
-    let data = await SetMealAddModule.getMealTypeList().finally(() => (this.isLoading = false));
+    let data = await SetMealAddModule.getMealTypeList(false).finally(() => (this.isLoading = false));
+    if (!Array.isArray(data)) {
+      this.$bkInfo({
+        extCls: 'set-meal-add__info',
+        title: data.message || '',
+        width: 520,
+        type: 'warning',
+      });
+      data = [];
+    }
     data = transformDataKey(data);
     this.mealTypeList = data as IMealTypeList[];
   }
