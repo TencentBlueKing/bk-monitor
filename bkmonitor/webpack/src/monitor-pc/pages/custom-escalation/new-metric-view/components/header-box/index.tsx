@@ -92,7 +92,7 @@ export const createDefaultParams = (): IResult => ({
   },
   show_statistical_value: true,
   highlight_peak_value: false,
-  view_column: 3,
+  view_column: 1,
 });
 
 @Component
