@@ -144,6 +144,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   handleWindowKeydown(e: KeyboardEvent) {
     if (e.key === '/') {
       e.preventDefault();
+      this.showKeywordEle = false;
       this.handleInputFocus();
     }
   }
@@ -907,7 +908,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {(!this.isBarToolShow && this.showKeywordEle) && (
+          {this.showKeywordEle && (
             <div class='search-keyboard'>
               {this.$tc('快捷键')} /
             </div>
