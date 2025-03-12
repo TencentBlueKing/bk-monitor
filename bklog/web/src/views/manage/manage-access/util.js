@@ -26,6 +26,7 @@
 
 import { formatFileSize } from '@/common/util';
 
+import $http from '@/api';
 /**
  * 格式化字节大小为可读字符串。
  *
@@ -45,12 +46,13 @@ export function formatBytes(size) {
 /**
  * 请求存储使用情况并更新数据列表中的相应字段。
  *
- * @param {Object} that - Vue 组件上下文，用于访问组件内的数据和方法。
+ * @param {string} bkBizId - 业务 ID
  * @param {Array} arr - 包含数据项的数组，每个数据项应具有 `index_set_id` 和 `is_active` 属性。
  * @param {boolean} [type=false] - 可选参数，决定筛选数据项的条件。
+ * @param {Function} callbackFn - 回调函数，用于处理每个匹配的数据项。
  *
  */
-export function requestStorageUsage(that, arr, type = false) {
+export function requestStorageUsage(bkBizId, arr, type = false, callbackFn) {
   let index_set_ids = [];
 
   if (type) {
@@ -68,19 +70,26 @@ export function requestStorageUsage(that, arr, type = false) {
   }
 
   if (!index_set_ids.length) {
-    return Promise.resolve([]);
+    return Promise.resolve();
   }
 
-  return that.$http
+  return $http
     .request('collect/getStorageUsage', {
       data: {
-        bk_biz_id: that.bkBizId,
+        bk_biz_id: bkBizId,
         index_set_ids,
       },
     })
     .then(resp => {
       const { data } = resp;
-      return data;
+      arr.forEach(item => {
+        ['daily_usage', 'total_usage'].forEach(key => {
+          const matchedItem = data.find(dataItem => Number(dataItem.index_set_id) === Number(item.index_set_id)) || {};
+          if (matchedItem?.[key] !== undefined) {
+            callbackFn(item, key, matchedItem);
+          }
+        });
+      });
     })
     .catch(error => {
       throw error;
