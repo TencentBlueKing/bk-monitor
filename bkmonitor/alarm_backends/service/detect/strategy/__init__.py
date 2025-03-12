@@ -612,6 +612,8 @@ class SDKPreDetectMixin(object):
         for error_code, count in error_counter.items():
             metrics.AIOPS_DETECT_ERROR_COUNT.labels(**base_labels, error_code=error_code).set(count)
 
+        metrics.report_all()
+
     def fetch_pre_detect_result_point(self, data_point, **kwargs) -> DataPoint:
         """从预检测结果中获取检测输入的结果
 
