@@ -157,7 +157,7 @@ export const truncateText = (text, maxWidth, fontSize, fontFamily) => {
 /** 获取apm类型节点 */
 export const getApmServiceType = (entity: IEntity) => {
   if (entity.entity_type === 'APMService') {
-    return entity.dimensions?.apm_service_category ?? '';
+    return entity.dimensions?.apm_service_category ?? 'Service';
   }
-  return entity.entity_type;
+  return entity.entity_type || 'Service';
 };
