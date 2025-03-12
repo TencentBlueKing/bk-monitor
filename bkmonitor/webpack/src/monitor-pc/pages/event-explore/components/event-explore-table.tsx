@@ -34,11 +34,13 @@ import {
   type DimensionsTypeEnum,
   type EventExploreTableColumn,
   type EventExploreTableRequestConfigs,
+  type ExploreEntitiesItem,
   type ExploreEntitiesMap,
   type ExploreFieldMap,
   ExploreSourceTypeEnum,
   ExploreTableColumnTypeEnum,
   ExploreTableLoadingEnum,
+  type IDimensionField,
 } from '../typing';
 import { getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
@@ -50,8 +52,8 @@ import './event-explore-table.scss';
 
 interface EventExploreTableProps {
   requestConfigs: EventExploreTableRequestConfigs;
-  fieldMap: ExploreFieldMap;
-  entitiesMap: ExploreEntitiesMap;
+  fieldList: IDimensionField[];
+  sourceEntities: ExploreEntitiesItem[];
 }
 
 interface EventExploreTableEvents {
@@ -73,14 +75,14 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** 接口请求配置项 */
   @Prop({ type: Object, default: () => ({}) }) requestConfigs: EventExploreTableRequestConfigs;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
+  @Prop({ type: Array, default: () => [] }) fieldList: IDimensionField[];
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
+  @Prop({ type: Array, default: () => [] }) sourceEntities: ExploreEntitiesItem[];
 
   /** table loading 配置*/
   tableLoading = {
     /** table 骨架屏 loading */
-    [ExploreTableLoadingEnum.REFRESH]: true,
+    [ExploreTableLoadingEnum.REFRESH]: false,
     /** 表格触底加载更多 loading  */
     [ExploreTableLoadingEnum.SCROLL]: false,
   };
@@ -126,6 +128,57 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return 'empty';
   }
 
+  /**
+   * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
+   * @description 用于在 KV 模式下，获取 字段类型 Icon
+   */
+  get fieldMapByField(): ExploreFieldMap {
+    if (!this.fieldList?.length) {
+      return { source: {}, target: {} };
+    }
+    return this.fieldList.reduce(
+      (prev, curr) => {
+        let finalName = curr.name;
+        if (curr.is_dimensions) {
+          finalName = `dimensions.${curr.name}`;
+        }
+        const item = { ...curr, finalName };
+        prev.source[curr.name] = item;
+        prev.target[finalName] = item;
+        return prev;
+      },
+      {
+        source: {},
+        target: {},
+      }
+    );
+  }
+
+  /**
+   * @description 将 sourceEntities 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions.后的值作为 key
+   * @description 用于在 KV 模式下，判断字段是否开启 跳转到其他页面 入口
+   */
+  get entitiesMapByField(): ExploreEntitiesMap[] {
+    if (!this.sourceEntities?.length) {
+      return [];
+    }
+    return this.sourceEntities.reduce((prev, curr) => {
+      const { fields, dependent_fields = [] } = curr || {};
+      if (!fields?.length) return prev;
+      const finalDependentFields = dependent_fields.map(field => this.fieldMapByField?.source?.[field]?.finalName);
+      const map = {};
+      for (const field of fields) {
+        const finalName = this.fieldMapByField?.source?.[field]?.finalName || field;
+        map[finalName] = {
+          ...curr,
+          dependent_fields: finalDependentFields,
+        };
+      }
+      prev.push(map);
+      return prev;
+    }, []);
+  }
+
   @Watch('requestConfigs')
   requestConfigsChange() {
     this.getEventLogs();
@@ -139,10 +192,6 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   @Emit('clearSearch')
   clearSearch() {
     return;
-  }
-
-  created() {
-    this.getEventLogs();
   }
 
   /**
@@ -346,8 +395,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       <ExploreExpandViewWrapper
         style={this.getCssVarsByType(rowData?.type?.value)}
         data={rowData?.origin_data || {}}
-        entitiesMap={this.entitiesMap}
-        fieldMap={this.fieldMap}
+        entitiesMapList={this.entitiesMapByField}
+        fieldMap={this.fieldMapByField}
         onConditionChange={this.conditionChange}
       />
     );

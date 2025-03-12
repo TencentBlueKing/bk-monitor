@@ -61,7 +61,7 @@ export const eventChartMap = {
   [DimensionsTypeEnum.NORMAL]: 1,
   [DimensionsTypeEnum.DEFAULT]: 2,
 };
-export const EVENT_CHART_COLORS = ['#F5C78E', '#92BEF1', '#DCDEE5'];
+export const EVENT_CHART_COLORS = ['#F5C78E', '#70A0FF', '#A3B1CC'];
 
 /**
  * @description 根据事件类型获取图表颜色
