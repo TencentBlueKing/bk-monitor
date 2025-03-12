@@ -356,7 +356,7 @@ class EventTopKResource(Resource):
                 "list": [
                     {
                         "value": field_value,
-                        "alias": field_value,
+                        "alias": field_value or "--",
                         "count": field_count,
                         "proportions": round(100 * (field_count / total), 2),
                     }
