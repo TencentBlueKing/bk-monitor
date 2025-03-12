@@ -169,12 +169,23 @@ export default class EventExplore extends tsc<
   }
 
   get queryConfig() {
+    let queryString = '';
+    let where = mergeWhereList(this.where || [], this.commonWhere || []);
+    if (this.filterMode === EMode.ui) {
+      // 全文检索补充到query_string里
+      const fullText = where.find(item => item.key === '*');
+      queryString = fullText?.value[0] ? `"${fullText?.value[0]}"` : '';
+      where = where.filter(item => item.key !== '*');
+    } else {
+      queryString = this.queryString;
+      where = [];
+    }
     return {
       data_source_label: this.dataSourceLabel || 'custom',
       data_type_label: this.dataTypeLabel || 'event',
       table: this.dataId,
-      query_string: this.filterMode === EMode.queryString ? this.queryString : '',
-      where: this.filterMode === EMode.ui ? mergeWhereList(this.where || [], this.commonWhere || []) : [],
+      query_string: queryString,
+      where,
       group_by: this.group_by || [],
       filter_dict: this.filter_dict || {},
     };
