@@ -151,7 +151,10 @@ export default class CollectGroup extends tsc<ICollectProps> {
             onClick={() => (this.isHiddenList = !this.isHiddenList)}
           >
             {/* <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span> */}
-            <span class={`bklog-icon bklog-${this.isHiddenList ? 'file-close' : 'folder-fill'}`}></span>
+            <span
+              style='padding-left:2px'
+              class={`bklog-icon bklog-${this.isHiddenList ? 'file-close' : 'folder-fill'}`}
+            ></span>
             <span class='group-str'>{this.collectItem.group_name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.group_name)}
