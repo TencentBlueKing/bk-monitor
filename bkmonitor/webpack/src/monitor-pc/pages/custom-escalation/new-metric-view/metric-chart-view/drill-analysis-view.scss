@@ -50,10 +50,17 @@
       width: 84px !important;
     }
   }
-  .compare-view {
+  .filter-compare-view {
     width: 100%;
     display: flex;
     background: #fff;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #dcdee5;
+    .new-metric-view-group-by,
+    .new-metric-view-limit-function,
+    .new-metric-view-compare-type {
+      border: none;
+    }
   }
   .drill-analysis-main {
     width: calc(100% - 24px);

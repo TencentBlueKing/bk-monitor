@@ -312,7 +312,7 @@ export default class DrillAnalysisView extends tsc<IDrillAnalysisViewProps, IDri
             />
           </div>
         </div>
-        <div class='compare-view'>
+        <div class='filter-compare-view'>
           <GroupBy
             value={this.filterConfig.metrics}
             onChange={this.handleGroupByChange}
