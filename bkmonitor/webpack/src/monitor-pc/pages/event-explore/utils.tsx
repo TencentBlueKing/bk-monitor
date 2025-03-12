@@ -27,7 +27,7 @@
 import { DimensionsTypeEnum } from './typing';
 
 export const fieldTypeMap = {
-  interger: {
+  integer: {
     name: window.i18n.tc('数字'),
     icon: 'icon-monitor icon-number',
     color: '#60A087',

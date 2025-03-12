@@ -23,8 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import { detectOS } from 'monitor-common/utils';
 
 import { DEFAULT_TIME_RANGE } from '../../../components/time-range/utils';
 import DashboardTools from '../../monitor-k8s/components/dashboard-tools';
@@ -68,10 +70,30 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
   @Prop({ type: String }) dataSourceLabel: string;
   @Prop({ type: String }) dataTypeLabel: string;
 
+  @Ref('dataIdSelect') dataIdSelectRef: any;
+
   dataIdToggle = false;
 
   get selectDataIdName() {
     return this.dataIdList.find(item => item.id === this.dataId)?.name || '';
+  }
+
+  mounted() {
+    document.addEventListener('keydown', this.handleDocumentClick);
+  }
+
+  beforeDestroy() {
+    document.removeEventListener('keydown', this.handleDocumentClick);
+  }
+
+  handleDocumentClick(e: KeyboardEvent) {
+    const isKeyO = e.key.toLowerCase() === 'o';
+    // 检测是否按下 Ctrl 或 Command 键（跨平台兼容）
+    const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+    if (isKeyO && isCtrlOrMeta) {
+      e.preventDefault();
+      this.dataIdSelectRef.show();
+    }
   }
 
   handleDataIdToggle(toggle: boolean) {
@@ -123,7 +145,10 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
             class={['favorite-btn', { active: this.isShowFavorite }]}
             onClick={this.handleFavoriteShowChange}
           >
-            <i class='icon-monitor icon-shoucangjia' />
+            <i
+              class='icon-monitor icon-shoucangjia'
+              v-bk-tooltips={{ content: this.$t(this.isShowFavorite ? '收起收藏夹' : '展开收藏夹') }}
+            />
           </div>
           <div class='event-type-select'>
             <div
@@ -140,6 +165,7 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
             </div>
           </div>
           <bk-select
+            ref='dataIdSelect'
             class='data-id-select'
             clearable={false}
             value={this.dataId}
@@ -152,9 +178,10 @@ export default class EventRetrievalHeader extends tsc<EventRetrievalNavBarProps,
               slot='trigger'
             >
               <span>
-                <span class='prefix'>{this.$t('数据ID')}:</span>
+                <span class='prefix'>{this.$t('数据ID')}：</span>
                 <span class='name'>{this.selectDataIdName}</span>
               </span>
+              <div class='select-shortcut-keys'>{detectOS() === 'Windows' ? 'Ctrl+O' : 'Cmd+O'}</div>
               <span class={`icon-monitor icon-mc-arrow-down ${this.dataIdToggle ? 'expand' : ''}`} />
             </div>
             {this.dataIdList.map(item => (

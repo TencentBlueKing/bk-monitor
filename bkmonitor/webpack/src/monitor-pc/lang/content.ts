@@ -283,6 +283,7 @@ export default {
   汇总: 'Summary',
   维度趋势图: 'Dimension trend chart',
   '正在加载中...': 'Loading...',
+  '正在加载...': 'Loading...',
   成功率: 'Success rate',
   异常率: 'Exception rate',
   超时率: 'Timeout rate',

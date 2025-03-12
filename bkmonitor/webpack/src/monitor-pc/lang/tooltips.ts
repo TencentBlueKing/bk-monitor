@@ -318,4 +318,7 @@ export default {
     'The new version of container monitoring does not fully cover the legacy features yet. You can switch to the legacy version to view them if necessary',
   新建收藏分组: 'Add favorite group',
   调整排序: 'Adjust order',
+  收起收藏夹: 'Collapse favorite folder',
+  展开收藏夹: 'Expand favorite folder',
+  收起查询: 'Collapse query',
 };

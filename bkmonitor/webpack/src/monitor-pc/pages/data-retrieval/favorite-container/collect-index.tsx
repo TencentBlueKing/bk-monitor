@@ -313,6 +313,7 @@ export default class CollectIndex extends tsc<FavoriteIndexType.IProps, Favorite
                 />
                 <span
                   class='icon-monitor icon-gongneng-shouqi'
+                  v-bk-tooltips={{ content: this.$t('收起收藏夹') }}
                   onClick={this.handleClose}
                 />
               </div>

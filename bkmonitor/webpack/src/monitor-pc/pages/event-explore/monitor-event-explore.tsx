@@ -76,6 +76,10 @@ export default class MonitorEventExplore extends tsc<object> {
   dataIdList = [];
   /** 查询语句 */
   queryString = '';
+  /** 实时输入的查询语句 */
+  queryStringInput = '';
+  /** 常驻筛选查询 */
+  commonWhere: IWhereItem[] = [];
   /** UI查询 */
   where: IWhereItem[] = [];
   /** 维度列表 */
@@ -165,6 +169,7 @@ export default class MonitorEventExplore extends tsc<object> {
         group_by,
         filter_dict,
         filterMode,
+        commonWhere,
       } = queryConfig;
       this.dataId = result_table_id;
       this.dataSourceLabel = data_source_label;
@@ -177,6 +182,7 @@ export default class MonitorEventExplore extends tsc<object> {
       this.refreshInterval = compareValue.tools.refleshInterval || compareValue.tools.refreshInterval;
       this.timezone = compareValue.tools.timezone;
       this.filterMode = filterMode || EMode.ui;
+      this.commonWhere = commonWhere || [];
     } else {
       // 选择检索
       this.dataId = this.dataIdList[0].id;
@@ -190,9 +196,11 @@ export default class MonitorEventExplore extends tsc<object> {
       this.refreshInterval = -1;
       this.filterMode = EMode.ui;
       this.timezone = getDefaultTimezone();
+      this.commonWhere = [];
     }
     this.setRouteParams();
   }
+
   /** 收藏功能 */
   handleFavorite(isEdit = false) {
     const params = {
@@ -200,11 +208,12 @@ export default class MonitorEventExplore extends tsc<object> {
         result_table_id: this.dataId,
         data_source_label: this.dataSourceLabel,
         data_type_label: this.dataTypeLabel,
-        query_string: this.filterMode === EMode.queryString ? this.queryString : '',
+        query_string: this.filterMode === EMode.queryString ? this.queryStringInput : '',
         where: this.filterMode === EMode.ui ? this.where : [],
         group_by: this.group_by,
         filter_dict: this.filter_dict,
         filterMode: this.filterMode,
+        commonWhere: this.commonWhere,
       },
       compareValue: {
         compare: {
@@ -280,14 +289,18 @@ export default class MonitorEventExplore extends tsc<object> {
     this.setRouteParams();
   }
 
-  handleFilterModelChange(mode: EMode) {
+  handleFilterModeChange(mode: EMode) {
     this.filterMode = mode;
     this.setRouteParams();
   }
 
+  handleQueryStringInputChange(val: string) {
+    this.queryStringInput = val;
+  }
+
   /** 兼容以前的事件检索URL格式 */
   getRouteParams() {
-    const { targets, from, to, timezone, refreshInterval, filterMode } = this.$route.query;
+    const { targets, from, to, timezone, refreshInterval, filterMode, commonWhere } = this.$route.query;
     if (targets) {
       try {
         const targetsList = JSON.parse(decodeURIComponent(targets as string));
@@ -318,9 +331,10 @@ export default class MonitorEventExplore extends tsc<object> {
         this.timeRange = from ? [from as string, to as string] : DEFAULT_TIME_RANGE;
         this.timezone = (timezone as string) || getDefaultTimezone();
         this.refreshInterval = Number(refreshInterval) || -1;
-        this.filterMode = (
-          [EMode.ui, EMode.queryString].includes(filterMode as EMode) ? filterMode : EMode.ui
-        ) as EMode;
+        this.filterMode = [EMode.ui, EMode.queryString].includes(filterMode as EMode)
+          ? (filterMode as EMode)
+          : EMode.ui;
+        this.commonWhere = JSON.parse((commonWhere as string) || '[]');
       } catch (error) {
         console.log('route query:', error);
       }
@@ -352,6 +366,7 @@ export default class MonitorEventExplore extends tsc<object> {
         },
       ]),
       filterMode: this.filterMode,
+      commonWhere: JSON.stringify(this.commonWhere),
     };
 
     const targetRoute = this.$router.resolve({
@@ -408,6 +423,7 @@ export default class MonitorEventExplore extends tsc<object> {
             />
           ),
         }}
+        commonWhere={this.commonWhere}
         currentFavorite={this.currentFavorite}
         dataId={this.dataId}
         dataSourceLabel={this.dataSourceLabel}
@@ -420,8 +436,9 @@ export default class MonitorEventExplore extends tsc<object> {
         source={APIType.MONITOR}
         where={this.where}
         onFavorite={this.handleFavorite}
-        onFilterModelChange={this.handleFilterModelChange}
+        onFilterModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
+        onQueryStringInputChange={this.handleQueryStringInputChange}
         onWhereChange={this.handleWhereChange}
       />
     );
