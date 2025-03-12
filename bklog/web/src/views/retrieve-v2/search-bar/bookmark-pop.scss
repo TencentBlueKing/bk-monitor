@@ -38,8 +38,8 @@
           border: 0px;
 
           .bk-form-textarea[readonly] {
-            border: 0px;
             font-family: 'Roboto Mono';
+            border: 0px;
           }
         }
       }
@@ -59,9 +59,9 @@
     .footer-button {
       width: 100%;
       height: 48px;
+      font-size: 0;
       line-height: 48px;
       text-align: right;
-      font-size: 0;
 
       .bk-button {
         height: 32px;
@@ -79,17 +79,21 @@
 
     .bk-tooltip-content {
       height: auto;
+
       .bk-select-search-wrapper {
         max-height: 32px;
       }
+
       .bk-options {
         .bk-option {
           &-content {
             padding: 0 12px;
           }
+
           .private-content {
             color: #979BA5;
           }
+
           &.is-selected {
             background-color: #E1ECFF;
           }
@@ -103,9 +107,10 @@
     .bk-form-item {
       .bk-label {
         min-height: 0;
-        line-height: 20px;
         margin-bottom: 6px;
+        line-height: 20px;
       }
+
       &+.bk-form-item {
         margin-top: 16px;
       }
@@ -115,18 +120,22 @@
 
 .favorite-group-extension {
   height: 40px;
-  line-height: 40px;
+
   .select-add-new-group {
-    background-color: #FAFBFD;
+    line-height: 40px;
     text-align: center;
+    background-color: #FAFBFD;
+
     &:hover {
-      background-color: transparent;
       cursor: pointer;
+      background-color: transparent;
     }
+
     .icon-plus-circle {
-      color: #979BA5;
       padding-right: 2px;
+      color: #979BA5;
     }
+
     .add-text {
       color: #4D4F56;
     }
@@ -135,7 +144,7 @@
   .add-new-page-input {
     display: flex;
     align-items: center;
-    padding: 6px 0;
+    line-height: 40px;
 
     .operate-button {
       justify-content: space-between;
