@@ -1,9 +1,9 @@
 .v3-search-bar-root {
-  width: calc(100% - 8px);
-  margin-left: 8px;
+  width: 100%;
+  padding: 0 8px;
 
   &.is-sticky-top {
-    margin: 0;
+    padding: 0;
     transition: all 0.3s ease;
   }
 }
