@@ -188,7 +188,7 @@ class GetCustomTsGraphConfig(Resource):
                     expression = serializers.CharField(label="表达式")
                     alias = serializers.CharField(label="别名", allow_blank=True)
                     query_configs = serializers.ListField(label="查询配置")
-                    function = serializers.DictField(label="图表函数", allow_null=True, default=None)
+                    function = serializers.DictField(label="图表函数", allow_null=True, default={})
 
                 targets = TargetSerializer(label="目标", many=True)
 
