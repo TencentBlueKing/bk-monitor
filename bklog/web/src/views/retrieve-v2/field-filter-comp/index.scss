@@ -5,13 +5,21 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: 100%;
     height: 32px;
-    padding: 0 16px;
-    margin: 9px 0 14px 0;
+    margin: 12px;
 
     .king-input {
       width: 100%;
+
+      .bk-form-input {
+        background-color: #f0f1f5;
+        border: 1px solid transparent;
+
+        &:hover {
+          cursor: pointer;
+          background-color: #eaebf0;
+        }
+      }
     }
 
     .gap {
@@ -59,20 +67,23 @@
       }
     }
   }
-  .big-tree{
+
+  .big-tree {
     overflow-y: hidden;
-    .is-leaf{
+
+    .is-leaf {
       height: auto;
       line-height: normal;
     }
   }
+
   .field-filter-container-new {
+    height: calc(100vh - var(--offset-search-bar) - 210px);
     padding: 0 16px;
     overflow-y: auto;
     font-size: 12px;
     line-height: 20px;
     color: #63656e;
-    height: calc(100vh - var(--offset-search-bar) - 210px);
 
     .title {
       font-weight: 700;
@@ -89,6 +100,12 @@
 
     .fields-container {
       margin-bottom: 20px;
+
+      .title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #313238;
+      }
 
       .all-field-item {
         display: inline-block;
