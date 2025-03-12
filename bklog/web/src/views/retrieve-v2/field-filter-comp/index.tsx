@@ -499,7 +499,7 @@ export default class FieldFilterComp extends tsc<object> {
             class='king-input'
             v-model={this.searchKeyword}
             data-test-id='fieldFilter_input_searchFieldName'
-            placeholder={this.$t('搜索字段名')}
+            placeholder={this.$t('搜索 字段名')}
             right-icon='icon-search'
             clearable
             onChange={() => this.filterListByCondition()}

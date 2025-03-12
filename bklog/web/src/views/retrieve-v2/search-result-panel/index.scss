@@ -5,7 +5,7 @@
     position: relative;
     display: flex;
     height: fit-content;
-    overflow: hidden;
+    overflow: visible;
 
     .field-list-sticky {
       &.is-show {
@@ -33,7 +33,6 @@
         .title-wrapper-new {
           z-index: 3;
           width: calc(100% - 110px);
-          margin-left: 110px;
         }
       }
 

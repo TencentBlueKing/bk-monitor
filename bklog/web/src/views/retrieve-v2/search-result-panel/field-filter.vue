@@ -86,8 +86,11 @@
 <template>
   <div :class="['search-field-filter-new', { 'is-close': !value }]">
     <!-- 字段过滤 -->
-    <div class="tab-item-title field-filter-title">
-      <div
+    <div
+      class="tab-item-title field-filter-title"
+      style="position: absolute; top: 64px; transform: translate(-50%, -50%)"
+    >
+      <!-- <div
         class="left-title"
         :class="{ 'is-text-click': !value }"
         @click="handleCloseFilterTitle(true)"
@@ -115,18 +118,17 @@
           </div>
           <span class="bklog-icon bklog-log-setting"></span>
         </bk-popconfirm>
-      </div>
+      </div>-->
       <div
         class="close-total"
         @click="handleCloseFilterTitle(false)"
       >
         <span
-          v-show="value"
-          class="collect-title"
-        >
-          {{ $t('收起') }}
-        </span>
-        <span class="bklog-icon bklog-collapse-small"></span>
+          :style="{ transform: value ? 'rotate(180deg)' : '' }"
+          class="bklog-icon bklog-collapse"
+          style="font-size: 14px"
+          v-bk-tooltips="{ content: value ? '收起' : '打开' }"
+        ></span>
       </div>
     </div>
     <FieldFilterComp

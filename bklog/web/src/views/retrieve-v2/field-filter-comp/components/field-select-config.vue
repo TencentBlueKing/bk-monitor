@@ -101,8 +101,8 @@
         class="dropdown-trigger-text"
         slot="dropdown-trigger"
       >
-        <span> {{ $t('字段配置模板') }} </span>
-        <i :class="['bk-icon icon-angle-down', { 'icon-flip': isDropdownShow }]"></i>
+        <span class="bklog-icon bklog-overview1"></span>
+        <span> {{ $t('字段模板') }} </span>
       </div>
       <ul
         v-bkloading="{ isLoading: isLoading, size: 'small' }"
