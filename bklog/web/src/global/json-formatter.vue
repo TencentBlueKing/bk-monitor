@@ -19,8 +19,7 @@
           class="field-value"
           :data-field-name="item.name"
           :ref="item.formatter.ref"
-          >{{ item.formatter.isJson ? '' : item.formatter.value }}</span
-        >
+        ></span>
       </span>
     </template>
   </div>
@@ -104,6 +103,7 @@
       ref: ref(),
       isJson: typeof objValue === 'object' && objValue !== undefined,
       value: objValue,
+      field,
     };
   };
   const getFieldName = field => {
@@ -154,10 +154,35 @@
     color: var(--table-fount-color);
     text-align: left;
 
+    &:not(.is-json) {
+      .bklog-root-field {
+        .field-value {
+          max-height: 50vh;
+          overflow: auto;
+          will-change: transform;
+          transform: translateZ(0); /* 强制开启GPU加速 */
+        }
+      }
+    }
+
+    .bklog-scroll-box {
+      max-height: 50vh;
+      overflow: auto;
+      will-change: transform;
+      transform: translateZ(0); /* 强制开启GPU加速 */
+    }
+
+    .bklog-scroll-cell {
+      word-break: break-all;
+      span {
+        content-visibility: auto;
+        contain-intrinsic-size: 0 60px; /* 预估初始高度 */
+      }
+    }
+
     .bklog-root-field {
       margin-right: 4px;
       line-height: 20px;
-      // display: inline-flex;
 
       .bklog-json-view-row {
         word-break: break-all;

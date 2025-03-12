@@ -440,7 +440,12 @@
     }
 
     .bklog-row-box {
+      will-change: transform;
+      transform: translateZ(0); /* 强制开启GPU加速 */
       .bklog-row-container {
+        content-visibility: auto;
+        contain-intrinsic-size: 0 60px; /* 预估初始高度 */
+
         .bklog-list-row {
           .bklog-row-cell {
             &.right {
