@@ -15,16 +15,25 @@
 
     &.is-click,
     &:hover {
-      background: #dcdee5;
+      /* stylelint-disable-next-line declaration-no-important */
+      background: #ffffff !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      border-radius: 9px !important;
+
+      .bklog-more {
+        /* stylelint-disable-next-line declaration-no-important */
+        color: #3a84ff !important;
+      }
     }
   }
 
   .move-group {
     .more-icon {
       display: inline-block;
-      margin-left: 2px;
-      font-size: 20px;
-      color: #979ba5;
+      margin-left: 24px;
+      font-size: 18px;
+      color: #4d4f56;
       transform: translateY(2px);
     }
   }
@@ -37,15 +46,21 @@
 
   .dropdown-list,
   %dropdown-list {
-    padding: 4px 0;
-    background: #fff;
+    min-width: 120px;
+    padding: 4px 0px 7px 0px;
+
+    // height: 235px;
+    background: #ffffff;
     border: 1px solid #dcdee5;
-    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 #0000001a;
 
     li {
-      padding: 6px 12px;
+      height: 32px;
+      padding: 0px 0px 0px 12px;
       font-size: 12px;
-      color: #63656e;
+      line-height: 32px;
+      color: #4d4f56;
       white-space: nowrap;
       cursor: pointer;
 
@@ -56,8 +71,8 @@
   }
 
   .group-dropdown-list {
-    min-width: 170px;
-    max-height: 300px;
+    min-width: 240px;
+    max-height: 240px;
 
     /* stylelint-disable-next-line declaration-no-important */
     padding-bottom: 42px !important;
@@ -93,8 +108,12 @@
       background: #fafcfe;
 
       .icon-close-circle {
+        position: absolute;
+        top: 9px;
+        left: -18px;
         display: inline-block;
         margin-right: 4px;
+        font-size: 14px;
         transform: rotate(45deg);
       }
     }
@@ -104,7 +123,7 @@
     /* stylelint-disable-next-line declaration-no-important */
     color: #f56350 !important;
     // margin: 0 6px;
-    border-top: 1px solid #dcdee5;
+    border-top: 1px solid #ebecf0;
     // padding: 6px 6px !important;
   }
 
@@ -146,4 +165,12 @@
       }
     }
   }
+}
+
+.new-page-input-padding {
+  /* stylelint-disable-next-line declaration-no-important */
+  height: 44px !important;
+
+  /* stylelint-disable-next-line declaration-no-important */
+  padding: 6px 12px !important;
 }

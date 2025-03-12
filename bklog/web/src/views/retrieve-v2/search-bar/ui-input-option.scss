@@ -384,9 +384,9 @@
       }
 
       &.no-selected-tag-item {
+        height: 100%;
         background-color: transparent;
         border: none;
-        height: 100%;
       }
 
       &.tag-validate-error {

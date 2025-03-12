@@ -1,6 +1,4 @@
 .retrieve2-collect-group {
-  padding: 0px 12px;
-
   .icon-play-shape {
     display: inline-block;
     margin-right: 2px;
@@ -10,8 +8,7 @@
     transform: scale(0.5);
   }
 
-  .bklog-folder-fill,
-  .bklog-file-close {
+  .bklog-icon {
     font-size: 14px;
     color: #c4c6cc;
   }
@@ -29,6 +26,11 @@
       /* stylelint-disable-next-line declaration-no-important */
       margin-left: 4px !important;
       word-wrap: break-word;
+
+      &.hover {
+        /* stylelint-disable-next-line declaration-no-important */
+        padding: 0px !important;
+      }
     }
 
     .is-active {
@@ -69,7 +71,10 @@
     }
 
     &:hover {
-      background: #eff1f5;
+      /* stylelint-disable-next-line declaration-no-important */
+      padding: 0px !important;
+      background: #dde1eb;
+      border-radius: 4px;
     }
   }
 
