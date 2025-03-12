@@ -311,7 +311,7 @@
     }
 
     .value-select {
-      min-width: 200px;
+      min-width: 120px;
       max-width: 460px;
 
       :deep(.bk-select-dropdown .bk-select-tag-container) {

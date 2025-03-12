@@ -739,10 +739,13 @@
     .sql-field-list {
       position: relative;
       width: 100%;
-      padding-bottom: 48px;
+      // padding-bottom: 48px;
 
       /* 移动光标and确认结果提示 样式 */
       .ui-shortcut-key {
+        width: 100%;
+        position: absolute;
+        bottom: 0;
         padding: 0 16px;
         height: 48px;
         line-height: 48px;
@@ -791,6 +794,7 @@
 
     .sql-syntax-tips {
       position: relative;
+      min-width: 240px;
       width: 240px;
       background-color: #f5f7fa;
       border-radius: 0 2px 2px 0;
@@ -817,7 +821,7 @@
         width: 100%;
         height: 100%;
         padding: 12px;
-        background: #fafbfd;
+        background: #f5f7fa;
         border-radius: 0 2px 2px 0;
         outline: 1px solid #dcdee5;
 
@@ -852,13 +856,21 @@
           .sql-query-name {
             font-weight: 700;
             line-height: 16px;
+            margin-bottom: 2px;
             color: #313238;
           }
 
           .sql-query-value {
-            font-family: RobotoMono-Regular;
-            line-height: 20px;
+            font-family: 'Roboto Mono', monospace;
+            line-height: 18px;
             color: #4d4f56;
+            word-break: break-all;
+          }
+
+          &:first-child {
+            .sql-query-value {
+              line-height: 20px;
+            }
           }
         }
       }

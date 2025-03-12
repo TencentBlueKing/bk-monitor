@@ -46,7 +46,7 @@
 <template>
   <div class="favorite-footer">
     <!-- 收藏查询列表 -->
-    <div class="favorite-query-list">
+    <div :class="['favorite-query-list', { 'no-data': !favoriteList.length }]">
       <div
         v-if="favoriteList.length"
         class="query-list-title"
@@ -159,6 +159,17 @@
         &:hover {
           cursor: pointer;
           background-color: #eaf3ff;
+        }
+      }
+
+      &.no-data {
+        .favorite-list {
+          margin-bottom: 0;
+          height: 95px;
+          .bk-exception {
+            height: 100%;
+            justify-content: center;
+          }
         }
       }
     }

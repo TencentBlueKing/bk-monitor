@@ -203,6 +203,7 @@
     },
     data() {
       return {
+        value: '',
         contentType: 'table',
         showFieldsSetting: false,
         showAsyncExport: false, // 异步下载弹窗

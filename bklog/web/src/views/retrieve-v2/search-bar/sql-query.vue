@@ -223,11 +223,12 @@
 
           .cm-line {
             width: fit-content;
-            color: #b17313 !important;
+            color: #b17313;
             .ͼb {
               color: #7c609e;
             }
-            .ͼi {
+            .ͼi,
+            .ͼf {
               color: #02776e;
             }
           }

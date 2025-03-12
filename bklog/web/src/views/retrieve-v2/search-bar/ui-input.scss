@@ -12,15 +12,15 @@ ul.search-items {
 
     @keyframes changeBackgroundColor {
       0% {
-        background-color: #e1ecff;
+        background-color: #f0f1f5;
       }
 
-      10% {
+      20% {
         background-color: #fdf4e8;
       }
 
-      50% {
-        background-color: #e1ecff;
+      60% {
+        background-color: #f0f1f5;
       }
 
       90% {
@@ -28,7 +28,7 @@ ul.search-items {
       }
 
       100% {
-        background-color: #e1ecff;
+        background-color: #f0f1f5;
       }
     }
 
@@ -173,7 +173,9 @@ ul.search-items {
             padding: 0 4px;
             color: #3a84ff;
 
-            &[data-operator^='not contains'] {
+            &[data-operator^='not contains'],
+            &[data-operator^='does not exists'],
+            &[data-operator^='is false'] {
               color: #ea3636;
             }
           }
