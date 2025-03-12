@@ -8,9 +8,10 @@
   import { getOperatorKey } from '@/common/util';
   import { operatorMapping, translateKeys } from './const-values';
   import useFieldEgges from './use-field-egges';
+  import { debounce } from 'lodash';
   const { $t } = useLocale();
   const store = useStore();
-
+  const debouncedHandleChange = debounce(() => handleChange(), 300);
   const filterFieldsList = computed(() => {
     if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
       return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
@@ -83,27 +84,43 @@
     return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
   };
 
+  const { requestFieldEgges } = useFieldEgges();
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      const { requestFieldEgges } = useFieldEgges();
-      requestFieldEgges(item, null, resp => {
-        if (typeof resp === 'boolean') {
-          return;
-        }
-        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-      });
+      isRequesting.value = true;
+      requestFieldEgges(
+        item,
+        null,
+        resp => {
+          if (typeof resp === 'boolean') {
+            return;
+          }
+          commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+        },
+        () => {
+          isRequesting.value = false;
+        },
+      );
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    const { requestFieldEgges } = useFieldEgges();
-    requestFieldEgges(item, value, resp => {
-      if (typeof resp === 'boolean') {
-        return;
-      }
-      commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-    });
+    activeIndex.value = index;
+    isRequesting.value = true;
+    requestFieldEgges(
+      item,
+      value,
+      resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      },
+      () => {
+        isRequesting.value = false;
+      },
+    );
   };
 
   // 新建提交逻辑
@@ -167,7 +184,7 @@
           :input-search="false"
           :popover-min-width="100"
           filterable
-          @change="handleChange"
+          @change="debouncedHandleChange"
         >
           <template #trigger>
             <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
@@ -189,7 +206,7 @@
             multiple
             searchable
             :fix-height="true"
-            @change="handleChange"
+            @change="debouncedHandleChange"
             @toggle="visible => handleToggle(visible, item, index)"
           >
             <template #search>

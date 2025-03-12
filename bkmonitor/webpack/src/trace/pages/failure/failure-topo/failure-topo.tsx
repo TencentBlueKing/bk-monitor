@@ -117,6 +117,7 @@ export default defineComponent({
   emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh'],
   setup(props, { emit }) {
     const router = useRouter();
+    const bkzIds = inject<Ref<string[]>>('bkzIds');
     /** 缓存resize render后执行的回调函数，主要用于点击播放之前收起右侧资源图时的回调 */
     const resizeCacheCallback = ref(null);
     const detailInfo = ref({});
@@ -1271,7 +1272,7 @@ export default defineComponent({
         let dx = 0;
         if (!isNodeOutOfCanvas(node)) {
           const { left, top } = fixLayoutPosition();
-          graph.translate(dx + left, dy + top);
+          graph.translate(dx + left, dy + top + 40);
           return;
         }
         // x轴居中，y轴在视图范围内即可
@@ -1975,6 +1976,8 @@ export default defineComponent({
         query.start_time = observe_time_rage.start_at;
         query.end_time = observe_time_rage.end_at;
       }
+      const { origin, pathname } = window.location;
+      const baseUrl = bkzIds.value[0] ? `${origin}${pathname}?bizId=${bkzIds.value[0]}` : '';
       const newPage = router.resolve({
         path: '/trace/home',
         query: {
@@ -1988,7 +1991,7 @@ export default defineComponent({
           ...query,
         },
       });
-      window.open(newPage.href, '_blank');
+      window.open(baseUrl + newPage.href, '_blank');
     };
     const handleToDetailTab = node => {
       const { alert_display, alert_ids } = node;

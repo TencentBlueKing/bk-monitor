@@ -140,7 +140,7 @@ import { Component, Prop, Vue, Watch } from 'vue-property-decorator';
 import { Checkbox, CheckboxGroup, Grid, GridItem, Popup, Radio, RadioGroup } from 'vant';
 
 import { quickShield } from '../../../monitor-api/modules/mobile_event';
-import DatetimePicker, { ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
+import DatetimePicker, { type ITimeObj } from '../../components/datetime-picker/datetime-picker.vue';
 import FooterButton from '../../components/footer-button/footer-button.vue';
 import AlarmModule from '../../store/modules/alarm-info';
 import EventModule from '../../store/modules/event-detail';
@@ -175,11 +175,11 @@ interface IEentDetail {
 }
 enum TimeSemantics {
   TenMinutes = 1,
-  ThirtyMinutes,
-  TwelveHour,
-  OneDays,
-  SevenDays,
-  Custom,
+  ThirtyMinutes = 2,
+  TwelveHour = 3,
+  OneDays = 4,
+  SevenDays = 5,
+  Custom = 6,
 }
 
 @Component({
@@ -228,10 +228,7 @@ export default class AlarmDetail extends Vue {
 
   created() {
     this.radioList = {
-      type: [
-        { name: this.$tc('事件屏蔽'), value: 'event' },
-        { name: this.$tc('策略屏蔽'), value: 'strategy' },
-      ],
+      type: [{ name: this.$tc('事件屏蔽'), value: 'event' }],
       reason: [
         { name: this.$tc('变更中'), value: '变更中' },
         { name: this.$tc('无关紧要'), value: '无关紧要' },

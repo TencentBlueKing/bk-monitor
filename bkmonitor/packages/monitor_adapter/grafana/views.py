@@ -165,9 +165,8 @@ class GrafanaSwitchOrgView(SwitchOrgView):
         content = super(GrafanaSwitchOrgView, self).update_response(response, content)
         if isinstance(content, bytes):
             content = content.decode("utf-8")
-        return content.replace(
-            "<script>", f"<script>\nvar graphWatermark={'true' if settings.GRAPH_WATERMARK else 'false'};"
-        )
+        enable_watermark = settings.GRAPH_WATERMARK and settings.ROLE == "web"
+        return content.replace("<script>", f"<script>\nvar graphWatermark={json.dumps(enable_watermark)};")
 
 
 class GrafanaProxyView(ProxyView):
@@ -227,9 +226,8 @@ class GrafanaProxyView(ProxyView):
         content = super(GrafanaProxyView, self).update_response(response, content)
         if isinstance(content, bytes):
             content = content.decode("utf-8")
-        return content.replace(
-            "<script>", f"<script>\nvar graphWatermark={'true' if settings.GRAPH_WATERMARK else 'false'};"
-        )
+        enable_watermark = settings.GRAPH_WATERMARK and settings.ROLE == "web"
+        return content.replace("<script>", f"<script>\nvar graphWatermark={json.dumps(enable_watermark)};")
 
 
 class ApiProxyView(GrafanaProxyView):

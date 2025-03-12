@@ -27,6 +27,7 @@
 import Alert from '../../../static/img/failure/icon-alert.svg';
 import NodeHost from '../../../static/img/failure/icon-BCSNode.svg';
 import BcsService from '../../../static/img/failure/icon-BCSService.svg';
+import Service from '../../../static/img/failure/icon-fuwu.svg';
 import Http from '../../../static/img/failure/icon-http.svg';
 import Other from '../../../static/img/failure/icon-mc-service-unknown.svg';
 import IdcSvg from '../../../static/img/failure/icon-mc-target-cloud.svg';
@@ -42,6 +43,7 @@ export const NODE_TYPE_SVG = {
   IdcUnit: IdcSvg,
   Rack: RackSvg,
   BcsService,
+  Service,
   Unknown: BcsService,
   BkNodeHost: NodeHost,
   BcsNode: NodeHost,
@@ -66,6 +68,7 @@ export const NODE_TYPE_ICON = {
   Unknown: 'icon-mc-bcs-service',
   http: 'icon-wangye',
   rpc: 'icon-yuanchengfuwu',
+  Service: 'icon-fuwumokuai',
   db: 'icon-shujuku',
   messaging: 'icon-xiaoxizhongjianjian',
   async_backend: 'icon-renwu',

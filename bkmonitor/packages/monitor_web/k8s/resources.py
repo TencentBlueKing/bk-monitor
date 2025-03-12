@@ -98,7 +98,7 @@ class ScenarioMetricList(Resource):
     """
 
     class RequestSerializer(SpaceRelatedSerializer):
-        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance"])
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network"])
 
     def perform_request(self, validated_request_data):
         # 使用量、limit使用率、request使用率
@@ -111,7 +111,7 @@ class GetScenarioMetric(Resource):
     """
 
     class RequestSerializer(SpaceRelatedSerializer):
-        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance"])
+        scenario = serializers.ChoiceField(required=True, label="接入场景", choices=["performance", "network"])
         metric_id = serializers.CharField(required=True, label="指标id")
 
     def perform_request(self, validated_request_data):
@@ -241,7 +241,7 @@ class ListK8SResources(Resource):
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
         # 场景，后续持续补充， 目前暂时没有用的地方， 先传上
-        scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance"])
+        scenario = serializers.ChoiceField(required=True, label="场景", choices=["performance", "network"])
         # 历史出现过的资源
         with_history = serializers.BooleanField(required=False, default=False)
         # 分页
@@ -335,6 +335,11 @@ class ListK8SResources(Resource):
         # 3.0 基于promql 查询历史上报数据。 确认数据是否达到分页要求
         order_by = validated_request_data["order_by"]
         column = validated_request_data["column"]
+        scenario = validated_request_data["scenario"]
+        if scenario == "network":
+            # 网络场景默认指标，用nw_container_network_receive_bytes_total
+            if not column.startswith("nw_"):
+                column = "nw_container_network_receive_bytes_total"
         order_by = column if order_by == "asc" else "-{}".format(column)
 
         history_resource_list = resource_meta.get_from_promql(
@@ -411,19 +416,23 @@ class ResourceTrendResource(Resource):
         )
         resource_type = serializers.ChoiceField(
             required=True,
-            choices=["pod", "workload", "namespace", "container"],
+            choices=["pod", "workload", "namespace", "container", "ingress", "service"],
             label="资源类型",
         )
         method = serializers.ChoiceField(required=True, choices=["max", "avg", "min", "sum", "count"])
         resource_list = serializers.ListField(required=True, label="资源列表")
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
+        scenario = serializers.ChoiceField(
+            required=False, label="场景", choices=["performance", "network"], default="performance"
+        )
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         bcs_cluster_id: str = validated_request_data["bcs_cluster_id"]
         resource_type: str = validated_request_data["resource_type"]
         resource_list: List[str] = validated_request_data["resource_list"]
+        scenario: str = validated_request_data["scenario"]
         if not resource_list:
             return []
         start_time: int = validated_request_data["start_time"]
@@ -437,7 +446,7 @@ class ResourceTrendResource(Resource):
         ListK8SResources().add_filter(resource_meta, validated_request_data["filter_dict"])
         column = validated_request_data["column"]
         series_map = {}
-        metric = resource.k8s.get_scenario_metric(metric_id=column, scenario="performance", bk_biz_id=bk_biz_id)
+        metric = resource.k8s.get_scenario_metric(metric_id=column, scenario=scenario, bk_biz_id=bk_biz_id)
         unit = metric["unit"]
         if resource_type == "workload":
             # workload 单独处理
@@ -485,7 +494,7 @@ class ResourceTrendResource(Resource):
         for line in series:
             if line["datapoints"]:
                 for point in reversed(line["datapoints"]):
-                    if point[0]:
+                    if point[0] is not None:
                         max_data_point = max(max_data_point, point[1])
 
         for line in series:

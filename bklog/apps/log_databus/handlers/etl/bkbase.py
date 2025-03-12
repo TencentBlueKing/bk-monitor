@@ -23,6 +23,8 @@ import copy
 import json
 from typing import Union
 
+from django.conf import settings
+
 from apps.api import BkDataDatabusApi
 from apps.log_databus.constants import BKDATA_ES_TYPE_MAP
 from apps.log_databus.exceptions import BKBASEStorageNotExistException
@@ -33,7 +35,6 @@ from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.utils.local import get_request_username
-from django.conf import settings
 
 
 class BKBaseEtlHandler(EtlHandler):
@@ -72,7 +73,7 @@ class BKBaseEtlHandler(EtlHandler):
         BKBaseEtlHandler.stop_bkdata_clean(bkdata_result_table_id)
         BKBaseEtlHandler.start_bkdata_clean(bkdata_result_table_id)
 
-    def update_or_create(self, instance: Union[CollectorConfig, CollectorPlugin], params=None):
+    def update_or_create(self, instance: Union[CollectorConfig, CollectorPlugin], params=None, **kwargs):
         """
         创建或更新清洗入库
         """
@@ -137,6 +138,9 @@ class BKBaseEtlHandler(EtlHandler):
             bkdata_params.update({"processing_id": instance.processing_id})
             BkDataDatabusApi.databus_cleans_put(bkdata_params, request_cookies=False)
             self.restart_bkdata_clean(instance.bkbase_table_id)
+
+        if not params.get("is_create_storage", True):
+            return
 
         # 入库参数
         cluster_info = StorageHandler(params.get("storage_cluster_id")).get_cluster_info_by_id()

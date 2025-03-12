@@ -15,6 +15,7 @@ from enum import Enum
 from celery import shared_task
 from django.conf import settings
 from django.core.cache import caches
+from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
@@ -159,7 +160,9 @@ def refresh_apm_application_metric():
     logger.info("[refresh_apm_application_metric] task start")
 
     # 刷新 APM 应用列表页, 应用指标数据
-    queryset = Application.objects.filter(is_enabled=True)
+    queryset = Application.objects.filter(
+        ~Q(metric_result_table_id=''), metric_result_table_id__isnull=False, is_enabled=True
+    )
 
     applications = ApplicationCacheSerializer(queryset, many=True).data
 

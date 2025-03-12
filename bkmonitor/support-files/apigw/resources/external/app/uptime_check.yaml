@@ -9,7 +9,7 @@ schemes:
 paths:
   /app/uptime_check/node/list/:
     get:
-      operationId: get_uptime_check_nodes
+      operationId: get_uptime_check_node_list
       description: 获取拨测节点列表
       x-bk-apigateway-resource:
         isPublic: true
@@ -99,7 +99,7 @@ paths:
         descriptionEn: create uptime check node
   /app/uptime_check/task/list/:
     get:
-      operationId: get_uptime_check_tasks
+      operationId: get_uptime_check_task_list
       description: 获取拨测任务列表
       x-bk-apigateway-resource:
         isPublic: true

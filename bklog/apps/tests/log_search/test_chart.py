@@ -40,6 +40,13 @@ SEARCH_PARAMS = [
             {"field": "is_deleted", "operator": "is true", "value": []},
         ],
     },
+    {
+        "sql": "SELECT thedate, dtEventTimeStamp, log WHERE a=1 or b=2 LIMIT 10",
+        "addition": [
+            {"field": "bk_host_id", "operator": "=", "value": ["x1", "x2"]},
+            {"field": "is_deleted", "operator": "is true", "value": []},
+        ],
+    },
 ]
 
 SQL_RESULT = [
@@ -83,17 +90,23 @@ SQL_RESULT = [
         " AND "
         "(name = 'he''ll''o' OR name = 'world''')"
         " AND "
-        "(__ext['bcs_id'] = 'BCS-1' OR __ext['bcs_id'] = 'BCS-2')"
+        "(CAST(__ext['bcs_id'] AS TEXT) = 'BCS-1' OR CAST(__ext['bcs_id'] AS TEXT) = 'BCS-2')"
         " AND "
-        "(__ext['bcs_id'] != 'BCS-3' OR __ext['bcs_id'] != 'BCS-4')"
+        "(CAST(__ext['bcs_id'] AS TEXT) != 'BCS-3' OR CAST(__ext['bcs_id'] AS TEXT) != 'BCS-4')"
         " AND "
-        "(__ext['label']['component'] LIKE '%ds%' OR __ext['label']['component'] LIKE '%py%')"
+        "(CAST(__ext['label']['component'] AS TEXT) LIKE '%ds%'"
+        " OR "
+        "CAST(__ext['label']['component'] AS TEXT) LIKE '%py%')"
         " AND "
-        "__ext['label']['component'] NOT LIKE '%a%'"
+        "CAST(__ext['label']['component'] AS TEXT) NOT LIKE '%a%'"
         f" {SQL_SUFFIX}"
     ),
     (
-        "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time FROM xx.x1 "
+        "SELECT thedate, dtEventTimeStamp, iterationIndex, log, time "
+        "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
+    ),
+    (
+        "SELECT thedate, dtEventTimeStamp, log "
         "WHERE (bk_host_id = 'x1' OR bk_host_id = 'x2') AND is_deleted IS TRUE LIMIT 10"
     ),
 ]

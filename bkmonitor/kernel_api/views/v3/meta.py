@@ -315,6 +315,10 @@ class GetBizRelatedBkciSpacesViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.GetBizRelatedBkciSpacesResource)]
 
 
+class GetNegativeSpaceIdRelatedInfoViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.GetNegativeSpaceIdRelatedInfo)]
+
+
 class CreateSpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateSpaceResource)]
 
@@ -397,6 +401,10 @@ class QueryDataSourceViewSet(MetaViewSet):
 
 class QueryDataLinkInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryDataLinkInfoResource)]
+
+
+class IntelligentDiagnosisMetadataViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.IntelligentDiagnosisMetadataResource)]
 
 
 class QueryDataIdsByBizIdViewSet(MetaViewSet):
