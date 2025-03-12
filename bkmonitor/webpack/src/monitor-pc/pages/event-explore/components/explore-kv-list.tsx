@@ -30,12 +30,13 @@ import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils';
 
 import { EMethod } from '../../../components/retrieval-filter/utils';
-import { type DimensionType, ExploreEntitiesTypeEnum } from '../typing';
+import { type DimensionType, type ExploreEntitiesItem, ExploreEntitiesTypeEnum } from '../typing';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
 import './explore-kv-list.scss';
 
+type KVEntities = Pick<ExploreEntitiesItem, 'alias' | 'type'> & { externalParams: Record<string, any> };
 export interface KVFieldList {
   /** kv 面板中的 key */
   name: string;
@@ -45,17 +46,11 @@ export interface KVFieldList {
   value: string;
   /** 部分字段目前显示的 name 是经过拼接处理后的值，sourceName 则是最原始未处理前的 name */
   sourceName: string;
-  /** 跳转到其他哪个页面（容器/主机） */
-  entitiesType: '' | ExploreEntitiesTypeEnum;
-  /** 是否显示跳转入口 */
-  hasEntities: boolean;
-  /** 跳转入口显示的文案 */
-  entitiesAlias: string;
   /** 点击 name 是否能够弹出 统计面板popover */
   canOpenStatistics: boolean;
-  externalParams: Record<string, any>;
+  /** 跳转到其他哪个页面入口list（容器/主机） */
+  entities: KVEntities[];
 }
-
 interface IExploreKvListProps {
   fieldList: KVFieldList[];
 }
@@ -299,18 +294,25 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   /**
    * @description 主机/容器 跳转链接回调
    */
-  handleJumpLink(item: KVFieldList) {
+  handleJumpLink(item: KVFieldList, entitiesItem: KVEntities) {
     let path = '';
-    switch (item.entitiesType) {
+    switch (entitiesItem.type) {
       case ExploreEntitiesTypeEnum.HOST:
         {
           const { value, sourceName } = item;
-          const endStr = `${value}${sourceName === 'bk_host_id' ? '' : `-${item.externalParams.cloudId}`}`;
+          const endStr = `${value}${sourceName === 'bk_host_id' ? '' : `-${entitiesItem.externalParams.cloudId}`}`;
           path = `#/performance/detail/${endStr}`;
         }
         break;
       case ExploreEntitiesTypeEnum.K8S:
-        path = '#/k8s-new?dashboardId=pod';
+        {
+          // const { value, sourceName } = item;
+          const endStr = `cluster=${entitiesItem.externalParams.cluster}`;
+          // if (sourceName !== 'bcs_cluster_id') {
+          //   endStr += `&${sourceName}=${value}`;
+          // }
+          path = `#/k8s-new?${endStr}`;
+        }
         break;
     }
     if (path) {
@@ -324,18 +326,16 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    *
    */
   jumpLinkRender(item: KVFieldList) {
-    if (!item.hasEntities || !item.value) {
-      return;
-    }
-    return (
+    return item.entities.map(entitiesItem => (
       <div
+        key={entitiesItem.alias}
         class='value-jump-link'
-        onClick={() => this.handleJumpLink(item)}
+        onClick={() => this.handleJumpLink(item, entitiesItem)}
       >
-        <span class='jump-link-label'>{item.entitiesAlias}</span>
+        <span class='jump-link-label'>{entitiesItem.alias}</span>
         <i class='icon-monitor icon-mc-goto' />
       </div>
-    );
+    ));
   }
 
   /**

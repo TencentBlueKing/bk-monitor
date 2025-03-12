@@ -54,7 +54,7 @@ interface IEventExploreViewProps {
   queryConfig: IFormData;
   source: APIType;
   fieldMap: ExploreFieldMap;
-  entitiesMap: ExploreEntitiesMap;
+  entitiesMapList: ExploreEntitiesMap[];
   timeRange: TimeRangeType;
   refreshImmediate: string;
 }
@@ -74,7 +74,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
+  @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
   // 数据时间间隔
   @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   /** 是否立即刷新 */
@@ -344,7 +344,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
             ref='eventExploreTableRef'
-            entitiesMap={this.entitiesMap}
+            entitiesMapList={this.entitiesMapList}
             fieldMap={this.fieldMap}
             requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
             onConditionChange={this.conditionChange}

@@ -51,7 +51,7 @@ import './event-explore-table.scss';
 interface EventExploreTableProps {
   requestConfigs: EventExploreTableRequestConfigs;
   fieldMap: ExploreFieldMap;
-  entitiesMap: ExploreEntitiesMap;
+  entitiesMapList: ExploreEntitiesMap[];
 }
 
 interface EventExploreTableEvents {
@@ -75,7 +75,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
+  @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
 
   /** table loading 配置*/
   tableLoading = {
@@ -346,7 +346,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       <ExploreExpandViewWrapper
         style={this.getCssVarsByType(rowData?.type?.value)}
         data={rowData?.origin_data || {}}
-        entitiesMap={this.entitiesMap}
+        entitiesMapList={this.entitiesMapList}
         fieldMap={this.fieldMap}
         onConditionChange={this.conditionChange}
       />

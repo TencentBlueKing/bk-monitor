@@ -32,14 +32,14 @@ import { copyText } from 'monitor-common/utils';
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
 import type { IWhereItem } from '../../../components/retrieval-filter/utils';
-import type { DimensionType, ExploreEntitiesMap, ExploreEntitiesTypeEnum, ExploreFieldMap } from '../typing';
+import type { DimensionType, ExploreEntitiesMap, ExploreFieldMap } from '../typing';
 
 import './explore-expand-view-wrapper.scss';
 
 interface ExploreExpandViewWrapperProps {
   data: Record<string, any>;
   fieldMap: ExploreFieldMap;
-  entitiesMap: ExploreEntitiesMap;
+  entitiesMapList: ExploreEntitiesMap[];
 }
 
 interface ExploreExpandViewWrapperEvents {
@@ -61,7 +61,7 @@ export default class ExploreExpandViewWrapper extends tsc<
   /** 用于获取 data 数据中 key 的字段类型 */
   @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
   /** 用于判断 data 数据中 key 是否提供跳转入口 */
-  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
+  @Prop({ type: Array, default: () => [] }) entitiesMapList: ExploreEntitiesMap[];
 
   /** 当前活跃的nav */
   activeTab = ExploreViewTabEnum.KV;
@@ -73,17 +73,26 @@ export default class ExploreExpandViewWrapper extends tsc<
   /** KV列表 */
   get kvFieldList(): KVFieldList[] {
     const externalParams = {
-      cloudId: this?.data?.bk_cloud_id || this?.data?.bk_target_cloud_id || '0',
+      /** 跳转 主机 时所需参数 */
+      cloudId: this.getValueBySourceName('bk_cloud_id') || this.getValueBySourceName('bk_target_cloud_id') || '0',
+      /** 跳转 容器 时所需参数 */
+      cluster: this.getValueBySourceName('bcs_cluster_id'),
     };
     return Object.entries(this.data).map(([key, value]) => {
-      const entities = this.entitiesMap[key];
-      let hasEntities = true;
-      let entitiesAlias: string = entities?.alias;
-      let entitiesType = entities?.type as '' | ExploreEntitiesTypeEnum;
-      if (!entities || entities?.dependent_fields?.some(field => !this.data[field])) {
-        hasEntities = false;
-        entitiesAlias = '';
-        entitiesType = '';
+      const entities = [];
+
+      if (value != null && value !== '') {
+        for (const entitiesMap of this.entitiesMapList) {
+          const item = entitiesMap?.[key];
+          if (!item || item?.dependent_fields?.some(field => !this.data[field])) {
+            continue;
+          }
+          entities.push({
+            alias: item.alias,
+            type: item.type,
+            externalParams,
+          });
+        }
       }
 
       const fieldItem = this.fieldMap?.target?.[key] || {};
@@ -92,11 +101,8 @@ export default class ExploreExpandViewWrapper extends tsc<
         type: fieldItem?.type as DimensionType,
         value: value as string,
         sourceName: fieldItem?.name as string,
-        entitiesType,
-        hasEntities,
+        entities,
         canOpenStatistics: fieldItem?.is_option_enabled || false,
-        entitiesAlias,
-        externalParams,
       };
     });
   }
@@ -104,6 +110,15 @@ export default class ExploreExpandViewWrapper extends tsc<
   @Emit('conditionChange')
   conditionChange(condition: IWhereItem[]) {
     return condition;
+  }
+
+  /**
+   * @description 根据 sourceName 获取最终展示的value值(因为部分字段在 data 中对应的key是拼接处理过的字段)
+   *
+   */
+  getValueBySourceName(name: string) {
+    const finalName = this.fieldMap?.source?.[name]?.finalName;
+    return this.data[finalName];
   }
 
   /**

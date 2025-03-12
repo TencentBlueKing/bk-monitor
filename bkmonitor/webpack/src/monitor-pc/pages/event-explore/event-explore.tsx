@@ -153,23 +153,25 @@ export default class EventExplore extends tsc<
    * @description 将 sourceEntities 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions.后的值作为 key
    * @description 用于在 KV 模式下，判断字段是否开启 跳转到其他页面 入口
    */
-  get entitiesMapByField(): ExploreEntitiesMap {
+  get entitiesMapByField(): ExploreEntitiesMap[] {
     if (!this.sourceEntities?.length) {
-      return {};
+      return [];
     }
     return this.sourceEntities.reduce((prev, curr) => {
       const { fields, dependent_fields = [] } = curr || {};
-      const finalDependentFields = dependent_fields.map(field => this.fieldMapByField?.source?.[field]?.finalName);
       if (!fields?.length) return prev;
+      const finalDependentFields = dependent_fields.map(field => this.fieldMapByField?.source?.[field]?.finalName);
+      const map = {};
       for (const field of fields) {
         const finalName = this.fieldMapByField?.source?.[field]?.finalName || field;
-        prev[finalName] = {
+        map[finalName] = {
           ...curr,
           dependent_fields: finalDependentFields,
         };
       }
+      prev.push(map);
       return prev;
-    }, {});
+    }, []);
   }
 
   get queryConfig() {
@@ -378,7 +380,7 @@ export default class EventExplore extends tsc<
               </div>
               <div class='result-content-panel'>
                 <EventExploreView
-                  entitiesMap={this.entitiesMapByField}
+                  entitiesMapList={this.entitiesMapByField}
                   fieldMap={this.fieldMapByField}
                   queryConfig={this.queryConfig}
                   refreshImmediate={this.refreshImmediate}
