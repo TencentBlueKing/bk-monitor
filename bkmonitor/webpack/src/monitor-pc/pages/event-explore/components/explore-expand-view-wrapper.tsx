@@ -24,19 +24,26 @@
  * IN THE SOFTWARE.
  */
 import VueJsonPretty from 'vue-json-pretty';
-import { Component, Inject, InjectReactive, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
 
 import ExploreKvList, { type KVFieldList } from './explore-kv-list';
 
-import type { DimensionType, EventExploreEntitiesType } from '../typing';
+import type { IWhereItem } from '../../../components/retrieval-filter/utils';
+import type { DimensionType, ExploreEntitiesMap, ExploreEntitiesTypeEnum, ExploreFieldMap } from '../typing';
 
 import './explore-expand-view-wrapper.scss';
 
 interface ExploreExpandViewWrapperProps {
   data: Record<string, any>;
+  fieldMap: ExploreFieldMap;
+  entitiesMap: ExploreEntitiesMap;
+}
+
+interface ExploreExpandViewWrapperEvents {
+  onConditionChange: (condition: IWhereItem[]) => void;
 }
 
 enum ExploreViewTabEnum {
@@ -45,11 +52,16 @@ enum ExploreViewTabEnum {
 }
 
 @Component
-export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapperProps> {
+export default class ExploreExpandViewWrapper extends tsc<
+  ExploreExpandViewWrapperProps,
+  ExploreExpandViewWrapperEvents
+> {
+  /** 渲染数据 */
   @Prop({ type: Object, default: () => ({}) }) data: Record<string, any>;
-  @InjectReactive('entitiesMapByField') entitiesMapByField;
-  @InjectReactive('fieldMapByField') fieldMapByField;
-  @Inject('handleConditionChange') handleConditionChange;
+  /** 用于获取 data 数据中 key 的字段类型 */
+  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
+  /** 用于判断 data 数据中 key 是否提供跳转入口 */
+  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
 
   /** 当前活跃的nav */
   activeTab = ExploreViewTabEnum.KV;
@@ -64,26 +76,33 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
       cloudId: this?.data?.bk_cloud_id || this?.data?.bk_target_cloud_id || '0',
     };
     return Object.entries(this.data).map(([key, value]) => {
-      const entities = this.entitiesMapByField[key];
+      const entities = this.entitiesMap[key];
       let hasEntities = true;
       let entitiesAlias: string = entities?.alias;
-      let entitiesType = entities?.type as '' | EventExploreEntitiesType;
+      let entitiesType = entities?.type as '' | ExploreEntitiesTypeEnum;
       if (!entities || entities?.dependent_fields?.some(field => !this.data[field])) {
         hasEntities = false;
         entitiesAlias = '';
         entitiesType = '';
       }
+
+      const fieldItem = this.fieldMap?.target?.[key] || {};
       return {
         name: key,
-        type: this.fieldMapByField?.target?.[key]?.type as DimensionType,
-        value: (value || '--') as string,
-        sourceName: this.fieldMapByField?.target?.[key]?.name as string,
+        type: fieldItem?.type as DimensionType,
+        value: value as string,
+        sourceName: fieldItem?.name as string,
         entitiesType,
         hasEntities,
         entitiesAlias,
         externalParams,
       };
     });
+  }
+
+  @Emit('conditionChange')
+  conditionChange(condition: IWhereItem[]) {
+    return condition;
   }
 
   /**
@@ -139,7 +158,7 @@ export default class ExploreExpandViewWrapper extends tsc<ExploreExpandViewWrapp
         >
           <ExploreKvList
             fieldList={this.kvFieldList}
-            onConditionChange={this.handleConditionChange}
+            onConditionChange={this.conditionChange}
           />
         </div>
         <div
