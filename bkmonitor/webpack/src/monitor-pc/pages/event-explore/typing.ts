@@ -135,7 +135,7 @@ export interface EventExploreTableColumn {
 }
 
 /** 事件检索 kv 面板跳转其他页面 类型枚举 */
-export enum EventExploreEntitiesType {
+export enum ExploreEntitiesTypeEnum {
   /** 主机 */
   HOST = 'ip',
   /** 容器 */
@@ -150,10 +150,39 @@ export enum ExploreTableLoadingEnum {
   SCROLL = 'scrollLoading',
 }
 
+type ExploreTableRequestParams = Omit<ITopKRequestParams, 'fields'> & { offset: number };
 export interface EventExploreTableRequestConfigs {
+  /** api 所在模块 */
   apiModule?: string;
+  /** api 方法名 */
   apiFunc?: string;
+  /** 触发的表格loading类型 */
   loadingType?: ExploreTableLoadingEnum;
-  data?: Record<string, any>;
+  /** 表格请求所传的参数 */
+  data?: ExploreTableRequestParams;
+  /** 表格记录总数 */
   total?: number;
 }
+
+type ExploreFieldTransform = Record<string, Partial<IDimensionField> & { finalName?: string }>;
+/**
+ * @description 用于在表格 kv面板 中获取字段的类型
+ * @description 将接口中的 fieldList 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
+ **/
+export interface ExploreFieldMap {
+  source: ExploreFieldTransform;
+  target: ExploreFieldTransform;
+}
+
+export interface ExploreEntitiesItem {
+  alias: string;
+  dependent_fields: string[];
+  fields: string[];
+  type: ExploreEntitiesTypeEnum;
+}
+
+/**
+ * @description 用于判断在表格 kv面板 中字段是否为提供跳转功能
+ * @description 将接口中的 entities 数组 结构转换为 kv 结构，从而提供使用 key 可以直接 get 方式取值，无需在循环
+ **/
+export type ExploreEntitiesMap = Record<string, ExploreEntitiesItem>;

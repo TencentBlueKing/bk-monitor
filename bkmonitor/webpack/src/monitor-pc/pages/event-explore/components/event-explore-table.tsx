@@ -27,12 +27,15 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
 import {
   type DimensionsTypeEnum,
   type EventExploreTableColumn,
   type EventExploreTableRequestConfigs,
+  type ExploreEntitiesMap,
+  type ExploreFieldMap,
   ExploreSourceTypeEnum,
   ExploreTableColumnTypeEnum,
   ExploreTableLoadingEnum,
@@ -40,14 +43,20 @@ import {
 import { getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
 
+import type { EmptyStatusType } from '../../../components/empty-status/types';
+import type { IWhereItem } from '../../../components/retrieval-filter/utils';
+
 import './event-explore-table.scss';
 
 interface EventExploreTableProps {
   requestConfigs: EventExploreTableRequestConfigs;
+  fieldMap: ExploreFieldMap;
+  entitiesMap: ExploreEntitiesMap;
 }
 
 interface EventExploreTableEvents {
-  emptyClear: () => void;
+  onConditionChange: (condition: IWhereItem[]) => void;
+  onClearSearch: () => void;
 }
 
 /**
@@ -63,6 +72,10 @@ const SourceIconMap = {
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
   /** 接口请求配置项 */
   @Prop({ type: Object, default: () => ({}) }) requestConfigs: EventExploreTableRequestConfigs;
+  /** expand 展开 kv 面板使用 */
+  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
+  /** expand 展开 kv 面板使用 */
+  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
 
   /** table loading 配置*/
   tableLoading = {
@@ -102,13 +115,29 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     return !!total && dataLen < total;
   }
 
+  /** table 空数据时显示样式类型 'search-empty'/'empty' */
+  get tableEmptyType(): EmptyStatusType {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    const { where, query_string } = this.requestConfigs?.data?.query_configs?.[0] || {};
+    const queryString = query_string?.trim?.();
+    if (where?.length || !!queryString) {
+      return 'search-empty';
+    }
+    return 'empty';
+  }
+
   @Watch('requestConfigs')
   requestConfigsChange() {
     this.getEventLogs();
   }
 
-  @Emit('emptyClear')
-  emptyClear() {
+  @Emit('conditionChange')
+  conditionChange(condition: IWhereItem[]) {
+    return condition;
+  }
+
+  @Emit('clearSearch')
+  clearSearch() {
     return;
   }
 
@@ -317,6 +346,9 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       <ExploreExpandViewWrapper
         style={this.getCssVarsByType(rowData?.type?.value)}
         data={rowData?.origin_data || {}}
+        entitiesMap={this.entitiesMap}
+        fieldMap={this.fieldMap}
+        onConditionChange={this.conditionChange}
       />
     );
   }
@@ -410,6 +442,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   linkColumnFormatter(column: EventExploreTableColumn) {
     return row => {
       const item = row[column.id];
+      // 当url为空时，使用textColumnFormatter渲染为普通 text 文本样式
       if (!item.url) {
         return this.textColumnFormatter(column)(row);
       }
@@ -420,7 +453,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             href={item.url}
             rel='noreferrer'
             target='_blank'
-            onMouseenter={e => this.handleTargetHover(e, `点击前往: ${item.scenario}`)}
+            onMouseenter={e => this.handleTargetHover(e, `点击前往: ${item.scenario || '--'}`)}
             onMouseleave={this.handleClearTimer}
           >
             {item.alias}
@@ -486,6 +519,14 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             type='expand'
           />
           {this.tableColumns.columns.map(column => this.transformColumn(column))}
+          <EmptyStatus
+            slot='empty'
+            textMap={{
+              empty: this.$t('暂无数据'),
+            }}
+            type={this.tableEmptyType}
+            onOperation={this.clearSearch}
+          />
           <div
             style={{ display: this.tableHasScrollLoading ? 'block' : 'none' }}
             class='export-table-loading'
