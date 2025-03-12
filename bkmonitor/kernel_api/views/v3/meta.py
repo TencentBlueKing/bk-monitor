@@ -419,6 +419,10 @@ class QueryResultTableStorageDetailViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryResultTableStorageDetailResource)]
 
 
+class NotifyEsDataLinkAdaptNanoViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.NotifyEsDataLinkAdaptNano)]
+
+
 class CreateVmClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateVmCluster)]
 
