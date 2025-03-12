@@ -118,8 +118,7 @@ class QueryTimeBuilder(object):
 
     @cache_ten_minute("retention_time_{indices}_{scenario_id}", need_md5=True)
     def get_storage_retention_time(self, indices, scenario_id):
-        if not indices:
-            return None
+        # 仅自有采集类型索引支持获取结果表，非自有采集类型不做处理
         if scenario_id == Scenario.LOG:
             try:
                 storage = TransferApi.get_result_table_storage(
@@ -128,17 +127,19 @@ class QueryTimeBuilder(object):
                 retention = int(storage["storage_config"]["retention"])
                 return retention
             except Exception as e:
+                # 接口获取异常/retention不存在，跳过过期时间处理
                 logger.exception("get_result_table_storage_error: indices: %s, reason: %s", indices, e)
+        return None
 
     def _deal_time(self, start_time, end_time):
         retention = self.get_storage_retention_time(self.indices, self.scenario_id)
+        # retention为0或None，不做处理
         if retention:
             current_time = arrow.now(start_time.tzinfo)
             retention_time = current_time.shift(days=-int(retention))
-            # 开始时间在过期时间前
+            # 开始时间 结束时间 限制在过期时间前
             if start_time < retention_time:
                 start_time = retention_time
-            # 结束时间在过期时间前
             if end_time < retention_time:
                 end_time = retention_time
         return start_time, end_time
