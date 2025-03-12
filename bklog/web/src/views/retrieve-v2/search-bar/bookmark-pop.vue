@@ -58,7 +58,7 @@
     space_uid: -1,
     index_set_id: -1,
     name: '',
-    group_id: undefined,
+    group_id: privateGroupID,
     created_by: '',
     params: {
       host_scopes: {
@@ -392,10 +392,7 @@
             label="收藏名称"
             required
           >
-            <bk-input
-              v-model="favoriteData.name"
-              placeholder="请输入收藏名称"
-            ></bk-input>
+            <bk-input v-model="favoriteData.name"></bk-input>
           </bk-form-item>
           <bk-form-item
             :property="'project'"
@@ -405,6 +402,7 @@
               ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
               :popover-options="{ appendTo: 'parent' }"
+              :search-placeholder="$t('请输入关键字')"
               placeholder="未编组"
               searchable
               @change="handleSelectGroup"
@@ -413,9 +411,17 @@
                 v-for="item in collectGroupList"
                 :id="item.group_id"
                 :key="item.group_id"
-                :name="item.group_name"
-              ></bk-option>
-
+                :name="item.group_type === 'private' ? `${item.group_name} (${$t('仅个人可见')})` : item.group_name"
+              >
+                <span>{{ item.group_name }}</span>
+                <span
+                  v-if="item.group_type === 'private'"
+                  class="private-content"
+                >
+                  ({{ $t('仅个人可见)') }})
+                </span>
+              </bk-option>
+              <template #name> 4444 </template>
               <template #extension>
                 <div class="favorite-group-extension">
                   <div
@@ -423,7 +429,8 @@
                     class="select-add-new-group"
                     @click="isShowAddGroup = false"
                   >
-                    <div><i class="bk-icon icon-plus-circle"></i> {{ $t('新增') }}</div>
+                    <i class="bk-icon icon-plus-circle" />
+                    <span class="add-text">{{ $t('新增分组') }}</span>
                   </div>
                   <div
                     v-else
@@ -487,18 +494,19 @@
       <div class="popover-footer">
         <div class="footer-button">
           <bk-button
-            style="margin-right: 8px"
             size="small"
             theme="primary"
             @click.stop.prevent="handleSubmitFormData"
-            >{{ $t('确定') }}</bk-button
           >
+            {{ $t('确定') }}
+          </bk-button>
           <bk-button
             size="small"
             theme="default"
             @click.stop.prevent="handleCancelRequest"
-            >{{ $t('取消') }}</bk-button
           >
+            {{ $t('取消') }}
+          </bk-button>
         </div>
       </div>
     </template>

@@ -46,7 +46,7 @@
 <template>
   <div class="favorite-footer">
     <!-- 收藏查询列表 -->
-    <div class="favorite-query-list">
+    <div :class="['favorite-query-list', { 'no-data': !favoriteList.length }]">
       <div
         v-if="favoriteList.length"
         class="query-list-title"
@@ -85,11 +85,11 @@
   .favorite-footer {
     /* 收藏查询列表 样式 */
     .favorite-query-list {
+      position: relative;
       min-height: 95px;
       max-height: 200px;
       overflow: auto;
       border-top: 1px solid #ecedf2;
-      position: relative;
 
       .query-list-title {
         padding: 0 12px;
@@ -98,19 +98,22 @@
         font-size: 12px;
         line-height: 22px;
         color: #313238;
+
         .count {
-          color: #3a84ff;
           font-weight: bold;
+          color: #3a84ff;
         }
       }
 
       .favorite-list {
         margin-bottom: 8px;
+
         :deep(.bk-exception) {
           .exception-image {
             width: 110px;
             height: 50px;
           }
+
           .bk-exception-text.part-text {
             font-size: 12px;
           }
@@ -120,8 +123,8 @@
       .list-item {
         display: flex;
         align-items: center;
-        line-height: 26px;
         padding: 0 12px;
+        line-height: 26px;
 
         .active {
           font-size: 14px;
@@ -142,8 +145,8 @@
 
         .list-item-information {
           margin: 0 8px;
-          font-size: 12px;
           font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+          font-size: 12px;
           color: #4d4f56;
         }
 
@@ -159,6 +162,18 @@
         &:hover {
           cursor: pointer;
           background-color: #eaf3ff;
+        }
+      }
+
+      &.no-data {
+        .favorite-list {
+          height: 95px;
+          margin-bottom: 0;
+
+          .bk-exception {
+            justify-content: center;
+            height: 100%;
+          }
         }
       }
     }

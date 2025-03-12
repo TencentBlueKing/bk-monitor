@@ -223,12 +223,14 @@
 
           .cm-line {
             width: fit-content;
-            /* stylelint-disable-next-line declaration-no-important */
-            color: #b17313 !important;
+            color: #b17313;
+
             .ͼb {
               color: #7c609e;
             }
-            .ͼi {
+
+            .ͼi,
+            .ͼf {
               color: #02776e;
             }
           }

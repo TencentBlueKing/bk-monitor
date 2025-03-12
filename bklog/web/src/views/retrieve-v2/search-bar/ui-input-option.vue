@@ -7,8 +7,8 @@
   import useStore from '@/hooks/use-store';
   import imgEnterKey from '@/images/icons/enter-key.svg';
   import imgUpDownKey from '@/images/icons/up-down-key.svg';
-  import { Props } from 'tippy.js';
   import { bkIcon } from 'bk-magic-vue';
+  import { Props } from 'tippy.js';
 
   import { excludesFields, withoutValueConditionList } from './const.common';
   import { getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
@@ -52,6 +52,7 @@
   const refFilterInput = ref(null);
   // 条件Value选择列表
   const refValueTagInputOptionList = ref(null);
+  const tagInputItemRef = ref(null);
 
   // 操作符下拉当前激活Index
   const operatorActiveIndex = ref(0);
@@ -323,7 +324,7 @@
     return fieldTypeMap.value?.[type] ? fieldTypeMap.value?.[type]?.color : '#EAEBF0';
   };
 
-  const getFieldIconTextColor =  type => {
+  const getFieldIconTextColor = type => {
     return fieldTypeMap.value?.[type]?.textColor;
   };
 
@@ -459,7 +460,7 @@
 
   const currentEditTagIndex = ref(null);
 
-  const handleEditTagDBClick = (e, tagContent, tagIndex) => {
+  const handleEditTagClick = (e, tagContent, tagIndex) => {
     const parent = e.target.parentNode;
 
     currentEditTagIndex.value = tagIndex;
@@ -510,7 +511,7 @@
     }
   };
 
-  const handleInputVlaueChange = e => {
+  const handleInputValueChange = e => {
     const input = e.target;
     const value = input.value;
     const charLen = getCharLength(value);
@@ -532,10 +533,10 @@
 
   const handleConditionValueInputFocus = e => {
     isConditionValueInputFocus.value = true;
-    handleInputVlaueChange(e);
+    handleInputValueChange(e);
   };
 
-  const hanleDeleteTagItem = index => {
+  const handleDeleteTagItem = index => {
     condition.value.value.splice(index, 1);
   };
 
@@ -574,38 +575,40 @@
   /**
    * 通用方法：根据键盘上下键操作，设置对应参数当前激活Index的值
    */
-  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true) => {
+  const setActiveObjectIndex = (objIndex, matchList, isIncrease = true, type: string) => {
     const maxIndex = matchList.length - 1;
     if (objIndex.value === null) {
       objIndex.value = -1;
+      locationIndex.value = -1;
     }
 
     if (isIncrease) {
       if (objIndex.value < maxIndex) {
         objIndex.value++;
-        locationIndex.value = objIndex;
+        type === 'list' && locationIndex.value++;
         return;
       }
 
       objIndex.value = 0;
+      if (type === 'list') {
+        locationIndex.value = 0;
+      }
       return;
     }
 
     if (objIndex.value > 0) {
       objIndex.value--;
-      locationIndex.value = objIndex;
+      type === 'list' && locationIndex.value--;
       return;
     }
-
     objIndex.value = maxIndex;
-    locationIndex.value = maxIndex;
   };
 
   /**
    * 设置当前条件值激活Index
    */
   const setConditionValueActiveIndex = (isIncrease = true) => {
-    setActiveObjectIndex(conditionValueActiveIndex, activeItemMatchList.value, isIncrease);
+    setActiveObjectIndex(conditionValueActiveIndex, activeItemMatchList.value, isIncrease, 'condition');
   };
 
   /**
@@ -653,7 +656,7 @@
       const instance = conditionValueInstance.getTippyInstance();
       // 如果是条件选择下拉已经展开，查询当前选中项
       if (instance?.state.isShown) {
-        if (conditionValueActiveIndex.value === -1 &&  activeItemMatchList.value?.length > 0) {
+        if (conditionValueActiveIndex.value === -1 && activeItemMatchList.value?.length > 0) {
           conditionValueActiveIndex.value = 0;
         }
         const val = activeItemMatchList.value[conditionValueActiveIndex.value];
@@ -705,7 +708,7 @@
    * 设置当前条件激活Index
    */
   const setOperatorActiveIndex = (isIncrease = true) => {
-    setActiveObjectIndex(operatorActiveIndex, activeFieldItem.value.field_operator, isIncrease);
+    setActiveObjectIndex(operatorActiveIndex, activeFieldItem.value.field_operator, isIncrease, 'operator');
     const operator = activeFieldItem.value.field_operator[operatorActiveIndex.value]?.operator;
     if (condition.value.operator !== operator) {
       condition.value.operator = operator;
@@ -721,6 +724,7 @@
    */
   const setFieldListActiveIndex = (isIncrease = true) => {
     setActiveObjectIndex(activeIndex, filterFieldList.value, isIncrease);
+    setActiveObjectIndex(activeIndex, filterFieldList.value, isIncrease, 'list');
   };
 
   /**
@@ -865,7 +869,7 @@
       appendConditionValue(value);
     }
 
-    handleInputVlaueChange(e);
+    handleInputValueChange(e);
   };
 
   const handleConditionValueInputBlur = e => {
@@ -934,11 +938,7 @@
         >
           <div
             v-for="(item, index) in filterFieldList"
-            :class="[
-              'ui-search-result-row',
-              { active: activeIndex === index },
-              { location: locationIndex === index }
-            ]"
+            :class="['ui-search-result-row', { active: activeIndex === index }, { location: locationIndex === index }]"
             :data-tab-index="index"
             :key="item.field_name"
             @click="() => handleFieldItemClick(item, index)"
@@ -946,12 +946,14 @@
             <span
               :style="{
                 backgroundColor: item.is_full_text ? false : getFieldIconColor(item.field_type),
-                color:  item.is_full_text ? false : getFieldIconTextColor(item.field_type)
+                color: item.is_full_text ? false : getFieldIconTextColor(item.field_type),
               }"
               :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
             >
             </span>
-            <span class="field-alias">{{ item.field_type }}——{{ item.query_alias || item.field_alias || item.field_name }}</span>
+            <span class="field-alias">
+              {{ item.field_type }}——{{ item.query_alias || item.field_alias || item.field_name }}
+            </span>
             <span
               v-if="!item.is_full_text"
               class="field-name"
@@ -1063,8 +1065,8 @@
                 class="ui-value-search-textarea"
                 v-model="condition.value[0]"
                 :rows="12"
-                type="textarea"
                 maxlength="100"
+                type="textarea"
               />
             </template>
             <div
@@ -1073,6 +1075,7 @@
             >
               <ul
                 ref="refConditionInput"
+                :style="{ maxHeight: isConditionValueInputFocus ? '300px' : '90px' }"
                 class="condition-value-input"
                 @click.stop="handleConditionValueClick"
               >
@@ -1088,31 +1091,34 @@
                       v-model="condition.value[index]"
                       type="text"
                       @blur.stop="handleTagInputBlur"
-                      @input="handleInputVlaueChange"
+                      @input="handleInputValueChange"
                       @keyup.enter="handleTagInputEnter"
                     />
                   </template>
-                  <template>
-                    <span
-                      class="tag-item-text"
-                      @click.stop="e => handleEditTagDBClick(e, item, index)"
-                      >{{ formatDateTimeField(item, activeFieldItem.field_type) }}</span
-                    >
-                    <span
-                      class="tag-item-del bk-icon icon-close"
-                      @click.stop="e => hanleDeleteTagItem(index)"
-                    ></span>
-                  </template>
+                  <span
+                    class="tag-item-text"
+                    @click.stop="e => handleEditTagClick(e, item, index)"
+                  >
+                    {{ formatDateTimeField(item, activeFieldItem.field_type) }}
+                  </span>
+                  <span
+                    class="tag-item-del bk-icon icon-close"
+                    @click.stop="e => handleDeleteTagItem(index)"
+                  />
                 </li>
-                <li>
+                <li
+                  id="tagInputItem"
+                  ref="tagInputItemRef"
+                  class="tag-item no-selected-tag-item"
+                >
                   <input
                     ref="refValueTagInput"
                     class="tag-option-focus-input"
-                    type="text"
                     :placeholder="$t('请输入 或 选择')"
+                    type="text"
                     @blur.stop="handleConditionValueInputBlur"
                     @focus.stop="handleConditionValueInputFocus"
-                    @input.stop="handleInputVlaueChange"
+                    @input.stop="handleInputValueChange"
                     @keyup.delete="handleDeleteInputValue"
                     @keyup.enter="handleValueInputEnter"
                   />

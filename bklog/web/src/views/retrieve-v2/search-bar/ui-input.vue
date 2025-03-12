@@ -5,7 +5,6 @@
   import useFieldNameHook from '@/hooks/use-field-name';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
-  import { bkIcon } from 'bk-magic-vue';
   import { cloneDeep } from 'lodash';
 
   import {
@@ -380,7 +379,6 @@
     <li
       class="search-item btn-add"
       @click.stop="handleAddItem"
-      @mouseenter="handleAddItem"
     >
       <div class="tag-add">+</div>
       <div class="tag-text">{{ $t('添加条件') }}</div>
@@ -450,10 +448,9 @@
           ]"
           @click.stop="e => handleDisabledTagItem(item, e)"
         />
-        <bk-icon
-          class="tag-options-close"
-          type="close-circle-shape"
-          @click.stop="() => handleDeleteTagItem(index, item)"
+        <span
+          class="bklog-icon bklog-shanchu tag-options-close"
+          @click.stop="handleDeleteTagItem(index, item)"
         />
       </div>
     </li>
