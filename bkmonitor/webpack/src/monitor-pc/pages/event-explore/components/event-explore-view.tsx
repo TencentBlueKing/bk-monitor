@@ -37,28 +37,31 @@ import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api
 import {
   type DimensionsTypeEnum,
   type EventExploreTableRequestConfigs,
-  type ExploreEntitiesMap,
-  type ExploreFieldMap,
+  type ExploreEntitiesItem,
   ExploreTableLoadingEnum,
+  type IDimensionField,
   type IFormData,
 } from '../typing';
 import { eventChartMap, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
 
 import type { IWhereItem } from '../../../components/retrieval-filter/utils';
+import type { TimeRangeType } from '../../../components/time-range/time-range';
 
 import './event-explore-view.scss';
 
 interface IEventExploreViewProps {
   queryConfig: IFormData;
   source: APIType;
-  fieldMap: ExploreFieldMap;
-  entitiesMap: ExploreEntitiesMap;
+  fieldList: IDimensionField[];
+  sourceEntities: ExploreEntitiesItem[];
+  timeRange: TimeRangeType;
   refreshImmediate: string;
 }
 
 interface IEventExploreViewEvents {
   onConditionChange: (condition: IWhereItem[]) => void;
+  onClearSearch: () => void;
 }
 
 @Component
@@ -70,9 +73,11 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** 请求接口公共请求参数中的 query_configs 参数 */
   @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
+  @Prop({ type: Array, default: () => [] }) fieldList: IDimensionField[];
   /** expand 展开 kv 面板使用 */
-  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
+  @Prop({ type: Array, default: () => [] }) sourceEntities: ExploreEntitiesItem[];
+  // 数据时间间隔
+  @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   /** 是否立即刷新 */
   @Prop({ type: String, default: '' }) refreshImmediate: string;
   /** 请求接口公共请求参数 */
@@ -113,7 +118,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     return { ...this.commonParams, query_configs: queryConfigs };
   }
 
-  @Watch('eventQueryParams')
+  @Watch('timeRange')
   commonParamsChange() {
     this.getEventTotal();
     this.updateTableRequestConfigs();
@@ -121,7 +126,9 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
 
   @Watch('queryConfig', { deep: true })
   queryParamsChange() {
+    this.getEventTotal();
     this.updatePanelConfig();
+    this.updateTableRequestConfigs();
   }
 
   @Watch('refreshImmediate')
@@ -136,7 +143,15 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     return condition;
   }
 
+  @Emit('clearSearch')
+  clearSearch() {
+    return;
+  }
+
   mounted() {
+    this.getEventTotal();
+    this.updatePanelConfig();
+    this.updateTableRequestConfigs();
     this.$el.addEventListener('scroll', this.handleScrollToEnd);
   }
   beforeDestroy() {
@@ -195,6 +210,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     if (!this.eventQueryParams) {
       return;
     }
+
     const api = getEventLogs(this.source);
     const [apiModule, apiFunc] = api.split('.');
     this.tableRequestConfigs = {
@@ -334,9 +350,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
             ref='eventExploreTableRef'
-            entitiesMap={this.entitiesMap}
-            fieldMap={this.fieldMap}
+            fieldList={this.fieldList}
             requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
+            sourceEntities={this.sourceEntities}
+            onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
           />
         </div>

@@ -83,6 +83,10 @@ export class ExploreCustomChart extends TimeSeries {
     return loading;
   }
 
+  handleBeforeRequestLoadingChange() {
+    this.handleLoadingChange(true);
+  }
+
   /**
    * @description: 改变图例方法
    */
