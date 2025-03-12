@@ -343,9 +343,11 @@
     > li {
       display: inline-flex;
       align-items: center;
-      margin: 4px 5px 4px 0;
+      margin: 4px;
+      margin-left: 0;
       overflow: hidden;
       font-size: 12px;
+      line-height: 20px;
       border: solid 1px transparent;
       border-radius: 2px;
 
@@ -379,6 +381,12 @@
           color: #979BA5;
           cursor: pointer;
         }
+      }
+
+      &.no-selected-tag-item {
+        background-color: transparent;
+        border: none;
+        height: 100%;
       }
 
       &.tag-validate-error {

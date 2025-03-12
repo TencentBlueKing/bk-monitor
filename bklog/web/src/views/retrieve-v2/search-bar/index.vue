@@ -465,7 +465,7 @@
         <div class="search-tool items">
           <div
             v-bk-tooltips="$t('复制当前查询')"
-            :class="['bklog-icon bklog-copy', , { disabled: isInputLoading || !isCopyBtnActive }]"
+            :class="['bklog-icon bklog-copy-4', { disabled: isInputLoading || !isCopyBtnActive }]"
             @click.stop="handleCopyQueryValue"
           ></div>
           <div
