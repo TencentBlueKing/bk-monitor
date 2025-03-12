@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { copyText } from 'monitor-common/utils';
 
 import { EMethod } from '../../../components/retrieval-filter/utils';
-import { type DimensionType, EventExploreEntitiesType } from '../typing';
+import { type DimensionType, ExploreEntitiesTypeEnum } from '../typing';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
@@ -40,7 +40,7 @@ export interface KVFieldList {
   type: DimensionType;
   value: string;
   sourceName: string;
-  entitiesType: '' | EventExploreEntitiesType;
+  entitiesType: '' | ExploreEntitiesTypeEnum;
   hasEntities: boolean;
   entitiesAlias: string;
   externalParams: Record<string, any>;
@@ -186,7 +186,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    *
    */
   handleCopy() {
-    copyText(this.fieldTarget.value, msg => {
+    copyText(this.fieldTarget.value || '--', msg => {
       this.$bkMessage({
         message: msg,
         theme: 'error',
@@ -205,6 +205,9 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    *
    */
   handleNewExplorePage() {
+    if (!this.fieldTarget?.value) {
+      return;
+    }
     const { targets, from, to, timezone, refreshInterval } = this.$route.query;
     const targetsList = JSON.parse(decodeURIComponent(targets as string));
     const [
@@ -254,6 +257,9 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    * @description 添加/删除 检索 回调
    */
   handleConditionChange(method: EMethod) {
+    if (!this.fieldTarget?.value) {
+      return;
+    }
     const condition = [
       { condition: 'and', key: this.fieldTarget?.sourceName, method, value: [this.fieldTarget?.value] },
     ];
@@ -285,14 +291,14 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   handleJumpLink(item: KVFieldList) {
     let path = '';
     switch (item.entitiesType) {
-      case EventExploreEntitiesType.HOST:
+      case ExploreEntitiesTypeEnum.HOST:
         {
           const { value, sourceName } = item;
           const endStr = `${value}${sourceName === 'bk_host_id' ? '' : `-${item.externalParams.cloudId}`}`;
           path = `#/performance/detail/${endStr}`;
         }
         break;
-      case EventExploreEntitiesType.K8S:
+      case ExploreEntitiesTypeEnum.K8S:
         path = '#/k8s?dashboardId=pod';
         break;
     }
@@ -307,7 +313,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
    *
    */
   jumpLinkRender(item: KVFieldList) {
-    if (!item.hasEntities) {
+    if (!item.hasEntities || !item.value) {
       return;
     }
     return (
@@ -377,7 +383,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
             <div class='item-label'>
               <FieldTypeIcon
                 class='kv-label-icon'
-                type={item.type}
+                type={item.type || ''}
               />
               <span
                 title={item.name}
@@ -392,7 +398,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
                 class='value-text'
                 onClick={e => this.handleValueTextClick(e, item)}
               >
-                {item.value}
+                {item.value || '--'}
               </span>
             </div>
           </div>

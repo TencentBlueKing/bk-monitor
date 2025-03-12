@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref, Prop, Emit, InjectReactive, Watch } from 'vue-property-decorator';
+import { Component, ProvideReactive, Ref, Prop, Watch, Emit, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 // import { getDataSourceConfig } from 'monitor-api/modules/grafana';
@@ -42,7 +42,7 @@ import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
 import type { IViewOptions } from '../monitor-k8s/typings/book-mark';
-import type { IFormData } from './typing';
+import type { ExploreEntitiesMap, ExploreFieldMap, IFormData } from './typing';
 
 import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
@@ -103,7 +103,7 @@ export default class EventExplore extends tsc<
   // 刷新间隔
   @InjectReactive('refleshInterval') refreshInterval;
   // 是否立即刷新
-  @InjectReactive('refleshImmediate') refreshImmediate;
+  @InjectReactive('refleshImmediate') refreshImmediate: string;
   // 视图变量
   @InjectReactive('viewOptions') viewOptions: IViewOptions;
 
@@ -113,7 +113,6 @@ export default class EventExplore extends tsc<
   loading = false;
 
   /** 维度列表 */
-  @ProvideReactive('fieldList')
   fieldList = [];
 
   /** 标识 KV 模式下，需要跳转到其他页面的字段。 */
@@ -125,8 +124,7 @@ export default class EventExplore extends tsc<
    * @description 将 fieldList 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions. 操作前置
    * @description 用于在 KV 模式下，获取 字段类型 Icon
    */
-  @ProvideReactive('fieldMapByField')
-  get fieldMapByField() {
+  get fieldMapByField(): ExploreFieldMap {
     if (!this.fieldList?.length) {
       return { source: {}, target: {} };
     }
@@ -149,11 +147,10 @@ export default class EventExplore extends tsc<
   }
 
   /**
-   * @description 将 sourceEntities 数组 结构转换为 kv 结构
+   * @description 将 sourceEntities 数组 结构转换为 kv 结构，并将 is_dimensions 为 true 拼接 dimensions.后的值作为 key
    * @description 用于在 KV 模式下，判断字段是否开启 跳转到其他页面 入口
    */
-  @ProvideReactive('entitiesMapByField')
-  get entitiesMapByField() {
+  get entitiesMapByField(): ExploreEntitiesMap {
     if (!this.sourceEntities?.length) {
       return {};
     }
@@ -168,22 +165,24 @@ export default class EventExplore extends tsc<
     }, {});
   }
 
+  get queryConfig() {
+    return {
+      data_source_label: this.dataSourceLabel || 'custom',
+      data_type_label: this.dataTypeLabel || 'event',
+      table: this.dataId,
+      query_string: this.queryString,
+      where: this.where || [],
+      group_by: this.group_by || [],
+      filter_dict: this.filter_dict || {},
+    };
+  }
+
   /** 公共参数 */
   @ProvideReactive('commonParams')
   get commonParams() {
     const formatTimeRange = handleTransformToTimestamp(this.timeRange);
     return {
-      query_configs: [
-        {
-          data_source_label: this.dataSourceLabel || 'custom',
-          data_type_label: this.dataTypeLabel || 'event',
-          table: this.dataId,
-          query_string: this.queryString,
-          where: this.where || [],
-          group_by: this.group_by || [],
-          filter_dict: this.filter_dict || {},
-        },
-      ],
+      query_configs: [this.queryConfig],
       app_name: this.viewOptions?.filters?.app_name,
       service_name: this.viewOptions?.filters?.service_name,
       start_time: formatTimeRange[0],
@@ -296,7 +295,6 @@ export default class EventExplore extends tsc<
     return where;
   }
 
-  @Provide('handleConditionChange')
   handleConditionChange(condition: IWhereItem[]) {
     this.handleWhereChange(mergeWhereList(this.where, condition));
   }
@@ -358,16 +356,12 @@ export default class EventExplore extends tsc<
               </div>
               <div class='result-content-panel'>
                 <EventExploreView
-                  queryConfig={{
-                    data_source_label: this.dataSourceLabel || 'custom',
-                    data_type_label: this.dataTypeLabel || 'event',
-                    table: this.dataId,
-                    query_string: this.queryString,
-                    where: this.where || [],
-                    group_by: this.group_by || [],
-                    filter_dict: this.filter_dict || {},
-                  }}
+                  entitiesMap={this.entitiesMapByField}
+                  fieldMap={this.fieldMapByField}
+                  queryConfig={this.queryConfig}
+                  refreshImmediate={this.refreshImmediate}
                   source={this.source}
+                  onConditionChange={this.handleConditionChange}
                 />
               </div>
             </EventRetrievalLayout>
