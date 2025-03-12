@@ -23,10 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils';
+import { Debounce, random } from 'monitor-common/utils';
 import ExploreCustomGraph, {
   type IntervalType,
 } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
@@ -37,28 +37,44 @@ import { APIType, getEventLogs, getEventTimeSeries, getEventTotal } from '../api
 import {
   type DimensionsTypeEnum,
   type EventExploreTableRequestConfigs,
+  type ExploreEntitiesMap,
+  type ExploreFieldMap,
   ExploreTableLoadingEnum,
   type IFormData,
 } from '../typing';
 import { eventChartMap, getEventLegendColorByType } from '../utils';
 import EventExploreTable from './event-explore-table';
 
+import type { IWhereItem } from '../../../components/retrieval-filter/utils';
+
 import './event-explore-view.scss';
 
 interface IEventExploreViewProps {
   queryConfig: IFormData;
   source: APIType;
+  fieldMap: ExploreFieldMap;
+  entitiesMap: ExploreEntitiesMap;
+  refreshImmediate: string;
+}
+
+interface IEventExploreViewEvents {
+  onConditionChange: (condition: IWhereItem[]) => void;
 }
 
 @Component
-export default class EventExploreView extends tsc<IEventExploreViewProps> {
+export default class EventExploreView extends tsc<IEventExploreViewProps, IEventExploreViewEvents> {
   @Ref('eventExploreTableRef') eventExploreTableRef: InstanceType<typeof EventExploreTable>;
+
+  /** 来源 */
+  @Prop({ type: String, default: APIType.MONITOR }) source: APIType;
   /** 请求接口公共请求参数中的 query_configs 参数 */
   @Prop({ type: Object, default: () => ({}) }) queryConfig: IFormData;
-  /** 来源 */
-  @Prop({ default: APIType.MONITOR }) source: APIType;
+  /** expand 展开 kv 面板使用 */
+  @Prop({ type: Object, default: () => ({ source: {}, target: {} }) }) fieldMap: ExploreFieldMap;
+  /** expand 展开 kv 面板使用 */
+  @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
   /** 是否立即刷新 */
-  @InjectReactive('refleshImmediate') refreshImmediate: string;
+  @Prop({ type: String, default: '' }) refreshImmediate: string;
   /** 请求接口公共请求参数 */
   @InjectReactive('commonParams') commonParams;
   // 视图变量
@@ -77,30 +93,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
   tableRequestConfigs: EventExploreTableRequestConfigs = {};
   /** 是否滚动到底 */
   isTheEnd = false;
-  /** 页面滚动时消除 table 区域 target事件，滚动结束后设置定时恢复，定时器timer */
-  scrollTimer = null;
 
-  @Watch('commonParams', { deep: true })
-  commonParamsChange() {
-    this.getEventTotal();
-    this.updateTableRequestConfigs();
-  }
-
-  @Watch('queryConfig', { deep: true })
-  queryParamsChange() {
-    this.updatePanelConfig();
-  }
-
-  @Watch('refreshImmediate')
-  refreshImmediateChange() {
-    this.getEventTotal();
-    this.updatePanelConfig();
-    this.updateTableRequestConfigs();
-  }
-
-  /**
-   * @description view 页面中的公共请求参数 queryConfig 中的 group_by 都需要默认传入 type, 因此这里统一处理
-   */
+  /** view 页面中的公共请求参数 queryConfig 中的 group_by 都需要默认传入 type, 因此这里统一处理 */
   get eventQueryParams() {
     const {
       start_time: commonStartTime,
@@ -119,6 +113,29 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     return { ...this.commonParams, query_configs: queryConfigs };
   }
 
+  @Watch('eventQueryParams')
+  commonParamsChange() {
+    this.getEventTotal();
+    this.updateTableRequestConfigs();
+  }
+
+  @Watch('queryConfig', { deep: true })
+  queryParamsChange() {
+    this.updatePanelConfig();
+  }
+
+  @Watch('refreshImmediate')
+  refreshImmediateChange() {
+    this.getEventTotal();
+    this.updatePanelConfig();
+    this.updateTableRequestConfigs();
+  }
+
+  @Emit('conditionChange')
+  conditionChange(condition: IWhereItem[]) {
+    return condition;
+  }
+
   mounted() {
     this.$el.addEventListener('scroll', this.handleScrollToEnd);
   }
@@ -132,9 +149,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
    * @return {*}
    */
   handleScrollToEnd(evt: Event) {
-    if (this.eventExploreTableRef && !this.scrollTimer) {
+    if (this.eventExploreTableRef) {
       // @ts-ignore
       this.eventExploreTableRef.$el.style.pointEvents = 'none';
+      this.eventExploreTableRef.handlePopoverHide?.();
     }
     const target = evt.target as HTMLElement;
     const { scrollHeight } = target;
@@ -146,15 +164,14 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
     if (this.isTheEnd) {
       this.updateTableRequestConfigs(ExploreTableLoadingEnum.SCROLL);
     }
-    if (this.scrollTimer) {
-      clearTimeout(this.scrollTimer);
-      this.scrollTimer = null;
-      this.scrollTimer = setTimeout(() => {
-        // @ts-ignore
-        this.eventExploreTableRef.$el.style.pointEvents = 'all';
-        clearTimeout(this.scrollTimer);
-        this.scrollTimer = null;
-      }, 1000);
+    this.updateTablePointEventsToAll();
+  }
+
+  @Debounce(1000)
+  updateTablePointEventsToAll() {
+    if (this.eventExploreTableRef) {
+      // @ts-ignore
+      this.eventExploreTableRef.$el.style.pointEvents = 'all';
     }
   }
 
@@ -317,7 +334,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps> {
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
             ref='eventExploreTableRef'
+            entitiesMap={this.entitiesMap}
+            fieldMap={this.fieldMap}
             requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
+            onConditionChange={this.conditionChange}
           />
         </div>
         <BackTop
