@@ -307,6 +307,7 @@ interface IOptions {
   onChange?: (value: string) => void;
   onQuery?: (v?: string) => void;
   onInput?: (v: string) => void;
+  onBlur?: () => void;
 }
 export class QueryStringEditor {
   /* 当前token类型 */
@@ -518,7 +519,7 @@ export class QueryStringEditor {
   setQueryString(str: string) {
     this.queryString = str;
     this.parseQueryString();
-    this.setTokensToTarget(true);
+    this.setTokensToTarget(true, false);
   }
 
   /**
@@ -538,7 +539,7 @@ export class QueryStringEditor {
   }
 
   /* 将解析完的数组填入目标元素 */
-  setTokensToTarget(isLast = false) {
+  setTokensToTarget(isLast = false, needChange = true) {
     const content = this.tokens
       .map(
         (item, index) =>
@@ -549,6 +550,8 @@ export class QueryStringEditor {
       .join('');
     replaceContent(this.editorEl, content, isLast);
     this.queryString = this.editorEl.textContent;
-    this.options?.onChange?.(this.queryString.replace(/^\s+|\s+$/g, ''));
+    if (needChange) {
+      this.options?.onChange?.(this.queryString.replace(/^\s+|\s+$/g, ''));
+    }
   }
 }

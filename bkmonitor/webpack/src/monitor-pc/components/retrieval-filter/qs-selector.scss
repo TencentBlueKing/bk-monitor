@@ -1,6 +1,14 @@
 .retrieval-filter__qs-selector-component-wrap {
   position: relative;
 
+  .__bottom__ {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
+  }
+
   .retrieval-filter__qs-selector-component,
   .qs-value-hidden {
     padding: 16px 10px;
