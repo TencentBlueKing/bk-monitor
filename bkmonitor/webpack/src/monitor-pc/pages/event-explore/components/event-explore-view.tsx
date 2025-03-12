@@ -76,7 +76,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Object, default: () => ({}) }) entitiesMap: ExploreEntitiesMap;
   // 数据时间间隔
-  @InjectReactive('timeRange') timeRange: TimeRangeType;
+  @Prop({ type: Array, default: () => [] }) timeRange: TimeRangeType;
   /** 是否立即刷新 */
   @Prop({ type: String, default: '' }) refreshImmediate: string;
   /** 请求接口公共请求参数 */
@@ -125,8 +125,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
 
   @Watch('queryConfig', { deep: true })
   queryParamsChange() {
-    this.updatePanelConfig();
     this.getEventTotal();
+    this.updatePanelConfig();
     this.updateTableRequestConfigs();
   }
 
@@ -143,6 +143,9 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   }
 
   mounted() {
+    this.getEventTotal();
+    this.updatePanelConfig();
+    this.updateTableRequestConfigs();
     this.$el.addEventListener('scroll', this.handleScrollToEnd);
   }
   beforeDestroy() {
@@ -201,6 +204,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     if (!this.eventQueryParams) {
       return;
     }
+
     const api = getEventLogs(this.source);
     const [apiModule, apiFunc] = api.split('.');
     this.tableRequestConfigs = {

@@ -42,7 +42,7 @@ export enum APIType {
  */
 export enum EventTimeSeriesApiEnum {
   /** TODO: APM 获取事件图表配置接口，待补充 */
-  APM = 'xxx',
+  APM = 'apm_event.eventTimeSeries',
   /** 事件检索获取事件图表配置数据接口 */
   MONITOR = 'data_explorer.eventTimeSeries', // monitor default
 }
@@ -52,7 +52,7 @@ export enum EventTimeSeriesApiEnum {
  */
 export enum EventTableApiEnum {
   /** TODO: APM 获取事件表格配置接口，待补充 */
-  APM = 'xxx',
+  APM = 'apm_event.eventLogs',
   /** 事件检索获取事件表格配置数据接口 */
   MONITOR = 'data_explorer.eventLogs', // monitor default
 }

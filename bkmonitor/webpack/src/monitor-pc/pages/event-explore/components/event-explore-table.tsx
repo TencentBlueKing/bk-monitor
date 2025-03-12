@@ -80,7 +80,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** table loading 配置*/
   tableLoading = {
     /** table 骨架屏 loading */
-    [ExploreTableLoadingEnum.REFRESH]: true,
+    [ExploreTableLoadingEnum.REFRESH]: false,
     /** 表格触底加载更多 loading  */
     [ExploreTableLoadingEnum.SCROLL]: false,
   };
