@@ -223,11 +223,10 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
                     logger.exception("push noise data of strategy(%s) error, %s", item.strategy.id, str(e))
 
             logger.info(
-                "strategy_group_key(%s) strategy(%s) item(%s) push records(%s)",
+                "strategy_group_key(%s) strategy(%s) item(%s) push records to detect done",
                 item.strategy.strategy_group_key,
                 item.strategy.id,
                 item.id,
-                0,
             )
             # 推送无数据处理
             if item.no_data_config["is_enabled"]:
