@@ -19,12 +19,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+import re
 import time
 
 import arrow
-from sqlglot import expressions, parse_one
-from sqlglot.dialects import Doris
-from sqlglot.errors import ParseError
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
 
@@ -39,11 +37,10 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     IndexSetDorisQueryException,
-    SQLParserException,
     SQLQueryException,
 )
 from apps.log_search.models import LogIndexSet
-from apps.utils.local import get_local_param, get_request_app_code, get_request_username
+from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
 
 
@@ -101,7 +98,7 @@ class ChartHandler(object):
 
             if sql:
                 sql += " AND "
-                
+
             # IS TRUE和IS FALSE的逻辑
             if operator in ["is true", "is false"]:
                 sql += f"{field_name} {sql_operator}"
@@ -113,8 +110,9 @@ class ChartHandler(object):
 
             # _ext.a.b的字段名需要转化为JSON_EXTRACT的形式
             if "." in field_name:
-                field_list = field_name.split(".", 1)
-                field_name = f"JSON_EXTRACT({field_list[0]},'$.{field_list[-1]}')"
+                field_list = field_name.split(".")
+                field_name = field_list[0] + "".join([f"['{sub_field}']" for sub_field in field_list[1:]])
+                field_name = f"CAST({field_name} AS TEXT)"
 
             # 组内条件的与或关系
             condition_type = "OR"
@@ -138,18 +136,24 @@ class ChartHandler(object):
                     tmp_sql += f" {condition_type} "
                 if isinstance(value, str):
                     value = value.replace("'", "''")
-                    value = f"\'\"{value}\"\'" if "." in field_name and operator in ["=", "!="] else f"\'{value}\'"
+                    value = f"\'{value}\'"
                 tmp_sql += f"{field_name} {sql_operator} {value}"
 
             # 有两个以上的值时加括号
             sql += tmp_sql if len(values) == 1 else ("(" + tmp_sql + ")")
         if sql_param:
-            try:
-                tree = parse_one(sql_param, dialect="doris")
-            except ParseError as e:
-                raise SQLQueryException(SQLQueryException.MESSAGE.format(name=e))
-            tree.set("where", expressions.Where(this=parse_one(sql)))
-            final_sql = tree.sql(dialect=Doris, pretty=False)
+            pattern = (
+                r"^\s*?(SELECT\s+?.+?)"
+                r"(?:\bFROM\b.+?)?"
+                r"(?:\bWHERE\b.+?)?"
+                r"(\bGROUP\s+?BY\b.*|\bHAVING\b.*|\bORDER\s+?BY\b.*|\bLIMIT\b.*|\bINTO\s+?OUTFILE\b.*)?$"
+            )
+            matches = re.match(pattern, sql_param, re.DOTALL | re.IGNORECASE)
+            final_sql = matches.group(1)
+            if sql:
+                final_sql += f"WHERE {sql} "
+            if matches.group(2):
+                final_sql += matches.group(2)
         else:
             final_sql = f"{SQL_PREFIX} WHERE {sql} {SQL_SUFFIX}" if sql else f"{SQL_PREFIX} {SQL_SUFFIX}"
         return final_sql
@@ -184,46 +188,34 @@ class SQLChartHandler(ChartHandler):
         """
         解析sql语法
         """
-        raw_sql = params["sql"]
         start_time = params["start_time"]
         end_time = params["end_time"]
         start_date = arrow.get(start_time).format("YYYYMMDD")
         end_date = arrow.get(end_time).format("YYYYMMDD")
-        try:
-            tree = parse_one(raw_sql, dialect="doris")
-        except ParseError as e:
-            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=e))
-
-        # 覆盖 FROM 的子语句
-        tree.set(
-            "from",
-            expressions.From(
-                this=expressions.Table(
-                    this=expressions.Identifier(this=doris_table_id, quoted=False)
-                )
-            )
+        time_condition = (
+            f"dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time} AND"
+            f" thedate >= {start_date} AND thedate <= {end_date}"
         )
-        # 获取 WHERE 子句
-        where_clause = tree.args.get("where")
-
-        # 自定义条件
-        custom_condition = parse_one(
-            f"(dtEventTimeStamp >= {start_time} AND dtEventTimeStamp <= {end_time}"
-            f"AND thedate >= {start_date} and thedate <= {end_date})"
+        # 如果不存在FROM则添加,存在则覆盖
+        pattern = (
+            r"^\s*?(SELECT\s+?.+?)"
+            r"(?:\bFROM\b.+?)?"
+            r"(\bWHERE\b.+?)?"
+            r"(\bGROUP\s+?BY\b.*|\bHAVING\b.*|\bORDER\s+?BY\b.*|\bLIMIT\b.*|\bINTO\s+?OUTFILE\b.*)?$"
         )
-
-        # 将自定义条件添加到 WHERE 子句中
-        if where_clause:
-            # 如果已有 WHERE 子句，使用 AND 连接新条件
-            new_where = expressions.And(
-                this=where_clause,
-                expression=custom_condition
-            )
-            tree.set("where", new_where)
+        matches = re.match(pattern, params["sql"], re.DOTALL | re.IGNORECASE)
+        if not matches:
+            raise SQLQueryException(SQLQueryException.MESSAGE.format(name=_("缺少SQL查询的关键字")))
+        parsed_sql = matches.group(1) + f" FROM {doris_table_id}\n"
+        if matches.group(2):
+            where_condition = matches.group(2) + f"AND {time_condition}\n"
         else:
-            # 如果没有 WHERE 子句，直接添加 WHERE 条件
-            tree.set("where", expressions.Where(this=custom_condition))
-        return tree.sql(dialect=Doris, pretty=False)
+            where_condition = f"WHERE {time_condition}\n"
+        parsed_sql += where_condition
+
+        if matches.group(3):
+            parsed_sql += matches.group(3)
+        return parsed_sql
 
     def fetch_query_data(self, sql: str) -> dict:
         """
@@ -243,7 +235,12 @@ class SQLChartHandler(ChartHandler):
                 if errors:
                     errors_message = errors_message + ":" + errors
                 exc = errors_message
-                logger.info("SQL query exception [%s]", errors_message)
+                logger.info(
+                    "[doris query] QUERY ERROR! username: %s, execute sql: \"%s\", error info: %s",
+                    get_request_username(),
+                    sql.replace("\n", " "),
+                    errors_message,
+                )
                 raise SQLQueryException(
                     SQLQueryException.MESSAGE.format(name=errors_message),
                     errors={"sql": sql},
@@ -269,11 +266,21 @@ class SQLChartHandler(ChartHandler):
             "result_schema": result_schema,
         }
         # 记录doris日志
-        logger.info(
-            "[doris query] username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
-            get_request_username(),
-            sql.replace("\n", " "),
-            result_data["data"]["totalRecords"],
-            result_data["data"]["timetaken"],
-        )
+        if result_data["data"]["timetaken"] < 5:
+            logger.info(
+                "[doris query] username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
+                get_request_username(),
+                sql.replace("\n", " "),
+                result_data["data"]["totalRecords"],
+                result_data["data"]["timetaken"],
+            )
+        else:
+            # 大于 5s 的判定为慢查询
+            logger.info(
+                "[doris query] SLOW QUERY! username: %s, execute sql: \"%s\", total records: %s, time taken: %ss",
+                get_request_username(),
+                sql.replace("\n", " "),
+                result_data["data"]["totalRecords"],
+                result_data["data"]["timetaken"],
+            )
         return data

@@ -27,6 +27,41 @@ from .conftest import (
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture
+def create_or_delete_records(mocker):
+    models.Space.objects.create(id=123456, space_type_id='bkci', space_id='test_space')
+    models.Space.objects.create(id=123457, space_type_id='bksaas', space_id='test_saas')
+    models.SpaceResource.objects.create(
+        space_type_id='bkci',
+        space_id='test_space',
+        resource_type='bkcc',
+        resource_id='2',
+    )
+    yield
+    models.Space.objects.filter(id__in=[-123456, -123457]).delete()
+    models.SpaceResource.objects.filter(
+        space_type_id='bkci', space_id='test_space', resource_type='bkcc', resource_id='2'
+    ).delete()
+
+
+@pytest.mark.django_db(databases=["default", "monitor_api"])
+def test_get_negative_space_related_info(create_or_delete_records):
+    bkci_info = utils.get_negative_space_related_info(negative_biz_id=-123456)
+    assert bkci_info["space_type"] == "bkci"
+    assert bkci_info["space_id"] == "test_space"
+    assert bkci_info["bk_biz_id"] == '2'
+    assert bkci_info["negative_biz_id"] == -123456
+
+    bksaas_info = utils.get_negative_space_related_info(negative_biz_id=-123457)
+    assert bksaas_info["space_type"] == "bksaas"
+    assert bksaas_info["space_id"] == "test_saas"
+    assert bksaas_info["bk_biz_id"] is None
+    assert bksaas_info["negative_biz_id"] == -123457
+
+    with pytest.raises(ValueError):
+        utils.get_negative_space_related_info(negative_biz_id=-123456789)
+
+
 def test_authorize_data_id_list():
     """测试授权数据源"""
     test_data_id = 109011

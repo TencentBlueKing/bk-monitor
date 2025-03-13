@@ -30,7 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import axios from 'axios';
+import { axiosInstance } from '@/api';
 import { debounce } from 'lodash';
 import screenfull from 'screenfull';
 import { format } from 'sql-formatter';
@@ -103,6 +103,7 @@ export default defineComponent({
         cancelToken: requestCancelToken,
         withCredentials: true,
         baseURL: baseUrl,
+        originalResponse: true,
         data: {
           start_time,
           end_time,
@@ -113,13 +114,13 @@ export default defineComponent({
 
       emit('error', { code: 200, message: '请求中', result: true });
 
-      return axios(params)
+      return axiosInstance(params)
         .then((resp: any) => {
-          if (resp.data.result) {
+          if (resp.result) {
             isRequesting.value = false;
-            emit('change', resp.data);
+            emit('change', resp);
           } else {
-            emit('error', resp.data);
+            emit('error', resp);
           }
         })
         .finally(() => {
@@ -145,6 +146,7 @@ export default defineComponent({
             addition,
             start_time,
             end_time,
+            sql: sqlContent.value,
           },
         })
         .then(resp => {
@@ -168,7 +170,7 @@ export default defineComponent({
     };
 
     const formatMonacoSqlCode = (value?: string) => {
-      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'mysql' });
+      const val = format(value ?? editorInstance.value?.getValue() ?? '', { language: 'transactsql' });
       editorInstance.value?.setValue([val].join('\n'));
     };
 

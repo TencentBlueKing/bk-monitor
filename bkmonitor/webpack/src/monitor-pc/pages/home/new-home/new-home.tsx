@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component } from 'vue-property-decorator';
+import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import HomeSelect from './components/home-select';
@@ -49,7 +49,7 @@ export default class NewHome extends tsc<object> {
           style={{ minWidth: `${this.computedWidth}px` }}
           class='new-home-content'
         >
-          <HomeSelect />
+          <HomeSelect ref='homeSelect' />
           <div class='new-home-tool'>
             <RecentFavoritesTab />
           </div>

@@ -56,7 +56,7 @@ export default {
         this.interval = this.chartInterval;
         return;
       }
-      const duration = (endTime - startTime) / 3600;
+      const duration = (endTime - startTime) / 3600000;
       if (duration < 1) {
         // 小于1小时 1min
         this.interval = '1m';
@@ -72,16 +72,16 @@ export default {
       }
     },
     handleRequestSplit(startTime, endTime) {
-      const duration = (endTime - startTime) / 3600;
+      const duration = (endTime - startTime) / 3600000;
       if (duration < 6) {
         // 小于6小时 一次性请求
         return 0;
       }
       if (duration < 48) {
         // 小于24小时 6小时间隔
-        return 21600;
+        return 21600 * 1000;
       } // 大于1天 按0.5天请求
-      return 86400 / 2;
+      return (86400 * 1000) / 2;
     },
     // 获取实际查询开始和结束时间
     getRealTimeRange() {
@@ -113,7 +113,7 @@ export default {
       // 根据时间范围获取和横坐标分片
       const rangeArr = [];
       const range = this.intervalMap[this.interval] * 1000;
-      for (let index = endTime * 1000; index >= startTime * 1000; index = index - range) {
+      for (let index = endTime; index >= startTime; index = index - range) {
         rangeArr.push([0, index]);
       }
 
@@ -123,11 +123,11 @@ export default {
     getIntegerTime(time) {
       if (this.interval === '1d') {
         // 如果周期是 天 则特殊处理
-        const step = dayjs.tz(time * 1000).format('YYYY-MM-DD');
-        return Date.parse(`${step} 00:00:00`) / 1000;
+        const step = dayjs.tz(time).format('YYYY-MM-DD');
+        return Date.parse(`${step} 00:00:00`);
       }
 
-      const step = this.intervalMap[this.interval];
+      const step = this.intervalMap[this.interval] * 1000;
       return Math.floor(time / step) * step;
     },
   },

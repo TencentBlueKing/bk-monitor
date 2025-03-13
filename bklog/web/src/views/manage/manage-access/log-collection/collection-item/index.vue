@@ -111,6 +111,18 @@
           </template>
         </bk-table-column>
         <bk-table-column
+          :label="$t('日用量/总用量')"
+          :render-header="$renderHeader"
+          min-width="80"
+          sortable
+        >
+          <template #default="props">
+            <span :class="{ 'text-disabled': props.row.status === 'stop' }">
+              {{ props.row.table_id ? formatUsage(props.row.daily_usage, props.row.total_usage) : '--' }}
+            </span>
+          </template>
+        </bk-table-column>
+        <bk-table-column
           v-if="checkcFields('table_id')"
           :label="$t('存储名')"
           :render-header="$renderHeader"
@@ -595,11 +607,11 @@
     clearTableFilter,
     getDefaultSettingSelectFiled,
     setDefaultSettingSelectFiled,
-    deepClone,
+    deepClone
   } from '@/common/util';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
-
+  import { formatBytes, requestStorageUsage } from '../../util.js';
   import * as authorityMap from '../../../../../common/authority-map';
   import EmptyStatus from '../../../../../components/empty-status';
   import IndexSetLabelSelect from '../../../../../components/index-set-label-select';
@@ -627,6 +639,12 @@
         {
           id: 'collector_config_name',
           label: this.$t('名称'),
+          disabled: true,
+        },
+        // 用量展示
+        {
+          id: 'storage_usage',
+          label: this.$t('日用量/总用量'),
           disabled: true,
         },
         // 存储名
@@ -735,7 +753,7 @@
         isAllowedCreate: null,
         columnSetting: {
           fields: settingFields,
-          selectedFields: [...settingFields.slice(3, 7), settingFields[2]],
+          selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
         },
         statusEnum: statusEnum,
         // 是否支持一键检测
@@ -841,6 +859,25 @@
     beforeDestroy() {
       this.isShouldPollCollect = false;
       this.stopStatusPolling();
+    },
+    watch:{
+      collectShowList:{
+        handler(val) {
+          if (val) {
+            this.isTableLoading = true;
+            const callbackFn = (item, key, value) => {
+                this.$set(item, key, value[key]);
+            };
+            requestStorageUsage(this.bkBizId, val, true, callbackFn)
+              .catch((error) => {
+                console.error('Error loading data:', error);
+              })
+              .finally(() => {
+                this.isTableLoading = false;
+              });
+          }
+        },
+      }
     },
     methods: {
       async stopCollectHandler(row) {
@@ -1241,6 +1278,9 @@
           },
         });
       },
+      formatUsage(dailyUsage, totalUsage) {
+        return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
+      }
     },
   };
 </script>

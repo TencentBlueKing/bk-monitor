@@ -4503,17 +4503,14 @@ class CollectorHandler(object):
                     "workload_type": "",
                     "workload_name": "",
                     "container_name": "",
-                    "container_name_exclude": ""
+                    "container_name_exclude": "",
                 }
             if not container_config.get("data_encoding"):
                 container_config["data_encoding"] = "UTF-8"
 
             if not container_config.get("label_selector"):
-                container_config["label_selector"] = {
-                        "match_labels": [],
-                        "match_expressions": []
-                    }
-            if not container_config["params"].get("conditions",{}).get("type"):
+                container_config["label_selector"] = {"match_labels": [], "match_expressions": []}
+            if not container_config["params"].get("conditions", {}).get("type"):
                 container_config["params"]["conditions"] = {"type": "none"}
         # 补充缺少的清洗配置参数
         if not params.get("fields"):
@@ -4564,6 +4561,17 @@ class CollectorHandler(object):
             "task_id_list": self.data.task_id_list,
             "index_set_id": index_set_id,
         }
+
+    def fast_contain_update(self, params: dict) -> dict:
+        if self.data and not self.data.is_active:
+            raise CollectorActiveException()
+        # 补充缺少的清洗配置参数
+        params.setdefault("fields", [])
+        # 更新采集项
+        self.update_container_config(params)
+        params["table_id"] = self.data.collector_config_name_en
+        self.create_or_update_clean_config(True, params)
+        return {"collector_config_id": self.data.collector_config_id}
 
     def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
@@ -4873,11 +4881,13 @@ class CollectorHandler(object):
                     "group_name": data["bk_property_group_name"],
                 }
                 return_data["host"].append(host_data)
-        return_data["host"].extend([
-            {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
-            {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
-            {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"}
-        ])
+        return_data["host"].extend(
+            [
+                {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
+                {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
+                {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"},
+            ]
+        )
         scope_data = [
             {"field": "bk_module_id", "name": "模块ID", "group_name": "基础信息"},
             {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"},
