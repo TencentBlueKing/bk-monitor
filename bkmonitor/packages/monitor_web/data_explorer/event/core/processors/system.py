@@ -60,7 +60,7 @@ class HostEventProcessor(BaseEventProcessor):
         return f"{base_url}?bizId={bk_biz_id}#/performance/detail/{ip_param}-{cloud_id_param}?{urlencode(params)}"
 
     def process_event(self, origin_event: Dict[str, Any]) -> Dict[str, Any]:
-        processed_event = copy.copy(origin_event)
+        processed_event = copy.deepcopy(origin_event)
         event_content = origin_event["event.content"]
         origin_data = origin_event["origin_data"]
 
