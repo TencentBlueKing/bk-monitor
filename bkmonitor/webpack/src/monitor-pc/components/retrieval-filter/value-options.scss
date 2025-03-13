@@ -12,6 +12,12 @@
     border-radius: 2px;
     box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1019607843);
 
+    &.is-popover {
+      position: relative;
+      top: 0;
+      left: 0;
+    }
+
     .options-item {
       width: 100%;
       height: 32px;
