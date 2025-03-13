@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
+import { Component, Mixins, Prop, Ref, Watch } from 'vue-property-decorator';
+import * as tsx from 'vue-tsx-support';
 
+import UserConfigMixin from '../../mixins/userStoreConfig';
 import ResidentSettingTransfer from './resident-setting-transfer';
 import SettingKvSelector from './setting-kv-selector';
 import {
@@ -36,7 +37,11 @@ import {
   type IWhereItem,
 } from './utils';
 
+import type { IFavList } from '../../pages/data-retrieval/typings';
+
 import './resident-setting.scss';
+
+const COMMON_WHERE = 'common_where';
 
 export interface IResidentSetting {
   field: IFilterField;
@@ -44,13 +49,16 @@ export interface IResidentSetting {
 }
 interface IProps {
   fields: IFilterField[];
-  value?: IResidentSetting[];
+  value?: IWhereItem[];
+  dataId: string;
+  source?: string;
+  curFavoriteData?: IFavList.favList;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
-  onChange?: (v: IResidentSetting[]) => void;
+  onChange?: (v: IWhereItem[]) => void;
 }
 
 @Component
-export default class ResidentSetting extends tsc<IProps> {
+class ResidentSetting extends Mixins(UserConfigMixin) {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
   @Prop({
     type: Function,
@@ -61,19 +69,65 @@ export default class ResidentSetting extends tsc<IProps> {
       }),
   })
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
-  @Prop({ default: () => [], type: Array }) value: IResidentSetting[];
+  @Prop({ default: () => [], type: Array }) value: IWhereItem[];
+  @Prop({ default: '', type: String }) dataId: string;
+  @Prop({ default: '', type: String }) source: string;
+  @Prop({ default: null, type: Object }) curFavoriteData: IFavList.favList;
+
   @Ref('selector') selectorRef: HTMLDivElement;
 
   popoverInstance = null;
 
   localValue: IResidentSetting[] = [];
 
-  @Watch('value', { immediate: true })
-  handleWatchValue() {
-    const str = JSON.stringify(this.value);
-    if (str !== JSON.stringify(this.localValue)) {
-      this.localValue = JSON.parse(str);
+  userConfigLoading = false;
+
+  isValueChange = false;
+
+  get fieldNameMap(): Record<string, IFilterField> {
+    return this.fields.reduce((pre, cur) => {
+      pre[cur.name] = cur;
+      return pre;
+    }, {});
+  }
+
+  get valueNameMap(): Record<string, IWhereItem> {
+    return this.value.reduce((pre, cur) => {
+      pre[cur.key] = cur;
+      return pre;
+    }, {});
+  }
+
+  @Watch('dataId', { immediate: true })
+  handleWatchDataId() {
+    const fields: IResidentSetting[] = [];
+    if (this.curFavoriteData && this.curFavoriteData.config?.queryConfig?.result_table_id === this.dataId) {
+      for (const where of this.value) {
+        if (this.fieldNameMap[where.key]) {
+          fields.push({
+            field: this.fieldNameMap[where.key],
+            value: where,
+          });
+        }
+      }
+    } else {
+      this.userConfigLoading = true;
+      this.handleGetUserConfig(`${this.source}_${COMMON_WHERE}_${this.dataId}`).then((res: string[] = []) => {
+        for (const key of res) {
+          if (this.fieldNameMap[key]) {
+            fields.push({
+              field: this.fieldNameMap[key],
+              value: defaultWhereItem({
+                key: this.fieldNameMap[key].name,
+                value: this.valueNameMap[key]?.value || [],
+              }),
+            });
+          }
+        }
+        this.userConfigLoading = false;
+      });
     }
+    this.localValue = fields;
   }
 
   async handleShowSelect(event: MouseEvent) {
@@ -125,19 +179,19 @@ export default class ResidentSetting extends tsc<IProps> {
    * @description 点击弹层确认
    */
   handleConfirm(fields: IFilterField[]) {
-    const valueMap: Map<string, string[]> = new Map();
-    for (const item of this.localValue) {
-      valueMap.set(item.field.name, item.value.value);
-    }
     this.localValue = fields.map(item => ({
       field: item,
       value: defaultWhereItem({
         key: item.name,
-        value: valueMap.get(item.name) || [],
+        value: [],
       }),
     }));
     this.handleChange();
     this.destroyPopoverInstance();
+    this.handleSetUserConfig(
+      `${this.source}_${COMMON_WHERE}_${this.dataId}`,
+      JSON.stringify(fields.map(item => item.name))
+    );
   }
 
   /**
@@ -150,8 +204,12 @@ export default class ResidentSetting extends tsc<IProps> {
     this.handleChange();
   }
 
+  // 处理change事件
   handleChange() {
-    this.$emit('change', this.localValue);
+    this.$emit(
+      'change',
+      this.localValue.map(item => item.value)
+    );
   }
 
   render() {
@@ -194,3 +252,5 @@ export default class ResidentSetting extends tsc<IProps> {
     );
   }
 }
+
+export default tsx.ofType<IProps>().convert(ResidentSetting);

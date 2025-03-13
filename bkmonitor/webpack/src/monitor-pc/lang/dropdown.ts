@@ -128,4 +128,12 @@ export default {
   新开标签页: 'Open in New Tab',
   另存为新收藏: 'Save as New Favorite',
   覆盖当前收藏: 'Override Current Favorite',
+  存在: 'Exists',
+  大于: 'Greater than',
+  小于: 'Less than',
+  大于或等于: 'Greater than or equal to',
+  小于或等于: 'Less than or equal to',
+  两个参数都: 'Both parameters',
+  一个或多个参数: 'One or more parameters',
+  全文检索: 'Full-text Search',
 };
