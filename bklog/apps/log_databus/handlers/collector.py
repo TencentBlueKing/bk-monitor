@@ -2374,6 +2374,8 @@ class CollectorHandler(object):
         bk_app_code=settings.APP_CODE,
         bkdata_biz_id=None,
         is_display=True,
+        sort_fields=None,
+        target_fields=None,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
@@ -2466,6 +2468,8 @@ class CollectorHandler(object):
                 "etl_params": custom_config.etl_params,
                 "etl_config": custom_config.etl_config,
                 "fields": custom_config.fields,
+                "sort_fields": sort_fields,
+                "target_fields": target_fields,
             }
             if etl_params and fields:
                 # 如果传递了清洗参数，则优先使用
