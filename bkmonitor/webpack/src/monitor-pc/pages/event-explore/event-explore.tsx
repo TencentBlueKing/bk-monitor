@@ -66,6 +66,7 @@ interface IProps {
   favoriteList?: IFavList.favGroupList[];
   currentFavorite?: IFavList.favList;
   filterMode?: EMode;
+  defaultShowResidentBtn?: boolean;
 }
 
 interface IEvent {
@@ -74,6 +75,8 @@ interface IEvent {
   onFavorite: (isEdit: boolean) => void;
   onFilterModeChange: (filterMode: EMode) => void;
   onQueryStringInputChange: (val: string) => void;
+  onCommonWhereChange: (where: IWhereItem[]) => void;
+  onShowResidentBtnChange?: (v: boolean) => void;
 }
 @Component
 export default class EventExplore extends tsc<
@@ -105,6 +108,7 @@ export default class EventExplore extends tsc<
   @Prop({ default: () => ({}), type: Object }) filter_dict: IFormData['filter_dict'];
   @Prop({ default: () => [], type: Array }) favoriteList: IFavList.favGroupList[];
   @Prop({ default: null, type: Object }) currentFavorite: IFavList.favList;
+  @Prop({ default: false, type: Boolean }) defaultShowResidentBtn: boolean;
 
   // 数据时间间隔
   @InjectReactive('timeRange') timeRange: TimeRangeType;
@@ -367,6 +371,16 @@ export default class EventExplore extends tsc<
     this.handleQueryStringChange(this.queryString ? `${this.queryString} AND ${endStr}` : `${endStr}`);
   }
 
+  @Emit('commonWhereChange')
+  handleCommonWhereChange(where: IWhereItem[]) {
+    return where;
+  }
+
+  @Emit('showResidentBtnChange')
+  handleShowResidentBtnChange(isShow: boolean) {
+    return isShow;
+  }
+
   /**
    * @description 清空筛选条件
    *
@@ -383,21 +397,32 @@ export default class EventExplore extends tsc<
         <div class='right-main-panel'>
           {this.$scopedSlots.header?.('')}
           <div class='event-retrieval-content'>
-            <RetrievalFilter
-              favoriteList={this.favoriteList as any}
-              fields={this.fieldList}
-              filterMode={this.filterMode}
-              getValueFn={this.getRetrievalFilterValueData}
-              isQsOperateWrapBottom={this.source === APIType.APM}
-              queryString={this.queryString}
-              selectFavorite={this.currentFavorite}
-              where={this.where}
-              onFavorite={this.handleFavorite}
-              onModeChange={this.handleModeChange}
-              onQueryStringChange={this.handleQueryStringChange}
-              onQueryStringInputChange={this.handleQueryStringInputChange}
-              onWhereChange={this.handleWhereChange}
-            />
+            {this.loading ? (
+              <div class='skeleton-element filter-skeleton' />
+            ) : (
+              <RetrievalFilter
+                commonWhere={this.commonWhere}
+                dataId={this.dataId}
+                defaultShowResidentBtn={this.defaultShowResidentBtn}
+                favoriteList={this.favoriteList as any}
+                fields={this.fieldList}
+                filterMode={this.filterMode}
+                getValueFn={this.getRetrievalFilterValueData}
+                isQsOperateWrapBottom={this.source === APIType.APM}
+                queryString={this.queryString}
+                selectFavorite={this.currentFavorite}
+                source={this.source}
+                where={this.where}
+                onCommonWhereChange={this.handleCommonWhereChange}
+                onFavorite={this.handleFavorite}
+                onModeChange={this.handleModeChange}
+                onQueryStringChange={this.handleQueryStringChange}
+                onQueryStringInputChange={this.handleQueryStringInputChange}
+                onShowResidentBtnChange={this.handleShowResidentBtnChange}
+                onWhereChange={this.handleWhereChange}
+              />
+            )}
+
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
               class='content-container'

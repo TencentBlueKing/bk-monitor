@@ -26,6 +26,8 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { deepClone } from 'monitor-common/utils';
+
 import QsSelector from './qs-selector';
 import ResidentSetting, { type IResidentSetting } from './resident-setting';
 import UiSelector from './ui-selector';
@@ -34,7 +36,6 @@ import {
   type EMethod,
   EMode,
   getCacheUIData,
-  getResidentSettingData,
   type IFavoriteListItem,
   type IFilterField,
   type IFilterItem,
@@ -44,7 +45,6 @@ import {
   METHOD_MAP,
   MODE_LIST,
   setCacheUIData,
-  setResidentSettingData,
 } from './utils';
 
 import type { IFavList } from '../../pages/data-retrieval/typings';
@@ -52,23 +52,32 @@ import type { IFavList } from '../../pages/data-retrieval/typings';
 import './retrieval-filter.scss';
 
 interface IProps {
+  dataId?: string;
+  source?: string;
   fields: IFilterField[];
   where?: IWhereItem[];
+  commonWhere?: IWhereItem[];
   queryString?: string;
   selectFavorite?: IFavList.favList;
   favoriteList?: IFavoriteListItem[];
   filterMode?: EMode;
+  defaultShowResidentBtn?: boolean;
   isQsOperateWrapBottom?: boolean;
   getValueFn?: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
+}
+
+interface IEvent {
   onFavorite: (isEdit: boolean) => void;
   onWhereChange?: (v: IWhereItem[]) => void;
   onQueryStringChange?: (v: string) => void;
   onModeChange?: (v: EMode) => void;
   onQueryStringInputChange?: (v: string) => void;
+  onCommonWhereChange?: (where: IWhereItem[]) => void;
+  onShowResidentBtnChange?: (v: boolean) => void;
 }
 
 @Component
-export default class RetrievalFilter extends tsc<IProps> {
+export default class RetrievalFilter extends tsc<IProps, IEvent> {
   @Prop({ type: Array, default: () => [] }) fields: IFilterField[];
   @Prop({ type: Object, default: null }) selectFavorite: IFavList.favList;
   @Prop({
@@ -82,12 +91,16 @@ export default class RetrievalFilter extends tsc<IProps> {
   getValueFn: (params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>;
   /* ui部分where条件 */
   @Prop({ type: Array, default: () => [] }) where: IWhereItem[];
+  @Prop({ type: Array, default: () => [] }) commonWhere: IWhereItem[];
   /* 语句模式数据 */
   @Prop({ type: String, default: '' }) queryString: string;
+  @Prop({ type: String, default: '' }) dataId: string;
+  @Prop({ type: String, default: '' }) source: string;
   @Prop({ type: Array, default: () => [] }) favoriteList: IFavoriteListItem[];
   @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
   /* 语句模式hover显示的操作是否显示在下方 */
   @Prop({ type: Boolean, default: false }) isQsOperateWrapBottom: boolean;
+  @Prop({ type: Boolean, default: false }) defaultShowResidentBtn: boolean;
 
   /* 展示常驻设置 */
   showResidentSetting = false;
@@ -98,14 +111,13 @@ export default class RetrievalFilter extends tsc<IProps> {
   residentSettingValue: IResidentSetting[] = [];
   qsValue = '';
 
+  /** 缓存的commonWhere */
+  cacheCommonWhere: IWhereItem[] = [];
+
   /*  */
   qsSelectorOptionsWidth = 0;
   resizeObserver = null;
   cacheQueryString = '';
-
-  created() {
-    this.residentSettingValue = getResidentSettingData();
-  }
 
   mounted() {
     this.resizeObserver = new ResizeObserver(entries => {
@@ -123,32 +135,46 @@ export default class RetrievalFilter extends tsc<IProps> {
     this.mode = this.mode === EMode.ui ? EMode.queryString : EMode.ui;
     this.$emit('modeChange', this.mode);
   }
+
+  @Emit('showResidentBtnChange')
   handleShowResidentSetting() {
     this.showResidentSetting = !this.showResidentSetting;
     if (!this.showResidentSetting) {
+      this.cacheCommonWhere = deepClone(this.commonWhere);
       this.uiValue = this.residentSettingToUiValue();
+      this.handleCommonWhereChange([]);
       this.handleChange();
       this.$bkMessage({
         message: this.$tc('“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'),
         theme: 'success',
       });
     }
+    return this.showResidentSetting;
   }
 
   @Watch('where', { immediate: true })
   handleWatchValue() {
     this.handleWatchValueFn(this.where);
   }
+
   @Watch('queryString', { immediate: true })
   handleWatchQsString() {
     if (this.qsValue !== this.queryString) {
       this.qsValue = this.queryString;
     }
   }
+
   @Watch('filterMode', { immediate: true })
   handleWatchFilterMode() {
     if (this.mode !== this.filterMode) {
       this.mode = this.filterMode;
+    }
+  }
+
+  @Watch('defaultShowResidentBtn', { immediate: true })
+  handleWatchShowResidentSetting(val: boolean) {
+    if (val !== this.showResidentSetting) {
+      this.showResidentSetting = val;
     }
   }
 
@@ -259,9 +285,9 @@ export default class RetrievalFilter extends tsc<IProps> {
    * @description 常驻设置值变化
    * @param value
    */
-  handleResidentSettingChange(value: IResidentSetting[]) {
-    this.residentSettingValue = value;
-    setResidentSettingData(this.residentSettingValue);
+  @Emit('commonWhereChange')
+  handleCommonWhereChange(value: IWhereItem[]) {
+    return value;
   }
 
   /**
@@ -271,21 +297,21 @@ export default class RetrievalFilter extends tsc<IProps> {
     const uiValueAdd = [];
     const uiValueAddSet = new Set();
     // 收回常驻设置是需要把常驻设置的值带到ui模式中
-    for (const item of this.residentSettingValue) {
-      if (item.value?.value?.length) {
+    for (const item of this.cacheCommonWhere) {
+      if (item.value?.length) {
+        const field = this.fields.find(field => field.name === item.key);
         const methodName =
-          item.field.supported_operations?.find(v => v.value === item.value.method)?.alias ||
-          METHOD_MAP[item.value.method];
+          field.supported_operations?.find(v => v.value === item.method)?.alias || METHOD_MAP[item.method];
         uiValueAdd.push({
-          key: { id: item.value.key, name: item.field.name },
-          method: { id: item.value.method, name: methodName },
+          key: { id: item.key, name: field?.alias || item.key },
+          method: { id: item.method, name: methodName },
           condition: { id: ECondition.and, name: 'AND' },
-          value: item.value.value.map(v => ({
+          value: item.value.map(v => ({
             id: v,
             name: v,
           })),
         });
-        uiValueAddSet.add(`${item.value.key}____${item.value.method}____${item.value.value.join('____')}`);
+        uiValueAddSet.add(`${item.key}____${item.method}____${item.value.join('____')}`);
       }
     }
     const uiValue = [...this.uiValue, ...uiValueAdd];
@@ -307,8 +333,8 @@ export default class RetrievalFilter extends tsc<IProps> {
 
   setResidentSettingStatus(uiValue: IFilterItem[]) {
     const tempSet = new Set();
-    for (const item of this.residentSettingValue) {
-      tempSet.add(`${item.value.key}____${item.value.method}____${item.value.value.join('____')}`);
+    for (const item of this.cacheCommonWhere) {
+      tempSet.add(`${item.key}____${item.method}____${item.value.join('____')}`);
     }
     const result = [];
     for (const item of uiValue) {
@@ -456,10 +482,13 @@ export default class RetrievalFilter extends tsc<IProps> {
         </div>
         {this.showResidentSetting && (
           <ResidentSetting
+            curFavoriteData={this.selectFavorite}
+            dataId={this.dataId}
             fields={this.fields}
             getValueFn={this.getValueFn}
-            value={this.residentSettingValue}
-            onChange={this.handleResidentSettingChange}
+            source={this.source}
+            value={this.commonWhere}
+            onChange={this.handleCommonWhereChange}
           />
         )}
       </div>

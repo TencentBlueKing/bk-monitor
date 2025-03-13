@@ -22,6 +22,10 @@
       height: calc(100% - 52px);
       padding: 8px;
 
+      .filter-skeleton {
+        height: 48px;
+      }
+
       .content-container {
         flex: 1;
         min-height: 0;

@@ -328,4 +328,7 @@ export default {
   '当前空间「{0}」 使用了 BCS 集群，已自动关联；':
     'Current space " {0} project " uses BCS cluster, has been automatically associated;',
   '如需精确，用户可 {0}': 'If you need to be accurate, users can {0}',
+  移动光标: 'Move the cursor',
+  选中: 'Select',
+  提交查询: 'Submit query',
 };
