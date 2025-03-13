@@ -95,7 +95,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** 当前显示的图例 */
   showLegendList: DimensionsTypeEnum[] = [];
   /** 图表配置实例 */
-  panel: PanelModel = null;
+  panel: PanelModel = this.initPanelConfig();
   /** table表格请求配置 */
   tableRequestConfigs: EventExploreTableRequestConfigs = {};
   /** 是否滚动到底 */
@@ -126,15 +126,14 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     this.updateTableRequestConfigs();
   }
 
-  @Watch('queryConfig', { deep: true })
-  queryParamsChange() {
+  @Watch('refreshImmediate')
+  refreshImmediateChange() {
     this.getEventTotal();
-    this.updatePanelConfig();
     this.updateTableRequestConfigs();
   }
 
-  @Watch('refreshImmediate')
-  refreshImmediateChange() {
+  @Watch('queryConfig', { deep: true })
+  queryParamsChange() {
     this.getEventTotal();
     this.updatePanelConfig();
     this.updateTableRequestConfigs();
@@ -197,6 +196,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
    */
   async getEventTotal() {
     if (!this.eventQueryParams) {
+      this.total = 0;
+      this.tableRequestConfigs.total = 0;
       return;
     }
     const { total } = await getEventTotal(this.eventQueryParams, this.source).catch(() => ({
@@ -209,6 +210,7 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   /** 更新 表格请求配置 */
   updateTableRequestConfigs(loadingType: ExploreTableLoadingEnum = ExploreTableLoadingEnum.REFRESH) {
     if (!this.eventQueryParams) {
+      this.tableRequestConfigs = {};
       return;
     }
 
@@ -227,9 +229,19 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     };
   }
 
+  initPanelConfig() {
+    return new PanelModel({
+      id: 'event-explore-chart',
+      title: this.$tc('总趋势'),
+      options: {},
+      targets: [],
+    });
+  }
+
   /** 更新 图表配置实例 */
   updatePanelConfig() {
     if (!this.eventQueryParams) {
+      this.panel = this.initPanelConfig();
       return;
     }
 
@@ -336,18 +348,16 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     return (
       <div class='event-explore-view-wrapper'>
         <div class='event-explore-chart-wrapper'>
-          {!!this.panel && (
-            <ExploreCustomGraph
-              ref='chartRef'
-              chartInterval={this.chartInterval}
-              panel={this.panel}
-              showChartHeader={true}
-              total={this.total}
-              onIntervalChange={this.handleIntervalChange}
-              onSelectLegend={this.handleShowLegendChange}
-              onSeriesData={this.handleChartApiResponseTransform}
-            />
-          )}
+          <ExploreCustomGraph
+            ref='chartRef'
+            chartInterval={this.chartInterval}
+            panel={this.panel}
+            showChartHeader={true}
+            total={this.total}
+            onIntervalChange={this.handleIntervalChange}
+            onSelectLegend={this.handleShowLegendChange}
+            onSeriesData={this.handleChartApiResponseTransform}
+          />
         </div>
         <div class='event-explore-table-wrapper'>
           <EventExploreTable
