@@ -29,8 +29,13 @@ import { Component as tsc } from 'vue-tsx-support';
 import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils';
 
-import { EMethod, EMode } from '../../../components/retrieval-filter/utils';
-import { type DimensionType, type ExploreEntitiesItem, ExploreEntitiesTypeEnum } from '../typing';
+import { EMethod } from '../../../components/retrieval-filter/utils';
+import {
+  type ConditionChangeEvent,
+  type DimensionType,
+  type ExploreEntitiesItem,
+  ExploreEntitiesTypeEnum,
+} from '../typing';
 import FieldTypeIcon from './field-type-icon';
 import StatisticsList from './statistics-list';
 
@@ -53,17 +58,15 @@ export interface KVFieldList {
 }
 interface IExploreKvListProps {
   fieldList: KVFieldList[];
-  filterMode?: EMode;
 }
 
 interface IExploreKvListEvents {
-  onConditionChange(val): void;
+  onConditionChange(e: ConditionChangeEvent): void;
 }
 
 @Component
 export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvListEvents> {
   @Prop({ default: () => [], type: Array }) fieldList: KVFieldList[];
-  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
 
   @Ref('menu') menuRef: HTMLUListElement;
   @Ref('statisticsList') statisticsListRef!: InstanceType<typeof StatisticsList>;
@@ -100,7 +103,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
   statisticsSliderShow = false;
 
   @Emit('conditionChange')
-  conditionChange(condition) {
+  conditionChange(condition: ConditionChangeEvent) {
     return condition;
   }
 
@@ -268,11 +271,12 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
     if (!this.fieldTarget?.value) {
       return;
     }
-    const condition = [
-      { condition: 'and', key: this.fieldTarget?.sourceName, method, value: [this.fieldTarget?.value] },
-    ];
+    this.conditionChange({
+      key: this.fieldTarget?.sourceName,
+      method: method,
+      value: this.fieldTarget?.value,
+    });
     this.handlePopoverHide();
-    this.conditionChange(condition);
   }
 
   /**
@@ -391,7 +395,6 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       <div style={{ display: 'none' }}>
         <StatisticsList
           ref='statisticsList'
-          filterMode={this.filterMode}
           isDimensions={this.fieldTarget?.name.startsWith('dimensions')}
           popoverInstance={this.popoverInstance}
           selectField={this.fieldTarget?.sourceName || '--'}

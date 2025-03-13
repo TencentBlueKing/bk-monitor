@@ -31,21 +31,19 @@ import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
-import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import { APIType, getDownloadTopK, getEventTopK } from '../api-utils';
 
-import type { ITopKField } from '../typing';
+import type { ConditionChangeEvent, ITopKField } from '../typing';
 
 import './statistics-list.scss';
 interface StatisticsListProps {
   selectField: string;
   popoverInstance?: any;
-  filterMode?: EMode;
   isDimensions?: boolean;
 }
 
 interface StatisticsListEvents {
-  onConditionChange(val: IWhereItem[] | string): void;
+  onConditionChange(e: ConditionChangeEvent): void;
   onShowMore(): void;
   onSliderShowChange(sliderShow: boolean): void;
 }
@@ -55,7 +53,6 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   @Prop({ type: String, default: '' }) selectField: string;
   @Prop({ type: Boolean, default: false }) isDimensions: boolean;
   @Prop({ type: Object, default: null }) popoverInstance: any;
-  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
 
   @InjectReactive('commonParams') commonParams;
   @InjectReactive({
@@ -131,17 +128,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   @Emit('conditionChange')
   handleConditionChange(type: 'eq' | 'ne', item: ITopKField['list'][0]) {
-    if (this.filterMode === EMode.ui) {
-      if (type === 'eq') {
-        return [{ condition: 'and', key: this.selectField, method: 'eq', value: [item.value || '""'] }];
-      }
-      return [{ condition: 'and', key: this.selectField, method: 'ne', value: [item.value || '""'] }];
-    }
-    const key = `${this.isDimensions ? 'dimensions.' : ''}${this.selectField}`;
-    if (type === 'eq') {
-      return `${key} : "${item.value || ''}"`;
-    }
-    return `NOT ${key} : "${item.value || ''}"`;
+    return {
+      key: this.selectField,
+      method: type,
+      value: item.value,
+    };
   }
 
   @Emit('sliderShowChange')
