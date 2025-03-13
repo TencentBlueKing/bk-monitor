@@ -13,6 +13,7 @@ from rest_framework import serializers
 
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import APIResource
 
 
@@ -67,7 +68,7 @@ class ListTenantResource(BkUserApiResource):
         if not self.use_apigw():
             return [{"id": "system", "name": "Blueking", "status": "enabled"}]
 
-        return super().perform_request(params)
+        return super().perform_request({"bk_tenant_id": DEFAULT_TENANT_ID})
 
 
 class GetAllUserResource(BkUserApiResource):

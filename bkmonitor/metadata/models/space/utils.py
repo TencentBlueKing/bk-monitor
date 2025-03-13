@@ -812,6 +812,7 @@ def create_bkcc_spaces(biz_list: List) -> bool:
                 space_type_id=SpaceTypes.BKCC.value,
                 space_id=str(biz["bk_biz_id"]),
                 space_name=biz["bk_biz_name"],
+                bk_tenant_id=biz["bk_tenant_id"],
             )
         )
 

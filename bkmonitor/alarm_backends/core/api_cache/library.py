@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 """
 import sys
 
+from core.errors.api import BKAPIError
+
 """
 celery api任务
 """
@@ -24,7 +26,6 @@ from django.conf import settings
 from django.core.cache import caches
 from django.db import close_old_connections
 from gevent.monkey import saved
-from six.moves import range
 
 from alarm_backends.constants import CONST_MINUTES, CONST_ONE_HOUR
 from alarm_backends.core.lock.service_lock import share_lock
@@ -72,8 +73,12 @@ def cache_business():
     client.search_business
     :return:
     """
-    client.search_business.request.refresh()
-    api.cmdb.search_cloud_area.request.refresh()
+    for bk_tenant_id in api.bk_login.list_tenant():
+        try:
+            client.search_business.request.refresh(bk_tenant_id=bk_tenant_id)
+            api.cmdb.search_cloud_area.request.refresh(bk_tenant_id=bk_tenant_id)
+        except BKAPIError as e:
+            logger.error(f"[api cache] refresh business failed, bk_tenant_id: {bk_tenant_id}, error: {e}")
 
 
 def func_adapter_resource(func):

@@ -28,6 +28,7 @@ from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.ip import exploded_ip, is_v6
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.cmdb import TargetNodeType
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import CacheResource, api
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
@@ -93,13 +94,14 @@ def _host_from_raw(record, bk_biz_id):
     return host
 
 
-def _host_full_cloud(host, clouds=None):
-    # 获取云区域信息
-    if clouds is None:
-        clouds = api.cmdb.search_cloud_area()
+def _host_full_cloud(hosts: list[dict], clouds: list[dict]) -> list[dict]:
+    """
+    为主机添加云区域名称
+    """
     cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
-    host["bk_cloud_name"] = cloud_id_to_name.get(host["bk_cloud_id"], "")
-    return host
+    for host in hosts:
+        host["bk_cloud_name"] = cloud_id_to_name.get(host["bk_cloud_id"], "")
+    return hosts
 
 
 def sort_topo_tree_by_pinyin(topo_trees):
@@ -270,10 +272,9 @@ class GetHostByTopoNode(CacheResource):
             hosts = [host for host in hosts if set(host["bk_module_ids"]) & module_ids]
 
         # 获取云区域信息
-        clouds = api.cmdb.search_cloud_area()
+        clouds = api.cmdb.search_cloud_area(bk_biz_id=params["bk_biz_id"])
 
-        for host in hosts:
-            _host_full_cloud(host, clouds)
+        _host_full_cloud(hosts, clouds)
         return [Host(host) for host in hosts]
 
 
@@ -348,7 +349,7 @@ class GetHostByIP(CacheResource):
             return []
 
         # 获取云区域信息
-        clouds = api.cmdb.search_cloud_area()
+        clouds = api.cmdb.search_cloud_area(bk_biz_id=params["bk_biz_id"])
 
         # 获取主机信息
         params = self.process_params(params)
@@ -359,7 +360,7 @@ class GetHostByIP(CacheResource):
             host = _host_from_raw(record, params["bk_biz_id"])
             if host is None:
                 continue
-            host = _host_full_cloud(host, clouds)
+            host = _host_full_cloud([host], clouds)
             hosts.append(Host(host))
 
         return hosts
@@ -384,14 +385,14 @@ class GetHostById(Resource):
         records = batch_request(client.list_biz_hosts_topo, request_params)
 
         # 获取云区域信息
-        clouds = api.cmdb.search_cloud_area()
+        clouds = api.cmdb.search_cloud_area(bk_biz_id=params["bk_biz_id"])
 
         hosts = []
         for record in records:
             host = _host_from_raw(record, params["bk_biz_id"])
             if host is None:
                 continue
-            host = _host_full_cloud(host, clouds)
+            host = _host_full_cloud([host], clouds)
             hosts.append(Host(host))
 
         return hosts
@@ -412,9 +413,11 @@ class GetTopoTreeResource(Resource):
 class GetBusiness(Resource):
     """
     查询业务详情
+    TODO: 检查所有使用的地方，增加租户ID
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         bk_biz_ids = serializers.ListField(label="业务ID列表", child=serializers.IntegerField(), required=False, default=[])
         all = serializers.BooleanField(default=False, help_text="return all space list in Business")
         is_archived = serializers.BooleanField(default=False, help_text="if True return archived Business")
@@ -426,28 +429,30 @@ class GetBusiness(Resource):
                     break
             return attrs
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
         # 查询全部业务
-        if validated_request_data["is_archived"]:
-            response_data = client.search_business(condition={"bk_data_status": "disabled"})["info"]
+        if params["is_archived"]:
+            response_data = client.search_business(
+                bk_tenant_id=params["bk_tenant_id"], condition={"bk_data_status": "disabled"}
+            )["info"]
         else:
-            response_data = client.search_business()["info"]
+            response_data = client.search_business(bk_tenant_id=params["bk_tenant_id"])["info"]
 
-        if validated_request_data["all"]:
+        if params["all"]:
             # 额外空间列表
-            space_list = SpaceApi.list_spaces_dict()
+            space_list = SpaceApi.list_spaces_dict(bk_tenant_id=params["bk_tenant_id"])
             others = [s for s in space_list if s["bk_biz_id"] < 0]
             response_data += others
         # 按业务ID过滤出需要的业务信息
-        if "bk_biz_ids" in validated_request_data:
-            bk_biz_ids = set(validated_request_data["bk_biz_ids"])
+        if "bk_biz_ids" in params:
+            bk_biz_ids = set(params["bk_biz_ids"])
             if bk_biz_ids:
                 response_data = [topo for topo in response_data if topo["bk_biz_id"] in bk_biz_ids]
 
         # 查出业务中的用户字段，转换为列表
         member_fields = {
             attr["bk_property_id"]
-            for attr in client.search_object_attribute(bk_obj_id="biz")
+            for attr in client.search_object_attribute(bk_obj_id="biz", bk_tenant_id=params["bk_tenant_id"])
             if attr["bk_property_type"] == "objuser"
         }
 
@@ -629,13 +634,14 @@ class GetProcess(Resource):
 class GetObjectAttribute(Resource):
     """
     查询对象属性
+    TODO: 检查所有使用的地方，增加租户ID
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         bk_obj_id = serializers.CharField(label="模型ID")
 
-    def perform_request(self, validated_request_data):
-        params = {"bk_obj_id": validated_request_data["bk_obj_id"]}
+    def perform_request(self, params: dict):
         return client.search_object_attribute(params)
 
 
@@ -644,13 +650,14 @@ class GetBluekingBiz(Resource):
     查询对象属性
     """
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, params: dict):
         try:
             bk_biz_name = getattr(settings, "BLUEKING_NAME", "蓝鲸") or "蓝鲸"
             result = client.search_business(
                 dict(
                     fields=["bk_biz_id", "bk_biz_name"],
                     condition={"bk_biz_name": bk_biz_name},
+                    bk_tenant_id=DEFAULT_TENANT_ID,
                 )  # noqa
             )
         except BKAPIError as e:
@@ -680,9 +687,14 @@ class SearchServiceCategory(Resource):
 class SearchCloudArea(CacheResource):
     """
     查询云区域信息
+    TODO: 检查所有使用的地方，增加租户ID
     """
 
     cache_type = CacheType.CC_CACHE_ALWAYS
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
 
     def perform_request(self, params):
         return batch_request(client.search_cloud_area, params, limit=200)
@@ -794,10 +806,14 @@ class GetServiceInstanceByTemplate(Resource):
 class GetMainlineObjectTopo(Resource):
     """
     获取主线模型的业务拓扑
+    TODO: 检查所有使用的地方，增加租户ID
     """
 
-    def perform_request(self, params):
-        return client.get_mainline_object_topo()
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+
+    def perform_request(self, params: dict):
+        return client.get_mainline_object_topo(params)
 
 
 class FindHostByServiceTemplate(Resource):
@@ -814,9 +830,8 @@ def raw_hosts(cc_biz_id):
 
     hosts = get_host_dict_by_biz(cc_biz_id, Host.Fields)
     # 获取云区域信息
-    clouds = api.cmdb.search_cloud_area()
-    for host in hosts:
-        _host_full_cloud(host, clouds)
+    clouds = api.cmdb.search_cloud_area(bk_biz_id=cc_biz_id)
+    _host_full_cloud(hosts, clouds)
 
     full_host_topo_inst(cc_biz_id, hosts)
     return hosts
@@ -863,6 +878,7 @@ def full_host_topo_inst(bk_biz_id, host_list):
 
 class GetHostWithoutBiz(Resource):
     class RequestSerializer(HostRequestSerializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         ips = serializers.ListField(label="IP组", required=False)
         bk_host_ids = serializers.ListField(label="主机ID组", required=False)
         ip = serializers.CharField(label="IP关键字", required=False)
@@ -922,10 +938,12 @@ class GetHostWithoutBiz(Resource):
                 for host in search_result["info"]
             ]
         else:
+            request_params["bk_tenant_id"] = params["bk_tenant_id"]
             search_result = client.list_hosts_without_biz(request_params)
             if search_result["info"]:
                 relations = client.find_host_biz_relation(
-                    bk_host_id=[host["bk_host_id"] for host in search_result["info"]]
+                    bk_tenant_id=params["bk_tenant_id"],
+                    bk_host_id=[host["bk_host_id"] for host in search_result["info"]],
                 )
             else:
                 relations = []
@@ -943,7 +961,15 @@ class GetHostWithoutBiz(Resource):
 
 
 class GetHostWithoutBizV2(CacheResource, GetHostWithoutBiz):
+    """
+    获取主机列表（无业务）
+    TODO: 检查所有使用的地方，增加租户ID
+    """
+
     cache_type = CacheType.CC_BACKEND(timeout=60)
+
+    class RequestSerializer(HostRequestSerializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
 
     @classmethod
     def convert_host(cls, host: Dict[str, Any], **kwargs):
@@ -955,9 +981,8 @@ class GetHostWithoutBizV2(CacheResource, GetHostWithoutBiz):
         if not host_page["hosts"]:
             return host_page
 
-        clouds = api.cmdb.search_cloud_area()
-        for host in host_page["hosts"]:
-            _host_full_cloud(host, clouds)
+        clouds = api.cmdb.search_cloud_area(params)
+        _host_full_cloud(host_page["hosts"], clouds)
         return host_page
 
 

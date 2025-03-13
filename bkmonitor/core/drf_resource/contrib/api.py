@@ -12,6 +12,7 @@ specific language governing permissions and limitations under the License.
 import abc
 import json
 import logging
+from typing import Optional
 
 import requests
 import six
@@ -24,8 +25,11 @@ from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
 from requests.exceptions import HTTPError, ReadTimeout
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import Space
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.user import make_userinfo
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.contrib.cache import CacheResource
 from core.errors.api import BKAPIError
 from core.errors.iam import APIPermissionDeniedError
@@ -108,6 +112,10 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         """
         raise NotImplementedError
 
+    @method.setter
+    def method(self, value):
+        pass
+
     @staticmethod
     def split_request_data(data):
         """
@@ -128,6 +136,7 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         assert self.method.upper() in ["GET", "POST", "PUT", "DELETE", "PATCH"], _("method仅支持GET或POST或PUT或DELETE或PATCH")
         self.method = self.method.upper()
         self.session = requests.session()
+        self.bk_tenant_id: Optional[str] = None
 
     def request(self, request_data=None, **kwargs):
         request_data = request_data or kwargs
@@ -135,8 +144,9 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         if BK_USERNAME_FIELD in request_data:
             setattr(self, "bk_username", request_data[BK_USERNAME_FIELD])
 
+        # 如果参数中传递了租户ID，则记录下来，以便接口请求时使用
         if "bk_tenant_id" in request_data:
-            setattr(self, "bk_tenant_id", request_data["bk_tenant_id"])
+            self.bk_tenant_id = request_data["bk_tenant_id"]
 
         return super(APIResource, self).request(request_data, **kwargs)
 
@@ -181,16 +191,14 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         # 如果是后台请求，通过主动设置的参数或业务ID获取租户ID
         if settings.ENABLE_MULTI_TENANT_MODE:
             request = get_request(peaceful=True)
-            if getattr(self, "bk_tenant_id", None):
+            if self.bk_tenant_id:
                 headers["X-Bk-Tenant-Id"] = self.bk_tenant_id
             elif request and request.user.tenant_id:
                 headers["X-Bk-Tenant-Id"] = request.user.tenant_id
             else:
-                # TODO: 根据bk_biz_id获取租户ID
-                headers["X-Bk-Tenant-Id"] = "system"
-                # raise BKAPIError(system_name=self.module_name, url=self.action, result=_("租户ID获取失败"))
+                headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
         else:
-            headers["X-Bk-Tenant-Id"] = "default"
+            headers["X-Bk-Tenant-Id"] = DEFAULT_TENANT_ID
         return headers
 
     def perform_request(self, validated_request_data):
@@ -199,6 +207,20 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         """
         validated_request_data = dict(validated_request_data)
         validated_request_data = self.full_request_data(validated_request_data)
+
+        # 获取租户ID
+        if not self.bk_tenant_id:
+            if "bk_tenant_id" in validated_request_data:
+                # 如果传递了租户ID，则直接使用
+                self.bk_tenant_id = validated_request_data["bk_tenant_id"]
+            elif validated_request_data.get("bk_biz_id") or validated_request_data.get("space_uid"):
+                # 如果传递了业务ID或空间ID，则获取关联的租户ID
+                space: Optional[Space] = SpaceApi.get_space_detail(
+                    bk_biz_id=validated_request_data.get("bk_biz_id", 0),
+                    space_uid=validated_request_data.get("space_uid"),
+                )
+                if space:
+                    self.bk_tenant_id = space.bk_tenant_id
 
         # 拼接最终请求的url
         request_url = self.get_request_url(validated_request_data)

@@ -5,6 +5,8 @@ from typing import Union
 
 from django.conf import settings
 
+from constants.common import DEFAULT_TENANT_ID
+
 
 class SpaceTypeEnum(Enum):
     """
@@ -52,7 +54,7 @@ class Space:
     bk_biz_id: int
     is_demo: bool = False
     time_zone: str = "Asia/Shanghai"
-    bk_tenant_id: str = "default"
+    bk_tenant_id: str = DEFAULT_TENANT_ID
 
     @classmethod
     def from_dict(cls, data, cleaned=False):
