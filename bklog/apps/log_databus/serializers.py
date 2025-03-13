@@ -1480,6 +1480,8 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer):
     )
     data_link_id = serializers.CharField(label=_("数据链路id"), required=False, allow_blank=True, allow_null=True)
     custom_type = serializers.ChoiceField(label=_("日志类型"), choices=CustomTypeEnum.get_choices())
+    sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
+    target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
 
     def validate(self, attrs: dict) -> dict:
         attrs = super().validate(attrs)
