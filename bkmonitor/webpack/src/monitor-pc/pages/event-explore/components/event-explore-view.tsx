@@ -197,14 +197,12 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
   async getEventTotal() {
     if (!this.eventQueryParams) {
       this.total = 0;
-      this.tableRequestConfigs.total = 0;
       return;
     }
     const { total } = await getEventTotal(this.eventQueryParams, this.source).catch(() => ({
       total: 0,
     }));
     this.total = total;
-    this.tableRequestConfigs.total = total;
   }
 
   /** 更新 表格请求配置 */
@@ -219,13 +217,8 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
     this.tableRequestConfigs = {
       apiModule,
       apiFunc,
-      total: this.total ?? 0,
       loadingType,
-      data: {
-        ...this.eventQueryParams,
-        /** 表格单页条数 */
-        limit: 30,
-      },
+      data: this.eventQueryParams,
     };
   }
 
@@ -364,8 +357,10 @@ export default class EventExploreView extends tsc<IEventExploreViewProps, IEvent
             ref='eventExploreTableRef'
             fieldList={this.fieldList}
             filterMode={this.filterMode}
-            requestConfigs={this.tableRequestConfigs as EventExploreTableRequestConfigs}
+            limit={30}
+            requestConfigs={this.tableRequestConfigs}
             sourceEntities={this.sourceEntities}
+            total={this.total}
             onClearSearch={this.clearSearch}
             onConditionChange={this.conditionChange}
           />

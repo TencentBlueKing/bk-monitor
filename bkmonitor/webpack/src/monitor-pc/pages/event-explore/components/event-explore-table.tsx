@@ -51,7 +51,11 @@ import type { EmptyStatusType } from '../../../components/empty-status/types';
 import './event-explore-table.scss';
 
 interface EventExploreTableProps {
-  requestConfigs: EventExploreTableRequestConfigs;
+  requestConfigs: Omit<EventExploreTableRequestConfigs, 'limit' | 'offset'>;
+  /** 数据总数 */
+  total?: number;
+  /** 表格单页条数 */
+  limit?: number;
   fieldList: IDimensionField[];
   sourceEntities: ExploreEntitiesItem[];
   filterMode?: EMode;
@@ -75,6 +79,11 @@ const SourceIconMap = {
 export default class EventExploreTable extends tsc<EventExploreTableProps, EventExploreTableEvents> {
   /** 接口请求配置项 */
   @Prop({ type: Object, default: () => ({}) }) requestConfigs: EventExploreTableRequestConfigs;
+  /** 数据总数 */
+  @Prop({ type: Number, default: 0 }) total: number;
+  /** 表格单页条数 */
+  @Prop({ type: Number, default: 30 }) limit: number;
+
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Array, default: () => [] }) fieldList: IDimensionField[];
   /** expand 展开 kv 面板使用 */
@@ -114,9 +123,8 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    *
    */
   get tableHasScrollLoading() {
-    const total = this.requestConfigs?.total ?? 0;
     const dataLen = this.tableData?.length ?? 0;
-    return !!total && dataLen < total;
+    return dataLen < this.total;
   }
 
   /** table 空数据时显示样式类型 'search-empty'/'empty' */
@@ -264,6 +272,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     this.tableLoading[loadingType] = true;
     const requestParam = {
       ...data,
+      limit: this.limit,
       offset: this.tableData?.length || 0,
     };
 

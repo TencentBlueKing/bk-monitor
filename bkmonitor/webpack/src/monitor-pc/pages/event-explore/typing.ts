@@ -159,7 +159,7 @@ export interface EventExploreTableRequestConfigs {
   /** 触发的表格loading类型 */
   loadingType?: ExploreTableLoadingEnum;
   /** 表格请求所传的参数 */
-  data?: ExploreTableRequestParams;
+  data?: Omit<ExploreTableRequestParams, 'limit' | 'offset'>;
   /** 表格记录总数 */
   total?: number;
 }
