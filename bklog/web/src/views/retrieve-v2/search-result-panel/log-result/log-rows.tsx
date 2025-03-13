@@ -45,7 +45,7 @@ import { bkMessage } from 'bk-magic-vue';
 import { uniqueId, debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import PopInstanceUtil from '../../search-bar/pop-instance-util';
+import PopInstanceUtil from '../../../../global/pop-instance-util';
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';

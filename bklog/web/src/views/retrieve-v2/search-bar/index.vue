@@ -5,7 +5,7 @@
   import useStore from '@/hooks/use-store';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import { useRoute, useRouter } from 'vue-router/composables';
-  import PopInstanceUtil from './pop-instance-util';
+  import PopInstanceUtil from '../../../global/pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';

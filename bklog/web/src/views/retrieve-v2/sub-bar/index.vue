@@ -144,6 +144,7 @@
       <!-- <div style="min-width: 500px; height: 32px; background-color: #f0f1f5">采集项选择器</div> -->
       <QueryHistory @change="updateSearchParam"></QueryHistory>
     </div>
+
     <div class="box-right-option">
       <TimeSetting class="border-solo"></TimeSetting>
       <FieldSetting

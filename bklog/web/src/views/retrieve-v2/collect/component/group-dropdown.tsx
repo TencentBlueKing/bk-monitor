@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Input, Popover, Form, FormItem } from 'bk-magic-vue';
 
 import { IGroupItem, IFavoriteItem } from '../collect-index';
+import PopInstanceUtil from '../../../../global/pop-instance-util';
 
 import './group-dropdown.scss';
 
@@ -52,7 +53,6 @@ export default class CollectGroup extends tsc<IProps> {
   @Prop({ type: Object, required: true }) data: IFavoriteItem | IGroupItem; // 所有数据
 
   isShowNewGroupInput = false; // 是否展示新建分组
-  isShowResetGroupName = false; // 是否展示重命名组名
   groupEditName = ''; // 创建分组名称
   newGroupName = '';
   operatePopoverInstance = null; // 收藏操作实例例
@@ -90,6 +90,8 @@ export default class CollectGroup extends tsc<IProps> {
       },
     ],
   };
+
+  popToolInstance = null;
 
   @Ref('operate') private readonly operatePopoverRef: Popover; // 操作列表实例
   @Ref('groupMoveList') private readonly groupMoveListPopoverRef: Popover; // 移动到分组实例
@@ -146,13 +148,15 @@ export default class CollectGroup extends tsc<IProps> {
 
   /** 重命名 */
   handleResetGroupName() {
+    this.popToolInstance?.hide(100);
+    this.titlePopoverInstance?.hide(200);
+
     this.checkInputFormRef.validate().then(() => {
       this.handleUserOperate('reset-group-name', {
         group_id: this.data.group_id,
         group_new_name: this.verifyData.groupEditName,
       });
       this.verifyData.groupEditName = '';
-      this.isShowResetGroupName = false;
     });
   }
   /** 新增组 */
@@ -239,34 +243,83 @@ export default class CollectGroup extends tsc<IProps> {
   }
   handleHoverIcon(e) {
     if (!this.titlePopoverInstance) {
-      this.titlePopoverInstance = this.$bkPopover(e.target, {
-        content: this.titlePopoverRef,
-        interactive: true,
-        theme: 'light',
-        arrow: false,
-        placement: 'bottom-start',
-        boundary: 'viewport',
-        extCls: 'more-container',
-        distance: 4,
-        zIndex: 999,
-        onHidden: () => {
-          this.titlePopoverInstance?.destroy();
-          this.titlePopoverInstance = null;
-          this.clearStatus();
+      this.titlePopoverInstance = new PopInstanceUtil({
+        refContent: this.titlePopoverRef,
+        onHiddenFn: () => {
+          this.isGroupNameEditShown = false;
+          requestAnimationFrame(() => {
+            this.titlePopoverInstance = null;
+          });
+          return true;
+        },
+        tippyOptions: {
+          interactive: true,
+          theme: 'light',
+          arrow: false,
+          placement: 'bottom-start',
+          zIndex: 999,
         },
       });
-      this.titlePopoverInstance.show(100);
     }
+
+    this.titlePopoverInstance?.cancelHide();
+    this.titlePopoverInstance.show(e.target);
   }
 
-  handleResetGroupTitleName() {
+  handleHiddenIcon() {
+    this.titlePopoverInstance?.hide(300);
+  }
+
+  isGroupNameEditShown = false;
+  handleResetGroupTitleName(e: MouseEvent) {
     this.verifyData.groupEditName = this.groupName;
-    this.isShowResetGroupName = true;
+
+    if (this.popToolInstance === null) {
+      this.popToolInstance = new PopInstanceUtil({
+        refContent: this.$refs.refGroupNameEdit as HTMLElement,
+        onHiddenFn: () => {
+          this.isGroupNameEditShown = false;
+          this.titlePopoverInstance?.setProps({ hideOnClick: true });
+          this.titlePopoverInstance?.hide(100);
+          return true;
+        },
+        onShowFn: () => {
+          this.titlePopoverInstance?.setProps({ hideOnClick: false });
+          this.titlePopoverInstance?.cancelHide();
+          return true;
+        },
+        tippyOptions: {
+          placement: 'bottom-start',
+          zIndex: 200,
+          appendTo: document.body,
+          interactive: true,
+          theme: 'light',
+          arrow: true,
+        },
+      });
+    }
+
+    this.popToolInstance.show(e.target);
+    this.isGroupNameEditShown = true;
+  }
+
+  handleCancelGroupTitleName() {
+    this.verifyData.groupEditName = '';
+    this.popToolInstance?.hide(100);
+  }
+
+  handleHoverGroupEditContent() {
+    this.titlePopoverInstance?.cancelHide();
+  }
+
+  handleLeaveGroupEditContent() {
+    if (!this.popToolInstance.isShown()) {
+      this.titlePopoverInstance?.hide(300);
+    }
   }
 
   clearStatus() {
     this.isShowNewGroupInput = false;
-    this.isShowResetGroupName = false;
     this.verifyData.groupEditName = '';
   }
 
@@ -282,103 +335,11 @@ export default class CollectGroup extends tsc<IProps> {
       <div style={{ display: 'none' }}>
         <ul
           ref='titleDrop'
-          class='dropdown-list add-new-page-container'
+          class='dropdown-list bklog-v3-favorite-group-root'
+          onMouseenter={this.handleHoverGroupEditContent}
+          onMouseleave={this.handleLeaveGroupEditContent}
         >
-          {/* {this.isShowResetGroupName ? (
-            <li class='add-new-page-input new-page-input-padding '>
-              <Form
-                ref='checkInputForm'
-                labelWidth={0}
-                {...{
-                  props: {
-                    model: this.verifyData,
-                    rules: this.rules,
-                  },
-                }}
-              >
-                <FormItem
-                  error-display-type='normal'
-                  property='groupEditName'
-                >
-                  <Input
-                    vModel={this.verifyData.groupEditName}
-                    placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入') })}
-                    clearable
-                    onEnter={v => this.handleGroupKeyDown(v, 'reset')}
-                  ></Input>
-                </FormItem>
-              </Form>
-              <div class='operate-button'>
-                <span
-                  class='bk-icon icon-check-line'
-                  onClick={this.handleResetGroupName}
-                ></span>
-                <span
-                  style='color:#E71818'
-                  class='bk-icon icon-close-line-2'
-                  onClick={() => {
-                    this.isShowResetGroupName = false;
-                    this.verifyData.groupEditName = '';
-                  }}
-                ></span>
-              </div>
-            </li>
-            <li>gwiuehgiuewhbiu</li>
-          ) : (
-            <li onClick={() => this.handleResetGroupTitleName()}>{this.$t('重命名')}</li>
-          )} */}
-          <Popover
-            ref='popoverGroup'
-            ext-cls='new-group-popover'
-            placement='bottom-start'
-            tippy-options={this.tippyOption}
-          >
-            <li onClick={() => this.handleResetGroupTitleName()}>{this.$t('重命名')}</li>
-            <div slot='content'>
-              <Form
-                ref='checkInputForm'
-                labelWidth={0}
-                {...{
-                  props: {
-                    model: this.verifyData,
-                    rules: this.rules,
-                  },
-                }}
-              >
-                <FormItem
-                  error-display-type='normal'
-                  property='groupEditName'
-                >
-                  <span style={{ fontSize: '14px' }}>
-                    分组名称 <span style='color:red'>*</span>
-                  </span>
-                  <Input
-                    vModel={this.verifyData.groupEditName}
-                    placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入') })}
-                    clearable
-                    onEnter={v => this.handleGroupKeyDown(v, 'reset')}
-                  ></Input>
-                </FormItem>
-              </Form>
-              <div class='operate-button'>
-                <span
-                  class='operate-button-custom button-first'
-                  onClick={this.handleResetGroupName}
-                >
-                  {this.$t('确定')}
-                </span>
-                <span
-                  class='operate-button-custom button-second'
-                  onClick={() => {
-                    this.isShowResetGroupName = false;
-                    this.verifyData.groupEditName = '';
-                  }}
-                >
-                  {this.$t('取消')}
-                </span>
-              </div>
-            </div>
-          </Popover>
+          <li onClick={this.handleResetGroupTitleName}>{this.$t('重命名')}</li>
           <li
             class='eye-catching'
             onClick={() => this.handleClickLi('dismiss-group')}
@@ -493,6 +454,7 @@ export default class CollectGroup extends tsc<IProps> {
             <div
               class='more-container'
               onMouseenter={this.handleHoverIcon}
+              onMouseleave={this.handleHiddenIcon}
             >
               <span
                 class='title-number'
@@ -502,8 +464,8 @@ export default class CollectGroup extends tsc<IProps> {
               </span>
               <div
                 style='margin-right:2px'
-                class={['more-box', this.titlePopoverInstance !== null && 'is-click']}
-                v-show={this.isHoverTitle || this.titlePopoverInstance !== null}
+                class={['more-box', (this.titlePopoverInstance !== null || this.isGroupNameEditShown) && 'is-click']}
+                v-show={this.isHoverTitle || this.titlePopoverInstance !== null || this.isGroupNameEditShown}
               >
                 <span
                   style='font-size:18px'
@@ -533,6 +495,54 @@ export default class CollectGroup extends tsc<IProps> {
             {groupList()}
           </div>
         )}
+
+        <div style='display:none;'>
+          <div
+            ref='refGroupNameEdit'
+            onMouseenter={this.handleHoverIcon}
+            class='bklog-v3-favorite-group-edit'
+          >
+            <Form
+              ref='checkInputForm'
+              labelWidth={0}
+              {...{
+                props: {
+                  model: this.verifyData,
+                  rules: this.rules,
+                },
+              }}
+            >
+              <FormItem
+                error-display-type='normal'
+                property='groupEditName'
+              >
+                <span style={{ fontSize: '14px' }}>
+                  分组名称 <span style='color:red'>*</span>
+                </span>
+                <Input
+                  vModel={this.verifyData.groupEditName}
+                  placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入') })}
+                  clearable
+                  onEnter={v => this.handleGroupKeyDown(v, 'reset')}
+                ></Input>
+              </FormItem>
+            </Form>
+            <div class='operate-button'>
+              <span
+                class='operate-button-custom button-first'
+                onClick={this.handleResetGroupName}
+              >
+                {this.$t('确定')}
+              </span>
+              <span
+                class='operate-button-custom button-second'
+                onClick={this.handleCancelGroupTitleName}
+              >
+                {this.$t('取消')}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
