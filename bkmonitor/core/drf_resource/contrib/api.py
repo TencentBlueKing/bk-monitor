@@ -76,28 +76,32 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
     IS_STANDARD_FORMAT = True
     METRIC_REPORT_NOW = True
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def base_url(self):
         """
         api gateway 基本url生成规则
         """
         raise NotImplementedError
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def module_name(self):
         """
         在apigw中的模块名
         """
         raise NotImplementedError
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def action(self):
         """
         url的后缀，通常是指定特定资源
         """
         raise NotImplementedError
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def method(self):
         """
         请求方法，仅支持GET或POST
@@ -137,6 +141,10 @@ class APIResource(six.with_metaclass(abc.ABCMeta, CacheResource)):
         return super(APIResource, self).request(request_data, **kwargs)
 
     def full_request_data(self, validated_request_data):
+        # 如果请求参数中传递了用户信息，则直接返回
+        if "bk_username" in validated_request_data:
+            return validated_request_data
+
         # 组装通用参数： 1. 用户信息 2. SaaS凭证
         if hasattr(self, "bk_username"):
             validated_request_data.update({BK_USERNAME_FIELD: self.bk_username})
