@@ -19,12 +19,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf.urls import url
+from django.urls import re_path
 
 from . import views
 
 urlpatterns = [
-    url(r"^$", views.SwitchOrgView.as_view()),
-    url(r"^public/", views.StaticView.as_view()),
-    url(r"^", views.ProxyView.as_view()),
+    re_path(r"^$", views.SwitchOrgView.as_view()),
+    re_path(r"^public/", views.StaticView.as_view()),
+    re_path(r"^", views.ProxyView.as_view()),
 ]

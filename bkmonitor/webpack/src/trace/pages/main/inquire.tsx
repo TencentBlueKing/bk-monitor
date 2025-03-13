@@ -1278,7 +1278,10 @@ export default defineComponent({
           autoQuery={state.autoQuery}
           canQuery={true}
           onChangeAutoQuery={handleAutoQueryChange}
-          onClear={() => (traceIDSearchValue.value = '')}
+          onClear={() => {
+            traceIDSearchValue.value = '';
+            state.isAlreadyAccurateQuery = false;
+          }}
           onQuery={handleQueryTraceId}
         />
       </div>
@@ -1557,10 +1560,11 @@ export default defineComponent({
           (
             <VerifyInput>
               <Input
+                style='min-height: 70px;'
                 v-model={queryString.value}
                 placeholder={t('输入')}
-                rows={3}
                 type='textarea'
+                autosize
                 onBlur={handleScopeQueryChange}
               />
             </VerifyInput>

@@ -574,10 +574,18 @@
     margin-right: 6px;
     font-size: 16px;
     border-radius: 100%;
+
+    .icon-fuwumokuai {
+      font-size: 12px;
+    }
   }
 
   .edge-item-source {
     font-size: 28px;
+  }
+
+  .edge-item-source.icon-fuwumokuai {
+    font-size: 24px;
   }
 
   .item-source-normal {

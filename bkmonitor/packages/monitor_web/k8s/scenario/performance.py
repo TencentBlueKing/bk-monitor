@@ -57,8 +57,8 @@ def get_metrics() -> List:
             name=_lazy("内存"),
             children=[
                 Metric(
-                    id="container_memory_rss",
-                    name=_lazy("内存使用量(rss)"),
+                    id="container_memory_working_set_bytes",
+                    name=_lazy("内存使用量(Working Set)"),
                     unit="bytes",
                     unsupported_resource=[],
                 ),

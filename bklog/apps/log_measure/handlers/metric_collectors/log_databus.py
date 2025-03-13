@@ -19,39 +19,36 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-import re
 import time
 from collections import defaultdict
-from typing import List
 
 from django.conf import settings
 from django.db.models import Count
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import NodeApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import SCENARIO_BKDATA
 from apps.log_databus.constants import DEFAULT_ETL_CONFIG, EtlConfig
-from apps.log_databus.models import CollectorConfig, BKDataClean
+from apps.log_databus.models import BKDataClean, CollectorConfig
 from apps.log_measure.constants import (
-    INDEX_FORMAT,
-    COMMON_INDEX_RE,
-    TABLE_BKUNIFYBEAT_TASK,
     FIELD_CRAWLER_RECEIVED,
     FIELD_CRAWLER_STATE,
-    MAX_RETRY_QUERY_SUBSCRIPTION_TIMES,
-    TIME_WAIT_QUERY_SUBSCRIPTION_EXCEPTION,
+    INDEX_FORMAT,
     MAX_QUERY_SUBSCRIPTION,
+    MAX_RETRY_QUERY_SUBSCRIPTION_TIMES,
+    TABLE_BKUNIFYBEAT_TASK,
+    TIME_WAIT_QUERY_SUBSCRIPTION_EXCEPTION,
 )
 from apps.log_measure.utils.metric import MetricUtils
 from apps.log_search.constants import CollectorScenarioEnum, TimeEnum
 from apps.log_search.models import LogIndexSet
-from apps.utils.db import array_group, array_chunk
+from apps.utils.db import array_chunk, array_group
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bk_monitor.api.client import Client
 from bk_monitor.constants import TimeFilterEnum
-from bk_monitor.utils.metric import register_metric, Metric
+from bk_monitor.utils.metric import Metric, register_metric
 from config.domains import MONITOR_APIGATEWAY_ROOT
 
 
@@ -125,76 +122,6 @@ class CollectMetricCollector(object):
                 timestamp=MetricUtils.get_instance().report_ts,
             )
         )
-        return metrics
-
-    @staticmethod
-    @register_metric(
-        "collector_capacity",
-        prefix="es",
-        description=_("采集项容量"),
-        data_name="metric",
-        time_filter=TimeFilterEnum.MINUTE5,
-    )
-    def collector_capacity():
-        """
-        collector_capacity
-        @return:
-        """
-        has_table_id_collects: List[CollectorConfig] = CollectorConfig.objects.filter(
-            table_id__isnull=False,
-        ).all()
-        metrics = []
-
-        table_id_map_indices = defaultdict(list)
-        all_indices = CollectMetricCollector._get_all_cluster_indices()
-        for indices in all_indices:
-            for collect in has_table_id_collects:
-                index_re = re.compile(COMMON_INDEX_RE.format(collect.table_id))
-                if index_re.match(indices.get("index", "")):
-                    table_id_map_indices[collect.table_id].append(indices)
-
-        for collect in has_table_id_collects:
-            cur_cap = sum(
-                [
-                    float(indices.get("store.size", 0))
-                    for indices in table_id_map_indices.get(collect.table_id, [])
-                    if indices.get("store.size")
-                ]
-            )
-            docs_count = sum(
-                [
-                    int(indices.get("docs.count", 0))
-                    for indices in table_id_map_indices.get(collect.table_id, [])
-                    if indices.get("docs.count")
-                ]
-            )
-            metrics.append(
-                Metric(
-                    metric_name="store_sum",
-                    metric_value=cur_cap,
-                    dimensions={
-                        "collector_config_id": collect.collector_config_id,
-                        "collector_config_name": collect.collector_config_name,
-                        "bk_biz_id": collect.bk_biz_id,
-                        "bk_biz_name": MetricUtils.get_instance().get_biz_name(collect.bk_biz_id),
-                    },
-                    timestamp=MetricUtils.get_instance().report_ts,
-                )
-            )
-            # 指标docs.count
-            metrics.append(
-                Metric(
-                    metric_name="docs_count",
-                    metric_value=docs_count,
-                    dimensions={
-                        "collector_config_id": collect.collector_config_id,
-                        "collector_config_name": collect.collector_config_name,
-                        "bk_biz_id": collect.bk_biz_id,
-                        "bk_biz_name": MetricUtils.get_instance().get_biz_name(collect.bk_biz_id),
-                    },
-                    timestamp=MetricUtils.get_instance().report_ts,
-                )
-            )
         return metrics
 
     @staticmethod

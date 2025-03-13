@@ -1,12 +1,13 @@
 .collection-favorite-popover {
-  .bk-form-input[readonly], .bk-form-textarea[readonly] {
+  .bk-form-input[readonly],
+  .bk-form-textarea[readonly] {
     /* stylelint-disable-next-line declaration-no-important */
-    background-color: #F0F1F5!important;
+    background-color: #f0f1f5 !important;
   }
 
   .popover-title-content {
     margin-bottom: 10px;
-  
+
     .dialog-title {
       height: 24px;
       font-size: 16px;
@@ -58,12 +59,12 @@
       text-align: right;
     }
   }
-  
+
   .add-popover-new-page-container {
     .tippy-tooltip[data-size='small'] {
       height: auto;
       padding: 0;
-      box-shadow: 0 3px 9px 0 rgba(0, 0, 0, .1)
+      box-shadow: 0 3px 9px 0 rgba(0, 0, 0, 0.1);
     }
 
     .bk-tooltip-content {
@@ -96,34 +97,28 @@
   }
 }
 
-.bk-dropdown-menu{
-  .bk-dropdown-list{
-      li>.disabled:hover {
-        color: #dcdee5 ;
-      }
+.bk-dropdown-menu {
+  .bk-dropdown-list {
+    li > .disabled:hover {
+      color: #dcdee5;
+    }
 
-      .disabled {
-      color: #dcdee5 ;
+    .disabled {
+      color: #dcdee5;
       cursor: not-allowed;
     }
   }
-  
-  .bk-dropdown-trigger{
+
+  .bk-dropdown-trigger {
     .icon-save {
       display: flex;
       align-items: center;
       justify-content: center;
       width: 24px;
       height: 24px;
-      font-size: 18px;
-      color: #63656e;
+      font-size: 16px;
       cursor: pointer;
       border-radius: 2px;
     }
   }
 }
-
-
-
-
-

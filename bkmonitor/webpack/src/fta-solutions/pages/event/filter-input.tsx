@@ -170,6 +170,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   isManualInput = false; // 是否手动输入
   isShowDropdown = false; // 是否展示仅直接输入文本弹窗
   isOnlyInput = false; // 是否仅直接输入
+  suggestionSelectedIndex = 0; // 搜索框下拉框选中项
   previousValue = '';
   textList: FilterText[] = [];
   isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
@@ -985,7 +986,8 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   handleKeydown(e: KeyboardEvent) {
     if (e.code === 'Enter') {
       if (this.isOnlyInput && this.inputValue.trim()) {
-        this.selectSuggestion('exact');
+        const selectedType = this.suggestionTypes[this.suggestionSelectedIndex].type;
+        this.selectSuggestion(selectedType);
       }
       e.preventDefault();
       e.stopPropagation();
@@ -994,6 +996,12 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
       setTimeout(() => {
         this.handleInputFocus();
       }, 16);
+    } else if (['ArrowUp', 'ArrowDown'].includes(e.code) && this.isShowDropdown) {
+      e.preventDefault();
+      this.suggestionSelectedIndex =
+        e.code === 'ArrowDown'
+          ? (this.suggestionSelectedIndex + 1) % this.suggestionTypes.length
+          : (this.suggestionSelectedIndex - 1 + this.suggestionTypes.length) % this.suggestionTypes.length;
     } else {
       // 是否手动输入
       this.isManualInput = true;
@@ -1311,7 +1319,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             {this.suggestionTypes.map((item, index) => (
               <div
                 key={item.type}
-                class={['suggestion-container', { active: index === 0 }]}
+                class={['suggestion-container', { active: this.suggestionSelectedIndex === index }]}
                 onMousedown={() => this.selectSuggestion(item.type)}
               >
                 <div

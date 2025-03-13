@@ -14,12 +14,12 @@ from typing import Dict, List, Tuple
 
 from django.db import models
 from django.utils.translation import gettext as _
-from monitor_web.models import CustomTSGroupingRule, CustomTSItem, CustomTSTable
+
+from constants.data_source import DataSourceLabel, DataTypeLabel
+from monitor_web.models import CustomTSField, CustomTSGroupingRule, CustomTSTable
 from monitor_web.models.scene_view import SceneViewModel
 from monitor_web.scene_view.builtin.collect import CollectBuiltinProcessor
 from monitor_web.scene_view.builtin.utils import get_variable_filter_dict, sort_panels
-
-from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
 def get_order_config(view: SceneViewModel) -> List:
@@ -33,27 +33,29 @@ def get_order_config(view: SceneViewModel) -> List:
     table = CustomTSTable.objects.get(
         models.Q(bk_biz_id=view.bk_biz_id) | models.Q(is_platform=True), pk=custom_metric_id
     )
-    fields = CustomTSItem.objects.filter(table=table).exclude(label=[])
+    fields = CustomTSField.objects.filter(
+        time_series_group_id=table.time_series_group_id, type=CustomTSField.MetricType.METRIC
+    )
     groups = CustomTSGroupingRule.objects.filter(time_series_group_id=table.time_series_group_id)
     group_map = {group.name: group for group in groups}
 
     label_fields = defaultdict(list)
     for field in fields:
-        for label in field.label:
+        for label in field.config.get("label", []):
             match_type = set()
             match_rules = []
             group = group_map[label]
-            if field.metric_name in group.manual_list:
+            if field.name in group.manual_list:
                 match_type.add("manual")
             for rule in group.auto_rules:
-                if re.search(rule, field.metric_name):
+                if re.search(rule, field.name):
                     match_type.add("auto")
                     match_rules.append(rule)
             label_fields[label].append(
                 {
                     "match_type": list(match_type),
-                    "metric_name": field.metric_name,
-                    "hidden": field.hidden,
+                    "metric_name": field.name,
+                    "hidden": field.disabled or field.config.get("hidden", False),
                     "match_rules": match_rules,
                 }
             )

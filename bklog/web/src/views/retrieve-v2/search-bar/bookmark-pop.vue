@@ -244,25 +244,23 @@
       display_fields,
       visible_type: group_id === privateGroupID.value ? 'private' : 'public',
       is_enable_display_fields,
-      index_set_name: indexSetName.value,
       search_mode: props.searchMode,
       ip_chooser: formatAddition.value.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
       index_set_ids: [],
       index_set_names: [],
+      space_uid: spaceUid.value,
       ...searchParams,
     };
-
-    Object.assign(data, {
-      index_set_id: store.state.indexId,
-      space_uid: spaceUid.value,
-    });
-
     if (indexSetItem.value.isUnionIndex) {
       Object.assign(data, {
         index_set_ids: indexSetItem.value.ids,
-        index_set_names: indexSetItemList.value?.map(item => item?.index_set_name),
-        space_uid: spaceUid.value,
+        index_set_type: 'union',
       });
+    }else{
+      Object.assign(data, {
+      index_set_id: store.state.indexId,
+      index_set_type: 'single',
+    });
     }
 
     const requestStr = 'createFavorite';
@@ -369,13 +367,12 @@
         <template slot="dropdown-trigger">
             <div
               v-bk-tooltips="$t('收藏')"
-              style="color: #63656e"
               class="icon bk-icon icon-save"
             ></div>
         </template>
         <ul class="bk-dropdown-list" slot="dropdown-content">
-            <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentFavorite">覆盖当前收藏</a></li>
-            <li><a href="javascript:;" @click.stop="handleCollection">另存为新收藏</a></li>
+            <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentFavorite">{{ $t('覆盖当前收藏') }}</a></li>
+            <li><a href="javascript:;" @click.stop="handleCollection">{{ $t('另存为新收藏') }}</a></li>
         </ul>
     </bk-dropdown-menu>
     <template #content>

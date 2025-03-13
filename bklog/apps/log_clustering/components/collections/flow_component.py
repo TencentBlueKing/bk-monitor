@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from pipeline.builder import ServiceActivity, Var
 from pipeline.component_framework.component import Component
 from pipeline.core.flow.activity import StaticIntervalGenerator
@@ -29,7 +29,7 @@ from apps.log_clustering.constants import StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_search.constants import InnerTag, DataFlowResourceUsageType
+from apps.log_search.constants import DataFlowResourceUsageType, InnerTag
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet
 from apps.utils.function import ignored

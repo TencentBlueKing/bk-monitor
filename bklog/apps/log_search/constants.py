@@ -23,7 +23,7 @@ from enum import Enum
 
 from django.apps import apps
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
@@ -1099,7 +1099,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time",
                 "name": "YYYY-MM-DDTHH:mm:ss.SSSZ",
-                "description": "2006-01-02T15:04:05.000-07:00",
+                "description": "2006-01-02T15:04:05.000-0700",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
@@ -1121,7 +1121,7 @@ class FieldDateFormatEnum(ChoicesEnum):
             {
                 "id": "strict_date_time_no_millis",
                 "name": "YYYY-MM-DDTHH:mm:ssZ",
-                "description": "2006-01-02T15:04:05-07:00",
+                "description": "2006-01-02T15:04:05-0700",
                 "es_format": "epoch_millis",
                 "es_type": "date",
             },
@@ -1655,8 +1655,8 @@ SEARCH_OPTION_HISTORY_NUM = 20
 MAX_FIELD_VALUE_LIST_NUM = 10000
 
 # SQL模板
-SQL_PREFIX = "SELECT DATE_TRUNC(MAX(dtEventTime), 'minute') AS dtEventTime, COUNT(*) AS log_count"
-SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 10"
+SQL_PREFIX = "SELECT minute1, COUNT(*) AS log_count"
+SQL_SUFFIX = "GROUP BY minute1 ORDER BY minute1 DESC LIMIT 100"
 
 # 日志检索条件到sql操作符的映射
 SQL_CONDITION_MAPPINGS = {

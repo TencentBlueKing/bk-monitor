@@ -117,6 +117,7 @@ export default defineComponent({
   emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh'],
   setup(props, { emit }) {
     const router = useRouter();
+    const bkzIds = inject<Ref<string[]>>('bkzIds');
     /** 缓存resize render后执行的回调函数，主要用于点击播放之前收起右侧资源图时的回调 */
     const resizeCacheCallback = ref(null);
     const detailInfo = ref({});
@@ -1228,6 +1229,31 @@ export default defineComponent({
       return false;
     };
 
+    const fixLayoutPosition = () => {
+      let top = Number.POSITIVE_INFINITY;
+      let left = Number.POSITIVE_INFINITY;
+      let comboLen = 0;
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      graph.getCombos().forEach(combo => {
+        const model = combo.getModel();
+        if (!model.parentId) {
+          comboLen += 1;
+          const { x, y, width, height } = model as { [key: string]: number };
+          // const [width, height] = model.fixSize as [number, number];
+          top = Math.min(top, y - height / 2);
+          left = Math.min(left, x - width / 2);
+        }
+      });
+      // 视图宽度与容器宽度不一致，容器还有margin等需要修复
+      // if (left < 0 && diffWidth < 0) {
+      //   left = left + diffWidth / 2;
+      // }
+      // 只有一个combo时，combo上下没有间距所以需要修复40px 修正combo顶部的间距及算法导致的差异
+      return {
+        left: left < 0 ? Math.abs(left) + 20 : 20,
+        top: top < 0 ? Math.abs(top) + (comboLen === 1 ? 40 : 0) : 0,
+      };
+    };
     /** 移动根因节点到画布中心 */
     const moveRootNodeCenter = (isRecordMatrix = false) => {
       if (isRecordMatrix) {
@@ -1240,25 +1266,28 @@ export default defineComponent({
       } else {
         const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
         const node = graph.findById(resourceNodeId.value || rootNode.id);
+        const graphWidth = graph.get('width');
+        const graphHeight = graph.get('height');
+        let dy = 0;
+        let dx = 0;
         if (!isNodeOutOfCanvas(node)) {
+          const { left, top } = fixLayoutPosition();
+          graph.translate(dx + left, dy + top + 40);
           return;
         }
         // x轴居中，y轴在视图范围内即可
         const { x, y, height } = node.getModel();
-        const graphWidth = graph.get('width');
-        const graphHeight = graph.get('height');
         const centerX = graphWidth / 2;
-        const dx = centerX - x;
+        dx = centerX - x;
         const h = (height as number) / 2;
         // 计算 y 轴上的偏移量，使节点在画布范围内
-        let dy = 0;
         if (y < h) {
           dy = h - y; // 节点超过上边界
         } else if (y > graphHeight - h) {
           dy = graphHeight - h - y; // 节点超过下边界
         }
-
-        graph.translate(dx, dy);
+        const { left, top } = fixLayoutPosition();
+        graph.translate(dx + left, dy + top);
       }
     };
     /** 错误的线置于顶层 */
@@ -1947,6 +1976,8 @@ export default defineComponent({
         query.start_time = observe_time_rage.start_at;
         query.end_time = observe_time_rage.end_at;
       }
+      const { origin, pathname } = window.location;
+      const baseUrl = bkzIds.value[0] ? `${origin}${pathname}?bizId=${bkzIds.value[0]}` : '';
       const newPage = router.resolve({
         path: '/trace/home',
         query: {
@@ -1960,7 +1991,7 @@ export default defineComponent({
           ...query,
         },
       });
-      window.open(newPage.href, '_blank');
+      window.open(baseUrl + newPage.href, '_blank');
     };
     const handleToDetailTab = node => {
       const { alert_display, alert_ids } = node;

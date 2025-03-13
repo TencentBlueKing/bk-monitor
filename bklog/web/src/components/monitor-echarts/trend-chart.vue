@@ -21,7 +21,7 @@
 
   const refDataTrendCanvas = ref(null);
 
-  const handleChartDataZoom = inject('handleChartDataZoom', () => { });
+  const handleChartDataZoom = inject('handleChartDataZoom', () => {});
   const { initChartData, setChartData, clearChartData } = useTrendChart({
     target: refDataTrendCanvas,
     handleChartDataZoom,
@@ -36,16 +36,18 @@
   let logChartCancel = null;
 
   const handleRequestSplit = (startTime, endTime) => {
-    const duration = (endTime - startTime) / 3600;
+    const duration = (endTime - startTime) / 3600000;
     if (duration <= 6) {
       // 小于6小时 一次性请求
       return 0;
     }
     if (duration < 48) {
       // 小于24小时 6小时间隔
-      return 21600;
-    } // 大于1天 按0.5天请求
-    return 86400 / 2;
+      return 21600 * 1000;
+    }
+
+    // 大于1天 按0.5天请求
+    return (86400 * 1000) / 2;
   };
 
   let runningInterval = 'auto';
@@ -97,7 +99,7 @@
       const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
       const queryData = {
         ...retrieveParams.value,
-        addition: [...retrieveParams.value.addition, ...retrieveParams.value.common_filter_addition],
+        addition: [...retrieveParams.value.addition, ...store.getters.common_filter_addition],
         time_range: 'customized',
         interval: runningInterval,
         // 每次轮循的起始时间
@@ -200,8 +202,14 @@
   };
 </script>
 <template>
-  <div v-bkloading="{ isLoading: isRenderLoading }" class="monitor-echart-wrap">
-    <div ref="refDataTrendCanvas" style="height: 110px"></div>
+  <div
+    v-bkloading="{ isLoading: isRenderLoading }"
+    class="monitor-echart-wrap"
+  >
+    <div
+      ref="refDataTrendCanvas"
+      style="height: 110px"
+    ></div>
   </div>
 </template>
 <style lang="scss" scoped>

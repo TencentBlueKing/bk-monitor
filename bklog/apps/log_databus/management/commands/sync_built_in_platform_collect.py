@@ -23,6 +23,10 @@ the project delivered to anyone in the future.
 import os
 
 import yaml
+from django.conf import settings
+from django.core.management.base import BaseCommand
+from django.utils.translation import gettext as _
+
 from apps.api import TransferApi
 from apps.exceptions import ApiResultError
 from apps.log_databus.constants import (
@@ -37,9 +41,6 @@ from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.serializers import CollectorEtlStorageSerializer
 from apps.log_search.constants import CollectorScenarioEnum, EncodingsEnum
-from django.conf import settings
-from django.core.management.base import BaseCommand
-from django.utils.translation import ugettext as _
 
 
 class Command(BaseCommand):

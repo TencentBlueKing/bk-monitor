@@ -175,7 +175,7 @@
         this.fetchTableData();
       },
       fetchChartData() {
-        const tempList = handleTransformToTimestamp(this.chartDateValue);
+        const tempList = handleTransformToTimestamp(this.chartDateValue, this.$store.getters.retrieveParams.format);
         const payload = {
           params: {
             index_set_id: this.indexSetId,
@@ -249,7 +249,7 @@
       async fetchTableData() {
         try {
           this.tableLoading = true;
-          const tempList = handleTransformToTimestamp(this.tableDateValue);
+          const tempList = handleTransformToTimestamp(this.tableDateValue, this.$store.getters.retrieveParams.format);
           const res = await this.$http.request('indexSet/getIndexHistory', {
             params: {
               index_set_id: this.indexSetId,

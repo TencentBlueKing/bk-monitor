@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, provide } from 'vue';
+import { computed, defineComponent, ref, watch, h, Ref, provide, onBeforeUnmount } from 'vue';
 
 import {
   parseTableRowData,
@@ -39,11 +39,13 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
+import aiBlueking from '@/images/ai/ai-blueking.svg';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
 import { uniqueId, debounce } from 'lodash';
 import { useRoute, useRouter } from 'vue-router/composables';
 
+import PopInstanceUtil from '../../search-bar/pop-instance-util';
 import ExpandView from '../original-log/expand-view.vue';
 import OperatorTools from '../original-log/operator-tools.vue';
 import { getConditionRouterParams } from '../panel-util';
@@ -76,9 +78,6 @@ type RowConfig = {
   rowMinHeight?: number;
 };
 
-// type RowData = Record<string, any>;
-// type ColumnFiled = Record<string, any>;
-
 export default defineComponent({
   props: {
     contentType: {
@@ -92,6 +91,14 @@ export default defineComponent({
     const { $t } = useLocale();
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
+    const popInstanceUtil = new PopInstanceUtil({
+      refContent: ref('智能分析'),
+      tippyOptions: {
+        appendTo: document.body,
+        placement: 'top',
+        theme: 'dark',
+      },
+    });
 
     const pageIndex = ref(1);
     // 前端本地分页
@@ -130,6 +137,15 @@ export default defineComponent({
     });
 
     const apmRelation = computed(() => store.state.indexSetFieldConfig.apm_relation);
+    const showAiAssistant = computed(() => {
+      const ai_assistant = window.FEATURE_TOGGLE?.ai_assistant;
+      if (ai_assistant === 'debug') {
+        const whiteList = (window.FEATURE_TOGGLE_WHITE_LIST?.ai_assistant ?? []).map(id => `${id}`);
+        return whiteList.includes(store.state.bkBizId) || whiteList.includes(store.state.spaceUid);
+      }
+
+      return ai_assistant === 'on';
+    });
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
@@ -354,7 +370,14 @@ export default defineComponent({
             return (
               // @ts-ignore
               <OperatorTools
-                handle-click={event => props.handleClickTools(event, row, indexSetOperatorConfig.value)}
+                handle-click={event =>
+                  props.handleClickTools(
+                    event,
+                    row,
+                    indexSetOperatorConfig.value,
+                    tableRowConfig.get(row).value[ROW_INDEX] + 1,
+                  )
+                }
                 index={row[ROW_INDEX]}
                 operator-config={indexSetOperatorConfig.value}
                 row-data={row}
@@ -835,8 +858,33 @@ export default defineComponent({
       );
     };
 
+    const handleRowAIClcik = (e: MouseEvent, row: any) => {
+      const rowIndex = tableRowConfig.get(row).value[ROW_INDEX] + 1;
+      const targetRow = (e.target as HTMLElement).closest('.bklog-row-container');
+      const oldRow = targetRow?.parentElement.querySelector('.bklog-row-container.ai-active');
+
+      oldRow?.classList.remove('ai-active');
+      targetRow?.classList.add('ai-active');
+
+      props.handleClickTools('ai', row, indexSetOperatorConfig.value, rowIndex);
+    };
+
     const renderScrollTop = () => {
       return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
+    };
+
+    const handleMouseenter = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.classList?.contains('bklog-row-ai')) {
+        popInstanceUtil.show(target);
+      }
+    };
+
+    const handleMouseleave = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.classList?.contains('bklog-row-ai')) {
+        popInstanceUtil.hide();
+      }
     };
 
     const renderRowCells = (row, rowIndex) => {
@@ -854,6 +902,9 @@ export default defineComponent({
               width,
               minWidth: column.minWidth ? `${column.minWidth}px` : `${column.width}px`,
             };
+            if (typeof column.minWidth === 'number' && column.width < column.minWidth) {
+              cellStyle.minWidth = `${column.width}px`;
+            }
             return (
               <div
                 key={`${rowIndex}-${column.key}`}
@@ -870,6 +921,16 @@ export default defineComponent({
           ></div>
         </div>,
         expand ? expandOption.render({ row }) : '',
+        showAiAssistant.value ? (
+          <span
+            class='bklog-row-ai'
+            onClick={e => handleRowAIClcik(e, row)}
+            onMouseenter={handleMouseenter}
+            onMouseleave={handleMouseleave}
+          >
+            <img src={aiBlueking} />
+          </span>
+        ) : null,
       ];
     };
 
@@ -939,6 +1000,10 @@ export default defineComponent({
 
     const isTableLoading = computed(() => {
       return (isRequesting.value && !isRequesting.value && tableDataSize.value === 0) || isRending.value;
+    });
+
+    onBeforeUnmount(() => {
+      popInstanceUtil.uninstallInstance();
     });
 
     return {

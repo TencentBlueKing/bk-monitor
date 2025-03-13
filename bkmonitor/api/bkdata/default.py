@@ -1385,3 +1385,16 @@ class TailKafkaData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
         namespace = serializers.CharField(required=False, label="命名空间", default='bkmonitor')
         name = serializers.CharField(required=True, label="数据源名称（计算平台）")
         limit = serializers.IntegerField(required=False, default=10, label="条数")
+
+
+class ListDataBusRawData(UseSaaSAuthInfoMixin, DataAccessAPIResource):
+    """
+    拉取计算平台V4资源列表
+    """
+
+    action = "v4/namespaces/{namespace}/{kind}/"
+    method = "GET"
+
+    class RequestSerializer(CommonRequestSerializer):
+        namespace = serializers.CharField(required=False, label="命名空间", default='bkmonitor')
+        kind = serializers.CharField(required=True, label="资源类型")

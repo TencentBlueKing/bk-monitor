@@ -16,7 +16,7 @@
       </div>
     </slot>
     <template #content>
-      <div class="fields-container">
+      <div class="bklog-common-field-filter fields-container">
         <div class="fields-list-container">
           <div class="total-fields-list">
             <div class="title">
@@ -27,7 +27,7 @@
                 >{{ $t('全部添加') }}</span
               >
             </div>
-            <div style="padding: 4px 8px; height: 40px">
+            <div style=" height: 40px;padding: 4px 8px">
               <bk-input
                 behavior="simplicity"
                 left-icon="bk-icon icon-search"
@@ -50,7 +50,7 @@
                   :class="[item.is_full_text ? 'full-text' : getFieldIcon(item.field_type), 'field-type-icon']"
                 >
                 </span>
-                <span class="field-alias">{{ item.query_alias || item.field_name }}</span>
+                <span class="field-alias">{{ item.query_alias || item.field_alias || item.field_name }}</span>
                 <span class="field-name">({{ item.field_name }})</span>
                 <span class="icon bklog-icon bklog-filled-right-arrow"></span>
               </li>
@@ -102,7 +102,7 @@
           </div>
         </div>
       </div>
-      <div class="fields-button-container">
+      <div class="bklog-common-field-filter fields-button-container">
         <bk-button
           class="mr10"
           :theme="'primary'"
@@ -157,10 +157,11 @@
   const shadowTotal = computed(() => {
     const reg = getRegExp(searchKeyword.value);
     const filterFn = field =>
-      !shadowVisible.value.includes(field) &&
+      !shadowVisible.value.some(shadowField => shadowField.field_name === field.field_name) &&
       field.field_type !== '__virtual__' &&
       !excludesFields.includes(field.field_name) &&
       (reg.test(field.field_name) || reg.test(field.query_alias ?? ''));
+
     return fieldList.value.filter(filterFn);
   });
 
@@ -189,7 +190,7 @@
 
   // 新建提交逻辑
   const handleCreateRequest = async () => {
-    const { common_filter_addition } = store.getters.retrieveParams;
+    const { common_filter_addition } = store.getters;
     const param = {
       filterSetting: shadowVisible.value,
       filterAddition: common_filter_addition.filter(item => shadowVisible.value.some(f => f.field_name === item.field)),
@@ -251,287 +252,292 @@
 <style lang="scss">
   @import '../../../scss/mixins/scroller';
 
-  .fields-list-container {
-    display: flex;
-    padding: 0;
+  .bklog-common-field-filter {
+    .fields-list-container {
+      display: flex;
+      padding: 0;
 
-    .total-fields-list,
-    .visible-fields-list,
-    .sort-fields-list {
-      width: 350px;
-      height: 340px;
-      border: 1px solid #dcdee5;
-      border-bottom: none;
+      .total-fields-list,
+      .visible-fields-list,
+      .sort-fields-list {
+        width: 350px;
+        height: 340px;
+        border: 1px solid #dcdee5;
+        border-bottom: none;
 
-      .text-action {
-        font-size: 12px;
-        color: #3a84ff;
-        cursor: pointer;
-      }
-
-      .title {
-        position: relative;
-        display: flex;
-        align-items: center;
-        height: 41px;
-        padding: 0 16px;
-        line-height: 40px;
-        color: #313238;
-        border-bottom: 1px solid #dcdee5;
-        border-top: 1px solid #dcdee5;
-        background: #fafbfd;
-
-        .bklog-info-fill {
-          margin-left: 8px;
-          font-size: 14px;
-          color: #979ba5;
-          outline: none;
-        }
-
-        .add-all,
-        .clear-all {
-          position: absolute;
-          top: 0;
-          right: 16px;
-        }
-      }
-
-      .select-list {
-        height: 255px;
-        padding: 4px 0;
-        overflow: auto;
-
-        @include scroller;
-
-        .select-item {
-          overflow: hidden;
-          display: inline-block;
-          align-items: center;
-          width: 100%;
-          height: 32px;
-          line-height: 32px;
-          padding: 0 12px;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        .text-action {
+          font-size: 12px;
+          color: #3a84ff;
           cursor: pointer;
+        }
 
-          span {
-            display: inline-flex;
-          }
+        .title {
+          position: relative;
+          display: flex;
+          align-items: center;
+          height: 41px;
+          padding: 0 16px;
+          line-height: 40px;
+          color: #313238;
+          background: #fafbfd;
+          border-top: 1px solid #dcdee5;
+          border-bottom: 1px solid #dcdee5;
 
-          .bklog-drag-dots {
-            width: 18px;
+          .bklog-info-fill {
+            margin-left: 8px;
             font-size: 14px;
             color: #979ba5;
-            text-align: left;
-            cursor: move;
+            outline: none;
           }
 
-          &.sortable-ghost-class {
-            background: #eaf3ff;
-            transition: background 0.2s linear;
+          .add-all,
+          .clear-all {
+            position: absolute;
+            top: 0;
+            right: 16px;
           }
+        }
 
-          &:hover {
-            background: #eaf3ff;
-          }
+        .select-list {
+          height: 255px;
+          padding: 4px 0;
+          overflow: auto;
 
-          .field-type-icon {
-            display: inline-flex;
+          @include scroller;
+
+          .select-item {
+            display: inline-block;
             align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-            background: #dcdee5;
-            border-radius: 2px;
+            width: 100%;
+            height: 32px;
+            padding: 0 12px;
+            overflow: hidden;
+            line-height: 32px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
 
-            &.full-text {
-              position: relative;
+            span {
+              display: inline-flex;
+            }
 
-              &::after {
-                position: absolute;
-                top: 1px;
-                left: 5px;
-                width: 4px;
-                height: 4px;
-                content: '*';
+            .bklog-drag-dots {
+              width: 18px;
+              font-size: 14px;
+              color: #979ba5;
+              text-align: left;
+              cursor: move;
+            }
+
+            &.sortable-ghost-class {
+              background: #eaf3ff;
+              transition: background 0.2s linear;
+            }
+
+            &:hover {
+              background: #eaf3ff;
+            }
+
+            .field-type-icon {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              width: 16px;
+              height: 16px;
+              background: #dcdee5;
+              border-radius: 2px;
+
+              &.full-text {
+                position: relative;
+
+                &::after {
+                  position: absolute;
+                  top: 1px;
+                  left: 5px;
+                  width: 4px;
+                  height: 4px;
+                  content: '*';
+                }
+              }
+
+              &.bklog-ext {
+                font-size: 8px;
               }
             }
 
-            &.bklog-ext {
-              font-size: 8px;
+            .field-alias {
+              display: inline;
+              padding: 0 4px;
+              font-size: 12px;
+              line-height: 20px;
+              color: #63656e;
+              letter-spacing: 0;
             }
-          }
 
-          .field-alias {
-            padding: 0 4px;
-            font-size: 12px;
-            line-height: 20px;
-            color: #63656e;
-            letter-spacing: 0;
-          }
-
-          .field-name {
-            font-size: 12px;
-            font-weight: 400;
-            line-height: 20px;
-            color: #9b9da1;
-            letter-spacing: 0;
+            .field-name {
+              font-size: 12px;
+              font-weight: 400;
+              line-height: 20px;
+              color: #9b9da1;
+              letter-spacing: 0;
+            }
           }
         }
       }
-    }
 
-    .total-fields-list {
-      border-right: none;
-    }
-
-    .visible-fields-list {
-      border-left: none;
-      width: 380px;
-    }
-
-    /* stylelint-disable-next-line no-descending-specificity */
-    .total-fields-list .select-list .select-item {
-      position: relative;
-      .field-name {
-        display: inline;
+      .total-fields-list {
+        border-right: none;
       }
 
-      .bklog-filled-right-arrow {
-        width: 24px;
-        font-size: 16px;
-        color: #3a84ff;
-        text-align: right;
-        cursor: pointer;
-        opacity: 0;
-        transition: opacity 0.2s linear;
-        transform: scale(0.5);
-        transform-origin: right center;
-        position: absolute;
-        right: 4px;
-        top: 8px;
-        z-index: 10;
-      }
-
-      &:hover .bklog-filled-right-arrow {
-        opacity: 1;
-        transition: opacity 0.2s linear;
-      }
-    }
-
-    /* stylelint-disable-next-line no-descending-specificity */
-    .visible-fields-list .select-list .select-item {
-      position: relative;
-
-      .field-name {
-        display: inline;
-      }
-
-      .delete {
-        font-size: 16px;
-        color: #c4c6cc;
-        text-align: right;
-        cursor: pointer;
-        display: none;
-
-        position: absolute;
-        right: 12px;
-        top: 8px;
-      }
-
-      &:hover .delete {
-        display: block;
-      }
-    }
-
-    .sort-fields-list {
-      flex-shrink: 0;
-
-      .sort-list-header {
-        display: flex;
-        align-items: center;
-        height: 31px;
-        font-size: 12px;
-        line-height: 30px;
-        background: rgba(250, 251, 253, 1);
-        border-bottom: 1px solid rgba(221, 228, 235, 1);
+      .visible-fields-list {
+        width: 380px;
+        border-left: none;
       }
 
       /* stylelint-disable-next-line no-descending-specificity */
-      .select-list .select-item {
+      .total-fields-list .select-list .select-item {
+        position: relative;
+
         .field-name {
-          // 16 42 50 38
-          width: calc(100% - 146px);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          display: inline;
         }
 
-        .status {
-          font-weight: 700;
-
-          &.icon-arrows-down-line {
-            color: #ea3636;
-          }
-
-          &.icon-arrows-up-line {
-            color: #2dcb56;
-          }
-        }
-
-        .option {
-          width: 50px;
-          margin: 0 8px;
+        .bklog-filled-right-arrow {
+          position: absolute;
+          top: 8px;
+          right: 4px;
+          z-index: 10;
+          width: 24px;
+          font-size: 16px;
           color: #3a84ff;
+          text-align: right;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.2s linear;
+          transform: scale(0.5);
+          transform-origin: right center;
         }
 
+        &:hover .bklog-filled-right-arrow {
+          opacity: 1;
+          transition: opacity 0.2s linear;
+        }
+      }
+
+      .sort-fields-list {
+        flex-shrink: 0;
+
+        .sort-list-header {
+          display: flex;
+          align-items: center;
+          height: 31px;
+          font-size: 12px;
+          line-height: 30px;
+          background: rgba(250, 251, 253, 1);
+          border-bottom: 1px solid rgba(221, 228, 235, 1);
+        }
+
+        /* stylelint-disable-next-line no-descending-specificity */
+        .select-list .select-item {
+          .field-name {
+            // 16 42 50 38
+            width: calc(100% - 146px);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .status {
+            font-weight: 700;
+
+            &.icon-arrows-down-line {
+              color: #ea3636;
+            }
+
+            &.icon-arrows-up-line {
+              color: #2dcb56;
+            }
+          }
+
+          .option {
+            width: 50px;
+            margin: 0 8px;
+            color: #3a84ff;
+          }
+
+          .delete {
+            font-size: 16px;
+            color: #c4c6cc;
+            text-align: right;
+            cursor: pointer;
+          }
+        }
+      }
+
+      /* stylelint-disable-next-line no-descending-specificity */
+      .visible-fields-list .select-list .select-item {
+        position: relative;
+
+        .field-name {
+          display: inline;
+        }
+        
         .delete {
+
+          position: absolute;
+          top: 8px;
+          right: 12px;
+          display: none;
           font-size: 16px;
           color: #c4c6cc;
           text-align: right;
           cursor: pointer;
+          }
+
+        &:hover .delete {
+          display: block;
+        }
+      }
+
+      .sort-icon {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 1px;
+        background-color: #dcdee5;
+
+        .bklog-double-arrow {
+
+          position: absolute;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          width: 33px;
+          height: 33px;
+          font-size: 12px;
+          color: #989ca5;
+
+          pointer-events: none;
+          background: #fafbfd;
+          border-radius: 50%;
         }
       }
     }
 
-    .sort-icon {
+    &.fields-button-container {
       display: flex;
-      flex-shrink: 0;
       align-items: center;
-      justify-content: center;
-      width: 1px;
-      background-color: #dcdee5;
-
-      .bklog-double-arrow {
-        font-size: 12px;
-        color: #989ca5;
-
-        width: 33px;
-        height: 33px;
-        background: #fafbfd;
-
-        display: flex;
-        justify-content: center;
-        align-items: center;
-
-        position: absolute;
-        border-radius: 50%;
-
-        pointer-events: none;
-      }
+      justify-content: flex-end;
+      width: 100%;
+      height: 51px;
+      padding: 0 24px;
+      background-color: #fafbfd;
+      border-top: 1px solid #dcdee5;
+      border-radius: 0 0 2px 2px;
     }
   }
 
-  .fields-button-container {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    width: 100%;
-    height: 51px;
-    padding: 0 24px;
-    background-color: #fafbfd;
-    border-top: 1px solid #dcdee5;
-    border-radius: 0 0 2px 2px;
-  }
 </style>

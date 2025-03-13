@@ -32,7 +32,7 @@ import pytz
 import ujson
 from django.conf import settings
 from django.core.cache import cache
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
 from apps.api.base import DataApiRetryClass
@@ -249,7 +249,7 @@ class SearchHandler(object):
         self.time_range: str = search_dict.get("time_range")
         self.start_time: str = search_dict.get("start_time")
         self.end_time: str = search_dict.get("end_time")
-        self.time_zone: str = get_local_param("time_zone")
+        self.time_zone: str = get_local_param("time_zone", settings.TIME_ZONE)
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
@@ -390,6 +390,7 @@ class SearchHandler(object):
             self.time_field,
             start_time=self.start_time,
             end_time=self.end_time,
+            time_zone=self.time_zone,
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
@@ -1401,8 +1402,12 @@ class SearchHandler(object):
                     index_set_id_all.extend(index_set_ids)
                 index_set_id_all = list(set(index_set_id_all))
 
+            from apps.log_search.handlers.index_set import IndexSetHandler
+
+            # 获取当前空间关联空间的索引集
+            space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
             effect_index_set_ids = list(
-                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid=space_uid).values_list(
+                LogIndexSet.objects.filter(index_set_id__in=index_set_id_all, space_uid__in=space_uids).values_list(
                     "index_set_id", flat=True
                 )
             )
@@ -1546,6 +1551,7 @@ class SearchHandler(object):
             self.storage_cluster_id,
             self.time_field,
             self.search_dict.get("bk_biz_id"),
+            time_zone=self.time_zone,
         )
         field_result, _ = mapping_handlers.get_all_fields_by_index_id()
         field_dict = dict()
@@ -1913,6 +1919,7 @@ class SearchHandler(object):
                 bk_biz_id=self.search_dict.get("bk_biz_id"),
                 only_search=True,
                 index_set=self.index_set,
+                time_zone=self.time_zone,
             )
         return self._mapping_handlers
 
@@ -2042,7 +2049,7 @@ class SearchHandler(object):
         return aggs_dict
 
     def _init_highlight(self, can_highlight=True):
-        if not can_highlight:
+        if not can_highlight or self.index_set.max_analyzed_offset == -1:
             return {}
         # 避免多字段高亮
         if self.query_string and ":" in self.query_string:
@@ -2200,6 +2207,8 @@ class SearchHandler(object):
         if not isinstance(base_dict, dict):
             return base_dict
         for key, value in update_dict.items():
+            if key not in base_dict:
+                continue
             if isinstance(value, dict):
                 base_dict[key] = cls.update_nested_dict(base_dict.get(key, {}), value)
             else:
@@ -2208,15 +2217,52 @@ class SearchHandler(object):
 
     @staticmethod
     def nested_dict_from_dotted_key(dotted_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        expand highlight dict by dot
+        input:
+        {
+            "resource.service.name": [
+                "<mark>groupsvr</mark>"
+            ],
+            "resource.deployment.cluster.name": [
+                "<mark>BCS-K8S-12345</mark>"
+            ]
+        }
+        =>
+        output:
+        {
+            "resource.service.name": "<mark>groupsvr</mark>",
+            "resource.deployment.cluster.name": "<mark>BCS-K8S-12345</mark>",
+            "resource": {
+                "service.name": "<mark>groupsvr</mark>",
+                "service": {
+                    "name": "<mark>groupsvr</mark>"
+                },
+                "deployment.cluster.name": "<mark>BCS-K8S-12345</mark>",
+                "deployment": {
+                    "cluster.name": "<mark>BCS-K8S-12345</mark>",
+                    "cluster": {
+                        "name": "<mark>BCS-K8S-12345</mark>"
+                    }
+                }
+            }
+        }
+        """
         result = {}
         for key, value in dotted_dict.items():
+            joined_value = "".join(value)
             parts = key.split('.')
+            result[key] = joined_value
+            if len(parts) <= 1:
+                continue
             current_level = result
-            for part in parts[:-1]:
+            for idx, part in enumerate(parts[:-1]):
                 if part not in current_level:
                     current_level[part] = {}
+                if idx < len(parts) - 1:
+                    current_level[part][".".join(parts[idx + 1 :])] = joined_value
                 current_level = current_level[part]
-            current_level[parts[-1]] = "".join(value)
+            current_level[parts[-1]] = joined_value
         return result
 
     def _deal_object_highlight(self, log: Dict[str, Any], highlight: Dict[str, Any]) -> Dict[str, Any]:

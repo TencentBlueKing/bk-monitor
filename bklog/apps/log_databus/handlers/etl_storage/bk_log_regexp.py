@@ -22,11 +22,12 @@ the project delivered to anyone in the future.
 import copy
 import re
 
+from django.utils.translation import gettext_lazy as _
+
 from apps.exceptions import ValidationError
 from apps.log_databus.constants import EtlConfig
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
-from django.utils.translation import ugettext_lazy as _
 
 
 class BkLogRegexpEtlStorage(EtlStorage):

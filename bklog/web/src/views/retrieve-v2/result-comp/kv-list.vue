@@ -28,7 +28,7 @@
   <div class="kv-list-wrapper">
     <div class="kv-content">
       <div
-        v-for="(field, index) in showFieldList"
+        v-for="(field, index) in renderList"
         class="log-item"
         :key="index"
       >
@@ -112,18 +112,10 @@
         type: Array,
         require: true,
       },
-      // apmRelation: {
-      //   type: Object,
-      //   default: () => {},
-      // },
       sortList: {
         type: Array,
         require: true,
       },
-      // retrieveParams: {
-      //   type: Object,
-      //   require: true,
-      // },
       listData: {
         type: Object,
         default: () => {},
@@ -152,6 +144,7 @@
           is: '=',
           'is not': '!=',
         },
+        renderList: [],
       };
     },
     computed: {
@@ -162,6 +155,7 @@
       ...mapState({
         formatJson: state => state.tableJsonFormat,
         showFieldAlias: state => state.showFieldAlias ?? false,
+        isAllowEmptyField: state => state.tableAllowEmptyField,
       }),
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
@@ -170,7 +164,16 @@
         return this.$store.state.bkBizId;
       },
       showFieldList() {
-        return this.totalFields.filter(item => this.kvShowFieldsList.includes(item.field_name));
+        return this.totalFields.filter(item => {
+          if (this.isAllowEmptyField) {
+            return this.kvShowFieldsList.includes(item.field_name);
+          }
+
+          return (
+            this.kvShowFieldsList.includes(item.field_name) &&
+            !['--', '{}', '[]'].includes(this.formatterStr(this.data, item.field_name))
+          );
+        });
       },
       fieldKeyMap() {
         return this.totalFields
@@ -195,7 +198,28 @@
         return !!this.data?.bk_host_id;
       },
     },
+    watch: {
+      isAllowEmptyField() {
+        this.onMountedRender();
+      },
+    },
+    mounted() {
+      this.onMountedRender();
+    },
     methods: {
+      onMountedRender() {
+        const size = 40;
+        let startIndex = 0;
+        this.renderList = [];
+        const setRenderList = () => {
+          if (startIndex < this.showFieldList.length) {
+            this.renderList.push(...this.showFieldList.slice(startIndex, startIndex + size));
+            startIndex = startIndex + size;
+            setTimeout(setRenderList);
+          }
+        };
+        setRenderList();
+      },
       isJsonFormat(content) {
         return this.formatJson && /^\[|\{/.test(content);
       },
@@ -249,6 +273,7 @@
        */
       handleViewMonitor(field) {
         const key = field.toLowerCase();
+        const trace_id =  String(this.data[field]).replace(/<mark>/g, '').replace(/<\/mark>/g, '')
         let path = '';
         switch (key) {
           // trace检索
@@ -256,7 +281,7 @@
           case 'traceid':
             if (this.apmRelation.is_active) {
               const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
-              path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${this.data[field]}`;
+              path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${trace_id}`;
             } else {
               this.$bkMessage({
                 theme: 'warning',
@@ -269,7 +294,7 @@
           case 'ip':
           case 'bk_host_id':
             {
-              const endStr = `${this.data[field]}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
+              const endStr = `${trace_id}${field === 'bk_host_id' && this.isHaveBkHostIDAndHaveValue ? '' : '-0'}`;
               path = `/?bizId=${this.bkBizId}#/performance/detail/${endStr}`;
             }
             break;

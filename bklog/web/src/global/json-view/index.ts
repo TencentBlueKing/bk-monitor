@@ -23,16 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { copyMessage } from '@/common/util';
 
 export type JsonViewConfig = {
   onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
   jsonValue?: any;
   depth?: number;
+  segmentRegStr?: string;
+  field?: any;
+  segmentRender?: (value: string, rootNode: HTMLElement) => void;
 };
 export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
   jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
+  rootElClick?: (...args) => void;
   constructor(target: HTMLElement, options: JsonViewConfig) {
     this.options = Object.assign({}, { depth: 1, isExpand: false }, options);
     this.targetEl = target;
@@ -119,7 +124,11 @@ export default class JsonView {
       child.push(this.createObjectChildNode(target, depth + 1));
     }
 
-    node.append(...[nodeIconText, ...child]);
+    const copyItem = document.createElement('span');
+    copyItem.classList.add(...['bklog-json-view-copy', 'bklog-data-copy', 'bklog-icon']);
+    copyItem.setAttribute('title', window.$t('复制'));
+
+    node.append(nodeIconText, copyItem, ...child);
     return [node];
   }
 
@@ -133,8 +142,14 @@ export default class JsonView {
     if (nodeType === 'object') {
       node.append(...this.createObjectNode(target, depth));
     } else {
-      node.append(target);
       node.classList.add('bklog-json-field-value');
+      if (nodeType === 'string' && typeof this.options.segmentRender === 'function') {
+        setTimeout(() => {
+          this.options.segmentRender(target, node);
+        });
+      } else {
+        node.append(target);
+      }
     }
 
     return node;
@@ -186,6 +201,17 @@ export default class JsonView {
         });
       }
     }
+
+    if (targetNode.classList.contains('bklog-json-view-copy')) {
+      const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
+
+      if (this.jsonNodeMap.has(storeNode)) {
+        const { target } = this.jsonNodeMap.get(storeNode) ?? {};
+        copyMessage(JSON.stringify(target) || '', window.$t?.('复制成功'));
+      }
+    }
+
+    this.rootElClick?.(e);
   }
 
   public setValue(val: any) {
@@ -193,7 +219,8 @@ export default class JsonView {
     this.setJsonViewSchema(val);
   }
 
-  public initClickEvent() {
+  public initClickEvent(fn?: (...args) => void) {
+    this.rootElClick = fn;
     this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
   }
 

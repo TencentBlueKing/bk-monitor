@@ -21,7 +21,10 @@ the project delivered to anyone in the future.
 """
 from django.test import TestCase
 
-from apps.log_databus.exceptions import CleanTemplateRepeatException, CleanTemplateNotExistException
+from apps.log_databus.exceptions import (
+    CleanTemplateNotExistException,
+    CleanTemplateRepeatException,
+)
 from apps.log_databus.handlers.clean import CleanTemplateHandler
 from apps.tests.log_databus.test_clean import TestClean
 
@@ -42,6 +45,7 @@ CREATE_PARAMS = {
         }
     ],
     "bk_biz_id": 706,
+    "alias_settings": {"name": "test"},
 }
 
 
@@ -53,6 +57,7 @@ class TestCleanTemplate(TestCase):
         self.assertEqual(create_result["etl_params"], CREATE_PARAMS["etl_params"])
         self.assertEqual(create_result["etl_fields"], CREATE_PARAMS["etl_fields"])
         self.assertEqual(create_result["bk_biz_id"], CREATE_PARAMS["bk_biz_id"])
+        self.assertEqual(create_result["alias_settings"], CREATE_PARAMS["alias_settings"])
 
     def test_create_failed(self):
         TestClean._init_project_info()
@@ -94,6 +99,7 @@ class TestCleanTemplate(TestCase):
         self.assertEqual(retrieve_result["etl_params"], create_result["etl_params"])
         self.assertEqual(retrieve_result["etl_fields"], create_result["etl_fields"])
         self.assertEqual(retrieve_result["bk_biz_id"], create_result["bk_biz_id"])
+        self.assertEqual(retrieve_result["alias_settings"], create_result["alias_settings"])
 
     def test_destroy(self):
         create_result = self._test_create()

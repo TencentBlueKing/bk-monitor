@@ -1,0 +1,36 @@
+.ai-clickable {
+  .bklog-ai-row-title {
+    font-size: 14px;
+    color: #313238;
+    font-family: MicrosoftYaHei;
+    padding-bottom: 4px;
+  }
+  .bklog-ai-row-content {
+    color: #16171a;
+    font-size: 12px;
+    font-family: RobotoMono;
+    font-weight: 500;
+    line-height: 22px !important;
+    padding: 4px 10px;
+    background: #ffffff;
+    max-height: 98px;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    .bklog-ai-cell-label {
+      background: #e6e9f0;
+      border-radius: 2px;
+      line-height: 18px;
+      padding: 1px 2px;
+    }
+
+    .bklog-ai-cell-text {
+      border-radius: 2px;
+      height: 18px;
+      line-height: 18px;
+    }
+  }
+}

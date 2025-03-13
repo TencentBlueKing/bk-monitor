@@ -274,7 +274,7 @@ class FavoriteViewSet(APIViewSet):
         data = self.params_valid(CreateFavoriteSerializer)
         favorite_search = FavoriteHandler(space_uid=data["space_uid"]).create_or_update(
             name=data["name"],
-            index_set_id=data["index_set_id"],
+            index_set_id=data.get("index_set_id"),
             ip_chooser=data["ip_chooser"],
             addition=data["addition"],
             keyword=data["keyword"],
@@ -369,6 +369,9 @@ class FavoriteViewSet(APIViewSet):
             is_enable_display_fields=data["is_enable_display_fields"],
             display_fields=data["display_fields"],
             group_id=data["group_id"],
+            index_set_id=data.get("index_set_id"),
+            index_set_ids=data["index_set_ids"],
+            index_set_type=data["index_set_type"],
         )
         return Response(favorite_search)
 

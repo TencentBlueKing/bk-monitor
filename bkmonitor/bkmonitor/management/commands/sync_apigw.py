@@ -51,6 +51,11 @@ class Command(BaseCommand):
             f"--file={definition_path}",
             "--safe-mode",
         )
-        call_command("create_version_and_release_apigw", f"--gateway-name={gateway_name}", f"--file={definition_path}")
+        call_command(
+            "create_version_and_release_apigw",
+            f"--gateway-name={gateway_name}",
+            f"--file={definition_path}",
+            f"--stage={settings.APIGW_STAGE}",
+        )
         call_command("grant_apigw_permissions", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("fetch_apigw_public_key", f"--gateway-name={gateway_name}")

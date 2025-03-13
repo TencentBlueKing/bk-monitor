@@ -25,7 +25,7 @@ import re
 import time
 
 import arrow
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from apps.exceptions import ValidationError
@@ -285,8 +285,8 @@ class SearchAttrSerializer(serializers.Serializer):
     ip_chooser = serializers.DictField(default={}, required=False)
     addition = serializers.ListField(allow_empty=True, required=False, default="")
 
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default=None)
     from_favorite_id = serializers.IntegerField(required=False, default=0)
 
@@ -351,8 +351,8 @@ class UnionSearchAttrSerializer(SearchAttrSerializer):
 
 
 class UnionSearchFieldsSerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
     index_set_ids = serializers.ListField(
         label=_("索引集ID列表"), required=True, allow_empty=False, child=serializers.IntegerField()
     )
@@ -365,8 +365,8 @@ class UnionSearchFieldsSerializer(serializers.Serializer):
 
 
 class UserSearchHistorySerializer(serializers.Serializer):
-    start_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
-    end_time = DateTimeFieldWithEpoch(required=False, format="%Y-%m-%d %H:%M:%S")
+    start_time = DateTimeFieldWithEpoch(required=False)
+    end_time = DateTimeFieldWithEpoch(required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -482,8 +482,8 @@ class SearchExportSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=True)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_null=True, allow_blank=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
-    start_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("起始时间"), required=True)
-    end_time = DateTimeFieldWithEpoch(format="%Y-%m-%d %H:%M:%S", label=_("结束时间"), required=True)
+    start_time = DateTimeFieldWithEpoch(label=_("起始时间"), required=True)
+    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=True)
     ip_chooser = serializers.DictField(label=_("检索IP条件"), required=False, default={})
     addition = serializers.ListField(label=_("搜索条件"), required=False)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=True)
@@ -663,6 +663,13 @@ class UpdateFavoriteSerializer(serializers.Serializer):
     search_fields = serializers.ListField(required=False, child=serializers.CharField(), default=[])
     is_enable_display_fields = serializers.BooleanField(required=False, default=False)
     display_fields = serializers.ListField(required=False, child=serializers.CharField(), default=[])
+    index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False)
+    index_set_ids = serializers.ListField(
+        label=_("索引集ID列表"), required=False, child=serializers.IntegerField(), default=[]
+    )
+    index_set_type = serializers.ChoiceField(
+        label=_("索引集类型"), required=False, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
+    )
 
 
 class BatchUpdateFavoriteChildSerializer(UpdateFavoriteSerializer):
@@ -922,8 +929,8 @@ class FetchStatisticsGraphSerializer(QueryFieldBaseSerializer):
     """
 
     field_type = serializers.ChoiceField(required=True, choices=list(FIELD_TYPE_MAP.keys()))
-    max = serializers.IntegerField(label=_("最大值"), required=False)
-    min = serializers.IntegerField(label=_("最小值"), required=False)
+    max = serializers.FloatField(label=_("最大值"), required=False)
+    min = serializers.FloatField(label=_("最小值"), required=False)
     threshold = serializers.IntegerField(label=_("去重数量阈值"), required=False, default=10)
     limit = serializers.IntegerField(label=_("top条数"), required=False, default=5)
     distinct_count = serializers.IntegerField(label=_("去重条数"), required=False)
@@ -951,6 +958,8 @@ class UserIndexSetCustomConfigSerializer(serializers.Serializer):
 
 class ChartSerializer(serializers.Serializer):
     sql = serializers.CharField(label=_("sql语句"), required=True)
+    start_time = serializers.IntegerField(required=True)
+    end_time = serializers.IntegerField(required=True)
     query_mode = serializers.ChoiceField(
         label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
     )
@@ -963,13 +972,12 @@ class SearchConditionSerializer(serializers.Serializer):
 
 
 class UISearchSerializer(serializers.Serializer):
+    sql = serializers.CharField(label=_("sql"), required=False, default="", allow_blank=True)
     addition = serializers.ListField(
         required=False,
         default=list,
         child=SearchConditionSerializer(label=_("搜索条件"), required=False),
     )
-    start_time = serializers.IntegerField(label=_("开始时间"), required=True)
-    end_time = serializers.IntegerField(label=_("结束时间"), required=True)
 
 
 class QueryStringSerializer(serializers.Serializer):
@@ -983,6 +991,7 @@ class UserCustomConfigSerializer(serializers.Serializer):
     """
     用户自定义配置
     """
+
     custom_config = serializers.JSONField(label=_("自定义配置"), required=True)
 
 
@@ -990,10 +999,11 @@ class UserSearchSerializer(serializers.Serializer):
     """
     用户最近查询的索引集
     """
+
     username = serializers.CharField(label=_("用户名"), required=True)
     space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
-    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
-    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+    start_time = DateTimeFieldWithEpoch(label=_("开始时间"), required=False)
+    end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=False)
     limit = serializers.IntegerField(label=_("限制条数"), required=True)
 
 
@@ -1001,6 +1011,16 @@ class UserFavoriteSerializer(serializers.Serializer):
     """
     用户收藏的索引集
     """
+
     username = serializers.CharField(label=_("用户名"), required=True)
     space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
     limit = serializers.IntegerField(label=_("限制条数"), required=False)
+
+
+class StorageUsageSerializer(serializers.Serializer):
+    """
+    索引集存储量
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=True)
+    index_set_ids = serializers.ListField(label=_("索引集列表"), required=True, child=serializers.IntegerField())

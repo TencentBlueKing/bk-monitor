@@ -530,9 +530,10 @@ export function formatDateNanos(val) {
 /**
  * 格式化文件大小
  * @param {Number | String} size
+ * @param {boolean} dropFractionIfInteger - 如果为 true，整数不保留小数
  * @return {String}
  */
-export function formatFileSize(size) {
+export function formatFileSize(size, dropFractionIfInteger = false) {
   const value = Number(size);
   if (size && !isNaN(value)) {
     const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
@@ -544,7 +545,8 @@ export function formatFileSize(size) {
         index = index + 1;
       }
     }
-    return `${k.toFixed(2)}${units[index]}`;
+    const formattedSize = dropFractionIfInteger && k % 1 === 0 ? k.toFixed(0) : k.toFixed(2);
+    return `${formattedSize}${units[index]}`;
   }
   return '0';
 }
@@ -664,14 +666,16 @@ export const base64Decode = str => {
 };
 
 export const makeMessage = (message, traceId) => {
+  const id = (traceId ?? '').split('-')[1] ?? '';
+
   const resMsg = `
-    ${traceId || '--'} ：
+    ${id || '--'} ：
     ${message}
   `;
   message &&
     console.log(`
   ------------------【日志】------------------
-  【TraceID】：${traceId}
+  【TraceID】：${id}
   【Message】：${message}
   ----------------------------------------------
   `);

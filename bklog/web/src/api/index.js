@@ -89,22 +89,14 @@ axiosInstance.interceptors.response.use(
     if (response.data instanceof Blob) {
       return response;
     }
-    const traceparent = response.config.headers.Traceparent || response.config.headers.traceparent;
-    const config = initConfig('', '', { headers: { traceparent } });
-    new Promise(async (resolve, reject) => {
+    const config = response.config;
+    return new Promise(async (resolve, reject) => {
       try {
-        handleResponse({ config, response: response.data, resolve, reject });
+        handleResponse({ config, response: response.data, resolve, reject, status: response.status });
       } catch (error) {
-        return reject(error);
+        handleReject(error, config, reject);
       }
-    })
-      .catch(async error => {
-        await handleReject(error, config);
-      })
-      .catch(rejectError => {
-        console.log(rejectError);
-      });
-    return response.data;
+    });
   },
   error => Promise.reject(error),
 );
@@ -117,10 +109,6 @@ const http = {
   cancelCache: requestId => http.cache.delete(requestId),
   cancel: requestId => Promise.all([http.cancelRequest(requestId), http.cancelCache(requestId)]),
 };
-
-// const methodsWithoutData = ['delete', 'get', 'head', 'options']
-// const methodsWithData = ['post', 'put', 'patch']
-// const allMethods = [...methodsWithoutData, ...methodsWithData]
 
 Object.defineProperty(http, 'request', {
   get() {
@@ -136,10 +124,6 @@ Object.defineProperty(http, 'request', {
  * @return {Function} 实际调用的请求函数
  */
 function getRequest(method) {
-  // if (methodsWithData.includes(method)) {
-  //     return (url, data, config) => getPromise(method, url, data, config)
-  // }
-  // return (url, config) => getPromise(method, url, null, config)
   return (url, data, config) => getPromise(method, url, data, config);
 }
 
@@ -180,10 +164,7 @@ async function getPromise(method, url, data, userConfig = {}) {
       Object.assign(config, error.config);
       reject(error);
     }
-  })
-    .catch
-    // error => handleReject(error, config)
-    ();
+  });
 
   // 添加请求队列
   http.queue.set(config);
@@ -201,19 +182,28 @@ async function getPromise(method, url, data, userConfig = {}) {
  * @param {Function} promise 完成函数
  * @param {Function} promise 拒绝函数
  */
-function handleResponse({ config, response, resolve, reject }) {
+function handleResponse({ config, response, resolve, reject, status }) {
   const { code } = response;
-  if (code === '9900403') {
-    reject({ message: response.message, code, data: response.data || {} });
-    store.commit('updateAuthDialogData', {
-      apply_url: response.data.apply_url,
-      apply_data: response.permission,
-    });
-  } else if (code !== 0 && config.globalError) {
-    reject({ message: response.message, code, data: response.data || {} });
+  if (code === undefined) {
+    if (status === 200) {
+      resolve(response, config);
+    } else {
+      reject({ message: response.message, code, data: response.data || {} });
+    }
   } else {
-    resolve(config.originalResponse ? response : response.data, config);
+    if (code === '9900403') {
+      reject({ message: response.message, code, data: response.data || {} });
+      store.commit('updateAuthDialogData', {
+        apply_url: response.data.apply_url,
+        apply_data: response.permission,
+      });
+    } else if (code !== 0 && config.globalError) {
+      handleReject({ message: response.message, code, data: response.data || {} }, config, reject);
+    } else {
+      resolve(config.originalResponse ? response : response.data, config);
+    }
   }
+
   http.queue.delete(config.requestId);
 }
 
@@ -225,15 +215,12 @@ function handleResponse({ config, response, resolve, reject }) {
  *
  * @return {Promise} promise 对象
  */
-function handleReject(error, config) {
+function handleReject(error, config, reject) {
   if (axios.isCancel(error)) {
-    return Promise.reject(error);
+    return reject(error);
   }
-  // const service = getHttpService(url, serviceList);
-  // const ajaxUrl = service ? service.url : '';
-  // console.error('Request error UrlPath：', ajaxUrl);
 
-  const traceparent = config?.headers?.traceparent;
+  const traceparent = config?.headers?.Traceparent;
   http.queue.delete(config.requestId);
 
   // 捕获 http status 错误
@@ -258,7 +245,7 @@ function handleReject(error, config) {
       } else {
         handleLoginExpire();
       }
-      return Promise.reject(nextError);
+      return reject(nextError);
     }
     if (status === 500) {
       nextError.message = i18n.t('系统出现异常');
@@ -268,13 +255,12 @@ function handleReject(error, config) {
     const resMessage = makeMessage(nextError.message, traceparent);
     config.catchIsShowMessage && messageError(resMessage);
     console.error(nextError.message);
-    return Promise.reject(nextError);
   }
 
   // 捕获业务 code 错误
   const { code } = error;
   if (code === '9900403') {
-    return Promise.reject(new Error(error.message));
+    return reject(new Error(error.message));
   }
 
   if (config.globalError && code !== 0) {
@@ -291,13 +277,13 @@ function handleReject(error, config) {
         config.catchIsShowMessage && messageError(resMessage);
       }
     }
-    return Promise.reject(message);
+    return reject(message);
   }
 
   const resMessage = makeMessage(error.message, traceparent);
   config.catchIsShowMessage && messageError(resMessage);
   console.error(error.message);
-  return Promise.reject(error);
+  return reject(error);
 }
 
 /**

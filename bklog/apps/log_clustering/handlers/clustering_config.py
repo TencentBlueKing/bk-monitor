@@ -23,7 +23,7 @@ import json
 
 import arrow
 from django.core.cache import cache
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
@@ -230,22 +230,23 @@ class ClusteringConfigHandler(object):
 
         now_time = arrow.now()
         self.data.task_records.append(
-            {"operate": OperatorServiceEnum.UPDATE, "task_id": pipeline.id, "time": now_time.timestamp}
+            {"operate": OperatorServiceEnum.UPDATE, "task_id": pipeline.id, "time": int(now_time.timestamp())}
         )
         self.data.save(update_fields=["task_records"])
 
         # 延迟10分钟重启flow
         from apps.log_clustering.tasks.flow import restart_flow
-        collector_config_id = self.data.collector_config_id
+
+        index_set_id = self.data.index_set_id
         # 缓存15分钟
         cache.set(
-            f"start_pipeline_time_{collector_config_id}",
-            now_time.shift(minutes=10).timestamp,
-            15 * TimeEnum.ONE_MINUTE_SECOND.value
+            f"start_pipeline_time_{index_set_id}",
+            now_time.shift(minutes=10).timestamp(),
+            15 * TimeEnum.ONE_MINUTE_SECOND.value,
         )
         flow_ids = [self.data.predict_flow_id, self.data.pre_treat_flow_id, self.data.after_treat_flow_id]
         restart_flow.apply_async(
-            args=[collector_config_id, flow_ids],
+            args=[index_set_id, flow_ids],
             countdown=10 * TimeEnum.ONE_MINUTE_SECOND.value,
         )
         return pipeline.id

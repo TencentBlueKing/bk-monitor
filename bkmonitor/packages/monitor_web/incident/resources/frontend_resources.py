@@ -44,6 +44,7 @@ from constants.incident import (
 )
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
+from core.errors.alert import AlertNotFoundError
 from fta_web.alert.handlers.incident import (
     IncidentAlertQueryHandler,
     IncidentQueryHandler,
@@ -82,7 +83,7 @@ class IncidentBaseResource(Resource):
     def generate_time_range_from_alerts(self, alert_ids: List[int]) -> Tuple[int, int]:
         start_time, end_time = None, None
         for alert_id in alert_ids:
-            timestamp = str(alert_id)[:10]
+            timestamp = int(str(alert_id)[:10])
             if start_time is None or timestamp < start_time:
                 start_time = timestamp
             if end_time is None or timestamp > end_time:
@@ -217,6 +218,97 @@ class IncidentBaseResource(Resource):
 
         incident_document.update_time = update_time.timestamp
         IncidentDocument.bulk_create([incident_document], action=BulkActionType.UPDATE)
+
+    def generate_topology_data_from_snapshot(self, incident: IncidentDocument, snapshot: IncidentSnapshot) -> Dict:
+        """根据快照内容生成拓扑图数据
+
+        :param snapshot: 快照内容
+        :return: 拓扑图数据
+        """
+        nodes = self.generate_nodes_by_entites(
+            incident,
+            snapshot,
+            snapshot.incident_graph_entities.values(),
+        )
+
+        node_categories = [node["entity"]["rank"]["rank_category"]["category_id"] for node in nodes]
+        sub_combos = [
+            {
+                "id": node["subComboId"],
+                "label": node["subComboId"],
+                "dataType": node["subComboId"],
+                "comboId": str(node["entity"]["rank"]["rank_category"]["category_id"]),
+                "dimensions": node["logic_content"],
+            }
+            for node in nodes
+            if node["subComboId"]
+        ]
+        topology_data = {
+            "nodes": nodes,
+            "edges": [edge.to_src_dict() for edge in snapshot.incident_graph_edges.values()],
+            "sub_combos": list({item["id"]: item for item in sub_combos}.values()),
+            "combos": [
+                {
+                    "id": str(category.category_id),
+                    "label": category.layer_alias,
+                    "dataType": category.category_name,
+                }
+                for category in snapshot.incident_graph_categories.values()
+                if category.category_id in node_categories
+            ],
+        }
+        return topology_data
+
+    def filter_one_hop_snapshot(self, snapshot_content: Dict) -> Dict:
+        """过滤故障根因拓扑图中超过一跳的节点.
+
+        :param snapshot_content: 故障快照内容
+        :return: 只有一跳的故障快照拓扑图内容
+        """
+        root_entity_id = None
+        now_entities = {}
+        for entity_config in snapshot_content["incident_propagation_graph"]["entities"]:
+            if entity_config["is_root"]:
+                root_entity_id = entity_config["entity_id"]
+            now_entities[entity_config["entity_id"]] = entity_config
+
+        new_edges = []
+        new_entities = {}
+        new_rank_set = set()
+        for edge_config in snapshot_content["incident_propagation_graph"]["edges"]:
+            if edge_config["source_id"] != root_entity_id and edge_config["target_id"] != root_entity_id:
+                continue
+
+            new_edges.append(edge_config)
+            new_entities[edge_config["source_id"]] = now_entities[edge_config["source_id"]]
+            new_entities[edge_config["target_id"]] = now_entities[edge_config["target_id"]]
+            new_rank_set.add(now_entities[edge_config["source_id"]]["rank_name"])
+            new_rank_set.add(now_entities[edge_config["target_id"]]["rank_name"])
+
+        new_ranks = {}
+        new_category_set = set()
+        for rank_key, rank_info in snapshot_content["product_hierarchy_rank"].items():
+            if rank_info["rank_name"] in new_rank_set:
+                new_ranks[rank_key] = rank_info
+                new_category_set.add(rank_info["rank_category"])
+
+        new_categories = {}
+        for category_key, category_info in snapshot_content["product_hierarchy_category"].items():
+            if category_info["category_name"] in new_category_set:
+                new_categories[category_key] = category_info
+
+        new_incident_alerts = []
+        for incident_alert_info in snapshot_content["incident_alerts"]:
+            if incident_alert_info["entity_id"] in new_entities:
+                new_incident_alerts.append(incident_alert_info)
+
+        snapshot_content["product_hierarchy_category"] = new_categories
+        snapshot_content["product_hierarchy_rank"] = new_ranks
+        snapshot_content["incident_propagation_graph"]["entities"] = list(new_entities.values())
+        snapshot_content["incident_propagation_graph"]["edges"] = new_edges
+        snapshot_content["incident_alerts"] = new_incident_alerts
+
+        return snapshot_content
 
 
 class IncidentListResource(IncidentBaseResource):
@@ -554,46 +646,6 @@ class IncidentTopologyResource(IncidentBaseResource):
                 return True
 
         return False
-
-    def generate_topology_data_from_snapshot(self, incident: IncidentDocument, snapshot: IncidentSnapshot) -> Dict:
-        """根据快照内容生成拓扑图数据
-
-        :param snapshot: 快照内容
-        :return: 拓扑图数据
-        """
-        nodes = self.generate_nodes_by_entites(
-            incident,
-            snapshot,
-            snapshot.incident_graph_entities.values(),
-        )
-
-        node_categories = [node["entity"]["rank"]["rank_category"]["category_id"] for node in nodes]
-        sub_combos = [
-            {
-                "id": node["subComboId"],
-                "label": node["subComboId"],
-                "dataType": node["subComboId"],
-                "comboId": str(node["entity"]["rank"]["rank_category"]["category_id"]),
-                "dimensions": node["logic_content"],
-            }
-            for node in nodes
-            if node["subComboId"]
-        ]
-        topology_data = {
-            "nodes": nodes,
-            "edges": [edge.to_src_dict() for edge in snapshot.incident_graph_edges.values()],
-            "sub_combos": list({item["id"]: item for item in sub_combos}.values()),
-            "combos": [
-                {
-                    "id": str(category.category_id),
-                    "label": category.layer_alias,
-                    "dataType": category.category_name,
-                }
-                for category in snapshot.incident_graph_categories.values()
-                if category.category_id in node_categories
-            ],
-        }
-        return topology_data
 
     def get_incident_snapshots(self, incident: IncidentDocument) -> Dict:
         """根据故障详情获取故障快照
@@ -1211,3 +1263,43 @@ class IncidentAlertViewResource(IncidentBaseResource):
                     category["alerts"].append(alert)
 
         return incident_alerts
+
+
+class AlertIncidentDetailResource(IncidentDetailResource):
+    """
+    告警所属故障详情
+    """
+
+    def __init__(self):
+        super(AlertIncidentDetailResource, self).__init__()
+
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.IntegerField(required=True, label="故障ID")
+        filter_one_hop = serializers.BooleanField(required=False, default=True, label="保留根因关联跳数")
+
+    def perform_request(self, validated_request_data: Dict) -> Dict:
+        alert_id = validated_request_data["alert_id"]
+        alert_doc = AlertDocument.get(alert_id)
+
+        if not alert_doc:
+            raise AlertNotFoundError()
+
+        if not alert_doc.incident_id:
+            return {}
+
+        incident_doc = IncidentDocument.get(alert_doc.incident_id)
+
+        snapshot_content = incident_doc.snapshot.content.to_dict()
+        if validated_request_data["filter_one_hop"]:
+            snapshot_content = self.filter_one_hop_snapshot(snapshot_content)
+        snapshot = IncidentSnapshot(copy.deepcopy(snapshot_content))
+        snapshot.aggregate_graph(incident_doc)
+
+        incident = IncidentQueryHandler.handle_hit(incident_doc.to_dict())
+        incident["bk_biz_name"] = resource.cc.get_app_by_id(incident["bk_biz_id"]).name
+        incident["alert_count"] = len(incident["snapshot"]["alerts"])
+        incident["incident_root"] = self.get_incident_root_info(snapshot)
+        incident["current_topology"] = self.generate_topology_data_from_snapshot(incident_doc, snapshot)
+        incident["snapshot"] = snapshot_content
+
+        return incident

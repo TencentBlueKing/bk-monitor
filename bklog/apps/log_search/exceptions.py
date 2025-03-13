@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
 
@@ -566,6 +566,11 @@ class IndexSetDorisQueryException(BaseException):
 class SQLQueryException(BaseException):
     ERROR_CODE = "1005"
     MESSAGE = _("SQL查询异常: {name}")
+
+
+class SQLParserException(BaseException):
+    ERROR_CODE = "1006"
+    MESSAGE = _("SQL解析异常: {name}")
 
 
 # =================================================

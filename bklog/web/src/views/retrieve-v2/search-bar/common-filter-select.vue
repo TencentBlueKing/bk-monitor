@@ -4,11 +4,14 @@
   import { ConditionOperator } from '@/store/condition-operator';
   import useLocale from '@/hooks/use-locale';
   import CommonFilterSetting from './common-filter-setting.vue';
-  import { withoutValueConditionList } from './const.common';
-
+  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
+  import { getOperatorKey } from '@/common/util';
+  import { operatorMapping, translateKeys } from './const-values';
+  import useFieldEgges from './use-field-egges';
+  import { debounce } from 'lodash';
   const { $t } = useLocale();
   const store = useStore();
-
+  const debouncedHandleChange = debounce(() => handleChange(), 300);
   const filterFieldsList = computed(() => {
     if (Array.isArray(store.state.retrieve.catchFieldCustomConfig?.filterSetting)) {
       return store.state.retrieve.catchFieldCustomConfig?.filterSetting ?? [];
@@ -22,16 +25,18 @@
 
   const commonFilterAddition = computed({
     get() {
-      if (store.getters.retrieveParams.common_filter_addition?.length) {
-        return store.getters.retrieveParams.common_filter_addition;
-      }
-
-      return filterFieldsList.value.map(item => ({
-        field: item?.field_name || '',
-        operator: '=',
-        value: [],
-        list: [],
-      }));
+      const filterAddition = store.getters.common_filter_addition || [];
+      return filterFieldsList.value.map(item => {
+        const matchingItem = filterAddition.find(addition => addition.field === item.field_name);
+        return (
+          matchingItem ?? {
+            field: item.field_name || '',
+            operator: '=',
+            value: [],
+            list: [],
+          }
+        );
+      });
     },
     set(val) {
       const target = val.map(item => {
@@ -49,58 +54,73 @@
   });
 
   const activeIndex = ref(-1);
-
   let requestTimer = null;
   const isRequesting = ref(false);
 
-  const rquestFieldEgges = (() => {
-    return (field, index, operator?, value?, callback?) => {
-      const getConditionValue = () => {
-        if (['keyword'].includes(field.field_type)) {
-          return [`*${value}*`];
-        }
-
-        return [];
-      };
-      commonFilterAddition.value[index].list.splice(0, commonFilterAddition.value[index].list.length);
-
-      if (value !== undefined && value !== null && !['keyword', 'text'].includes(field.field_type)) {
-        return;
-      }
-
-      const size = ['keyword'].includes(field.field_type) && value?.length > 0 ? 10 : 100;
-      isRequesting.value = true;
-
-      requestTimer && clearTimeout(requestTimer);
-      requestTimer = setTimeout(() => {
-        const targetAddition = value
-          ? [{ field: field.field_name, operator: '=~', value: getConditionValue() }].map(val => {
-              const instance = new ConditionOperator(val);
-              return instance.getRequestParam();
-            })
-          : [];
-        store
-          .dispatch('requestIndexSetValueList', { fields: [field], targetAddition, force: true, size })
-          .then(res => {
-            const arr = res.data?.aggs_items?.[field.field_name] || [];
-            commonFilterAddition.value[index].list = arr.filter(item => item);
-          })
-          .finally(() => {
-            isRequesting.value = false;
-          });
-      }, 300);
+  const operatorDictionary = computed(() => {
+    const defVal = {
+      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
     };
-  })();
+    return {
+      ...defVal,
+      ...store.state.operatorDictionary,
+    };
+  });
 
+  /**
+   * 获取操作符展示文本
+   * @param {*} item
+   */
+  const getOperatorLabel = item => {
+    if (item.field === '_ip-select_') {
+      return '';
+    }
+
+    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+    if (translateKeys.includes(operatorMapping[item.operator])) {
+      return $t(operatorMapping[item.operator] ?? item.operator);
+    }
+
+    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+  };
+
+  const { requestFieldEgges } = useFieldEgges();
   const handleToggle = (visable, item, index) => {
     if (visable) {
       activeIndex.value = index;
-      rquestFieldEgges(item, index, null, null, () => {});
+      isRequesting.value = true;
+      requestFieldEgges(
+        item,
+        null,
+        resp => {
+          if (typeof resp === 'boolean') {
+            return;
+          }
+          commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+        },
+        () => {
+          isRequesting.value = false;
+        },
+      );
     }
   };
 
   const handleInputVlaueChange = (value, item, index) => {
-    rquestFieldEgges(item, index, commonFilterAddition.value[index].operator, value);
+    activeIndex.value = index;
+    isRequesting.value = true;
+    requestFieldEgges(
+      item,
+      value,
+      resp => {
+        if (typeof resp === 'boolean') {
+          return;
+        }
+        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+      },
+      () => {
+        isRequesting.value = false;
+      },
+    );
   };
 
   // 新建提交逻辑
@@ -152,7 +172,10 @@
         @focus.capture="e => handleRowFocus(index, e)"
         @blur.capture="handleRowBlur"
       >
-        <div class="title">
+        <div
+          class="title"
+          v-bk-overflow-tips
+        >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
         <bk-select
@@ -161,14 +184,14 @@
           :input-search="false"
           :popover-min-width="100"
           filterable
-          @change="handleChange"
+          @change="debouncedHandleChange"
         >
           <template #trigger>
-            <span class="operator-label">{{ $t(commonFilterAddition[index].operator) }}</span>
+            <span class="operator-label">{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"
-            :id="child.label"
+            :id="child.operator"
             :key="childIndex"
             :name="child.label"
           />
@@ -183,7 +206,7 @@
             multiple
             searchable
             :fix-height="true"
-            @change="handleChange"
+            @change="debouncedHandleChange"
             @toggle="visible => handleToggle(visible, item, index)"
           >
             <template #search>
@@ -215,6 +238,7 @@
 <style lang="scss" scoped>
   .filter-container-wrap {
     display: flex;
+    align-items: center;
     max-height: 95px;
     padding: 0 10px 0px 10px;
     overflow: auto;
@@ -272,8 +296,11 @@
       border: none;
 
       .operator-label {
+        display: inline-block;
+        width: 100%;
         padding: 4px;
         color: #3a84ff;
+        white-space: nowrap;
       }
 
       &.bk-select.is-focus {

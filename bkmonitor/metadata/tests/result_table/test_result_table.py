@@ -149,3 +149,11 @@ def test_generate_query_alias_settings():
     }
     actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(table_id)
     assert json.dumps(actual_config) == json.dumps(expected)
+
+    query_alias_settings = []
+    models.ESFieldQueryAliasOption.manage_query_alias_settings(
+        query_alias_settings=query_alias_settings, table_id=table_id, operator='admin'
+    )
+    expected = {}
+    actual_config = models.ESFieldQueryAliasOption.generate_query_alias_settings(table_id)
+    assert json.dumps(actual_config) == json.dumps(expected)

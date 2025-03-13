@@ -1441,3 +1441,35 @@ def update_target_detail(bk_biz_id=None):
         except Exception as e:
             logger.exception(f"[update_target_detail] failed for strategy({item.strategy_id}): {e}")
         logger.info(f"[update_target_detail] strategy({item.strategy_id}) done")
+
+
+@shared_task(ignore_result=True, queue="celery_resource")
+def migrate_all_panels_task(bk_biz_id, org_id):
+    """将业务下旧版 panels 迁移到新版本"""
+
+    from bk_dataview.models import Dashboard
+    from monitor.models.models import ApplicationConfig
+
+    dashboard_uids = list(Dashboard.objects.filter(org_id=org_id, is_folder=False).values_list('uid', flat=True))
+    result = {"success_total": 0, "failed_total": 0, "details": [], "dashboard_errors": []}
+
+    for dashboard_uid in dashboard_uids:
+        try:
+            migrate_info = resource.grafana.migrate_old_panels({"bk_biz_id": bk_biz_id, "dashboard_uid": dashboard_uid})
+            if migrate_info.get("result"):
+                dashboard_result = migrate_info.get("data", {})
+                result["success_total"] += dashboard_result.get("success_total", 0)
+                result["failed_total"] += dashboard_result.get("failed_total", 0)
+                if dashboard_result:
+                    dashboard_result.update({"dashboard_uid": dashboard_uid})
+                    result["details"].append(dashboard_result)
+            else:
+                result["dashboard_errors"].append(
+                    {"dashboard_uid": dashboard_uid, "error_message": migrate_info.get("message")}
+                )
+        except Exception as exc_info:  # noqa
+            result["dashboard_errors"].append({"dashboard_uid": dashboard_uid, "error_message": exc_info})
+
+        ApplicationConfig.objects.update_or_create(
+            cc_biz_id=bk_biz_id, key=f"{bk_biz_id}_migrate_all_panels", defaults={'value': result}
+        )

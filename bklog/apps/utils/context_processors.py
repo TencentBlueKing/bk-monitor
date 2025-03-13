@@ -30,7 +30,7 @@ from urllib.parse import urlparse  # noqa
 from blueapps.account.conf import ConfFixture  # noqa
 from django.conf import settings  # noqa
 from django.utils import translation  # noqa
-from django.utils.translation import ugettext_lazy as _  # noqa
+from django.utils.translation import gettext_lazy as _  # noqa
 
 
 def mysetting(request):

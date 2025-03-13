@@ -116,14 +116,12 @@ class RouteUrlResolver {
     return this.objectResolver(str);
   }
 
-  private getTimeSecVal(val: number) {
-    const diff = `${val}`.length - 10;
-    let temp = 1;
-    for (let i = 0; i < diff; i++) {
-      temp = temp * 10;
+  private timeFormatResolver(str) {
+    if (str === undefined || str === null || str === '') {
+      return 'YYYY-MM-DD HH:mm:ss';
     }
 
-    return val / temp;
+    return str;
   }
 
   /**
@@ -136,13 +134,17 @@ class RouteUrlResolver {
       return intTimestampStr(r);
     });
 
-    const result: number[] = handleTransformToTimestamp(decodeValue);
-    return { start_time: this.getTimeSecVal(result[0]), end_time: this.getTimeSecVal(result[1]) };
+    const result: number[] = handleTransformToTimestamp(decodeValue, this.timeFormatResolver(this.query.format));
+    return { start_time: result[0], end_time: result[1] };
   }
 
   private additionResolver(str) {
-    return this.commonResolver(str, val => {
-      return (JSON.parse(decodeURIComponent(val)) ?? []).map(val => {
+    return this.commonResolver(str, value => {
+      if (value === undefined || value === null || value === '') {
+        return [];
+      }
+
+      return (JSON.parse(decodeURIComponent(value)) ?? []).map(val => {
         const instance = new ConditionOperator(val);
         return instance.formatApiOperatorToFront();
       });
@@ -180,6 +182,7 @@ class RouteUrlResolver {
     this.resolver.set('clusterParams', this.objectResolver.bind(this));
     this.resolver.set('timeRange', this.dateTimeRangeResolver.bind(this));
     this.resolver.set('search_mode', this.searchModeResolver.bind(this));
+    this.resolver.set('format', this.timeFormatResolver.bind(this));
 
     // datePicker默认直接获取URL中的 start_time, end_time
     this.resolver.set('datePickerValue', this.datePickerValueResolver.bind(this));

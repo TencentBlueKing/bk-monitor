@@ -13,7 +13,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 """
 UNIFYQUERY 模块，调用接口汇总
 """
-from django.utils.translation import ugettext_lazy as _  # noqa
+from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request  # noqa

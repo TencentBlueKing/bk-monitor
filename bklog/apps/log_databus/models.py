@@ -41,7 +41,7 @@ databus
 from django.db import models, transaction  # noqa
 from django.utils import timezone  # noqa
 from django.utils.functional import cached_property  # noqa
-from django.utils.translation import ugettext_lazy as _  # noqa
+from django.utils.translation import gettext_lazy as _  # noqa
 from django_jsonfield_backport.models import (  # noqa  pylint: disable=unused-import
     JSONField,
 )
@@ -669,6 +669,7 @@ class CollectorPlugin(CollectorBase):
     table_id = models.CharField(_("结果表ID"), max_length=255, null=True)
     bkbase_table_id = models.CharField(_("BKBASE结果表ID"), max_length=255, null=True)
     is_allow_alone_storage = models.BooleanField(_("是否允许独立存储"), default=True)
+    is_create_storage = models.BooleanField(_("是否创建存储"), default=True)
     storage_cluster_id = models.IntegerField(_("存储集群ID"), null=True)
     retention = models.IntegerField(_("数据有效时间"), null=True)
     allocation_min_days = models.IntegerField(_("冷热数据生效时间"), null=True)

@@ -26,7 +26,9 @@ from bkmonitor.utils.request import get_request
 from constants.data_source import DataSourceLabel
 from core.drf_resource import Resource, api, resource
 from core.errors.dashboard import GetFolderOrDashboardError
+from monitor.models.models import ApplicationConfig
 from monitor_web.grafana.permissions import DashboardPermission
+from monitor_web.tasks import migrate_all_panels_task
 
 logger = logging.getLogger(__name__)
 
@@ -731,21 +733,38 @@ class MigrateOldPanels(Resource):
         # 3. 更新仪表盘
         if migrated_panels_details["failed_total"]:
             # 3.1 如果仪表盘内的面板迁移有失败的情况
-            dashboard_info.data = json.dumps(dashboard)
-            dashboard_info.save()
-            return {
-                "result": True,
-                "message": "Migration completed. Some panels may have failed to migrate.",
-                "code": 200,
-                "data": migrated_panels_details,
-            }
+            result = api.grafana.create_or_update_dashboard_by_uid(
+                org_id=org_id,
+                dashboard=dashboard,
+                folderId=dashboard_info.folder_id,
+                overwrite=False,
+            )
+
+            if not result["result"]:
+                return {
+                    "result": False,
+                    "message": result["message"],
+                    "code": 500,
+                    "data": {},
+                }
+            else:
+                return {
+                    "result": True,
+                    "message": "Migration completed. Some panels may have failed to migrate.",
+                    "code": 200,
+                    "data": migrated_panels_details,
+                }
         elif is_migrate:
             # 3.1 仪表盘内的面板都成功迁移的情况
-            dashboard_info.data = json.dumps(dashboard)
-            dashboard_info.save()
+            result = api.grafana.create_or_update_dashboard_by_uid(
+                org_id=org_id,
+                dashboard=dashboard,
+                folderId=dashboard_info.folder_id,
+                overwrite=False,
+            )
             return {
-                "result": True,
-                "message": "Migrate success.",
+                "result": result["result"],
+                "message": "Migrate success." if result["result"] else result["message"],
                 "code": 200,
                 "data": migrated_panels_details,
             }
@@ -804,5 +823,37 @@ class GetRelatedStrategy(Resource):
                     "invalid_type": strategy.invalid_type,
                 }
             )
+
+        return result
+
+
+class MigrateOldPanelsByBiz(Resource):
+    """
+    全业务仪表盘旧图表迁移
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
+
+    def perform_request(self, params):
+        org_id = get_or_create_org(str(params['bk_biz_id']))["id"]
+        task = migrate_all_panels_task.delay(params['bk_biz_id'], org_id)
+
+        return {'task_id': task.id}
+
+
+class MigratePanelsInfo(Resource):
+    """查询全业务仪表盘旧图表迁移情况"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
+
+    def perform_request(self, params):
+        config = ApplicationConfig.objects.get(
+            cc_biz_id=params["bk_biz_id"],
+            key=f"{params['bk_biz_id']}_migrate_all_panels",
+        )
+        result = config.value
+        result.update({"data_updated": config.data_updated, "data_created": config.data_created})
 
         return result

@@ -21,9 +21,7 @@ import base64
 import copy
 import datetime
 import json
-import os
 import re
-import tempfile
 from collections import defaultdict
 from typing import Any, Dict, List, Union
 
@@ -31,7 +29,7 @@ import arrow
 import yaml
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from kubernetes import client
 from rest_framework.exceptions import ErrorDetail, ValidationError
 
@@ -62,6 +60,8 @@ from apps.log_databus.constants import (
     BKDATA_TAGS,
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
+    CC_HOST_FIELDS,
+    CC_SCOPE_FIELDS,
     CHECK_TASK_READY_NOTE_FOUND_EXCEPTION_CODE,
     CONTAINER_CONFIGS_TO_YAML_EXCLUDE_FIELDS,
     DEFAULT_RETENTION,
@@ -71,6 +71,7 @@ from apps.log_databus.constants import (
     SEARCH_BIZ_INST_TOPO_LEVEL,
     STORAGE_CLUSTER_TYPE,
     ArchiveInstanceType,
+    CmdbFieldType,
     CollectStatus,
     ContainerCollectorType,
     ContainerCollectStatus,
@@ -83,9 +84,6 @@ from apps.log_databus.constants import (
     TargetNodeTypeEnum,
     TopoType,
     WorkLoadType,
-    CC_HOST_FIELDS,
-    CC_SCOPE_FIELDS,
-    CmdbFieldType,
 )
 from apps.log_databus.exceptions import (
     AllNamespaceNotAllowedException,
@@ -123,7 +121,6 @@ from apps.log_databus.handlers.collector_scenario.utils import (
     deal_collector_scenario_param,
 )
 from apps.log_databus.handlers.etl_storage import EtlStorage
-from apps.log_databus.handlers.kafka import KafkaConsumerHandle
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import (
     ArchiveConfig,
@@ -456,10 +453,9 @@ class CollectorHandler(object):
         # 添加索引集相关信息
         log_index_set_obj = LogIndexSet.objects.filter(collector_config_id=self.collector_config_id).first()
         if log_index_set_obj:
-            collector_config.update({
-                "sort_fields": log_index_set_obj.sort_fields,
-                "target_fields": log_index_set_obj.target_fields
-            })
+            collector_config.update(
+                {"sort_fields": log_index_set_obj.sort_fields, "target_fields": log_index_set_obj.target_fields}
+            )
 
         return collector_config
 
@@ -866,8 +862,8 @@ class CollectorHandler(object):
                     item["value"] = "{{cmdb_instance." + item["value"] + "." + item["key"] + "}}"
                     item["key"] = "host.{}".format(item["key"])
                 if item["value"] == CmdbFieldType.SCOPE.value and item["key"] in CC_SCOPE_FIELDS:
-                    # TODO: 支持集群信息注入
-                    continue
+                    item["value"] = "{{cmdb_instance.host.relations[0]." + item["key"] + "}}"
+                    item["key"] = "host.{}".format(item["key"])
 
         # 1. 创建CollectorConfig记录
         model_fields = {
@@ -1236,47 +1232,9 @@ class CollectorHandler(object):
     def tail(self):
         if not self.data.bk_data_id:
             raise CollectorConfigDataIdNotExistException()
-        data_result = TransferApi.get_data_id({"bk_data_id": self.data.bk_data_id})
-
-        cluster_config = data_result["mq_config"]["cluster_config"]
-
-        ssl_cafile = cluster_config.get("raw_ssl_certificate_authorities")
-        ssl_certfile = cluster_config.get("raw_ssl_certificate")
-        ssl_keyfile = cluster_config.get("raw_ssl_certificate_key")
-
-        if ssl_cafile:
-            with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
-                fd.write(ssl_cafile)
-                ssl_cafile = fd.name
-
-        if ssl_certfile:
-            with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
-                fd.write(ssl_certfile)
-                ssl_certfile = fd.name
-
-        if ssl_keyfile:
-            with tempfile.NamedTemporaryFile(mode="w", delete=False) as fd:
-                fd.write(ssl_keyfile)
-                ssl_keyfile = fd.name
-
-        params = {
-            "server": cluster_config.get("extranet_domain_name")
-            or self._get_kafka_broker(cluster_config["domain_name"]),
-            "port": cluster_config.get("extranet_port") or cluster_config["port"],
-            "topic": data_result["mq_config"]["storage_config"]["topic"],
-            "username": data_result["mq_config"]["auth_info"]["username"],
-            "password": data_result["mq_config"]["auth_info"]["password"],
-            "sasl_mechanism": data_result["mq_config"]["auth_info"].get("sasl_mechanisms"),
-            "is_ssl_verify": cluster_config.get("is_ssl_verify", False),
-            "ssl_insecure_skip_verify": cluster_config.get("ssl_insecure_skip_verify", True),
-            "ssl_cafile": ssl_cafile,
-            "ssl_certfile": ssl_certfile,
-            "ssl_keyfile": ssl_keyfile,
-        }
-
-        message_data = KafkaConsumerHandle(**params).get_latest_log()
+        data_result = TransferApi.list_kafka_tail(params={"bk_data_id": self.data.bk_data_id, "namespace": "bklog"})
         return_data = []
-        for _message in message_data:
+        for _message in data_result:
             # 数据预览
             etl_message = copy.deepcopy(_message)
             data_items = etl_message.get("items")
@@ -1293,13 +1251,6 @@ class CollectorHandler(object):
                 etl_message.update({"data": "", "iterationindex": "", "bathc": []})
 
             return_data.append({"etl": etl_message, "origin": _message})
-
-        # 删除临时证书文件
-        for filename in [ssl_cafile, ssl_certfile, ssl_keyfile]:
-            try:
-                os.remove(filename)
-            except Exception:
-                pass
 
         return return_data
 
@@ -2423,6 +2374,8 @@ class CollectorHandler(object):
         bk_app_code=settings.APP_CODE,
         bkdata_biz_id=None,
         is_display=True,
+        sort_fields=None,
+        target_fields=None,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
@@ -2515,6 +2468,8 @@ class CollectorHandler(object):
                 "etl_params": custom_config.etl_params,
                 "etl_config": custom_config.etl_config,
                 "fields": custom_config.fields,
+                "sort_fields": sort_fields,
+                "target_fields": target_fields,
             }
             if etl_params and fields:
                 # 如果传递了清洗参数，则优先使用
@@ -4543,6 +4498,49 @@ class CollectorHandler(object):
             },
         }
 
+    def fast_contain_create(self, params: dict) -> dict:
+        # 补充缺少的容器参数
+        container_configs = params["configs"]
+        for container_config in container_configs:
+            if not container_config.get("container"):
+                container_config["container"] = {
+                    "workload_type": "",
+                    "workload_name": "",
+                    "container_name": "",
+                    "container_name_exclude": "",
+                }
+            if not container_config.get("data_encoding"):
+                container_config["data_encoding"] = "UTF-8"
+
+            if not container_config.get("label_selector"):
+                container_config["label_selector"] = {"match_labels": [], "match_expressions": []}
+            if not container_config["params"].get("conditions", {}).get("type"):
+                container_config["params"]["conditions"] = {"type": "none"}
+        # 补充缺少的清洗配置参数
+        if not params.get("fields"):
+            params["fields"] = []
+        # 如果没传入集群ID, 则随机给一个公共集群
+        if not params.get("storage_cluster_id"):
+            storage_cluster_id = get_random_public_cluster_id(bk_biz_id=params["bk_biz_id"])
+            if not storage_cluster_id:
+                raise PublicESClusterNotExistException()
+            params["storage_cluster_id"] = storage_cluster_id
+        # 如果没传入数据链路ID, 则按照优先级选取一个集群ID
+        data_link_id = int(params.get("data_link_id") or 0)
+        params["data_link_id"] = get_data_link_id(bk_biz_id=params["bk_biz_id"], data_link_id=data_link_id)
+        # 创建采集项
+        self.create_container_config(params)
+        params["table_id"] = params["collector_config_name_en"]
+        index_set_id = self.create_or_update_clean_config(False, params).get("index_set_id", 0)
+        self.send_create_notify(self.data)
+        return {
+            "collector_config_id": self.data.collector_config_id,
+            "bk_data_id": self.data.bk_data_id,
+            "subscription_id": self.data.subscription_id,
+            "task_id_list": self.data.task_id_list,
+            "index_set_id": index_set_id,
+        }
+
     def fast_create(self, params: dict) -> dict:
         params["params"]["encoding"] = params["data_encoding"]
         # 如果没传入集群ID, 则随机给一个公共集群
@@ -4567,6 +4565,17 @@ class CollectorHandler(object):
             "task_id_list": self.data.task_id_list,
             "index_set_id": index_set_id,
         }
+
+    def fast_contain_update(self, params: dict) -> dict:
+        if self.data and not self.data.is_active:
+            raise CollectorActiveException()
+        # 补充缺少的清洗配置参数
+        params.setdefault("fields", [])
+        # 更新采集项
+        self.update_container_config(params)
+        params["table_id"] = self.data.collector_config_name_en
+        self.create_or_update_clean_config(True, params)
+        return {"collector_config_id": self.data.collector_config_id}
 
     def fast_update(self, params: dict) -> dict:
         if self.data and not self.data.is_active:
@@ -4873,19 +4882,23 @@ class CollectorHandler(object):
                 host_data = {
                     "field": data["bk_property_id"],
                     "name": data["bk_property_name"],
-                    "group_name": data["bk_property_group_name"]
+                    "group_name": data["bk_property_group_name"],
                 }
                 return_data["host"].append(host_data)
-        return_data["host"].extend([
-            {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
-            {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
-            {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"}
-        ])
-        # scope_data = [
-        #     {"field": "bk_module_id", "name": "模型ID", "group_name": "基础信息"},
-        #     {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"}
-        # ]
-        # return_data["scope"] = scope_data
+        return_data["host"].extend(
+            [
+                {"field": "bk_supplier_account", "name": "供应商", "group_name": "基础信息"},
+                {"field": "bk_host_id", "name": "主机ID", "group_name": "基础信息"},
+                {"field": "bk_biz_id", "name": "业务ID", "group_name": "基础信息"},
+            ]
+        )
+        scope_data = [
+            {"field": "bk_module_id", "name": "模块ID", "group_name": "基础信息"},
+            {"field": "bk_set_id", "name": "集群ID", "group_name": "基础信息"},
+            {"field": "bk_module_name", "name": "模块名称", "group_name": "基础信息"},
+            {"field": "bk_set_name", "name": "集群名称", "group_name": "基础信息"},
+        ]
+        return_data["scope"] = scope_data
         return return_data
 
 

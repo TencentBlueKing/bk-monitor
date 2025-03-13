@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 
 from dataclasses import dataclass
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 from apps.utils import ChoicesEnum
 
@@ -438,6 +438,11 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="ClusteringConfigViewSet",
         view_action="get_config",
     )
+    CLUSTERING_CONFIG_MONITOR_VIEWSET_STRATEGY = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ClusteringMonitorViewSet",
+        view_action="get_strategy",
+    )
     PATTERN_VIEWSET_SEARCH = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="PatternViewSet", view_action="search"
     )
@@ -582,6 +587,7 @@ class ViewSetActionEnum(ChoicesEnum):
         # ======================================= 字段分析-FieldViewSet =======================================
         CLUSTERING_CONFIG_VIEWSET_STATUS,
         CLUSTERING_CONFIG_VIEWSET_CONFIG,
+        CLUSTERING_CONFIG_MONITOR_VIEWSET_STRATEGY,
         PATTERN_VIEWSET_SEARCH,
         # ======================================= 索引-IndexSetViewSet =======================================
         INDEX_SET_VIEWSET_MARK_FAVORITE,

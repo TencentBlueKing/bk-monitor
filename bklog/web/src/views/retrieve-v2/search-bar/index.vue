@@ -1,11 +1,11 @@
 <script setup>
-  import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+  import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { useRoute, useRouter } from 'vue-router/composables';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
-  import PopInstanceUtil from './pop-instance-util';
+  // import PopInstanceUtil from './pop-instance-util';
 
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import BookmarkPop from './bookmark-pop';
@@ -88,7 +88,6 @@
   const clearSearchValueNum = computed(() => store.state.clearSearchValueNum);
   const queryText = computed(() => queryTypeList.value[activeIndex.value]);
 
-  const isChartMode = computed(() => route.query.tab === 'graphAnalysis');
 
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const isInputLoading = computed(() => {
@@ -256,7 +255,7 @@
   );
 
   const matchSQLStr = computed(() => {
-    if(props.activeFavorite.index_set_id !== store.getters.indexId ){
+    if(props.activeFavorite?.index_set_id !== store.state.indexId ){
       return false;
     }
     if (activeIndex.value === 0) {
@@ -274,6 +273,7 @@
       return sqlQueryValue.value === sourceSQLStr.value;
     }
   });
+  const indexSetItem = computed(() => store.state.indexItem);
 
   const saveCurrentActiveFavorite = async () => {
     if (matchSQLStr.value) {
@@ -285,11 +285,9 @@
       display_fields,
       visible_type,
       is_enable_display_fields,
-      index_set_name,
       index_set_names,
       index_set_type,
       index_set_ids,
-      index_set_id,
     } = props.activeFavorite;
     const searchMode = activeIndex.value === 0 ? 'ui' : 'sql';
     const reqFormatAddition = uiQueryValue.value.map(item => new ConditionOperator(item).getRequestParam());
@@ -309,13 +307,20 @@
       is_enable_display_fields,
       search_mode: searchMode,
       ip_chooser: reqFormatAddition.find(item => item.field === '_ip-select_')?.value?.[0] ?? {},
-      index_set_id,
-      index_set_ids,
-      index_set_name,
       index_set_type,
-      index_set_names,
       ...searchParams,
     };
+    if (indexSetItem.value.isUnionIndex) {
+      Object.assign(data, {
+        index_set_ids: indexSetItem.value.ids,
+        index_set_type: 'union',
+      });
+    }else{
+      Object.assign(data, {
+        index_set_id: store.state.indexId,
+        index_set_type: 'single'
+      });
+    }
     try {
       const res = await $http.request('favorite/updateFavorite', {
         params: { id: props.activeFavorite?.id },
@@ -384,7 +389,7 @@
   const handleFilterSecClick = () => {
     if (isFilterSecFocused.value) {
       if (activeIndex.value === 0) {
-        const { common_filter_addition } = store.getters.retrieveParams;
+        const { common_filter_addition } = store.getters;
         if (common_filter_addition.length) {
           window.mainComponent.messageSuccess($t('常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。'));
           uiQueryValue.value.push(
@@ -427,9 +432,9 @@
 <template>
   <div
     ref="refRootElement"
-    :class="['search-bar-wrapper', { readonly: isChartMode }]"
+    :class="['search-bar-wrapper']"
   >
-    <div :class="['search-bar-container', { readonly: isChartMode }]">
+    <div :class="['search-bar-container']">
       <div
         class="search-options"
         @click="handleQueryTypeChange"
@@ -477,33 +482,7 @@
             @saveCurrentActiveFavorite="saveCurrentActiveFavorite"
             @refresh="handleRefresh"
           ></BookmarkPop>
-          <!-- <template v-else> -->
-            <!-- <div
-              v-if="matchSQLStr"
-              class="bklog-icon bklog-star-line disabled"
-              v-bk-tooltips="$t('已收藏')"
-              :data-boolean="matchSQLStr"
-            ></div> -->
-            <!-- <bk-dropdown-menu :align="'center'">
-              <template slot="dropdown-trigger">
-                 <div
-                    style="color: #63656e"
-                    v-bk-tooltips="$t('收藏')"
-                    class="icon bk-icon icon-save"
-                  ></div>
-              </template>
-              <ul class="bk-dropdown-list" slot="dropdown-content">
-                  <li><a href="javascript:;"  :class="matchSQLStr? 'disabled': ''" @click.stop="saveCurrentActiveFavorite">覆盖当前收藏</a></li>
-                  <li><a href="javascript:;">另存为新收藏</a></li>
-              </ul>
-          </bk-dropdown-menu> -->
-            <!-- <div
-              style="color: #63656e"
-              v-bk-tooltips="$t('收藏')"
-              class="icon bk-icon icon-save"
-              @click="saveCurrentActiveFavorite"
-            ></div> -->
-          <!-- </template> -->
+
           <div
             v-bk-tooltips="$t('常用查询设置')"
             :class="['bklog-icon bklog-setting', { disabled: isInputLoading, 'is-focused': isFilterSecFocused }]"

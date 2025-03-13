@@ -125,3 +125,7 @@ window.ResizeObserver = class ResizeObserver extends _ResizeObserver {
     super(callback);
   }
 };
+
+window.$t = function (key, params) {
+  return i18n.t(key, params);
+};
