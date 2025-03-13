@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 import operator
 from functools import reduce
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from django.db.models import Q
 from rest_framework import serializers
@@ -20,6 +20,9 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.utils import get_q_from_query_config
+from packages.monitor_web.data_explorer.event.serializers import (
+    EventQueryConfigSerializer,
+)
 
 
 def process_query_config(
@@ -117,4 +120,20 @@ class EventTotalRequestSerializer(event_serializers.EventTotalRequestSerializer,
             attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
         )
         attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
+        return attrs
+
+
+class EventTagsRequestSerializer(event_serializers.BaseEventRequestSerializer, BaseEventRequestSerializer):
+    query_configs = serializers.ListField(label="查询配置列表", child=EventQueryConfigSerializer(), allow_empty=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        attrs["expression"] = "a"
+
+        event_relations: List[Dict[str, Any]] = EventServiceRelation.fetch_relations(
+            attrs["bk_biz_id"], attrs["app_name"], attrs["service_name"]
+        )
+        attrs["query_configs"] = process_query_config(attrs["query_configs"][0], event_relations)
+        for query_config in attrs["query_configs"]:
+            query_config["metric"] = [{"field": "_index", "method": "SUM", "alias": "a"}]
         return attrs
