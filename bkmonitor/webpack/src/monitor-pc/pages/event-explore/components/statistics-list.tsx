@@ -31,6 +31,7 @@ import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import { APIType, getDownloadTopK, getEventTopK } from '../api-utils';
 
 import type { ITopKField } from '../typing';
@@ -39,10 +40,12 @@ import './statistics-list.scss';
 interface StatisticsListProps {
   selectField: string;
   popoverInstance?: any;
+  filterMode?: EMode;
+  isDimensions?: boolean;
 }
 
 interface StatisticsListEvents {
-  onConditionChange(val): void;
+  onConditionChange(val: IWhereItem[] | string): void;
   onShowMore(): void;
   onSliderShowChange(sliderShow: boolean): void;
 }
@@ -50,7 +53,9 @@ interface StatisticsListEvents {
 @Component
 export default class StatisticsList extends tsc<StatisticsListProps, StatisticsListEvents> {
   @Prop({ type: String, default: '' }) selectField: string;
+  @Prop({ type: Boolean, default: false }) isDimensions: boolean;
   @Prop({ type: Object, default: null }) popoverInstance: any;
+  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
 
   @InjectReactive('commonParams') commonParams;
   @InjectReactive({
@@ -85,10 +90,16 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             <div class='filter-tools'>
               <i
                 class='icon-monitor icon-a-sousuo'
+                v-bk-tooltips={{
+                  content: `${this.isDimensions ? 'dimensions.' : ''}${this.selectField} = ${item.value || '""'}`,
+                }}
                 onClick={() => this.handleConditionChange('eq', item)}
               />
               <i
                 class='icon-monitor icon-sousuo-'
+                v-bk-tooltips={{
+                  content: `${this.isDimensions ? 'dimensions.' : ''}${this.selectField} != ${item.value || '""'}`,
+                }}
                 onClick={() => this.handleConditionChange('ne', item)}
               />
             </div>
@@ -119,11 +130,18 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   }
 
   @Emit('conditionChange')
-  handleConditionChange(type, item: ITopKField['list'][0]) {
-    if (type === 'eq') {
-      return [{ condition: 'and', key: this.selectField, method: 'eq', value: [item.value] }];
+  handleConditionChange(type: 'eq' | 'ne', item: ITopKField['list'][0]) {
+    if (this.filterMode === EMode.ui) {
+      if (type === 'eq') {
+        return [{ condition: 'and', key: this.selectField, method: 'eq', value: [item.value || '""'] }];
+      }
+      return [{ condition: 'and', key: this.selectField, method: 'ne', value: [item.value || '""'] }];
     }
-    return [{ condition: 'and', key: this.selectField, method: 'ne', value: [item.value] }];
+    const key = `${this.isDimensions ? 'dimensions.' : ''}${this.selectField}`;
+    if (type === 'eq') {
+      return `${key} : "${item.value || ''}"`;
+    }
+    return `NOT ${key} : "${item.value || ''}"`;
   }
 
   @Emit('sliderShowChange')
@@ -134,6 +152,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   @Watch('selectField')
   watchSelectFieldChange(val) {
     if (!val) {
+      this.statisticsList = { distinct_count: 0, field: '', list: [] };
       return;
     }
     this.getStatisticsList();
@@ -180,7 +199,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     this.downloadLoading = true;
     const data = await getDownloadTopK(
       {
-        limit: this.statisticsList.distinct_count,
+        limit: this.statisticsList?.distinct_count,
         fields: [this.selectField],
         ...this.commonParams,
       },
@@ -231,7 +250,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               </span>
               <span class='divider' />
               <span class='desc'>
-                {this.$t('去重后的字段统计')} ({this.statisticsList.distinct_count || 0})
+                {this.$t('去重后的字段统计')} ({this.statisticsList?.distinct_count || 0})
               </span>
             </div>
             {this.downloadLoading ? (
@@ -253,8 +272,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
           {this.popoverLoading
             ? this.renderSkeleton()
             : [
-                this.renderTopKField(this.statisticsList.list),
-                this.statisticsList.distinct_count > 5 && (
+                this.renderTopKField(this.statisticsList?.list),
+                this.statisticsList?.distinct_count > 5 && (
                   <div
                     class='load-more'
                     onClick={this.showMore}

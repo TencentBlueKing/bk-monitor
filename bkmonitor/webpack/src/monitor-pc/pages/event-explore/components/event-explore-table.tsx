@@ -28,6 +28,7 @@ import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
+import { EMode, type IWhereItem } from '../../../components/retrieval-filter/utils';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
 import {
@@ -46,7 +47,6 @@ import { getEventLegendColorByType } from '../utils';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
 
 import type { EmptyStatusType } from '../../../components/empty-status/types';
-import type { IWhereItem } from '../../../components/retrieval-filter/utils';
 
 import './event-explore-table.scss';
 
@@ -54,6 +54,7 @@ interface EventExploreTableProps {
   requestConfigs: EventExploreTableRequestConfigs;
   fieldList: IDimensionField[];
   sourceEntities: ExploreEntitiesItem[];
+  filterMode?: EMode;
 }
 
 interface EventExploreTableEvents {
@@ -78,6 +79,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   @Prop({ type: Array, default: () => [] }) fieldList: IDimensionField[];
   /** expand 展开 kv 面板使用 */
   @Prop({ type: Array, default: () => [] }) sourceEntities: ExploreEntitiesItem[];
+  @Prop({ type: String, default: EMode.ui }) filterMode: EMode;
 
   /** table loading 配置*/
   tableLoading = {
@@ -397,6 +399,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
         data={rowData?.origin_data || {}}
         entitiesMapList={this.entitiesMapByField}
         fieldMap={this.fieldMapByField}
+        filterMode={this.filterMode}
         onConditionChange={this.conditionChange}
       />
     );
