@@ -186,7 +186,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
     } else if (this.type === EQueryStringTokenType.value) {
       if (fieldItem?.is_option_enabled) {
         if (!this.loading) {
-          const data = await this.getValueData();
+          const data = await this.getValueData(false, !!fieldItem?.is_dimensions);
           this.localOptions = data;
         }
       } else {
@@ -274,7 +274,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
    * @param method
    * @param value
    */
-  async getValueData(isScroll = false) {
+  async getValueData(isScroll = false, isDimensions = false) {
     let list = [];
     if (isScroll) {
       this.scrollLoading = true;
@@ -285,7 +285,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
     if (this.field) {
       const limit = this.page * this.pageSize;
       const data = await this.getValueFn({
-        queryString: `${this.field} : ${this.search || '*'}`,
+        queryString: `${isDimensions ? 'dimensions.' : ''}${this.field} : ${this.search || '*'}`,
         fields: [this.field],
         limit: limit,
       });
@@ -320,6 +320,72 @@ export default class QsSelectorSelector extends tsc<IProps> {
 
   handleSelectFavorite(item) {
     this.$emit('selectFavorite', item.content);
+  }
+
+  getSubtitle(id: string) {
+    const descMap = {
+      ':': (
+        <span class='subtitle-text'>
+          <span class='subtitle-text-tag'>{window.i18n.tc('等于')}</span>
+          {window.i18n.tc('某一值')}
+        </span>
+      ),
+      ':*': (
+        <span class='subtitle-text'>
+          <span class='subtitle-text-tag'>{window.i18n.tc('存在')}</span>
+          {window.i18n.tc('任意形式')}
+        </span>
+      ),
+      '>': (
+        <span class='subtitle-text'>
+          <span class='subtitle-text-tag'>{window.i18n.tc('大于')}</span>
+          {window.i18n.tc('某一值')}
+        </span>
+      ),
+      '<': (
+        <span class='subtitle-text'>
+          <span class='subtitle-text-tag'>{window.i18n.tc('小于')}</span>
+          {window.i18n.tc('某一值')}
+        </span>
+      ),
+      '>=': (
+        <span class='subtitle-text'>
+          <span class='subtitle-text-tag'>{window.i18n.tc('大于或等于')}</span>
+          {window.i18n.tc('某一值')}
+        </span>
+      ),
+      '<=': (
+        <span class='subtitle-text'>
+          <span class='subtitle-text-tag'>{window.i18n.tc('小于或等于')}</span>
+          {window.i18n.tc('某一值')}
+        </span>
+      ),
+      AND: (
+        <span class='subtitle-text'>
+          {window.i18n.tc('需要')}
+          <span class='subtitle-text-tag'>{window.i18n.tc('两个参数都')}</span>
+          {window.i18n.tc('为真')}
+        </span>
+      ),
+      OR: (
+        <span class='subtitle-text'>
+          {window.i18n.tc('需要')}
+          <span class='subtitle-text-tag'>{window.i18n.tc('一个或多个参数')}</span>
+          {window.i18n.tc('为真')}
+        </span>
+      ),
+      'AND NOT': (
+        <span class='subtitle-text'>
+          {window.i18n.tc('需要')}
+          <span class='subtitle-text-tag'>{window.i18n.tc('一个或多个参数')}</span>
+          {window.i18n.tc('为真')}
+        </span>
+      ),
+    };
+    if ([EQueryStringTokenType.method, EQueryStringTokenType.condition].includes(this.type)) {
+      return descMap[id];
+    }
+    return undefined;
   }
 
   render() {
@@ -359,6 +425,7 @@ export default class QsSelectorSelector extends tsc<IProps> {
                       <span class={['icon-monitor', queryStringColorMap[this.type]?.icon || '']} />
                     </span>
                     <span class='option-item-name'>{item.name}</span>
+                    {this.getSubtitle(item.id)}
                   </div>
                 ))}
             {this.scrollLoading && (
