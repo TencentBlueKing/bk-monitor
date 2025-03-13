@@ -89,6 +89,8 @@ export default class MonitorEventExplore extends tsc<object> {
   /** 用于 日志 和 事件关键字切换 换成查询 */
   cacheQuery = null;
   filterMode = EMode.ui;
+  /** 是否展示常驻筛选 */
+  showResidentBtn = false;
 
   async mounted() {
     const isShowFavorite =
@@ -170,6 +172,7 @@ export default class MonitorEventExplore extends tsc<object> {
         filter_dict,
         filterMode,
         commonWhere,
+        showResidentBtn,
       } = queryConfig;
       this.dataId = result_table_id;
       this.dataSourceLabel = data_source_label;
@@ -183,6 +186,7 @@ export default class MonitorEventExplore extends tsc<object> {
       this.timezone = compareValue.tools.timezone;
       this.filterMode = filterMode || EMode.ui;
       this.commonWhere = commonWhere || [];
+      this.showResidentBtn = showResidentBtn || false;
     } else {
       // 选择检索
       this.dataId = this.dataIdList[0].id;
@@ -214,6 +218,7 @@ export default class MonitorEventExplore extends tsc<object> {
         filter_dict: this.filter_dict,
         filterMode: this.filterMode,
         commonWhere: this.commonWhere,
+        showResidentBtn: this.showResidentBtn,
       },
       compareValue: {
         compare: {
@@ -237,6 +242,9 @@ export default class MonitorEventExplore extends tsc<object> {
   /** 切换数据ID */
   handleDataIdChange(dataId: string) {
     this.dataId = dataId;
+    this.where = [];
+    this.queryString = '';
+    this.commonWhere = [];
     this.setRouteParams();
   }
 
@@ -272,10 +280,19 @@ export default class MonitorEventExplore extends tsc<object> {
     }
   }
 
+  /** where条件修改 */
   handleWhereChange(where: IFormData['where']) {
     this.where = where;
     this.setRouteParams();
   }
+
+  /** 常驻筛选项修改 */
+  handleCommonWhereChange(where: IWhereItem[]) {
+    this.commonWhere = where;
+    this.setRouteParams();
+  }
+
+  /** queryString变化 */
   handleQueryStringChange(queryString: string) {
     this.queryString = queryString;
     this.setRouteParams();
@@ -284,23 +301,33 @@ export default class MonitorEventExplore extends tsc<object> {
     this.group_by = group_by;
     this.setRouteParams();
   }
+
   handleFilterChange(filter_dict: IFormData['filter_dict']) {
     this.filter_dict = filter_dict;
     this.setRouteParams();
   }
 
+  /** 语句模式和UI模式切换 */
   handleFilterModeChange(mode: EMode) {
     this.filterMode = mode;
     this.setRouteParams();
   }
 
+  /** queryString input输入 */
   handleQueryStringInputChange(val: string) {
     this.queryStringInput = val;
   }
 
+  /** 常驻筛选显隐 */
+  handleShowResidentBtnChange(isShow: boolean) {
+    this.showResidentBtn = isShow;
+    this.setRouteParams();
+  }
+
   /** 兼容以前的事件检索URL格式 */
   getRouteParams() {
-    const { targets, from, to, timezone, refreshInterval, filterMode, commonWhere } = this.$route.query;
+    const { targets, from, to, timezone, refreshInterval, filterMode, commonWhere, showResidentBtn, favoriteId } =
+      this.$route.query;
     if (targets) {
       try {
         const targetsList = JSON.parse(decodeURIComponent(targets as string));
@@ -334,7 +361,8 @@ export default class MonitorEventExplore extends tsc<object> {
         this.filterMode = [EMode.ui, EMode.queryString].includes(filterMode as EMode)
           ? (filterMode as EMode)
           : EMode.ui;
-        this.commonWhere = JSON.parse((commonWhere as string) || '[]');
+        this.commonWhere = favoriteId ? [] : JSON.parse((commonWhere as string) || '[]');
+        this.showResidentBtn = JSON.parse(showResidentBtn as string) || false;
       } catch (error) {
         console.log('route query:', error);
       }
@@ -367,6 +395,8 @@ export default class MonitorEventExplore extends tsc<object> {
       ]),
       filterMode: this.filterMode,
       commonWhere: JSON.stringify(this.commonWhere),
+      showResidentBtn: String(this.showResidentBtn),
+      favoriteId: String(this.currentFavorite.id),
     };
 
     const targetRoute = this.$router.resolve({
@@ -428,6 +458,7 @@ export default class MonitorEventExplore extends tsc<object> {
         dataId={this.dataId}
         dataSourceLabel={this.dataSourceLabel}
         dataTypeLabel={this.dataTypeLabel}
+        defaultShowResidentBtn={this.showResidentBtn}
         favoriteList={this.favoriteList}
         filter_dict={this.filter_dict}
         filterMode={this.filterMode}
@@ -435,10 +466,12 @@ export default class MonitorEventExplore extends tsc<object> {
         queryString={this.queryString}
         source={APIType.MONITOR}
         where={this.where}
+        onCommonWhereChange={this.handleCommonWhereChange}
         onFavorite={this.handleFavorite}
         onFilterModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
         onQueryStringInputChange={this.handleQueryStringInputChange}
+        onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleWhereChange}
       />
     );

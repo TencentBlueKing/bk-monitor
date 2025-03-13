@@ -161,4 +161,7 @@ export default {
 
   去重后的字段统计: 'Field statistics after deduplication',
   '联想到以下 {0} 个收藏：': 'Associated with {0} favorites:',
+  待选列表: 'To be selected list',
+  全部添加: 'Add all',
+  检索内容: 'Retrieval content',
 };
