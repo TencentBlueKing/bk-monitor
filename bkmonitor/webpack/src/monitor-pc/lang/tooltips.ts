@@ -321,4 +321,5 @@ export default {
   收起收藏夹: 'Collapse favorite folder',
   展开收藏夹: 'Expand favorite folder',
   收起查询: 'Collapse query',
+  即将上线: 'Coming soon',
 };
