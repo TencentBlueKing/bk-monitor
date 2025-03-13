@@ -348,6 +348,16 @@ class NewMetricChart extends CommonSimpleChart {
     if (!aliasFix.length) return item.alias;
     return `${item.alias}-${aliasFix}`;
   }
+
+  handleTime() {
+    const [startTime, endTime] = this.timeRange;
+    if (!startTime || !endTime) return;
+    if (typeof startTime === 'string') {
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      return [startTime, endTime];
+    }
+    return [startTime, endTime];
+  }
   /**
    * @description: 获取图表数据
    */
@@ -371,7 +381,7 @@ class NewMetricChart extends CommonSimpleChart {
     this.loading = true;
     try {
       this.unregisterOberver();
-      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+      const [startTime, endTime] = this.handleTime();
       const series = [];
       const metrics = [];
       let params = {
@@ -384,59 +394,57 @@ class NewMetricChart extends CommonSimpleChart {
         ...this.customScopedVars,
       });
 
-      const timeShiftList = ['', ...(this.filterOption?.compare?.offset || [])];
-      for (const timeShift of timeShiftList) {
-        const list = this.panel.targets.map(item => {
-          (item?.query_configs || []).map(config => {
-            config.metrics.map(metric => (metric.method = this.method));
-          });
-          const newParams = {
-            ...variablesService.transformVariables(item, {
-              ...this.customScopedVars,
-            }),
-            ...params,
-          };
-          const primaryKey = item?.primary_key;
-          const paramsArr = [];
-          if (primaryKey) {
-            paramsArr.push(primaryKey);
-          }
-          paramsArr.push({
-            ...newParams,
-            unify_query_param: {
-              ...newParams.unify_query_param,
-            },
-          });
-          return graphUnifyQuery(...paramsArr, {
-            cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
-            needMessage: false,
-          })
-            .then(res => {
-              this.$emit('seriesData', res);
-              res.metrics && metrics.push(...res.metrics);
-              res.series &&
-                series.push(
-                  ...res.series.map(set => {
-                    const name = set.target;
-                    this.legendSorts.push({
-                      name,
-                      timeShift,
-                    });
-                    return {
-                      ...set,
-                      name,
-                    };
-                  })
-                );
-              this.clearErrorMsg();
-              return true;
-            })
-            .catch(error => {
-              this.handleErrorMsgChange(error.msg || error.message);
-            });
+      const timeShiftList = [...(this.filterOption?.compare?.offset || [])];
+      const list = this.panel.targets.map(item => {
+        (item?.query_configs || []).map(config => {
+          config.metrics.map(metric => (metric.method = this.method));
         });
-        promiseList.push(...list);
-      }
+        const newParams = {
+          ...variablesService.transformVariables(item, {
+            ...this.customScopedVars,
+          }),
+          ...params,
+        };
+        const primaryKey = item?.primary_key;
+        const paramsArr = [];
+        if (primaryKey) {
+          paramsArr.push(primaryKey);
+        }
+        paramsArr.push({
+          ...newParams,
+          unify_query_param: {
+            ...newParams.unify_query_param,
+          },
+        });
+        return graphUnifyQuery(...paramsArr, {
+          cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+          needMessage: false,
+        })
+          .then(res => {
+            this.$emit('seriesData', res);
+            res.metrics && metrics.push(...res.metrics);
+            res.series &&
+              series.push(
+                ...res.series.map((set, ind) => {
+                  const name = set.target;
+                  this.legendSorts.push({
+                    name,
+                    timeShift: timeShiftList[ind] || '',
+                  });
+                  return {
+                    ...set,
+                    name,
+                  };
+                })
+              );
+            this.clearErrorMsg();
+            return true;
+          })
+          .catch(error => {
+            this.handleErrorMsgChange(error.msg || error.message);
+          });
+      });
+      promiseList.push(...list);
       await Promise.all(promiseList).catch(() => false);
       this.metrics = metrics || [];
       if (series.length) {
@@ -512,6 +520,7 @@ class NewMetricChart extends CommonSimpleChart {
         const isBar = this.panel.options?.time_series?.type === 'bar';
         const width = this.$el?.getBoundingClientRect?.()?.width;
         const xInterval = getTimeSeriesXInterval(maxXInterval, width || this.width, maxSeriesCount);
+
         this.options = Object.freeze(
           deepmerge(echartOptions, {
             animation: hasShowSymbol,
@@ -595,9 +604,8 @@ class NewMetricChart extends CommonSimpleChart {
     return Math.random().toString(36).substr(2, 9);
   }
   getCopyPanel() {
-    const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
+    const [startTime, endTime] = this.handleTime();
     let copyPanel = JSON.parse(JSON.stringify(this.panel));
-
     const targets = copyPanel.targets.map(item => ({
       ...item,
       api: 'grafana.graphUnifyQuery',
@@ -622,11 +630,11 @@ class NewMetricChart extends CommonSimpleChart {
     return copyPanel;
   }
   /** 工具栏各个icon的操作 */
-  handleIconClick(menuItem) {
+  handleIconClick(menuItem: { id: string; text: string; icon: string }, ind: number) {
     switch (menuItem.id) {
       /** 维度下钻 */
       case 'drillDown':
-        this.$emit('drillDown', this.panel);
+        this.$emit('drillDown', this.panel, ind);
         break;
       case 'screenshot': // 保存到本地
         setTimeout(() => {
@@ -679,6 +687,57 @@ class NewMetricChart extends CommonSimpleChart {
     const copyPanel: PanelModel = this.getCopyPanel();
     this.handleAddStrategy(copyPanel, metric, {});
   }
+
+  renderToolIconList() {
+    return this.handleIconList.map(item => {
+      if (this.panel?.targets?.length > 1 && item.id === 'drillDown') {
+        return (
+          <bk-dropdown-menu
+            align={'right'}
+            trigger={'click'}
+          >
+            <div slot='dropdown-trigger'>
+              <i
+                key={item.id}
+                class={`icon-monitor ${item.icon} menu-list-icon`}
+                v-bk-tooltips={{
+                  content: this.$t(item.text),
+                  delay: 200,
+                }}
+              ></i>
+            </div>
+            <ul
+              class='metric-dropdown-list-tool'
+              slot='dropdown-content'
+            >
+              {this.panel.targets.map((target, ind) => {
+                return (
+                  <li
+                    key={target.metric?.name}
+                    class='metric-dropdown-item-tool'
+                    onClick={() => this.handleIconClick(item, ind)}
+                  >
+                    <span>{target.metric?.name}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </bk-dropdown-menu>
+        );
+      }
+      return (
+        <i
+          key={item.id}
+          class={`icon-monitor ${item.icon} menu-list-icon`}
+          v-bk-tooltips={{
+            content: this.$t(item.text),
+            delay: 200,
+          }}
+          onClick={() => this.handleIconClick(item, 0)}
+        ></i>
+      );
+    });
+  }
   render() {
     return (
       <div class='new-metric-chart'>
@@ -710,17 +769,7 @@ class NewMetricChart extends CommonSimpleChart {
               class='icon-tool-list'
               slot='iconList'
             >
-              {this.handleIconList.map(item => (
-                <i
-                  key={item.id}
-                  class={`icon-monitor ${item.icon} menu-list-icon`}
-                  v-bk-tooltips={{
-                    content: this.$t(item.text),
-                    delay: 200,
-                  }}
-                  onClick={() => this.handleIconClick(item)}
-                ></i>
-              ))}
+              {this.renderToolIconList()}
             </span>
           )}
         </ChartHeader>

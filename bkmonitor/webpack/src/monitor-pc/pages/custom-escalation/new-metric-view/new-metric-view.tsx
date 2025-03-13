@@ -51,11 +51,11 @@ export default class NewMetricView extends tsc<object> {
   }
 
   get graphConfigParams() {
-    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
+    // const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
     return {
       ...this.dimenstionParams,
-      start_time: startTime,
-      end_time: endTime,
+      start_time: this.startTime,
+      end_time: this.endTime,
       time_series_group_id: this.timeSeriesGroupId,
     };
   }

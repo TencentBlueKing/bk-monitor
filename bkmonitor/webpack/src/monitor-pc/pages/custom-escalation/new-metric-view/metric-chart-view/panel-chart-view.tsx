@@ -26,6 +26,7 @@
 import { Component, Watch, Prop, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import customEscalationViewStore from '@store/modules/custom-escalation-view';
 import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
@@ -79,6 +80,11 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   handleColumnNumChange() {
     this.handleCollapseChange();
   }
+  /** 是否需要展示统计值 */
+  @Watch('isShowStatisticalValue', { immediate: true })
+  handleShowStatisticalValueChange() {
+    this.handleCollapseChange();
+  }
   /** 每列展示的个数 */
   get columnNum() {
     return this.config.view_column || 3;
@@ -91,6 +97,9 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
   get isHighlightPeakValue() {
     return this.config?.highlight_peak_value || false;
   }
+  get baseHeight() {
+    return this.isShowStatisticalValue ? DEFAULT_HEIGHT : 300;
+  }
 
   /** 重新获取对应的高度 */
   handleCollapseChange() {
@@ -101,16 +110,17 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       this.collapseRefsHeight[ind] = [];
       Array(len)
         .fill(0)
-        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.columnNum)] = DEFAULT_HEIGHT));
+        .map((_, index) => (this.collapseRefsHeight[ind][Math.floor(index / this.columnNum)] = this.baseHeight));
     });
   }
   /** 获取图表配置 */
   getGroupList() {
     this.loading = true;
-    const { show_statistical_value, view_column, highlight_peak_value, bk_biz_id, compare, ...rest } = this.config;
+    const { show_statistical_value, view_column, highlight_peak_value, compare, ...rest } = this.config;
+    const [startTime, endTime] = customEscalationViewStore.timeRangTimestamp;
     const params = compare?.type ? { ...rest, compare } : rest;
 
-    getCustomTsGraphConfig(params)
+    getCustomTsGraphConfig({ ...params, start_time: startTime, end_time: endTime })
       .then(res => {
         this.loading = false;
         this.groupList = res.groups || [];
@@ -130,6 +140,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
         <LayoutChartTable
           height={this.collapseRefsHeight[ind][Math.floor(chartInd / this.columnNum)]}
           config={this.config}
+          isShowStatisticalValue={this.isShowStatisticalValue}
           panel={chart}
           onResize={height => this.handleResize(height, ind, chartInd)}
         ></LayoutChartTable>
