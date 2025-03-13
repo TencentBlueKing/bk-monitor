@@ -32,6 +32,8 @@ import { APIType } from './api-utils';
 import EventExplore from './event-explore';
 
 import type { IFormData } from './typing';
+
+import './apm-event-explore.scss';
 const APM_EVENT_DATA_ID = 'builtin';
 @Component
 export default class ApmEventExplore extends tsc<object> {
@@ -137,6 +139,7 @@ export default class ApmEventExplore extends tsc<object> {
   render() {
     return (
       <EventExplore
+        class={'apm-event-explore'}
         dataId={APM_EVENT_DATA_ID}
         dataSourceLabel={'apm'}
         filter_dict={this.filter_dict}

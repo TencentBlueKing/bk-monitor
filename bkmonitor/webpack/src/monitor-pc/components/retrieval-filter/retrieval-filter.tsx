@@ -408,42 +408,44 @@ export default class RetrievalFilter extends tsc<IProps> {
                 <span class='icon-monitor icon-tongyishezhi' />
               </div>
             )}
-            <bk-popover
-              class='favorite-btn'
-              ext-cls='favorite-btn-popover'
-              tippy-options={{
-                trigger: 'click',
-                interactive: true,
-                theme: 'light',
-              }}
-              disabled={!this.selectFavorite}
-              placement='bottom'
-            >
-              <div onClick={this.handleFavoriteClick}>
-                {this.selectFavorite ? (
-                  <span class='icon-monitor icon-a-savebaocun' />
-                ) : (
-                  <span class='icon-monitor icon-mc-uncollect' />
-                )}
-              </div>
-              <div
-                class='favorite-btn-popover-content'
-                slot='content'
+            {!this.isQsOperateWrapBottom && (
+              <bk-popover
+                class='favorite-btn'
+                ext-cls='favorite-btn-popover'
+                tippy-options={{
+                  trigger: 'click',
+                  interactive: true,
+                  theme: 'light',
+                }}
+                disabled={!this.selectFavorite}
+                placement='bottom'
               >
-                <div
-                  class='favorite-btn-item'
-                  onClick={() => this.handleFavorite(true)}
-                >
-                  {this.$t('覆盖当前收藏')}
+                <div onClick={this.handleFavoriteClick}>
+                  {this.selectFavorite ? (
+                    <span class='icon-monitor icon-a-savebaocun' />
+                  ) : (
+                    <span class='icon-monitor icon-mc-uncollect' />
+                  )}
                 </div>
                 <div
-                  class='favorite-btn-item'
-                  onClick={() => this.handleFavorite(false)}
+                  class='favorite-btn-popover-content'
+                  slot='content'
                 >
-                  {this.$t('另存为新收藏')}
+                  <div
+                    class='favorite-btn-item'
+                    onClick={() => this.handleFavorite(true)}
+                  >
+                    {this.$t('覆盖当前收藏')}
+                  </div>
+                  <div
+                    class='favorite-btn-item'
+                    onClick={() => this.handleFavorite(false)}
+                  >
+                    {this.$t('另存为新收藏')}
+                  </div>
                 </div>
-              </div>
-            </bk-popover>
+              </bk-popover>
+            )}
             <div
               class='search-btn'
               onClick={this.handleClickSearchBtn}
