@@ -556,6 +556,8 @@ class GetCustomTsFields(Resource):
                         "description": item.description,
                         "disabled": item.disabled,
                         "common": item.config.get("common", False),
+                        "create_time": item.create_time.timestamp() if item.create_time else None,
+                        "update_time": item.update_time.timestamp() if item.update_time else None,
                     }
                 )
             else:
@@ -572,6 +574,8 @@ class GetCustomTsFields(Resource):
                         "interval": item.config.get("interval", 0),
                         "label": item.config.get("label", []),
                         "dimensions": item.config.get("dimensions", []),
+                        "create_time": item.create_time.timestamp() if item.create_time else None,
+                        "update_time": item.update_time.timestamp() if item.update_time else None,
                     }
                 )
         return {"dimensions": dimensions, "metrics": metrics}

@@ -93,6 +93,9 @@ class CustomTSField(models.Model):
     disabled = models.BooleanField("禁用字段", default=False)
     config = models.JSONField("字段配置", default=dict)
 
+    create_time = models.DateTimeField("创建时间", auto_now_add=True, null=True)
+    update_time = models.DateTimeField("修改时间", auto_now=True, null=True)
+
 
 class CustomTSTable(OperateRecordModelBase):
     """
