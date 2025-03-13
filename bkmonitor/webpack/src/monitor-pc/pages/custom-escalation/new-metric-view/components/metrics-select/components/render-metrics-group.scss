@@ -1,0 +1,70 @@
+.new-metric-view-metrics-group {
+  padding: 24px 8px 24px 10px;
+  height: calc(100% - 100px);
+  overflow-y: auto;
+  .metrics-select-box {
+    & ~ .metrics-select-box {
+      margin-top: 6px;
+    }
+  }
+  .metrics-select-item-header {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    height: 32px;
+    border-radius: 2px;
+    color: #313238;
+    cursor: pointer;
+    transition: all 0.15s;
+    padding: 0px 8px 0 6px;
+    font-family: PingFangSC-Medium;
+    font-weight: 500;
+    margin-bottom: 2px;
+
+    .icon-monitor {
+      margin-right: 6px;
+      color: #979ba5;
+    }
+    &:hover {
+      background: #f5f7fa;
+      .metric-demension-count {
+        color: #3a84ff;
+        .select-all {
+          display: block;
+        }
+      }
+    }
+  }
+  .metric-group-name {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    line-height: 32px;
+  }
+  .metric-demension-count {
+    margin-left: auto;
+    color: #a3b1cc;
+    font-weight: bold;
+    font-size: 12px;
+    display: flex;
+    .select-all {
+      display: none;
+      padding-left: 10px;
+    }
+  }
+  .metrics-select-item-content {
+    position: relative;
+
+    &:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 7px;
+      top: 0;
+      width: 1px;
+      background: #dcdee5;
+    }
+  }
+}

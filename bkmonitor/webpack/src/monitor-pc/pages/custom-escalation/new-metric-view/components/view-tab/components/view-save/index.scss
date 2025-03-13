@@ -1,0 +1,31 @@
+.metric-view-view-save-btn {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover,
+  &.is-active {
+    background: #f5f7fa;
+  }
+}
+
+.tippy-tooltip.metric-view-view-save-panel-theme {
+  padding: 4px 0;
+  background-color: #fff;
+  .item {
+    font-size: 12px;
+    color: #4d4f56;
+    line-height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+}

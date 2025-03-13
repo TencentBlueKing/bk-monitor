@@ -19,6 +19,8 @@ export const deleteCustomTimeSeries = request('POST', 'rest/v2/custom_metric_rep
 export const addCustomMetric = request('POST', 'rest/v2/custom_metric_report/add_custom_metric/');
 export const getCustomTsFields = request('GET', 'rest/v2/custom_metric_report/get_custom_ts_fields/');
 export const modifyCustomTsFields = request('POST', 'rest/v2/custom_metric_report/modify_custom_ts_fields/');
+export const importCustomTimeSeriesFields = request('POST', 'rest/v2/custom_metric_report/import_custom_time_series_fields/');
+export const exportCustomTimeSeriesFields = request('POST', 'rest/v2/custom_metric_report/export_custom_time_series_fields/');
 export const createOrUpdateGroupingRule = request('POST', 'rest/v2/custom_metric_report/create_or_update_grouping_rule/');
 export const customTsGroupingRuleList = request('GET', 'rest/v2/custom_metric_report/custom_ts_grouping_rule_list/');
 export const previewGroupingRule = request('POST', 'rest/v2/custom_metric_report/preview_grouping_rule/');
@@ -48,6 +50,8 @@ export default {
   addCustomMetric,
   getCustomTsFields,
   modifyCustomTsFields,
+  importCustomTimeSeriesFields,
+  exportCustomTimeSeriesFields,
   createOrUpdateGroupingRule,
   customTsGroupingRuleList,
   previewGroupingRule,
