@@ -1,6 +1,6 @@
 .retrieval-filter__qs-selector-options-component {
   display: flex;
-  height: 400px;
+  min-height: 400px;
 
   .mr-2 {
     margin-right: 2px;
@@ -82,9 +82,25 @@
               background-color: rgba(0, 0, 0, 0.1); /* 半透明红色 */
             }
           }
+
         }
 
-        
+        .subtitle-text {
+          position: absolute;
+          top: 0;
+          left: 36%;
+          font-family: "Microsoft Yahei", pingFang-SC-Regular, Helvetica, Aria, sans-serif;
+          font-size: 12px;
+          line-height: 30px;
+          color: #979ba5;
+
+          .subtitle-text-tag {
+            padding: 0 4px;
+            font-family: Roboto Mono, Consolas, Menlo, Courier, monospace;
+            color: #313238;
+            background-color: #f4f6fa;
+          }
+        }
       }
     }
 

@@ -65,8 +65,6 @@ export default class SettingKvSelector extends tsc<IProps> {
 
   localValue: string[] = [];
   localMethod = '';
-  optionsLoading = false;
-  resizeObserver = null;
   /* 是否展开所有元素 */
   expand = false;
   popoverInstance = null;
@@ -78,6 +76,9 @@ export default class SettingKvSelector extends tsc<IProps> {
   /* 是否通过上下键悬停下拉选项 */
   isChecked = false;
   hideIndex = -1;
+
+  resizeObserver = null;
+  optionsWidth = 0;
 
   get tagList() {
     return this.localValue;
@@ -112,6 +113,14 @@ export default class SettingKvSelector extends tsc<IProps> {
 
   mounted() {
     this.overviewCount();
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { offsetWidth } = entry.target;
+        this.optionsWidth = offsetWidth;
+      }
+    });
+    const valueWrap = this.$el.querySelector('.component-main > .value-wrap') as any;
+    this.resizeObserver.observe(valueWrap); // 开始监听
   }
 
   @Watch('tagList')
@@ -293,7 +302,12 @@ export default class SettingKvSelector extends tsc<IProps> {
           <span class='key-wrap'>{this.value?.key}</span>
           <span class='method-wrap'>
             <bk-dropdown-menu trigger='click'>
-              <span slot='dropdown-trigger'>{METHOD_MAP[this.localMethod]}</span>
+              <span
+                class='method-span'
+                slot='dropdown-trigger'
+              >
+                {METHOD_MAP[this.localMethod]}
+              </span>
               <ul
                 class='method-list-wrap'
                 slot='dropdown-content'
@@ -336,7 +350,7 @@ export default class SettingKvSelector extends tsc<IProps> {
                 />
               </span>,
             ])}
-            {this.expand && (
+            {(this.expand || !this.tagList.length) && (
               <AutoWidthInput
                 height={22}
                 isFocus={this.isFocus}
@@ -346,19 +360,19 @@ export default class SettingKvSelector extends tsc<IProps> {
                 onInput={this.handleInput}
               />
             )}
+            {this.isHover && this.tagList.length ? (
+              <div class='delete-btn'>
+                <span
+                  class='icon-monitor icon-mc-close-fill'
+                  onClick={this.handleClear}
+                />
+              </div>
+            ) : (
+              <div class='expand-btn'>
+                <span class='icon-monitor icon-arrow-down' />
+              </div>
+            )}
           </div>
-          {this.isHover && this.tagList.length ? (
-            <div
-              class='delete-btn'
-              onClick={this.handleClear}
-            >
-              <span class='icon-monitor icon-mc-close-fill' />
-            </div>
-          ) : (
-            <div class='expand-btn'>
-              <span class='icon-monitor icon-arrow-down' />
-            </div>
-          )}
         </div>
         <div style='display: none;'>
           <div
@@ -366,6 +380,7 @@ export default class SettingKvSelector extends tsc<IProps> {
             class='resident-setting__setting-kv-selector-component-pop'
           >
             <ValueOptions
+              width={this.optionsWidth}
               checkedItem={this.field}
               getValueFn={this.getValueFn}
               isPopover={true}

@@ -28,6 +28,11 @@
     border: 1px solid #C4C6CC;
     border-radius: 2px;
 
+    &.active {
+      border-color: #3a84ff;
+      box-shadow: 0 0 4px rgba(58, 132, 255, .4);
+    }
+
     .placeholder-span {
       position: absolute;
       top: 0;

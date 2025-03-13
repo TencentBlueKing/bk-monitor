@@ -97,6 +97,7 @@ export default class QsSelector extends tsc<IProps> {
   };
 
   inputValue = '';
+  fieldsMap: Map<string, IFilterField> = new Map();
 
   onClickOutsideFn = () => {};
 
@@ -127,6 +128,13 @@ export default class QsSelector extends tsc<IProps> {
     this.handleAddKeyDownSlash();
   }
 
+  @Watch('fields', { immediate: true })
+  handleWatchFields() {
+    for (const item of this.fields) {
+      this.fieldsMap.set(item.name, item);
+    }
+  }
+
   mounted() {
     this.handleInit();
   }
@@ -146,6 +154,8 @@ export default class QsSelector extends tsc<IProps> {
           onChange: this.handleChange,
           onQuery: this.handleQuery,
           onInput: this.handleInput,
+          keyFormatter: this.fieldFormatter,
+          valueFormatter: this.valueFormatter,
         });
       }
     });
@@ -201,12 +211,16 @@ export default class QsSelector extends tsc<IProps> {
    * @returns
    */
   handlePopUp(type, field) {
-    console.log(type, field);
+    let fieldStr = field;
+    const regex = /^dimensions\./;
+    if (regex.test(field)) {
+      fieldStr = field.replace(regex, '');
+    }
     if (this.curTokenType === EQueryStringTokenType.condition && type === EQueryStringTokenType.key) {
       this.search = '';
     }
     this.curTokenType = type;
-    this.curTokenField = field;
+    this.curTokenField = fieldStr;
     const customEvent = {
       target: this.elRef,
     };
@@ -245,6 +259,7 @@ export default class QsSelector extends tsc<IProps> {
   /**
    * @description 查询
    */
+  @Debounce(200)
   handleQuery() {
     this.$emit('query');
   }
@@ -306,6 +321,37 @@ export default class QsSelector extends tsc<IProps> {
     } else {
       document.addEventListener('keydown', this.handleKeyDownSlash);
     }
+  }
+
+  /**
+   * @description
+   *  fields 中 is_dimensions=true 的，需要补充 dimensions
+   *  dimensions.xxxxx
+   * @param field
+   * @returns
+   */
+  fieldFormatter(field: string) {
+    const fieldItem = this.fieldsMap.get(field);
+    const regex = /^dimensions\./;
+    if (fieldItem?.is_dimensions && !regex.test(field)) {
+      return `dimensions.${field}`;
+    }
+    return field;
+  }
+
+  /**
+   * @description 语句模式 : (等于) 某个值的时候需要将值用双引号包裹
+
+   * @param field
+   * @param method
+   * @param value
+   */
+  valueFormatter(field: string, method: string, value: string) {
+    const regex = /^".*"$/;
+    if (field && method === ':' && !regex.test(value)) {
+      return `"${value}"`;
+    }
+    return value;
   }
 
   render() {
